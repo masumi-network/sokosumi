@@ -12407,7 +12407,6 @@
         "refreshing": "Cargando estadísticas de Google.",
         "refreshFailed": "No se pudieron cargar las estadísticas de Google. Inténtalo de nuevo.",
         "nextTitle": "El agente propone",
-        "firstStep": "Primer paso",
         "chart": "Gráfico que se muestra",
         "chartKeywords": "Búsquedas de palabras clave",
         "statistics": "{analytics, select, connected {Estadísticas de Google: Analytics conectado, aún sin sincronizar} missing {Estadísticas de Google: Analytics no conectado} other {Estadísticas de Google}}",
@@ -12467,7 +12466,6 @@
         "askHow": "Preparar un plan",
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "draftFix": "Pedir una corrección al agente",
-        "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",

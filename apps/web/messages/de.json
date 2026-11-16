@@ -12407,7 +12407,6 @@
         "refreshing": "Google-Statistiken werden geladen.",
         "refreshFailed": "Google-Statistiken konnten nicht geladen werden. Versuche es erneut.",
         "nextTitle": "Der Agent schlägt vor",
-        "firstStep": "Erster Schritt",
         "chart": "Angezeigtes Diagramm",
         "chartKeywords": "Keyword-Suchen",
         "statistics": "{analytics, select, connected {Google-Statistiken: Analytics verbunden, noch nicht synchronisiert} missing {Google-Statistiken: Analytics nicht verbunden} other {Google-Statistiken}}",
@@ -12467,7 +12466,6 @@
         "askHow": "Plan entwerfen",
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "draftFix": "Agent um Korrektur bitten",
-        "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {
           "title": "Geprüfte Keywords mit den meisten Suchen",

@@ -627,7 +627,7 @@ describe("SEO workspace integration", () => {
       figures.compareDocumentPosition(firstStep) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    const leadList = screen.getByRole("list", { name: "First step" });
+    const leadList = screen.getByRole("list", { name: "The agent proposes" });
     expect(
       within(leadList).getByText("Make the markup price match the page"),
     ).toBeVisible();
@@ -2781,9 +2781,6 @@ describe("SEO workspace integration", () => {
         "Connect Google Analytics to measure visits and page views.",
       ),
     ).toBeVisible();
-    await user.click(
-      screen.getByRole("button", { name: /^Show \d+ more steps?$/ }),
-    );
     expect(
       screen.getAllByText(
         "Connect Google Analytics to measure visits and page views.",
@@ -4998,10 +4995,7 @@ describe("SEO workspace integration", () => {
     // "Keep these keywords" asks for nothing: the card does not say it.
     workspace.strategy.verdict = "keep";
     renderWorkspace(workspace);
-    // The step is one row that leads to the list: the whole row is the button. It waits behind the fold.
-    await user.click(
-      await screen.findByRole("button", { name: /^Show \d+ more steps?$/ }),
-    );
+    // The step is one row that leads to the list: the whole row is the button.
     const step = await screen.findByRole("button", {
       name: "3 actions from the keyword strategy",
     });
@@ -5189,11 +5183,6 @@ describe("SEO workspace integration", () => {
       },
     ];
     const third = renderWorkspace(workspace, "?tab=agent");
-    await userEvent
-      .setup()
-      .click(
-        await screen.findByRole("button", { name: /^Show \d+ more steps?$/ }),
-      );
     await userEvent.setup().click(
       await screen.findByRole("button", {
         name: "5 actions from the keyword strategy",
@@ -5763,7 +5752,7 @@ describe("SEO workspace integration", () => {
     // The lead row is short: its reasons are in the dialog it opens.
     expect(screen.queryByText("The title is missing")).toBeNull();
     const [leadRow] = within(
-      screen.getByRole("list", { name: "First step" }),
+      screen.getByRole("list", { name: "The agent proposes" }),
     ).getAllByRole("button");
     await user.click(leadRow!);
     const dialog = await screen.findByRole("dialog");
@@ -5988,7 +5977,7 @@ describe("SEO workspace integration", () => {
       await screen.findAllByRole("button", { name: "Create draft task" }),
     ).toHaveLength(1);
     expect(screen.queryByText("Reason and evidence")).toBeNull();
-    const leadList = screen.getByRole("list", { name: "First step" });
+    const leadList = screen.getByRole("list", { name: "The agent proposes" });
     const leadRow = within(leadList).getByRole("button", {
       name: /^Fix the page title/,
     });
@@ -6002,23 +5991,23 @@ describe("SEO workspace integration", () => {
     expect(
       within(leadList).getByRole("button", { name: "Create draft task" }),
     ).toBeVisible();
-    // The other fixes wait behind one press; open, every one of them is a row.
-    expect(screen.queryByText("Write a description")).toBeNull();
-    const more = screen.getByRole("button", { name: /^Show \d+ more steps?$/ });
-    expect(more).toHaveAttribute("aria-expanded", "false");
-    await user.click(more);
-    expect(more).toHaveAttribute("aria-expanded", "true");
+    // Every fix is a row of the same list, right after the first: no press hides them.
+    expect(screen.queryByRole("button", { name: /more steps?$/ })).toBeNull();
     expect(screen.getByText("Describe the images")).toBeVisible();
     const row = screen.getByText("Write a description").closest("li");
     expect(row).not.toBeNull();
-    // The other steps open right under the first, in the verdict card.
+    expect(leadList).toContainElement(row);
     expect(
-      screen.getByTestId("seo-agent-verdict").parentElement,
-    ).toContainElement(row);
-    // They open after the press in reading order, so the next Tab reaches them.
-    expect(
-      more.compareDocumentPosition(row!) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      within(leadList)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent?.slice(0, 18)),
+    ).toEqual([
+      expect.stringMatching(/^Fix the page title/),
+      "Write a descriptio",
+      "Add a main heading",
+      "Describe the image",
+      "No competitor has ",
+    ]);
     // One page: the row needs no page.
     expect(within(row!).queryByRole("link")).toBeNull();
     // The whole row is the control: no second button repeats it.
@@ -6085,9 +6074,6 @@ describe("SEO workspace integration", () => {
       title: "Write a guide",
     };
     renderWorkspace(workspace, "?tab=agent");
-    await user.click(
-      await screen.findByRole("button", { name: /^Show \d+ more steps?$/ }),
-    );
     const paged = screen.getByText("Write a description").closest("li");
     expect(within(paged!).getByText("/pricing")).toBeVisible();
     // The row of a suggestion does not call it a fix.
@@ -6100,7 +6086,9 @@ describe("SEO workspace integration", () => {
     // Without an action the one step sits in the verdict card: no list follows the pictures.
     workspace.actions = [];
     renderWorkspace(workspace, "?tab=agent");
-    const firstStep = await screen.findByRole("list", { name: "First step" });
+    const firstStep = await screen.findByRole("list", {
+      name: "The agent proposes",
+    });
     expect(firstStep).toBeVisible();
     // Inside the card the step has no frame of its own.
     expect(within(firstStep).getByRole("listitem")).not.toHaveClass("border");
@@ -6272,7 +6260,9 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace, "?tab=agent");
-    const first = await screen.findByRole("list", { name: "First step" });
+    const first = await screen.findByRole("list", {
+      name: "The agent proposes",
+    });
     expect(within(first).getByText(/^Fix the page title/)).toBeVisible();
     served = {
       ...workspace,
@@ -6292,22 +6282,22 @@ describe("SEO workspace integration", () => {
     // The next action leads in the card. Focus left with the pressed button, so it goes to the verdict.
     await waitFor(() =>
       expect(
-        within(screen.getByRole("list", { name: "First step" })).getByText(
-          /^Write a description/,
-        ),
+        within(
+          screen.getByRole("list", { name: "The agent proposes" }),
+        ).getByText(/^Write a description/),
       ).toBeVisible(),
     );
     const verdict = screen.getByTestId("seo-agent-verdict");
     expect(verdict).toHaveFocus();
     // Focus that left the list by a click on the page moves no focus when the lead changes.
     act(() =>
-      within(screen.getByRole("list", { name: "First step" }))
+      within(screen.getByRole("list", { name: "The agent proposes" }))
         .getByRole("button", { name: "Create draft task" })
         .focus(),
     );
-    expect(screen.getByRole("list", { name: "First step" })).toContainElement(
-      document.activeElement as HTMLElement,
-    );
+    expect(
+      screen.getByRole("list", { name: "The agent proposes" }),
+    ).toContainElement(document.activeElement as HTMLElement);
     await user.click(document.body);
     expect(document.activeElement).toBe(document.body);
     served = {
@@ -6323,16 +6313,15 @@ describe("SEO workspace integration", () => {
       ),
     };
     fireEvent.click(
-      within(screen.getByRole("list", { name: "First step" })).getByRole(
-        "button",
-        { name: "Create draft task" },
-      ),
+      within(
+        screen.getByRole("list", { name: "The agent proposes" }),
+      ).getByRole("button", { name: "Create draft task" }),
     );
     await waitFor(() =>
       expect(
-        within(screen.getByRole("list", { name: "First step" })).getByText(
-          /^Describe the images/,
-        ),
+        within(
+          screen.getByRole("list", { name: "The agent proposes" }),
+        ).getByText(/^Describe the images/),
       ).toBeVisible(),
     );
     expect(verdict).not.toHaveFocus();
@@ -6366,9 +6355,6 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace, "?tab=agent");
-    await user.click(
-      await screen.findByRole("button", { name: /^Show \d+ more steps?$/ }),
-    );
     await user.click(
       screen.getByRole("button", { name: /^Write a description/ }),
     );

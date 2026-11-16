@@ -12407,7 +12407,6 @@
         "refreshing": "Loading Google statistics.",
         "refreshFailed": "Google statistics could not load. Try again.",
         "nextTitle": "The agent proposes",
-        "firstStep": "First step",
         "chart": "Picture to show",
         "chartKeywords": "Keyword searches",
         "statistics": "{analytics, select, connected {Google statistics: Analytics connected, not synced yet} missing {Google statistics: Analytics not connected} other {Google statistics}}",
@@ -12467,7 +12466,6 @@
         "askHow": "Draft a plan",
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "draftFix": "Ask the agent for a fix",
-        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
         "statisticsMissing": "Statistics are not set up",
         "demand": {
           "title": "Checked keywords with the most searches",

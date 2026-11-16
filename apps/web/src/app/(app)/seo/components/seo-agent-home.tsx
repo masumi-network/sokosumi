@@ -1,14 +1,9 @@
 "use client";
 
-import { ChevronDown, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -123,7 +118,6 @@ function SeoAgentPanel({
           step !== analyticsStep &&
           !(step.kind === "refresh" && statisticsSync.state === "failed"),
       );
-  const [showAllSteps, setShowAllSteps] = useState(false);
   // The first proposal with its own button is the lead step. An action shows as a row with its finding and its
   // tinted draft button; any other step carries the one brand fill of the tab (owner, after pass 59). The run
   // keeps the secondary look. A refresh step has no button of its own: its retry is in the verdict card.
@@ -137,7 +131,7 @@ function SeoAgentPanel({
             ? false
             : step.kind !== "action" || (canEdit && !step.action.taskId),
       );
-  // The lead step sits in the verdict card, with the rest folded under it.
+  // The lead step opens the list of steps in the verdict card.
   const lead = primary === -1 ? undefined : steps[primary];
   // A Task for the lead action takes it out of the card, and its button with it. Focus that fell to the
   // page moves to the verdict, where the next first step now stands.
@@ -337,64 +331,33 @@ function SeoAgentPanel({
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
           {lead ? (
-            // The verdict and its steps are one card: the headline says what is wrong, the first step under it
-            // what to do first, and the other steps wait behind one press right under that step.
-            <div className="-mx-4 -mb-4 border-t">
-              <ul
-                role="list"
-                aria-label={t("agent.firstStep")}
-                onFocus={() => {
-                  leadFocused.current = true;
-                }}
-                onBlur={(event) => {
-                  // Focus that moved on, or went to the page by a click, has left. Focus whose element is gone,
-                  // or whose window lost focus, still counts as in the list.
-                  if (
-                    event.relatedTarget ||
-                    (document.hasFocus() && event.target.isConnected)
-                  )
-                    leadFocused.current = false;
-                }}
-              >
-                {stepItem(lead, primary)}
-              </ul>
-              {steps.length > 1 ? (
-                <Collapsible open={showAllSteps} onOpenChange={setShowAllSteps}>
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-10 w-full justify-start rounded-none border-t px-4 data-[state=closed]:rounded-b-lg"
-                    >
-                      {showAllSteps
-                        ? t("overview.showLess")
-                        : t("agent.moreSteps", { count: steps.length - 1 })}
-                      <ChevronDown
-                        className={cn(
-                          "transition-transform duration-150 ease-out motion-reduce:transition-none",
-                          showAllSteps && "rotate-180",
-                        )}
-                      />
-                    </Button>
-                  </CollapsibleTrigger>
-                  {/* The rows open under the press, in reading order: the press stays right under the first step. */}
-                  <CollapsibleContent>
-                    <ul
-                      role="list"
-                      aria-label={t("agent.nextTitle")}
-                      className={cn(
-                        SEO_ROW_LIST_CLASS,
-                        "rounded-none border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none",
-                      )}
-                    >
-                      {steps.map((step, index) =>
-                        index === primary ? null : stepItem(step, index),
-                      )}
-                    </ul>
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : null}
-            </div>
+            // The verdict and its steps are one card: the headline says what is wrong, and every step follows
+            // it in one list. The first step leads, with its button.
+            <ul
+              role="list"
+              aria-label={t("agent.nextTitle")}
+              className={cn(
+                SEO_ROW_LIST_CLASS,
+                "-mx-4 -mb-4 rounded-none rounded-b-lg border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none",
+              )}
+              onFocus={() => {
+                leadFocused.current = true;
+              }}
+              onBlur={(event) => {
+                // Focus that moved on, or went to the page by a click, has left. Focus whose element is gone,
+                // or whose window lost focus, still counts as in the list.
+                if (
+                  event.relatedTarget ||
+                  (document.hasFocus() && event.target.isConnected)
+                )
+                  leadFocused.current = false;
+              }}
+            >
+              {stepItem(lead, primary)}
+              {steps.map((step, index) =>
+                index === primary ? null : stepItem(step, index),
+              )}
+            </ul>
           ) : null}
         </div>
       )}
