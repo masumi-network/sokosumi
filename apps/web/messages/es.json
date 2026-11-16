@@ -12410,6 +12410,13 @@
         "firstStep": "Primer paso",
         "chart": "Gráfico que se muestra",
         "chartKeywords": "Búsquedas de palabras clave",
+        "statistics": "{analytics, select, connected {Estadísticas de Google: Search Console y Analytics conectados} missing {Estadísticas de Google: Search Console conectado, Analytics no conectado} other {Estadísticas de Google}}",
+        "figures": {
+          "label": "Cifras clave",
+          "rankings": "{depth, select, same {{found} de {read} en los primeros {max} resultados} range {{found} de {read} en los primeros {min} a {max} resultados} other {{found} de {read} en los primeros resultados}}",
+          "searches": "{partial, select, yes {{total} búsquedas al mes para {keywords} de {of} palabras clave} other {{total} búsquedas al mes}}",
+          "traffic": "{clicks, plural, one {# clic} other {# clics}} · {impressions, plural, one {# impresión} other {# impresiones}}"
+        },
         "nothingNext": "No hay tareas pendientes. Las estadísticas de Google se cargan automáticamente para las páginas seleccionadas y se actualizan cuando sea necesario.",
         "steps": {
           "refresh": {
@@ -12459,11 +12466,8 @@
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
-        "openTraffic": "Abrir tráfico",
-        "openRankings": "Abrir posiciones",
         "draftFix": "Pedir una corrección al agente",
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
-        "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",
@@ -12668,15 +12672,10 @@
         "issues": "Problemas",
         "issuesNone": "Ninguno encontrado",
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
-        "keywords": "Palabras clave en los primeros resultados de Google",
         "of": "de {total}",
-        "searches": "Búsquedas de tus palabras clave",
-        "searchesFor": "Para {keywords} de {of} palabras clave comprobadas",
         "tests": "Pruebas completadas",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
-        "testsAll": "Todas las pruebas tienen resultado",
-        "aMonth": "al mes",
-        "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
+        "testsAll": "Todas las pruebas tienen resultado"
       },
       "traffic": {
         "searchType": "Tipo de búsqueda",

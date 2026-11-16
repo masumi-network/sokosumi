@@ -22,8 +22,11 @@ const PLOT_CLASS = "relative mr-14";
  */
 export function SeoDemandChart({
   demand,
+  onOpenKeyword,
 }: {
   demand: ReturnType<typeof seoKeywordDemand>;
+  /** Opens the keyword where its results are listed. */
+  onOpenKeyword: (keyword: string) => void;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -89,7 +92,13 @@ export function SeoDemandChart({
               >
                 <p className="flex items-baseline justify-between gap-x-2 max-sm:pt-1.5">
                   <span className="min-w-0 truncate">
-                    <bdi>{row.keyword}</bdi>
+                    <button
+                      type="button"
+                      className="focus-visible:ring-ring hit-area max-w-full cursor-pointer truncate rounded-sm text-left underline-offset-4 outline-none hover:underline focus-visible:ring-2"
+                      onClick={() => onOpenKeyword(row.keyword)}
+                    >
+                      <bdi>{row.keyword}</bdi>
+                    </button>
                     {demand.manyMarkets ? (
                       <span className="text-muted-foreground text-xs">
                         {" "}

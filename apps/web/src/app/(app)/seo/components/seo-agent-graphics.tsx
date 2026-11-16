@@ -53,7 +53,7 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   if (!clicks && !demand.rows.length) return null;
   return (
     <div
-      className="bg-background min-w-0 space-y-3 rounded-lg border p-3"
+      className="bg-background min-w-0 space-y-4 rounded-lg border p-4"
       data-testid="seo-agent-graphics"
     >
       {both ? (
@@ -91,7 +91,14 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
           markers={seoChartMarkers(model.data, clicks.timeZone)}
         />
       ) : (
-        <SeoDemandChart demand={demand} />
+        <SeoDemandChart
+          demand={demand}
+          onOpenKeyword={(keyword) => {
+            // The Rankings tab opens filtered to the keyword.
+            model.setKeywordSearch(keyword);
+            void model.setFilters({ tab: "rankings" });
+          }}
+        />
       )}
     </div>
   );

@@ -5,17 +5,24 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoActionCard } from "./seo-actions";
+import { SeoAgentFigures } from "./seo-agent-figures";
 import { SeoAgentGraphics } from "./seo-agent-graphics";
 import {
   type SeoAgentBrief,
   type SeoAgentStep,
   seoAgentBrief,
 } from "./seo-agent-model";
+import { SeoAgentStatistics } from "./seo-agent-statistics";
 import {
   SeoActionDialog,
   SeoActionStepRow,
@@ -30,20 +37,11 @@ import { seoRarelyShown } from "./seo-performance-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning } from "./seo-setup-model";
-import {
-  SEO_ROW_LIST_CLASS,
-  SeoDate,
-  SeoPeriod,
-  seoFoldCount,
-} from "./seo-shared";
+import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
-import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
-
-/** Next steps past this count fold behind a "show more" button: three choices are enough to start. */
-const SEO_AGENT_VISIBLE_STEPS = 3;
 
 /** The SEO agent is the first thing on an Audit: what it knows and what it proposes. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
@@ -109,30 +107,36 @@ function SeoAgentPanel({
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",
   );
-  // Until the first check has a result, the setup card is the one thing to do: no step shows with it.
+  // Google Analytics has its own line at the top of the tab, with the statistics settings.
+  const analyticsStep = brief.steps.find(
+    (step): step is Extract<SeoAgentStep, { kind: "connect" }> =>
+      step.kind === "connect" && step.provider === "ga4",
+  );
+  // Until the first check has a result, the setup card is the one thing to do: no step shows with it. A failed
+  // sync has its alert and Retry in the verdict card, so the refresh step would say it twice.
   const steps = setup
     ? []
-    : brief.steps.filter((step) => step !== statisticsStep);
+    : brief.steps.filter(
+        (step) =>
+          step !== statisticsStep &&
+          step !== analyticsStep &&
+          !(step.kind === "refresh" && statisticsSync.state === "failed"),
+      );
   const [showAllSteps, setShowAllSteps] = useState(false);
-  const visibleSteps = seoFoldCount(steps.length, SEO_AGENT_VISIBLE_STEPS);
-  const shown = showAllSteps ? steps : steps.slice(0, visibleSteps);
   // The first proposal with its own button is the lead step: an action shows as a card. It carries the one
-  // brand fill of the tab (owner, after pass 59); the run keeps the secondary look.
+  // brand fill of the tab (owner, after pass 59); the run keeps the secondary look. A refresh step has no
+  // button of its own: its retry is in the verdict card.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  // It comes from the steps before the fold, so showing more steps never moves a step into the verdict card.
   const primary = setup?.next
     ? -1
-    : steps.slice(0, visibleSteps).findIndex((step) =>
+    : steps.findIndex((step) =>
         step.kind === "competitors"
           ? canEdit && (canRequestAnalysis || !step.available)
-          : step.kind === "strategy"
+          : step.kind === "strategy" || step.kind === "refresh"
             ? false
-            : // A refresh has its retry button only after a failed sync.
-              step.kind === "refresh"
-              ? model.statisticsSync.state === "failed"
-              : step.kind !== "action" || (canEdit && !step.action.taskId),
+            : step.kind !== "action" || (canEdit && !step.action.taskId),
       );
-  // The lead step sits in the verdict card; the list under the pictures holds the rest.
+  // The lead step sits in the verdict card; the list under the pictures holds the rest, folded.
   const lead = primary === -1 ? undefined : steps[primary];
   // A Task for the lead action takes it out of the card, and its button with it. Focus that fell to the
   // page moves to the verdict, where the next first step now stands.
@@ -165,27 +169,6 @@ function SeoAgentPanel({
       )}`
     : "";
   const { actionSeverity } = seoOverviewModel(model.data);
-  // The actions lead the steps. The steps after them get their own list and label.
-  const firstOther = shown.findIndex((step) => step.kind !== "action");
-  const split = firstOther === -1 ? shown.length : firstOther;
-  const moreActions =
-    brief.fixes +
-    brief.opportunities -
-    steps.filter((step) => step.kind === "action").length;
-  const actionKind = brief.opportunities ? "action" : "fix";
-  // The keyword results as numbers. The issue count is in the headline; its tiles lead the Actions tab.
-  const tiles = (
-    <>
-      <SeoSummaryTiles
-        show="rankings"
-        workspace={model.data}
-        onOpenRankings={() => {
-          void model.setFilters({ tab: "rankings" });
-        }}
-      />
-      <SeoAgentGraphics model={model} />
-    </>
-  );
   // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
   // The setup card now keeps its own Google control while a check runs; the banner waits until setup ends.
   const banner =
@@ -273,12 +256,9 @@ function SeoAgentPanel({
     ) : statisticsSync.state === "failed" ? (
       <div role="alert" className="space-y-2 text-sm">
         <p className="text-destructive">{t("agent.refreshFailed")}</p>
-        {/* A refresh step under it has the retry button already. */}
-        {lead?.kind === "refresh" ? null : (
-          <Button size="sm" variant="outline" onClick={statisticsSync.retry}>
-            {t("retry")}
-          </Button>
-        )}
+        <Button size="sm" variant="outline" onClick={statisticsSync.retry}>
+          {t("retry")}
+        </Button>
       </div>
     ) : null;
   return (
@@ -300,6 +280,9 @@ function SeoAgentPanel({
       </p>
       {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
       {banner}
+      {analyticsStep && !setup ? (
+        <SeoAgentStatistics step={analyticsStep} model={model} />
+      ) : null}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
@@ -341,30 +324,12 @@ function SeoAgentPanel({
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
-          {traffic ? (
-            // The link is its own item: when it wraps, no separator leads its line.
-            <p
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
-              data-testid="seo-agent-traffic"
-            >
-              <span
-                id={periodId}
-                className={cn(trafficLead && "text-muted-foreground")}
-              >
-                {trafficLead ? null : `${trafficLine} · `}
-                <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
-              </span>
-              <button
-                type="button"
-                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-                onClick={() => {
-                  void model.setFilters({ tab: "traffic" });
-                }}
-              >
-                {t("agent.openTraffic")}
-              </button>
-            </p>
-          ) : null}
+          <SeoAgentFigures
+            model={model}
+            traffic={traffic}
+            periodId={periodId}
+            trafficLead={trafficLead}
+          />
           {firstCheck ? (
             // A narrowed view has no setup card, so the first check starts
             // here. The button stays while its check runs, so keyboard
@@ -415,76 +380,52 @@ function SeoAgentPanel({
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
-      {/* The numbers and the pictures are one block, in one place on every width. On a wide screen the tiles stand
-          one over the other beside the picture, so the steps after the first start as high as they can. The
-          two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
-      {setup ? null : (
-        <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
-          {tiles}
-        </div>
-      )}
+      {setup ? null : <SeoAgentGraphics model={model} />}
+      {/* The steps after the first wait behind one press: the tab shows the result, its first step and the
+          pictures. Without a first step nothing is above the list, so it shows open. */}
       {((setup || banner) && !steps.length) ||
-      (lead && steps.length === 1 && !moreActions) ? null : (
-        <div className="space-y-2">
-          {brief.issues ? null : (
-            <h3 className="px-2 text-sm font-semibold">
-              {t("agent.nextTitle")}
-            </h3>
-          )}
-          {steps.length ? (
+      (lead && steps.length === 1) ? null : steps.length ? (
+        <Collapsible
+          open={!lead || showAllSteps}
+          onOpenChange={setShowAllSteps}
+          className="space-y-2"
+        >
+          {lead ? (
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm">
+                {showAllSteps
+                  ? t("overview.showLess")
+                  : t("agent.moreSteps", { count: steps.length - 1 })}
+                <ChevronDown
+                  className={cn(
+                    "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                    showAllSteps && "rotate-180",
+                  )}
+                />
+              </Button>
+            </CollapsibleTrigger>
+          ) : null}
+          <CollapsibleContent className="space-y-2">
+            {brief.issues ? null : (
+              <h3 className="px-2 text-sm font-semibold">
+                {t("agent.nextTitle")}
+              </h3>
+            )}
             <ul
               role="list"
               aria-label={t("agent.nextTitle")}
               className={SEO_ROW_LIST_CLASS}
             >
-              {shown
-                .slice(0, split)
-                .map((step, index) =>
-                  index === primary ? null : stepItem(step, index),
-                )}
-              {moreActions ? (
-                // The Agent tab shows the first actions only: the rest must not look absent.
-                <SeoActionsLinkRow model={model}>
-                  {t("agent.moreActions", {
-                    count: moreActions,
-                    kind: actionKind,
-                  })}
-                </SeoActionsLinkRow>
-              ) : null}
-              {shown
-                .slice(split)
-                .map((step, index) =>
-                  index + split === primary
-                    ? null
-                    : stepItem(step, index + split),
-                )}
+              {steps.map((step, index) =>
+                index === primary ? null : stepItem(step, index),
+              )}
             </ul>
-          ) : (
-            <p className="text-muted-foreground max-w-prose px-2 text-sm">
-              {t("agent.nothingNext")}
-            </p>
-          )}
-          {steps.length > visibleSteps ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-expanded={showAllSteps}
-              onClick={() => setShowAllSteps((open) => !open)}
-            >
-              {showAllSteps
-                ? t("overview.showLess")
-                : t("agent.moreSteps", {
-                    count: steps.length - visibleSteps,
-                  })}
-              <ChevronDown
-                className={cn(
-                  "transition-transform duration-150 ease-out motion-reduce:transition-none",
-                  showAllSteps && "rotate-180",
-                )}
-              />
-            </Button>
-          ) : null}
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : (
+        <p className="text-muted-foreground max-w-prose px-2 text-sm">
+          {t("agent.nothingNext")}
+        </p>
       )}
       <SeoAutomation model={model} />
       <SeoActionDialog

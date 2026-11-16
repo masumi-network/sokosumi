@@ -589,11 +589,7 @@ export function SeoWorkspace({
             </TabsContent>
             {/* What to do first, then what the checks found: the health of the site stands under its fixes. */}
             <TabsContent value="actions" className="stagger space-y-6">
-              <SeoSummaryTiles
-                show="health"
-                workspace={model.data}
-                filters={model.filters}
-              />
+              <SeoSummaryTiles workspace={model.data} filters={model.filters} />
               <SeoActions model={model} />
               <SeoIndexTriage workspace={model.data} />
               <SeoIndexStatus model={model} />

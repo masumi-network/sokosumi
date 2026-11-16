@@ -12410,6 +12410,13 @@
         "firstStep": "Erster Schritt",
         "chart": "Angezeigtes Diagramm",
         "chartKeywords": "Keyword-Suchen",
+        "statistics": "{analytics, select, connected {Google-Statistiken: Search Console und Analytics verbunden} missing {Google-Statistiken: Search Console verbunden, Analytics nicht verbunden} other {Google-Statistiken}}",
+        "figures": {
+          "label": "Kennzahlen",
+          "rankings": "{depth, select, same {{found} von {read} in den Top {max} Ergebnissen} range {{found} von {read} in den Top {min} bis {max} Ergebnissen} other {{found} von {read} in den Top-Ergebnissen}}",
+          "searches": "{partial, select, yes {{total} Suchen pro Monat für {keywords} von {of} Keywords} other {{total} Suchen pro Monat}}",
+          "traffic": "{clicks, plural, one {# Klick} other {# Klicks}} · {impressions, plural, one {# Impression} other {# Impressionen}}"
+        },
         "nothingNext": "Es steht nichts an. Google-Statistiken werden für die ausgewählten Seiten automatisch geladen und bei Bedarf aktualisiert.",
         "steps": {
           "refresh": {
@@ -12459,11 +12466,8 @@
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
-        "openTraffic": "Zugriffe öffnen",
-        "openRankings": "Rankings öffnen",
         "draftFix": "Agent um Korrektur bitten",
         "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
-        "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {
           "title": "Geprüfte Keywords mit den meisten Suchen",
@@ -12668,15 +12672,10 @@
         "issues": "Probleme",
         "issuesNone": "Keine gefunden",
         "severityCount": "{count} {severity, select, critical {kritisch} major {mit großer Auswirkung} other {mit geringer Auswirkung}}",
-        "keywords": "Keywords in den ersten Google-Ergebnissen",
         "of": "von {total}",
-        "searches": "Suchen nach deinen Keywords",
-        "searchesFor": "Für {keywords} von {of} geprüften Keywords",
         "tests": "Abgeschlossene Tests",
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
-        "testsAll": "Jeder Test hat ein Ergebnis",
-        "aMonth": "pro Monat",
-        "depth": "{same, select, yes {Gelesene Ergebnisse pro Keyword: {max}} other {Gelesene Ergebnisse pro Keyword: {min} bis {max}}}"
+        "testsAll": "Jeder Test hat ein Ergebnis"
       },
       "traffic": {
         "searchType": "Suchtyp",
