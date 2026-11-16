@@ -349,3 +349,19 @@ export const agentRatingEligibilitySchema = z
     }),
   })
   .openapi("AgentRatingEligibility");
+
+/** One user's star on one Agent: private, never shared with a workspace. */
+export const agentStarSchema = z
+  .object({
+    agentId: z.string().openapi({ example: "cmaeygqwa000e8i0s9s7wif8i" }),
+    starredAt: dateTimeSchema.nullable(),
+  })
+  .openapi("AgentStar");
+
+export const starredAgentsSchema = z
+  .object({
+    agentIds: z.array(z.string()).openapi({
+      description: "Ids of the Agents the caller starred, oldest star first",
+    }),
+  })
+  .openapi("StarredAgents");

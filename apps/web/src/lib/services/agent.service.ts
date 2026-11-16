@@ -45,5 +45,19 @@ export const agentService = (() => {
         throw error;
       }
     },
+
+    /** The reader's own starred Agent ids. Per user, so never cached. */
+    async getStarredAgentIds(): Promise<string[]> {
+      try {
+        const response = await coreClient.getStarredAgents();
+        return response.data.agentIds;
+      } catch (error) {
+        // Stars are a convenience: a failed read shows the catalog unstarred.
+        console.warn("[agent.service] starred agents fetch failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return [];
+      }
+    },
   };
 })();

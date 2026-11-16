@@ -147,7 +147,8 @@
       "agentsNotFound": "No agents found",
       "AgentCard": {
         "view": "Show details",
-        "detailsUnavailable": "Details unavailable"
+        "detailsUnavailable": "Details unavailable",
+        "star": "Star {name}"
       },
       "Kind": {
         "cardano": "Cardano",
@@ -157,7 +158,9 @@
       "ActionButtons": {
         "back": "Back",
         "close": "Close"
-      }
+      },
+      "starredCategory": "Starred",
+      "starFailed": "Could not update Starred. Try again."
     },
     "UserAvatar": {
       "account": "Account",

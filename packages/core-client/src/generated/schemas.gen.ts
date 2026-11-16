@@ -10605,6 +10605,22 @@ export const X402DynamicAgentPaymentSourceSchema = {
     ]
 } as const;
 
+export const StarredAgentsSchema = {
+    type: 'object',
+    properties: {
+        agentIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Agents the caller starred, oldest star first'
+        }
+    },
+    required: [
+        'agentIds'
+    ]
+} as const;
+
 export const AgentDetailSchema = {
     type: 'object',
     properties: {
@@ -11072,6 +11088,28 @@ export const AgentRatingRequestSchema = {
     },
     required: [
         'rating'
+    ]
+} as const;
+
+export const AgentStarSchema = {
+    type: 'object',
+    properties: {
+        agentId: {
+            type: 'string',
+            example: 'cmaeygqwa000e8i0s9s7wif8i'
+        },
+        starredAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'agentId',
+        'starredAt'
     ]
 } as const;
 

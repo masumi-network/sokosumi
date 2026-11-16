@@ -147,7 +147,8 @@
       "agentsNotFound": "Keine Agents gefunden",
       "AgentCard": {
         "view": "Details anzeigen",
-        "detailsUnavailable": "Details nicht verfügbar"
+        "detailsUnavailable": "Details nicht verfügbar",
+        "star": "{name} markieren"
       },
       "Kind": {
         "cardano": "Cardano",
@@ -157,7 +158,9 @@
       "ActionButtons": {
         "back": "Zurück",
         "close": "Schließen"
-      }
+      },
+      "starredCategory": "Markiert",
+      "starFailed": "Markierung konnte nicht gespeichert werden. Versuche es erneut."
     },
     "UserAvatar": {
       "account": "Konto",

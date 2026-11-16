@@ -10,7 +10,10 @@ import mountGetAgentRatingEligibility from "./[id]/ratings/eligibility/get.js";
 import mountPostAgentRating from "./[id]/ratings/post.js";
 import mountGetAgentReviews from "./[id]/reviews/get.js";
 import mountGetMyAgentReview from "./[id]/reviews/me/get.js";
+import mountDeleteAgentStar from "./[id]/star/delete.js";
+import mountPostAgentStar from "./[id]/star/post.js";
 import mountGetAgents from "./get.js";
+import mountGetStarredAgents from "./starred/get.js";
 
 // GET / is public catalog — cookie-free `'use cache'` consumers need anonymous
 // access. It must NOT sit on OpenAPIHonoWithAuth. Still needs defaultValidationHook
@@ -25,6 +28,8 @@ const authedRoutes = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
+// Before /{id}, so "starred" is never read as an Agent id.
+mountGetStarredAgents(authedRoutes);
 mountGetAgentById(authedRoutes);
 mountGetAgentReviews(authedRoutes);
 mountGetMyAgentReview(authedRoutes);
@@ -33,6 +38,8 @@ mountPostAgentRating(authedRoutes);
 mountGetAgentInputSchema(authedRoutes);
 mountGetJobsByAgentId(authedRoutes);
 mountPostAgentJob(authedRoutes);
+mountPostAgentStar(authedRoutes);
+mountDeleteAgentStar(authedRoutes);
 
 const app = new OpenAPIHono();
 app.route("/", publicRoutes);

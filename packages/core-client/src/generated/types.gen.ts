@@ -2850,6 +2850,13 @@ export type X402DynamicAgentPaymentSource = {
     payTo: string;
 };
 
+export type StarredAgents = {
+    /**
+     * Ids of the Agents the caller starred, oldest star first
+     */
+    agentIds: Array<string>;
+};
+
 export type AgentDetail = {
     id: string;
     createdAt: Date;
@@ -2996,6 +3003,11 @@ export type AgentRatingRequest = {
      * Optional comment
      */
     comment?: string | null;
+};
+
+export type AgentStar = {
+    agentId: string;
+    starredAt: Date | null;
 };
 
 export type ChatRoomInvitation = {
@@ -21789,6 +21801,64 @@ export type GetAgentsResponses = {
 
 export type GetAgentsResponse = GetAgentsResponses[keyof GetAgentsResponses];
 
+export type GetAgentsStarredData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/agents/starred';
+};
+
+export type GetAgentsStarredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAgentsStarredError = GetAgentsStarredErrors[keyof GetAgentsStarredErrors];
+
+export type GetAgentsStarredResponses = {
+    /**
+     * Starred Agent ids
+     */
+    200: {
+        data: StarredAgents;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAgentsStarredResponse = GetAgentsStarredResponses[keyof GetAgentsStarredResponses];
+
 export type GetAgentsByIdData = {
     body?: never;
     headers?: {
@@ -24487,6 +24557,141 @@ export type PostAgentsByIdJobsResponses = {
 };
 
 export type PostAgentsByIdJobsResponse = PostAgentsByIdJobsResponses[keyof PostAgentsByIdJobsResponses];
+
+export type DeleteAgentsByIdStarData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{id}/star';
+};
+
+export type DeleteAgentsByIdStarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAgentsByIdStarError = DeleteAgentsByIdStarErrors[keyof DeleteAgentsByIdStarErrors];
+
+export type DeleteAgentsByIdStarResponses = {
+    /**
+     * Agent unstarred
+     */
+    200: {
+        data: AgentStar;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteAgentsByIdStarResponse = DeleteAgentsByIdStarResponses[keyof DeleteAgentsByIdStarResponses];
+
+export type PostAgentsByIdStarData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{id}/star';
+};
+
+export type PostAgentsByIdStarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostAgentsByIdStarError = PostAgentsByIdStarErrors[keyof PostAgentsByIdStarErrors];
+
+export type PostAgentsByIdStarResponses = {
+    /**
+     * Agent starred
+     */
+    200: {
+        data: AgentStar;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostAgentsByIdStarResponse = PostAgentsByIdStarResponses[keyof PostAgentsByIdStarResponses];
 
 export type GetCategoriesData = {
     body?: never;

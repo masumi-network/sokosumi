@@ -147,7 +147,8 @@
       "agentsNotFound": "No se encontraron agents",
       "AgentCard": {
         "view": "Ver detalles",
-        "detailsUnavailable": "Detalles no disponibles"
+        "detailsUnavailable": "Detalles no disponibles",
+        "star": "Destacar {name}"
       },
       "Kind": {
         "cardano": "Cardano",
@@ -157,7 +158,9 @@
       "ActionButtons": {
         "back": "Atrás",
         "close": "Cerrar"
-      }
+      },
+      "starredCategory": "Destacados",
+      "starFailed": "No se pudo actualizar Destacados. Inténtalo de nuevo."
     },
     "UserAvatar": {
       "account": "Cuenta",

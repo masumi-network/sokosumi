@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents, getCoreCategories } from "@/lib/agents/core-loaders";
+import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
 
@@ -96,7 +97,7 @@ async function CoworkersTier() {
 async function AllAgentsTier() {
   await connection();
 
-  const [listItems, categories, t] = await Promise.all([
+  const [listItems, categories, starredAgentIds, t] = await Promise.all([
     getAllCoreAgents().catch((error) => {
       logAgentsCatalogFetchFailure("agent catalog", error);
       return [];
@@ -105,6 +106,8 @@ async function AllAgentsTier() {
       logAgentsCatalogFetchFailure("categories", error);
       return [];
     }),
+    // Per user, read outside the shared catalog cache.
+    agentService.getStarredAgentIds(),
     getTranslations("App.Agents"),
   ]);
 
@@ -133,6 +136,7 @@ async function AllAgentsTier() {
         agents={agents}
         ratingStatsMap={ratingStatsMap}
         categories={mappedCategories}
+        starredAgentIds={starredAgentIds}
       />
     </section>
   );

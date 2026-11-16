@@ -1,7 +1,7 @@
 "use client";
 
 import { cva, type VariantProps } from "class-variance-authority";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -154,6 +154,9 @@ interface AgentCardProps {
   agent: CatalogBrowseAgent;
   ratingStats?: AgentRatingStats | undefined;
   className?: string | undefined;
+  starred?: boolean | undefined;
+  /** Shows the personal star toggle when set. */
+  onToggleStar?: ((agentId: string) => void) | undefined;
 }
 
 function AgentCard({
@@ -161,6 +164,8 @@ function AgentCard({
   ratingStats,
   className,
   size,
+  starred = false,
+  onToggleStar,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
   const tKind = useTranslations("Components.Agents.Kind");
@@ -257,7 +262,7 @@ function AgentCard({
             className="size-8"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className={cn("flex items-center gap-2", onToggleStar && "pr-9")}>
           <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
             {kindLabel}
           </span>
@@ -321,11 +326,37 @@ function AgentCard({
     </Card>
   );
 
-  if (linksToDetail && isDefault) {
-    return <AgentDetailLink agentId={agent.id}>{cardContent}</AgentDetailLink>;
+  const card =
+    linksToDetail && isDefault ? (
+      <AgentDetailLink agentId={agent.id}>{cardContent}</AgentDetailLink>
+    ) : (
+      cardContent
+    );
+
+  if (!onToggleStar) {
+    return card;
   }
 
-  return cardContent;
+  // A sibling of the card link, never inside it, so no control nests in <a>.
+  return (
+    <div className="relative">
+      {card}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute top-6 right-2 md:top-7 md:right-3"
+        aria-label={t("star", { name: getAgentName(agent) })}
+        aria-pressed={starred}
+        onClick={() => onToggleStar(agent.id)}
+      >
+        <Star
+          aria-hidden
+          className={cn("size-4", starred && "fill-foreground")}
+        />
+      </Button>
+    </div>
+  );
 }
 
 export { AgentCard, AgentCardSkeleton };

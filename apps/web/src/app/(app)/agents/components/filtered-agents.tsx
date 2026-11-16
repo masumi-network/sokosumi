@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { toast } from "sonner";
 import FilterSection from "@/app/agents/components/filter-section";
 import {
   Agents,
@@ -9,6 +10,7 @@ import {
   AgentsNotFound,
 } from "@/components/agents/agents";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
+import { setAgentStar } from "@/lib/actions/agent/set-agent-star";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import type { GalleryFilterState } from "@/lib/agents/gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
@@ -21,6 +23,7 @@ interface FilteredAgentsProps {
   agents: CatalogBrowseAgent[];
   ratingStatsMap: Record<string, AgentRatingStats>;
   categories: Category[];
+  starredAgentIds: string[];
 }
 
 export default function FilteredAgents(props: FilteredAgentsProps) {
@@ -35,9 +38,29 @@ function FilteredAgentsInner({
   agents,
   ratingStatsMap,
   categories,
+  starredAgentIds,
 }: FilteredAgentsProps) {
   const t = useTranslations("Components.Agents");
   const { query, categories: selectedCategories, kind } = useGalleryFilter();
+  const [starredIds, setStarredIds] = useState(() => new Set(starredAgentIds));
+
+  // Optimistic: flip at once, flip back and say so if Core refuses.
+  const toggleStar = async (agentId: string) => {
+    const starred = !starredIds.has(agentId);
+    const flip = (on: boolean) =>
+      setStarredIds((current) => {
+        const next = new Set(current);
+        if (on) next.add(agentId);
+        else next.delete(agentId);
+        return next;
+      });
+    flip(starred);
+    const result = await setAgentStar(agentId, starred);
+    if (!result.ok) {
+      flip(!starred);
+      toast.error(t("starFailed"));
+    }
+  };
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
@@ -53,6 +76,12 @@ function FilteredAgentsInner({
     return groupAgentsByCategory(filteredAgents, categories);
   }, [filteredAgents, categories]);
 
+  // Filters apply to Starred too, so a search narrows the whole page.
+  const starredAgents = filteredAgents.filter((agent) =>
+    starredIds.has(agent.id),
+  );
+  const starProps = { starredIds, onToggleStar: toggleStar };
+
   if (!agents.length) {
     return <AgentsNotAvailable />;
   }
@@ -64,19 +93,30 @@ function FilteredAgentsInner({
       {!filteredAgents.length ? (
         <AgentsNotFound />
       ) : (
-        groupedAgents.map((group) => (
-          <Agents
-            key={group.categorySlug}
-            agents={group.agents}
-            icon={group.categoryIcon}
-            ratingStatsMap={ratingStatsMap}
-            title={
-              group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
-                ? t("othersCategory")
-                : group.categoryName
-            }
-          />
-        ))
+        <>
+          {starredAgents.length ? (
+            <Agents
+              agents={starredAgents}
+              ratingStatsMap={ratingStatsMap}
+              title={t("starredCategory")}
+              {...starProps}
+            />
+          ) : null}
+          {groupedAgents.map((group) => (
+            <Agents
+              key={group.categorySlug}
+              agents={group.agents}
+              icon={group.categoryIcon}
+              ratingStatsMap={ratingStatsMap}
+              title={
+                group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
+                  ? t("othersCategory")
+                  : group.categoryName
+              }
+              {...starProps}
+            />
+          ))}
+        </>
       )}
     </div>
   );

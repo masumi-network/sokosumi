@@ -602,6 +602,26 @@ model ProjectStar {
   @@map("project_star")
 }
 
+/// One user's star on one marketplace Agent: a private shortlist, never
+/// shared with a workspace. Keyed on the stable Agent row (Cardano and x402
+/// alike), which survives registry revisions.
+model AgentStar {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  starredAt DateTime @default(now())
+
+  @@unique([userId, agentId])
+  // The unique key leads with userId, so the cascade from agent needs its own.
+  @@index([agentId])
+  @@map("agent_star")
+}
+
 /// One user's Hide on one project: the per-user opposite of a ProjectStar,
 /// personal and never shared, and membership does not change (ADR 0036).
 /// Hiding deletes the user's star on the project and starring deletes the
@@ -1427,6 +1447,7 @@ model Agent {
   userAgentRating UserAgentRating[]
   jobs            Job[]
   x402Payments    TaskX402Payment[]
+  stars           AgentStar[]
 
   tags       Tag[]      @relation("AgentTag")
   categories Category[] @relation("AgentCategory")

@@ -209,6 +209,7 @@ import {
   deleteAdminBadgeCampaign as coreDeleteAdminBadgeCampaign,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
+  deleteAgentsByIdStar as coreDeleteAgentsByIdStar,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdCoworkersByCoworkerId as coreDeleteChatsRoomsByIdCoworkersByCoworkerId,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
@@ -259,6 +260,7 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
+  getAgentsStarred as coreGetAgentsStarred,
   getCategories as coreGetCategories,
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
@@ -442,6 +444,7 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postAgentsByIdStar as corePostAgentsByIdStar,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
   postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
   postChatsInvitationsByIdDecline as corePostChatsInvitationsByIdDecline,
@@ -5374,6 +5377,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getStarredAgents() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetAgentsStarred({ client, cache: "no-store" }),
+      "Failed to fetch starred agents",
+    );
+  }
+
+  async function starAgent(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostAgentsByIdStar({ client, path: { id } }),
+      "Failed to star agent",
+    );
+  }
+
+  async function unstarAgent(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteAgentsByIdStar({ client, path: { id } }),
+      "Failed to unstar agent",
+    );
+  }
+
   async function createAgentRating(
     id: string,
     body: NonNullable<PostAgentsByIdRatingsData["body"]>,
@@ -7088,6 +7115,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyAgentReview,
     getAgents,
     createAgentRating,
+    getStarredAgents,
+    starAgent,
+    unstarAgent,
     getCategories,
     getCoworkers,
     getOwnedCoworkers,
