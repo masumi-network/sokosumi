@@ -37,7 +37,6 @@ const targetOrganization = {
   stripeCustomerId: null,
 };
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
@@ -81,13 +80,20 @@ vi.mock("@/app/components/project-scope/project-scope-marker", () => ({
   },
 }));
 
+vi.mock("@/components/refresh-prefetched-page.client", () => ({
+  RefreshPrefetchedPage: () => null,
+}));
+
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
+  getPrivateCachedSession: (...args: unknown[]) => getSessionMock(...args),
+}));
+
+vi.mock("@/app/tasks/utils/private-task-detail-cache", () => ({
+  getPrivateCachedTask: (...args: unknown[]) => getTaskByIdMock(...args),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
-    getTaskById: (...args: unknown[]) => getTaskByIdMock(...args),
     getTaskWorkspace: (...args: unknown[]) => getTaskWorkspaceMock(...args),
   },
 }));
