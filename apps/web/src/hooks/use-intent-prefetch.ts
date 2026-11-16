@@ -26,6 +26,39 @@ function cursorLeft() {
   cursorY = OFF_PAGE;
 }
 
+// The listeners feed this module's own state, so they follow this module, not
+// the library's singleton: a test worker reloads this module per file while
+// the library stays initialised. They stay on while an element is registered,
+// so a module nothing uses any more leaves none behind.
+let registered = 0;
+
+function pointerMoved(event: PointerEvent) {
+  if (event.buttons !== 0) {
+    cursorLeft();
+    unsettle();
+    return;
+  }
+  cursorX = event.clientX;
+  cursorY = event.clientY;
+}
+
+const CAPTURE = { capture: true, passive: true } as const;
+
+// With scroll prediction off the library still fires each element that
+// scrolls under a resting cursor. And it predicts from geometry alone, so
+// a drag fires each element it crosses. Neither is the reader heading for it.
+function listen() {
+  document.addEventListener("scroll", unsettle, CAPTURE);
+  document.addEventListener("pointermove", pointerMoved, CAPTURE);
+  document.documentElement.addEventListener("pointerleave", cursorLeft);
+}
+
+function stopListening() {
+  document.removeEventListener("scroll", unsettle, CAPTURE);
+  document.removeEventListener("pointermove", pointerMoved, CAPTURE);
+  document.documentElement.removeEventListener("pointerleave", cursorLeft);
+}
+
 function intentManager() {
   if (!ForesightManager.isInitiated) {
     // Two library defaults are off. It would write its own `data-active` onto
@@ -36,27 +69,6 @@ function intentManager() {
       setDataAttributes: false,
       enableScrollPrediction: false,
     });
-    // With scroll prediction off the library still fires each element that
-    // scrolls under a resting cursor. And it predicts from geometry alone, so
-    // a drag fires each element it crosses. Neither is the reader heading for it.
-    document.addEventListener("scroll", unsettle, {
-      capture: true,
-      passive: true,
-    });
-    document.addEventListener(
-      "pointermove",
-      (event) => {
-        if (event.buttons !== 0) {
-          cursorLeft();
-          unsettle();
-          return;
-        }
-        cursorX = event.clientX;
-        cursorY = event.clientY;
-      },
-      { capture: true, passive: true },
-    );
-    document.documentElement.addEventListener("pointerleave", cursorLeft);
   }
   return ForesightManager.instance;
 }
@@ -115,9 +127,11 @@ export function useIntentPrefetch<T extends Element>(
         },
         reactivateAfter,
       });
+      if (registered++ === 0) listen();
       return () => {
         clearTimeout(retry);
         unregister();
+        if (--registered === 0) stopListening();
       };
     },
     [enabled, reactivateAfter],

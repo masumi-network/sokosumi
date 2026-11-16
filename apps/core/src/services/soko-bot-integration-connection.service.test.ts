@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   memberSokoBot: vi.fn(),
@@ -17,8 +17,18 @@ const mocks = vi.hoisted(() => ({
   getToolkit: vi.fn(),
   getComposio: vi.fn(),
   env: {} as Record<string, string | undefined>,
+  followUpConnectedApp: vi.fn(),
+  pending: [] as Promise<unknown>[],
 }));
 vi.mock("@/config/env", () => ({ getEnv: () => mocks.env }));
+// The follow-up runs after the response; each test awaits it so its import
+// cannot finish in the next file, without this file's mocks.
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (work: Promise<unknown>) => mocks.pending.push(work),
+}));
+vi.mock("@/services/soko-bot-watches.service", () => ({
+  followUpConnectedApp: mocks.followUpConnectedApp,
+}));
 vi.mock("@/helpers/soko-bot-resolver", () => ({
   ME_SOKO_BOT: { kind: "me" },
   memberSokoBot: mocks.memberSokoBot,
@@ -82,6 +92,11 @@ function finalize(userId: string) {
     selector: BY_ID,
   });
 }
+
+afterEach(async () => {
+  await Promise.all(mocks.pending);
+  mocks.pending.length = 0;
+});
 
 beforeEach(() => {
   vi.resetAllMocks();

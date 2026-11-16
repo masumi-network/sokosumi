@@ -139,16 +139,8 @@ export function SeoSetupCard({
               <div className="space-y-2">
                 <SeoGoogleConnection
                   variant={setup.connection === "next" ? "primary" : "outline"}
+                  onSettings={() => model.openStatistics("search_console")}
                 />
-                {model.googleConnected ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => model.openStatistics("search_console")}
-                  >
-                    {t("manageStatistics")}
-                  </Button>
-                ) : null}
                 {setup.connection === "next" ? (
                   <Button
                     size="sm"

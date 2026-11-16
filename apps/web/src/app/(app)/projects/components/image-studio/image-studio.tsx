@@ -2,6 +2,7 @@
 
 import type {
   CreateProjectVideoJobRequest,
+  SetStudioAssetFeedbackData,
   StudioAdHeadline,
   StudioLogoPosition,
   StudioProduct,
@@ -24,6 +25,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -43,6 +45,11 @@ import {
   startVideoGeneration,
   writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
+import {
+  hideStudioAsset,
+  rateStudioAsset,
+  recordStudioAssetView,
+} from "@/lib/actions/image-studio/feedback";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 
@@ -75,13 +82,16 @@ import {
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
   STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
+import { StudioCompare } from "./studio-compare";
 import { StudioComposer } from "./studio-composer";
 import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
+import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioModelScoreboard } from "./studio-model-scoreboard";
 import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
@@ -205,6 +215,11 @@ export function ImageStudio({
   const isApple = useIsApplePlatform();
   const searchParams = useSearchParams();
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [comparing, setComparing] = useState<{
+    projectId: string;
+    batchId: string;
+    returnFocus: HTMLElement | null;
+  } | null>(null);
   /**
    * Open on the version the URL names.
    *
@@ -355,6 +370,96 @@ export function ImageStudio({
     hasOlder,
   } = studio;
 
+  const [ratingBusyIds, setRatingBusyIds] = useState<string[]>([]);
+  const [, startFeedback] = useTransition();
+  const [visibleAssets, updateFeedback] = useOptimistic(
+    state.assets,
+    (
+      assets,
+      update: {
+        asset: StudioAsset;
+        feedback?: SetStudioAssetFeedbackData["body"];
+        hide?: boolean;
+      },
+    ) =>
+      update.hide
+        ? assets.filter((asset) => asset.id !== update.asset.id)
+        : assets.map((asset) => {
+            if (asset.id !== update.asset.id || !update.feedback) return asset;
+            const previous = asset.myThumb ?? null;
+            const thumb = update.feedback.thumb;
+            return {
+              ...asset,
+              myThumb: thumb,
+              myReasons: update.feedback.reasons ?? [],
+              myComment: update.feedback.comment ?? null,
+              thumbsUp:
+                (asset.thumbsUp ?? 0) -
+                Number(previous === 1) +
+                Number(thumb === 1),
+              thumbsDown:
+                (asset.thumbsDown ?? 0) -
+                Number(previous === -1) +
+                Number(thumb === -1),
+            };
+          }),
+  );
+
+  function handleRate(
+    asset: StudioAsset,
+    feedback: SetStudioAssetFeedbackData["body"],
+  ) {
+    if (ratingBusyIds.includes(asset.id)) return;
+    setRatingBusyIds((current) => [...current, asset.id]);
+    startFeedback(async () => {
+      updateFeedback({ asset, feedback });
+      try {
+        const result = await rateStudioAsset({
+          projectId: asset.projectId,
+          assetId: asset.id,
+          feedback,
+        });
+        if (!result.ok) toast.error(t("Rating.saveFailed"));
+        else studio.updateRating(asset.id, result.value);
+      } catch {
+        toast.error(t("Rating.saveFailed"));
+      } finally {
+        setRatingBusyIds((current) => current.filter((id) => id !== asset.id));
+      }
+    });
+  }
+
+  function handleHide(asset: StudioAsset) {
+    if (ratingBusyIds.includes(asset.id)) return;
+    setRatingBusyIds((current) => [...current, asset.id]);
+    startFeedback(async () => {
+      updateFeedback({ asset, hide: true });
+      try {
+        const result = await hideStudioAsset({
+          projectId: asset.projectId,
+          assetId: asset.id,
+        });
+        if (!result.ok) toast.error(t("Rating.hideFailed"));
+        else {
+          studio.removeAsset(asset.id);
+          setCheckedIds((current) => current.filter((id) => id !== asset.id));
+          setViewing(null);
+        }
+      } catch {
+        toast.error(t("Rating.hideFailed"));
+      } finally {
+        setRatingBusyIds((current) => current.filter((id) => id !== asset.id));
+      }
+    });
+  }
+
+  const handleViewed = useCallback((asset: StudioAsset) => {
+    void recordStudioAssetView({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    }).catch(() => {});
+  }, []);
+
   /**
    * Bring the deep-linked tile onto the screen, once.
    *
@@ -390,10 +495,10 @@ export function ImageStudio({
   const checkedAssets = useMemo(
     () =>
       checkedIds.flatMap((id) => {
-        const asset = state.assets.find((asset) => asset.id === id);
+        const asset = visibleAssets.find((asset) => asset.id === id);
         return asset ? [asset] : [];
       }),
-    [checkedIds, state.assets],
+    [checkedIds, visibleAssets],
   );
   const referenceProjectIds = new Set(
     checkedAssets.map(({ projectId }) => projectId),
@@ -402,6 +507,19 @@ export function ImageStudio({
     referenceProjectIds.size > 1
       ? null
       : ([...referenceProjectIds][0] ?? activeProjectId);
+
+  function compareBatch(asset: StudioAsset) {
+    if (!asset.batchId) return;
+    const returnFocus = document.querySelector<HTMLButtonElement>(
+      `[data-asset-id="${CSS.escape(asset.id)}"] > button`,
+    );
+    setViewing(null);
+    setComparing({
+      projectId: asset.projectId,
+      batchId: asset.batchId,
+      returnFocus,
+    });
+  }
 
   function archiveLimitFor(assets: StudioAsset[]) {
     if (assets.length > MAX_ARCHIVE_IMAGES)
@@ -473,6 +591,7 @@ export function ImageStudio({
   }
 
   function changeHeadline(asset: StudioAsset, text: string) {
+    if (!usesExactFontOverlay(asset, state.jobs)) return;
     if (headlineSaveInProgress.current || downloadingAds) return;
     headlineSaveInProgress.current = true;
     startHeadlineSave(async () => {
@@ -497,7 +616,10 @@ export function ImageStudio({
     logo?: StudioLogoPosition,
   ) {
     const reviewedAssets = assets.flatMap((asset) => {
-      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      const text =
+        isVideoAsset(asset) || !usesExactFontOverlay(asset, state.jobs)
+          ? ""
+          : headlineForAsset(asset);
       return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
     });
     const reviewedProjects = [
@@ -524,8 +646,9 @@ export function ImageStudio({
           assets,
           logo,
           Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+          state.jobs,
         )
-      : await createStudioAdArchive(assets, logo);
+      : await createStudioAdArchive(assets, logo, undefined, state.jobs);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
       filename,
@@ -591,7 +714,7 @@ export function ImageStudio({
     viewing?.mode === "compare"
       ? checkedAssets.slice(0, 4)
       : viewing?.mode === "single" && selectedAsset
-        ? [selectedAsset]
+        ? visibleAssets.filter((asset) => asset.id === selectedAsset.id)
         : [];
 
   async function scheduleAsset(asset: StudioAsset) {
@@ -663,6 +786,20 @@ export function ImageStudio({
     if (refuseUnfilledSlots([source.prompt], source)) return;
     const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
+    const sourceJob =
+      job ??
+      state.jobs.find(
+        (candidate) => candidate.id === (source as StudioAsset).jobId,
+      );
+    const modelId = modelIdForRepeat(catalog, source.model) ?? "";
+    const letteringEdit =
+      source.lettering === "ideogram" && modelId === "ideogram-v3";
+    const exportHeadline =
+      from === "job"
+        ? job?.exportHeadline
+        : source.lettering === "ideogram"
+          ? headlineForAsset(source as StudioAsset) || sourceJob?.exportHeadline
+          : undefined;
     const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
     const request: QueuedGeneration = {
       id,
@@ -670,24 +807,42 @@ export function ImageStudio({
       // references from the project the generation runs in.
       projectId: source.projectId,
       prompt: source.prompt,
-      modelId: modelIdForRepeat(catalog, source.model) ?? "",
+      ...(job?.templateId ? { templateId: job.templateId } : {}),
+      ...(job?.creativeDirection
+        ? { creativeDirection: job.creativeDirection }
+        : {}),
+      ...(job?.variationIndex !== undefined
+        ? { variationIndex: job.variationIndex }
+        : {}),
+      modelId,
       modelLabel: source.model,
       // A re-roll is a fresh draw of the same brief: no seed, or the model
       // would hand back the picture it already made.
       settings: reroll
         ? { ...settingsOf(source), seed: null }
         : settingsOf(source),
-      parentAssetId: reroll
-        ? null
-        : from === "asset"
-          ? (source as StudioAsset).id
-          : (source as StudioJob).parentAssetId,
-      referenceAssetIds: reroll
-        ? []
-        : from === "asset"
-          ? [(source as StudioAsset).id]
-          : (source as StudioJob).referenceAssetIds,
+      parentAssetId:
+        reroll && !letteringEdit
+          ? null
+          : from === "asset"
+            ? letteringEdit
+              ? ((source as StudioAsset).parentId ?? (source as StudioAsset).id)
+              : (source as StudioAsset).id
+            : (source as StudioJob).parentAssetId,
+      referenceAssetIds:
+        reroll && !letteringEdit
+          ? []
+          : from === "asset"
+            ? [
+                letteringEdit
+                  ? ((source as StudioAsset).parentId ??
+                    (source as StudioAsset).id)
+                  : (source as StudioAsset).id,
+              ]
+            : (source as StudioJob).referenceAssetIds,
       ...(source.product ? { product: source.product } : {}),
+      ...(source.lettering ? { lettering: source.lettering } : {}),
+      ...(exportHeadline ? { exportHeadline } : {}),
       ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
         ? { referenceFileIds: job.referenceFileIds }
         : {}),
@@ -724,6 +879,7 @@ export function ImageStudio({
     );
     setTarget((current) => ({
       ...current,
+      templateId: template.id,
       placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
@@ -740,6 +896,9 @@ export function ImageStudio({
     product: StudioProduct,
     photo: StudioProductPhoto | null,
   ) {
+    if (!prompt.trim()) {
+      setTarget((current) => ({ ...current, templateId: undefined }));
+    }
     setBatchProducts([]);
     setDraftProduct({ id: product.id, name: product.name });
     const previousPhotoId = catalogPhotoRef.current;
@@ -764,6 +923,9 @@ export function ImageStudio({
   }
 
   function useProductBatch(products: StudioBatchProduct[]) {
+    if (!prompt.trim()) {
+      setTarget((current) => ({ ...current, templateId: undefined }));
+    }
     const previousDetails = productDetailsRef.current;
     productDetailsRef.current = null;
     catalogPhotoRef.current = null;
@@ -811,6 +973,7 @@ export function ImageStudio({
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      templateId: undefined,
       creativeDirection: undefined,
       placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
@@ -1111,6 +1274,7 @@ export function ImageStudio({
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
+          setTarget((current) => ({ ...current, templateId: undefined }));
         }}
         prompt={prompt}
         promptRef={promptRef}
@@ -1148,6 +1312,9 @@ export function ImageStudio({
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
+          if (!prompt.trim() || !value.trim()) {
+            setTarget((current) => ({ ...current, templateId: undefined }));
+          }
         }}
         onTargetChange={(update) => {
           setTemplateUndo(null);
@@ -1195,6 +1362,11 @@ export function ImageStudio({
             else openAssistant(assistant?.asset ?? null);
           }}
         >
+          <StudioModelScoreboard
+            catalog={catalog}
+            key={`scores:${activeProjectId}`}
+            projectId={activeProjectId}
+          />
           <StudioWebsiteTools
             key={activeProjectId}
             canUseProduct={!uploadingPhoto}
@@ -1213,7 +1385,9 @@ export function ImageStudio({
         className={cn(
           showsNothing
             ? "pointer-events-none mt-auto"
-            : "app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]",
+            : studio.sort === "best"
+              ? "app-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto [overflow-anchor:none]"
+              : "app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]",
         )}
       >
         <div
@@ -1227,7 +1401,7 @@ export function ImageStudio({
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
-          <div ref={topRef} />
+          {studio.sort !== "best" ? <div ref={topRef} /> : null}
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
               {labels.loadOlder}
@@ -1259,11 +1433,17 @@ export function ImageStudio({
           ) : (
             <StudioGallery
               activeJobs={activeJobs}
-              assets={state.assets}
+              assets={visibleAssets}
               cancelRequestedJobIds={cancelRequestedJobIds}
               catalog={catalog}
               labels={labels}
+              sort={studio.sort}
+              onSortChange={studio.setSort}
+              onRate={readOnly ? undefined : handleRate}
+              onHide={readOnly ? undefined : handleHide}
+              ratingBusyIds={ratingBusyIds}
               onCancelJob={readOnly ? undefined : handleCancelJob}
+              onCompare={readOnly ? undefined : compareBatch}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });
@@ -1290,6 +1470,8 @@ export function ImageStudio({
             />
           )}
 
+          {studio.sort === "best" ? <div ref={topRef} /> : null}
+
           {queue.failed.map((failure) => (
             <StudioFailedSubmission
               key={failure.request.id}
@@ -1308,9 +1490,11 @@ export function ImageStudio({
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
+                        templateId: request.templateId,
                         modelIds: [request.modelId],
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
+                        lettering: request.lettering,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {
@@ -1452,6 +1636,11 @@ export function ImageStudio({
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
           assets={lightboxAssets}
+          jobs={state.jobs}
+          onRate={readOnly ? undefined : handleRate}
+          onHide={readOnly ? undefined : handleHide}
+          onViewed={handleViewed}
+          ratingBusyIds={ratingBusyIds}
           catalog={catalog}
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
@@ -1468,6 +1657,9 @@ export function ImageStudio({
               : undefined
           }
           onClose={() => setViewing(null)}
+          onCompare={
+            !readOnly && lightboxAssets.length === 1 ? compareBatch : undefined
+          }
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
           headlineForAsset={headlineForAsset}
@@ -1495,6 +1687,7 @@ export function ImageStudio({
                   setPrompt("");
                   setTarget((current) => ({
                     ...current,
+                    templateId: undefined,
                     creativeDirection: undefined,
                     placementRatios: undefined,
                     settings: { ...settingsOf(asset), seed: null },
@@ -1560,7 +1753,30 @@ export function ImageStudio({
               },
             }));
           }}
-          siblings={state.assets}
+          siblings={
+            studio.sort === "best"
+              ? [...visibleAssets].sort(
+                  (a, b) => (b.score ?? 0) - (a.score ?? 0),
+                )
+              : [...visibleAssets].reverse()
+          }
+        />
+      ) : null}
+      {comparing ? (
+        <StudioCompare
+          batchId={comparing.batchId}
+          catalog={catalog}
+          key={`${comparing.projectId}:${comparing.batchId}`}
+          labels={labels}
+          onClose={() => setComparing(null)}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const target = comparing.returnFocus?.isConnected
+              ? comparing.returnFocus
+              : promptRef.current;
+            target?.focus();
+          }}
+          projectId={comparing.projectId}
         />
       ) : null}
     </div>

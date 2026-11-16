@@ -58,6 +58,7 @@ import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImproveDialog } from "./seo-improve";
 import { SeoIndexStatus } from "./seo-index-status";
+import { SeoIndexTriage } from "./seo-index-triage";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
@@ -301,7 +302,7 @@ export function SeoWorkspace({
                   onSelect={() => model.setDialog("statistics")}
                 >
                   <Settings2 className="size-4" />
-                  {t("overview.manageConnections")}
+                  {t("manageStatistics")}
                 </DropdownMenuItem>
               ) : null}
               {model.data.availableActions.canEdit ? (
@@ -594,6 +595,7 @@ export function SeoWorkspace({
                 filters={model.filters}
               />
               <SeoActions model={model} />
+              <SeoIndexTriage workspace={model.data} />
               <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
             </TabsContent>

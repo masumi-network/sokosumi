@@ -1,12 +1,15 @@
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { resolve, calls, upsert, jobInput } = vi.hoisted(() => ({
-  resolve: vi.fn(),
-  calls: vi.fn(),
-  upsert: vi.fn(),
-  jobInput: vi.fn(),
-}));
+const { resolve, calls, upsert, jobInput, captureException } = vi.hoisted(
+  () => ({
+    resolve: vi.fn(),
+    calls: vi.fn(),
+    upsert: vi.fn(),
+    jobInput: vi.fn(),
+    captureException: vi.fn(),
+  }),
+);
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findMany: calls, upsert },
@@ -16,6 +19,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/services/chat-result-preview.service", () => ({
   resolveChatResultReference: resolve,
 }));
+vi.mock("@sentry/node", () => ({ captureException }));
 
 import prisma from "@/lib/db/prisma";
 import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.service";
@@ -234,6 +238,78 @@ describe("automatic result previews", () => {
     await expect(
       prepareTurnActionResultPreviews("turn", turn, tx),
     ).rejects.toBe(error);
+  });
+
+  it("records an unavailable card when this turn archived the task or deleted the schedule", async () => {
+    calls.mockResolvedValue([
+      { ...receipt, targetId: "kept-task" },
+      { ...receipt, capability: "reply_to_task", targetId: "gone-task" },
+      { ...receipt, capability: "archive_task", targetId: "gone-task" },
+      {
+        ...receipt,
+        capability: "create_schedule",
+        targetId: "gone-schedule",
+      },
+      {
+        ...receipt,
+        capability: "delete_schedule",
+        targetId: "gone-schedule",
+      },
+    ]);
+    resolve.mockImplementation(
+      async (input: { reference: { kind: string; id?: string } }) => {
+        if (
+          input.reference.id === "gone-task" ||
+          input.reference.id === "gone-schedule"
+        ) {
+          throw new HTTPException(404, {
+            message:
+              input.reference.kind === "task"
+                ? "Task not found"
+                : "Result unavailable",
+          });
+        }
+        return {
+          workspaceId: "workspace",
+          reference: input.reference,
+          data: { id: "550e8400-e29b-41d4-a716-446655440099" },
+        };
+      },
+    );
+    await expect(
+      prepareTurnActionResultPreviews("turn", turn, tx),
+    ).resolves.toBeUndefined();
+    expect(resolve).toHaveBeenCalledWith(
+      expect.objectContaining({ reference: { kind: "task", id: "kept-task" } }),
+      tx,
+    );
+    expect(resolve).not.toHaveBeenCalledWith(
+      expect.objectContaining({ reference: { kind: "task", id: "gone-task" } }),
+      tx,
+    );
+    expect(resolve).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference: { kind: "bot_schedule", id: "gone-schedule" },
+      }),
+      tx,
+    );
+    for (const reference of [
+      { kind: "task", id: "gone-task" },
+      { kind: "bot_schedule", id: "gone-schedule" },
+    ]) {
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            capability: "preview_result",
+            result: expect.objectContaining({
+              reference,
+              data: expect.objectContaining({ state: "unavailable" }),
+            }),
+          }),
+        }),
+      );
+    }
+    expect(captureException).not.toHaveBeenCalled();
   });
 
   it("bounds automatic previews and keeps completed work usable if preparation fails", async () => {

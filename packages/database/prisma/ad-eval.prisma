@@ -1,0 +1,152 @@
+/// Exact input sent to fal for one job: the brief after brand wrapping.
+model ProjectImagePromptSnapshot {
+  jobId String          @id @db.Uuid
+  job   ProjectImageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  finalPrompt       String
+  templateId        String?
+  templateVersion   String?
+  creativeDirection String?
+  variationIndex    Int?
+  brandContextHash  String
+  brandLook         Json?
+  assemblyVersion   String
+  experimentArm     String?
+  createdAt         DateTime @default(now())
+
+  @@map("project_image_prompt_snapshot")
+}
+
+/// One automatic evaluation of one asset, rerunnable with a new rubric.
+model AdEval {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  assetId String            @db.Uuid
+  asset   ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  rubricVersion String
+  /// `{ id, pass, value }[]`, the deterministic checks.
+  checks        Json
+  /// Criterion scores and reasons, overall score, and issue tags.
+  judge         Json?
+  judgeModel    String?
+  overall       Float?
+  costUsdMicros BigInt?
+  latencyMs     Int?
+  createdAt     DateTime @default(now())
+
+  @@unique([assetId, rubricVersion])
+  @@index([workspaceId, overall])
+  @@map("ad_eval")
+}
+
+/// Cumulative admission cost survives asset deletion; the global scope survives workspace deletion.
+model AdEvalDailyBudget {
+  day           DateTime @db.Date
+  scope         String
+  calls         Int      @default(0)
+  costUsdMicros BigInt   @default(0)
+
+  workspaceId String?    @db.Uuid
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([day, scope])
+  @@index([workspaceId])
+  @@map("ad_eval_daily_budget")
+}
+
+enum AdFeedbackKind {
+  THUMB
+  PAIRWISE
+}
+
+enum AdPairOutcome {
+  A
+  B
+  TIE
+  BOTH_BAD
+}
+
+/// One explicit human judgement.
+model AdFeedback {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind AdFeedbackKind
+
+  /// The rated asset for THUMB, or asset A for PAIRWISE.
+  assetId String            @db.Uuid
+  asset   ProjectImageAsset @relation("AdFeedbackAsset", fields: [assetId], references: [id], onDelete: Cascade)
+
+  otherAssetId String?            @db.Uuid
+  otherAsset   ProjectImageAsset? @relation("AdFeedbackOtherAsset", fields: [otherAssetId], references: [id], onDelete: Cascade)
+
+  thumb     Int?
+  outcome   AdPairOutcome?
+  reasons   String[]       @default([])
+  comment   String?
+  batchId   String?        @db.Uuid
+  createdAt DateTime       @default(now())
+
+  @@unique([userId, assetId, kind, otherAssetId])
+  // PostgreSQL treats NULL otherAssetId values as distinct; enforce one THUMB per person and asset separately.
+  @@unique([userId, assetId], map: "ad_feedback_userId_assetId_thumb_key", where: { kind: "THUMB" })
+  @@index([workspaceId, createdAt])
+  @@index([batchId])
+  @@index([projectId])
+  @@index([assetId])
+  @@index([otherAssetId])
+  @@map("ad_feedback")
+}
+
+/// Append-only implicit signal.
+model AdEvent {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  assetId String            @db.Uuid
+  asset   ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([assetId, type])
+  @@index([workspaceId, createdAt])
+  @@index([userId])
+  @@map("ad_event")
+}
+
+/// Workspace opt-in for internal use and training exports of its ad data.
+model WorkspaceAdDataConsent {
+  workspaceId String    @id @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  shareForImprovement Boolean @default(false)
+  allowTraining       Boolean @default(false)
+
+  decidedByUserId String
+  decidedByUser   User   @relation(fields: [decidedByUserId], references: [id], onDelete: Cascade)
+
+  decidedAt     DateTime @default(now())
+  policyVersion String
+
+  @@index([decidedByUserId])
+  @@map("workspace_ad_data_consent")
+}
