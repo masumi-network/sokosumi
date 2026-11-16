@@ -81,9 +81,7 @@ export function SeoKeywordMap({
   const group = useRef<HTMLDivElement>(null);
   // The popover closed by a press outside it: the focus stays where the press put it.
   const outside = useRef(false);
-  // Where a press on the frame began, and the keyword a pan in it closed: the click that ends the press does
-  // not open that keyword again.
-  const pressAt = useRef<{ x: number; y: number } | null>(null);
+  // The keyword a pan in a press closed: the click that ends the press does not open it again.
   const panClosed = useRef<string | null>(null);
   // A zoom or a pan can take the dot out of the frame: the popover at it closes.
   const view = `${transform.k}:${transform.x}:${transform.y}`;
@@ -350,28 +348,32 @@ export function SeoKeywordMap({
               )}
               onPointerMove={pick}
               onPointerDown={(event) => {
-                pressAt.current = { x: event.clientX, y: event.clientY };
                 panClosed.current = null;
                 pick(event);
-              }}
-              // A drag at the edge of the map moves nothing and gets no click, and the popover never sees it
-              // outside: the drag closes the popover here.
-              onPointerUp={(event) => {
-                const start = pressAt.current;
-                pressAt.current = null;
-                if (
-                  openId &&
-                  start &&
-                  Math.hypot(event.clientX - start.x, event.clientY - start.y) >
-                    SEO_MAP_PRESS_SLOP
-                ) {
-                  outside.current = true;
-                  setOpenId(null);
-                }
+                // A drag at the edge of the map moves nothing and gets no click, and the popover never sees it
+                // outside: the drag closes the popover here, wherever the press ends.
+                if (!openId) return;
+                const start = { x: event.clientX, y: event.clientY };
+                const end = (up: globalThis.PointerEvent) => {
+                  window.removeEventListener("pointerup", end);
+                  window.removeEventListener("pointercancel", end);
+                  if (
+                    up.type === "pointerup" &&
+                    Math.hypot(up.clientX - start.x, up.clientY - start.y) >
+                      SEO_MAP_PRESS_SLOP
+                  ) {
+                    outside.current = true;
+                    setOpenId(null);
+                  }
+                };
+                window.addEventListener("pointerup", end);
+                window.addEventListener("pointercancel", end);
               }}
               // A drag gets no click: the zoom keeps it. The zoom also stops the press before the popover sees it
               // outside, so the map closes the popover here.
-              onClick={() => {
+              onClick={(event) => {
+                // The second click of a double-click zooms: it does not close what the first one opened.
+                if (event.detail > 1) return;
                 const id =
                   active === null
                     ? null

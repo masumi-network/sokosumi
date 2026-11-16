@@ -163,7 +163,7 @@ describe("SEO keyword map", () => {
       within(popover).getByRole("button", { name: "Create content task" }),
     );
     const brief =
-      'Write web content for example.com that can rank on Google for the search "battery app". The search has 1,000 searches a month (market: United States · English), and its difficulty is easy (12 of 100). Lead with this product feature: Cycle count.';
+      'Write web content for example.com that can rank on Google for the search "battery app". The keyword has 1,000 searches a month (market: United States · English), and its difficulty is easy (12 of 100). Lead with this product feature: Cycle count.';
     expect(wizard.openNewTaskWizard).toHaveBeenCalledWith({
       prompt: brief,
       projectId: model.data.projectId,
@@ -180,7 +180,7 @@ describe("SEO keyword map", () => {
     );
     // The agent gets a question, not the order to write.
     expect(model.openChat).toHaveBeenCalledWith(
-      'How can example.com rank on Google for the search "battery app"? The search has 1,000 searches a month (market: United States · English), and its difficulty is easy (12 of 100). The product feature it fits: Cycle count.',
+      'How can example.com rank on Google for the search "battery app"? The keyword has 1,000 searches a month (market: United States · English), and its difficulty is easy (12 of 100). The product feature it fits: Cycle count.',
     );
     expect(map).toHaveFocus();
     // Escape gives the focus back to the map too; the next keyword, an idea, can be tracked.
@@ -245,6 +245,9 @@ describe("SEO keyword map", () => {
     await waitFor(() => expect(popover()).toHaveFocus());
     await new Promise((done) => setTimeout(done, 10));
     expect(popover()).toHaveFocus();
+    // The second click of a double-click zooms: it leaves the popover open.
+    fireEvent.click(frame, { detail: 2 });
+    expect(popover()).toHaveTextContent("battery health");
     // Closed, the map keeps the keyword it showed last: its card is back.
     fireEvent.keyDown(screen.getByTestId("seo-keyword-popover"), {
       key: "Escape",
@@ -314,7 +317,11 @@ describe("SEO keyword map", () => {
     fireEvent.pointerDown(frame, start);
     fireEvent.mouseDown(frame, start);
     map.focus();
-    fireEvent.pointerUp(frame, { ...start, clientX: start.clientX + 10 });
+    // Let go outside the frame.
+    fireEvent.pointerUp(document.body, {
+      ...start,
+      clientX: start.clientX + 10,
+    });
     fireEvent.mouseUp(window, start);
     await waitFor(() => expect(popover()).toBeNull());
     await new Promise((done) => setTimeout(done, 0));
