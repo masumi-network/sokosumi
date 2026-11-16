@@ -31,9 +31,10 @@ describe("getPrivateCachedTask", () => {
     await expect(getPrivateCachedTask("SOK-1")).resolves.toBeNull();
   });
 
-  // A returned null is kept in the browser for the stale time, as a 404 page.
-  // A thrown error is not kept, so an outage must throw.
-  it("throws on any other Core failure, so an outage is never kept", async () => {
+  // A "use cache" entry keeps a returned value but never a thrown error. An
+  // outage must throw, so no later read in the same request gets a cached
+  // "not found" for a task that exists.
+  it("throws on any other Core failure instead of caching it as missing", async () => {
     getTaskByIdMock.mockRejectedValue(coreError(503));
 
     await expect(getPrivateCachedTask("SOK-1")).rejects.toThrow(
