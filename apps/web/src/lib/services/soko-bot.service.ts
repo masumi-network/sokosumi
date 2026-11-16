@@ -134,10 +134,12 @@ export const sokoBotService = {
   async topUpAvatars(
     take: number,
     excludeIds: string[],
+    fresh = false,
   ): Promise<SokoBotAvatar[]> {
     const response = await coreClient.topUpSokoBotAvatars({
       take,
       excludeIds,
+      fresh,
     });
     return response.data;
   },

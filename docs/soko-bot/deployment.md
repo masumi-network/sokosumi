@@ -21,6 +21,23 @@ vercel env add SOKO_BOT_ENABLED preview --value true --project sokosumi-core-pre
 Nothing else is required. Model calls go through the AI Gateway using
 `AI_GATEWAY_API_KEY`, which Core already has.
 
+To split Gateway spend, set any of these optional keys; each falls back to
+`AI_GATEWAY_API_KEY` while unset, so nothing changes until you set one:
+
+- `SOKO_BOT_AI_GATEWAY_API_KEY` — bot turns, in-process and through the
+  sandbox model proxy. This is the default for any turn below that is not CMO
+  or eval.
+- `CMO_AI_GATEWAY_API_KEY` — Cuso turns: a CMO-profile version, or a turn id
+  starting `cmo-` or `cmo:`.
+- `EVALS_AI_GATEWAY_API_KEY` — eval bot turns (turn id `lab:`, or any turn in an eval lane workspace, including CMO and background turns; wins
+  over CMO) and the lab judge.
+- `PROJECT_MEMORY_AI_GATEWAY_API_KEY` — project memory refresh and the weekly
+  report; also what turns the memory feature on, with Blob storage.
+
+The tag classifier, Jev, chat signals, the brand profile and the model
+list always use `AI_GATEWAY_API_KEY`. Create the keys in the Gateway dashboard;
+Core only reads them.
+
 Optional, per network:
 
 - `SOKO_BOT_PROACTIVE_PAUSED=true` — platform-wide kill switch for everything
@@ -30,11 +47,11 @@ Optional, per network:
 - `COMPOSIO_API_KEY` — brokers OAuth for Gmail, Outlook and Calendar
   integrations. Without it, integrations are unavailable and the rest of the
   bot still works.
-- Avatars: the pool draws through `AI_GATEWAY_API_KEY` and stores to
+- Avatars: the pool draws through `FAL_KEY` and stores to
   `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
   offers no pictures and the sidebar shows a plain icon.
   There is no avatar cron: opening the picker draws new avatars with
-  `google/gemini-3.1-flash-image` when the pool runs low, capped at 24 per user
+  `fal-ai/gemini-3.1-flash-image-preview` when the pool runs low, capped at 24 per user
   per hour.
 - `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
   picks the route through the Gateway evaluation API. It has no EU region, so
@@ -91,8 +108,8 @@ keep `soko-bots/avatars/{key}-{hash12}.png`; new ones are stored as
 `soko-bot-avatars/`. Chat files stay under `soko-bots/{uuid}/chats/`.
 
 `GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
-No cron tops up the pool: the picker's top-up draws new avatars through the
-AI Gateway (`AI_GATEWAY_API_KEY`) on demand.
+No cron tops up the pool: the picker's top-up draws new avatars through
+fal (`FAL_KEY`) on demand.
 
 If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
 the old prefix after DB URLs are clean:

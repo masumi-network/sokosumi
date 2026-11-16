@@ -19,6 +19,21 @@ const base = {
   projectId: "project-1",
 } as const;
 
+it("keeps a billed SEO chat row as a receipt without exposing a private conversation link", () => {
+  expect(
+    getHistoryItemHref({
+      id: "seo-charge",
+      kind: "seoChat",
+      title: "SEO chat",
+      description: null,
+      credits: 0.1234,
+      consumedAt: new Date("2026-11-16T00:00:00Z"),
+      projectId: null,
+      owner: null,
+    }),
+  ).toBeNull();
+});
+
 describe("getHistoryItemHref", () => {
   it("maps task, job and image consumptions to their destinations", () => {
     const task: TransactionHistoryItem = {

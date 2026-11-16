@@ -9,9 +9,12 @@ import {
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
 
-/** Cookie preference, else list on mobile/tablet UA, else board. */
+/**
+ * The view a link asks for, else cookie preference, else list on
+ * mobile/tablet UA, else board.
+ */
 export const getDefaultTasksViewMode = cache(
-  async (): Promise<TasksViewMode> => {
+  async (requested: TasksViewMode | null = null): Promise<TasksViewMode> => {
     const [cookieStore, headersList] = await Promise.all([
       cookies(),
       headers(),
@@ -19,6 +22,7 @@ export const getDefaultTasksViewMode = cache(
     const { device } = userAgent({ headers: headersList });
 
     return resolveDefaultTasksViewMode({
+      requested,
       persisted: parseTasksViewMode(
         cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value,
       ),

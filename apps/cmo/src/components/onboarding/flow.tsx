@@ -2,18 +2,22 @@
 
 import "./onboarding.css";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { useCallback, useEffect, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
+import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
 import { adsReturnError } from "../ads";
+import { subscribeOffer } from "../app/paused";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
+import { skipOffer, topUpOffer } from "../top-up";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
+import { CheckoutStep } from "./checkout-step";
 import { LaunchStep } from "./launch-step";
 import { PlanStep } from "./plan-step";
 import { SiteStep } from "./site-step";
@@ -40,23 +44,36 @@ interface OnboardingFlowProps {
   initialStep?: "results" | undefined;
   /** What this person skipped in hiring, from CMO's cookie. */
   skipped?: SkippedStep[];
+  /** The CMO plans the checkout step offers; empty when Core could not read them. */
+  plans?: CmoSubscriptionPlan[];
+  /** This page is Polar's return after a payment. */
+  returnedFromCheckout?: boolean;
   actions: OnboardingActions;
 }
 
 /**
- * CMO's first run: four full-screen steps from Cuso reading the site to
- * launching him. The chat becomes home once the founder starts.
+ * CMO's first run: five full-screen steps from Cuso reading the site to
+ * launching and paying for him. The chat becomes home once the founder
+ * starts.
  */
 export function OnboardingFlow({
   overview: initialOverview,
   messages: initialMessages,
   initialStep,
   skipped: initialSkipped = [],
+  plans = [],
+  returnedFromCheckout = false,
   actions,
 }: OnboardingFlowProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [skipped, setSkipped] = useState(initialSkipped);
+  // Back from Polar, until the payment shows or the person says they did not pay.
+  const [confirming, setConfirming] = useState(returnedFromCheckout);
+  // Hiring ends with a checkout (ADR 0068), unless he has Tester credits.
+  const owesCheckout =
+    initialOverview.onboardingStep !== "done" &&
+    !initialOverview.billing.hasTesterCredits;
   // A finished step opened again from the markers; Results after a connection.
   const [viewing, setViewing] = useState<OnboardingStep | null>(
     initialStep === "results" ? "plan" : null,
@@ -71,15 +88,26 @@ export function OnboardingFlow({
     setReturnNotice(
       failed ? "That connection didn't finish. Try again." : adsReturnError(),
     );
-    if (window.location.search) window.history.replaceState(null, "", "/");
-  }, []);
+    // Polar's return address stays, so a reload keeps confirming the payment.
+    if (window.location.search && !returnedFromCheckout) {
+      window.history.replaceState(null, "", "/");
+    }
+  }, [returnedFromCheckout]);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
     if (!state?.overview) return;
+    // Paid: hiring is over, so the page loads again as the app, on the chat.
+    // The step on screen stays until it does.
+    if (owesCheckout && state.overview.onboardingStep === "done") {
+      window.location.assign(
+        `/?project=${encodeURIComponent(state.overview.projectId)}`,
+      );
+      return;
+    }
     setOverview(state.overview);
     setMessages(state.messages);
-  }, [actions]);
+  }, [actions, owesCheckout]);
 
   useEffect(() => {
     let last = Date.now();
@@ -97,7 +125,9 @@ export function OnboardingFlow({
     };
   }, [refresh]);
 
-  const position = onboardingStep(overview, skipped);
+  const position = onboardingStep(overview, skipped, {
+    returnedFromCheckout: confirming,
+  });
   const derived = position.step;
   // A Site that finishes in this session stays on screen, done, until the
   // founder moves on: jumping ahead hid everything Cuso just did. Set while
@@ -174,6 +204,19 @@ export function OnboardingFlow({
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
   };
+  const topUp = topUpOffer(overview, actions.startTopUp);
+  // A tester continues without a subscription; the refresh moves the
+  // wizard on once Core counts his Tester credits.
+  const skip = skipOffer(overview, async () => {
+    const { error } = await actions.skipSubscription();
+    if (!error) await refresh();
+    return error;
+  });
+  // A Cuso with Tester credits can run out before his plan: the
+  // monthly plans, cheapest first, as in the app (Polar lets him switch).
+  const subscribe = subscribeOffer(overview, () =>
+    actions.startPlanCheckout("month"),
+  );
 
   return (
     <div className="ob">
@@ -199,6 +242,7 @@ export function OnboardingFlow({
         <AccountMenu
           label={hostOf(overview.websiteUrl)}
           startOver={actions.startOver}
+          subscribed={cusoSubscribed(overview)}
           signOut={actions.signOut}
         />
       </header>
@@ -231,6 +275,9 @@ export function OnboardingFlow({
               await actions.sendMessage(text);
               await refresh();
             }}
+            topUp={topUp}
+            subscribe={subscribe}
+            skip={skip}
           />
         ) : step === "brand" ? (
           <BrandStep
@@ -256,6 +303,9 @@ export function OnboardingFlow({
               if (!refused) setViewing(null);
               return refused;
             }}
+            topUp={topUp}
+            subscribe={subscribe}
+            skip={skip}
           />
         ) : step === "plan" ? (
           <PlanStep
@@ -282,6 +332,24 @@ export function OnboardingFlow({
             onConnectMeasurement={(provider) =>
               actions.connectMeasurement(provider, "onboarding")
             }
+            topUp={topUp}
+            subscribe={subscribe}
+            skip={skip}
+          />
+        ) : step === "checkout" ? (
+          <CheckoutStep
+            plans={plans}
+            phase={position.step === "checkout" ? position.phase : "choosing"}
+            onCheckout={actions.startPlanCheckout}
+            skip={skip}
+            onShowPlans={() => {
+              setConfirming(false);
+              // The person pressed Launch to get to Polar on some device.
+              setSkipped((current) => [
+                ...new Set([...current, "accounts" as const]),
+              ]);
+              window.history.replaceState(null, "", "/");
+            }}
           />
         ) : (
           <LaunchStep
@@ -289,11 +357,14 @@ export function OnboardingFlow({
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
             notice={returnNotice}
-            // Launch needs a connected network, and Core ends hiring on the
+            // Launch needs a connected network, and Core moves on at the
             // first connection, so the celebration is client-only. Recording
             // the finish sets a cookie, and a cookie written in a server
-            // action re-renders the page into the app: it runs on Go to Today.
-            onLaunch={async () => {}}
+            // action re-renders the page: into the checkout right away when
+            // one is owed, else into the app on Go to Today.
+            onLaunch={
+              owesCheckout ? () => actions.finishAccounts() : async () => {}
+            }
             onGoToday={() => void actions.finishAccounts()}
           />
         )}
@@ -303,6 +374,7 @@ export function OnboardingFlow({
           className="button button-ghost button-small"
           label="Use another website"
           startOver={actions.startOver}
+          subscribed={cusoSubscribed(overview)}
         />
       </footer>
     </div>

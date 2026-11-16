@@ -7,6 +7,7 @@ import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
 import { StatusText } from "../status";
+import { OutOfCredits, type StartTopUp } from "../top-up";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -23,6 +24,8 @@ export interface CardActions {
   open: (
     view: "strategy" | "brain" | "results" | "channels" | "settings",
   ) => void;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
 }
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
@@ -118,13 +121,13 @@ export function LearningCard({
           >
             {pending ? "Starting…" : "Try again"}
           </button>
-          {refusal ? (
+          {!refusal ? null : /credits/i.test(refusal) ? (
+            <OutOfCredits topUp={actions.topUp} />
+          ) : (
             <span className="note" role="alert">
-              {/credits/i.test(refusal)
-                ? "You're out of credits. Top up in Settings, then try again."
-                : refusal}
+              {refusal}
             </span>
-          ) : null}
+          )}
         </div>
       ) : !running && !brain ? (
         <div className="cf">

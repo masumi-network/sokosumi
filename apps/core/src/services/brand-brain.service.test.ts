@@ -379,6 +379,24 @@ describe("Brand Brain questions", () => {
     });
   });
 
+  it("keeps the questions and answers when the essentials are saved again without them", async () => {
+    brainFindUnique.mockResolvedValue(
+      stored({ questions: [{ ...question, answer: "yes" }] }),
+    );
+    const { body } = stored();
+
+    await saveBrandBrain(PROJECT_ID, {
+      brandBrain: { ...body, questions: [] },
+    });
+
+    const saved = brainUpsert.mock.lastCall?.[0].update.body;
+    expect(saved.questions).toHaveLength(1);
+    expect(saved.questions[0]).toMatchObject({
+      id: question.id,
+      answer: "yes",
+    });
+  });
+
   it("marks a no without a note as not true, and waits for the section to be rewritten", async () => {
     brainFindUnique.mockResolvedValue(stored());
 

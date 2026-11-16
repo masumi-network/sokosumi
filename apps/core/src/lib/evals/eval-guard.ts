@@ -17,21 +17,42 @@ import prisma from "@/lib/db/prisma";
 export const EVAL_CONNECTED_ACCOUNT_PREFIX = "eval:";
 
 const CACHE_MS = 60_000;
-let cache: { at: number; workspaceIds: Set<string> } | null = null;
+let cache: {
+  at: number;
+  workspaceIds: Set<string>;
+  cusoProjectIds: Set<string>;
+} | null = null;
 
-export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
+async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   // A Prisma double without the eval tables (unit tests) has no lanes.
-  if (typeof prisma.evalLane?.findMany !== "function") return false;
+  if (typeof prisma.evalLane?.findMany !== "function") return null;
   if (!cache || Date.now() - cache.at > CACHE_MS) {
     const lanes = await prisma.evalLane.findMany({
-      select: { workspaceId: true },
+      select: { workspaceId: true, cusoProjectId: true },
     });
     cache = {
       at: Date.now(),
       workspaceIds: new Set(lanes.map((lane) => lane.workspaceId)),
+      cusoProjectIds: new Set(
+        lanes.flatMap((lane) =>
+          lane.cusoProjectId ? [lane.cusoProjectId] : [],
+        ),
+      ),
     };
   }
-  return cache.workspaceIds.has(workspaceId);
+  return cache;
+}
+
+export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
+  return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
+}
+
+/**
+ * An eval lane's Cuso stands in for a paying customer: the CMO subscription
+ * gate lets him work on the lane's credits (ADR 0068).
+ */
+export async function isEvalCusoProject(projectId: string): Promise<boolean> {
+  return (await evalLanes())?.cusoProjectIds.has(projectId) ?? false;
 }
 
 /** A lane created a moment ago must count at once. */

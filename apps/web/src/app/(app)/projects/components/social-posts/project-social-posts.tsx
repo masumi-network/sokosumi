@@ -1128,6 +1128,8 @@ export function ProjectSocialPosts({
       post.waitingForQuotedPost ||
       post.status === "PUBLISHING" ||
       post.status === "NEEDS_APPROVAL";
+    // The time a draft keeps until someone schedules it.
+    const plannedAt = post.status === "PUBLISHING" ? null : post.scheduledAt;
 
     function openPreview() {
       setPreviewTarget(post);
@@ -1149,8 +1151,25 @@ export function ProjectSocialPosts({
           onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
-          timestamp={null}
+          timestamp={plannedAt}
         />
+        {plannedAt ? (
+          <p
+            className="text-muted-foreground text-xs"
+            data-testid={`social-post-planned-${post.id}`}
+          >
+            <time dateTime={plannedAt.toISOString()}>
+              {t("plannedFor", {
+                date: formatter.dateTime(plannedAt, "dateTime"),
+              })}{" "}
+              <TimezoneLabel
+                timeZone={displayTimezone}
+                at={plannedAt}
+                variant="short"
+              />
+            </time>
+          </p>
+        ) : null}
         {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
             {showStatus ? (

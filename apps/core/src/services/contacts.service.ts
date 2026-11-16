@@ -13,6 +13,8 @@ import {
   contactNameFromChannel,
   type createContactSchema,
   normalizeContactChannelValue,
+  type setContactsStageSchema,
+  type undoContactsStageSchema,
   type updateContactSchema,
 } from "@sokosumi/utils";
 import { v7 as uuidv7 } from "uuid";
@@ -742,6 +744,121 @@ export async function updateContact(
   return loadContactDto(tx, id, actor.userId);
 }
 
+type ContactStageUndo = z.infer<
+  typeof undoContactsStageSchema
+>["contacts"][number];
+
+/**
+ * Sets one stage on many contacts. Every id must be a live contact of the
+ * workspace, or nothing changes. Contacts already at the stage stay as they
+ * are; the rest get a new version and an UPDATED activity entry. `undo` holds
+ * each changed contact's earlier stage and new version for
+ * `undoContactsStage`.
+ */
+export async function setContactsStage(
+  tx: Tx,
+  actor: ContactActor,
+  contactIds: string[],
+  stage: z.infer<typeof setContactsStageSchema>["stage"],
+): Promise<{ updated: number; undo: ContactStageUndo[] }> {
+  const ids = [...new Set(contactIds)];
+  const contacts = await tx.contact.findMany({
+    where: {
+      id: { in: ids },
+      workspaceId: actor.workspaceId,
+      mergedIntoId: null,
+    },
+    select: { id: true, stage: true, version: true },
+  });
+  if (contacts.length !== ids.length) throw notFound("Contact not found");
+  const changing = contacts.filter((contact) => contact.stage !== stage);
+  if (!changing.length) return { updated: 0, undo: [] };
+  await tx.contact.updateMany({
+    where: { id: { in: changing.map((contact) => contact.id) } },
+    data: { stage, version: { increment: 1 } },
+  });
+  await recordStageChanges(
+    tx,
+    actor,
+    changing.map((contact) => ({ ...contact, after: stage })),
+  );
+  return {
+    updated: changing.length,
+    undo: changing.map((contact) => ({
+      id: contact.id,
+      stage: contact.stage,
+      version: contact.version + 1,
+    })),
+  };
+}
+
+/**
+ * Puts each contact back on its own earlier stage. Contacts that changed
+ * since (another version), were merged, or are not in this workspace are
+ * skipped, so an undo never overwrites a later edit and a second undo
+ * restores nothing.
+ */
+export async function undoContactsStage(
+  tx: Tx,
+  actor: ContactActor,
+  undo: ContactStageUndo[],
+): Promise<{ restored: number; skipped: number }> {
+  const wanted = new Map(undo.map((item) => [item.id, item]));
+  const contacts = await tx.contact.findMany({
+    where: {
+      id: { in: [...wanted.keys()] },
+      workspaceId: actor.workspaceId,
+      mergedIntoId: null,
+    },
+    select: { id: true, stage: true, version: true },
+  });
+  const restoring = contacts.flatMap((contact) => {
+    const item = wanted.get(contact.id);
+    return item?.version === contact.version
+      ? [{ ...contact, after: item.stage }]
+      : [];
+  });
+  // One write per earlier stage: a mixed selection goes back to mixed stages.
+  for (const stage of new Set(restoring.map((contact) => contact.after)))
+    await tx.contact.updateMany({
+      where: {
+        id: {
+          in: restoring
+            .filter((contact) => contact.after === stage)
+            .map((contact) => contact.id),
+        },
+      },
+      data: { stage, version: { increment: 1 } },
+    });
+  await recordStageChanges(tx, actor, restoring);
+  return {
+    restored: restoring.length,
+    skipped: wanted.size - restoring.length,
+  };
+}
+
+async function recordStageChanges(
+  tx: Tx,
+  actor: ContactActor,
+  contacts: Array<{
+    id: string;
+    stage: ContactStageUndo["stage"];
+    after: ContactStageUndo["stage"];
+  }>,
+) {
+  if (!contacts.length) return;
+  await tx.contactActivity.createMany({
+    data: contacts.map((contact) => ({
+      workspaceId: actor.workspaceId,
+      contactId: contact.id,
+      userId: actor.userId,
+      sokoBotId: actor.sokoBotId,
+      kind: "UPDATED" as const,
+      changes: { stage: { before: contact.stage, after: contact.after } },
+    })),
+  });
+}
+
 export async function setContactArchived(
   tx: Tx,
   actor: ContactActor,
@@ -1093,11 +1210,63 @@ export async function mergeContacts(
 /** Mail providers whose domain names no company, for the SQL below. */
 const PERSONAL_MAIL_DOMAINS = [...FREEMAIL_DOMAINS];
 
+function contactPairKey(a: string, b: string): string {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+/** The pairs among `ids` that someone said are different people. */
+async function notDuplicatePairs(
+  workspaceId: string,
+  ids: string[],
+): Promise<Set<string>> {
+  if (!ids.length) return new Set();
+  const rows = await prisma.contactNotDuplicate.findMany({
+    where: { workspaceId, contactId: { in: ids }, otherContactId: { in: ids } },
+    select: { contactId: true, otherContactId: true },
+  });
+  return new Set(
+    rows.map((row) => contactPairKey(row.contactId, row.otherContactId)),
+  );
+}
+
+/**
+ * Records that these contacts are different people, every pair of them, so
+ * the duplicates check stops grouping them. Merging them later still works.
+ */
+export async function markNotDuplicates(
+  tx: Prisma.TransactionClient,
+  actor: ContactActor,
+  contactIds: string[],
+): Promise<void> {
+  const ids = [...new Set(contactIds)];
+  const found = await tx.contact.count({
+    where: { id: { in: ids }, workspaceId: actor.workspaceId },
+  });
+  if (found !== ids.length) throw notFound("Contact not found");
+  const pairs = ids.flatMap((id, index) =>
+    ids.slice(index + 1).map((other) => {
+      const [contactId, otherContactId] =
+        id < other ? [id, other] : [other, id];
+      return {
+        workspaceId: actor.workspaceId,
+        contactId,
+        otherContactId,
+        createdByUserId: actor.userId,
+      };
+    }),
+  );
+  await tx.contactNotDuplicate.createMany({
+    data: pairs,
+    skipDuplicates: true,
+  });
+}
+
 /**
  * Live contacts that may be one person: the same name (case and spacing
  * ignored; a first name alone only at the same organization), or the same
  * surname and first initial with an address at the same company domain
  * ("Tom Berger" tom@acme.com and "Thomas Berger" t.berger@acme.com).
+ * Pairs marked as different people (`markNotDuplicates`) are left apart.
  */
 export async function findDuplicateContacts(
   actor: ContactActor,
@@ -1107,6 +1276,8 @@ export async function findDuplicateContacts(
     ? PrismaRaw.sql`AND bool_or(c."id" = ${options.contactId}::uuid)`
     : PrismaRaw.empty;
   const limit = options.limit ?? 50;
+  // Groups someone split up still come back from SQL; read extra to fill.
+  const read = limit * 2;
   const sameName = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
     SELECT lower(btrim(c."name")) AS "key", array_agg(c."id"::text ORDER BY c."createdAt") AS "ids"
     FROM "contact" c
@@ -1119,7 +1290,7 @@ export async function findDuplicateContacts(
     HAVING count(*) > 1
       ${only}
     ORDER BY lower(btrim(c."name"))
-    LIMIT ${limit}
+    LIMIT ${read}
   `;
   const sameCompany = await prisma.$queryRaw<{ key: string; ids: string[] }[]>`
     SELECT min(c."name") AS "key", array_agg(DISTINCT c."id"::text) AS "ids"
@@ -1136,15 +1307,28 @@ export async function findDuplicateContacts(
     HAVING count(DISTINCT c."id") > 1
       AND count(DISTINCT lower(btrim(c."name"))) > 1
       ${only}
-    LIMIT ${limit}
+    LIMIT ${read}
   `;
+  const notSame = await notDuplicatePairs(
+    actor.workspaceId,
+    [...sameName, ...sameCompany].flatMap((group) => group.ids),
+  );
   const seen = new Set<string>();
-  const groups = [...sameName, ...sameCompany].filter((group) => {
-    const key = [...group.ids].sort().join(",");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const groups = [...sameName, ...sameCompany]
+    .flatMap((group) => {
+      const ids = group.ids.filter((id) =>
+        group.ids.some(
+          (other) => other !== id && !notSame.has(contactPairKey(id, other)),
+        ),
+      );
+      return ids.length > 1 ? [{ ...group, ids }] : [];
+    })
+    .filter((group) => {
+      const key = [...group.ids].sort().join(",");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   const ids = [...new Set(groups.flatMap((group) => group.ids))];
   const rows = await prisma.contact.findMany({
     where: { id: { in: ids } },

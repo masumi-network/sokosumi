@@ -246,6 +246,9 @@ interface TaskEventRecord {
 }
 
 interface TransactionMock {
+  projectSeoAnalysis?: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   taskEvent: {
     create: ReturnType<typeof vi.fn>;
     findUnique?: ReturnType<typeof vi.fn>;
@@ -371,6 +374,9 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
 }
 
 function mockTransaction(tx: TransactionMock) {
+  tx.projectSeoAnalysis ??= {
+    findUnique: vi.fn().mockResolvedValue(null),
+  };
   if (!tx.taskLink) {
     tx.taskLink = {
       findMany: vi.fn().mockResolvedValue([]),

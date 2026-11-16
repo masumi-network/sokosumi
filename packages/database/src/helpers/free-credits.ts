@@ -17,6 +17,10 @@ export class GrantFreeCreditsError extends Error {
 /** A `projectId` makes them Project credits of the organization (ADR 0067). */
 interface GrantFreeCreditsParams extends CreditBucketProjectOption {
   credits: number;
+  /** FREE unless the grant has a type of its own (Tester credits). */
+  referenceType?:
+    | typeof CreditBucketReferenceType.FREE
+    | typeof CreditBucketReferenceType.CMO_TESTER_CREDITS;
   expiresAt: Date | null;
   grantId: string;
   organizationId: string | null;
@@ -96,7 +100,7 @@ export async function grantFreeCredits(
           projectId: params.projectId,
           referenceId,
           referenceNote: params.referenceNote,
-          referenceType: CreditBucketReferenceType.FREE,
+          referenceType: params.referenceType ?? CreditBucketReferenceType.FREE,
           userId: bucketUserId,
         },
       },

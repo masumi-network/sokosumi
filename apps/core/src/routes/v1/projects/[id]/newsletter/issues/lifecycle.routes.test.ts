@@ -70,6 +70,7 @@ vi.mock("@/services/newsletter-send.service", () => ({
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => {
   const tx = {
+    projectSeoAnalysis: { findUnique: vi.fn().mockResolvedValue(null) },
     newsletterIssue: {
       updateMany: m.updateMany,
       deleteMany: m.remove,

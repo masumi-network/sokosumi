@@ -16,6 +16,7 @@ export const transactionHistoryKinds = [
   "task",
   "coworker",
   "sokoBot",
+  "seoChat",
   "contacts",
   "topUp",
   "unattributed",
@@ -154,6 +155,10 @@ export const transactionHistorySokoBotItemSchema =
     })
     .openapi("TransactionHistorySokoBotItem");
 
+const transactionHistorySeoChatItemSchema = transactionHistoryBaseItemSchema
+  .extend({ kind: z.literal("seoChat") })
+  .openapi("TransactionHistorySeoChatItem");
+
 const transactionHistoryContactsItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("contacts"),
@@ -174,7 +179,7 @@ const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
      */
     bucketSource: z.string().nullable().openapi({
       description:
-        "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
+        "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP, CMO_TESTER_CREDITS). Null when no bucket records one.",
       example: "STRIPE_TOPUP",
     }),
     refundedJobId: z.string().nullable().openapi({
@@ -219,6 +224,7 @@ const transactionHistoryItemSchema = z
     transactionHistoryTaskItemSchema,
     transactionHistoryCoworkerItemSchema,
     transactionHistorySokoBotItemSchema,
+    transactionHistorySeoChatItemSchema,
     transactionHistoryContactsItemSchema,
     transactionHistoryTopUpItemSchema,
     transactionHistoryUnattributedItemSchema,
@@ -299,6 +305,20 @@ export type TransactionHistoryItem = z.infer<
   typeof transactionHistoryItemSchema
 >;
 export type TransactionHistoryKind = (typeof transactionHistoryKinds)[number];
+
+export const transactionTotalSchema = z
+  .object({
+    credits: z.number().openapi({
+      description:
+        "Net credits taken by the matching rows: spends minus refunds and other top ups.",
+      example: 12.5,
+    }),
+    count: z.number().int().openapi({
+      description: "Matching ledger rows.",
+      example: 3,
+    }),
+  })
+  .openapi("TransactionTotal");
 
 export const transactionDailySpendListSchema = z
   .array(

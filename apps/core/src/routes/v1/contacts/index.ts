@@ -9,6 +9,7 @@ import mountInteractions from "./[id]/interactions.js";
 import mountPatch from "./[id]/patch.js";
 import mountBreakdown from "./breakdown.js";
 import mountCompanies from "./companies.js";
+import mountCompanyLists from "./company-lists.js";
 import mountExport from "./export.js";
 import mountGet from "./get.js";
 import mountImport from "./import.js";
@@ -16,6 +17,7 @@ import mountMap from "./map.js";
 import mountMerge from "./merge.js";
 import mountOrganizations from "./organizations.js";
 import mountPost from "./post.js";
+import mountStage from "./stage.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
@@ -28,9 +30,11 @@ mountPost(app);
 mountExport(app);
 mountMap(app);
 mountMerge(app);
+mountStage(app);
 mountImport(app);
 mountOrganizations(app);
 mountCompanies(app);
+mountCompanyLists(app);
 mountBreakdown(app);
 mountGetContact(app);
 mountPatch(app);

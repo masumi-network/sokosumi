@@ -187,7 +187,9 @@ describe("POST /projects/{id}/tasks", () => {
     lockTaskRowsMock.mockResolvedValue(true);
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         task: {
+          findFirst: taskFindFirstMock,
           updateMany: taskUpdateManyMock,
         },
       }),

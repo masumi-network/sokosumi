@@ -3,6 +3,7 @@ import "server-only";
 import type {
   CreateProjectImageJobRequest,
   CreateProjectVideoJobRequest,
+  ImageStudioRecentProjects,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
@@ -39,6 +40,12 @@ export const imageStudioService = {
   async getCatalog(): Promise<ProjectImageStudioCatalog> {
     const result = await coreClient.getImageStudioCatalog();
     return result.data;
+  },
+
+  /** Empty for a workspace with no Studio images yet. */
+  async getRecentProjects(): Promise<ImageStudioRecentProjects["projects"]> {
+    const result = await coreClient.getImageStudioRecentProjects();
+    return result.data.projects;
   },
 
   async getState(

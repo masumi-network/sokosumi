@@ -29,6 +29,12 @@ export const topUpSokoBotAvatarsRequestSchema = z.object({
    * web action enforces on the picker.
    */
   excludeIds: z.array(z.string().uuid()).max(60).default([]),
+  /**
+   * "Show others": skip the pool, draw `take` new avatars and answer with
+   * only those. An empty answer still means a draw was tried; a draw that
+   * reserved nothing answers 409, a spent allowance 429.
+   */
+  fresh: z.boolean().default(false),
 });
 
 export const claimSokoBotAvatarRequestSchema = z

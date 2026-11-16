@@ -1,6 +1,12 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -81,6 +87,7 @@ vi.mock("./kanban-board", () => ({
           data-testid={`board-card-${task.id}`}
           data-column={task.columnId}
           data-status={task.status}
+          data-status-since={task.statusSince}
         />
       ))}
       {Object.entries(columnFooterById).map(([columnId, footer]) => (
@@ -255,6 +262,7 @@ const EMPTY_FILTERS: TasksFilters = {
   status: null,
   projectId: null,
   visibility: null,
+  stuck: false,
 };
 
 function renderBoard(
@@ -470,6 +478,70 @@ describe("TasksView board drag", () => {
   });
 });
 
+describe("TasksView board drag time in status", () => {
+  const OLD = "2026-06-01T08:00:00.000Z";
+  const NOW = new Date("2026-06-09T10:00:00.000Z");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts the clock when a moved Task takes its new status", async () => {
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
+      ok: true,
+    } as Awaited<ReturnType<typeof setTaskStatusFromDrag>>);
+    renderBoard([{ ...TASK, statusSince: OLD }]);
+
+    await dropOnTodo("task-1", "backlog");
+
+    await waitFor(() =>
+      expect(boardCard("task-1")).toHaveAttribute("data-column", "todo"),
+    );
+    expect(boardCard("task-1")).toHaveAttribute(
+      "data-status-since",
+      NOW.toISOString(),
+    );
+  });
+
+  it("restores the old time in status when the move is rejected", async () => {
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
+      ok: false,
+      error: { kind: "status_not_selectable" },
+    });
+    renderBoard([{ ...TASK, statusSince: OLD }]);
+
+    await dropOnTodo("task-1", "backlog");
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(boardCard("task-1")).toHaveAttribute("data-column", "backlog");
+    expect(boardCard("task-1")).toHaveAttribute("data-status-since", OLD);
+  });
+
+  it("restores the old time in status when a reopen is cancelled", async () => {
+    renderBoard([{ ...CANCELED_TASK, statusSince: OLD }]);
+
+    await dropOnTodo("task-1", "done");
+    await screen.findByLabelText(labels.reopenToReady.commentLabel);
+    expect(boardCard("task-1")).toHaveAttribute(
+      "data-status-since",
+      NOW.toISOString(),
+    );
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+
+    await waitFor(() =>
+      expect(boardCard("task-1")).toHaveAttribute("data-column", "done"),
+    );
+    expect(boardCard("task-1")).toHaveAttribute("data-status-since", OLD);
+    expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
+  });
+});
+
 describe("TasksView without the task-board guide", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -528,6 +600,18 @@ it("keeps board and list drag overlays in Compact", async () => {
     "data-compact",
     "true",
   );
+});
+
+it("hands a link's ?view=board back to the saved view when List is picked", async () => {
+  searchParamsRef.current = new URLSearchParams("view=board&scope=owned");
+  const user = userEvent.setup();
+  renderBoard();
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "List" }));
+  expect(document.cookie).toContain("tasks_view_mode=list");
+  expect(replaceMock).toHaveBeenCalledWith("/tasks?scope=owned");
+  expect(refreshMock).not.toHaveBeenCalled();
+  searchParamsRef.current = new URLSearchParams();
 });
 
 it("keeps a task that left the server page when this tab did not archive it", () => {

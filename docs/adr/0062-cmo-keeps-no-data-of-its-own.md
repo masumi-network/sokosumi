@@ -13,9 +13,9 @@ CMO is a Sokosumi wrapper, yet `cmo_hire` held what Cuso learns and plans for a 
 - **The calendar is the Project's Social posts.** Each entry is a Social post from approval on, a draft until produced. The strategy keeps only the plan.
 - **Pieces that are not Social posts are the Project's Files.** An article, a page fix, ad copy or a newsletter issue is written as a Markdown file under Marketing/<month>, linked to its version and entry (`marketing_strategy_file`, with the piece's pictures); the owner pastes, launches or sends it. Production counts it made once its file exists.
 - **Reports are messages.** Cuso's reports are result cards in his shared room; the newest is the Project's latest update.
-- **Progress is read, not stored.** Production readiness comes from the Social posts and Cuso's background runs; hiring progress from the Brand Brain, the strategy, Social connections and the subscription. The two choices only CMO's screens need (skipping the accounts step, subscribing later) stay in CMO's own cookie, per Cuso; Sokosumi stores nothing for them.
+- **Progress is read, not stored.** Production readiness comes from the Social posts and Cuso's background runs; hiring progress from the Brand Brain, the strategy, Social connections and the Project's CMO subscription ([ADR 0068](0068-cmo-sells-its-plans-through-polar.md)). The two choices only CMO's screens need (moving past the accounts step, skipping Cuso's questions) stay in CMO's own cookie, per Cuso; Sokosumi stores nothing for them.
 - **The shapes are Sokosumi's.** The Brand Brain, a strategy's plan and a Social post's planning stay JSON, validated on every write by schemas with Sokosumi names in a shared package, not CMO's. A version records the turn that wrote it.
-- **Smaller pieces move to their owners.** The site's platform is a Project field, brand research is Project files, and the mock plan is a Subscription row without Stripe.
+- **Smaller pieces move to their owners.** The site's platform is a Project field, and brand research is Project files. The mock plan is gone: a CMO plan is a CMO subscription row fed by Polar (ADR 0068).
 - **Cuso is found, not linked.** He is the Project's shared bot on CMO's version; Hiring Cuso refuses a second one in the same Project.
 
 ## Considered Options

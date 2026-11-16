@@ -138,6 +138,16 @@ describe("FlowsLayout impersonation banner", () => {
     expect(column).toHaveClass("min-w-0", "flex-1");
   });
 
+  it("holds the page in the main landmark", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    expect(screen.getByRole("main")).toContainElement(
+      screen.getByText("gate content"),
+    );
+  });
+
   it("mounts no banner when signed out", async () => {
     readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
 

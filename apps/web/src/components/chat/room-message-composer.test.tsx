@@ -109,11 +109,25 @@ describe("RoomMessageComposer docked content", () => {
     );
 
     const tray = screen.getByTestId("tray");
-    expect(screen.getByTestId("typing").nextElementSibling).toBe(tray);
+    expect(screen.getByTestId("typing").nextElementSibling).toBe(
+      tray.parentElement,
+    );
+    expect(tray.parentElement).toHaveClass("contents", "pointer-events-auto");
     expect(
-      tray.nextElementSibling?.querySelector(
+      tray.parentElement?.nextElementSibling?.querySelector(
         "[data-room-composer-mention-anchor]",
       ),
     ).toBe(container.querySelector("[data-room-composer-mention-anchor]"));
+
+    expect(container.querySelector("form")).toHaveClass("pointer-events-none");
+    const card = container.querySelector("[data-room-composer-mention-anchor]");
+    expect(card).toHaveClass(
+      "pointer-events-auto",
+      "rounded-xl",
+      "bg-background",
+      "[clip-path:inset(0_round_calc(var(--radius)+4px))]",
+    );
+    expect(container.querySelector("[data-room-composer-footer]")).toBeNull();
+    expect(container.querySelector(".top-full.bg-background")).toBeNull();
   });
 });

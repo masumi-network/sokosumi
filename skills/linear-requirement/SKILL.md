@@ -140,6 +140,5 @@ Decision order:
 ## Supporting files
 
 - `REQUIREMENT-TEMPLATE.md` — requirement body shape.
-- `LINEAR-CLI.md` — create/update after approval when `linear` is on PATH.
+- `LINEAR-CLI.md` — create/update after approval when `linear` is on PATH. Flags come from `linear skill show`; this repo does not install a linear-cli skill.
 - `LINEAR-MCP.md` — create/update after approval when `linear` is missing.
-- `.agents/skills/linear-cli/` — CLI flags and recipes.

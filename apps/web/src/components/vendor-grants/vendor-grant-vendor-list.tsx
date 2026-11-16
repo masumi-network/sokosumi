@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -83,14 +83,30 @@ function VendorCard({
   namespace,
 }: VendorCardProps) {
   const t = useTranslations(namespace);
-  const status = entry.grant?.status;
+  const format = useFormatter();
+  const grant = entry.grant;
+  const status = grant?.status;
+  const isGranted = isWorkspaceApprovalGranted(status);
 
   function statusLabel(): string | null {
     if (!status) {
       return null;
     }
-    return t(workspaceApprovalStatusMessageKey(status));
+    // A granted partner is described by what it can do, not by the status.
+    return isGranted
+      ? t("permissionWorkspace")
+      : t(workspaceApprovalStatusMessageKey(status));
   }
+
+  // Only facts the grant records: when access began, and whether the partner
+  // asked for it. The grant does not record why it was given.
+  const since = grant ? (grant.resolvedAt ?? grant.createdAt) : null;
+  const grantedDetail =
+    isGranted && grant && since
+      ? t(grant.requestedByUserId ? "grantedOnRequest" : "grantedSince", {
+          date: format.dateTime(new Date(since), { dateStyle: "medium" }),
+        })
+      : null;
 
   return (
     <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
@@ -110,6 +126,9 @@ function VendorCard({
             </Badge>
           ) : null}
         </div>
+        {grantedDetail ? (
+          <p className="text-muted-foreground text-sm">{grantedDetail}</p>
+        ) : null}
       </div>
 
       <VendorCardActions

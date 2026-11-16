@@ -611,28 +611,41 @@ describe("a gallery with work in it", () => {
    * "Unexpected status code: 422" — an HTTP detail, in English, shown to
    * somebody who asked for a picture. The provider's words are kept, one
    * disclosure away, for whoever has to chase fal about them.
+   *
+   * The visible line is only the model, that it failed, and that it cost
+   * nothing. The reason sentence opens from that line, beside the provider's
+   * words, instead of stacking a title, a paragraph and a toggle.
    */
-  it("states a failure in a sentence, with the provider's words behind a toggle", () => {
+  it("states a failure in one line, with the reason and the provider's words behind it", () => {
     mount(manyAssets(2), [
       job("failed", "FAILED", "Unexpected status code: 422"),
     ]);
 
     const alert = screen.getByRole("status");
-    expect(alert).toHaveTextContent("provider_error");
-    // Present in the DOM — a `details` only hides its own body visually — but
-    // never in the sentence a reader gets handed.
-    const summary = screen.getByText("failedDetails");
-    expect(summary.closest("details")).toHaveTextContent(
-      "Unexpected status code: 422",
+    const summary = alert.querySelector("details > summary");
+    expect(summary?.textContent).toBe(
+      "Model A failedAfterModel · failedNoCharge",
     );
-    expect(alert.querySelector("p")?.textContent).not.toContain("422");
+    // Present in the DOM — a `details` only hides its own body visually — but
+    // never in the line a reader gets handed.
+    const details = summary?.closest("details");
+    expect(details).toHaveTextContent("provider_error");
+    expect(details).toHaveTextContent("Unexpected status code: 422");
+    expect(details?.open).toBe(false);
+    expect(
+      within(alert).getByRole("button", { name: TEST_LABELS.tryAgain }),
+    ).toBeInTheDocument();
+    expect(
+      within(alert).getByRole("button", { name: TEST_LABELS.close }),
+    ).toBeInTheDocument();
   });
 
-  it("offers no disclosure when the provider said nothing", () => {
+  it("keeps the reason behind the line when the provider said nothing", () => {
     mount(manyAssets(2), [job("failed", "FAILED")]);
 
-    expect(screen.getByRole("status")).toHaveTextContent("provider_error");
-    expect(screen.queryByText("failedDetails")).toBeNull();
+    const details = screen.getByRole("status").querySelector("details");
+    expect(details).toHaveTextContent("provider_error");
+    expect(details?.querySelector(".font-mono")).toBeNull();
   });
 
   it("retries a cutout refinement through its parent instead of submitting the product file as a reference", () => {

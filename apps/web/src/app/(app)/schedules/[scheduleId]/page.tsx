@@ -11,6 +11,7 @@ import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
+import { seoMonitorPlanText } from "@/app/seo/components/seo-monitor-text";
 import TaskDetailLoading from "@/app/tasks/[taskId]/loading";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskScheduleActions } from "@/app/tasks/components/task-schedule-actions";
@@ -109,6 +110,7 @@ async function TaskScheduleDetailContent({
     tStatus,
     tTaskDetail,
     formatter,
+    tSeo,
   ] = await Promise.all([
     loadTaskScheduleAssigneeOptions(activeOrganizationId),
     getProjectFilterOptions(schedule.projectId),
@@ -128,7 +130,15 @@ async function TaskScheduleDetailContent({
     getTranslations("App.Tasks.Filters.statusOptions"),
     getTranslations("App.Tasks.Detail"),
     getFormatter(),
+    getTranslations("App.Seo"),
   ]);
+  // An SEO monitor's plan sentence in the reader's language; Core's description is English.
+  const description = schedule.seoMonitor
+    ? seoMonitorPlanText(tSeo, formatter, {
+        ...schedule.seoMonitor,
+        rule: schedule.rule,
+      })
+    : schedule.description;
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const project = projectOptions.find(
     (option) => option.id === schedule.projectId,
@@ -186,10 +196,10 @@ async function TaskScheduleDetailContent({
               </h1>
             </div>
 
-            {schedule.description ? (
+            {description ? (
               <TaskDescription
                 title={tTaskDetail("description")}
-                description={schedule.description}
+                description={description}
                 expandLabel={tTaskDetail("expand")}
                 collapseLabel={tTaskDetail("collapse")}
               />

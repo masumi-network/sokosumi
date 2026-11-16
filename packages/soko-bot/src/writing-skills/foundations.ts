@@ -58,7 +58,7 @@ The network skills show example posts for other, made-up businesses. They show s
         rule: "It states no number, price, customer or quote that the brand facts do not hold.",
       },
       {
-        rule: "It says something specific to this business, not a line any competitor could post.",
+        rule: "It names at least one thing only this business has: its product, plan or feature by name, its price, its place, a customer or a number of its own.",
       },
     ],
   },
@@ -76,7 +76,6 @@ The network skills show example posts for other, made-up businesses. They show s
       "youtube",
       "tiktok",
       "meta_ads",
-      "google_ads",
     ],
     content: `# Post formatting
 
@@ -148,10 +147,13 @@ Which one would you start with?
     name: "Hooks and endings",
     description:
       "Read before any social post or ad: how to open so people stop, and how to close so they act.",
-    // A newsletter's subject, opening and one link, and a search piece's
-    // fields, are shaped by their own skills.
+    // A newsletter's subject, opening and one link, a search piece's fields
+    // and a Google ad's headlines and descriptions are shaped by their own skills.
     channels: EVERY_CHANNEL.filter(
-      (channel) => channel !== "seo" && channel !== "newsletter",
+      (channel) =>
+        channel !== "seo" &&
+        channel !== "newsletter" &&
+        channel !== "google_ads",
     ),
     content: `# Hooks and endings
 
@@ -204,7 +206,7 @@ Read only the first line. Would a stranger in the right audience stop for it? If
         counted: true,
       },
       {
-        rule: "It ends with one question, takeaway or call to action, never several.",
+        rule: "It ends with a single question, takeaway or call to action.",
       },
     ],
   },
