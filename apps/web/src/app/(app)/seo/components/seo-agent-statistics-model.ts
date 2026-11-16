@@ -45,10 +45,9 @@ export function seoAnalyticsAction(
   state: SeoAnalyticsState,
   connected: boolean,
   properties: number,
-): "connect" | "retry" | "choose" | "manage" | null {
+): "connect" | "choose" | "manage" | null {
   if (state === "missing" || (state === "unknown" && !connected))
     return "connect";
-  if (state === "failed") return "retry";
   if (state === "choose") return "choose";
   // One property or none: the connections dialog is where another account or property comes from.
   if (state === "no_property") return "manage";

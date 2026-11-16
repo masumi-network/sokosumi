@@ -2875,10 +2875,11 @@ describe("SEO workspace integration", () => {
         "Google statistics: the Analytics property example.com has no visits for these pages yet",
         "Choose property",
       ],
+      // A sync that runs or failed is said once, by the upkeep line of the verdict card: the line steps aside.
       [
         "connected",
         [{ id: "properties/3", name: "example.com" }],
-        "Google statistics: loading Analytics",
+        "Loading Google statistics.",
         null,
       ],
       [
@@ -2890,13 +2891,14 @@ describe("SEO workspace integration", () => {
       [
         "connected",
         null,
-        "Google statistics: Analytics could not be read",
+        "Google statistics could not load. Try again.",
         "Try again",
       ],
     ] as const) {
       // The loading row's collection never finishes: "no visits" is what a finished collection found.
-      const running =
-        typeof text === "string" && text.endsWith("loading Analytics");
+      const running = text === "Loading Google statistics.";
+      const upkeep =
+        running || text === "Google statistics could not load. Try again.";
       const fetch = vi.fn(async (url: string) =>
         url.endsWith("/connections/ga4")
           ? status === "unread"
@@ -2926,24 +2928,26 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace, "?tab=agent");
       // The line can wait for a cause and come back: each read finds it again.
       const line = () => screen.getByTestId("seo-agent-statistics");
+      if (upkeep) {
+        const said = await screen.findByText(text);
+        await waitFor(() =>
+          expect(screen.queryByTestId("seo-agent-statistics")).toBeNull(),
+        );
+        if (button)
+          expect(
+            within(said.parentElement as HTMLElement).getByRole("button", {
+              name: button,
+            }),
+          ).toBeVisible();
+        cleanup();
+        continue;
+      }
       await waitFor(() => expect(line()).toHaveTextContent(text));
       if (button)
         expect(
           await within(line()).findByRole("button", { name: button }),
         ).toBeVisible();
       else expect(within(line()).queryByRole("button")).toBeNull();
-      // A failed read has its Retry on the line: it asks for the properties again.
-      if (text === "Google statistics: Analytics could not be read") {
-        const reads = () =>
-          fetch.mock.calls.filter(([url]) =>
-            url.includes("/statistics/properties"),
-          ).length;
-        const before = reads();
-        await userEvent.click(
-          within(line()).getByRole("button", { name: "Try again" }),
-        );
-        await waitFor(() => expect(reads()).toBeGreaterThan(before));
-      }
       cleanup();
     }
     // A connected account with no cause to name has no bare line: here the property list says the connection

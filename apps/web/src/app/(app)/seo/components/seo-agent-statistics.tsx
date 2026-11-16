@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, RotateCw, Settings2 } from "lucide-react";
+import { ChartColumn, Settings2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -45,27 +45,36 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
   const action = seoAnalyticsAction(analytics, connected, listed?.length ?? 0);
   const line = useRef<HTMLDivElement>(null);
   const text = useRef<HTMLParagraphElement>(null);
+  // A connected account with no cause yet has nothing to say: the line waits for one. A sync that runs or
+  // failed is said once, by the upkeep line of the verdict card, with its Try again.
+  const hidden =
+    (analytics === "unknown" && connected) ||
+    analytics === "loading" ||
+    analytics === "failed";
   const focused = useRef(false);
+  const handoff = useRef(false);
   const shownAction = useRef(action);
-  // A fix that leaves with its cause (a connect that finished) takes the focus with it: the new cause gets it.
+  // A fix that leaves with its cause (a connect that finished) takes the focus with it: the next cause the line
+  // shows gets it, unless the reader put the focus somewhere else in the meantime.
   useEffect(() => {
+    if (hidden) {
+      handoff.current ||= focused.current;
+      focused.current = false;
+      return;
+    }
     if (shownAction.current === action) return;
     shownAction.current = action;
-    if (focused.current && !line.current?.contains(document.activeElement))
-      text.current?.focus();
-  }, [action]);
-  // A connected account with no cause yet has nothing to say: the line waits for one.
-  if (analytics === "unknown" && connected) return null;
-  // A running sync has no fix: the line only names it. A status that is not read yet gets the connect button,
-  // which shows its wait and its own Try again.
+    const lost =
+      document.activeElement === document.body &&
+      (focused.current || handoff.current);
+    handoff.current = false;
+    if (lost) text.current?.focus();
+  }, [action, hidden]);
+  if (hidden) return null;
+  // A status that is not read yet gets the connect button, which shows its wait and its own Try again.
   const control =
     action === "connect" ? (
       <SeoConnectionButton provider="ga4" onError={setConnectError} compact />
-    ) : action === "retry" ? (
-      <Button size="sm" variant="secondary" onClick={() => void sync.retry()}>
-        <RotateCw />
-        {t("retry")}
-      </Button>
     ) : action ? (
       <Button
         size="sm"
@@ -91,8 +100,8 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
       }}
       className={cn(
         "bg-background flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2 text-sm",
-        // A cause that stops the data stands out: a property to choose, or a read that failed.
-        (analytics === "choose" || analytics === "failed") && "border-chart-2",
+        // A cause that stops the data stands out: a property to choose.
+        analytics === "choose" && "border-chart-2",
       )}
       data-testid="seo-agent-statistics"
     >
@@ -114,10 +123,7 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
           ref={text}
           role="status"
           tabIndex={-1}
-          className={cn(
-            "min-w-0 flex-1 basis-48 break-words",
-            analytics === "loading" && "text-muted-foreground",
-          )}
+          className="min-w-0 flex-1 basis-48 break-words"
         >
           {t("agent.statistics", {
             analytics,

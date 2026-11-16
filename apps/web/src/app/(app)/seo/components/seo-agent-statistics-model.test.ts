@@ -67,7 +67,7 @@ describe("seoAnalyticsAction", () => {
   it("offers the fix of each cause, and a choice only where there is one", () => {
     expect(seoAnalyticsAction("missing", false, 0)).toBe("connect");
     expect(seoAnalyticsAction("unknown", false, 0)).toBe("connect");
-    expect(seoAnalyticsAction("failed", true, 3)).toBe("retry");
+    expect(seoAnalyticsAction("failed", true, 3)).toBeNull();
     expect(seoAnalyticsAction("empty", true, 1)).toBe("manage");
     expect(seoAnalyticsAction("empty", true, 2)).toBe("choose");
     expect(seoAnalyticsAction("loading", true, 2)).toBeNull();

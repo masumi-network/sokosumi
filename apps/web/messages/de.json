@@ -12417,7 +12417,7 @@
         "nextTitle": "Der Agent schlägt vor",
         "chart": "Angezeigtes Diagramm",
         "chartKeywords": "Keyword-Suchen",
-        "statistics": "{analytics, select, missing {Google-Statistiken: Analytics ist nicht verbunden} loading {Google-Statistiken: Analytics wird geladen} failed {Google-Statistiken: Analytics konnte nicht gelesen werden} no_property {Google-Statistiken: Dieses Google-Konto hat keine Analytics-Property} choose {Google-Statistiken: Für {site} ist keine Analytics-Property gewählt. Wähle eine deiner {count, plural, one {# Property} other {# Properties}}.} empty {Google-Statistiken: Die Analytics-Property {property} hat noch keine Besuche für diese Seiten} other {Google-Statistiken}}",
+        "statistics": "{analytics, select, missing {Google-Statistiken: Analytics ist nicht verbunden} no_property {Google-Statistiken: Dieses Google-Konto hat keine Analytics-Property} choose {Google-Statistiken: Für {site} ist keine Analytics-Property gewählt. Wähle eine deiner {count, plural, one {# Property} other {# Properties}}.} empty {Google-Statistiken: Die Analytics-Property {property} hat noch keine Besuche für diese Seiten} other {Google-Statistiken}}",
         "figures": {
           "label": "Kennzahlen",
           "rankings": "{depth, select, same {{found} von {read} {count, plural, one {Keyword} other {Keywords}} gefunden · {max} Ergebnisse je Keyword gelesen} range {{found} von {read} {count, plural, one {Keyword} other {Keywords}} gefunden · {min} bis {max} Ergebnisse je Keyword gelesen} other {{found} von {read} {count, plural, one {Keyword} other {Keywords}} gefunden}}",
