@@ -8,14 +8,6 @@ import {
   writeText,
 } from "./command-helpers.js";
 
-/**
- * Eval runs from the terminal, for development: start a run, wait for it,
- * read what got better or worse. Platform admins only; Core refuses others.
- *
- *   sokosumi evals run --suite cmo --repeats 1 --wait
- *   sokosumi evals run --cases ambiguous-request,chat-post --wait --tick
- *   sokosumi evals show RUN_ID --markdown
- */
 interface EvalsCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;

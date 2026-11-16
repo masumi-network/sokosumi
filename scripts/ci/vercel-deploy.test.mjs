@@ -18,7 +18,7 @@ import {
   isWritePermission,
   listPullRequestFiles,
   noPreviewChangesMessage,
-  parseDeployComment,
+  parseNetworkCommand,
   pointForkPreviewBranch,
   pollDeploymentUntilSettled,
   previewUrl,
@@ -57,106 +57,135 @@ function checkoutStep(jobYaml, jobId) {
   return afterName.split(/\n      - name:/)[0];
 }
 
-describe("parseDeployComment", () => {
+describe("parseNetworkCommand for /deploy", () => {
   it("ignores comments that are not a leading /deploy command", () => {
-    assert.deepEqual(parseDeployComment("please deploy this"), {
+    assert.deepEqual(parseNetworkCommand("please deploy this", "/deploy"), {
       kind: "ignore",
     });
-    assert.deepEqual(parseDeployComment("please\n/deploy mainnet"), {
+    assert.deepEqual(
+      parseNetworkCommand("please\n/deploy mainnet", "/deploy"),
+      {
+        kind: "ignore",
+      },
+    );
+    assert.deepEqual(parseNetworkCommand("/deploy-mainnet", "/deploy"), {
       kind: "ignore",
     });
-    assert.deepEqual(parseDeployComment("/deploy-mainnet"), { kind: "ignore" });
-    assert.deepEqual(parseDeployComment(""), { kind: "ignore" });
+    assert.deepEqual(parseNetworkCommand("", "/deploy"), { kind: "ignore" });
   });
 
   it("returns help when no network is specified", () => {
-    assert.deepEqual(parseDeployComment("/deploy"), { kind: "usage" });
-    assert.deepEqual(parseDeployComment("  /deploy  \nthanks"), {
+    assert.deepEqual(parseNetworkCommand("/deploy", "/deploy"), {
+      kind: "usage",
+    });
+    assert.deepEqual(parseNetworkCommand("  /deploy  \nthanks", "/deploy"), {
       kind: "usage",
     });
   });
 
   it("returns usage for unknown or extra tokens", () => {
-    assert.deepEqual(parseDeployComment("/deploy both"), { kind: "usage" });
-    assert.deepEqual(parseDeployComment("/deploy mainnet please"), {
+    assert.deepEqual(parseNetworkCommand("/deploy both", "/deploy"), {
       kind: "usage",
     });
-    assert.deepEqual(parseDeployComment("/deploy staging"), { kind: "usage" });
+    assert.deepEqual(parseNetworkCommand("/deploy mainnet please", "/deploy"), {
+      kind: "usage",
+    });
+    assert.deepEqual(parseNetworkCommand("/deploy staging", "/deploy"), {
+      kind: "usage",
+    });
     // The plain /deploy job never deploys a `--reset-db` comment without the
     // reset.
-    assert.deepEqual(parseDeployComment("/deploy all --reset-db"), {
+    assert.deepEqual(parseNetworkCommand("/deploy all --reset-db", "/deploy"), {
       kind: "usage",
     });
-    assert.deepEqual(parseDeployComment("/deploy all mainnet"), {
+    assert.deepEqual(parseNetworkCommand("/deploy all mainnet", "/deploy"), {
       kind: "usage",
     });
-    assert.deepEqual(parseDeployComment("/deploy all preprod"), {
+    assert.deepEqual(parseNetworkCommand("/deploy all preprod", "/deploy"), {
       kind: "usage",
     });
   });
 
   it("parses one or both networks from the first line", () => {
-    assert.deepEqual(parseDeployComment("/deploy mainnet"), {
-      kind: "deploy",
+    assert.deepEqual(parseNetworkCommand("/deploy mainnet", "/deploy"), {
+      kind: "run",
       networks: ["mainnet"],
       sha: null,
     });
-    assert.deepEqual(parseDeployComment("/deploy preprod"), {
-      kind: "deploy",
+    assert.deepEqual(parseNetworkCommand("/deploy preprod", "/deploy"), {
+      kind: "run",
       networks: ["preprod"],
       sha: null,
     });
-    assert.deepEqual(parseDeployComment("/deploy mainnet preprod"), {
-      kind: "deploy",
-      networks: ["mainnet", "preprod"],
-      sha: null,
-    });
-    assert.deepEqual(parseDeployComment("/deploy preprod mainnet"), {
-      kind: "deploy",
-      networks: ["mainnet", "preprod"],
-      sha: null,
-    });
-    assert.deepEqual(parseDeployComment("/Deploy MAINNET"), {
-      kind: "deploy",
+    assert.deepEqual(
+      parseNetworkCommand("/deploy mainnet preprod", "/deploy"),
+      {
+        kind: "run",
+        networks: ["mainnet", "preprod"],
+        sha: null,
+      },
+    );
+    assert.deepEqual(
+      parseNetworkCommand("/deploy preprod mainnet", "/deploy"),
+      {
+        kind: "run",
+        networks: ["mainnet", "preprod"],
+        sha: null,
+      },
+    );
+    assert.deepEqual(parseNetworkCommand("/Deploy MAINNET", "/deploy"), {
+      kind: "run",
       networks: ["mainnet"],
       sha: null,
     });
-    assert.deepEqual(parseDeployComment("/deploy mainnet mainnet"), {
-      kind: "deploy",
-      networks: ["mainnet"],
-      sha: null,
-    });
-    assert.deepEqual(parseDeployComment("/deploy all"), {
-      kind: "deploy",
+    assert.deepEqual(
+      parseNetworkCommand("/deploy mainnet mainnet", "/deploy"),
+      {
+        kind: "run",
+        networks: ["mainnet"],
+        sha: null,
+      },
+    );
+    assert.deepEqual(parseNetworkCommand("/deploy all", "/deploy"), {
+      kind: "run",
       networks: ["mainnet", "preprod"],
       sha: null,
     });
-    assert.deepEqual(parseDeployComment("/deploy ALL"), {
-      kind: "deploy",
+    assert.deepEqual(parseNetworkCommand("/deploy ALL", "/deploy"), {
+      kind: "run",
       networks: ["mainnet", "preprod"],
       sha: null,
     });
   });
 
   it("reads one full head SHA and refuses short or competing SHAs", () => {
-    assert.deepEqual(parseDeployComment(`/deploy preprod ${FORK_SHA}`), {
-      kind: "deploy",
-      networks: ["preprod"],
-      sha: FORK_SHA,
-    });
     assert.deepEqual(
-      parseDeployComment(`/deploy ${FORK_SHA.toUpperCase()} all`),
-      { kind: "deploy", networks: ["mainnet", "preprod"], sha: FORK_SHA },
+      parseNetworkCommand(`/deploy preprod ${FORK_SHA}`, "/deploy"),
+      {
+        kind: "run",
+        networks: ["preprod"],
+        sha: FORK_SHA,
+      },
+    );
+    assert.deepEqual(
+      parseNetworkCommand(`/deploy ${FORK_SHA.toUpperCase()} all`, "/deploy"),
+      { kind: "run", networks: ["mainnet", "preprod"], sha: FORK_SHA },
     );
     // A short prefix is brute-forceable, so it is not an approval.
-    assert.deepEqual(parseDeployComment("/deploy preprod a1b2c3d"), {
-      kind: "usage",
-    });
-    assert.deepEqual(parseDeployComment(`/deploy ${FORK_SHA}`), {
+    assert.deepEqual(
+      parseNetworkCommand("/deploy preprod a1b2c3d", "/deploy"),
+      {
+        kind: "usage",
+      },
+    );
+    assert.deepEqual(parseNetworkCommand(`/deploy ${FORK_SHA}`, "/deploy"), {
       kind: "usage",
     });
     assert.deepEqual(
-      parseDeployComment(`/deploy preprod ${FORK_SHA} ${STALE_SHA}`),
+      parseNetworkCommand(
+        `/deploy preprod ${FORK_SHA} ${STALE_SHA}`,
+        "/deploy",
+      ),
       { kind: "usage" },
     );
   });
