@@ -107,6 +107,29 @@ describe("buildTaskPlan", () => {
     ]);
   });
 
+  it("expands a Task met again on a shorter path than where it was cut off", () => {
+    const plan = buildTaskPlan(
+      "root",
+      edges({
+        root: [
+          ["blocked_by", "a"],
+          ["parent", "shared"],
+        ],
+        a: [["parent", "b"]],
+        b: [["parent", "shared"]],
+        shared: [["parent", "leaf"]],
+      }),
+    );
+
+    expect(rows(plan)).toEqual([
+      "1 blocked_by a",
+      "2 parent b",
+      "3 parent shared more",
+      "1 parent shared",
+      "2 parent leaf",
+    ]);
+  });
+
   it("caps the number of rows and marks the plan truncated", () => {
     const children = Array.from(
       { length: 40 },

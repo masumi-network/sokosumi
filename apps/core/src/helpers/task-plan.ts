@@ -33,7 +33,8 @@ const RELATION_ORDER: readonly TaskPlanRelation[] = ["blocked_by", "parent"];
 /**
  * Depth-first rows of what holds `rootId` up (blockers) and what it is split
  * into (sub-tasks), blockers first, then each relation in link order. A Task
- * appears once in full; later sightings are marked and not expanded.
+ * is expanded where it is first met with depth to spare, and again only on a
+ * shorter path (its links then reach further); other sightings are marked.
  * `edgesByTask` must already hold only Tasks the reader may see.
  */
 export function buildTaskPlan(
@@ -42,6 +43,8 @@ export function buildTaskPlan(
 ): TaskPlan {
   const items: TaskPlanItem[] = [];
   const shown = new Set<string>([rootId]);
+  /** Shallowest depth each Task's own links were walked from. */
+  const expandedAt = new Map<string, number>();
   let truncated = false;
 
   function ordered(taskId: string): TaskPlanEdge[] {
@@ -58,12 +61,16 @@ export function buildTaskPlan(
         return;
       }
       const id = edge.peer.id;
-      const repeat = path.has(id)
+      const loops = path.has(id);
+      const expand =
+        !loops &&
+        depth < TASK_PLAN_MAX_DEPTH &&
+        depth < (expandedAt.get(id) ?? Number.POSITIVE_INFINITY);
+      const repeat = loops
         ? "loops_back"
-        : shown.has(id)
+        : shown.has(id) && !expand
           ? "shown_above"
           : null;
-      const expand = repeat === null && depth < TASK_PLAN_MAX_DEPTH;
       items.push({
         depth,
         relation: edge.relation,
@@ -72,7 +79,10 @@ export function buildTaskPlan(
         hasMore: repeat === null && !expand && ordered(id).length > 0,
       });
       shown.add(id);
-      if (expand) walk(id, depth + 1, new Set(path).add(id));
+      if (expand) {
+        expandedAt.set(id, depth);
+        walk(id, depth + 1, new Set(path).add(id));
+      }
     }
   }
 
