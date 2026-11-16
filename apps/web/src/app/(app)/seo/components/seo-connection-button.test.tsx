@@ -431,7 +431,11 @@ describe("native SEO connection consent", () => {
       await screen.findByRole("menuitem", { name: "Switch account" }),
     );
     await waitFor(() => expect(m.callback).toHaveBeenCalled());
-    expect(screen.getByText("Search Console connected")).toBeVisible();
+    // The menu closed on the switch and does not open again when it ends.
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Search Console connected" }),
+    ).toBeVisible();
     expect(m.disconnect).not.toHaveBeenCalled();
     expect(m.finalize).not.toHaveBeenCalled();
   });
