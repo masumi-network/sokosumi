@@ -2833,7 +2833,8 @@ describe("SEO workspace integration", () => {
       { id: "properties/2", name: "roxtool" },
     ];
     // An expired connection reads as none. A connected account names its properties: none, none for the
-    // site, one for the site whose sync found nothing, or a list that could not be read.
+    // site, one for the site whose sync runs or found nothing, a single other one that is read all the same, or a list
+    // that could not be read.
     for (const [status, properties, text, button] of [
       [
         "not_connected",
@@ -2862,8 +2863,20 @@ describe("SEO workspace integration", () => {
       [
         "connected",
         [...unrelated, { id: "properties/3", name: "example.com" }],
-        "Google statistics: Analytics has no visits for these pages yet",
+        "Google statistics: the Analytics property example.com has no visits for these pages yet",
+        "Choose property",
+      ],
+      [
+        "connected",
+        [{ id: "properties/3", name: "example.com" }],
+        "Google statistics: loading Analytics",
         null,
+      ],
+      [
+        "connected",
+        [unrelated[0]],
+        "Google statistics: the Analytics property galaxy-balls has no visits for these pages yet",
+        "Google connections",
       ],
       [
         "connected",
@@ -2872,30 +2885,32 @@ describe("SEO workspace integration", () => {
         null,
       ],
     ] as const) {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async (url: string) =>
-          url.endsWith("/connections/ga4")
-            ? Response.json({
-                provider: "ga4",
-                name: "Google",
-                status,
-                source: "native",
-              })
-            : url.includes("/statistics/properties?provider=ga4")
-              ? properties
-                ? Response.json({
-                    provider: "ga4",
-                    properties,
-                    status: "available",
-                    reason: null,
-                  })
-                : new Response(null, { status: 500 })
-              : url.endsWith("/statistics")
-                ? Response.json({})
-                : Response.json(workspace),
-        ),
+      // The loading row's collection never finishes: "no visits" is what a finished collection found.
+      const running = text.endsWith("loading Analytics");
+      const fetch = vi.fn(async (url: string) =>
+        url.endsWith("/connections/ga4")
+          ? Response.json({
+              provider: "ga4",
+              name: "Google",
+              status,
+              source: "native",
+            })
+          : url.includes("/statistics/properties?provider=ga4")
+            ? properties
+              ? Response.json({
+                  provider: "ga4",
+                  properties,
+                  status: "available",
+                  reason: null,
+                })
+              : new Response(null, { status: 500 })
+            : url.endsWith("/statistics")
+              ? running
+                ? new Promise<Response>(() => {})
+                : Response.json({})
+              : Response.json(workspace),
       );
+      vi.stubGlobal("fetch", fetch);
       renderWorkspace(workspace, "?tab=agent");
       const line = screen.getByTestId("seo-agent-statistics");
       await waitFor(() => expect(line).toHaveTextContent(text));

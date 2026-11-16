@@ -158,6 +158,8 @@ function useAutomaticProvider(
     (connection.isError ||
       (connected && (choice.propertiesUnavailable || collection.isError)));
   return {
+    /** A collection finished for the property in use: an empty result is then a fact, not a guess. */
+    collected: enabled && collection.isSuccess,
     loading:
       enabled &&
       (connection.isFetching ||
@@ -197,6 +199,7 @@ export function useSeoAutopilot(context: StatisticsContext) {
     state,
     /** Google Analytics alone: the Agent tab names why its statistics are missing. */
     analytics: {
+      collected: analytics.collected,
       loading: analytics.loading,
       failed: analytics.failed,
       needsProperty: analytics.needsProperty,
