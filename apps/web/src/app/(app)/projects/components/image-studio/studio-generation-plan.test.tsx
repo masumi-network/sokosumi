@@ -357,6 +357,17 @@ describe("an honest generation plan", () => {
 
     const requests = onGenerate.mock.calls[0][0];
     expect(requests).toHaveLength(6);
+    expect(requests.map(({ variationIndex }) => variationIndex)).toEqual([
+      0,
+      0,
+      1,
+      1,
+      undefined,
+      undefined,
+    ]);
+    expect(
+      new Set(requests.map(({ creativeDirection }) => creativeDirection)),
+    ).toEqual(new Set(["explainer"]));
     expect(
       new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
     ).toBe(6);
@@ -414,6 +425,9 @@ describe("an honest generation plan", () => {
     generate();
     const requests = onGenerate.mock.calls[0][0];
     expect(new Set(requests.map(({ prompt }) => prompt)).size).toBe(MAX_BATCH);
+    expect(requests.map(({ variationIndex }) => variationIndex)).toEqual(
+      Array.from({ length: MAX_BATCH }, (_, index) => index),
+    );
     expect(new Set(requests.map(({ settings }) => settings.seed))).toEqual(
       new Set([42]),
     );
@@ -449,6 +463,41 @@ describe("an honest generation plan", () => {
     expect(
       onGenerate.mock.calls[0][0].map((request) => request.prompt),
     ).toEqual([prompt, prompt]);
+    expect(
+      onGenerate.mock.calls[0][0].map((request) => request.variationIndex),
+    ).toEqual([undefined, undefined]);
+  });
+
+  it("recognizes variation and direction metadata when a prompt is reused for one copy", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "CreativeDirections.editorial" }),
+    );
+    generate();
+    const reusedPrompt = onGenerate.mock.calls[0][0][1].prompt;
+    fireEvent.click(screen.getByRole("button", { name: "1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "CreativeDirections.auto" }),
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: reusedPrompt } },
+    );
+    generate();
+
+    expect(onGenerate.mock.calls[1][0][0]).toMatchObject({
+      prompt: reusedPrompt,
+      variationIndex: 1,
+      creativeDirection: "editorial",
+    });
   });
 
   it("fits an oversized product batch by keeping selected models and leaving placements and copies intact", () => {
