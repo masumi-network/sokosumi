@@ -73,6 +73,8 @@ export function messageDraft(input: {
    * one second, would otherwise be one event to the relay.
    */
   messageId?: string;
+  /** The files it carries, as `imeta` tags. */
+  attachments?: readonly string[][];
 }): EventDraft {
   const tags: string[][] = [["h", input.channelId]];
   if (input.messageId) tags.push(["sokosumi", input.messageId]);
@@ -82,6 +84,7 @@ export function messageDraft(input: {
   for (const pubkey of new Set(input.mentionPubkeys ?? [])) {
     tags.push(["p", pubkey]);
   }
+  tags.push(...(input.attachments ?? []));
   return {
     kind: BUZZ_KIND.message,
     tags,
@@ -96,12 +99,15 @@ export function editDraft(input: {
   channelId: string;
   eventId: string;
   content: string;
+  /** The files the new text carries, as `imeta` tags. */
+  attachments?: readonly string[][];
 }): EventDraft {
   return {
     kind: BUZZ_KIND.edit,
     tags: [
       ["h", input.channelId],
       ["e", input.eventId],
+      ...(input.attachments ?? []),
     ],
     content: input.content,
   };
@@ -231,7 +237,7 @@ export function communityMemberDraft(pubkey: string): EventDraft {
   };
 }
 
-function tagValues(event: Event, name: string): string[] {
+export function tagValues(event: Event, name: string): string[] {
   return event.tags
     .filter((tag) => tag[0] === name && typeof tag[1] === "string")
     .map((tag) => tag[1] as string);

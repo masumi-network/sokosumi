@@ -88,7 +88,7 @@ export async function importBuzzHistory(
         // Up to just before the channel: the messages that brought it about
         // go out live (the outbox).
         before: new Date(channel.createdAt.getTime() - LIVE_BEFORE_CHANNEL_MS),
-        host: new URL(channel.community.relayUrl).host,
+        relayUrl: channel.community.relayUrl,
         shouldContinue: options.shouldContinue,
       });
       if (imported === null) continue;
@@ -114,16 +114,17 @@ async function importChannel(
     channelId: string;
     roomId: string;
     before: Date;
-    host: string;
+    relayUrl: string;
     shouldContinue?: () => boolean;
   },
 ): Promise<number | null> {
+  const host = new URL(input.relayUrl).host;
   const community = await client.query<{ id: string }>(
     "SELECT id FROM communities WHERE lower(host) = lower($1) AND deleted_at IS NULL",
-    [input.host],
+    [host],
   );
   const communityId = community.rows[0]?.id;
-  if (!communityId) throw new Error(`No community ${input.host} on the relay`);
+  if (!communityId) throw new Error(`No community ${host} on the relay`);
 
   let imported = 0;
   let after: { createdAt: Date; id: string } | null = null;
@@ -186,7 +187,15 @@ async function importChannel(
     for (const message of messages) {
       // What is imported stays linked; the next pass goes on from there.
       if (input.shouldContinue?.() === false) return null;
-      if (await importMessage(client, communityId, input.channelId, message)) {
+      if (
+        await importMessage(
+          client,
+          communityId,
+          input.channelId,
+          input.relayUrl,
+          message,
+        )
+      ) {
         imported++;
       }
     }
@@ -219,6 +228,7 @@ async function importMessage(
   client: RelayClient,
   communityId: string,
   channelId: string,
+  relayUrl: string,
   message: HistoryMessage,
 ): Promise<boolean> {
   // Imported by an earlier pass that stopped before linking it: link that
@@ -305,7 +315,7 @@ async function importMessage(
       identity,
       messageDraft({
         channelId,
-        content: await buzzContentOf(buzzTextOf(message)),
+        content: await buzzContentOf(buzzTextOf(message), relayUrl),
         threadRootEventId: root?.eventId ?? null,
         mentionPubkeys: await mentionPubkeysOf(message),
         messageId: message.id,

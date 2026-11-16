@@ -8,7 +8,12 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "blob-token" }),
 }));
 
-import { fitToSokosumi, relayMediaUrls, withSokosumiMedia } from "./media";
+import {
+  fitToSokosumi,
+  relayMediaUrls,
+  withRelayMedia,
+  withSokosumiMedia,
+} from "./media";
 
 const RELAY = "wss://acme.chat.example";
 const bytes = Buffer.from("a picture");
@@ -110,6 +115,32 @@ describe("withSokosumiMedia", () => {
     expect(blob.put).not.toHaveBeenCalled();
   });
 
+  it("shows a file the Buzz app attached as Sokosumi shows a file, under its own name", async () => {
+    const ok = vi.fn(
+      async () => new Response(bytes),
+    ) as unknown as typeof fetch;
+    const content = `Dream vacation\n\n![DREAM\\_VACATION.png](<${fileUrl}>)`;
+    const result = await withSokosumiMedia({
+      content,
+      event: event(content, [
+        [
+          "imeta",
+          `url ${fileUrl}`,
+          "m image/png",
+          "filename DREAM_VACATION.png",
+        ],
+      ]),
+      relayUrl: RELAY,
+      readerKeys: [generateSecretKey()],
+      owner: { kind: "user", userId: "u" },
+      roomId: "r",
+      fetchImpl: ok,
+    });
+    expect(result).toBe(
+      "Dream vacation\n\n[DREAM_VACATION.png](https://store.public.blob.vercel-storage.com/users/u/chats/r/buzz-1.png)",
+    );
+  });
+
   it("adds a file only imeta names on its own line", async () => {
     const ok = vi.fn(
       async () => new Response(bytes),
@@ -125,7 +156,7 @@ describe("withSokosumiMedia", () => {
       fetchImpl: ok,
     });
     expect(result).toBe(
-      "a photo\nhttps://store.public.blob.vercel-storage.com/users/u/chats/r/buzz-1.png",
+      "a photo\n\n[buzz-1.png](https://store.public.blob.vercel-storage.com/users/u/chats/r/buzz-1.png)",
     );
     expect(blob.put).toHaveBeenCalledWith(
       expect.stringMatching(
@@ -175,5 +206,117 @@ describe("fitToSokosumi", () => {
       long,
       expect.objectContaining({ access: "public" }),
     );
+  });
+});
+
+describe("withRelayMedia", () => {
+  const chatFile =
+    "https://store.public.blob.vercel-storage.com/users/u/chats/r/Report.pdf";
+  const picture =
+    "https://store.public.blob.vercel-storage.com/users/u/chats/r/photo.png";
+  const secretKey = generateSecretKey();
+
+  function relay(status = 200) {
+    return vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const target = String(url);
+      if (target.endsWith("/upload")) {
+        const hash = new Headers(init?.headers).get("x-sha-256") ?? "";
+        const type = new Headers(init?.headers).get("content-type");
+        return status === 200
+          ? Response.json({
+              url: `https://acme.chat.example/media/${hash}.${type === "image/png" ? "png" : "pdf"}`,
+              type,
+              size: bytes.length,
+              sha256: hash,
+              ...(type === "image/png" ? { dim: "10x10" } : {}),
+            })
+          : new Response("no", { status });
+      }
+      return new Response(bytes, {
+        headers: {
+          "content-type": target.endsWith(".png")
+            ? "image/png"
+            : "application/pdf",
+        },
+      });
+    });
+  }
+
+  it("uploads Sokosumi's chat files as the author and attaches them as the Buzz app does", async () => {
+    const send = relay();
+    const result = await withRelayMedia({
+      content: `Numbers\n[Report.pdf](${chatFile})\n[photo.png](${picture})`,
+      relayUrl: RELAY,
+      secretKey,
+      fetchImpl: send as unknown as typeof fetch,
+    });
+    expect(result.content).toBe(
+      `Numbers\n[Report.pdf](<https://acme.chat.example/media/${sha}.pdf>)\n![photo.png](<https://acme.chat.example/media/${sha}.png>)`,
+    );
+    expect(result.attachments).toEqual([
+      [
+        "imeta",
+        `url https://acme.chat.example/media/${sha}.pdf`,
+        "m application/pdf",
+        `size ${bytes.length}`,
+        `x ${sha}`,
+        "filename Report.pdf",
+      ],
+      [
+        "imeta",
+        `url https://acme.chat.example/media/${sha}.png`,
+        "m image/png",
+        `size ${bytes.length}`,
+        `x ${sha}`,
+        "filename photo.png",
+        "dim 10x10",
+      ],
+    ]);
+    const upload = send.mock.calls.find(([url]) =>
+      String(url).endsWith("/upload"),
+    );
+    expect(upload?.[1]?.method).toBe("PUT");
+    const auth = JSON.parse(
+      Buffer.from(
+        String(new Headers(upload?.[1]?.headers).get("authorization")).slice(
+          "Nostr ".length,
+        ),
+        "base64",
+      ).toString("utf8"),
+    );
+    expect(auth.kind).toBe(24242);
+    expect(auth.tags).toEqual(
+      expect.arrayContaining([
+        ["t", "upload"],
+        ["x", sha],
+        ["server", "acme.chat.example"],
+      ]),
+    );
+  });
+
+  it("keeps a link the relay refuses, and never fetches other hosts", async () => {
+    const send = relay(413);
+    const content = `[Report.pdf](${chatFile}) and [x.pdf](https://elsewhere.example/users/u/chats/r/x.pdf)`;
+    const result = await withRelayMedia({
+      content,
+      relayUrl: RELAY,
+      secretKey,
+      fetchImpl: send as unknown as typeof fetch,
+    });
+    expect(result).toEqual({ content, attachments: [] });
+    expect(
+      send.mock.calls.some(([url]) => String(url).includes("elsewhere")),
+    ).toBe(false);
+  });
+
+  it("throws when the relay fails, so the change is tried again", async () => {
+    await expect(
+      withRelayMedia({
+        content: `[Report.pdf](${chatFile})`,
+        relayUrl: RELAY,
+        secretKey,
+        fetchImpl: relay(503) as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow(/HTTP 503/);
   });
 });

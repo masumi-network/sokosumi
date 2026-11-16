@@ -39,11 +39,14 @@ import {
   reactionDraft,
   readableContent,
   readInbound,
+  tagValues,
 } from "@/lib/buzz/events";
 import {
+  type BuzzAttachments,
   type CopiedFile,
   fitToSokosumi,
   type MediaOwner,
+  withRelayMedia,
   withSokosumiMedia,
 } from "@/lib/buzz/media";
 import { attestedOwner, authTagOwner } from "@/lib/buzz/owner-attestation";
@@ -2365,7 +2368,7 @@ export async function reconcileMessage(
           authorIdentity,
           messageDraft({
             channelId: channel.channelId,
-            content: await buzzContentOf(text),
+            ...(await buzzMessageOf(text, relayUrl, authorKey)),
             threadRootEventId,
             mentionPubkeys: [
               ...(await mentionPubkeysOf(message)),
@@ -2440,7 +2443,7 @@ export async function reconcileMessage(
           editDraft({
             channelId: channel.channelId,
             eventId: link.eventId,
-            content: await buzzContentOf(text),
+            ...(await buzzMessageOf(text, relayUrl, authorKey)),
           }),
         ),
         created_at: Math.max(
@@ -2527,11 +2530,76 @@ export function buzzTextOf(message: {
 }
 
 /**
- * A message as Buzz shows it: Sokosumi's mention tokens (`@<id>:<slug>`)
- * become Buzz mentions (`nostr:npub…`, the person's own app key when linked),
- * or the name for someone with no Buzz key.
+ * A message as the Buzz app writes it, with Sokosumi's chat files uploaded to
+ * the relay as the author's attachments.
  */
-export async function buzzContentOf(original: string): Promise<string> {
+async function buzzMessageOf(
+  text: string,
+  relayUrl: string,
+  authorKey: Uint8Array,
+): Promise<BuzzAttachments> {
+  return withRelayMedia({
+    content: await buzzContentOf(text, relayUrl),
+    relayUrl,
+    secretKey: authorKey,
+  });
+}
+
+/**
+ * The name Buzz shows for each of these keys: its newest profile on the
+ * relay. A mention binds to a key only when written with that name.
+ */
+async function relayProfileNames(
+  relayUrl: string,
+  pubkeys: string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const now = Date.now();
+  const wanted: string[] = [];
+  for (const pubkey of new Set(pubkeys)) {
+    const known = shownNames.get(`${relayUrl} ${pubkey}`);
+    if (known && known.until > now) {
+      if (known.name) names.set(pubkey, known.name);
+    } else {
+      wanted.push(pubkey);
+    }
+  }
+  if (wanted.length === 0) return names;
+  const profiles = await queryEvents({
+    relayUrl,
+    secretKey: requireConfig().operatorSecretKey,
+    filters: [{ kinds: [BUZZ_KIND.profile], authors: wanted }],
+  });
+  const newest = new Map<string, Event>();
+  for (const profile of profiles) {
+    const seen = newest.get(profile.pubkey);
+    if (!seen || profile.created_at > seen.created_at) {
+      newest.set(profile.pubkey, profile);
+    }
+  }
+  for (const pubkey of wanted) {
+    const profile = newest.get(pubkey);
+    const read = profile ? readJson(profile.content).name : undefined;
+    const name = read && !/[\r\n]/.test(read) ? read : undefined;
+    if (name) names.set(pubkey, name);
+    shownNames.set(`${relayUrl} ${pubkey}`, { name, until: now + 60_000 });
+  }
+  return names;
+}
+
+/** Names read from the relay, for a minute: an import names the same people often. */
+const shownNames = new Map<string, { name?: string; until: number }>();
+
+/**
+ * A message as Buzz shows it: Sokosumi's mention tokens (`@<id>:<slug>`)
+ * become Buzz mentions, `@` and the name Buzz shows for the key the event
+ * tags (the person's own app key when linked); someone with no Buzz key keeps
+ * their name as text.
+ */
+export async function buzzContentOf(
+  original: string,
+  relayUrl?: string,
+): Promise<string> {
   // Links within Sokosumi (a shared Task: `/tasks/<id>`) point there.
   const origin = getEnv().WEB_APP_BASE_URL?.replace(/\/$/, "");
   const content = origin
@@ -2555,19 +2623,34 @@ export async function buzzContentOf(original: string): Promise<string> {
       userId: true,
       coworkerId: true,
       sokoBotId: true,
+      user: { select: { name: true } },
+      coworker: { select: { name: true } },
+      sokoBot: { select: { name: true } },
     },
   });
+  const shown = relayUrl
+    ? await relayProfileNames(
+        relayUrl,
+        identities.map((identity) => identity.appPubkey ?? identity.pubkey),
+      )
+    : new Map<string, string>();
   let text = content;
   for (const identity of identities) {
     const key = identity.userId ?? identity.coworkerId ?? identity.sokoBotId;
     if (!key) continue;
+    const pubkey = identity.appPubkey ?? identity.pubkey;
+    const name =
+      shown.get(pubkey) ??
+      identity.user?.name ??
+      (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
+      identity.coworker?.name;
     const token = new RegExp(
       `@${key.replace(/[^A-Za-z0-9-]/g, "")}(?::[\\p{L}\\p{N}_-]*)?(?![\\p{L}\\p{N}_-])`,
       "giu",
     );
-    text = text.replace(
-      token,
-      `nostr:${npubEncode(identity.appPubkey ?? identity.pubkey)}`,
+    // `$` in a name is not a replacement pattern.
+    text = text.replace(token, () =>
+      name ? `@${name}` : `nostr:${npubEncode(pubkey)}`,
     );
   }
   // Whoever is left has no Buzz key: their name, which Buzz shows as text.
@@ -3294,9 +3377,79 @@ async function postToCoworkerDirect(input: {
   return "posted";
 }
 
-/** Buzz text with each `nostr:npub…` turned into the name Sokosumi knows. */
-async function namedContent(content: string): Promise<string> {
-  const pubkeys: string[] = [];
+/**
+ * How Sokosumi writes a mention of this identity: `@<id>`, with the slug a
+ * Coworker is known by. Sokosumi shows it as their name and links it.
+ */
+function mentionTokenOf(identity: {
+  userId: string | null;
+  sokoBotId: string | null;
+  coworkerId: string | null;
+  coworker: { slug: string } | null;
+}): string | undefined {
+  if (identity.userId) return identity.userId;
+  if (identity.sokoBotId) return identity.sokoBotId;
+  if (identity.coworkerId) {
+    return identity.coworker
+      ? `${identity.coworkerId}:${identity.coworker.slug}`
+      : identity.coworkerId;
+  }
+  return undefined;
+}
+
+/** The names Sokosumi gave this identity's profile on Buzz. */
+function sokosumiNamesOf(identity: {
+  user: { name: string | null } | null;
+  sokoBot: { name: string | null } | null;
+  coworker: { name: string } | null;
+}): string[] {
+  if (identity.user?.name) {
+    return [identity.user.name, `${identity.user.name} (via Sokosumi)`];
+  }
+  if (identity.sokoBot) return [sokoBotDisplayName(identity.sokoBot)];
+  return identity.coworker ? [identity.coworker.name] : [];
+}
+
+/**
+ * The Buzz app writes a mention as `@` and the name it shows for the person,
+ * with their key tagged. Each such name of someone the event tags becomes
+ * Sokosumi's mention of them; the longest name first, so "Ann Lee" is not
+ * read as "Ann".
+ */
+export function sokosumiMentions(
+  content: string,
+  people: { token: string | undefined; names: (string | undefined)[] }[],
+): string {
+  const byName = new Map<string, string>();
+  for (const person of people) {
+    if (!person.token) continue;
+    for (const name of person.names) {
+      const trimmed = name?.trim();
+      if (trimmed && !byName.has(trimmed.toLowerCase())) {
+        byName.set(trimmed.toLowerCase(), person.token);
+      }
+    }
+  }
+  if (byName.size === 0) return content;
+  const names = [...byName.keys()].sort((a, b) => b.length - a.length);
+  const pattern = new RegExp(
+    `(^|[^\\p{L}\\p{N}_@/\\\\])@(${names
+      .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("|")})(?![\\p{L}\\p{N}_:-])`,
+    "giu",
+  );
+  return content.replace(pattern, (whole, before: string, name: string) => {
+    const token = byName.get(name.toLowerCase());
+    return token ? `${before}@${token}` : whole;
+  });
+}
+
+/**
+ * An edit's text with its mentions as Sokosumi writes them: each
+ * `nostr:npub…`, and each `@Name` of someone the edit tags.
+ */
+async function namedContent(content: string, event: Event): Promise<string> {
+  const pubkeys = tagValues(event, "p");
   readableContent(content, (pubkey) => {
     pubkeys.push(pubkey);
     return undefined;
@@ -3309,22 +3462,46 @@ async function namedContent(content: string): Promise<string> {
     select: {
       pubkey: true,
       appPubkey: true,
+      userId: true,
+      sokoBotId: true,
+      coworkerId: true,
       user: { select: { name: true } },
       sokoBot: { select: { name: true } },
-      coworker: { select: { name: true } },
+      coworker: { select: { name: true, slug: true } },
     },
   });
-  const names = new Map<string, string | undefined>(
+  const channelId = channelIdOf(event);
+  const channel = channelId
+    ? await prisma.buzzChannel.findUnique({
+        where: { channelId },
+        select: { community: { select: { relayUrl: true } } },
+      })
+    : null;
+  const relayUrl = channel?.community?.relayUrl;
+  const shown = relayUrl
+    ? await relayProfileNames(relayUrl, pubkeys)
+    : new Map<string, string>();
+  const tokens = new Map(
     identities.flatMap((identity) => {
-      const name =
-        identity.user?.name ??
-        (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
-        identity.coworker?.name ??
-        undefined;
-      return keysOf(identity).map((pubkey) => [pubkey, name] as const);
+      const token = mentionTokenOf(identity);
+      return token
+        ? keysOf(identity).map((pubkey) => [pubkey, token] as const)
+        : [];
     }),
   );
-  return readableContent(content, (pubkey) => names.get(pubkey));
+  return readableContent(
+    sokosumiMentions(
+      content,
+      identities.map((identity) => ({
+        token: mentionTokenOf(identity),
+        names: [
+          ...keysOf(identity).map((pubkey) => shown.get(pubkey)),
+          ...sokosumiNamesOf(identity),
+        ],
+      })),
+    ),
+    (pubkey) => tokens.get(pubkey),
+  );
 }
 
 /** Calls a Core route as a person, with their bridge API key. */
@@ -3694,25 +3871,39 @@ export async function applyInboundEvent(
           coworkerId: true,
           user: { select: { name: true } },
           sokoBot: { select: { name: true } },
-          coworker: { select: { name: true } },
+          coworker: { select: { name: true, slug: true } },
         },
       });
-      const names = new Map(
+      const community = await prisma.buzzCommunity.findUnique({
+        where: { id: channel.communityId },
+        select: { relayUrl: true },
+      });
+      const shown = community
+        ? await relayProfileNames(community.relayUrl, change.mentionPubkeys)
+        : new Map<string, string>();
+      const tokens = new Map(
         mentioned.flatMap((identity) => {
-          // An agent posts as its Coworker, whose mentions Core reads only
-          // from `@userId` tokens; a person's post names them and passes ids.
-          const name =
-            (agent ? identity.userId : null) ??
-            identity.user?.name ??
-            (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
-            identity.coworker?.name ??
-            undefined;
-          return keysOf(identity).map((pubkey) => [pubkey, name] as const);
+          const token = mentionTokenOf(identity);
+          return token
+            ? keysOf(identity).map((pubkey) => [pubkey, token] as const)
+            : [];
         }),
       );
       const files: CopiedFile[] = [];
       const content = await withMediaCopied(
-        readableContent(change.content, (pubkey) => names.get(pubkey)),
+        readableContent(
+          sokosumiMentions(
+            change.content,
+            mentioned.map((identity) => ({
+              token: mentionTokenOf(identity),
+              names: [
+                ...keysOf(identity).map((pubkey) => shown.get(pubkey)),
+                ...sokosumiNamesOf(identity),
+              ],
+            })),
+          ),
+          (pubkey) => tokens.get(pubkey),
+        ),
         event,
         { channelId: channel.channelId, roomId: channel.roomId, author },
         files,
@@ -3824,7 +4015,7 @@ export async function applyInboundEvent(
           (link.lastEditEventId === null || event.id < link.lastEditEventId));
       if (!newer) return "echo";
       const content = await withMediaCopied(
-        await namedContent(change.content),
+        await namedContent(change.content, event),
         event,
         {
           channelId: link.channelId ?? channelId ?? "",

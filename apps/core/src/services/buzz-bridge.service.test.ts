@@ -111,6 +111,7 @@ import {
   linkBuzzApp,
   OUTBOX_SETTLE_MS,
   provisionBuzzCommunities,
+  sokosumiMentions,
   syncBuzzAgents,
   syncRoomChannel,
   vouched,
@@ -542,6 +543,9 @@ describe("applyInboundEvent edits", () => {
       {
         pubkey: BOT_PUBKEY,
         appPubkey: null,
+        userId: "alice-user-id-0000000000000000000",
+        sokoBotId: null,
+        coworkerId: null,
         user: { name: "Alice" },
         sokoBot: null,
         coworker: null,
@@ -553,10 +557,11 @@ describe("applyInboundEvent edits", () => {
         core,
       ),
     ).resolves.toBe("edited");
+    // Sokosumi's own mention of her, which it shows as her name.
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "PATCH",
-        body: { content: "ask @Alice please" },
+        body: { content: "ask @alice-user-id-0000000000000000000 please" },
       }),
     );
   });
@@ -1828,6 +1833,42 @@ describe("buzzContentOf", () => {
     expect(text).toBe(`nostr:${npubEncode(BOT_PUBKEY)} hi, ask @Alice too`);
   });
 
+  it("writes a mention the way the Buzz app does: @ and the name Buzz shows for the tagged key", async () => {
+    const patrick = "PatrickUserId0000000000000000000";
+    const appKey = "a".repeat(64);
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        appPubkey: appKey,
+        userId: patrick,
+        coworkerId: null,
+        sokoBotId: null,
+        user: { name: "Patrick Tobler" },
+        coworker: null,
+        sokoBot: null,
+      },
+    ]);
+    db.user.findMany.mockResolvedValue([]);
+    db.coworker.findMany.mockResolvedValue([]);
+    db.sokoBot.findMany.mockResolvedValue([]);
+    relay.queryEvents.mockResolvedValue([
+      {
+        pubkey: appKey,
+        kind: 0,
+        created_at: 1,
+        content: JSON.stringify({ name: "PatrickMac" }),
+      },
+    ]);
+    await expect(
+      buzzContentOf(`hi @${patrick}, $& stays`, "wss://names.chat.example"),
+    ).resolves.toBe("hi @PatrickMac, $& stays");
+    // Without a profile on the relay: the name Sokosumi knows.
+    relay.queryEvents.mockResolvedValue([]);
+    await expect(
+      buzzContentOf(`hi @${patrick}`, "wss://other.chat.example"),
+    ).resolves.toBe("hi @Patrick Tobler");
+  });
+
   it("points links within Sokosumi at Sokosumi", async () => {
     env.value = { ...env.value, WEB_APP_BASE_URL: "https://app.example.org/" };
     await expect(
@@ -1843,6 +1884,32 @@ describe("buzzContentOf", () => {
   it("leaves a message without mentions alone", async () => {
     await expect(buzzContentOf("plain")).resolves.toBe("plain");
     expect(db.buzzIdentity.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("sokosumiMentions", () => {
+  const alice = { token: "alice-id", names: ["Alice", "Alice (via Sokosumi)"] };
+  it("turns a Buzz @Name of a tagged person into Sokosumi's mention", () => {
+    expect(
+      sokosumiMentions("hello @Alice (via Sokosumi) and @alice!", [alice]),
+    ).toBe("hello @alice-id and @alice-id!");
+  });
+
+  it("reads the longest name first and leaves addresses and other words alone", () => {
+    const ann = { token: "ann-id", names: ["Ann"] };
+    const annLee = { token: "ann-lee-id", names: ["Ann Lee"] };
+    expect(
+      sokosumiMentions("@Ann Lee, @Ann, mail ann@Ann.io, @Annette", [
+        ann,
+        annLee,
+      ]),
+    ).toBe("@ann-lee-id, @ann-id, mail ann@Ann.io, @Annette");
+  });
+
+  it("names no one it has no mention for", () => {
+    expect(
+      sokosumiMentions("@Bob hi", [{ token: undefined, names: ["Bob"] }]),
+    ).toBe("@Bob hi");
   });
 });
 
