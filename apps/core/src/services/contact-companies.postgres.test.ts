@@ -17,6 +17,12 @@ import {
   workspacesWithPendingCompanies,
 } from "./contact-companies.service";
 import {
+  createCompanyList,
+  deleteCompanyList,
+  listCompanyLists,
+  updateCompanyListMembers,
+} from "./contact-company-lists.service";
+import {
   type ContactActor,
   contactCompanyMemberIds,
   inContactTransaction,
@@ -161,6 +167,59 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     expect(
       (await listCompanies(actor, { search: "acme.com", limit: 10 })).total,
     ).toBe(1);
+  });
+
+  it("keeps companies on company lists and filters by them", async () => {
+    const { items } = await listCompanies(actor, { limit: 10 });
+    const acme = items.find((item) => item.name === "Acme Robotics");
+    const blum = items.find((item) => item.name === "Blum Studio");
+    const list = await inContactTransaction((tx) =>
+      createCompanyList(tx, actor, { name: "Target accounts", color: "blue" }),
+    );
+    await expect(
+      inContactTransaction((tx) =>
+        createCompanyList(tx, actor, { name: "target ACCOUNTS", color: "red" }),
+      ),
+    ).rejects.toThrow("already exists");
+    const added = await inContactTransaction((tx) =>
+      updateCompanyListMembers(tx, actor, list.id, {
+        add: [acme?.id ?? "", acme?.id ?? ""],
+        remove: [],
+      }),
+    );
+    expect(added.count).toBe(1);
+    await expect(
+      inContactTransaction((tx) =>
+        updateCompanyListMembers(tx, actor, list.id, {
+          add: [randomUUID()],
+          remove: [],
+        }),
+      ),
+    ).rejects.toThrow("Company not found");
+
+    const onList = await listCompanies(actor, { listId: list.id, limit: 10 });
+    expect(onList.items.map((item) => item.name)).toEqual(["Acme Robotics"]);
+    expect(onList.items[0]?.listIds).toEqual([list.id]);
+    expect(
+      (await listCompanies(actor, { limit: 10 })).items.find(
+        (item) => item.id === blum?.id,
+      )?.listIds,
+    ).toEqual([]);
+    expect((await getCompany(actor, acme?.id ?? "")).company.listIds).toEqual([
+      list.id,
+    ]);
+
+    await inContactTransaction((tx) =>
+      updateCompanyListMembers(tx, actor, list.id, {
+        add: [],
+        remove: [acme?.id ?? ""],
+      }),
+    );
+    expect(
+      (await listCompanies(actor, { listId: list.id, limit: 10 })).total,
+    ).toBe(0);
+    await inContactTransaction((tx) => deleteCompanyList(tx, actor, list.id));
+    expect(await listCompanyLists(actor)).toEqual([]);
   });
 
   it("reads one company with its people, teammates and next steps", async () => {

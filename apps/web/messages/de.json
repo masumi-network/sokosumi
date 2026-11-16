@@ -11020,7 +11020,10 @@
         "companies": "Firmen",
         "findCompany": "Firma suchen …",
         "noCompanies": "Keine Firmen gefunden.",
-        "clearCompany": "Alle Firmen zeigen"
+        "clearCompany": "Alle Firmen zeigen",
+        "companyLists": "Firmenlisten",
+        "newCompanyList": "Neue Firmenliste",
+        "noCompanyLists": "Noch keine Firmenlisten."
       },
       "columns": {
         "name": "Name",
@@ -11149,7 +11152,11 @@
         "save": "Speichern",
         "create": "Liste erstellen",
         "smart": "Mit den aktuellen Filtern füllen",
-        "smartHint": "Alle, die zu diesen Filtern passen, stehen auf dieser Liste. Die Liste aktualisiert sich von selbst."
+        "smartHint": "Alle, die zu diesen Filtern passen, stehen auf dieser Liste. Die Liste aktualisiert sich von selbst.",
+        "companyCreateTitle": "Neue Firmenliste",
+        "companyEditTitle": "Firmenliste bearbeiten",
+        "companyDescription": "Firmenlisten teilt ihr im ganzen Team. Eine Firma kann auf beliebig vielen Listen stehen.",
+        "companyNamePlaceholder": "Zielkunden, Investoren…"
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -11433,7 +11440,8 @@
       "layout": {
         "label": "Ansicht",
         "table": "Tabelle",
-        "map": "Karte"
+        "map": "Karte",
+        "companies": "Firmen"
       },
       "map": {
         "label": "Orte",
@@ -11508,7 +11516,42 @@
         "nobody": "Noch niemand",
         "more": "und {count} weitere"
       },
-      "notSame": "{count, plural, =2 {Getrennt: Sie werden nicht mehr als Duplikat vorgeschlagen} other {Getrennt: Diese # werden nicht mehr als Duplikate vorgeschlagen}}"
+      "notSame": "{count, plural, =2 {Getrennt: Sie werden nicht mehr als Duplikat vorgeschlagen} other {Getrennt: Diese # werden nicht mehr als Duplikate vorgeschlagen}}",
+      "companies": {
+        "search": "Firmen suchen",
+        "searchPlaceholder": "Firmen suchen…",
+        "allCompanies": "Alle Firmen",
+        "count": "{count, plural, one {# Firma} other {# Firmen}}",
+        "showing": "{shown} von {total}",
+        "loading": "Firmen werden geladen…",
+        "loadFailed": "Firmen konnten nicht geladen werden",
+        "retry": "Erneut versuchen",
+        "emptyTitle": "Keine Firmen",
+        "empty": "Firmen erscheinen hier, sobald deine Kontakte eine Organisation oder eine geschäftliche E-Mail haben.",
+        "emptyList": "Diese Liste ist leer. Wähle Firmen unter Alle Firmen aus und füge sie hier hinzu.",
+        "noMatches": "Keine Firma passt zu deiner Suche.",
+        "selectAll": "Alle Firmen auswählen",
+        "select": "{name} auswählen",
+        "selected": "{count} ausgewählt",
+        "bulkLabel": "Ausgewählte Firmen",
+        "addToList": "Zur Liste hinzufügen",
+        "removeFromList": "Von Liste entfernen",
+        "clearSelection": "Aufheben",
+        "newList": "Neue Firmenliste",
+        "addedToList": "{count, plural, one {# Firma} other {# Firmen}} zu {list} hinzugefügt",
+        "removedFromList": "{count, plural, one {# Firma} other {# Firmen}} von {list} entfernt",
+        "saveFailed": "Das wurde nicht gespeichert. Versuch es noch einmal.",
+        "deleteTitle": "{name} löschen?",
+        "deleteDescription": "Die Liste verschwindet für alle. Die Firmen und ihre Leute bleiben.",
+        "deleteConfirm": "Liste löschen",
+        "cancel": "Abbrechen",
+        "columns": {
+          "name": "Firma",
+          "people": "Personen",
+          "industry": "Branche",
+          "lists": "Listen"
+        }
+      }
     }
   },
   "Share": {
