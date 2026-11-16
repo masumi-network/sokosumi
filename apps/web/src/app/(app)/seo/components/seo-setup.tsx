@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { CircleAlert, Play, Plus, RotateCw } from "lucide-react";
+import { CircleAlert, Loader2, Play, Plus, RotateCw } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
@@ -124,88 +124,108 @@ export function SeoSetupCard({
             {t("addPage")}
           </Button>
         </SeoStep>
-        <SeoStep
-          index={2}
-          heading="h4"
-          mark={MARK[setup.connection]}
-          doneLabel={t("setup.done")}
-          title={t("audits.onboarding.connectTitle")}
-          body={
-            setup.connection === "waiting" ? undefined : t("setup.googleBody")
-          }
-        >
-          {setup.connection === "waiting" ? null : (
-            <div className="space-y-2">
-              <SeoGoogleConnection
-                variant={setup.connection === "next" ? "primary" : "outline"}
-              />
-              {model.googleConnected ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => model.openStatistics("search_console")}
-                >
-                  {t("manageStatistics")}
-                </Button>
-              ) : null}
-              {setup.connection === "next" ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={model.skipGoogleSetup}
-                >
-                  {t("setup.skipGoogle")}
-                </Button>
-              ) : null}
-            </div>
-          )}
-        </SeoStep>
-        <SeoStep
-          index={3}
-          heading="h4"
-          last
-          mark={MARK[setup.check]}
-          title={t(full ? "setup.audit" : "setup.check")}
-          body={
-            setup.failed ? (
-              // The failure sits on the step whose button runs the check again.
-              <span className="text-destructive flex items-start gap-1.5">
-                <CircleAlert className="mt-0.5 size-4 shrink-0" />
-                {t("setup.checkFailed")}
-              </span>
-            ) : // A step that waits is a title only: the step before it has the action.
-            setup.check === "waiting" ? undefined : (
-              t(
-                setup.check === "running"
-                  ? "setup.checkRunning"
-                  : full
-                    ? "setup.auditBody"
-                    : "setup.checkBody",
+        {setup.page === "done" ? (
+          <SeoStep
+            index={2}
+            heading="h4"
+            mark={MARK[setup.connection]}
+            doneLabel={t("setup.done")}
+            title={t("audits.onboarding.connectTitle")}
+            body={
+              setup.connection === "waiting" ? undefined : t("setup.googleBody")
+            }
+          >
+            {setup.connection === "waiting" ? null : (
+              <div className="space-y-2">
+                <SeoGoogleConnection
+                  variant={setup.connection === "next" ? "primary" : "outline"}
+                />
+                {model.googleConnected ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => model.openStatistics("search_console")}
+                  >
+                    {t("manageStatistics")}
+                  </Button>
+                ) : null}
+                {setup.connection === "next" ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={model.skipGoogleSetup}
+                  >
+                    {t("setup.skipGoogle")}
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </SeoStep>
+        ) : null}
+        {setup.check !== "waiting" ? (
+          <SeoStep
+            index={3}
+            heading="h4"
+            last
+            mark={MARK[setup.check]}
+            title={t(full ? "setup.audit" : "setup.check")}
+            body={
+              !model.data.availableActions.canRequestAnalysis &&
+              setup.check !== "running" ? (
+                <span role="status">{t("dispatchPaused")}</span>
+              ) : setup.failed ? (
+                // The failure sits on the step whose button runs the check again.
+                <span className="text-destructive flex items-start gap-1.5">
+                  <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                  {t("setup.checkFailed")}
+                </span>
+              ) : (
+                // A step that waits is a title only: the step before it has the action.
+                // Waiting steps are now hidden until the preceding step completes.
+                t(
+                  setup.check === "running"
+                    ? "setup.checkRunning"
+                    : full
+                      ? "setup.auditBody"
+                      : "setup.checkBody",
+                )
               )
-            )
-          }
-        >
-          {setup.check === "waiting" ? null : (
-            <div className="flex flex-wrap items-center gap-2">
-              {/* The button stays while its check runs, so keyboard focus stays too. */}
-              <Button
-                size="sm"
-                variant={setup.check === "next" ? "primary" : "outline"}
-                // Not the disabled attribute: that drops focus from the button.
-                aria-disabled={setup.check === "running" || undefined}
-                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                onClick={() => {
-                  if (setup.check !== "running" && run)
-                    model.openAnalysis(run.kind);
-                }}
-              >
-                {setup.failed ? <RotateCw /> : <Play />}
-                {t(full ? "runFullAudit" : "runPageCheck")}
-              </Button>
-              <SeoCheckRunning workspace={model.data} />
-            </div>
-          )}
-        </SeoStep>
+            }
+          >
+            {!run ? null : (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* The button stays while its check runs, so keyboard focus stays too. */}
+                <Button
+                  size="sm"
+                  variant={setup.check === "next" ? "primary" : "outline"}
+                  // Not the disabled attribute: that drops focus from the button.
+                  aria-disabled={setup.check === "running" || undefined}
+                  className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                  onClick={() => {
+                    if (setup.check !== "running" && run)
+                      model.openAnalysis(run.kind);
+                  }}
+                >
+                  {setup.check === "running" ? (
+                    <Loader2 className="animate-spin motion-reduce:animate-pulse" />
+                  ) : setup.failed ? (
+                    <RotateCw />
+                  ) : (
+                    <Play />
+                  )}
+                  {t(
+                    setup.check === "running"
+                      ? "setup.checkRunningBadge"
+                      : full
+                        ? "runFullAudit"
+                        : "runPageCheck",
+                  )}
+                </Button>
+                <SeoCheckRunning workspace={model.data} />
+              </div>
+            )}
+          </SeoStep>
+        ) : null}
       </SeoStepList>
     </section>
   );

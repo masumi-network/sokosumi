@@ -79,10 +79,13 @@ describe("SEO first-run setup", () => {
     });
   });
 
-  it("ends when the reader cannot run the check, unless one is under way", () => {
+  it("keeps setup when dispatch is unavailable and still shows an in-flight check", () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
-    expect(seoSetup(workspace, undefined, true)).toBeNull();
+    expect(seoSetup(workspace, undefined, false)).toMatchObject({
+      connection: "next",
+      check: "waiting",
+    });
     workspace.analyses = [
       {
         id: "a1",

@@ -102,7 +102,7 @@ afterEach(() => {
 describe("native SEO audit entry", () => {
   it("opens the audit index without a selected Project or assistant", async () => {
     await show();
-    expect(screen.getByRole("button", { name: "Create audit" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Start your first SEO audit" }),
     ).toBeVisible();
@@ -111,8 +111,6 @@ describe("native SEO audit entry", () => {
     ).getAllByRole("listitem");
     expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
       "step",
-      null,
-      null,
     ]);
     expect(
       within(steps[0]).getByRole("form", { name: "Create audit" }),
@@ -159,9 +157,7 @@ describe("native SEO audit entry", () => {
       within(form).getByLabelText("First page URL"),
       "https://example.test/launch",
     );
-    await user.click(
-      within(form).getByRole("button", { name: "Create audit" }),
-    );
+    await user.click(within(form).getByRole("button", { name: "Continue" }));
     expect(m.createAudit).toHaveBeenCalledExactlyOnceWith({
       body: {
         name: "Launch pages",
@@ -311,9 +307,7 @@ describe("native SEO audit entry", () => {
       within(form).getByLabelText("First page URL"),
       "https://example.test/launch",
     );
-    await user.click(
-      within(form).getByRole("button", { name: "Create audit" }),
-    );
+    await user.click(within(form).getByRole("button", { name: "Continue" }));
     expect(m.createAudit).toHaveBeenCalledExactlyOnceWith({
       body: {
         name: "Launch pages",
@@ -334,9 +328,7 @@ describe("native SEO audit entry", () => {
       within(form).getByLabelText("First page URL"),
       "https://www.example.test/launch",
     );
-    await user.click(
-      within(form).getByRole("button", { name: "Create audit" }),
-    );
+    await user.click(within(form).getByRole("button", { name: "Continue" }));
     expect(m.createAudit).toHaveBeenCalledExactlyOnceWith({
       body: {
         name: "example.test",
@@ -358,9 +350,7 @@ describe("native SEO audit entry", () => {
       within(form).getByLabelText("First page URL"),
       "https://example.test/launch",
     );
-    await user.click(
-      within(form).getByRole("button", { name: "Create audit" }),
-    );
+    await user.click(within(form).getByRole("button", { name: "Continue" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "Could not create the audit",
     );
