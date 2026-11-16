@@ -11762,7 +11762,7 @@
         "markerEvent": "{kind}: {label}",
         "day": "Day",
         "markerEvents": "Events",
-        "markerLater": "{day}, no data yet: {events}"
+        "markerLater": "{day} (no search data yet): {events}"
       },
       "keywords": {
         "title": "Keywords",

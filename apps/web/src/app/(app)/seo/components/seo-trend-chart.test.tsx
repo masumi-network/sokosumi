@@ -104,7 +104,9 @@ describe("SEO trend chart site events", () => {
     expect(screen.getByText("Task done")).toBeVisible();
     expect(screen.queryByText("Audit")).toBeNull();
     expect(
-      screen.getByText("Mar 4, no data yet: Fix confirmed: Shorten the title"),
+      screen.getByText(
+        "Mar 4 (no search data yet): Fix confirmed: Shorten the title",
+      ),
     ).toBeVisible();
     expect(
       screen.getByRole("row", {
