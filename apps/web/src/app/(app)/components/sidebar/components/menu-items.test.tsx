@@ -564,6 +564,7 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
+      ["ads", "/ads"],
       ["calendar", "/calendar"],
       ["contacts", "/contacts"],
       ["contentStudio", "/studio"],
@@ -638,6 +639,7 @@ describe("MenuItems prefetch", () => {
   it.each([
     ["projects", "/projects"],
     ["schedules", "/schedules"],
+    ["ads", "/ads"],
   ])("loads the %s page content on a resting hover", (label, href) => {
     renderMenu(true, false);
 
