@@ -185,6 +185,10 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         rj."projectId",
         rpij."projectId",
         rtk."projectId",
+        -- Project credits (ADR 0067): a grant belongs to the Project of the
+        -- bucket it created, a write-off to the Project of the bucket it drew.
+        topup."projectId",
+        bucket."projectId",
         -- This server-owned usage field freezes the payer, independent of later Audit relinking.
         (sch."usage" #>> '{billing,projectId}')::uuid
       ) AS "projectId",
@@ -277,7 +281,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "contact" AS ct ON ct."id" = cps."contactId"
     -- A spend can draw from several buckets. One is enough to name a source.
     LEFT JOIN LATERAL (
-      SELECT b."referenceType"::TEXT AS "referenceType"
+      SELECT b."referenceType"::TEXT AS "referenceType", b."projectId"
       FROM "credit_consumption" AS cc
       JOIN "credit_bucket" AS b ON b."id" = cc."bucketId"
       WHERE cc."transactionId" = t."id"
@@ -480,6 +484,9 @@ const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
   ENTERPRISE_TOP_UP: "Enterprise top up",
   SIGNUP_BONUS: "Signup bonus",
   FREE: "Free credits",
+  POLAR_SUBSCRIPTION_MONTH: "CMO plan credits",
+  PROJECT_TOP_UP: "Project top-up",
+  CMO_TESTER_CREDITS: "CMO tester credits",
 };
 
 /**

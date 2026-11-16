@@ -49,9 +49,9 @@ export default async function FlowsLayout({
           ) : (
             <Link href="/">{brand}</Link>
           )}
-          <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
+          <main className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
             {children}
-          </div>
+          </main>
           <FlowsLayoutFooter />
         </div>
       </div>

@@ -282,7 +282,7 @@ describe("AuthFlow signUp", () => {
       expect.objectContaining({ email: "ada@example.com" }),
     );
     expect(
-      screen.getByRole("button", { name: "changeEmail" }),
+      screen.getByRole("button", { name: /changeEmail$/ }),
     ).toBeInTheDocument();
   });
 
@@ -343,7 +343,7 @@ describe("AuthFlow signUp", () => {
     rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
     render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
 
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
 
     expect(emailField()).toHaveValue("ada@example.com");
     expect(emailField()).toBeEnabled();
@@ -705,7 +705,7 @@ describe("AuthFlow signUp", () => {
     render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
 
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
 
     expect(emailField()).toHaveValue("ada@example.com");
     expect(emailField()).toHaveFocus();
@@ -735,7 +735,7 @@ describe("AuthFlow signUp", () => {
       "invited@example.com",
     );
     expect(
-      screen.queryByRole("button", { name: "changeEmail" }),
+      screen.queryByRole("button", { name: /changeEmail$/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -809,9 +809,9 @@ describe("AuthFlow signUp", () => {
     );
     expect(emailField()).toHaveValue("ada@example.com");
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-    await screen.findByRole("button", { name: "changeEmail" });
+    await screen.findByRole("button", { name: /changeEmail$/ });
     rememberAuthEmailHint("stale@example.com");
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
     expect(emailField()).toHaveValue("ada@example.com");
     expect(takeAuthEmailHint()).toBeNull();
   });
