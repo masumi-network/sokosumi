@@ -47,7 +47,8 @@ export function SeoDemandChart({
   );
   return (
     <figure
-      className="bg-background space-y-3 rounded-lg border p-3"
+      // The card around it belongs to the Agent tab's pictures.
+      className="space-y-3"
       data-testid="seo-demand-chart"
     >
       <figcaption className="space-y-0.5">
@@ -59,7 +60,7 @@ export function SeoDemandChart({
         </span>
       </figcaption>
       <div>
-        {/* A phone shows the three most searched keywords: five bars fill a whole phone screen on their own. */}
+        {/* A phone shows the three most searched keywords: five bars were one screen before the first step. */}
         <ol
           role="list"
           // The rows come in one by one, each bar growing from the axis after its row.

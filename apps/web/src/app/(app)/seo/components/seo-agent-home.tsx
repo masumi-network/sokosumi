@@ -121,6 +121,8 @@ function SeoAgentPanel({
             ? false
             : step.kind !== "action" || (canEdit && !step.action.taskId),
       );
+  // The lead step sits in the verdict card; the list under the pictures holds the rest.
+  const lead = primary === -1 ? undefined : shown[primary];
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
@@ -181,6 +183,7 @@ function SeoAgentPanel({
             severity={actionSeverity(step.action)}
             primary
             fixed
+            flush
           />
         </li>
       ) : (
@@ -346,6 +349,17 @@ function SeoAgentPanel({
           ) : null}
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
+          {lead ? (
+            // The verdict and its first step are one card: the headline says what is wrong, the step under it
+            // what to do first. The other steps follow the pictures.
+            <ul
+              role="list"
+              aria-label={t("agent.firstStep")}
+              className="-mx-4 -mb-4 border-t"
+            >
+              {stepItem(lead, primary)}
+            </ul>
+          ) : null}
         </div>
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
@@ -353,7 +367,16 @@ function SeoAgentPanel({
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
-      {(setup || banner) && !steps.length ? null : (
+      {/* The numbers and the pictures are one block, in one place on every width. On a wide screen the tiles stand
+          one over the other beside the picture, so the first step and its button start as high as they can. The
+          two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
+      {setup ? null : (
+        <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
+          {tiles}
+        </div>
+      )}
+      {((setup || banner) && !steps.length) ||
+      (lead && steps.length === 1 && !moreActions) ? null : (
         <div className="space-y-2">
           {brief.issues ? null : (
             <h3 className="px-2 text-sm font-semibold">
@@ -366,7 +389,11 @@ function SeoAgentPanel({
               aria-label={t("agent.nextTitle")}
               className={SEO_ROW_LIST_CLASS}
             >
-              {shown.slice(0, split).map(stepItem)}
+              {shown
+                .slice(0, split)
+                .map((step, index) =>
+                  index === primary ? null : stepItem(step, index),
+                )}
               {moreActions ? (
                 // The Agent tab shows the first actions only: the rest must not look absent.
                 <SeoActionsLinkRow model={model}>
@@ -378,7 +405,11 @@ function SeoAgentPanel({
               ) : null}
               {shown
                 .slice(split)
-                .map((step, index) => stepItem(step, index + split))}
+                .map((step, index) =>
+                  index + split === primary
+                    ? null
+                    : stepItem(step, index + split),
+                )}
             </ul>
           ) : (
             <p className="text-muted-foreground max-w-prose px-2 text-sm">
@@ -405,14 +436,6 @@ function SeoAgentPanel({
               />
             </Button>
           ) : null}
-        </div>
-      )}
-      {/* The numbers and the pictures are one block, in one place on every width. They follow the steps, so the
-          first step stands right under the headline it answers. On a wide screen the tiles stand one over the other
-          beside the picture. The two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
-      {setup ? null : (
-        <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
-          {tiles}
         </div>
       )}
       <SeoAutomation model={model} />

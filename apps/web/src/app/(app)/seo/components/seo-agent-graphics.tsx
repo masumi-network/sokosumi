@@ -1,7 +1,8 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SeoDemandChart } from "./seo-demand-chart";
 import { latestSeoMeasurements, seoChartMarkers } from "./seo-statistics-model";
 import { seoKeywordDemand } from "./seo-summary-model";
@@ -11,9 +12,12 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 /** How many keywords the demand picture names. */
 const DEMAND_ROWS = 5;
 
+type SeoAgentChart = "clicks" | "keywords";
+
 /**
  * The Agent tab's pictures, each from saved data only: the daily search clicks
  * once statistics are synced, and the checked keywords with the most searches.
+ * One card holds both, with a switch when both have data.
  */
 export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
@@ -27,41 +31,58 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
       metric.points.filter((point) => point.value !== null).length > 1,
   );
   const demand = seoKeywordDemand(model.data, DEMAND_ROWS);
+  const hasClicks = Boolean(
+    clicks?.points.some((point) => (point.value ?? 0) > 0),
+  );
+  // Both pictures share one card. It opens on the one with something to show: the daily clicks once the
+  // site gets clicks, otherwise the searches for the checked keywords.
+  const [picked, setPicked] = useState<SeoAgentChart | null>(null);
+  const shown: SeoAgentChart =
+    picked ??
+    (clicks && (hasClicks || !demand.rows.length) ? "clicks" : "keywords");
   if (!clicks && !demand.rows.length) return null;
   return (
-    // Beside the tiles the pictures are cells of the tiles' grid: the keyword picture stands beside the keyword
-    // tiles and is as tall as they are, and the daily clicks take the full width under both. On a phone the
-    // clicks come first, as before. Two pictures in one
-    // column were more than twice as tall as the tiles.
     <div
-      className="flex flex-col gap-2 lg:[&:not(:only-child)]:contents"
+      className="bg-background min-w-0 space-y-3 rounded-lg border p-3"
       data-testid="seo-agent-graphics"
     >
-      {clicks ? (
-        // The chart is a figure with its own name.
-        <div
-          className={cn(
-            "bg-background space-y-3 rounded-lg border p-3",
-            demand.rows.length > 0 && "lg:order-last lg:col-span-2",
-          )}
+      {clicks && demand.rows.length ? (
+        <ToggleGroup
+          type="single"
+          aria-label={t("agent.chart")}
+          value={shown}
+          onValueChange={(value) => {
+            // Pressing the chosen picture again would clear the choice; keep it.
+            if (value === "clicks" || value === "keywords") setPicked(value);
+          }}
         >
-          {/* The same title the demand chart beside it shows; the chart group already carries it as its name. */}
-          <p aria-hidden className="text-sm font-medium">
+          <ToggleGroupItem value="clicks">
             {t("metrics.clicks")}
-          </p>
-          <SeoTrendChart
-            key={clicks.id}
-            series={clicks}
-            label={t("metrics.clicks")}
-            points={clicks.points}
-            unit={clicks.unit}
-            unavailable={t("none")}
-            formatValue={(value) => format.number(value)}
-            markers={seoChartMarkers(model.data, clicks.timeZone)}
-          />
-        </div>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="keywords">
+            {t("agent.chartKeywords")}
+          </ToggleGroupItem>
+        </ToggleGroup>
+      ) : clicks ? (
+        // Alone, the clicks picture needs a title; the switch names it otherwise. The chart group carries it too.
+        <p aria-hidden className="text-sm font-medium">
+          {t("metrics.clicks")}
+        </p>
       ) : null}
-      {demand.rows.length ? <SeoDemandChart demand={demand} /> : null}
+      {clicks && shown === "clicks" ? (
+        <SeoTrendChart
+          key={clicks.id}
+          series={clicks}
+          label={t("metrics.clicks")}
+          points={clicks.points}
+          unit={clicks.unit}
+          unavailable={t("none")}
+          formatValue={(value) => format.number(value)}
+          markers={seoChartMarkers(model.data, clicks.timeZone)}
+        />
+      ) : (
+        <SeoDemandChart demand={demand} />
+      )}
     </div>
   );
 }

@@ -12407,6 +12407,9 @@
         "refreshing": "Google-Statistiken werden geladen.",
         "refreshFailed": "Google-Statistiken konnten nicht geladen werden. Versuche es erneut.",
         "nextTitle": "Der Agent schlägt vor",
+        "firstStep": "Erster Schritt",
+        "chart": "Angezeigtes Diagramm",
+        "chartKeywords": "Keyword-Suchen",
         "nothingNext": "Es steht nichts an. Google-Statistiken werden für die ausgewählten Seiten automatisch geladen und bei Bedarf aktualisiert.",
         "steps": {
           "refresh": {

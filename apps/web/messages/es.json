@@ -12407,6 +12407,9 @@
         "refreshing": "Cargando estadísticas de Google.",
         "refreshFailed": "No se pudieron cargar las estadísticas de Google. Inténtalo de nuevo.",
         "nextTitle": "El agente propone",
+        "firstStep": "Primer paso",
+        "chart": "Gráfico que se muestra",
+        "chartKeywords": "Búsquedas de palabras clave",
         "nothingNext": "No hay tareas pendientes. Las estadísticas de Google se cargan automáticamente para las páginas seleccionadas y se actualizan cuando sea necesario.",
         "steps": {
           "refresh": {

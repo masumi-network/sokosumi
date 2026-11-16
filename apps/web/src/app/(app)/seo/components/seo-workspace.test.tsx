@@ -614,15 +614,18 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByRole("button", { name: "Ask the SEO agent" }),
     ).toBeNull();
-    // The first step stands right under the result it answers; the numbers are a block of their own after the steps.
+    // The first step is part of the verdict card: the headline says what is wrong, the step what to do first.
+    // The numbers are a block of their own after the card.
     const verdict = screen.getByTestId("seo-agent-verdict");
     const tiles = screen.getByTestId("seo-summary-tiles");
     const firstStep = screen.getByText("Make the markup price match the page");
     expect(verdict.parentElement).not.toContainElement(tiles);
+    expect(verdict.parentElement).toContainElement(firstStep);
     expect(
-      verdict.compareDocumentPosition(firstStep) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      within(screen.getByRole("list", { name: "First step" })).getByText(
+        "Make the markup price match the page",
+      ),
+    ).toBeVisible();
     expect(
       firstStep.compareDocumentPosition(tiles) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -2657,6 +2660,104 @@ describe("SEO workspace integration", () => {
         { selector: "p" },
       ),
     ).toBeVisible();
+  });
+
+  it("shows the clicks and the keyword searches in one card that opens on the picture with data", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const observationId = "11111111-1111-4111-8111-111111111111";
+    const clicks = (values: number[]): ProjectSeoWorkspace["metrics"] => [
+      {
+        id: "sync:clicks",
+        key: "clicks",
+        label: "",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        value: values.reduce((sum, value) => sum + value, 0),
+        from: "2026-10-01",
+        to: "2026-10-02",
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        points: values.map((value, day) => ({
+          date: `2026-10-0${day + 1}`,
+          value,
+        })),
+      },
+    ];
+    workspace.metricsStatus = "available";
+    workspace.observations.push({
+      id: observationId,
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-10-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    const read = {
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 18,
+      observedAt: new Date("2026-10-03T12:00:00Z"),
+      observationId,
+      position: null,
+      positionStatus: "not_in_range",
+      intent: null,
+      difficulty: null,
+      clicks: null,
+      conversion: null,
+      feature: null,
+    } as const;
+    workspace.keywords.push(
+      { ...read, id: "small", keyword: "charge timer", volume: 90 },
+      { ...read, id: "large", keyword: "battery app", volume: 720 },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    // A site with clicks opens on the clicks; the switch leads to the keyword searches.
+    workspace.metrics = clicks([1, 2]);
+    renderWorkspace(workspace, "?tab=agent");
+    const card = within(screen.getByTestId("seo-agent-graphics"));
+    const switcher = card.getByRole("radiogroup", { name: "Picture to show" });
+    expect(
+      within(switcher).getByRole("radio", { name: "Search clicks" }),
+    ).toBeChecked();
+    expect(card.queryByTestId("seo-demand-chart")).toBeNull();
+    await user.click(
+      within(switcher).getByRole("radio", { name: "Keyword searches" }),
+    );
+    expect(card.getByTestId("seo-demand-chart")).toBeVisible();
+    expect(card.queryByTestId("seo-trend-bar")).toBeNull();
+    cleanup();
+    // No clicks yet: the card opens on the keyword searches.
+    workspace.metrics = clicks([0, 0]);
+    renderWorkspace(workspace, "?tab=agent");
+    expect(
+      within(screen.getByTestId("seo-agent-graphics")).getByRole("radio", {
+        name: "Keyword searches",
+      }),
+    ).toBeChecked();
+    expect(screen.getByTestId("seo-demand-chart")).toBeVisible();
   });
 
   it("says whether Google indexes the page in view and names another canonical", () => {
@@ -5869,12 +5970,15 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(screen.queryByText(/more (fix|action)/)).toBeNull();
     cleanup();
-    // Without an action the steps are one list: no label splits them.
+    // Without an action the one step sits in the verdict card: no list follows the pictures.
     workspace.actions = [];
     renderWorkspace(workspace, "?tab=agent");
     expect(
-      await screen.findByRole("heading", { name: "The agent proposes" }),
+      await screen.findByRole("list", { name: "First step" }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "The agent proposes" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",

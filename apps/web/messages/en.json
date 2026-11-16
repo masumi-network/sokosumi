@@ -12407,6 +12407,9 @@
         "refreshing": "Loading Google statistics.",
         "refreshFailed": "Google statistics could not load. Try again.",
         "nextTitle": "The agent proposes",
+        "firstStep": "First step",
+        "chart": "Picture to show",
+        "chartKeywords": "Keyword searches",
         "nothingNext": "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
         "steps": {
           "refresh": {

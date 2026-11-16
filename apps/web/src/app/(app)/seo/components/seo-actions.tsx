@@ -39,6 +39,7 @@ export function SeoActionCard({
   severity,
   primary = false,
   fixed = false,
+  flush = false,
 }: {
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
@@ -48,6 +49,8 @@ export function SeoActionCard({
   primary?: boolean;
   /** The card is the one proposal of its place (the Agent tab): it stays open and its title is no button. */
   fixed?: boolean;
+  /** The card sits inside another card: no surface of its own. */
+  flush?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const problem = seoOverviewModel(model.data).actionProblem(action);
@@ -97,7 +100,7 @@ export function SeoActionCard({
           setMarked(false);
       }}
       className={cn(
-        HOLDER_ITEM_CLASS,
+        !flush && HOLDER_ITEM_CLASS,
         "group focus-visible:outline-ring aria-[current=true]:ring-ring min-w-0 focus-visible:outline-2 aria-[current=true]:ring-2",
       )}
     >
