@@ -5687,7 +5687,11 @@ describe("SEO workspace integration", () => {
       why: "The title is missing",
       effort: "low",
       expectedEffect: "A descriptive search result",
-      edit: null,
+      edit: {
+        target: "title",
+        before: null,
+        after: "<title>Battery Sensei</title>",
+      },
       taskId: null,
       status: "recommended",
       kind: "fix",
@@ -5756,11 +5760,26 @@ describe("SEO workspace integration", () => {
     ).getAllByRole("button");
     await user.click(leadRow!);
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByText("Reason and evidence"));
+    // The dialog shows the reasons at once, and the fix and the whole action can be copied.
     expect(within(dialog).getByText("The title is missing")).toBeVisible();
     expect(
       within(dialog).getByText("A descriptive search result"),
     ).toBeVisible();
+    const write = vi.spyOn(navigator.clipboard, "writeText");
+    await user.click(within(dialog).getByRole("button", { name: "Copy" }));
+    expect(write).toHaveBeenLastCalledWith("<title>Battery Sensei</title>");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Copy as instructions" }),
+    );
+    expect(write).toHaveBeenLastCalledWith(
+      [
+        "Fix the page title",
+        "Page: https://example.com/",
+        "A descriptive search result",
+        "The title is missing",
+        "Suggested change:\n<title>Battery Sensei</title>",
+      ].join("\n\n"),
+    );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     // The Actions tab is the full list of the same cards: the reasons stay closed, and the run keeps the fill.

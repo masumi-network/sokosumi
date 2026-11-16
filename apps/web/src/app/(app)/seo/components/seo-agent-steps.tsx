@@ -338,6 +338,7 @@ export function SeoActionDialog({
               primary
               fixed
               flush
+              full
             />
           </div>
         </DialogContent>

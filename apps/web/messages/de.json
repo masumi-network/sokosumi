@@ -11986,7 +11986,12 @@
           "opportunity": "Vorschlag"
         },
         "problem": "{check}. Gefunden: {found}",
-        "impactLine": "{level}: {hint}"
+        "impactLine": "{level}: {hint}",
+        "copyFix": "Kopieren",
+        "copyInstructions": "Als Anleitung kopieren",
+        "copyPage": "Seite",
+        "copied": "In die Zwischenablage kopiert",
+        "copyFailed": "Kopieren nicht möglich. Text markieren und von Hand kopieren."
       },
       "pages": {
         "title": "Seiten",

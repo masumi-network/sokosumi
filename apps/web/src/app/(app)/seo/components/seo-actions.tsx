@@ -8,6 +8,7 @@ import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionCardHead } from "./seo-card-head";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoActionsExport } from "./seo-export-model";
@@ -40,6 +41,7 @@ export function SeoActionCard({
   primary = false,
   fixed = false,
   flush = false,
+  full = false,
 }: {
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
@@ -51,8 +53,12 @@ export function SeoActionCard({
   fixed?: boolean;
   /** The card sits inside another card: no surface of its own. */
   flush?: boolean;
+  /** The card fills a dialog: its details show at once and its fix can be copied. */
+  full?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const finding = useSeoActionFinding(action, model);
+  const instructions = useSeoActionInstructions(action, finding);
   // Inside another card the title ranks under that card's heading.
   const Heading = flush ? "h4" : "h3";
   const problem = seoOverviewModel(model.data).actionProblem(action);
@@ -129,7 +135,7 @@ export function SeoActionCard({
           </span>
           {/* What the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
           <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
-            <SeoActionFinding action={action} model={model} />
+            {finding}
             {problem?.footnote ? (
               <span className="hidden group-has-[details[open]]:inline">
                 {" "}
@@ -137,7 +143,7 @@ export function SeoActionCard({
               </span>
             ) : null}
           </p>
-          <details className="text-sm">
+          <details className="text-sm" open={full}>
             {/* Detail behind a fold: quieter than the title and the found line over it. */}
             <SeoFoldSummary className="text-muted-foreground py-2.5">
               {t("actions.whyDetails")}
@@ -187,9 +193,18 @@ export function SeoActionCard({
                     </pre>
                   </div>
                   <div>
-                    <p className="text-muted-foreground mb-1 text-xs">
-                      {t("actions.after")}
-                    </p>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <p className="text-muted-foreground text-xs">
+                        {t("actions.after")}
+                      </p>
+                      {full ? (
+                        <SeoCopyButton
+                          text={action.edit.after}
+                          label={t("actions.copyFix")}
+                          className="h-7"
+                        />
+                      ) : null}
+                    </div>
                     <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
                       {action.edit.after}
                     </pre>
@@ -198,7 +213,15 @@ export function SeoActionCard({
               ) : null}
             </div>
           </details>
-          <SeoActionTaskButton action={action} model={model} />
+          <div className="flex flex-wrap gap-2">
+            <SeoActionTaskButton action={action} model={model} />
+            {full ? (
+              <SeoCopyButton
+                text={instructions}
+                label={t("actions.copyInstructions")}
+              />
+            ) : null}
+          </div>
         </div>
       ) : null}
     </article>
@@ -213,6 +236,13 @@ export function SeoActionFinding({
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
 }) {
+  return useSeoActionFinding(action, model);
+}
+
+function useSeoActionFinding(
+  action: ProjectSeoAction,
+  model: SeoWorkspaceModel,
+): string {
   const t = useTranslations("App.Seo");
   const problem = seoOverviewModel(model.data).actionProblem(action);
   return problem

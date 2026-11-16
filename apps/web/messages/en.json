@@ -11986,7 +11986,12 @@
           "opportunity": "Suggestion"
         },
         "problem": "{check}. Found: {found}",
-        "impactLine": "{level}: {hint}"
+        "impactLine": "{level}: {hint}",
+        "copyFix": "Copy",
+        "copyInstructions": "Copy as instructions",
+        "copyPage": "Page",
+        "copied": "Copied to the clipboard",
+        "copyFailed": "Could not copy. Select the text and copy it by hand."
       },
       "pages": {
         "title": "Pages",
