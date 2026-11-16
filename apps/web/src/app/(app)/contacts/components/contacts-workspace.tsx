@@ -6,6 +6,7 @@ import type {
   ContactList,
   ContactReplyState,
   ContactStage,
+  PostContactsStageUndoData,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -24,7 +25,7 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
+import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
   CONTACT_CHANNEL_SOURCES,
@@ -33,6 +34,7 @@ import {
   CONTACT_SORTS,
   CONTACT_STAGES,
   type ContactSort,
+  contactEmails,
   contactQuery,
   coreErrorOf,
   defaultDirection,
@@ -115,6 +117,8 @@ type Dialog =
   | { kind: "duplicates" }
   /** `fromDuplicates` returns to the duplicates list when the merge ends. */
   | { kind: "merge"; contacts: Contact[]; fromDuplicates?: boolean };
+
+type StageUndo = NonNullable<PostContactsStageUndoData["body"]>["contacts"];
 
 /** The Contacts tab: views and companies on top, the grid, and the person panel. */
 export function ContactsWorkspace({
@@ -272,15 +276,67 @@ export function ContactsWorkspace({
     target.focus();
   }
 
-  async function bulk(action: () => Promise<unknown>, done: string) {
+  async function bulk<T>(
+    action: () => Promise<T>,
+    done: string | ((result: T) => [string, ExternalToast?]),
+  ) {
     try {
-      await action();
-      toast.success(done);
+      const result = await action();
+      if (typeof done === "string") toast.success(done);
+      else toast.success(...done(result));
     } catch (error) {
       toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
     } finally {
       await refreshContacts(cache);
     }
+  }
+  function undoToast(undo: StageUndo): ExternalToast {
+    return {
+      // Undo is the only way back for up to 500 contacts: it stays until the
+      // reader uses or closes it, never on a timer.
+      duration: Number.POSITIVE_INFINITY,
+      closeButton: true,
+      action: { label: t("bulk.undo"), onClick: () => void undoStage(undo) },
+    };
+  }
+  async function undoStage(undo: StageUndo) {
+    try {
+      const { restored, skipped } = await contactsService.undoStage(undo);
+      toast.success(
+        skipped
+          ? t("bulk.stageUndonePartly", {
+              count: restored,
+              total: undo.length,
+            })
+          : t("bulk.stageUndone", { count: restored }),
+      );
+    } catch (error) {
+      // Core skips contacts already restored, so offering Undo again is safe.
+      toast.error(
+        coreErrorOf(error).message ?? t("errors.saveFailed"),
+        undoToast(undo),
+      );
+    } finally {
+      await refreshContacts(cache);
+    }
+  }
+  async function handleCopyEmails() {
+    const { emails, skipped } = contactEmails(selectedContacts);
+    if (!emails.length) {
+      toast.error(t("bulk.noEmails"));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(emails.join(", "));
+    } catch {
+      toast.error(t("bulk.copyFailed"));
+      return;
+    }
+    toast.success(t("bulk.copiedEmails", { count: emails.length }), {
+      description: skipped
+        ? t("bulk.skippedNoEmail", { count: skipped })
+        : undefined,
+    });
   }
   async function handleExport() {
     setExporting(true);
@@ -421,6 +477,28 @@ export function ContactsWorkspace({
                   count={selected.length}
                   lists={lists.data ?? []}
                   viewList={viewList?.kind === "manual" ? viewList : null}
+                  onSetStage={(next) =>
+                    void bulk(
+                      async () => {
+                        const result = await contactsService.setStage(
+                          selected,
+                          next,
+                        );
+                        // A stage filter or a smart list can drop the changed
+                        // rows from view; keeping them selected would act on
+                        // rows nobody sees.
+                        setSelected([]);
+                        return result;
+                      },
+                      ({ undo }) => [
+                        t("bulk.stageSet", {
+                          count: selected.length,
+                          stage: t(`stages.${next}`),
+                        }),
+                        undo.length ? undoToast(undo) : undefined,
+                      ],
+                    )
+                  }
                   onAddToList={(list) =>
                     void bulk(
                       () =>
@@ -447,6 +525,7 @@ export function ContactsWorkspace({
                       }),
                     )
                   }
+                  onCopyEmails={() => void handleCopyEmails()}
                   onMerge={() =>
                     setDialog({ kind: "merge", contacts: selectedContacts })
                   }

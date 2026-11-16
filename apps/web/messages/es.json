@@ -843,6 +843,13 @@
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
+        "loadError": "No se pudieron cargar las preguntas de las salas de datos",
+        "byline": "{who} sobre {document} en {room}",
+        "action": "Responder",
+        "showOlder": "Mostrar preguntas anteriores"
       }
     },
     "HashValue": {
@@ -1697,6 +1704,8 @@
           "completed": "{count, plural, one {# tarea completada} other {# tareas completadas}}",
           "worked": "{minutes, plural, one {# minuto trabajado} other {# minutos trabajados}}",
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
+          "awaitingTeam": "{count, plural, one {# tarea necesita respuesta} other {# tareas necesitan respuesta}}",
+          "needsYou": "{count, plural, one {# solicitud te necesita} other {# solicitudes te necesitan}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
@@ -7503,11 +7512,22 @@
       "Email": {
         "title": "Cambiar email",
         "description": "Actualizar tu dirección de email",
+        "descriptionWithCurrent": "Has iniciado sesión como {email}. Enviamos un enlace a la nueva dirección para confirmar el cambio.",
         "newEmail": "Nuevo email",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar email",
-        "success": "Email actualizado correctamente",
-        "error": "No se pudo actualizar el email"
+        "success": "Abre el enlace que enviamos a {email} para confirmar tu nueva dirección.",
+        "error": "No se pudo actualizar el email",
+        "pendingBadge": "Esperando tu confirmación",
+        "pendingDescription": "Abre el enlace que enviamos a esta dirección para terminar el cambio.",
+        "resend": "Enviar de nuevo",
+        "cancel": "Cancelar cambio",
+        "cancelled": "Cambio de correo cancelado. El enlace ya no funciona.",
+        "cancelError": "No se pudo cancelar el cambio de correo. Inténtalo de nuevo.",
+        "changed": "Tu correo ahora es {email}.",
+        "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo.",
+        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo.",
+        "cancelTooLate": "Este cambio ya se confirmó o caducó, así que no hay nada que cancelar."
       },
       "Password": {
         "title": "Cambiar contraseña",
@@ -8168,17 +8188,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Acceso de proveedores al espacio de trabajo",
-        "description": "Aprueba el acceso de proveedores al espacio de trabajo personal (leer, comentar y crear tareas).",
-        "vendorsTitle": "Proveedores",
-        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "title": "Quién puede trabajar en tu espacio de trabajo",
+        "description": "Los socios que permitas pueden ver las tareas de tu espacio de trabajo personal, comentarlas y crear nuevas.",
+        "vendorsTitle": "Socios",
+        "vendorsEmpty": "Ningún socio tiene acceso.",
         "statusPending": "Pendiente",
         "statusGranted": "Concedido",
         "statusDenied": "Denegado",
         "statusRevoked": "Revocado",
-        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "grantFormTitle": "Añadir un socio",
         "GrantForm": {
-          "vendorLabel": "Proveedor",
+          "vendorLabel": "Socio",
           "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
           "submit": "Conceder acceso",
           "success": "Acceso de proveedor concedido",
@@ -8187,17 +8207,20 @@
         "Actions": {
           "approve": "Aprobar",
           "deny": "Denegar",
-          "revoke": "Revocar",
+          "revoke": "Quitar acceso",
           "approveSuccess": "Acceso de proveedor aprobado",
           "denySuccess": "Acceso de proveedor denegado",
-          "revokeSuccess": "Acceso de proveedor revocado",
+          "revokeSuccess": "Acceso quitado",
           "approveError": "No se pudo aprobar el acceso de proveedor",
           "denyError": "No se pudo denegar el acceso de proveedor",
-          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "revokeError": "No se pudo quitar el acceso",
           "grant": "Conceder",
           "grantSuccess": "Acceso de proveedor concedido",
           "grantError": "No se pudo conceder acceso de proveedor"
-        }
+        },
+        "permissionWorkspace": "Puede leer, comentar, crear",
+        "grantedSince": "Tiene acceso desde el {date}. Puedes quitarlo cuando quieras.",
+        "grantedOnRequest": "Pidió acceso, aprobado el {date}. Puedes quitarlo cuando quieras."
       },
       "CoworkerAccess": {
         "title": "Acceso anticipado de coworker",
@@ -8371,7 +8394,10 @@
             "grant": "Conceder",
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
-          }
+          },
+          "permissionWorkspace": "Puede leer, comentar, crear",
+          "grantedSince": "Tiene acceso desde el {date}.",
+          "grantedOnRequest": "Pidió acceso, aprobado el {date}."
         },
         "CoworkerAccess": {
           "title": "Acceso anticipado de coworker",
@@ -11047,13 +11073,23 @@
       "bulk": {
         "label": "Contactos seleccionados",
         "selected": "{count} seleccionados",
+        "setStage": "Cambiar relación",
+        "stageSet": "{count, plural, =1 {1 contacto cambiado a {stage}} other {# contactos cambiados a {stage}}}",
+        "stageUndone": "{count, plural, =1 {Relación de 1 contacto restaurada} other {Relaciones de # contactos restauradas}}",
+        "stageUndonePartly": "{count, plural, =0 {No se restauró nada: los {total} contactos cambiaron desde entonces} other {Se restauraron # de {total} contactos; el resto cambió desde entonces}}",
+        "undo": "Deshacer",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
+        "copyEmails": "Copiar correos",
         "merge": "Fusionar",
         "clear": "Quitar selección",
         "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
         "addedToList": "{count, plural, =1 {1 contacto añadido a {list}} other {# contactos añadidos a {list}}}",
-        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}"
+        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}",
+        "copiedEmails": "{count, plural, =1 {1 dirección de correo copiada} other {# direcciones de correo copiadas}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contacto no tiene correo y se omitió.} other {# contactos no tienen correo y se omitieron.}}",
+        "noEmails": "Ninguno de los contactos seleccionados tiene dirección de correo.",
+        "copyFailed": "No se pudo copiar al portapapeles. Inténtalo de nuevo."
       },
       "errors": {
         "versionConflict": "Alguien acaba de cambiar este contacto. Cargamos su versión; vuelve a intentar tu cambio.",

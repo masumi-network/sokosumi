@@ -14,6 +14,7 @@ describe("KanbanColumn", () => {
     );
     render(
       <KanbanColumn
+        id="backlog"
         title="Backlog"
         statusColor="bg-muted"
         tasks={tasks}

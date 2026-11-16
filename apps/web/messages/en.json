@@ -859,6 +859,13 @@
           "OUT_OF_CREDITS": "Open",
           "GRANT_PENDING": "Open"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# data room question is waiting for an answer} other {# data room questions are waiting for an answer}}",
+        "loadError": "Could not load the data room questions",
+        "byline": "{who} about {document} in {room}",
+        "action": "Answer",
+        "showOlder": "Show older questions"
       }
     },
     "HashValue": {
@@ -1697,6 +1704,8 @@
           "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
           "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "awaitingTeam": "{count, plural, one {# task needs input} other {# tasks need input}}",
+          "needsYou": "{count, plural, one {# request needs you} other {# requests need you}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
@@ -7539,11 +7548,22 @@
       "Email": {
         "title": "Change email",
         "description": "Update your email address",
+        "descriptionWithCurrent": "Signed in as {email}. We email a link to the new address to confirm the change.",
         "newEmail": "New email",
         "currentPassword": "Current password",
         "submit": "Update email",
-        "success": "Email updated successfully",
-        "error": "Failed to update email"
+        "success": "Check {email} for a link to confirm your new address.",
+        "error": "Failed to update email",
+        "pendingBadge": "Waiting for you",
+        "pendingDescription": "Open the link we sent to this address to finish the change.",
+        "resend": "Send again",
+        "cancel": "Cancel change",
+        "cancelled": "Email change cancelled. The link no longer works.",
+        "cancelError": "Couldn't cancel the email change. Try again.",
+        "changed": "Your email is now {email}.",
+        "linkFailed": "That link no longer works. Ask for a new one below.",
+        "statusUnavailable": "Couldn't check for a waiting email change. Reload to try again.",
+        "cancelTooLate": "This change was already confirmed or has expired, so there is nothing to cancel."
       },
       "Password": {
         "title": "Change password",
@@ -8204,17 +8224,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor workspace access for your personal workspace (read, comment, and create tasks).",
-        "vendorsTitle": "Vendors",
-        "vendorsEmpty": "No vendor grants yet.",
+        "title": "Who can work in your workspace",
+        "description": "Partners you allow can see the tasks in your personal workspace, comment on them and create new ones.",
+        "vendorsTitle": "Partners",
+        "vendorsEmpty": "No partner has access.",
         "statusPending": "Pending",
         "statusGranted": "Granted",
         "statusDenied": "Denied",
         "statusRevoked": "Revoked",
-        "grantFormTitle": "Grant access proactively",
+        "grantFormTitle": "Add a partner",
         "GrantForm": {
-          "vendorLabel": "Vendor",
+          "vendorLabel": "Partner",
           "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
           "submit": "Grant access",
           "success": "Vendor access granted",
@@ -8223,17 +8243,20 @@
         "Actions": {
           "approve": "Approve",
           "deny": "Deny",
-          "revoke": "Revoke",
+          "revoke": "Remove access",
           "approveSuccess": "Vendor access approved",
           "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
+          "revokeSuccess": "Access removed",
           "approveError": "Failed to approve vendor access",
           "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access",
+          "revokeError": "Couldn't remove access",
           "grant": "Grant",
           "grantSuccess": "Vendor access granted",
           "grantError": "Failed to grant vendor access"
-        }
+        },
+        "permissionWorkspace": "Can read, comment, create",
+        "grantedSince": "Has access since {date}. You can remove it at any time.",
+        "grantedOnRequest": "Asked for access, approved {date}. You can remove it at any time."
       },
       "CoworkerAccess": {
         "title": "Coworker early access",
@@ -8407,7 +8430,10 @@
             "grant": "Grant",
             "grantSuccess": "Vendor access granted",
             "grantError": "Failed to grant vendor access"
-          }
+          },
+          "permissionWorkspace": "Can read, comment, create",
+          "grantedSince": "Has access since {date}.",
+          "grantedOnRequest": "Asked for access, approved {date}."
         },
         "CoworkerAccess": {
           "title": "Coworker early access",
@@ -11047,13 +11073,23 @@
       "bulk": {
         "label": "Selected contacts",
         "selected": "{count} selected",
+        "setStage": "Set relationship",
+        "stageSet": "{count, plural, =1 {Set 1 contact to {stage}} other {Set # contacts to {stage}}}",
+        "stageUndone": "{count, plural, =1 {Restored 1 contact's relationship} other {Restored # contacts' relationships}}",
+        "stageUndonePartly": "{count, plural, =0 {Nothing restored: all {total} contacts changed since} other {Restored # of {total} contacts; the rest changed since}}",
+        "undo": "Undo",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
+        "copyEmails": "Copy emails",
         "merge": "Merge",
         "clear": "Clear selection",
         "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
         "addedToList": "{count, plural, =1 {Added 1 contact to {list}} other {Added # contacts to {list}}}",
-        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}"
+        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}",
+        "copiedEmails": "{count, plural, =1 {Copied 1 email address} other {Copied # email addresses}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contact has no email and was left out.} other {# contacts have no email and were left out.}}",
+        "noEmails": "None of the selected contacts has an email address.",
+        "copyFailed": "Could not copy to the clipboard. Try again."
       },
       "errors": {
         "versionConflict": "Someone changed this contact a moment ago. We loaded their version; try your edit again.",

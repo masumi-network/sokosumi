@@ -1,4 +1,5 @@
 import {
+  type ContactStage,
   deleteContactListsById,
   deleteContactsByIdChannelsByChannelId,
   deleteContactsCompanyListsByListId,
@@ -28,6 +29,7 @@ import {
   type PostContactsCompanyListsData,
   type PostContactsData,
   type PostContactsImportData,
+  type PostContactsStageUndoData,
   patchContactListsById,
   patchContactsById,
   patchContactsCompaniesByCompanyId,
@@ -45,6 +47,8 @@ import {
   postContactsCompanyListsByListIdMembers,
   postContactsImport,
   postContactsMerge,
+  postContactsStage,
+  postContactsStageUndo,
   putContactsByIdImportance,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -229,6 +233,17 @@ export const contactsService = {
     return (
       await postContactsMerge({ ...options(), body: { winnerId, loserIds } })
     ).data.data;
+  },
+  async setStage(contactIds: string[], stage: ContactStage) {
+    return (
+      await postContactsStage({ ...options(), body: { contactIds, stage } })
+    ).data.data;
+  },
+  async undoStage(
+    contacts: NonNullable<PostContactsStageUndoData["body"]>["contacts"],
+  ) {
+    return (await postContactsStageUndo({ ...options(), body: { contacts } }))
+      .data.data;
   },
   async exportCsv(query: ContactQuery): Promise<string> {
     const { data } = await getContactsExportCsv({

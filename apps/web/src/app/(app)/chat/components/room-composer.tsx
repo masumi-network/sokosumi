@@ -108,6 +108,8 @@ export interface RoomComposerHandle {
 
 /** Edits made in the editor itself, so a focused editor shows them. */
 export interface RoomComposerEditHandle extends RoomComposerHandle {
+  /** Focus with the caret after the text, to keep typing on from it. */
+  focusAtEnd: () => void;
   insertText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
@@ -579,6 +581,9 @@ export function RoomComposer({
       },
       focus: () => {
         editorRef.current?.focus();
+      },
+      focusAtEnd: () => {
+        editorRef.current?.focusAtEnd();
       },
       insertText: (text) => {
         editorRef.current?.insertText(text);
