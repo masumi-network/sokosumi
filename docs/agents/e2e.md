@@ -16,15 +16,16 @@ E2E_BASE_URL=https://<preview-host> pnpm --filter web e2e
 
 ## Specs
 
-| Spec                   | Checks                                                                                                                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `e2e/base-url.test.ts` | URL guard: required, allowed hosts only. Needs no browser.                                                                                                                                 |
-| `e2e/smoke.test.ts`    | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows inside the main landmark, no horizontal overflow, no console or page errors. |
+| Spec                     | Checks                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/base-url.test.ts`   | URL guard: required, allowed hosts only. Needs no browser.                                                                                                                                                                                                                                                                                                                                |
+| `e2e/smoke.test.ts`      | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows inside the main landmark, no horizontal overflow, no console or page errors.                                                                                                                                                                                                |
+| `e2e/onboarding.test.ts` | Persona A happy path at the same three sizes, one new throwaway user each: root, Register, emailed code from a [mail.tm](https://mail.tm) inbox (`e2e/mailbox.ts`), Personal workspace, Soko Bot name and picture, Skip connect, chat. Each auth and setup step sits in one main landmark; the email chip is named by its address; no page errors. Needs network access to `api.mail.tm`. |
 
 Screenshots go to `apps/web/e2e/results/` (gitignored).
 
 ## Rules for specs
 
-- Public pages only, or new disposable test users you create for the run. Never a real account, real customer data or production.
+- Public pages only, or new disposable test users you create for the run (`e2e/mailbox.ts` makes one throwaway inbox per user; it stores nothing). Never a real account, real customer data or production.
 - Never commit or log credentials.
 - Test at public seams: the URL, what the user sees, and the console. Do not reach into app internals.
