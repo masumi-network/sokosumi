@@ -26,7 +26,12 @@ async function mail(path: string, init: RequestInit = {}, token?: string) {
     "content-type": "application/json",
   };
   if (token) headers.authorization = `Bearer ${token}`;
-  const response = await fetch(MAIL_API + path, { ...init, headers });
+  let response = await fetch(MAIL_API + path, { ...init, headers });
+  // mail.tm rate-limits bursts; wait and try again.
+  for (let i = 1; response.status === 429 && i <= 8; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 2000 * i));
+    response = await fetch(MAIL_API + path, { ...init, headers });
+  }
   assert.ok(response.ok, `mail.tm ${path}: ${response.status}`);
   return response.status === 204 ? null : response.json();
 }
@@ -52,7 +57,7 @@ async function readCode(token: string) {
       const code = `${message.subject} ${message.text}`.match(/\b\d{6}\b/);
       if (code) return code[0];
     }
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
   throw new Error("no sign-up code arrived");
 }
@@ -94,12 +99,15 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.goto(`${BASE_URL}/tasks`);
       await page.getByRole("heading", { name: "Backlog" }).waitFor();
+      // Phone: the floating Create task button. Tablet: open the sidebar first.
       const fab = page.getByRole("button", { name: "Create task" });
+      const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+      const newTaskButton = page.getByRole("button", { name: "New task" });
+      await fab.or(showSidebar).or(newTaskButton).first().waitFor();
       if (await fab.isVisible()) await fab.click();
       else {
-        const showSidebar = page.getByRole("button", { name: "Show sidebar" });
         if (await showSidebar.isVisible()) await showSidebar.click();
-        await page.getByRole("button", { name: "New task" }).click();
+        await newTaskButton.click();
       }
       const newTask = page.getByRole("dialog", { name: "New task" });
       await newTask.getByRole("button", { name: /E2E Tester/ }).click();

@@ -12,6 +12,7 @@ E2E_BASE_URL=https://<preview-host> pnpm --filter web e2e
 
 - `E2E_BASE_URL` is required. There is no default. `e2e/base-url.ts` accepts only `localhost`, `127.0.0.1`, `preprod.sokosumi.com`, `*.preview.sokosumi.com` and `*.vercel.app`, and refuses everything else, production included.
 - Deploy a preview first (`/deploy preprod` on the PR, see [delivery](./delivery.md)). Do not start local Sokosumi services for this.
+- Specs run one at a time (`--test-concurrency=1`): `tasks.test.ts` creates mail.tm inboxes, and mail.tm rate-limits bursts.
 - Chromium must be installed once: `pnpm --filter web exec playwright install chromium`.
 
 ## Specs

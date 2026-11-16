@@ -24,7 +24,7 @@
     "test": "pnpm messages:parity && vitest run",
     "test:ci": "pnpm messages:parity && vitest run",
     "test:watch": "vitest",
-    "e2e": "node --test \"e2e/*.test.ts\"",
+    "e2e": "node --test --test-concurrency=1 \"e2e/*.test.ts\"",
     "test:webkit": "vitest run --config vitest.webkit.config.mts"
   },
   "dependencies": {
