@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -83,6 +84,9 @@ export function SeoKeywordMap({
   const outside = useRef(false);
   // The keyword a pan in a press closed: the click that ends the press does not open it again.
   const panClosed = useRef<string | null>(null);
+  // The listeners of a press in progress, removed when the map leaves before the press ends.
+  const endPress = useRef<(() => void) | null>(null);
+  useEffect(() => () => endPress.current?.(), []);
   // A zoom or a pan can take the dot out of the frame: the popover at it closes.
   const view = `${transform.k}:${transform.x}:${transform.y}`;
   const [openView, setOpenView] = useState(view);
@@ -352,11 +356,18 @@ export function SeoKeywordMap({
                 pick(event);
                 // A drag at the edge of the map moves nothing and gets no click, and the popover never sees it
                 // outside: the drag closes the popover here, wherever the press ends.
-                if (!openId) return;
+                if (!openId || event.button !== 0) return;
+                endPress.current?.();
                 const start = { x: event.clientX, y: event.clientY };
-                const end = (up: globalThis.PointerEvent) => {
+                const stop = () => {
                   window.removeEventListener("pointerup", end);
                   window.removeEventListener("pointercancel", end);
+                  endPress.current = null;
+                };
+                const end = (up: globalThis.PointerEvent) => {
+                  // Another finger's lift is not the end of this press.
+                  if (up.pointerId !== event.pointerId) return;
+                  stop();
                   if (
                     up.type === "pointerup" &&
                     Math.hypot(up.clientX - start.x, up.clientY - start.y) >
@@ -368,16 +379,17 @@ export function SeoKeywordMap({
                 };
                 window.addEventListener("pointerup", end);
                 window.addEventListener("pointercancel", end);
+                endPress.current = stop;
               }}
               // A drag gets no click: the zoom keeps it. The zoom also stops the press before the popover sees it
               // outside, so the map closes the popover here.
               onClick={(event) => {
-                // The second click of a double-click zooms: it does not close what the first one opened.
-                if (event.detail > 1) return;
                 const id =
                   active === null
                     ? null
                     : (points[active]?.group.lead.id ?? null);
+                // The second click of a double-click zooms: it does not close what the first one opened.
+                if (event.detail > 1 && id === openId) return;
                 if (id === null || id !== panClosed.current) openKeyword(id);
               }}
               onPointerLeave={(event) => {

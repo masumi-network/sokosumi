@@ -246,7 +246,17 @@ describe("SEO keyword map", () => {
     await new Promise((done) => setTimeout(done, 10));
     expect(popover()).toHaveFocus();
     // The second click of a double-click zooms: it leaves the popover open.
-    fireEvent.click(frame, { detail: 2 });
+    const second = points.find(
+      (item) => item.group.lead.keyword === "battery health",
+    )!;
+    const there = {
+      clientX: 12 + (second.x / 100) * 376,
+      clientY: 12 + (second.y / 100) * 276,
+    };
+    fireEvent.pointerDown(frame, there);
+    fireEvent.mouseDown(frame, { ...there, view: window });
+    fireEvent.mouseUp(window, { ...there, view: window });
+    fireEvent.click(frame, { ...there, detail: 2 });
     expect(popover()).toHaveTextContent("battery health");
     // Closed, the map keeps the keyword it showed last: its card is back.
     fireEvent.keyDown(screen.getByTestId("seo-keyword-popover"), {
@@ -317,7 +327,13 @@ describe("SEO keyword map", () => {
     fireEvent.pointerDown(frame, start);
     fireEvent.mouseDown(frame, start);
     map.focus();
-    // Let go outside the frame.
+    // Another finger lifts first: the press goes on. Then it is let go outside the frame.
+    fireEvent.pointerUp(document.body, {
+      ...start,
+      clientX: start.clientX + 10,
+      pointerId: 2,
+    });
+    expect(popover()).not.toBeNull();
     fireEvent.pointerUp(document.body, {
       ...start,
       clientX: start.clientX + 10,
