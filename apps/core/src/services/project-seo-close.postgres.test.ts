@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { getEnv } from "@/config/env";
+import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
 import prisma from "@/lib/db/prisma";
+import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import {
   requestSeoAnalysisSchema,
   type SeoActor,
@@ -213,6 +215,16 @@ describe.skipIf(!enabled)("SEO work owed before Project closure", () => {
       await prisma.project.update({
         where: { id: f.project.id },
         data: { closedAt: new Date() },
+      });
+      // Closure must not revoke work already released from the approved Run ledger.
+      await prisma.$transaction(async (tx) => {
+        const task = await requireTaskWorkerContext(
+          { actor: "coworker", coworkerId, vendorId },
+          taskId,
+          { ownerId: userId, organizationId: null, workspaceId },
+          tx,
+        );
+        await requireSeoTaskStartBalance(tx, task);
       });
       await prisma.task.update({
         where: { id: taskId },

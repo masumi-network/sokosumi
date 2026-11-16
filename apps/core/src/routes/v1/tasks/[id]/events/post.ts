@@ -42,11 +42,15 @@ import {
 } from "@/helpers/task-notifications";
 import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
-import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
+import {
+  requireNativeSeoWorkerAccess,
+  requireTaskWorkerContext,
+} from "@/helpers/task-worker-context";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
+import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
@@ -172,11 +176,16 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
         authenticationUrl == null &&
         masumiPayment == null;
 
-      const task = hasNonCommentWrite
+      let task = hasNonCommentWrite
         ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
         : await requireTaskCommentAccess(c.var, taskId, tx);
 
+      if (!expectedContext)
+        task =
+          (await requireNativeSeoWorkerAccess(authContext, taskId, tx)) ?? task;
       const isAgent = isAgentAuthContext(authContext);
+      if (isAgent && status === TaskStatus.RUNNING)
+        await requireSeoTaskStartBalance(tx, task);
 
       if (!isCancelOnlyWrite) {
         if (isAgent) {
