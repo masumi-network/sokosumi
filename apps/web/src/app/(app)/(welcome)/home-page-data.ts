@@ -76,7 +76,11 @@ async function readPrivateCachedHomeGate(): Promise<HomeGate> {
   );
 }
 
-/** Who reads Home, in which workspace, and whether it is set up. */
+/**
+ * Who reads Home, in which workspace, and whether it is set up. The app frame
+ * reads the session and workspaces too, but its per-request cache does not
+ * reach into this cache, so a render reads both once more.
+ */
 export function loadHomeGate(): Promise<HomeGate> {
   return withFreshFallback(readPrivateCachedHomeGate, async () =>
     readHomeGate(await getSession(), () =>
