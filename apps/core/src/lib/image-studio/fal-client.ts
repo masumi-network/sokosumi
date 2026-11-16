@@ -71,6 +71,13 @@ export interface FalGenerationInput {
   seed: number | null;
   /** Provider-hosted URLs only. Never one of our own asset URLs. */
   imageUrls: string[];
+  /**
+   * Hosted mask for an inpaint endpoint. Same dimensions as the first
+   * `imageUrls` entry. Required when submitting to {@link ImageModel.inpaintEndpoint}.
+   */
+  maskUrl?: string | null;
+  /** Remix `strength` of the input image. fal's Ideogram v3 default is 0.8. */
+  strength?: number | null;
 }
 
 function requireKey(): string {
@@ -110,6 +117,39 @@ export function falModelForKind(
 }
 
 /**
+ * fal's documented default for Ideogram v3 remix: higher keeps more of the
+ * input image. Studio Refine uses this value so a general edit does not
+ * redraw the scene.
+ *
+ * https://fal.ai/models/fal-ai/ideogram/v3/remix/api
+ */
+export const IDEOGRAM_REMIX_STRENGTH = 0.8;
+
+/**
+ * The Ideogram inpaint endpoint used to letter a headline onto a delivered
+ * scene. Distinct from {@link falModelForKind}(EDIT), which is Studio Refine
+ * and for Ideogram v3 is `/remix`.
+ */
+export function falModelForLettering(modelId = "ideogram-v3"): string {
+  const model = imageModel(modelId);
+  if (model.inpaintEndpoint) return model.inpaintEndpoint;
+  if (model.editEndpoint) return model.editEndpoint;
+  throw new Error(
+    `${model.label} cannot letter a headline onto an existing image: fal lists no inpaint or edit endpoint for it.`,
+  );
+}
+
+function isRefineEndpoint(
+  endpoint: string,
+  model: ReturnType<typeof imageModelForEndpoint>,
+): boolean {
+  return (
+    endpoint === model.editEndpoint ||
+    (model.inpaintEndpoint != null && endpoint === model.inpaintEndpoint)
+  );
+}
+
+/**
  * The id the queue's per-request routes are mounted under.
  *
  * A model id is `owner/app`; anything after that is a sub-path selecting a
@@ -142,17 +182,20 @@ export function buildFalInput(
 ): Record<string, unknown> {
   const model = imageModelForEndpoint(endpoint);
   resolveImageSettings(model.id, input, input.imageUrls.length);
-  if (input.imageUrls.length > 0 !== (endpoint === model.editEndpoint)) {
+  if (input.imageUrls.length > 0 !== isRefineEndpoint(endpoint, model)) {
     throw new Error("Reference images require the model edit endpoint.");
   }
   const accepts = (field: (typeof model.providerFields)[number]): boolean =>
     model.providerFields.includes(field);
+  const inpaint = model.inpaintEndpoint === endpoint;
 
   const body: Record<string, unknown> = { prompt: input.prompt };
   if (accepts("output_format")) body.output_format = input.outputFormat;
-  if (model.dimensionMode === "image-size") {
+  // fal-ai/ideogram/v3/edit has no image_size: the output is the input size.
+  // Sending one is a 422. Remix and the generate endpoint do take it.
+  if (!inpaint && model.dimensionMode === "image-size") {
     body.image_size = imageDimensions(input.aspectRatio, input.resolution);
-  } else {
+  } else if (!inpaint) {
     body.aspect_ratio = input.aspectRatio;
     if (accepts("resolution")) body.resolution = input.resolution;
   }
@@ -162,12 +205,73 @@ export function buildFalInput(
   if (accepts("num_images")) body.num_images = 1;
   if (accepts("limit_generations")) body.limit_generations = true;
   if (input.seed !== null && accepts("seed")) body.seed = input.seed;
-  // Only the `/edit` endpoint accepts this field. Sending it to the base
+  applyReferenceFields(body, {
+    endpoint,
+    model,
+    accepts,
+    inpaint,
+    input,
+  });
+  return body;
+}
+
+/**
+ * Attach the reference the endpoint's own schema actually names.
+ *
+ * Most studio models take `image_urls` on `/edit`. Ideogram v3 does not:
+ * `/remix` (Studio Refine) requires singular `image_url` and takes `strength`;
+ * `/edit` (lettering) requires `image_url` plus `mask_url`. Sending
+ * `image_urls` instead is how a Refine or lettering job comes back as a
+ * provider_error without a charge — fal refuses the request as invalid.
+ */
+function applyReferenceFields(
+  body: Record<string, unknown>,
+  options: {
+    endpoint: string;
+    model: ReturnType<typeof imageModelForEndpoint>;
+    accepts: (
+      field: "image_urls" | "image_url" | "mask_url" | "strength",
+    ) => boolean;
+    inpaint: boolean;
+    input: FalGenerationInput;
+  },
+): void {
+  const { endpoint, model, accepts, inpaint, input } = options;
+  if (input.imageUrls.length === 0) return;
+
+  if (inpaint) {
+    if (!input.maskUrl) {
+      throw new Error(
+        "Ideogram lettering needs a mask of the same size as the backdrop.",
+      );
+    }
+    body.image_url = input.imageUrls[0];
+    body.mask_url = input.maskUrl;
+    // MagicPrompt would rewrite a tight "add only this headline" brief.
+    body.enable_prompt_expansion = false;
+    return;
+  }
+
+  const usesSingularImage =
+    endpoint === model.editEndpoint &&
+    (accepts("image_url") || endpoint.endsWith("/remix"));
+  if (usesSingularImage) {
+    body.image_url = input.imageUrls[0];
+    if (accepts("strength")) {
+      body.strength = input.strength ?? IDEOGRAM_REMIX_STRENGTH;
+    }
+    // Further images are style references, not the base frame.
+    if (accepts("image_urls") && input.imageUrls.length > 1) {
+      body.image_urls = input.imageUrls.slice(1);
+    }
+    return;
+  }
+
+  // Only the refine endpoint accepts this field. Sending it to the base
   // endpoint would be silently ignored, which is exactly how a refinement
   // turns into an unrelated fresh image, so the caller picks the endpoint from
   // the same fact that fills this array.
-  if (input.imageUrls.length > 0) body.image_urls = input.imageUrls;
-  return body;
+  body.image_urls = input.imageUrls;
 }
 
 /**

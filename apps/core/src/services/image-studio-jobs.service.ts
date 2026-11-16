@@ -53,11 +53,13 @@ import {
   cancelQueued,
   downloadMedia,
   falModelForKind,
+  falModelForLettering,
   fetchQueueResult,
   fetchQueueStatus,
   submitToQueue,
   uploadReference,
 } from "@/lib/image-studio/fal-client";
+import { renderHeadlineMask } from "@/lib/image-studio/headline-mask";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   composeStudioProductCutout,
@@ -909,7 +911,7 @@ export async function createImageJob(input: CreateImageJobInput) {
       letteringQuoteCents = convertCreditsToCents(
         creditsPerImage(imageModel("ideogram-v3"), letteringSettings),
       );
-      letteringModel = falModelForKind(ProjectImageJobKind.EDIT, "ideogram-v3");
+      letteringModel = falModelForLettering("ideogram-v3");
     } else if (
       lettering === "ideogram" &&
       (references !== 1 || input.useProductCutout)
@@ -1175,6 +1177,26 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         job.exportHeadline && !letteringEdit
           ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
           : "";
+      let maskUrl: string | undefined;
+      if (letteringEdit) {
+        preflightReason = "reference_not_sendable";
+        if (!imageUrls[0]) {
+          throw new Error(
+            "Ideogram lettering needs the delivered backdrop as a reference.",
+          );
+        }
+        const backdrop = await downloadMedia(
+          imageUrls[0],
+          LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
+        );
+        const mask = await renderHeadlineMask(backdrop.bytes);
+        maskUrl = await uploadReference({
+          bytes: mask.bytes,
+          contentType: "image/png",
+          fileName: "headline-mask.png",
+        });
+        preflightReason = "request_not_supported";
+      }
       input = buildFalInput(
         {
           prompt: prompt + productPhotoGuidance + headlineGuidance,
@@ -1183,6 +1205,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
           outputFormat: settings.outputFormat,
           seed: settings.seed,
           imageUrls,
+          maskUrl,
         },
         job.model,
       );

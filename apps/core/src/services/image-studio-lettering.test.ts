@@ -1,4 +1,5 @@
 import { convertCreditsToCents } from "@sokosumi/utils";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -162,7 +163,7 @@ let jobs: Row[];
 let assets: Row[];
 let stored: Map<string, Uint8Array>;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   jobs = [];
   assets = [];
@@ -239,12 +240,24 @@ beforeEach(() => {
     return { pathname: path };
   });
   mocks.readAsset.mockImplementation(async (path: string) => stored.get(path));
-  mocks.upload.mockResolvedValue(
-    "https://v3.fal.media/delivered-reference.png",
+  mocks.upload.mockImplementation(async ({ fileName }: { fileName: string }) =>
+    String(fileName).includes("mask")
+      ? "https://v3.fal.media/headline-mask.png"
+      : "https://v3.fal.media/delivered-reference.png",
   );
   mocks.submit.mockResolvedValue({ kind: "queued", requestId: "fal-fixture" });
+  const scene = await sharp({
+    create: {
+      width: 64,
+      height: 64,
+      channels: 3,
+      background: { r: 245, g: 245, b: 245 },
+    },
+  })
+    .png()
+    .toBuffer();
   mocks.download.mockResolvedValue({
-    bytes: new Uint8Array([1, 2, 3]),
+    bytes: new Uint8Array(scene),
     contentType: "image/png",
   });
   mocks.compose.mockResolvedValue({
@@ -318,9 +331,15 @@ describe("optional two-step lettering", () => {
     expect(jobs.filter((job) => job.batchId === "batch-1")).toHaveLength(1);
     expect(jobs[1]).not.toHaveProperty("batchId");
     const payload = mocks.submit.mock.calls[1]?.[0];
-    expect(payload.input.image_urls).toEqual([
+    expect(payload.model).toBe("fal-ai/ideogram/v3/edit");
+    expect(payload.input.image_url).toBe(
       "https://v3.fal.media/delivered-reference.png",
-    ]);
+    );
+    expect(payload.input.mask_url).toBe(
+      "https://v3.fal.media/headline-mask.png",
+    );
+    expect(payload.input).not.toHaveProperty("image_urls");
+    expect(payload.input.enable_prompt_expansion).toBe(false);
     expect(payload.input.prompt).toContain(INPUT.exportHeadline);
     expect(payload.input.prompt).toContain("#6400ff");
     expect(payload.input.prompt).toContain("Space Grotesk");
@@ -468,8 +487,11 @@ describe("optional two-step lettering", () => {
       expect(jobs[2]?.useProductCutout).not.toBe(true);
       expect(jobs[2]?.referenceFileIds).toEqual([]);
       expect(jobs[2]?.letteringQuoteCents).toBeUndefined();
-      expect(mocks.upload).toHaveBeenLastCalledWith(
+      expect(mocks.upload).toHaveBeenCalledWith(
         expect.objectContaining({ bytes: new Uint8Array([4, 5, 6]) }),
+      );
+      expect(mocks.upload).toHaveBeenLastCalledWith(
+        expect.objectContaining({ fileName: "headline-mask.png" }),
       );
       await settleWithMedia("job-3", "https://v3.fal.media/lettered.png");
       expect(mocks.compose).toHaveBeenCalledTimes(1);

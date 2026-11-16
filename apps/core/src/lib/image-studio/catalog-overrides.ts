@@ -214,11 +214,34 @@ function imageModelOverrides(): ImageModelOverride[] {
     },
     {
       // Typography and posters: the shortlist's one reliable letterer.
+      // fal lists `/edit` next to the generate model, but that endpoint is
+      // mask inpainting (`image_url` + `mask_url`, required). Studio Refine
+      // has no mask painter, so the refine path is `/remix` (`image_url` +
+      // `strength`). Lettering uses `/edit` with a generated headline mask.
+      // Verified against fal's docs on 2026-11-16:
+      // https://fal.ai/models/fal-ai/ideogram/v3/edit/api
+      // https://fal.ai/models/fal-ai/ideogram/v3/remix/api
       endpoint: "fal-ai/ideogram/v3",
       id: "ideogram-v3",
+      editEndpoint: "fal-ai/ideogram/v3/remix",
+      inpaintEndpoint: "fal-ai/ideogram/v3/edit",
+      providerFields: [
+        "image_size",
+        "num_images",
+        "seed",
+        "image_url",
+        "strength",
+        "image_urls",
+      ],
       curatedRank: 5,
       notes:
-        "Strongest of the shortlist at typography and poster layout. Capabilities otherwise as fal publishes them.",
+        "Strongest of the shortlist at typography and poster layout. Studio Refine uses /remix with image_url and strength 0.8 (fal's default, keeps most of the input). Lettering uses /edit with image_url plus a same-size mask (black = headline band to paint, white = keep).",
+      sourceUrls: [
+        "https://fal.ai/models/fal-ai/ideogram/v3/api",
+        "https://fal.ai/models/fal-ai/ideogram/v3/remix/api",
+        "https://fal.ai/models/fal-ai/ideogram/v3/edit/api",
+      ],
+      verifiedAt: "2026-11-16",
     },
     {
       // Vector, icons, and one brand style held across a set.
@@ -279,6 +302,7 @@ export function applyCatalogOverrides(fetched: ImageModel[]): ImageModel[] {
       description: rest.description ?? "",
       generateEndpoint: endpoint,
       editEndpoint: rest.editEndpoint ?? null,
+      inpaintEndpoint: rest.inpaintEndpoint ?? null,
       aspectRatios: rest.aspectRatios ?? IMAGE_ASPECT_RATIOS,
       resolutions: rest.resolutions ?? ["1K"],
       outputFormats: rest.outputFormats ?? [],

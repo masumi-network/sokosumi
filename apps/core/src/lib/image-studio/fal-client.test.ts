@@ -7,7 +7,9 @@ import {
   buildFalInput,
   downloadMedia,
   falModelForKind,
+  falModelForLettering,
   fetchQueueStatus,
+  IDEOGRAM_REMIX_STRENGTH,
   isAllowedMediaUrl,
   parseMedia,
   queueRequestModel,
@@ -109,11 +111,12 @@ describe("model-specific payloads", () => {
     expect(queueRequestModel(edit)).toBe(endpoint);
   });
 
-  it("uses Ideogram v3's catalog edit endpoint and image_urls input", () => {
+  it("sends Ideogram Refine to /remix with image_url and strength, not image_urls", () => {
     const model = imageModel("ideogram-v3");
-    expect(model.editEndpoint).toBe("fal-ai/ideogram/v3/edit");
+    expect(model.editEndpoint).toBe("fal-ai/ideogram/v3/remix");
+    expect(model.inpaintEndpoint).toBe("fal-ai/ideogram/v3/edit");
     expect(model.maxReferences).toBe(4);
-    expect(model.providerFields).toContain("image_urls");
+    expect(falModelForKind("EDIT", model.id)).toBe("fal-ai/ideogram/v3/remix");
     expect(
       buildFalInput(
         { ...settings, imageUrls: ["https://v3.fal.media/ad.png"] },
@@ -124,8 +127,59 @@ describe("model-specific payloads", () => {
       image_size: { width: 2048, height: 1152 },
       num_images: 1,
       seed: 42,
-      image_urls: ["https://v3.fal.media/ad.png"],
+      image_url: "https://v3.fal.media/ad.png",
+      strength: IDEOGRAM_REMIX_STRENGTH,
     });
+  });
+
+  it("puts extra Ideogram Refine references in image_urls as style refs", () => {
+    expect(
+      buildFalInput(
+        {
+          ...settings,
+          imageUrls: [
+            "https://v3.fal.media/ad.png",
+            "https://v3.fal.media/style.png",
+          ],
+        },
+        falModelForKind("EDIT", "ideogram-v3"),
+      ),
+    ).toMatchObject({
+      image_url: "https://v3.fal.media/ad.png",
+      image_urls: ["https://v3.fal.media/style.png"],
+      strength: IDEOGRAM_REMIX_STRENGTH,
+    });
+  });
+
+  it("sends Ideogram lettering to /edit with image_url and mask_url, not image_urls", () => {
+    const endpoint = falModelForLettering("ideogram-v3");
+    expect(endpoint).toBe("fal-ai/ideogram/v3/edit");
+    expect(
+      buildFalInput(
+        {
+          ...settings,
+          imageUrls: ["https://v3.fal.media/ad.png"],
+          maskUrl: "https://v3.fal.media/headline-mask.png",
+        },
+        endpoint,
+      ),
+    ).toEqual({
+      prompt: settings.prompt,
+      num_images: 1,
+      seed: 42,
+      image_url: "https://v3.fal.media/ad.png",
+      mask_url: "https://v3.fal.media/headline-mask.png",
+      enable_prompt_expansion: false,
+    });
+  });
+
+  it("refuses to submit Ideogram lettering without a mask", () => {
+    expect(() =>
+      buildFalInput(
+        { ...settings, imageUrls: ["https://v3.fal.media/ad.png"] },
+        falModelForLettering("ideogram-v3"),
+      ),
+    ).toThrow(/mask/);
   });
 
   it("uses Gemini Pro settings and bounds generated image count", () => {
