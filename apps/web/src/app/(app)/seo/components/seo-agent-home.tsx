@@ -124,9 +124,9 @@ function SeoAgentPanel({
           !(step.kind === "refresh" && statisticsSync.state === "failed"),
       );
   const [showAllSteps, setShowAllSteps] = useState(false);
-  // The first proposal with its own button is the lead step: an action shows as a row with its finding and button. It carries the one
-  // brand fill of the tab (owner, after pass 59); the run keeps the secondary look. A refresh step has no
-  // button of its own: its retry is in the verdict card.
+  // The first proposal with its own button is the lead step. An action shows as a row with its finding and its
+  // tinted draft button; any other step carries the one brand fill of the tab (owner, after pass 59). The run
+  // keeps the secondary look. A refresh step has no button of its own: its retry is in the verdict card.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const primary = setup?.next
     ? -1
