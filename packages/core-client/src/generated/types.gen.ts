@@ -6189,7 +6189,7 @@ export type ProjectImageStudioCatalogModel = {
     supportsSeed: boolean;
     maxReferences: number;
     dimensionMode: 'aspect-ratio' | 'image-size';
-    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls'>;
+    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls' | 'image_url' | 'mask_url' | 'strength'>;
     curatedRank: number | null;
     notes: string;
     price: {

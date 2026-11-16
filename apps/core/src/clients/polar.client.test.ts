@@ -117,7 +117,7 @@ describe("createPolarCheckout", () => {
     });
   });
 
-  it("asks Polar for a checkout of the products, trial and discount codes off, and returns its URL", async () => {
+  it("asks Polar for a checkout of the products, trial off and discount codes on, and returns its URL", async () => {
     const fetchMock = vi.fn(async (..._request: Parameters<typeof fetch>) =>
       Response.json({ url: "https://polar.example/checkout/1" }),
     );
@@ -137,7 +137,7 @@ describe("createPolarCheckout", () => {
       metadata: { projectId: "project_1" },
       success_url: "https://cmo.xyz/?project=project_1&step=subscribed",
       return_url: "https://cmo.xyz/?project=project_1",
-      allow_discount_codes: false,
+      allow_discount_codes: true,
       allow_trial: false,
     });
   });
