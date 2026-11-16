@@ -12,7 +12,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -245,10 +245,13 @@ export function SeoActionStepRow({
   /** The first step of the verdict card: no frame of its own, the finding and the button. */
   lead?: boolean;
 }) {
+  const findingId = useId();
   return (
     <li className="content-rise">
       <button
         type="button"
+        // The finding describes the row: as part of its name it read several sentences per press.
+        aria-describedby={lead ? findingId : undefined}
         className={cn(
           SEO_ROW_BUTTON_CLASS,
           "px-4 py-2.5",
@@ -272,7 +275,11 @@ export function SeoActionStepRow({
             ) : null}
           </span>
           {lead ? (
-            <span className="text-muted-foreground mt-1 line-clamp-2 text-sm break-words">
+            <span
+              id={findingId}
+              aria-hidden
+              className="text-muted-foreground mt-1 line-clamp-2 text-sm break-words"
+            >
               <SeoActionFinding action={action} model={model} />
             </span>
           ) : null}
@@ -280,7 +287,7 @@ export function SeoActionStepRow({
         <ChevronRight className="text-muted-foreground size-4 shrink-0" />
       </button>
       {lead ? (
-        <div className="px-4 pb-3 empty:hidden">
+        <div className="px-4 pb-3">
           <SeoActionTaskButton action={action} model={model} />
         </div>
       ) : null}

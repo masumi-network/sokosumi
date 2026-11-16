@@ -5989,9 +5989,16 @@ describe("SEO workspace integration", () => {
     ).toHaveLength(1);
     expect(screen.queryByText("Reason and evidence")).toBeNull();
     const leadList = screen.getByRole("list", { name: "First step" });
-    expect(
-      within(leadList).getByRole("button", { name: /^Fix the page title/ }),
-    ).toBeVisible();
+    const leadRow = within(leadList).getByRole("button", {
+      name: /^Fix the page title/,
+    });
+    expect(leadRow).toBeVisible();
+    // The finding describes the row; the name stays short.
+    expect(leadRow).toHaveAccessibleDescription(fix.expectedEffect);
+    expect(leadRow.textContent).toContain(fix.expectedEffect);
+    expect(leadRow).not.toHaveAccessibleName(
+      expect.stringContaining(fix.expectedEffect),
+    );
     expect(
       within(leadList).getByRole("button", { name: "Create draft task" }),
     ).toBeVisible();
