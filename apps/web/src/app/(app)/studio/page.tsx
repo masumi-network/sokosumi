@@ -11,7 +11,6 @@ import { projectService } from "@/lib/services/project.service";
 
 import { StudioPageShell } from "./components/studio-page-shell";
 import { StudioProjectScopePrompt } from "./components/studio-project-scope-prompt";
-import { StudioRecentProjects } from "./components/studio-recent-projects";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -61,12 +60,11 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // In parallel, and the catalog only once per render: it is ~158KB and it is
   // deliberately no longer part of the state payload the open studio refetches
   // every three seconds.
-  const [state, catalog, recentProjects] = await Promise.all([
+  const [state, catalog] = await Promise.all([
     scopeId
       ? loadStudioState(scopeId, query.v)
       : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
-    scopeId ? [] : loadRecentProjects(),
   ]);
 
   const initialSelectedAssetId =
@@ -94,11 +92,6 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         projectLogo={project?.logo}
         studioLogoPosition={project?.studioLogoPosition}
         websiteUrl={project?.websiteUrl}
-        recentProjects={
-          recentProjects.length > 0 ? (
-            <StudioRecentProjects now={new Date()} projects={recentProjects} />
-          ) : undefined
-        }
         projectScopePrompt={
           scopeId ? undefined : (
             <StudioProjectScopePrompt
@@ -156,18 +149,5 @@ async function loadStudioState(projectId: string, assetId: string | undefined) {
       error,
     });
     return load({});
-  }
-}
-
-/**
- * A shortcut, not the page: without it All projects falls back to the
- * first-ad screen, which still works.
- */
-async function loadRecentProjects() {
-  try {
-    return await imageStudioService.getRecentProjects();
-  } catch (error) {
-    console.warn("Image studio: recent projects unavailable", { error });
-    return [];
   }
 }

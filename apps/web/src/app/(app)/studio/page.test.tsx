@@ -25,7 +25,6 @@ const {
   useHasAnyScopeProjectMock: vi.fn(),
   imageStudioServiceMock: {
     getCatalog: vi.fn(),
-    getRecentProjects: vi.fn(),
     getState: vi.fn(),
     getWorkspaceState: vi.fn(),
   },
@@ -76,7 +75,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
     initialSelectedAssetId: string | null;
     projectId: string | null;
     projectScopePrompt?: React.ReactNode;
-    recentProjects?: React.ReactNode;
     initialState: { assets: unknown[] };
   }) => (
     <div
@@ -86,7 +84,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
     >
-      {props.recentProjects}
       {props.projectScopePrompt}
     </div>
   ),
@@ -154,7 +151,6 @@ describe("StudioPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
-    imageStudioServiceMock.getRecentProjects.mockResolvedValue([]);
     useHasAnyScopeProjectMock.mockReturnValue({
       isPending: false,
       hasProjects: true,
@@ -424,66 +420,6 @@ describe("StudioPage", () => {
     );
 
     expect(screen.getByTestId("image-studio")).toBeInTheDocument();
-  });
-
-  it("leads All projects with the newest Studio projects, each linking to its gallery", async () => {
-    imageStudioServiceMock.getRecentProjects.mockResolvedValue([
-      {
-        projectId: "project-1",
-        projectName: "Autumn menu",
-        imageCount: 24,
-        latestAt: new Date("2026-11-11T10:00:00.000Z"),
-        latestImageId: "asset-9",
-      },
-    ]);
-    const { default: StudioPage } = await import("./page");
-
-    render(await StudioPage({ searchParams: Promise.resolve({}) }));
-
-    expect(
-      screen.getByRole("heading", { name: "App.Studio.RecentProjects.title" }),
-    ).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /Autumn menu/ });
-    expect(link).toHaveAttribute("href", "/studio?projectId=project-1");
-    expect(link).toHaveTextContent(
-      "App.Studio.RecentProjects.imageCount:24 · Nov 11",
-    );
-    expect(link.querySelector("img")).toHaveAttribute(
-      "src",
-      "/api/projects/project-1/image-studio/assets/asset-9/content",
-    );
-    // Picking a project from here is still possible.
-    expect(screen.getByTestId("studio-no-project")).toBeInTheDocument();
-  });
-
-  it("keeps the first-ad screen when recent projects are empty or unavailable", async () => {
-    imageStudioServiceMock.getRecentProjects.mockRejectedValue(
-      new Error("Core down"),
-    );
-    const { default: StudioPage } = await import("./page");
-
-    render(await StudioPage({ searchParams: Promise.resolve({}) }));
-
-    expect(
-      screen.queryByRole("heading", {
-        name: "App.Studio.RecentProjects.title",
-      }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByTestId("image-studio")).toBeInTheDocument();
-  });
-
-  it("does not ask for recent projects inside a project", async () => {
-    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
-    imageStudioServiceMock.getState.mockResolvedValue(studioState());
-    const { default: StudioPage } = await import("./page");
-
-    render(
-      await StudioPage({
-        searchParams: Promise.resolve({ projectId: "project-1" }),
-      }),
-    );
-
-    expect(imageStudioServiceMock.getRecentProjects).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

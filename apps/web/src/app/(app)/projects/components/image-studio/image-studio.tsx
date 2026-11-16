@@ -162,7 +162,6 @@ export function ImageStudio({
   projectLogo: initialProjectLogo,
   studioLogoPosition: initialLogoPosition,
   projectScopePrompt,
-  recentProjects,
   websiteUrl,
   readOnly = false,
 }: {
@@ -186,11 +185,6 @@ export function ImageStudio({
   projectLogo?: string | null;
   studioLogoPosition?: StudioLogoPosition | null;
   projectScopePrompt?: React.ReactNode;
-  /**
-   * All projects in a workspace that already has Studio images: shown in
-   * place of the first-ad hero and its sample-ad backdrop.
-   */
-  recentProjects?: React.ReactNode;
   websiteUrl?: string | null;
   /**
    * A CMO Project: CMO makes its images, so the studio shows them without a
@@ -1181,7 +1175,7 @@ export function ImageStudio({
           "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
     >
-      {showsNothing && !readOnly && !recentProjects ? (
+      {showsNothing && !readOnly ? (
         <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
       ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
@@ -1236,16 +1230,12 @@ export function ImageStudio({
 
           {showsNothing ? (
             <div className="space-y-2 px-4 pt-8 text-center">
-              {recentProjects ?? (
-                <>
-                  <h2 className="text-foreground text-3xl font-semibold text-balance">
-                    {labels.emptyTitle}
-                  </h2>
-                  <p className="text-muted-foreground text-sm text-pretty">
-                    {labels.emptyBody}
-                  </p>
-                </>
-              )}
+              <h2 className="text-foreground text-3xl font-semibold text-balance">
+                {labels.emptyTitle}
+              </h2>
+              <p className="text-muted-foreground text-sm text-pretty">
+                {labels.emptyBody}
+              </p>
               <div className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2">
                 {projectScopePrompt}
                 {readOnly ? null : (
