@@ -36,6 +36,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Image not found"),
+      409: jsonErrorResponse("CMO project is read-only"),
       422: jsonErrorResponse("Invalid event"),
     },
   }),

@@ -73135,6 +73135,21 @@ export type RecordStudioAssetEventErrors = {
         };
     };
     /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Invalid event
      */
     422: {
@@ -73213,6 +73228,21 @@ export type SetStudioAssetFeedbackErrors = {
      * Image not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -73310,6 +73340,21 @@ export type HideStudioAssetErrors = {
      * Image not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
