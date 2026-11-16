@@ -15,8 +15,9 @@ const DEMAND_ROWS = 5;
 type SeoAgentChart = "clicks" | "keywords";
 
 // Each choice starts as wide as its own name: equal shares squeezed the longer name to the edge of its pill. On
-// a narrow screen both still shrink, so the switch stays inside the card.
-const CHART_SWITCH_ITEM_CLASS = "flex-auto px-4";
+// a narrow screen a long name wraps to a second line, so the switch and its words stay inside the card.
+const CHART_SWITCH_ITEM_CLASS =
+  "h-auto min-h-8 flex-auto px-4 py-1 leading-tight whitespace-normal";
 
 /**
  * The Agent tab's pictures, each from saved data only: the daily search clicks
