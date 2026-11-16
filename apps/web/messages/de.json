@@ -4416,10 +4416,6 @@
       "copiesFromProducts": "Lege die Anzahl der Kopien je Produkt unter „Produkte“ fest.",
       "emptyTitle": "Erstelle deine erste Anzeige",
       "emptyBody": "Wähle eine Vorlage und ergänze die Details oder schreibe dein eigenes Anzeigenbriefing.",
-      "RecentProjects": {
-        "title": "Mach weiter, wo du aufgehört hast",
-        "imageCount": "{count, plural, one {# Bild} other {# Bilder}}"
-      },
       "pauseTemplateMotion": "Schwebende Vorschauen anhalten",
       "resumeTemplateMotion": "Schwebende Vorschauen fortsetzen",
       "CreativeStart": {
