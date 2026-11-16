@@ -52,6 +52,12 @@ const REJECTION = {
 };
 
 const REFERENCE: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "reference-a",
   projectId: "campaign",
   projectName: "Campaign",
