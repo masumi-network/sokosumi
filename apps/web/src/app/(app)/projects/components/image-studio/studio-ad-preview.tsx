@@ -30,9 +30,10 @@ import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import { useStudioHeadlineImage } from "./studio-headline-image";
 import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";
+import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
-import type { StudioAsset, StudioLabels } from "./types";
+import type { StudioAsset, StudioJob, StudioLabels } from "./types";
 
 const PLATFORM_RATIOS = {
   instagram: ["1:1", "4:5"],
@@ -52,6 +53,7 @@ export function StudioAdPreview({
   projectLogo,
   logoPosition,
   onLogoPositionChange,
+  jobs = [],
 }: {
   asset: StudioAsset;
   caption?: string;
@@ -62,6 +64,7 @@ export function StudioAdPreview({
   projectLogo?: string | null;
   logoPosition?: StudioLogoPosition;
   onLogoPositionChange: (position: StudioLogoPosition | undefined) => void;
+  jobs?: readonly StudioJob[];
 }) {
   const t = useTranslations("App.Studio");
   const [ratio, setRatio] = useState<PlacementRatio>(
@@ -77,11 +80,12 @@ export function StudioAdPreview({
   const [headlineLoadFailed, setHeadlineLoadFailed] = useState(false);
   const [loadingHeadlines, startHeadlineLoad] = useTransition();
   const headlineRequest = useRef(0);
+  const canOverlay = usesExactFontOverlay(asset, jobs);
   const selectedHeadline =
-    open && headlines.includes(headline) ? headline : undefined;
-  const invalidHeadline = Boolean(headline && !selectedHeadline);
+    canOverlay && open && headlines.includes(headline) ? headline : undefined;
+  const invalidHeadline = canOverlay && Boolean(headline && !selectedHeadline);
   const { result: headlineImage, retry: retryHeadline } =
-    useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline);
+    useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline, jobs);
   const isReel = platform === "reels";
   const isFacebook = platform === "facebook";
   const platformRatios: readonly PlacementRatio[] = PLATFORM_RATIOS[platform];
@@ -209,11 +213,11 @@ export function StudioAdPreview({
             value={logoPosition}
           />
         ) : null}
-        {loadingHeadlines ? (
+        {canOverlay && loadingHeadlines ? (
           <p className="text-muted-foreground text-xs" role="status">
             {t("headlineLoading")}
           </p>
-        ) : headlineLoadFailed ? (
+        ) : canOverlay && headlineLoadFailed ? (
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-muted-foreground text-xs" role="status">
               {t("headlineLoadFailed")}
@@ -227,7 +231,7 @@ export function StudioAdPreview({
               {labels.imageRetry}
             </Button>
           </div>
-        ) : onHeadlineChange && (headlines.length || headline) ? (
+        ) : canOverlay && onHeadlineChange && (headlines.length || headline) ? (
           <div className="min-w-0 space-y-1">
             <StudioHeadlineSelect
               disabled={downloading || savingHeadline}

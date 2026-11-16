@@ -88,6 +88,7 @@ import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
+import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { StudioModelScoreboard } from "./studio-model-scoreboard";
@@ -590,6 +591,7 @@ export function ImageStudio({
   }
 
   function changeHeadline(asset: StudioAsset, text: string) {
+    if (!usesExactFontOverlay(asset, state.jobs)) return;
     if (headlineSaveInProgress.current || downloadingAds) return;
     headlineSaveInProgress.current = true;
     startHeadlineSave(async () => {
@@ -614,7 +616,10 @@ export function ImageStudio({
     logo?: StudioLogoPosition,
   ) {
     const reviewedAssets = assets.flatMap((asset) => {
-      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      const text =
+        isVideoAsset(asset) || !usesExactFontOverlay(asset, state.jobs)
+          ? ""
+          : headlineForAsset(asset);
       return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
     });
     const reviewedProjects = [
@@ -641,8 +646,9 @@ export function ImageStudio({
           assets,
           logo,
           Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+          state.jobs,
         )
-      : await createStudioAdArchive(assets, logo);
+      : await createStudioAdArchive(assets, logo, undefined, state.jobs);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
       filename,
@@ -780,6 +786,20 @@ export function ImageStudio({
     if (refuseUnfilledSlots([source.prompt], source)) return;
     const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
+    const sourceJob =
+      job ??
+      state.jobs.find(
+        (candidate) => candidate.id === (source as StudioAsset).jobId,
+      );
+    const modelId = modelIdForRepeat(catalog, source.model) ?? "";
+    const letteringEdit =
+      source.lettering === "ideogram" && modelId === "ideogram-v3";
+    const exportHeadline =
+      from === "job"
+        ? job?.exportHeadline
+        : source.lettering === "ideogram"
+          ? headlineForAsset(source as StudioAsset) || sourceJob?.exportHeadline
+          : undefined;
     const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
     const request: QueuedGeneration = {
       id,
@@ -794,24 +814,35 @@ export function ImageStudio({
       ...(job?.variationIndex !== undefined
         ? { variationIndex: job.variationIndex }
         : {}),
-      modelId: modelIdForRepeat(catalog, source.model) ?? "",
+      modelId,
       modelLabel: source.model,
       // A re-roll is a fresh draw of the same brief: no seed, or the model
       // would hand back the picture it already made.
       settings: reroll
         ? { ...settingsOf(source), seed: null }
         : settingsOf(source),
-      parentAssetId: reroll
-        ? null
-        : from === "asset"
-          ? (source as StudioAsset).id
-          : (source as StudioJob).parentAssetId,
-      referenceAssetIds: reroll
-        ? []
-        : from === "asset"
-          ? [(source as StudioAsset).id]
-          : (source as StudioJob).referenceAssetIds,
+      parentAssetId:
+        reroll && !letteringEdit
+          ? null
+          : from === "asset"
+            ? letteringEdit
+              ? ((source as StudioAsset).parentId ?? (source as StudioAsset).id)
+              : (source as StudioAsset).id
+            : (source as StudioJob).parentAssetId,
+      referenceAssetIds:
+        reroll && !letteringEdit
+          ? []
+          : from === "asset"
+            ? [
+                letteringEdit
+                  ? ((source as StudioAsset).parentId ??
+                    (source as StudioAsset).id)
+                  : (source as StudioAsset).id,
+              ]
+            : (source as StudioJob).referenceAssetIds,
       ...(source.product ? { product: source.product } : {}),
+      ...(source.lettering ? { lettering: source.lettering } : {}),
+      ...(exportHeadline ? { exportHeadline } : {}),
       ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
         ? { referenceFileIds: job.referenceFileIds }
         : {}),
@@ -1463,6 +1494,7 @@ export function ImageStudio({
                         modelIds: [request.modelId],
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
+                        lettering: request.lettering,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {
@@ -1604,6 +1636,7 @@ export function ImageStudio({
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
           assets={lightboxAssets}
+          jobs={state.jobs}
           onRate={readOnly ? undefined : handleRate}
           onHide={readOnly ? undefined : handleHide}
           onViewed={handleViewed}

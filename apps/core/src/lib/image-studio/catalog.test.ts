@@ -100,6 +100,9 @@ describe("resolved image catalog", () => {
       if (model.editEndpoint) {
         expect(imageModelForEndpoint(model.editEndpoint).id).toBe(model.id);
       }
+      if (model.inpaintEndpoint) {
+        expect(imageModelForEndpoint(model.inpaintEndpoint).id).toBe(model.id);
+      }
     }
     expect(() => imageModel("fal-ai/unverified-model")).toThrow("Unsupported");
     expect(() => imageModelForEndpoint("https://example.com/model")).toThrow(

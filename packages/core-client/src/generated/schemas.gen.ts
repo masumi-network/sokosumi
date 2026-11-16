@@ -21843,6 +21843,14 @@ export const ProjectImageAssetSchema = {
         headline: {
             $ref: '#/components/schemas/StudioAdHeadline'
         },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -22136,8 +22144,21 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
@@ -40259,6 +40280,13 @@ export const CreateProjectImageJobRequestSchema = {
         },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ]
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'

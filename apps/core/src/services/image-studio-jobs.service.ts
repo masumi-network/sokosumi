@@ -53,11 +53,13 @@ import {
   cancelQueued,
   downloadMedia,
   falModelForKind,
+  falModelForLettering,
   fetchQueueResult,
   fetchQueueStatus,
   submitToQueue,
   uploadReference,
 } from "@/lib/image-studio/fal-client";
+import { renderHeadlineMask } from "@/lib/image-studio/headline-mask";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   composeStudioProductCutout,
@@ -66,8 +68,10 @@ import {
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
+  buildStudioLetteringPrompt,
   isApprovedStudioHeadline,
   loadStudioBrand,
+  readStudioBrandKit,
   requireApprovedStudioHeadline,
   STUDIO_PROMPT_ASSEMBLY_VERSION,
   studioBrandPromptBlock,
@@ -150,6 +154,7 @@ export interface CreateImageJobInput {
   /** Continue the same campaign ad when the request edits one source image. */
   reuseParentBatchSlot?: boolean;
   exportHeadline?: string;
+  lettering?: "overlay" | "ideogram";
   useProductCutout?: boolean;
   /** Refine a source backdrop and reapply its original product photo. */
   reuseParentCutout?: boolean;
@@ -213,6 +218,9 @@ interface ReserveImageJobInput
   organizationId: string | null;
   /** Credits (= cents) to debit for this one image. */
   chargedCredits: number;
+  letteringQuoteCents?: bigint;
+  letteringSettings?: ImageJobSettings;
+  letteringModel?: string;
 }
 
 /**
@@ -284,9 +292,11 @@ async function requireBalanceForQuote(options: {
       requestedByUserId: options.userId,
       status: { in: ACTIVE_STATUSES },
     },
-    _sum: { chargedCents: true },
+    _sum: { chargedCents: true, letteringQuoteCents: true },
   });
-  const inFlight = committed._sum.chargedCents ?? 0n;
+  const inFlight =
+    (committed._sum.chargedCents ?? 0n) +
+    (committed._sum.letteringQuoteCents ?? 0n);
   const balance = await creditBucketRepository.getBalance(
     options.userId,
     options.organizationId,
@@ -400,7 +410,8 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     }
 
     let referenceFileIds = input.referenceFileIds ?? [];
-    const inheritsCutout = sameProduct && source?.job.useProductCutout;
+    const inheritsCutout =
+      input.reuseParentCutout && sameProduct && source?.job.useProductCutout;
     if (inheritsCutout) {
       if (
         !source?.backdropBlobPathname ||
@@ -478,7 +489,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       userId: input.userId,
       organizationId: input.organizationId,
       projectId: input.projectId,
-      chargedCents,
+      chargedCents: chargedCents + (input.letteringQuoteCents ?? 0n),
       tx,
     });
 
@@ -502,11 +513,21 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         variationIndex: input.variationIndex,
         batchSlotId,
         exportHeadline,
+        lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
+        letteringQuoteCents: input.letteringQuoteCents,
         useProductCutout: inheritsCutout || input.useProductCutout,
         productCutoutChecksum: inheritsCutout
           ? source?.job.productCutoutChecksum
           : undefined,
-        settings: { ...input.settings },
+        settings: {
+          ...input.settings,
+          ...(input.letteringSettings
+            ? {
+                letteringSettings: { ...input.letteringSettings },
+                letteringModel: input.letteringModel,
+              }
+            : {}),
+        },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
         parentAssetId: input.parentAssetId,
@@ -859,12 +880,26 @@ export async function createImageJob(input: CreateImageJobInput) {
       "Choose one transparent PNG product photo to create a new ad with the original product.",
     );
   }
+  const lettering =
+    input.lettering ?? (input.exportHeadline ? "ideogram" : "overlay");
+  if (lettering === "ideogram" && !input.exportHeadline) {
+    throw unprocessableEntity(
+      "Choose an approved headline for Ideogram lettering.",
+    );
+  }
+  const startsLettering =
+    lettering === "ideogram" && input.modelId !== "ideogram-v3";
+  const requestedModelId = startsLettering ? "gemini-pro" : input.modelId;
   const references =
     input.referenceAssetIds.length +
     (input.useProductCutout ? 0 : (input.referenceFileIds?.length ?? 0));
   let settings: ImageJobSettings;
   try {
-    settings = resolveImageSettings(input.modelId, input.settings, references);
+    settings = resolveImageSettings(
+      requestedModelId,
+      input.settings,
+      references,
+    );
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid image settings",
@@ -875,9 +910,26 @@ export async function createImageJob(input: CreateImageJobInput) {
   // and therefore the same number the composer's pre-flight estimate showed.
   let chargedCredits: number;
   let maxReferences: number;
+  let letteringSettings: ImageJobSettings | undefined;
+  let letteringModel: string | undefined;
+  let letteringQuoteCents: bigint | undefined;
   try {
-    const model = imageModel(input.modelId);
+    const model = imageModel(requestedModelId);
     chargedCredits = creditsPerImage(model, settings);
+    if (startsLettering) {
+      letteringSettings = resolveImageSettings("ideogram-v3", settings, 1);
+      letteringQuoteCents = convertCreditsToCents(
+        creditsPerImage(imageModel("ideogram-v3"), letteringSettings),
+      );
+      letteringModel = falModelForLettering("ideogram-v3");
+    } else if (
+      lettering === "ideogram" &&
+      (references !== 1 || input.useProductCutout)
+    ) {
+      throw new Error(
+        "Ideogram lettering needs one delivered image reference.",
+      );
+    }
     maxReferences = Math.min(
       model.maxReferences,
       LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB,
@@ -891,7 +943,7 @@ export async function createImageJob(input: CreateImageJobInput) {
 
   const kind =
     references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
-  const { modelId, ...request } = input;
+  const { modelId: _modelId, ...request } = input;
   const refinesParent =
     input.parentAssetId !== null &&
     input.referenceAssetIds.includes(input.parentAssetId);
@@ -900,6 +952,7 @@ export async function createImageJob(input: CreateImageJobInput) {
   return await reserveAndSend({
     ...request,
     reuseParentPhotoIfAvailable:
+      (lettering !== "ideogram" || startsLettering) &&
       input.reuseParentPhotoIfAvailable &&
       !input.product &&
       !input.referenceFileIds?.length &&
@@ -910,12 +963,17 @@ export async function createImageJob(input: CreateImageJobInput) {
     reuseParentBatchSlot:
       input.reuseParentBatchSlot && !input.batchId && refinesSingleSource,
     reuseParentCutout:
+      (lettering !== "ideogram" || startsLettering) &&
       input.reuseParentCutout &&
       input.referenceFileActor?.kind === "interactive" &&
       !input.referenceFileIds?.length &&
       refinesSingleSource,
     kind,
-    model: falModelForKind(kind, modelId),
+    model: falModelForKind(kind, requestedModelId),
+    lettering,
+    letteringSettings,
+    letteringModel,
+    letteringQuoteCents,
     settings,
     organizationId: access.organizationId,
     chargedCredits,
@@ -1073,6 +1131,8 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
   // and the row was left SUBMITTING with the charge taken. The sweeper then
   // called that SUBMISSION_UNCERTAIN, which is deliberately never refunded
   // automatically — so the person paid for a request that was never sent.
+  const letteringEdit =
+    job.lettering === "ideogram" && job.letteringQuoteCents == null;
   let input: Record<string, unknown>;
   let snapshot: Prisma.ProjectImagePromptSnapshotUncheckedCreateInput;
   // Which half failed, so the person is told the right thing. Set before each
@@ -1108,14 +1168,20 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       job.exportHeadline || job.useProductCutout
         ? { ...brand, approvedLines: undefined }
         : brand;
-    const prompt = applyStudioBrandPrompt(
-      job.useProductCutout
-        ? backdropInstruction +
-            " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
-            job.prompt
-        : job.prompt,
-      promptBrand,
-    );
+    const prompt =
+      letteringEdit && job.exportHeadline
+        ? buildStudioLetteringPrompt(
+            job.exportHeadline,
+            await readStudioBrandKit(job.projectId),
+          )
+        : applyStudioBrandPrompt(
+            job.useProductCutout
+              ? backdropInstruction +
+                  " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
+                  job.prompt
+              : job.prompt,
+            promptBrand,
+          );
     let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
@@ -1131,9 +1197,30 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       const productPhotoGuidance = photoCount
         ? `\n\nUse the ${photoCount === 1 ? "last reference image" : `last ${photoCount} reference images`} for the advertised product's appearance. Keep its shape, colors, materials, packaging, and any legible label text unless the brief explicitly asks to change them.`
         : "";
-      const headlineGuidance = job.exportHeadline
-        ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
-        : "";
+      const headlineGuidance =
+        job.exportHeadline && !letteringEdit
+          ? "\n\nStudio adds the approved headline after generation. Keep the upper area clear for the headline and leave marketing text out of the artwork. Preserve text printed on the product and its packaging."
+          : "";
+      let maskUrl: string | undefined;
+      if (letteringEdit) {
+        preflightReason = "reference_not_sendable";
+        if (!imageUrls[0]) {
+          throw new Error(
+            "Ideogram lettering needs the delivered backdrop as a reference.",
+          );
+        }
+        const backdrop = await downloadMedia(
+          imageUrls[0],
+          LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
+        );
+        const mask = await renderHeadlineMask(backdrop.bytes);
+        maskUrl = await uploadReference({
+          bytes: mask.bytes,
+          contentType: "image/png",
+          fileName: "headline-mask.png",
+        });
+        preflightReason = "request_not_supported";
+      }
       finalPrompt += productPhotoGuidance + headlineGuidance;
       input = buildFalInput(
         {
@@ -1143,6 +1230,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
           outputFormat: settings.outputFormat,
           seed: settings.seed,
           imageUrls,
+          maskUrl,
         },
         job.model,
       );
@@ -1920,7 +2008,11 @@ async function storeMedia(
     return;
   }
 
-  let delivered: { assetId: string; version: number | null };
+  let delivered: {
+    assetId: string;
+    version: number | null;
+    letteringJobId: string | null;
+  };
   try {
     delivered = await insertAsset({
       job: {
@@ -1930,6 +2022,12 @@ async function storeMedia(
         model: job.model,
         prompt: job.prompt,
         exportHeadline: job.exportHeadline,
+        lettering: job.lettering,
+        letteringQuoteCents: job.letteringQuoteCents,
+        sessionId: job.sessionId,
+        productId: job.productId,
+        productName: job.productName,
+        batchSlotId: job.batchSlotId,
         settings: job.settings,
         parentAssetId: job.parentAssetId,
         requestedByUserId: job.requestedByUserId,
@@ -1955,6 +2053,14 @@ async function storeMedia(
     if (isUniqueViolation(error)) return; // Another settler won; its asset stands.
     await releaseSettlementLease(job.id, lease);
     throw error;
+  }
+  // The next paid request is already durable. A crash here leaves a normal
+  // PENDING row for recoverUnclaimedReservations, with the original quote.
+  if (
+    delivered.letteringJobId &&
+    (await claimForSubmission(delivered.letteringJobId))
+  ) {
+    await sendClaimedJob(delivered.letteringJobId, project.organizationId);
   }
   if (job.batchSlotId && delivered.version !== null) {
     const replaced = await prisma.projectImageAsset
@@ -2022,6 +2128,12 @@ async function insertAsset(input: {
     model: string;
     prompt: string;
     exportHeadline: string | null;
+    lettering?: string;
+    letteringQuoteCents?: bigint | null;
+    sessionId?: string | null;
+    productId?: string | null;
+    productName?: string | null;
+    batchSlotId?: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
     /** Who pays, and out of which pot. */
@@ -2040,13 +2152,18 @@ async function insertAsset(input: {
   height: number;
   bytes: number;
   checksum: string;
-}): Promise<{ assetId: string; version: number | null }> {
+}): Promise<{
+  assetId: string;
+  version: number | null;
+  letteringJobId: string | null;
+}> {
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageAsset.findUnique({
       where: { jobId: input.job.id },
       select: { id: true },
     });
-    if (existing) return { assetId: existing.id, version: null };
+    if (existing)
+      return { assetId: existing.id, version: null, letteringJobId: null };
 
     let rootId: string | null = null;
     if (input.job.parentAssetId) {
@@ -2136,11 +2253,58 @@ async function insertAsset(input: {
         bytes: input.bytes,
         checksum: input.checksum,
         ...(input.job.exportHeadline &&
+        input.job.letteringQuoteCents == null &&
         input.mediaType === ProjectImageMediaType.IMAGE
           ? { headline: { create: { text: input.job.exportHeadline } } }
           : {}),
       },
     });
+
+    let letteringJobId: string | null = null;
+    if (
+      input.job.lettering === "ideogram" &&
+      input.job.letteringQuoteCents != null &&
+      input.job.exportHeadline
+    ) {
+      const rawSettings = input.job.settings;
+      const secondSettings =
+        rawSettings &&
+        typeof rawSettings === "object" &&
+        !Array.isArray(rawSettings)
+          ? rawSettings.letteringSettings
+          : null;
+      const secondModel =
+        rawSettings &&
+        typeof rawSettings === "object" &&
+        !Array.isArray(rawSettings) &&
+        typeof rawSettings.letteringModel === "string"
+          ? rawSettings.letteringModel
+          : "";
+      const letteringJob = await tx.projectImageJob.create({
+        data: {
+          projectId: input.job.projectId,
+          workspaceId: input.job.workspaceId,
+          sessionId: input.job.sessionId,
+          requestedByUserId: input.job.requestedByUserId,
+          kind: ProjectImageJobKind.EDIT,
+          model: secondModel,
+          prompt: `Add the approved headline: ${input.job.exportHeadline}`,
+          exportHeadline: input.job.exportHeadline,
+          lettering: "ideogram",
+          settings: { ...readSettings(secondSettings ?? {}) },
+          productId: input.job.productId,
+          productName: input.job.productName,
+          batchSlotId: input.job.batchSlotId ?? input.job.id,
+          parentAssetId: id,
+          referenceAssetIds: [id],
+          referenceFileIds: [],
+          idempotencyKey: `studio-lettering:${input.job.id}`,
+          status: ProjectImageJobStatus.PENDING,
+          chargedCents: input.job.letteringQuoteCents,
+        },
+      });
+      letteringJobId = letteringJob.id;
+    }
 
     await tx.projectImageJob.updateMany({
       where: { id: input.job.id },
@@ -2161,7 +2325,7 @@ async function insertAsset(input: {
         unreachableSource: null,
       },
     });
-    return { assetId: id, version };
+    return { assetId: id, version, letteringJobId };
   }, "Another image finished in this lineage at the same moment. Try again.");
 }
 

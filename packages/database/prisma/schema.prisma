@@ -5448,6 +5448,11 @@ model ProjectImageJob {
   /// Approved copy to attach when the image is delivered.
   exportHeadline String?
 
+  /// Exact-font overlay by default; ideogram paints approved copy into the image.
+  lettering String @default("overlay")
+  /// Frozen quote for the automatic Ideogram edit, until the backdrop delivers.
+  letteringQuoteCents BigInt?
+
   /// Generate a backdrop, then composite the original transparent product photo.
   useProductCutout      Boolean @default(false)
   productCutoutChecksum String?

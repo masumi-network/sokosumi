@@ -35,6 +35,7 @@ import {
   isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
+  type StudioJob,
   type StudioLabels,
 } from "./types";
 
@@ -81,8 +82,10 @@ export function StudioLightbox({
   onCaptionSuggestionResolve,
   onUndoCaption,
   siblings,
+  jobs = [],
 }: {
   assets: StudioAsset[];
+  jobs?: readonly StudioJob[];
   catalog: StudioCatalog;
   /** What each version was debited, in credits; absent when unknown. */
   creditsByAssetId: Record<string, number>;
@@ -288,6 +291,7 @@ export function StudioLightbox({
               {isVideoAsset(single) ? null : (
                 <StudioAdPreview
                   asset={single}
+                  jobs={jobs}
                   caption={caption}
                   headline={headlineForAsset?.(single)}
                   savingHeadline={savingHeadline}
@@ -397,6 +401,7 @@ export function StudioLightbox({
                       downloading={downloadingBatch}
                       headlineForAsset={headlineForAsset}
                       savingHeadline={savingHeadline}
+                      jobs={jobs}
                       key={logoScope}
                       labels={labels}
                       onDownload={(review) =>
