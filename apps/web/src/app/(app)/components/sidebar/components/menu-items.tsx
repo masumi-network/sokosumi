@@ -145,6 +145,7 @@ function ScopedMenuItems({
       group: "work",
       // Inside a project, Overview is the current row, not the list.
       exact: hasProjectPage || undefined,
+      prefetchContent: true,
     },
     ...(hasProjectPage
       ? [
