@@ -32,7 +32,9 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
-// Jev is not called from a test. A reply claims nothing unless a test says so.
+// The canned replies here all claim work; Jev is not called from a test.
+// A reply claims nothing unless a test says so: claiming by default withheld
+// every reply, including in tests about metering, regions and deadlines.
 vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),

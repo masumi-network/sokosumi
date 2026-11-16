@@ -23,12 +23,18 @@ interface ExpectedMessage {
   calls: unknown[][];
 }
 
+type ConsoleFn = (...args: unknown[]) => void;
+
 interface ConsoleGuardState {
   expected: ExpectedMessage[];
   unexpected: string[];
-  /** Replacements of console.error/warn during this test. */
+  /** Replacements of console.error/warn since the last check. */
   muted: string[];
-  guarded: Record<ConsoleMethod, (...args: unknown[]) => void>;
+  guarded: Record<ConsoleMethod, ConsoleFn>;
+  /** What `console[method]` holds now: the guard or a spy that watches it. */
+  current: Record<ConsoleMethod, ConsoleFn>;
+  /** Spies `vi.spyOn(console, …)` made, which pass every call through. */
+  watching: WeakSet<ConsoleFn>;
 }
 
 // The unit project reuses one worker across files and re-evaluates this
@@ -58,10 +64,12 @@ function guardState(): ConsoleGuardState {
     unexpected: [],
     muted: [],
     guarded: {},
+    current: {},
+    watching: new WeakSet(),
   } as unknown as ConsoleGuardState;
   for (const method of METHODS) {
     const original = console[method].bind(console);
-    const guarded = (...args: unknown[]) => {
+    const guarded: ConsoleFn = (...args) => {
       const text = format(...args);
       const match = state.expected.find(
         (entry) =>
@@ -77,47 +85,58 @@ function guardState(): ConsoleGuardState {
       original(...args);
     };
     state.guarded[method] = guarded;
-    // An accessor, so a plain `console.warn = fn` is seen when it happens,
-    // not only if it is still there when the test ends. Vitest's spies are
-    // checked by the `vi.spyOn` wrapper below.
-    let current: (...args: unknown[]) => void = guarded;
+    state.current[method] = guarded;
+    // A non-configurable accessor: `console.warn = fn` is recorded when it
+    // happens, `Object.defineProperty(console, "warn", …)` throws, and only
+    // the guard or a spy watching it is accepted as the method.
     Object.defineProperty(console, method, {
-      configurable: true,
+      configurable: false,
       enumerable: true,
-      get: () => current,
-      set: (next: (...args: unknown[]) => void) => {
-        if (next !== guarded && !vi.isMockFunction(next)) {
+      get: () => state.current[method],
+      set: (next: ConsoleFn) => {
+        if (next !== guarded && !state.watching.has(next)) {
           state.muted.push(`console.${method} = …`);
         }
-        current = next;
+        state.current[method] = next;
       },
     });
   }
 
-  // A spy given an implementation swallows output, even when the test
-  // restores it before this guard looks. Record the moment it happens.
+  // `vi.spyOn` redefines the property, which the accessor does not allow, so
+  // spies on the guarded methods are made here: a mock that passes each call
+  // to the guard. Anything that gives it its own behaviour swallows output,
+  // even when the test restores it before this guard looks; record that.
   const spyOn = vi.spyOn.bind(vi);
   vi.spyOn = ((target: object, key: PropertyKey, ...rest: never[]) => {
-    const spy = (spyOn as (...args: unknown[]) => unknown)(
-      target,
-      key,
-      ...rest,
-    ) as Record<string, (...args: unknown[]) => unknown>;
-    if (target === console && METHODS.some((method) => method === key)) {
-      for (const name of [
-        "mockImplementation",
-        "mockImplementationOnce",
-        "mockReturnValue",
-        "mockReturnValueOnce",
-      ]) {
-        const set = spy[name]?.bind(spy);
-        if (!set) continue;
-        spy[name] = (...args: unknown[]) => {
-          state.muted.push(`console.${String(key)}.${name}`);
-          return set(...args);
-        };
-      }
+    const method = METHODS.find((name) => name === key);
+    if (target !== console || !method) {
+      return (spyOn as (...args: unknown[]) => unknown)(target, key, ...rest);
     }
+    const spy = vi.fn((...args: unknown[]) =>
+      state.guarded[method](...args),
+    ) as unknown as Record<string, (...args: unknown[]) => unknown>;
+    for (const name of [
+      "mockImplementation",
+      "mockImplementationOnce",
+      "mockReturnValue",
+      "mockReturnValueOnce",
+      "withImplementation",
+    ]) {
+      const set = spy[name]?.bind(spy);
+      if (!set) continue;
+      spy[name] = (...args: unknown[]) => {
+        state.muted.push(`console.${method}.${name}`);
+        return set(...args);
+      };
+    }
+    spy.mockRestore = () => {
+      if (state.current[method] === (spy as unknown)) {
+        state.current[method] = state.guarded[method];
+      }
+      return spy;
+    };
+    state.watching.add(spy as unknown as ConsoleFn);
+    state.current[method] = spy as unknown as ConsoleFn;
     return spy;
   }) as typeof vi.spyOn;
 
@@ -153,38 +172,41 @@ function unexpectedError(messages: string[], where: string): Error {
   );
 }
 
+/**
+ * Fails when console.error/warn were replaced since the last check, and puts
+ * the guard back in place of anything that is not a watching spy. At a file
+ * boundary (`afterAll`) watching spies come off too, so none reaches the next
+ * file in this worker.
+ */
+export function checkConsoleUntouched(where: string, fileEnd = false): void {
+  const state = guardState();
+  for (const method of METHODS) {
+    const now = state.current[method];
+    if (now === state.guarded[method]) continue;
+    if (!state.watching.has(now)) {
+      state.muted.push(`console.${method} (left replaced)`);
+    }
+    if (fileEnd || !state.watching.has(now)) {
+      state.current[method] = state.guarded[method];
+    }
+  }
+  const muted = state.muted.splice(0);
+  if (muted.length > 0) {
+    state.expected.length = 0;
+    state.unexpected.length = 0;
+    throw new Error(
+      `${[...new Set(muted)].join(", ")} replaced console output this guard checks ${where}. Declare the expected message with expectConsole() from "@/test/console" instead.`,
+    );
+  }
+}
+
 /** Registers the per-test check. Called once per file from `setup.ts`. */
 export function installConsoleGuard(): void {
   const state = guardState();
   state.expected.length = 0;
-  state.muted.length = 0;
 
   afterEach(() => {
-    // A spy that only watches still passes output through to the guard; a
-    // mock implementation swallows it.
-    const mocked = METHODS.filter(
-      (method) =>
-        vi.isMockFunction(console[method]) &&
-        vi.mocked(console[method]).getMockImplementation() !== undefined,
-    );
-    for (const method of mocked) vi.mocked(console[method]).mockRestore();
-    // A plain replacement left in place would mute every later test and file
-    // in this worker: put the guard back.
-    for (const method of METHODS) {
-      const now = console[method];
-      if (now !== state.guarded[method] && !vi.isMockFunction(now)) {
-        state.muted.push(`console.${method} (left replaced)`);
-        console[method] = state.guarded[method];
-      }
-    }
-    const muted = state.muted.splice(0);
-    if (mocked.length > 0 || muted.length > 0) {
-      state.expected.length = 0;
-      state.unexpected.length = 0;
-      throw new Error(
-        `${[...new Set([...muted, ...mocked.map((m) => `console.${m}`)])].join(", ")} replaced console output this guard checks. Declare the expected message with expectConsole() from "@/test/console" instead.`,
-      );
-    }
+    checkConsoleUntouched(`in "${expect.getState().currentTestName}"`);
     const unexpected = state.unexpected.splice(0);
     const wrongCount = state.expected
       .splice(0)
@@ -209,6 +231,7 @@ export function installConsoleGuard(): void {
   // Output between tests: collection, `beforeAll`/`afterAll`, or work a
   // test left running (in a shared worker, possibly an earlier file's).
   afterAll(() => {
+    checkConsoleUntouched("outside a test in this file", true);
     const unexpected = state.unexpected.splice(0);
     if (unexpected.length > 0) {
       throw unexpectedError(unexpected, "outside a test in this file");

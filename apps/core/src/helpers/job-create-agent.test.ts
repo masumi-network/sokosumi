@@ -273,8 +273,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     ]);
     calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(2));
     creditBucketPrepareConsumptionMock.mockResolvedValue([]);
-    // The node accepts the purchase. These tests assert the payload it
-    // receives; refusals and retries have their own tests.
+    // A PurchaseFailure shape, not a bare string: registerJobPurchase retries
+    // an `ambiguous` verdict, and these tests assert the payload the node
+    // receives rather than the retry policy, which has its own tests.
+    // The node accepts the purchase now: a refusal here made every hiring
+    // test take the registration-failure path. Refusals are tested in
+    // `job-purchase-registration.test.ts`.
     createPurchaseMock.mockResolvedValue(
       ok({
         id: "node-purchase",

@@ -52,11 +52,13 @@ describe("errorHandler", () => {
       "http://localhost/v1/share/share-capability-token",
     );
 
-    // Sentry's Console integration turns console arguments into a breadcrumb
-    // on the event captured next, and beforeSend only strips env secrets. The
-    // error goes on the request's wide event instead, whose path is the route
-    // template (`bindCoreRequestContext`); the console guard fails this test
-    // on any console.error.
+    // Sentry's Console integration turns these arguments into a breadcrumb
+    // on the event captured immediately after, and beforeSend only strips
+    // env secrets. A concrete path here ships the capability token.
+    // The handler now writes no console line at all: the error goes on the
+    // request's wide event, whose path is the route template
+    // (`bindCoreRequestContext`), and the console guard fails this test on
+    // any console.error.
     expect(response.status).toBe(500);
   });
 

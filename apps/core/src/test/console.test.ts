@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { expectConsole } from "./console";
+import { checkConsoleUntouched, expectConsole } from "./console";
 
 describe("console guard", () => {
   it("lets console.log through", () => {
@@ -93,6 +93,46 @@ describe("console guard", () => {
   it.fails("does not let an unanchored alternative match later", () => {
     expectConsole("warn", /^declared|other/);
     console.warn("unexpected prefix, other (this test is expected to fail)");
+  });
+
+  it.fails("fails a bare mock assigned and left installed", () => {
+    console.warn = vi.fn();
+    console.warn("console guard: lost (this test is expected to fail)");
+  });
+
+  it("puts the guard back after a bare mock was left installed", () => {
+    const calls = expectConsole("warn", "routed after a bare mock");
+    console.warn("routed after a bare mock");
+    expect(calls).toHaveLength(1);
+  });
+
+  it.fails("fails a temporary withImplementation", () => {
+    const spy = vi.spyOn(console, "warn");
+    spy.withImplementation(
+      () => {},
+      () => console.warn("console guard: lost (this test is expected to fail)"),
+    );
+    spy.mockRestore();
+  });
+
+  it.fails("fails a temporary descriptor replacement", () => {
+    const saved = Object.getOwnPropertyDescriptor(console, "warn");
+    Object.defineProperty(console, "warn", {
+      configurable: true,
+      writable: true,
+      value: () => {},
+    });
+    if (saved) Object.defineProperty(console, "warn", saved);
+  });
+
+  it("reports a replacement made outside a test at the file's end", () => {
+    // What a file's afterAll does: the same check, before anything is cleared.
+    const saved = console.error;
+    console.error = () => {};
+    console.error = saved;
+    expect(() =>
+      checkConsoleUntouched("outside a test in this file", true),
+    ).toThrow("replaced console output");
   });
 
   it.fails("fails a test that mocks console.warn and restores it", () => {
