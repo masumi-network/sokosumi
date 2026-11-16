@@ -9,10 +9,10 @@ import type { StudioCatalog } from "./types";
 /**
  * Which models the studio opens with, and whether that stays a suggestion.
  *
- * The point of the shortlist is that one brief reaches five models without
- * anybody assembling the selection first. The point of it being *only* the
- * opening selection is that it must come apart completely — down to none — or
- * it is not a default, it is a constraint.
+ * Core's default starts a new session alone; the shortlist offers other
+ * models a person can add to run the same brief. The opening selection must
+ * still come apart completely — down to none — or it is not a default, it is
+ * a constraint on which models can be selected.
  *
  * Radix's menu and popover are stubbed the way `studio-composer.test.tsx` stubs
  * them, so the model entries are reachable by their text.
@@ -82,11 +82,21 @@ function catalogWithShortlist(): StudioCatalog {
   const template = TEST_CATALOG.models[0];
   return {
     ...TEST_CATALOG,
-    defaultModelId: "ranked-1",
+    defaultModelId: "gemini-pro",
     models: [
       { ...template, id: "plain-a", label: "Plain A", curatedRank: null },
-      { ...template, id: "ranked-3", label: "Ranked 3", curatedRank: 3 },
-      { ...template, id: "ranked-1", label: "Ranked 1", curatedRank: 1 },
+      {
+        ...template,
+        id: "gemini-pro",
+        label: "Gemini 3 Pro Image",
+        curatedRank: 3,
+      },
+      {
+        ...template,
+        id: "muse-image",
+        label: "Meta Muse Image",
+        curatedRank: 1,
+      },
       { ...template, id: "plain-b", label: "Plain B", curatedRank: null },
       { ...template, id: "ranked-2", label: "Ranked 2", curatedRank: 2 },
     ],
@@ -118,9 +128,9 @@ function modelEntries() {
 describe("curatedModels", () => {
   it("takes the ranked rows, in rank order, and nothing else", () => {
     expect(curatedModels(catalogWithShortlist()).map((m) => m.id)).toEqual([
-      "ranked-1",
+      "muse-image",
       "ranked-2",
-      "ranked-3",
+      "gemini-pro",
     ]);
   });
 
@@ -141,24 +151,24 @@ describe("curatedModels", () => {
 });
 
 describe("opening the studio", () => {
-  it("pre-selects the shortlist and leaves the rest alone", () => {
+  it("pre-selects only Gemini Pro even when Muse is ranked first", () => {
     mount(catalogWithShortlist());
 
     const selected = modelEntries()
       .filter((entry) => entry.checked)
       .map((entry) => entry.label);
-    expect(selected).toEqual(["Ranked 3", "Ranked 1", "Ranked 2"]);
+    expect(selected).toEqual(["Gemini 3 Pro Image"]);
 
-    // Five models offered, three of them chosen.
+    // Five models offered, only Core's default chosen.
     expect(modelEntries()).toHaveLength(5);
   });
 
-  it("prices the whole shortlist, not just the first model", () => {
+  it("prices only the opening default until another model is added", () => {
     mount(catalogWithShortlist());
 
-    // Three clones of a 4-credit model, one run each.
+    // One clone of a 4-credit model, one run.
     expect(
-      screen.getByText('runPlanCredits:{"copies":1,"models":3,"credits":12}'),
+      screen.getByText('runPlanCredits:{"copies":1,"models":1,"credits":4}'),
     ).toBeInTheDocument();
   });
 });
@@ -167,7 +177,7 @@ describe("editing the opening selection", () => {
   it("lets every last model be unselected", () => {
     mount(catalogWithShortlist());
 
-    for (const label of ["Ranked 1", "Ranked 2", "Ranked 3"]) {
+    for (const label of ["Gemini 3 Pro Image"]) {
       const entry = screen
         .getAllByRole("checkbox")
         .find((node) => node.textContent?.includes(label));

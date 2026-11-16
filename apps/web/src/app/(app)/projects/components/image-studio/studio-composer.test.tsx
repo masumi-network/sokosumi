@@ -506,11 +506,11 @@ describe("how a price is explained", () => {
 
 describe("unselecting a model", () => {
   it("leaves the frame where it was", () => {
-    // A property rather than a regression: unselecting narrows nothing, so it
-    // has no business touching the frame. `toggleModel` only clamps on the way
-    // in for that reason. (The clamp on the way out was a no-op — every
-    // selected model already supports the current frame — so this pins the
-    // property, it does not commemorate a bug.)
+    // A property and a regression: changing the selection must leave the
+    // person's frame intact, even when a newly added model cannot honour it.
+    // `toggleModel` preserves the shared draft and the plan discloses each
+    // model's actual frame, so adding a limited model cannot rewrite the
+    // settings of models that already support the person's choice.
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
     clickModel("Model B");
@@ -518,14 +518,18 @@ describe("unselecting a model", () => {
     clickChip("9:16");
     expect(screen.getByTestId("frame").textContent).toBe("9:16");
 
-    // Model B cannot frame 9:16, so adding it does move the frame.
+    // Model B cannot frame 9:16, so only its leg may use a different frame.
     clickModel("Model B");
-    const clamped = screen.getByTestId("frame").textContent;
-    expect(clamped).not.toBe("9:16");
+    expect(screen.getByTestId("frame").textContent).toBe("9:16");
+    expect(screen.getByRole("button", { name: /^9:16$/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
 
     // Taking it back out does not.
     clickModel("Model B");
-    expect(screen.getByTestId("frame").textContent).toBe(clamped);
+    expect(screen.getByTestId("frame").textContent).toBe("9:16");
   });
 
   it("can empty the selection, and refuses to generate on an empty one", () => {

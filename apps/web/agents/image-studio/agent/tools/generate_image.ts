@@ -33,7 +33,7 @@ export default defineTool({
       ),
     modelId: z
       .enum(["muse-image", "gemini-flash", "gemini-pro", "flux-2-pro"])
-      .default("muse-image")
+      .default("gemini-pro")
       .describe(
         "Supported Studio model. Consult list_image_options for capabilities; never invent endpoints.",
       ),

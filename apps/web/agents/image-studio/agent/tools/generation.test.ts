@@ -92,6 +92,42 @@ describe("image generation tools", () => {
     });
   });
 
+  it("defaults new images to one Gemini Pro square PNG at 1K with no seed", async () => {
+    expect(
+      readFileSync(new URL("./generate_image.ts", import.meta.url), "utf8"),
+    ).toContain('.default("gemini-pro")');
+    await generate.execute({ ...base, modelId: "gemini-pro" }, ctx);
+    expect(startGeneration).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({
+        modelId: "gemini-pro",
+        aspectRatio: "1:1",
+        resolution: "1K",
+        outputFormat: "png",
+        seed: null,
+        placementId: null,
+      }),
+    );
+  });
+
+  it("defaults refinements to Gemini Pro when no model is supplied", async () => {
+    expect(
+      readFileSync(new URL("./refine_image.ts", import.meta.url), "utf8"),
+    ).toContain('.default("gemini-pro")');
+    await refine.execute(
+      {
+        ...base,
+        modelId: "gemini-pro",
+        sourceVersionId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      },
+      ctx,
+    );
+    expect(startGeneration).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({ modelId: "gemini-pro" }),
+    );
+  });
+
   it("reads and saves an approved headline without starting a generation", async () => {
     const assetId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
     const identity = { userId: "user-1", projectId: "project-1" };
@@ -267,7 +303,7 @@ describe("non-billed agent behavior contract", () => {
     for (const rule of [
       "generate first with sensible defaults",
       "then suggest improvements",
-      "Default to one image",
+      "Default to one image, gemini-pro, 1:1, 1K, PNG, no seed",
       "greetings, critique/review-only",
       "capped at three jobs per turn",
       "submission was not confirmed, **stop**",

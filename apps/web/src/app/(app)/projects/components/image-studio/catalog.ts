@@ -158,13 +158,12 @@ export function defaultModel(catalog: StudioCatalog): StudioModel | null {
 }
 
 /**
- * The models the studio opens with.
+ * The studio's curated shortlist, available alongside the default model.
  *
- * Core's `curatedRank` names a shortlist of five hand-picked for range rather
- * than for price — a general image model, a stronger one, a photographic one,
- * one that handles typography, and one for vector and brand work. One brief
- * across all five is the thing this composer is for, so it is what a person
- * lands on rather than something they have to assemble first.
+ * Core's `curatedRank` names models hand-picked for range rather than for
+ * price — general image models, a stronger one, a photographic one, one that
+ * handles typography, and one for vector and brand work. A person starts with
+ * the default model and can add these models to run one brief across them.
  *
  * Read off the catalog and sorted by the rank Core gave, never held here: a
  * shortlist copied into the browser is a second opinion about which models are
@@ -172,7 +171,7 @@ export function defaultModel(catalog: StudioCatalog): StudioModel | null {
  * already arrives curated-first, but this does not rely on that either.
  *
  * Falls back to the catalog's own default when no row is ranked, so a catalog
- * without a shortlist still opens on something rather than on nothing.
+ * without a shortlist still suggests something rather than nothing.
  */
 export function curatedModels(catalog: StudioCatalog): StudioModel[] {
   const ranked = catalog.models

@@ -55,7 +55,7 @@ export const IMAGE_PROVIDER_FIELDS = [
 
 export type ImageProviderField = (typeof IMAGE_PROVIDER_FIELDS)[number];
 
-export const DEFAULT_IMAGE_MODEL_ID = "muse-image";
+export const DEFAULT_IMAGE_MODEL_ID = "gemini-pro";
 
 /**
  * What one image costs, in the provider's own terms.

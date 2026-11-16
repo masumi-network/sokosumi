@@ -18,8 +18,8 @@ import {
  * Gemini Flash's endpoints, taken from the catalog rather than written out.
  *
  * Named rather than the default: these cases lean on a model with a seed, three
- * resolutions and a two-part endpoint id, and the default (Muse) has none of
- * them.
+ * resolutions and a two-part endpoint id; the default (Gemini Pro) has the seed
+ * and endpoint shape, but offers two resolutions instead of all three.
  */
 const DEFAULT_IMAGE_ENDPOINT_GENERATE =
   imageModel("gemini-flash").generateEndpoint;
@@ -135,8 +135,12 @@ describe("model-specific payloads", () => {
 
 describe("falModelForKind", () => {
   it("sends a refinement to the endpoint that accepts a reference", () => {
-    expect(falModelForKind("EDIT")).toBe("meta/muse-image/edit");
-    expect(falModelForKind("GENERATE")).toBe("meta/muse-image/text-to-image");
+    expect(falModelForKind("EDIT")).toBe(
+      "fal-ai/gemini-3-pro-image-preview/edit",
+    );
+    expect(falModelForKind("GENERATE")).toBe(
+      "fal-ai/gemini-3-pro-image-preview",
+    );
     expect(falModelForKind("EDIT", "gemini-flash")).toBe(
       DEFAULT_IMAGE_ENDPOINT_EDIT,
     );

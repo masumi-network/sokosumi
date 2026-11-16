@@ -398,30 +398,29 @@ export function StudioComposer({
   }
 
   /**
-   * The options every chosen model can honour.
+   * The options at least one chosen model can honour.
    *
-   * An intersection, not a union: a ratio only one of two selected models
-   * supports would produce a batch where half the images silently came back
-   * framed differently from what was asked.
+   * A limited model must not cap the whole batch. Keep the requested settings
+   * in the draft; the plan clamps each leg and discloses any differences in
+   * framing, resolution or format before the person presses Generate.
    */
-  const shared = useMemo(() => {
+  const options = useMemo(() => {
     if (selectedModels.length === 0) {
       return { aspectRatios: [], resolutions: [], outputFormats: [] };
     }
-    const intersect = (pick: (model: StudioModel) => string[]) =>
-      selectedModels
-        .map(pick)
-        .reduce((all, next) => all.filter((value) => next.includes(value)));
+    const union = (pick: (model: StudioModel) => string[]) => [
+      ...new Set(selectedModels.flatMap(pick)),
+    ];
     return {
-      aspectRatios: intersect((model) => model.aspectRatios),
-      resolutions: intersect((model) => model.resolutions),
-      outputFormats: intersect((model) => model.outputFormats),
+      aspectRatios: union((model) => model.aspectRatios),
+      resolutions: union((model) => model.resolutions),
+      outputFormats: union((model) => model.outputFormats),
     };
   }, [selectedModels]);
 
-  const unsupportedPlacements =
-    selectedModels.length > 0 &&
-    placementRatios.some((ratio) => !shared.aspectRatios.includes(ratio));
+  const unsupportedPlacements = selectedModels.some((model) =>
+    placementRatios.some((ratio) => !model.aspectRatios.includes(ratio)),
+  );
 
   function togglePlacement(ratio: PlacementRatio) {
     onTargetChange((current) => {
@@ -570,21 +569,17 @@ export function StudioComposer({
         : current.modelIds.filter((id) => id !== model.id);
       // Emptying the selection is allowed. It used to be refused, on the
       // grounds that the option rows would have no capabilities to read — but
-      // that made the last remaining model unclearable, and with five selected
-      // on open that is a control that visibly stops working. Generate is
-      // disabled and the rows say what to do instead.
+      // that made the last remaining model unclearable, including the one
+      // selected on open. Generate is disabled and the rows say what to do
+      // instead when the person clears the selection completely.
       return {
         ...current,
         modelIds: next,
-        // Only when adding, which is the only direction that can need it: a
-        // newly selected model may not offer what is currently chosen, while
-        // removing one can only widen the intersection. Clamping on the way out
-        // is a no-op today — every selected model already supports the current
-        // frame — so this is not a bug fix, it is refusing to run a rule in the
-        // direction where it could only ever be wrong.
-        settings: adding
-          ? clampToModel(model, current.settings)
-          : current.settings,
+        // Keep the frame and quality the person picked when adding or removing
+        // models. A newly selected model may not offer those settings, but
+        // clamping the shared draft would also downgrade models that do. The
+        // plan clamps only that model's leg and shows its actual settings in
+        // the summary and price, without rewriting the person's choice.
       };
     });
   }
@@ -626,7 +621,7 @@ export function StudioComposer({
       ? modelName(selectedModels[0])
       : t("modelCount", { count: selectedModels.length });
 
-  const hasSharedFormat = shared.outputFormats.length > 0;
+  const hasOutputFormat = options.outputFormats.length > 0;
 
   const plannedSettings = plan.configured.map(({ settings: actual }) =>
     [
@@ -1114,7 +1109,9 @@ export function StudioComposer({
                 <Row label={t("adPlacements")}>
                   {AD_PLACEMENTS.map(({ ratio, label }) => {
                     const selected = placementRatios.includes(ratio);
-                    const unsupported = !shared.aspectRatios.includes(ratio);
+                    const unsupported = selectedModels.some(
+                      (model) => !model.aspectRatios.includes(ratio),
+                    );
                     const exceedsLimit =
                       selectedModels.length *
                         (placementRatios.length + 1) *
@@ -1156,7 +1153,7 @@ export function StudioComposer({
                 </Row>
 
                 <Row label={labels.aspectRatio}>
-                  {shared.aspectRatios.map((ratio) => (
+                  {options.aspectRatios.map((ratio) => (
                     <button
                       aria-pressed={
                         placementRatios.length === 0 &&
@@ -1185,7 +1182,7 @@ export function StudioComposer({
                 </Row>
 
                 <Row label={labels.resolution}>
-                  {shared.resolutions.map((resolution) => (
+                  {options.resolutions.map((resolution) => (
                     <button
                       aria-pressed={settings.resolution === resolution}
                       className={chipClass(settings.resolution === resolution)}
@@ -1204,11 +1201,11 @@ export function StudioComposer({
                   ))}
                 </Row>
 
-                {/* Without a shared format there are no common choices to offer.
+                {/* Offer every supported format, including in a mixed batch.
                 Each model's actual format is disclosed with its settings. */}
-                {hasSharedFormat ? (
+                {hasOutputFormat ? (
                   <Row label={labels.outputFormat}>
-                    {shared.outputFormats.map((format) => (
+                    {options.outputFormats.map((format) => (
                       <button
                         aria-pressed={settings.outputFormat === format}
                         className={chipClass(settings.outputFormat === format)}

@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 
 import {
   clampToModel,
-  curatedModels,
+  defaultModel,
   modelById,
   modelIdForRepeat,
   resolveModel,
@@ -297,12 +297,13 @@ export function ImageStudio({
         : null;
 
   const [target, setTarget] = useState<StudioTarget>(() => {
-    // The curated five, in Core's order. Only the opening selection: every one
-    // of them can be unselected, the rest of the catalog can be added, and
-    // bulk selection is bounded by the 12-image purchase ceiling. Nothing
-    // below treats these five as special after this line.
+    // Core's default is only the opening selection: it can be unselected,
+    // the rest of the catalog can be added, and bulk selection is bounded by
+    // the 12-image purchase ceiling. Nothing below treats this model as
+    // special after this line.
+    const model = defaultModel(catalog);
     return {
-      modelIds: curatedModels(catalog).map((model) => model.id),
+      modelIds: model ? [model.id] : [],
       settings: {
         aspectRatio: "1:1",
         resolution: "1K",
