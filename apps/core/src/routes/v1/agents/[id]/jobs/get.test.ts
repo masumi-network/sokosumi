@@ -75,9 +75,10 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
   };
 });
 
-vi.mock("@/helpers/job", () => ({
-  getUserJobs: getUserJobsMock,
-}));
+vi.mock("@/helpers/job", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/helpers/job")>();
+  return { ...actual, getUserJobs: getUserJobsMock };
+});
 
 function createApp() {
   const app = new OpenAPIHonoWithAuth();

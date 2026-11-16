@@ -435,10 +435,14 @@ export function OrganizationChatList({
         ),
     [roomRows],
   );
-  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
-    () => partitionRoomsForSidebar(listedRooms),
-    [listedRooms],
-  );
+  const {
+    pinned,
+    directMessages,
+    namedChannels,
+    externalJoined,
+    hasOwnChannel,
+    hasDirect,
+  } = useMemo(() => partitionRoomsForSidebar(listedRooms), [listedRooms]);
   useEffect(() => {
     if (!paintOnly) {
       rememberPinnedRooms(currentUserId, pinned);
@@ -869,7 +873,7 @@ export function OrganizationChatList({
                     onShowAllChange={setChannelsShowAll}
                   />
                 ) : null}
-                {namedChannels.length === 0 ? (
+                {!hasOwnChannel ? (
                   <SidebarMenuItem>
                     <div
                       className={cn(
@@ -1186,7 +1190,7 @@ export function OrganizationChatList({
                     onShowAllChange={setDirectShowAll}
                   />
                 ) : null}
-                {directMessages.length === 0 ? (
+                {!hasDirect ? (
                   <SidebarMenuItem>
                     <div
                       className={cn(

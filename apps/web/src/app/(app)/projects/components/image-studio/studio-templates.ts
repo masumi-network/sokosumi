@@ -1,6 +1,7 @@
 import type { StudioSettings } from "./types";
 
 export interface StudioBrief {
+  id?: string;
   aspectRatio: NonNullable<StudioSettings["aspectRatio"]>;
   prompt: string;
 }

@@ -658,7 +658,10 @@ export async function buildSystemBeatMessage(input: {
       id: true,
       name: true,
       status: true,
+      assigneeSokoBotId: true,
       assignee: { select: { name: true } },
+      assigneeUser: { select: { name: true } },
+      assigneeSokoBot: { select: { name: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 12,
@@ -667,7 +670,7 @@ export async function buildSystemBeatMessage(input: {
     lines.push("## Your open Tasks");
     for (const task of open) {
       lines.push(
-        `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id})${task.assignee ? ` · ${task.assignee.name}` : ""}`,
+        `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id}) · ${openTaskHolder(task, bot.id, isSharedSokoBot(bot))}`,
       );
     }
     lines.push("");
@@ -762,4 +765,29 @@ export async function manageSokoBotReminder(
     key: input.key,
     revision: input.revision + (changed.count === 1 ? 1 : 0),
   };
+}
+
+/**
+ * Who does an open Task. An unassigned one is its owner's own work: Jarvis
+ * read "READY · <task>" as work waiting for him and gave it to a Coworker.
+ */
+export function openTaskHolder(
+  task: {
+    assigneeSokoBotId: string | null;
+    assignee: { name: string | null } | null;
+    assigneeUser: { name: string | null } | null;
+    assigneeSokoBot: { name: string | null } | null;
+  },
+  sokoBotId: string,
+  shared: boolean,
+): string {
+  if (task.assigneeSokoBotId === sokoBotId) return "assigned to you";
+  const holder =
+    task.assignee?.name ??
+    task.assigneeUser?.name ??
+    task.assigneeSokoBot?.name;
+  if (holder) return `with ${holder}`;
+  return shared
+    ? "unassigned: the team's, not yours to hand out"
+    : "unassigned: your owner's own work, not yours to hand out";
 }

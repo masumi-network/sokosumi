@@ -75,6 +75,12 @@ vi.mock("@/auth/components/auth-flow", () => ({
   },
 }));
 
+vi.mock("@/auth/components/chat-invite-notice", () => ({
+  __esModule: true,
+  default: ({ returnUrl }: { returnUrl?: string }) =>
+    returnUrl ? <div data-testid="chat-invite-notice">{returnUrl}</div> : null,
+}));
+
 vi.mock("@/auth/components/terms-notice", () => ({
   __esModule: true,
   default: () => <div data-testid="terms-notice" />,
@@ -476,5 +482,13 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
     await renderPage();
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("passes the return URL to the guest invite notice", async () => {
+    await renderPage({ returnUrl: "/chat/join/tok_1" });
+
+    expect(screen.getByTestId("chat-invite-notice")).toHaveTextContent(
+      "/chat/join/tok_1",
+    );
   });
 });

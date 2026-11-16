@@ -135,12 +135,17 @@ export function StudioAdPreview({
             return;
           }
         }
+        if (headlineImage?.status === "ready") {
+          // The preview bytes are cached locally; signal only the export click.
+          void fetchStudioAd(asset, { download: true }).catch(() => {});
+        }
         const blob =
           headlineImage?.status === "ready"
             ? headlineImage.blob
             : await fetchStudioAd(asset, {
                 logo: logoPosition,
                 placement: ratio,
+                download: true,
               }).then((response) => response.blob());
         const suffix =
           (logoPosition ? "-branded" : "") +

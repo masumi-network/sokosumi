@@ -60,6 +60,7 @@ export const studioAdPlacementRatioSchema = z
 export const imageStudioAssetContentQuerySchema = z.object({
   logo: studioLogoPositionSchema.optional(),
   placement: studioAdPlacementRatioSchema.optional(),
+  download: z.enum(["true"]).optional(),
 });
 
 export type StudioAdPlacementRatio = z.infer<
@@ -122,6 +123,41 @@ export const studioAdHeadlineSchema = saveStudioAdHeadlineSchema
 
 export type StudioAdHeadline = z.infer<typeof studioAdHeadlineSchema>;
 
+export const studioFeedbackReasonSchema = z.enum([
+  "off-brand",
+  "bad text",
+  "wrong product",
+  "ugly",
+  "great",
+]);
+
+export type StudioFeedbackReason = z.infer<typeof studioFeedbackReasonSchema>;
+
+export const setStudioAssetFeedbackSchema = z
+  .object({
+    thumb: z.union([z.literal(1), z.literal(-1), z.null()]),
+    reasons: z.array(studioFeedbackReasonSchema).max(5).optional(),
+    comment: z.string().trim().max(500).nullable().optional(),
+  })
+  .openapi("SetStudioAssetFeedback");
+
+export const studioAssetRatingSchema = z
+  .object({
+    myThumb: z.union([z.literal(1), z.literal(-1), z.null()]),
+    myReasons: z.array(studioFeedbackReasonSchema),
+    myComment: z.string().nullable(),
+    thumbsUp: z.number().int().nonnegative(),
+    thumbsDown: z.number().int().nonnegative(),
+    score: z.number(),
+  })
+  .openapi("StudioAssetRating");
+
+export type StudioAssetRating = z.infer<typeof studioAssetRatingSchema>;
+
+export const recordStudioAssetEventSchema = z
+  .object({ type: z.literal("viewed_lightbox") })
+  .openapi("RecordStudioAssetEvent");
+
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
@@ -158,6 +194,7 @@ export const imageStudioAssetSchema = z
      */
     contentPath: z.string(),
   })
+  .extend(studioAssetRatingSchema.shape)
   .openapi("ProjectImageAsset");
 
 export const imageStudioJobSchema = z
@@ -168,6 +205,9 @@ export const imageStudioJobSchema = z
     kind: z.enum(["GENERATE", "EDIT", "TEXT_TO_VIDEO", "IMAGE_TO_VIDEO"]),
     model: z.string(),
     prompt: z.string(),
+    templateId: z.string().optional(),
+    creativeDirection: z.string().optional(),
+    variationIndex: z.number().int().nonnegative().max(2147483647).optional(),
     /**
      * What this job asked the provider for, so a retry can ask the same. For a
      * video only `aspectRatio` is meaningful; read `video` instead.
@@ -267,6 +307,10 @@ export const createImageJobRequestSchema = z
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
+    templateId: z.string().trim().min(1).max(100).optional(),
+    creativeDirection: z.string().trim().min(1).max(100).optional(),
+    /** Zero-based index of the ad variation guidance included in the prompt. */
+    variationIndex: z.number().int().nonnegative().max(2147483647).optional(),
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
@@ -331,6 +375,7 @@ export const createVideoJobRequestSchema = z
   .openapi("CreateProjectVideoJobRequest");
 
 export const imageStudioStateQuerySchema = z.object({
+  sort: z.enum(["newest", "best"]).default("newest"),
   /**
    * A version the caller is looking at. It is returned whatever its age, so a
    * selection older than the newest page does not vanish from the client.

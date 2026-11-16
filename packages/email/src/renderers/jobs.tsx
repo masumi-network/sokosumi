@@ -1,6 +1,7 @@
 import { render } from "@react-email/render";
 
 import { createEmailTranslator } from "../i18n/translate.js";
+import { toSingleLineSubject } from "../subject-line.js";
 import {
   type JobFailureField,
   JobFailureNotificationEmailTemplate,
@@ -86,6 +87,8 @@ export async function renderJobFailureNotificationEmail({
 
   return {
     html,
-    subject: t("jobs.failureNotification.subject", { jobId }),
+    subject: toSingleLineSubject(
+      t("jobs.failureNotification.subject", { jobId }),
+    ),
   };
 }

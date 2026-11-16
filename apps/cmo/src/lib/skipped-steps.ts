@@ -1,5 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import { cusoSubscribed } from "./cuso-subscribed";
+
 /**
  * Hiring steps the person moved past without doing them: the accounts
  * ("Continue" without a connection) and Cuso's questions about the brand
@@ -26,14 +28,23 @@ export function readSkippedSteps(value: string | undefined): SkippedStep[] {
 
 /**
  * Core's step, read from the data, moved past the accounts the person
- * skipped. Skipped questions only change CMO's own screens.
+ * skipped: on to the checkout (ADR 0068), which nothing skips, or straight
+ * to done for a Cuso with Tester credits or one who already has a
+ * CMO subscription (he paid without connecting an account). Skipped questions only
+ * change CMO's own screens.
  */
 export function withSkippedSteps(
   overview: CmoOverview,
   skipped: readonly SkippedStep[],
 ): CmoOverview {
   if (overview.onboardingStep === "accounts" && skipped.includes("accounts")) {
-    return { ...overview, onboardingStep: "done" };
+    return {
+      ...overview,
+      onboardingStep:
+        overview.billing.hasTesterCredits || cusoSubscribed(overview)
+          ? "done"
+          : "checkout",
+    };
   }
   return overview;
 }

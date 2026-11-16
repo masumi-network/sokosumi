@@ -148,11 +148,25 @@ export const chatResultPreviewSchema = z
   ])
   .openapi("ChatResultPreview");
 
+/**
+ * A resource this turn removed. Reads try again, and stay unavailable while
+ * the row is archived or deleted.
+ */
+const chatResultRemovedRecordSchema = z.object({
+  id: z.string().uuid(),
+  state: z.literal("unavailable"),
+  capturedAt: dateTimeSchema,
+  kind: chatResultAvailableSchema.shape.kind,
+});
+
 /** Private persisted JSON. Only the protected result endpoints expose its data. */
 export const chatResultSnapshotSchema = z.object({
   workspaceId: z.string(),
   reference: chatResultReferenceSchema,
-  data: chatResultAvailableSchema,
+  data: z.discriminatedUnion("state", [
+    chatResultAvailableSchema,
+    chatResultRemovedRecordSchema,
+  ]),
 });
 
 export type ChatResultSnapshot = z.infer<typeof chatResultSnapshotSchema>;

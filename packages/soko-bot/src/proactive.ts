@@ -153,11 +153,41 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
  * not offered to a shared bot.
  */
 export function sokoBotSystemSchedulePrompt(
-  schedule: Pick<SokoBotSystemSchedule, "prompt" | "promptShared">,
+  schedule: { key: string } & Pick<
+    SokoBotSystemSchedule,
+    "prompt" | "promptShared"
+  >,
   shared: boolean,
 ): string | null {
-  return shared ? (schedule.promptShared ?? null) : schedule.prompt;
+  const prompt = shared ? (schedule.promptShared ?? null) : schedule.prompt;
+  if (prompt === null) return null;
+  if (schedule.key === "standup") return `${prompt} ${ACT_ON_OWN_GOALS}`;
+  if (!GOAL_WRITING_RHYTHMS.has(schedule.key)) return prompt;
+  return `${prompt} ${shared ? SOKO_BOT_GOAL_OWNERS_SHARED : SOKO_BOT_GOAL_OWNERS}`;
 }
+
+/**
+ * Memory is free text, so a goal does not say whose it is. Jarvis saved his
+ * owner's unassigned Task as a goal, read it back as his own work and handed
+ * the Task to a Coworker. Every rhythm that writes goals names whose each one
+ * is, and the stand-up acts only on the bot's own.
+ */
+export const SOKO_BOT_GOAL_OWNERS =
+  "In memory, start every goal and follow-up with whose work it is: the owner's first name for their own work (a Task nobody is assigned to is theirs, not yours), the Coworker's or teammate's name for work they have, and \"Me:\" only for work the owner gave you.";
+
+export const SOKO_BOT_GOAL_OWNERS_SHARED =
+  'In memory, start every goal and follow-up with whose work it is: "Team:" for work nobody has taken (a Task nobody is assigned to is the team\'s, not yours), the Coworker\'s or person\'s name for work they have, and "Me:" only for work the team gave you.';
+
+const ACT_ON_OWN_GOALS =
+  'Start or hand out work only for goals and follow-ups in memory marked "Me:". For anyone else\'s, report it or ask one question; never assign or create a Task for it.';
+
+const GOAL_WRITING_RHYTHMS: ReadonlySet<string> = new Set([
+  "weekly-wrap",
+  "end-of-day",
+  "monday-plan",
+  "monthly-review",
+  "dreaming",
+]);
 
 export interface SokoBotProactiveRule {
   id: string;
