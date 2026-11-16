@@ -6,9 +6,9 @@ name: CMO.XYZ
 description: "An AI agent that automates a business's marketing, end to end, in one system."
 typography:
   h1:
-    fontFamily: Inter
+    fontFamily: PP Mori
   body-md:
-    fontFamily: Inter
+    fontFamily: PP Mori
 ---
 
 ## Overview
@@ -78,7 +78,7 @@ Layout and application specs will cover the website, the app, and the print flie
 
 ## Typography
 
-The brand typeface is **Inter** (since 2026-11-05; PP Mori was chosen first, but its files were never delivered). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
+The brand typeface is **PP Mori** (Regular and SemiBold, the cuts the marketing site ships; Inter stood in from 2026-11-05 to 2026-11-15). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
 
 ## Do's and Don'ts
 

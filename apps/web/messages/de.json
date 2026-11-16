@@ -12281,6 +12281,7 @@
       },
       "historyLimited": "Es werden die neuesten {limit} Prüfungen und die neuesten {limit} Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
       "audits": {
+        "continue": "Weiter",
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",
         "updated": "Aktualisiert",

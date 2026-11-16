@@ -53,6 +53,7 @@ export function SeoAuditOnboarding({
             <SeoStep
               stagger
               index={1}
+              last
               mark="active"
               title={t("onboarding.addTitle")}
               body={t("onboarding.addBody")}
@@ -62,21 +63,6 @@ export function SeoAuditOnboarding({
                 <SeoAuditForm form={form} />
               </div>
             </SeoStep>
-            <SeoStep
-              stagger
-              index={2}
-              mark="todo"
-              title={t("onboarding.connectTitle")}
-              body={t("onboarding.connectBody")}
-            />
-            <SeoStep
-              stagger
-              index={3}
-              mark="todo"
-              last
-              title={t("onboarding.checkTitle")}
-              body={t("onboarding.checkBody")}
-            />
           </SeoStepList>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-muted-foreground text-sm">

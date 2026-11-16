@@ -15,7 +15,7 @@ interface AssumptionChipProps {
   question: string;
   yes: { label?: string; pressed?: boolean; onClick: () => void };
   other: { label?: string; pressed?: boolean; onClick: () => void };
-  /** A third answer, as a text button. */
+  /** A third answer. */
   unsure?: { pressed?: boolean; onClick: () => void };
   /** Below the chip: a note field after a No. */
   children?: ReactNode;
@@ -31,7 +31,11 @@ export function AssumptionChip({
   return (
     <div className="ob-chip">
       <div className="ob-chip-row">
-        <StatusDisc status="warn" />
+        <StatusDisc
+          status={
+            yes.pressed || other.pressed || unsure?.pressed ? "ok" : "warn"
+          }
+        />
         <p className="ob-chip-question">{question}</p>
         <div className="ob-chip-actions">
           <button
@@ -44,7 +48,7 @@ export function AssumptionChip({
           </button>
           <button
             type="button"
-            className="button button-ghost button-small"
+            className="button button-secondary button-small"
             aria-pressed={other.pressed ?? false}
             onClick={other.onClick}
           >
@@ -53,7 +57,7 @@ export function AssumptionChip({
           {unsure ? (
             <button
               type="button"
-              className="button button-ghost button-small"
+              className="button button-secondary button-small"
               aria-pressed={unsure.pressed ?? false}
               onClick={unsure.onClick}
             >

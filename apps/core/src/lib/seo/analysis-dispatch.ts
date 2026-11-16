@@ -1,5 +1,4 @@
 import type { Prisma } from "@sokosumi/database";
-import { getEnv } from "@/config/env";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import { conflict } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -7,9 +6,10 @@ import type {
   RequestSeoAnalysis,
   SeoActor,
 } from "@/schemas/project-seo.schema";
+import { getSeoAnalysisExecution } from "./analysis-executor-config";
 
 export function isSeoAnalysisDispatchEnabled(): boolean {
-  return getEnv().SEO_ANALYSIS_DISPATCH_ENABLED === true;
+  return getSeoAnalysisExecution().enabled;
 }
 
 /** Old workers treat a packet's first URL as a full audit and ignore its bounds. */
@@ -21,17 +21,19 @@ export function requireSeoAnalysisDispatch(): void {
 }
 
 /** Configuration names the reviewed executor; report provenance and generic Task capability do not prove protocol support. */
+// Live Mainnet defaults to its reviewed registry identity; current usability still gates every request below.
 export async function findSeoAnalysisExecutor(
   actor: SeoActor,
   client: Prisma.TransactionClient = prisma,
 ) {
-  const executor = getEnv().SEO_ANALYSIS_EXECUTOR;
+  const { enabled, executor } = getSeoAnalysisExecution();
   if (
-    !isSeoAnalysisDispatchEnabled() ||
+    !enabled ||
     !executor ||
-    executor.workspaceId !== actor.workspaceId ||
-    executor.ownerId !== actor.userId ||
-    executor.organizationId !== actor.organizationId
+    (!("mode" in executor) &&
+      (executor.workspaceId !== actor.workspaceId ||
+        executor.ownerId !== actor.userId ||
+        executor.organizationId !== actor.organizationId))
   )
     return null;
   const usable = await findUsableCoworkerByCapabilityInWorkspace(
@@ -40,7 +42,21 @@ export async function findSeoAnalysisExecutor(
     "tasks",
     client,
   );
-  return usable ? executor : null;
+  if (!usable) return null;
+  // A globally listed service cannot override a Workspace's explicit vendor refusal.
+  // Native SEO worker writes repeat this check under the transaction through guarded and legacy routes.
+  if ("mode" in executor) {
+    const refusal = await client.vendorGrant.findFirst({
+      where: {
+        workspaceId: actor.workspaceId,
+        vendor: { coworkers: { some: { id: executor.coworkerId } } },
+        status: { in: ["DENIED", "REVOKED"] },
+      },
+      select: { id: true },
+    });
+    if (refusal) return null;
+  }
+  return executor;
 }
 
 /** The normal Task/schedule assignment gate rechecks current usability inside its write transaction. */

@@ -12281,6 +12281,7 @@
       },
       "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
       "audits": {
+        "continue": "Continuar",
         "create": "Crear auditoría",
         "saved": "Auditorías guardadas",
         "updated": "Actualizada",

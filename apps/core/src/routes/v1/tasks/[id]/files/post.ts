@@ -14,7 +14,10 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
+import {
+  requireNativeSeoWorkerAccess,
+  requireTaskWorkerContext,
+} from "@/helpers/task-worker-context";
 import { createTaskFileUploadSession } from "@/lib/blob";
 import {
   resolveBlobUploadCallbackUrl,
@@ -132,6 +135,11 @@ function mountTaskFileRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
         coworkerId: coworker.coworkerId,
         vendorId: coworker.vendorId,
       };
+    } else if (isCoworkerAuthContext(authContext)) {
+      await serializableTransaction(async (tx) => {
+        await requireTaskCollaboration(authContext, taskId, tx);
+        await requireNativeSeoWorkerAccess(authContext, taskId, tx);
+      }, "Task changed before upload authorization. Please retry.");
     } else {
       await requireTaskCollaboration(authContext, taskId);
     }

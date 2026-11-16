@@ -15,6 +15,9 @@ import {
 } from "vitest";
 import { lockTaskRows } from "@/helpers/calendar-locks";
 import { errorHandler } from "@/helpers/error-handler";
+import { createTaskEventTransaction } from "@/helpers/task-credits";
+import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
+import { revokeVendorGrantInWorkspace } from "@/helpers/vendor-grants";
 import type { CreateBlobUploadGrantInput } from "@/lib/blob-upload-grant";
 import prisma from "@/lib/db/prisma";
 import { type EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -28,7 +31,10 @@ const { headMock, delMock, grantMock, fixtureEnv } = vi.hoisted(() => ({
   headMock: vi.fn(),
   delMock: vi.fn(),
   grantMock: vi.fn(),
-  fixtureEnv: { publicKey: "" },
+  fixtureEnv: {
+    publicKey: "",
+    globalCoworkerId: null as string | null,
+  },
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
@@ -41,6 +47,16 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
+      ...(fixtureEnv.globalCoworkerId
+        ? {
+            SEO_ANALYSIS_EXECUTOR: {
+              mode: "global",
+              coworkerId: fixtureEnv.globalCoworkerId,
+              canUsePaidSearchData: true,
+              canSchedule: true,
+            },
+          }
+        : {}),
       BLOB_READ_WRITE_TOKEN: "blob-worker-local-fixture",
       BLOB_WEBHOOK_PUBLIC_KEY: fixtureEnv.publicKey,
     }),
@@ -184,6 +200,24 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     throw new Error("The worker did not wait for the held Task row lock");
   }
 
+  async function waitForBlockedGrantWrite(holderPid: number) {
+    const deadline = Date.now() + LOCK_WAIT_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      const [state] = await prisma.$queryRaw<Array<{ waiting: boolean }>>`
+        SELECT EXISTS (
+          SELECT 1 FROM pg_stat_activity
+          WHERE ${holderPid} = ANY(pg_blocking_pids(pid))
+            AND query LIKE '%"vendor_grant"%'
+        ) AS waiting
+      `;
+      if (state.waiting) return;
+      await new Promise((resolve) => setTimeout(resolve, LOCK_POLL_MS));
+    }
+    throw new Error(
+      "The concurrent write did not wait for the held Vendor grant",
+    );
+  }
+
   beforeAll(async () => {
     fixtureEnv.publicKey = keys.publicKey
       .export({ type: "spki", format: "pem" })
@@ -246,6 +280,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    fixtureEnv.globalCoworkerId = null;
     grantInput = undefined;
     taskId = (
       await prisma.task.create({
@@ -302,6 +337,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
   afterEach(async () => {
     vi.unstubAllGlobals();
     await prisma.task.deleteMany({ where: { id: taskId } });
+    await prisma.vendorGrant.deleteMany({ where: { vendorId, workspaceId } });
     await prisma.transaction.deleteMany({
       where: { organizationId, amount: { lt: 0n } },
     });
@@ -318,6 +354,308 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
       where: { id: { in: [ownerId, otherOwnerId] } },
     });
     await prisma.$disconnect();
+  });
+
+  async function markNativeTask(maxProviderCalls = 0) {
+    const audit = await prisma.seoAudit.create({
+      data: {
+        workspaceId,
+        name: "Native worker authorization",
+        createdById: ownerId,
+      },
+    });
+    const analysis = await prisma.projectSeoAnalysis.create({
+      data: {
+        auditId: audit.id,
+        idempotencyKey: randomUUID(),
+        requestHash: "native-worker-fixture",
+        kind: "page_check",
+        taskId,
+        pageIds: [],
+        requestedBy: ownerId,
+        request: {
+          version: 1,
+          kind: "page_check",
+          pageUrls: [SEO_TEST_PAGE],
+          budget: { maxProviderCalls },
+        },
+      },
+    });
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        description: `seo_job: ${JSON.stringify(analysis.request)}`,
+      },
+    });
+    return analysis;
+  }
+
+  async function vendorGrant(status: "GRANTED" | "DENIED" | "REVOKED") {
+    return prisma.vendorGrant.create({
+      data: { vendorId, workspaceId, permission: "workspace", status },
+    });
+  }
+
+  it.each(["DENIED", "REVOKED"] as const)(
+    "rejects native SEO %s at start, billing and upload, including legacy routes",
+    async (status) => {
+      await markNativeTask();
+      await vendorGrant(status);
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "READY" },
+      });
+      for (const guarded of [true, false]) {
+        expect((await event({ status: "RUNNING" }, guarded)).status).toBe(403);
+        expect(
+          (await event({ comment: "Charge", credits: 1 }, guarded)).status,
+        ).toBe(403);
+        expect((await mint(guarded)).status).toBe(403);
+      }
+      await expectNoWrites();
+      expect(grantMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([true, false])(
+    "refuses a native SEO signed callback revoked after upload mint (guarded=%s)",
+    async (guarded) => {
+      await markNativeTask();
+      const grant = await vendorGrant("GRANTED");
+      expect((await mint(guarded)).status).toBe(201);
+      await prisma.vendorGrant.update({
+        where: { id: grant.id },
+        data: { status: "REVOKED" },
+      });
+      expect(
+        (
+          await complete({
+            path: guarded ? CALLBACK_PATH : LEGACY_CALLBACK_PATH,
+          })
+        ).status,
+      ).toBe(200);
+      await expectNoWrites();
+      expect(fetch).not.toHaveBeenCalled();
+      expect(delMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses native SEO paid start with HTTP 422 when its frozen payer cannot cover the ceiling", async () => {
+    await markNativeTask(20);
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "READY" },
+    });
+    // Personal money must not fund this Organization Task's 150-credit ceiling.
+    const personalTopup = await prisma.transaction.create({
+      data: { userId: ownerId, amount: convertCreditsToCents(200) },
+    });
+    const personalBucket = await prisma.creditBucket.create({
+      data: {
+        userId: ownerId,
+        amount: personalTopup.amount,
+        sourceTransactionId: personalTopup.id,
+      },
+    });
+    try {
+      const response = await event({ status: "RUNNING" });
+      expect(response.status).toBe(422);
+      expect((await response.json()).kind).toBe("insufficient_balance");
+      expect(
+        (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status,
+      ).toBe("READY");
+      await expectNoWrites();
+    } finally {
+      await prisma.creditBucket.delete({ where: { id: personalBucket.id } });
+      await prisma.transaction.delete({ where: { id: personalTopup.id } });
+    }
+  });
+
+  it("allows a native public-only start without a paid ceiling or new Vendor grant", async () => {
+    await markNativeTask();
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "READY" },
+    });
+    expect((await event({ status: "RUNNING" })).status).toBe(201);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status,
+    ).toBe("RUNNING");
+    expect(
+      await prisma.vendorGrant.count({ where: { vendorId, workspaceId } }),
+    ).toBe(0);
+  });
+
+  it("accepts a funded full-audit start from its frozen site limit without creating a charge", async () => {
+    const analysis = await markNativeTask();
+    const request = {
+      version: 1,
+      requestId: analysis.id,
+      pageUrls: [SEO_TEST_PAGE, `${SEO_TEST_PAGE}/related`],
+      limits: { usd: 0.33, seconds: 60 },
+    };
+    await prisma.projectSeoAnalysis.update({
+      where: { id: analysis.id },
+      data: { kind: "audit_full", request },
+    });
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: "READY",
+        description: `seo_audit: ${JSON.stringify(request)}`,
+      },
+    });
+    const topup = await prisma.transaction.create({
+      data: { organizationId, amount: convertCreditsToCents(50) },
+    });
+    const bucket = await prisma.creditBucket.create({
+      data: {
+        organizationId,
+        amount: topup.amount,
+        sourceTransactionId: topup.id,
+      },
+    });
+    try {
+      expect((await event({ status: "RUNNING" })).status).toBe(201);
+      expect(
+        await prisma.transaction.count({
+          where: { organizationId, amount: { lt: 0n } },
+        }),
+      ).toBe(0);
+    } finally {
+      await prisma.creditBucket.delete({ where: { id: bucket.id } });
+      await prisma.transaction.delete({ where: { id: topup.id } });
+    }
+  });
+
+  it("retains generic assigned Task authorization despite a denied Vendor grant", async () => {
+    await vendorGrant("DENIED");
+    expect((await event({ comment: "Generic assigned Task" })).status).toBe(
+      201,
+    );
+    expect((await mint()).status).toBe(201);
+    expect((await complete()).status).toBe(200);
+    expect(await prisma.taskFile.count({ where: { taskId } })).toBe(1);
+  });
+
+  it("refuses an edited native SEO packet before provider work, even when its frozen ceiling is free", async () => {
+    const analysis = await markNativeTask();
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: "READY",
+        description: `seo_job: ${JSON.stringify({ ...(analysis.request as object), budget: { maxProviderCalls: 20 } })}`,
+      },
+    });
+    expect((await event({ status: "RUNNING" })).status).toBe(422);
+    await expectNoWrites();
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status,
+    ).toBe("READY");
+  });
+
+  it("refuses a generic or forged-packet Task on the global native SEO service before start", async () => {
+    fixtureEnv.globalCoworkerId = coworkerId;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: "READY",
+        description:
+          'seo_job: {"kind":"page_check","budget":{"maxProviderCalls":0}}',
+      },
+    });
+    for (const guarded of [true, false])
+      expect((await event({ status: "RUNNING" }, guarded)).status).toBe(422);
+    await expectNoWrites();
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status,
+    ).toBe("READY");
+  });
+
+  it("retries a native SEO billing snapshot when revocation holds the grant first", async () => {
+    await markNativeTask();
+    const grant = await vendorGrant("GRANTED");
+    let pending: Promise<Response> | undefined;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await revokeVendorGrantInWorkspace(
+          { grantId: grant.id, workspaceId, resolvedById: ownerId },
+          tx,
+        );
+        const [holder] = await tx.$queryRaw<
+          Array<{ pid: number }>
+        >`SELECT pg_backend_pid() AS pid`;
+        pending = event({ credits: 1, comment: "Charge after revoke" });
+        await waitForBlockedGrantWrite(holder.pid);
+      });
+      expect((await pending)?.status).toBe(403);
+      await expectNoWrites();
+    } finally {
+      await pending?.catch(() => undefined);
+    }
+  });
+
+  it("holds native SEO authorization through billing when the worker takes the grant first", async () => {
+    await markNativeTask();
+    const grant = await vendorGrant("GRANTED");
+    let revoking: Promise<unknown> | undefined;
+    try {
+      await prisma.$transaction(async (tx) => {
+        const task = await requireTaskWorkerContext(
+          actor,
+          taskId,
+          expectedContext(),
+          tx,
+        );
+        const [holder] = await tx.$queryRaw<
+          Array<{ pid: number }>
+        >`SELECT pg_backend_pid() AS pid`;
+        revoking = prisma.$transaction((revoker) =>
+          revokeVendorGrantInWorkspace(
+            {
+              grantId: grant.id,
+              workspaceId,
+              resolvedById: ownerId,
+            },
+            revoker,
+          ),
+        );
+        await waitForBlockedGrantWrite(holder.pid);
+        const cents = convertCreditsToCents(1);
+        const transactionId = await createTaskEventTransaction({
+          userId: task.ownerId,
+          organizationId: task.organizationId,
+          projectId: task.projectId,
+          cents,
+          tx,
+        });
+        await tx.taskEvent.create({
+          data: {
+            taskId,
+            coworkerId,
+            comment: "Authorized before revoke",
+            cents,
+            transactionId,
+          },
+        });
+      });
+      await revoking;
+      const charges = await prisma.transaction.findMany({
+        where: { organizationId, amount: { lt: 0n } },
+      });
+      expect(charges).toHaveLength(1);
+      expect(charges[0]).toMatchObject({
+        userId: ownerId,
+        organizationId,
+        amount: -convertCreditsToCents(1),
+      });
+      expect(
+        (await event({ credits: 1, comment: "After revocation" })).status,
+      ).toBe(403);
+      expect(await prisma.taskEvent.count({ where: { taskId } })).toBe(1);
+    } finally {
+      await revoking?.catch(() => undefined);
+    }
   });
 
   it.each(["owner", "organization", "workspace", "assignee"] as const)(

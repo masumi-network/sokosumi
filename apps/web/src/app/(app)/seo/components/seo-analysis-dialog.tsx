@@ -326,6 +326,7 @@ export function SeoAnalysisDialog({
             <Button
               type="submit"
               variant="primary"
+              loading={model.pending}
               disabled={
                 noService ||
                 model.pending ||

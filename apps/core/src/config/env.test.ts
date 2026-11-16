@@ -101,6 +101,51 @@ describe("Soko Bot deployment environment", () => {
     );
     expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canSchedule).toBe(true);
   });
+  it("requires an explicit global SEO executor mode and keeps paid and scheduled work opt-in", () => {
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ mode: "global", coworkerId: "shared-seo" }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      mode: "global",
+      coworkerId: "shared-seo",
+      canUsePaidSearchData: false,
+      canSchedule: false,
+    });
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({
+        mode: "global",
+        coworkerId: "shared-seo",
+        canUsePaidSearchData: true,
+        canSchedule: true,
+      }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      mode: "global",
+      coworkerId: "shared-seo",
+      canUsePaidSearchData: true,
+      canSchedule: true,
+    });
+  });
+  it.each([
+    { coworkerId: "shared-seo", canUsePaidSearchData: true, canSchedule: true },
+    { mode: "global", coworkerId: "shared-seo", ownerId: "owner" },
+    {
+      mode: "global",
+      coworkerId: "shared-seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+    },
+    { mode: "global", coworkerId: "shared-seo", organizationId: null },
+    { mode: "global", canUsePaidSearchData: true },
+    { mode: "all", coworkerId: "shared-seo" },
+  ])(
+    "rejects partial legacy and mixed global executor settings %j",
+    (value) => {
+      vi.stubEnv("SEO_ANALYSIS_EXECUTOR", JSON.stringify(value));
+      expectInvalidEnvironment("SEO_ANALYSIS_EXECUTOR");
+    },
+  );
   it.each([
     "{",
     "null",

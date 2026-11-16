@@ -3418,14 +3418,14 @@ describe("SEO workspace integration", () => {
     workspace.availableActions.canRequestAnalysis = false;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace);
+    await readConnectedGoogle();
     // No check can run: no card promises one, the header's button is off, and the notice says why.
-    expect(screen.queryByTestId("seo-setup")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Run full audit" }),
-    ).toHaveAttribute("aria-disabled", "true");
+    // Correction: Google setup stays available, while the final check step explains that dispatch is off.
+    expect(screen.getByTestId("seo-setup")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
     expect(screen.getByText(messages.App.Seo.dispatchPaused)).toBeVisible();
     // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
@@ -3503,7 +3503,9 @@ describe("SEO workspace integration", () => {
     await readConnectedGoogle();
     // The badge is the picture; the status line is what a screen reader hears.
     expect(
-      within(screen.getByTestId("seo-setup")).getByText("Check running"),
+      within(screen.getByTestId("seo-setup")).getByRole("button", {
+        name: "Check running",
+      }),
     ).toBeVisible();
     expect(
       screen
@@ -3511,7 +3513,7 @@ describe("SEO workspace integration", () => {
         .some((status) => status.textContent === "Check running"),
     ).toBe(true);
     // The button stays for keyboard focus, but starts no second check.
-    const again = screen.getByRole("button", { name: "Run full audit" });
+    const again = screen.getByRole("button", { name: "Check running" });
     expect(again).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(again);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -4289,14 +4291,13 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     cleanup();
     // With checks off the button points to the notice that says why.
+    // Correction: unavailable run actions are now hidden; the notice explains the service state.
     workspace.analyses = [];
     workspace.availableActions.canRequestAnalysis = false;
     renderWorkspace(workspace, "?tab=rankings");
     await readConnectedGoogle();
-    const off = await screen.findByRole("button", { name: "Run page check" });
-    expect(off).toHaveAccessibleDescription(messages.App.Seo.dispatchPaused);
-    await user.click(off);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Run page check" })).toBeNull();
+    expect(screen.getByText(messages.App.Seo.dispatchPaused)).toBeVisible();
     cleanup();
     // A reader who cannot edit has no run button, and no notice for it to point to.
     workspace.availableActions.canEdit = false;
@@ -5319,9 +5320,7 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("button", { name: "Create draft task" }),
     ).toHaveClass("bg-quinary");
-    expect(
-      screen.getByRole("button", { name: "Run full audit" }),
-    ).not.toHaveClass("bg-primary");
+    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     await screen.findByText("The title is missing");
     expect(

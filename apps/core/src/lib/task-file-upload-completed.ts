@@ -14,7 +14,10 @@ import {
   isPrismaForeignKeyViolation,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
-import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
+import {
+  requireNativeSeoWorkerAccess,
+  requireTaskWorkerContext,
+} from "@/helpers/task-worker-context";
 import prisma from "@/lib/db/prisma";
 import {
   CONCURRENCY_CONFLICT_KIND,
@@ -189,7 +192,27 @@ export async function registerTaskFileFromUploadCompleted(params: {
           );
           return tx.taskFile.create({ data });
         }, "Task changed during upload completion. Please retry.")
-      : await prisma.taskFile.create({ data });
+      : payload.uploadedByCoworkerId
+        ? await serializableTransaction(async (tx) => {
+            if (payload.uploadedByCoworkerId) {
+              const coworker = await tx.coworker.findUnique({
+                where: { id: payload.uploadedByCoworkerId },
+                select: { vendorId: true },
+              });
+              if (coworker)
+                await requireNativeSeoWorkerAccess(
+                  {
+                    actor: "coworker",
+                    coworkerId: payload.uploadedByCoworkerId,
+                    vendorId: coworker.vendorId,
+                  },
+                  payload.taskId,
+                  tx,
+                );
+            }
+            return tx.taskFile.create({ data });
+          }, "Task changed during upload completion. Please retry.")
+        : await prisma.taskFile.create({ data });
     taskFileId = isSeoReport ? taskFile.id : "";
   } catch (error) {
     if (isPrismaUniqueViolation(error)) {
@@ -204,7 +227,7 @@ export async function registerTaskFileFromUploadCompleted(params: {
       taskFileId = taskFile.id;
     } else {
       if (
-        payload.contextBinding &&
+        (payload.contextBinding || payload.uploadedByCoworkerId) &&
         error instanceof HTTPException &&
         [403, 404, 409].includes(error.status) &&
         (error.cause as HTTPExceptionMetadata | undefined)?.kind !==

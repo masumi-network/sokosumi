@@ -12281,6 +12281,7 @@
       },
       "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
       "audits": {
+        "continue": "Continue",
         "create": "Create audit",
         "saved": "Saved audits",
         "updated": "Updated",

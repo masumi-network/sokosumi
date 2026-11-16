@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
+import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
 import {
   requestSeoAnalysisSchema,
@@ -21,6 +24,7 @@ import { requestProjectSeoAnalysis } from "./project-seo-operations.service";
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
+const mainnetCoworkerId = "1d7aeb62-1f65-4c5a-b4d3-f80faa08e80f";
 const userId = randomUUID(),
   workspaceId = randomUUID(),
   auditId = randomUUID(),
@@ -41,6 +45,23 @@ const trusted = {
   canUsePaidSearchData: false,
   canSchedule: true,
 };
+const organizationUserId = randomUUID(),
+  organizationId = randomUUID(),
+  organizationWorkspaceId = randomUUID(),
+  organizationAuditId = randomUUID();
+const organizationActor: SeoActor = {
+  owner: { kind: "audit", id: organizationAuditId },
+  workspaceId: organizationWorkspaceId,
+  userId: organizationUserId,
+  organizationId,
+};
+const globalExecutor = {
+  mode: "global" as const,
+  coworkerId,
+  canUsePaidSearchData: false,
+  canSchedule: true,
+};
+let organizationPageId: string;
 const env = getEnv();
 const previousExecutor = env.SEO_ANALYSIS_EXECUTOR,
   previousDispatch = env.SEO_ANALYSIS_DISPATCH_ENABLED;
@@ -83,8 +104,34 @@ async function counts() {
   };
 }
 
+async function withMainnetDefault(run: () => Promise<void>) {
+  const previous = {
+    NETWORK: env.NETWORK,
+    VERCEL_ENV: env.VERCEL_ENV,
+    SEO_ANALYSIS_EXECUTOR: env.SEO_ANALYSIS_EXECUTOR,
+    SEO_ANALYSIS_DISPATCH_ENABLED: env.SEO_ANALYSIS_DISPATCH_ENABLED,
+  };
+  const flag = process.env.SEO_ANALYSIS_DISPATCH_ENABLED;
+  env.NETWORK = "Mainnet";
+  env.VERCEL_ENV = "production";
+  env.SEO_ANALYSIS_EXECUTOR = undefined;
+  env.SEO_ANALYSIS_DISPATCH_ENABLED = false;
+  delete process.env.SEO_ANALYSIS_DISPATCH_ENABLED;
+  try {
+    await run();
+  } finally {
+    Object.assign(env, previous);
+    if (flag === undefined) delete process.env.SEO_ANALYSIS_DISPATCH_ENABLED;
+    else process.env.SEO_ANALYSIS_DISPATCH_ENABLED = flag;
+  }
+}
+
 describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
   beforeAll(async () => {
+    // Do not modify a registry row inherited from another database fixture.
+    expect(
+      await prisma.coworker.count({ where: { id: mainnetCoworkerId } }),
+    ).toBe(0);
     env.SEO_ANALYSIS_DISPATCH_ENABLED = true;
     env.SEO_ANALYSIS_EXECUTOR = trusted;
     await prisma.user.create({
@@ -98,6 +145,45 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
         workspace: { create: { id: workspaceId } },
       },
     });
+    await prisma.user.create({
+      data: {
+        id: organizationUserId,
+        name: "Organization executor owner",
+        email: `${organizationUserId}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    await prisma.organization.create({
+      data: {
+        id: organizationId,
+        slug: organizationId,
+        name: "Global SEO organization",
+        workspace: { create: { id: organizationWorkspaceId } },
+        members: {
+          create: {
+            userId: organizationUserId,
+            role: "owner",
+            seatAssignedAt: new Date(),
+          },
+        },
+      },
+    });
+    await prisma.seoAudit.create({
+      data: {
+        id: organizationAuditId,
+        workspaceId: organizationWorkspaceId,
+        createdById: organizationUserId,
+        name: "Global organization audit",
+      },
+    });
+    organizationPageId = (
+      await addProjectSeoPage(organizationActor, {
+        url: "https://example.test/organization",
+        relationship: "primary",
+      })
+    ).id;
     await prisma.seoAudit.create({
       data: {
         id: auditId,
@@ -110,7 +196,7 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
       data: { id: vendorId, slug: vendorId, name: "Native executor vendor" },
     });
     await prisma.coworker.createMany({
-      data: [coworkerId, otherCoworkerId].map((id) => ({
+      data: [coworkerId, otherCoworkerId, mainnetCoworkerId].map((id) => ({
         id,
         slug: id,
         name: "Task executor",
@@ -143,16 +229,347 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
   afterAll(async () => {
     env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
-    await prisma.task.deleteMany({ where: { workspaceId } });
-    await prisma.creditBucket.deleteMany({ where: { userId } });
-    await prisma.transaction.deleteMany({ where: { userId } });
-    await prisma.workspace.delete({ where: { id: workspaceId } });
-    await prisma.user.delete({ where: { id: userId } });
+    await prisma.task.deleteMany({
+      where: { workspaceId: { in: [workspaceId, organizationWorkspaceId] } },
+    });
+    await prisma.creditBucket.deleteMany({
+      where: {
+        OR: [
+          { userId: { in: [userId, organizationUserId] } },
+          { organizationId },
+        ],
+      },
+    });
+    await prisma.transaction.deleteMany({
+      where: {
+        OR: [
+          { userId: { in: [userId, organizationUserId] } },
+          { organizationId },
+        ],
+      },
+    });
+    await prisma.workspace.deleteMany({
+      where: { id: { in: [workspaceId, organizationWorkspaceId] } },
+    });
+    await prisma.organization.delete({ where: { id: organizationId } });
+    await prisma.user.deleteMany({
+      where: { id: { in: [userId, organizationUserId] } },
+    });
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.delete({ where: { id: vendorId } });
     await prisma.$disconnect();
   });
 
+  it("uses the live Mainnet default without custom variables and retains each Task payer", async () => {
+    await withMainnetDefault(async () => {
+      for (const [currentActor, selectedPage] of [
+        [actor, pageId],
+        [organizationActor, organizationPageId],
+      ] as const) {
+        expect(
+          (await getProjectSeoWorkspace(currentActor)).availableActions,
+        ).toMatchObject({
+          canRequestAnalysis: true,
+          canUsePaidSearchData: true,
+          canCreateMonitor: true,
+        });
+        const analysis = await requestProjectSeoAnalysis(currentActor, {
+          ...request(),
+          pageIds: [selectedPage],
+        });
+        const task = await prisma.task.findUniqueOrThrow({
+          where: { id: analysis.taskId! },
+        });
+        expect(task).toMatchObject({
+          assigneeId: mainnetCoworkerId,
+          ownerId: currentActor.userId,
+          workspaceId: currentActor.workspaceId,
+          organizationId: currentActor.organizationId,
+        });
+        await prisma.$transaction((tx) => requireSeoTaskStartBalance(tx, task));
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { status: "COMPLETED" },
+        });
+      }
+    });
+  });
+
+  it("keeps Mainnet defaults unavailable on Preview and without current registry usability", async () => {
+    await withMainnetDefault(async () => {
+      for (const [network, deployment] of [
+        ["Mainnet", "preview"],
+        ["Preprod", "production"],
+      ] as const) {
+        env.NETWORK = network;
+        env.VERCEL_ENV = deployment;
+        expect(await findSeoAnalysisExecutor(actor)).toBeNull();
+      }
+      env.NETWORK = "Mainnet";
+      env.VERCEL_ENV = "production";
+      for (const paused of [
+        { capabilities: [] },
+        { archivedAt: new Date() },
+        { isWhitelisted: false },
+      ]) {
+        await prisma.coworker.update({
+          where: { id: mainnetCoworkerId },
+          data: paused,
+        });
+        try {
+          expect(await findSeoAnalysisExecutor(actor)).toBeNull();
+          await expect(
+            requestProjectSeoAnalysis(actor, request()),
+          ).rejects.toMatchObject({ status: 409 });
+        } finally {
+          await prisma.coworker.update({
+            where: { id: mainnetCoworkerId },
+            data: {
+              capabilities: ["tasks"],
+              archivedAt: null,
+              isWhitelisted: true,
+            },
+          });
+        }
+      }
+      for (const status of ["DENIED", "REVOKED"] as const) {
+        const grant = await prisma.vendorGrant.create({
+          data: { vendorId, workspaceId, permission: "workspace", status },
+        });
+        try {
+          expect(await findSeoAnalysisExecutor(actor)).toBeNull();
+          expect(
+            await findSeoAnalysisExecutor(organizationActor),
+          ).toMatchObject({
+            coworkerId: mainnetCoworkerId,
+          });
+        } finally {
+          await prisma.vendorGrant.delete({ where: { id: grant.id } });
+        }
+      }
+    });
+  });
+
+  it("refuses unlinked or forged Tasks assigned to the default Mainnet service, even while paused", async () => {
+    await withMainnetDefault(async () => {
+      const task = await prisma.task.create({
+        data: {
+          name: "Unapproved direct SEO Task",
+          ownerId: userId,
+          workspaceId,
+          assigneeId: mainnetCoworkerId,
+          status: "READY",
+        },
+      });
+      await prisma.coworker.update({
+        where: { id: mainnetCoworkerId },
+        data: { capabilities: [] },
+      });
+      try {
+        for (const description of [
+          "https://example.test/unapproved",
+          'seo_job: {"pageUrls":["https://example.test/unapproved"],"budget":{"maxProviderCalls":20}}',
+        ]) {
+          const current = await prisma.task.update({
+            where: { id: task.id },
+            data: { description },
+          });
+          await expect(
+            prisma.$transaction((tx) =>
+              requireSeoTaskStartBalance(tx, current),
+            ),
+          ).rejects.toMatchObject({ status: 422 });
+        }
+        expect(
+          await prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+        ).toMatchObject({ status: "READY" });
+      } finally {
+        await prisma.coworker.update({
+          where: { id: mainnetCoworkerId },
+          data: { capabilities: ["tasks"] },
+        });
+      }
+    });
+  });
+
+  it("uses one explicit global service while keeping each personal and organization Task context", async () => {
+    env.SEO_ANALYSIS_EXECUTOR = globalExecutor;
+    try {
+      for (const [currentActor, selectedPage] of [
+        [actor, pageId],
+        [organizationActor, organizationPageId],
+      ] as const) {
+        expect(
+          (await getProjectSeoWorkspace(currentActor)).availableActions
+            .canRequestAnalysis,
+        ).toBe(true);
+        const analysis = await requestProjectSeoAnalysis(currentActor, {
+          ...request(),
+          pageIds: [selectedPage],
+        });
+        expect(
+          await prisma.task.findUniqueOrThrow({
+            where: { id: analysis.taskId! },
+          }),
+        ).toMatchObject({
+          assigneeId: coworkerId,
+          ownerId: currentActor.userId,
+          workspaceId: currentActor.workspaceId,
+          organizationId: currentActor.organizationId,
+        });
+        expect(analysis.request).toMatchObject({
+          budget: { maxProviderCalls: 0 },
+        });
+        await prisma.task.update({
+          where: { id: analysis.taskId! },
+          data: { status: "COMPLETED" },
+        });
+      }
+    } finally {
+      env.SEO_ANALYSIS_EXECUTOR = trusted;
+    }
+  });
+  it("keeps global service availability scoped to current workspace access and vendor denial", async () => {
+    env.SEO_ANALYSIS_EXECUTOR = globalExecutor;
+    try {
+      for (const status of ["DENIED", "REVOKED"] as const) {
+        const grant = await prisma.vendorGrant.create({
+          data: { vendorId, workspaceId, permission: "workspace", status },
+        });
+        try {
+          expect(await findSeoAnalysisExecutor(actor)).toBeNull();
+          expect(await findSeoAnalysisExecutor(organizationActor)).toEqual(
+            globalExecutor,
+          );
+          await expect(
+            requestProjectSeoAnalysis(actor, request()),
+          ).rejects.toMatchObject({ status: 409 });
+        } finally {
+          await prisma.vendorGrant.delete({ where: { id: grant.id } });
+        }
+      }
+      await prisma.coworker.update({
+        where: { id: coworkerId },
+        data: { isWhitelisted: false },
+      });
+      const access = await prisma.coworkerWorkspaceAccess.create({
+        data: {
+          coworkerId,
+          workspaceId: organizationWorkspaceId,
+          status: "GRANTED",
+        },
+      });
+      try {
+        expect(await findSeoAnalysisExecutor(actor)).toBeNull();
+        expect(await findSeoAnalysisExecutor(organizationActor)).toEqual(
+          globalExecutor,
+        );
+        await prisma.coworkerWorkspaceAccess.update({
+          where: { id: access.id },
+          data: { status: "REVOKED" },
+        });
+        expect(await findSeoAnalysisExecutor(organizationActor)).toBeNull();
+      } finally {
+        await prisma.coworkerWorkspaceAccess.delete({
+          where: { id: access.id },
+        });
+        await prisma.coworker.update({
+          where: { id: coworkerId },
+          data: { isWhitelisted: true },
+        });
+      }
+    } finally {
+      env.SEO_ANALYSIS_EXECUTOR = trusted;
+    }
+  });
+  it("charges each global caller's credit context and keeps scheduling approval separate", async () => {
+    env.SEO_ANALYSIS_EXECUTOR = {
+      ...globalExecutor,
+      canUsePaidSearchData: true,
+      canSchedule: false,
+    };
+    const credits = 10_000n * 10n ** 10n;
+    const personalTopUp = await prisma.transaction.create({
+      data: { amount: credits, userId },
+      select: { id: true },
+    });
+    const personalBucket = await prisma.creditBucket.create({
+      data: { amount: credits, userId, sourceTransactionId: personalTopUp.id },
+      select: { id: true },
+    });
+    let organizationBucket: string | undefined;
+    let organizationTransaction: string | undefined;
+    try {
+      const before = await prisma.task.count({
+        where: { workspaceId: organizationWorkspaceId },
+      });
+      const paid = {
+        ...request(),
+        pageIds: [organizationPageId],
+        kind: "rankings" as const,
+        keywords: ["global native search"],
+      };
+      await expect(
+        requestProjectSeoAnalysis(organizationActor, paid),
+      ).rejects.toMatchObject({
+        status: 422,
+        cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+      });
+      expect(
+        await prisma.task.count({
+          where: { workspaceId: organizationWorkspaceId },
+        }),
+      ).toBe(before);
+      expect(
+        (await getProjectSeoWorkspace(organizationActor)).availableActions,
+      ).toMatchObject({
+        canRequestAnalysis: true,
+        canUsePaidSearchData: true,
+        canCreateMonitor: false,
+      });
+      const orgTopUp = await prisma.transaction.create({
+        data: { amount: credits, userId: organizationUserId, organizationId },
+        select: { id: true },
+      });
+      organizationTransaction = orgTopUp.id;
+      organizationBucket = (
+        await prisma.creditBucket.create({
+          data: {
+            amount: credits,
+            organizationId,
+            sourceTransactionId: orgTopUp.id,
+          },
+          select: { id: true },
+        })
+      ).id;
+      const result = await requestProjectSeoAnalysis(organizationActor, paid);
+      expect(
+        await prisma.task.findUniqueOrThrow({ where: { id: result.taskId! } }),
+      ).toMatchObject({
+        ownerId: organizationUserId,
+        organizationId,
+        workspaceId: organizationWorkspaceId,
+        assigneeId: coworkerId,
+      });
+      await prisma.task.update({
+        where: { id: result.taskId! },
+        data: { status: "COMPLETED" },
+      });
+      await expect(
+        createProjectSeoMonitor(vars, actor, monitor()),
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      env.SEO_ANALYSIS_EXECUTOR = trusted;
+      await prisma.creditBucket.delete({ where: { id: personalBucket.id } });
+      await prisma.transaction.delete({ where: { id: personalTopUp.id } });
+      if (organizationBucket)
+        await prisma.creditBucket.delete({ where: { id: organizationBucket } });
+      if (organizationTransaction)
+        await prisma.transaction.delete({
+          where: { id: organizationTransaction },
+        });
+    }
+  });
   it("fails closed without an exact configured context and writes no analysis Task or schedule", async () => {
     const before = await counts();
     try {
