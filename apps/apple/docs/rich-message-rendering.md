@@ -8,7 +8,7 @@ SwiftUI views render the resulting blocks in room and thread messages through `M
 
 Do not bundle JavaScript engines or npm runtime libraries for rendering. TreeSitterLanguages resolves Runestone transitively; do not link Runestone, UIKit editor products, or a JavaScript runtime.
 
-Live slice status and verification belong in [PARITY.md](../PARITY.md). Emoji resource versions, hashes and regeneration: [emoji-data.md](emoji-data.md). GraphQL (vendored) and LESS provenance: [graphql-less-grammars.md](graphql-less-grammars.md).
+Live slice status and verification belong in [PARITY.md](../PARITY.md). Emoji resource versions, hashes and regeneration: [emoji-data.md](emoji-data.md). GraphQL (vendored) and LESS provenance: [graphql-less-grammars.md](graphql-less-grammars.md). Objective-C, XML, Make, Diff, and INI query pins: [highlight-queries.md](highlight-queries.md).
 
 ## Pins
 

@@ -1,5 +1,7 @@
 # Pinned native highlight queries
 
+Maintainer pin table for the query files in `Packages/SokosumiChat/Sources/SokosumiChat/Resources/HighlightQueries`. `Package.swift` copies that whole directory into the app bundle, so this note stays in `docs/` and is not a resource. The `.scm` files and their license copies stay in the resource directory.
+
 Unmodified query files from the already-approved grammar dependencies below.
 Their C-only SwiftPM targets expose no Swift resource accessor. Keep these
 resources beside their license copies so `Bundle.module` resolves them in both
