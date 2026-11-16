@@ -146,6 +146,14 @@ async function run(
       (el) => el.getBoundingClientRect().right > right + 1,
     ).length;
   });
+  // Every Task name is readable in full: none is cut off to fit its row.
+  const clippedNames = await dialog.getByRole("listitem").evaluateAll(
+    (rows) =>
+      rows.filter((row) => {
+        const name = row.firstElementChild;
+        return !name || name.scrollWidth > name.clientWidth + 1;
+      }).length,
+  );
   await page.screenshot({
     path: `${RESULTS_DIR}move-dates-${name}-preview.png`,
   });
@@ -162,5 +170,6 @@ async function run(
   await again.getByRole("button", { name: "Cancel" }).click();
 
   assert.equal(overflow, 0, "nothing sticks out of the dialog");
+  assert.equal(clippedNames, 0, "no Task name is cut off");
   assert.ok(firstFrom > 0, "the first Task now starts from Mar 9");
 }

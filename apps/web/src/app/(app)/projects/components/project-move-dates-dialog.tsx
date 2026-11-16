@@ -110,7 +110,7 @@ export function ProjectMoveDatesDialog({
         if (!isMoving) onOpenChange(next);
       }}
     >
-      {/* One shrinkable column, so a long Task name truncates instead of
+      {/* One shrinkable column, so a long Task name wraps instead of
           widening the dialog past a phone screen. */}
       <DialogContent
         className="grid-cols-[minmax(0,1fr)]"
@@ -235,9 +235,11 @@ function MoveDatesPreview({
       <p className="font-medium">{t("summary", { count })}</p>
       <ul className="divide-border divide-y rounded-md border">
         {preview.tasks.slice(0, PREVIEW_ROWS).map((task) => (
-          <li key={task.id} className="flex items-center gap-3 px-3 py-2">
-            <span className="min-w-0 flex-1 truncate">{task.name}</span>
-            <span className="text-muted-foreground flex shrink-0 items-center gap-1 tabular-nums">
+          <li key={task.id} className="flex items-start gap-3 px-3 py-2">
+            {/* Wraps rather than truncates: the list is there to check
+                which Tasks move, so every name stays readable in full. */}
+            <span className="min-w-0 flex-1 break-words">{task.name}</span>
+            <span className="text-muted-foreground flex shrink-0 items-center gap-1 whitespace-nowrap tabular-nums">
               <span>{formatDay(task.from)}</span>
               <ArrowRight className="size-3" aria-label={t("to")} />
               <span className="text-foreground">{formatDay(task.to)}</span>
