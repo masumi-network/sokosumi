@@ -12,6 +12,7 @@ const {
   getSocialPostMock,
   prepareSocialPostMutationMediaMock,
   transactionMock,
+  recordAdEventsMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   slotFindManyMock: vi.fn(),
@@ -22,6 +23,11 @@ const {
   getSocialPostMock: vi.fn(),
   prepareSocialPostMutationMediaMock: vi.fn(async (input) => input),
   transactionMock: vi.fn(),
+  recordAdEventsMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-studio-events.service", () => ({
+  recordSocialStudioAdEvents: recordAdEventsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -82,6 +88,8 @@ describe("social queue service", () => {
     scheduleSocialPostMock.mockResolvedValue({
       id: POST_ID,
       status: "SCHEDULED",
+      media: [],
+      threadParts: [],
     });
   });
 
@@ -170,6 +178,31 @@ describe("social queue service", () => {
       }),
       expect.anything(),
     );
+    expect(recordAdEventsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: POST_ID,
+        type: "scheduled",
+        media: [],
+      }),
+    );
+  });
+
+  it("does not count a queued draft awaiting approval as scheduled", async () => {
+    const { queueSocialPost } = await loadService();
+    scheduleSocialPostMock.mockResolvedValueOnce({
+      id: POST_ID,
+      status: "NEEDS_APPROVAL",
+      media: [],
+      threadParts: [],
+    });
+    await queueSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+    });
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
   });
 
   it("skips an occupied slot", async () => {

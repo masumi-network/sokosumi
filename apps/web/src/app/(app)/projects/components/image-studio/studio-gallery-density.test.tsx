@@ -57,6 +57,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   writeStudioAssetCaption: vi.fn(),
 }));
 
+vi.mock("./studio-batch-compare", () => ({
+  StudioBatchCompareButton: () => null,
+}));
+
 vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/lib/actions/image-studio/brand-kit")

@@ -50,6 +50,7 @@ export type {
 } from "./better-auth-types.js";
 export {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
@@ -567,6 +568,11 @@ export {
 } from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export {
+  studioAdBrief,
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
+} from "./studio-ad-prompts.js";
 export {
   MAX_STUDIO_BATCH_IMAGES,
   MAX_STUDIO_HEADLINE_LENGTH,

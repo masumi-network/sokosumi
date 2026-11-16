@@ -252,6 +252,14 @@
         "title": "Credits werden knapp",
         "body": "Deine Credits werden knapp. Es sind noch {credits} übrig. Die Arbeit stoppt, wenn sie aufgebraucht sind.",
         "button": "Credits aufladen"
+      },
+      "cusoLowCredits": {
+        "subject": "CMO - {cusoName} für {businessName} gehen die Credits aus",
+        "preview": "{cusoName} hat noch {credits} Credits.",
+        "title": "Credits werden knapp",
+        "body": "{cusoName} für {businessName} hat noch {credits} Credits. Er pausiert, wenn sie aufgebraucht sind.",
+        "nextGrant": "Seine nächsten Plan-Credits kommen am {date}.",
+        "button": "Aufladen oder Plan ändern"
       }
     }
   },

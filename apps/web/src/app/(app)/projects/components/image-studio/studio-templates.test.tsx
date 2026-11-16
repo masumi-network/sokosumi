@@ -43,7 +43,6 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 
 const mocks = vi.hoisted(() => ({
   assets: [] as unknown[],
-  enqueue: vi.fn(),
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
   saveBrandLook: vi.fn(),
@@ -134,6 +133,13 @@ describe("starting from a template", () => {
     mount();
     pickTemplate("social-post");
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    // Fill the template slots first; generate refuses a brief that still has them.
+    fireEvent.change(prompt, {
+      target: {
+        value:
+          "Create a lifestyle feed ad for iced oat latte aimed at home cooks. Show the product being used in a morning kitchen with warm natural daylight. Make a calm start to the day clear through the scene. Leave a quiet area for the headline and use only approved claims.",
+      },
+    });
     fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
 
     expect(mocks.enqueue.mock.calls[0][0]).toEqual(

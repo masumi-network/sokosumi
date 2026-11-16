@@ -101,6 +101,8 @@ const baseEnvSchema = z.object({
   KV_URL: z.string().optional(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
+  // CMO's origin, for links Core writes into CMO notices (SOKD-246).
+  CMO_APP_BASE_URL: z.url().default("https://app.cmo.xyz"),
 
   // Vercel (optional; Better Auth base URL on Preview)
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
