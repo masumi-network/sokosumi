@@ -326,6 +326,9 @@ export function PlanReview({
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
   const [tab, setTab] = useState<PlanTab>(initialTab);
+  // The plan's detail, folded until asked for; a measurement return opens it.
+  const [full, setFull] = useState(initialTab === "results");
+  const fullHead = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState<Entry | null>(null);
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");
@@ -633,67 +636,96 @@ export function PlanReview({
           </div>
         ) : null}
 
-        <details
-          className="ob-fold ob-fullplan"
-          open={initialTab === "results" ? true : undefined}
-        >
-          <summary>
-            <h2>The full plan</h2>
-            <span className="ob-small">
-              {TABS.map((candidate) => candidate.label).join(" · ")}
-            </span>
-          </summary>
-          <div className="ob-tabs" role="tablist" aria-label="Plan">
-            {TABS.map((candidate, index) => (
-              <button
-                key={candidate.id}
-                type="button"
-                role="tab"
-                id={`ob-tab-${candidate.id}`}
-                aria-selected={tab === candidate.id}
-                aria-controls={`ob-tabpanel-${candidate.id}`}
-                tabIndex={tab === candidate.id ? 0 : -1}
-                onClick={() => setTab(candidate.id)}
-                onKeyDown={(event) => {
-                  const next = planTabAfterKey(event, index);
-                  if (next === null) return;
-                  event.preventDefault();
-                  setTab(TABS[next]!.id);
-                  document.getElementById(`ob-tab-${TABS[next]!.id}`)?.focus();
-                }}
-              >
-                {candidate.label}
-              </button>
-            ))}
-          </div>
-          <div
-            className="ob-tabpanel"
-            role="tabpanel"
-            id={`ob-tabpanel-${tab}`}
-            aria-labelledby={`ob-tab-${tab}`}
+        <div className="ob-fullplan" data-open={full}>
+          <h2 ref={fullHead} className="ob-fullplan-head">
+            <button
+              type="button"
+              aria-expanded={full}
+              aria-controls="ob-fullplan-body"
+              onClick={() => setFull(!full)}
+            >
+              <span>The full plan</span>
+              <span className="ob-small">
+                {TABS.map((candidate) => candidate.label).join(" · ")}
+              </span>
+            </button>
+          </h2>
+          {/* Stays mounted, so opening only has to grow it. */}
+          <motion.div
+            id="ob-fullplan-body"
+            className="ob-fullplan-body"
+            inert={!full}
+            initial={false}
+            animate={{ height: full ? "auto" : 0, opacity: full ? 1 : 0 }}
+            transition={{ type: "spring", bounce: 0, duration: 0.5 }}
           >
-            {tab === "plan" ? (
-              <PlanPanel
-                overview={overview}
-                strategy={strategy}
-                onAsk={
-                  locked
-                    ? undefined
-                    : (text, label) =>
-                        send(label ?? text, () => onRequest(text))
-                }
-              />
-            ) : tab === "month" ? (
-              <MonthPanel strategy={strategy} onOpen={setOpen} />
-            ) : (
-              <ResultsPanel
-                overview={overview}
-                strategy={strategy}
-                onConnectMeasurement={onConnectMeasurement}
-              />
-            )}
-          </div>
-        </details>
+            <div className="ob-tabs" role="tablist" aria-label="Plan">
+              {TABS.map((candidate, index) => (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  role="tab"
+                  id={`ob-tab-${candidate.id}`}
+                  aria-selected={tab === candidate.id}
+                  aria-controls={`ob-tabpanel-${candidate.id}`}
+                  tabIndex={tab === candidate.id ? 0 : -1}
+                  onClick={() => setTab(candidate.id)}
+                  onKeyDown={(event) => {
+                    const next = planTabAfterKey(event, index);
+                    if (next === null) return;
+                    event.preventDefault();
+                    setTab(TABS[next]!.id);
+                    document
+                      .getElementById(`ob-tab-${TABS[next]!.id}`)
+                      ?.focus();
+                  }}
+                >
+                  {candidate.label}
+                </button>
+              ))}
+            </div>
+            <div
+              className="ob-tabpanel"
+              role="tabpanel"
+              id={`ob-tabpanel-${tab}`}
+              aria-labelledby={`ob-tab-${tab}`}
+            >
+              {tab === "plan" ? (
+                <PlanPanel
+                  overview={overview}
+                  strategy={strategy}
+                  onAsk={
+                    locked
+                      ? undefined
+                      : (text, label) =>
+                          send(label ?? text, () => onRequest(text))
+                  }
+                />
+              ) : tab === "month" ? (
+                <MonthPanel strategy={strategy} onOpen={setOpen} />
+              ) : (
+                <ResultsPanel
+                  overview={overview}
+                  strategy={strategy}
+                  onConnectMeasurement={onConnectMeasurement}
+                />
+              )}
+            </div>
+            <button
+              type="button"
+              className="button button-ghost button-small ob-fullplan-hide"
+              onClick={() => {
+                setFull(false);
+                fullHead.current?.scrollIntoView({
+                  block: "center",
+                  behavior: "smooth",
+                });
+              }}
+            >
+              Hide the full plan
+            </button>
+          </motion.div>
+        </div>
       </div>
 
       <div className="ob-bar">

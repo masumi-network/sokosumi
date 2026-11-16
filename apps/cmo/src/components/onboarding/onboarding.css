@@ -365,6 +365,14 @@ body:has(.ob) .site-header {
   justify-content: center;
   gap: 12px;
   padding: 16px 0;
+}
+
+/* Its ground runs edge to edge, so wide content never shows beside it. */
+.ob-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 -100vw;
+  z-index: -1;
   border-top: 1px solid var(--border);
   background: var(--background);
 }
@@ -1011,7 +1019,7 @@ body:has(.ob) .site-header {
 .ob-chip-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ob-chip .ob-note-form {
@@ -1324,18 +1332,79 @@ body:has(.ob) .site-header {
   gap: 24px;
 }
 
-/* Open, the full plan takes the width its calendar needs. */
-.ob-fullplan[open] {
+/* The full plan: a row that grows into the plan, as wide as its calendar. */
+.ob-fullplan-head {
+  margin: 0;
+}
+
+.ob-fullplan-head button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ob-fullplan-head button > :first-child {
+  flex: 1;
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-fullplan-head button::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--foreground);
+  border-bottom: 1px solid var(--foreground);
+  transform: rotate(45deg);
+  transition: transform 300ms var(--ob-settle);
+}
+
+.ob-fullplan-head button[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+}
+
+.ob-fullplan-head button:active {
+  background: var(--border);
+}
+
+.ob-fullplan-head button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-fullplan-body {
+  display: grid;
+  gap: 16px;
   width: var(--ob-wide);
   margin-inline: calc((100% - var(--ob-wide)) / 2);
+  overflow: clip;
 }
 
-.ob-fullplan > .ob-tabs {
+.ob-fullplan-body > .ob-tabs {
   justify-content: center;
+  padding-top: 16px;
 }
 
-.ob-plan-body[hidden] {
-  display: none;
+.ob-fullplan-hide {
+  justify-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-fullplan-head button::after {
+    transition: none;
+  }
 }
 
 .ob-change {
@@ -1468,9 +1537,9 @@ body:has(.ob) .site-header {
 }
 
 .ob-tabpanel {
-  padding: 20px;
-  border-radius: var(--radius-card);
-  background: var(--card);
+  padding: 24px;
+  border-radius: var(--radius-panel);
+  background: var(--surface);
 }
 
 /* Inside a tab panel the plan's sections are not cards: hairline dividers. */
