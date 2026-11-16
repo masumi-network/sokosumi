@@ -19,6 +19,9 @@ type SeoAgentChart = "clicks" | "keywords";
  * once statistics are synced, and the checked keywords with the most searches.
  * One card holds both, with a switch when both have data.
  */
+// Each choice is as wide as its own name: equal shares squeezed the longer name to the edge of its pill.
+const CHART_SWITCH_ITEM_CLASS = "flex-none px-4";
+
 export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -60,10 +63,10 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
             if (value === "clicks" || value === "keywords") setPicked(value);
           }}
         >
-          <ToggleGroupItem value="clicks">
+          <ToggleGroupItem value="clicks" className={CHART_SWITCH_ITEM_CLASS}>
             {t("metrics.clicks")}
           </ToggleGroupItem>
-          <ToggleGroupItem value="keywords">
+          <ToggleGroupItem value="keywords" className={CHART_SWITCH_ITEM_CLASS}>
             {t("agent.chartKeywords")}
           </ToggleGroupItem>
         </ToggleGroup>
