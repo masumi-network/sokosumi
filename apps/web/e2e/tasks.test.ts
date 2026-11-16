@@ -159,8 +159,10 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByText("is back on the board").waitFor();
       const card = page.getByRole("link", { name: LONG_NAME });
       await card.waitFor();
+      // Board cards only: the task page stays in the DOM, hidden, and its
+      // Auto tags section still says "No tags yet".
       assert.equal(
-        await page.getByText("No tags yet").count(),
+        await page.locator("article").getByText("No tags yet").count(),
         0,
         "a board card shows an empty tags line",
       );
