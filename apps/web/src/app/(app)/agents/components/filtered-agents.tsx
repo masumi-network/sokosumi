@@ -42,24 +42,49 @@ function FilteredAgentsInner({
 }: FilteredAgentsProps) {
   const t = useTranslations("Components.Agents");
   const { query, categories: selectedCategories, kind } = useGalleryFilter();
-  const [starredIds, setStarredIds] = useState(() => new Set(starredAgentIds));
+  // Saved stars, and the wanted value of each save still running.
+  const [savedIds, setSavedIds] = useState(() => new Set(starredAgentIds));
+  const [pending, setPending] = useState<ReadonlyMap<string, boolean>>(
+    () => new Map(),
+  );
+  const starredIds = useMemo(() => {
+    const shown = new Set(savedIds);
+    for (const [id, on] of pending) {
+      if (on) shown.add(id);
+      else shown.delete(id);
+    }
+    return shown;
+  }, [savedIds, pending]);
+  const pendingStarIds = useMemo(() => new Set(pending.keys()), [pending]);
 
-  // Optimistic: flip at once, flip back and say so if Core refuses.
+  // Optimistic, one save per Agent at a time. A failed or thrown save drops
+  // the pending value, so the card falls back to the saved state.
   const toggleStar = async (agentId: string) => {
-    const starred = !starredIds.has(agentId);
-    const flip = (on: boolean) =>
-      setStarredIds((current) => {
+    if (pending.has(agentId)) return;
+    const on = !starredIds.has(agentId);
+    const setPendingFor = (value: boolean | null) =>
+      setPending((current) => {
+        const next = new Map(current);
+        if (value === null) next.delete(agentId);
+        else next.set(agentId, value);
+        return next;
+      });
+    setPendingFor(on);
+    const saved = await setAgentStar(agentId, on).then(
+      (result) => result.ok,
+      () => false,
+    );
+    if (saved) {
+      setSavedIds((current) => {
         const next = new Set(current);
         if (on) next.add(agentId);
         else next.delete(agentId);
         return next;
       });
-    flip(starred);
-    const result = await setAgentStar(agentId, starred);
-    if (!result.ok) {
-      flip(!starred);
+    } else {
       toast.error(t("starFailed"));
     }
+    setPendingFor(null);
   };
 
   const filteredAgents = useMemo(() => {
@@ -80,7 +105,7 @@ function FilteredAgentsInner({
   const starredAgents = filteredAgents.filter((agent) =>
     starredIds.has(agent.id),
   );
-  const starProps = { starredIds, onToggleStar: toggleStar };
+  const starProps = { starredIds, pendingStarIds, onToggleStar: toggleStar };
 
   if (!agents.length) {
     return <AgentsNotAvailable />;

@@ -47,4 +47,14 @@ describe("AgentCard star", () => {
     fireEvent.click(star);
     expect(onToggleStar).toHaveBeenCalledWith("a1");
   });
+
+  it("shows a running save and blocks another click", () => {
+    const onToggleStar = vi.fn();
+    render(<AgentCard agent={AGENT} starPending onToggleStar={onToggleStar} />);
+
+    const star = screen.getByRole("button", { name: "star Writer" });
+    expect(star.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(star);
+    expect(onToggleStar).not.toHaveBeenCalled();
+  });
 });

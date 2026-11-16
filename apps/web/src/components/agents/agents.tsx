@@ -65,6 +65,7 @@ interface AgentsProps {
   icon?: string;
   title?: string;
   starredIds?: ReadonlySet<string>;
+  pendingStarIds?: ReadonlySet<string>;
   onToggleStar?: (agentId: string) => void;
 }
 
@@ -76,6 +77,7 @@ function Agents({
   icon,
   title,
   starredIds,
+  pendingStarIds,
   onToggleStar,
 }: AgentsProps) {
   return (
@@ -96,6 +98,7 @@ function Agents({
             ratingStats={ratingStatsMap[agent.id]}
             className={agentCardClassName}
             starred={starredIds?.has(agent.id)}
+            starPending={pendingStarIds?.has(agent.id)}
             onToggleStar={onToggleStar}
           />
         </CarouselItem>

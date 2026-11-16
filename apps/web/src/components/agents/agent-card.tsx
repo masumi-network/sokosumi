@@ -155,6 +155,7 @@ interface AgentCardProps {
   ratingStats?: AgentRatingStats | undefined;
   className?: string | undefined;
   starred?: boolean | undefined;
+  starPending?: boolean | undefined;
   /** Shows the personal star toggle when set. */
   onToggleStar?: ((agentId: string) => void) | undefined;
 }
@@ -165,6 +166,7 @@ function AgentCard({
   className,
   size,
   starred = false,
+  starPending = false,
   onToggleStar,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
@@ -348,6 +350,7 @@ function AgentCard({
         className="absolute top-6 right-2 md:top-7 md:right-3"
         aria-label={t("star", { name: getAgentName(agent) })}
         aria-pressed={starred}
+        loading={starPending}
         onClick={() => onToggleStar(agent.id)}
       >
         <Star

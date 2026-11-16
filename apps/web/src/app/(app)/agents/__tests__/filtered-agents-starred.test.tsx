@@ -28,11 +28,13 @@ vi.mock("@/components/agents/agents", () => ({
     title,
     agents,
     starredIds,
+    pendingStarIds,
     onToggleStar,
   }: {
     title: string;
     agents: CatalogBrowseAgent[];
     starredIds: ReadonlySet<string>;
+    pendingStarIds: ReadonlySet<string>;
     onToggleStar: (id: string) => void;
   }) => (
     <section aria-label={title}>
@@ -41,6 +43,7 @@ vi.mock("@/components/agents/agents", () => ({
           key={agent.id}
           type="button"
           aria-pressed={starredIds.has(agent.id)}
+          aria-busy={pendingStarIds.has(agent.id)}
           onClick={() => onToggleStar(agent.id)}
         >
           {agent.name}
@@ -137,6 +140,49 @@ describe("FilteredAgents Starred row", () => {
     });
     expect(setAgentStar).toHaveBeenCalledWith("a1", false);
     expect(starredRow()?.textContent).toBe("Writer");
+    expect(toastError).toHaveBeenCalledWith("starFailed");
+  });
+
+  it("ignores repeat toggles while a save runs, on every copy of the card", async () => {
+    let finish: (value: unknown) => void = () => {};
+    setAgentStar.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderAgents([]);
+    const writer = () => screen.getAllByRole("button", { name: "Writer" });
+
+    act(() => {
+      fireEvent.click(writer()[0] as HTMLElement);
+    });
+    // Starred row and catalog row both show the same running save.
+    expect(writer().map((b) => b.getAttribute("aria-busy"))).toEqual([
+      "true",
+      "true",
+    ]);
+    act(() => {
+      fireEvent.click(writer()[1] as HTMLElement);
+    });
+    expect(setAgentStar).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finish({ ok: false, error: { code: "FAILED" } });
+    });
+    expect(starredRow()).toBeNull();
+    expect(writer()[0]?.getAttribute("aria-busy")).toBe("false");
+    expect(toastError).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back to the saved state when the request itself fails", async () => {
+    setAgentStar.mockRejectedValue(new Error("network"));
+    renderAgents([]);
+    await act(async () => {
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "Writer" })[0] as HTMLElement,
+      );
+    });
+    expect(starredRow()).toBeNull();
     expect(toastError).toHaveBeenCalledWith("starFailed");
   });
 });
