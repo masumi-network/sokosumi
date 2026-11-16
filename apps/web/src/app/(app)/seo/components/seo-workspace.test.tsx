@@ -6222,6 +6222,69 @@ describe("SEO workspace integration", () => {
     expect(verdict).not.toHaveFocus();
   });
 
+  it("keeps an action's dialog open to show the Task its button created", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const [check] = workspace.observations;
+    const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
+      observationId: check.id,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      why: "The check found it",
+      effort: "low",
+      expectedEffect: "A better search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    workspace.actions.push(
+      { ...waiting, id: "title", title: "Fix the page title" },
+      { ...waiting, id: "description", title: "Write a description" },
+    );
+    let served = workspace;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(served)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace, "?tab=agent");
+    await user.click(
+      await screen.findByRole("button", { name: /^Write a description/ }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Write a description",
+    });
+    served = {
+      ...workspace,
+      actions: [
+        workspace.actions[0],
+        {
+          ...workspace.actions[1],
+          taskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+          status: "task_created",
+        },
+      ],
+    };
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
+    );
+    // The row leaves the steps with its Task; the dialog stays and shows the Task.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /^Write a description/ }),
+      ).toBeNull(),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getAllByText("Draft task created")[0],
+    ).toBeVisible();
+    // Its row is gone, so closing gives the focus to the verdict.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveFocus();
+  });
+
   it("says what a keyword result of zero means, with the depth the check read", async () => {
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");

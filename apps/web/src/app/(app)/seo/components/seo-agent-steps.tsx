@@ -14,12 +14,7 @@ import {
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoActionCard } from "./seo-actions";
@@ -248,38 +243,71 @@ export function SeoActionStepRow({
   action,
   severity,
   model,
+  onOpen,
 }: {
   action: Extract<SeoAgentStep, { kind: "action" }>["action"];
   severity: SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
+  /** Opens the action's card in the tab's one action dialog; the row is the place focus returns to. */
+  onOpen: (row: HTMLButtonElement) => void;
 }) {
   return (
     <li className="content-rise">
-      <Dialog>
-        <DialogTrigger asChild>
-          <button
-            type="button"
-            className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
-          >
-            {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
-            <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
-              <SeoActionName
-                title={action.title}
-                pageUrl={action.pageUrl}
-                workspace={model.data}
-              />
-              {severity ? (
-                <span className="flex max-sm:mt-1">
-                  <SeoSeverity severity={severity} />
-                </span>
-              ) : null}
+      <button
+        type="button"
+        className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
+        onClick={(event) => onOpen(event.currentTarget)}
+      >
+        {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
+        <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
+          <SeoActionName
+            title={action.title}
+            pageUrl={action.pageUrl}
+            workspace={model.data}
+          />
+          {severity ? (
+            <span className="flex max-sm:mt-1">
+              <SeoSeverity severity={severity} />
             </span>
-            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-          </button>
-        </DialogTrigger>
-        {/* The card names the action in its own heading; the dialog title repeats it for the dialog's name. The
-            top padding keeps the close button clear of the title. */}
-        <DialogContent className="gap-0 p-0 pt-10 sm:max-w-xl">
+          ) : null}
+        </span>
+        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+      </button>
+    </li>
+  );
+}
+
+/**
+ * The card of an action row, in a dialog on the Agent tab. The dialog belongs to the tab, not to the row: a
+ * Task for the action takes its row out of the steps, and the dialog stays to show the Task.
+ */
+export function SeoActionDialog({
+  action,
+  severity,
+  model,
+  onClose,
+  onCloseAutoFocus,
+}: {
+  action: Extract<SeoAgentStep, { kind: "action" }>["action"] | undefined;
+  severity: SeoIssueSeverity | null;
+  model: SeoWorkspaceModel;
+  onClose: () => void;
+  onCloseAutoFocus: (event: Event) => void;
+}) {
+  return (
+    <Dialog
+      open={Boolean(action)}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      {action ? (
+        // The card names the action in its own heading; the dialog title repeats it for the dialog's name. The
+        // top padding keeps the close button clear of the title; a long card scrolls inside the screen.
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto p-0 pt-10 sm:max-w-xl"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <DialogTitle className="sr-only">{action.title}</DialogTitle>
           <SeoActionCard
             action={action}
@@ -290,7 +318,7 @@ export function SeoActionStepRow({
             flush
           />
         </DialogContent>
-      </Dialog>
-    </li>
+      ) : null}
+    </Dialog>
   );
 }

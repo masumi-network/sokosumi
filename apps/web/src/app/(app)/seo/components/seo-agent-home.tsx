@@ -17,6 +17,7 @@ import {
   seoAgentBrief,
 } from "./seo-agent-model";
 import {
+  SeoActionDialog,
   SeoActionStepRow,
   SeoActionsLinkRow,
   SeoStepRow,
@@ -39,7 +40,7 @@ import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
-import type { SeoWorkspaceModel } from "./use-seo-workspace";
+import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /** Next steps past this count fold behind a "show more" button: three choices are enough to start. */
 const SEO_AGENT_VISIBLE_STEPS = 3;
@@ -98,6 +99,12 @@ function SeoAgentPanel({
     if (checkSeen && !checkRunning && document.activeElement === document.body)
       verdict.current?.focus();
   }, [checkSeen, checkRunning]);
+  // The action whose card is open in the dialog. It is read from the data, so a Task for it shows in the card.
+  const [dialogKey, setDialogKey] = useState<string | null>(null);
+  const dialogRow = useRef<HTMLButtonElement | null>(null);
+  const dialogAction = dialogKey
+    ? model.data.actions.find((action) => seoActionKey(action) === dialogKey)
+    : undefined;
   // Missing search statistics are a banner over the result, not one of the steps.
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",
@@ -213,6 +220,10 @@ function SeoAgentPanel({
           action={step.action}
           severity={actionSeverity(step.action)}
           model={model}
+          onOpen={(row) => {
+            dialogRow.current = row;
+            setDialogKey(seoActionKey(step.action));
+          }}
         />
       )
     ) : step.kind === "strategy" ? (
@@ -476,6 +487,18 @@ function SeoAgentPanel({
         </div>
       )}
       <SeoAutomation model={model} />
+      <SeoActionDialog
+        action={dialogAction}
+        severity={dialogAction ? actionSeverity(dialogAction) : null}
+        model={model}
+        onClose={() => setDialogKey(null)}
+        onCloseAutoFocus={(event) => {
+          // Focus goes back to the row; a row that left with its Task gives it to the verdict.
+          event.preventDefault();
+          const row = dialogRow.current;
+          (row?.isConnected ? row : verdict.current)?.focus();
+        }}
+      />
     </section>
   );
 }
