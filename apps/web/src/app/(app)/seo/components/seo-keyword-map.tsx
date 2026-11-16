@@ -20,7 +20,11 @@ import {
   seoNearestPoint,
 } from "./seo-keyword-map-model";
 import { SeoKeywordMapPopover } from "./seo-keyword-map-popover";
-import { SEO_MAP_MAX_ZOOM, useSeoMapZoom } from "./seo-keyword-map-zoom";
+import {
+  SEO_MAP_MAX_ZOOM,
+  SEO_MAP_PRESS_SLOP,
+  useSeoMapZoom,
+} from "./seo-keyword-map-zoom";
 import {
   SEO_DIFFICULTY_HARD_FROM,
   SEO_DIFFICULTY_MEDIUM_FROM,
@@ -77,12 +81,19 @@ export function SeoKeywordMap({
   const group = useRef<HTMLDivElement>(null);
   // The popover closed by a press outside it: the focus stays where the press put it.
   const outside = useRef(false);
+  // Where a press on the frame began, and the keyword a pan in it closed: the click that ends the press does
+  // not open that keyword again.
+  const pressAt = useRef<{ x: number; y: number } | null>(null);
+  const panClosed = useRef<string | null>(null);
   // A zoom or a pan can take the dot out of the frame: the popover at it closes.
   const view = `${transform.k}:${transform.x}:${transform.y}`;
   const [openView, setOpenView] = useState(view);
   if (view !== openView) {
     setOpenView(view);
-    if (openId) setOpenId(null);
+    if (openId) {
+      panClosed.current = openId;
+      setOpenId(null);
+    }
   }
   const map = seoKeywordMap(groups);
   if (!map) {
@@ -338,16 +349,35 @@ export function SeoKeywordMap({
                 PLOT_HEIGHT,
               )}
               onPointerMove={pick}
-              onPointerDown={pick}
+              onPointerDown={(event) => {
+                pressAt.current = { x: event.clientX, y: event.clientY };
+                panClosed.current = null;
+                pick(event);
+              }}
+              // A drag at the edge of the map moves nothing and gets no click, and the popover never sees it
+              // outside: the drag closes the popover here.
+              onPointerUp={(event) => {
+                const start = pressAt.current;
+                pressAt.current = null;
+                if (
+                  openId &&
+                  start &&
+                  Math.hypot(event.clientX - start.x, event.clientY - start.y) >
+                    SEO_MAP_PRESS_SLOP
+                ) {
+                  outside.current = true;
+                  setOpenId(null);
+                }
+              }}
               // A drag gets no click: the zoom keeps it. The zoom also stops the press before the popover sees it
               // outside, so the map closes the popover here.
-              onClick={() =>
-                openKeyword(
+              onClick={() => {
+                const id =
                   active === null
                     ? null
-                    : (points[active]?.group.lead.id ?? null),
-                )
-              }
+                    : (points[active]?.group.lead.id ?? null);
+                if (id === null || id !== panClosed.current) openKeyword(id);
+              }}
               onPointerLeave={(event) => {
                 // Keep the keyword under a lifted finger and the one the keyboard is on.
                 if (event.pointerType === "mouse" && !keyed) setActive(null);

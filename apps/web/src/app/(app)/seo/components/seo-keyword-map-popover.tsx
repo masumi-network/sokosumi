@@ -161,7 +161,8 @@ export function SeoKeywordMapPopover({
               size="sm"
               variant="outline"
               className="flex-1"
-              disabled={model.pending}
+              // Busy, not disabled: Track keeps the focus while it saves, so the keys go on from it.
+              loading={model.pending}
               onClick={() => {
                 void model.toggleKeyword(lead);
               }}

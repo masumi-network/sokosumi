@@ -14,7 +14,7 @@ import { type RefCallback, useCallback, useRef, useState } from "react";
 export const SEO_MAP_MAX_ZOOM = 8;
 /** A press that moves farther than this, in px, drags the map and gets no click. The d3 default is 0, so a
  * hand that shakes by 1 px would open no keyword. */
-const SEO_MAP_PRESS_SLOP = 4;
+export const SEO_MAP_PRESS_SLOP = 4;
 
 /**
  * Pan and zoom of the keyword map, with the d3-zoom of the contacts map: drag, double-click, a pinch on a
