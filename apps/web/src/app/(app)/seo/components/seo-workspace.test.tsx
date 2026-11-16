@@ -6008,6 +6008,10 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getByTestId("seo-agent-verdict").parentElement,
     ).toContainElement(row);
+    // They open after the press in reading order, so the next Tab reaches them.
+    expect(
+      more.compareDocumentPosition(row!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     // One page: the row needs no page.
     expect(within(row!).queryByRole("link")).toBeNull();
     // The whole row is the control: no second button repeats it.

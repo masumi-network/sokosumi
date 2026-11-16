@@ -272,7 +272,7 @@ export function SeoActionStepRow({
             ) : null}
           </span>
           {lead ? (
-            <span className="text-muted-foreground mt-1 line-clamp-2 block text-sm break-words">
+            <span className="text-muted-foreground mt-1 line-clamp-2 text-sm break-words">
               <SeoActionFinding action={action} model={model} />
             </span>
           ) : null}

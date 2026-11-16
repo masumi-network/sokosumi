@@ -360,26 +360,11 @@ function SeoAgentPanel({
               </ul>
               {steps.length > 1 ? (
                 <Collapsible open={showAllSteps} onOpenChange={setShowAllSteps}>
-                  {/* The rows open over the press, so they stand right under the first step. */}
-                  <CollapsibleContent>
-                    <ul
-                      role="list"
-                      aria-label={t("agent.nextTitle")}
-                      className={cn(
-                        SEO_ROW_LIST_CLASS,
-                        "rounded-none border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none [&>li:last-child]:rounded-b-none [&>li:last-child>button]:rounded-b-none",
-                      )}
-                    >
-                      {steps.map((step, index) =>
-                        index === primary ? null : stepItem(step, index),
-                      )}
-                    </ul>
-                  </CollapsibleContent>
                   <CollapsibleTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-muted-foreground h-10 w-full justify-start rounded-none rounded-b-lg border-t px-4"
+                      className="text-muted-foreground h-10 w-full justify-start rounded-none border-t px-4 data-[state=closed]:rounded-b-lg"
                     >
                       {showAllSteps
                         ? t("overview.showLess")
@@ -392,6 +377,21 @@ function SeoAgentPanel({
                       />
                     </Button>
                   </CollapsibleTrigger>
+                  {/* The rows open under the press, in reading order: the press stays right under the first step. */}
+                  <CollapsibleContent>
+                    <ul
+                      role="list"
+                      aria-label={t("agent.nextTitle")}
+                      className={cn(
+                        SEO_ROW_LIST_CLASS,
+                        "rounded-none border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none",
+                      )}
+                    >
+                      {steps.map((step, index) =>
+                        index === primary ? null : stepItem(step, index),
+                      )}
+                    </ul>
+                  </CollapsibleContent>
                 </Collapsible>
               ) : null}
             </div>
