@@ -11021,7 +11021,10 @@
         "companies": "Empresas",
         "findCompany": "Buscar una empresa…",
         "noCompanies": "No se encontraron empresas.",
-        "clearCompany": "Mostrar todas las empresas"
+        "clearCompany": "Mostrar todas las empresas",
+        "companyLists": "Listas de empresas",
+        "newCompanyList": "Nueva lista de empresas",
+        "noCompanyLists": "Aún no hay listas de empresas."
       },
       "columns": {
         "name": "Nombre",
@@ -11109,11 +11112,13 @@
       "duplicatesDialog": {
         "title": "{count, plural, =0 {Ningún posible duplicado} =1 {1 posible duplicado} other {# posibles duplicados}}",
         "titleMore": "{count}+ posibles duplicados",
-        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Fusiona los que son una sola persona; abre un registro para revisarlo antes.",
+        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Combina los que son una sola persona o márcalos como distintos; abre un registro para comprobarlo antes.",
         "merge": "Fusionar",
         "mergeGroup": "Fusionar los registros de {name}",
         "noDetails": "Sin email ni empresa",
-        "empty": "No queda nada por fusionar."
+        "empty": "No queda nada por fusionar.",
+        "notSame": "No son la misma persona",
+        "notSameGroup": "{name}: son personas distintas"
       },
       "deleteList": {
         "title": "¿Eliminar {name}?",
@@ -11148,7 +11153,11 @@
         "save": "Guardar",
         "create": "Crear lista",
         "smart": "Llenarla con los filtros actuales",
-        "smartHint": "Todas las personas que coincidan con estos filtros están en esta lista. La lista se actualiza sola."
+        "smartHint": "Todas las personas que coincidan con estos filtros están en esta lista. La lista se actualiza sola.",
+        "companyCreateTitle": "Nueva lista de empresas",
+        "companyEditTitle": "Editar lista de empresas",
+        "companyDescription": "Las listas de empresas se comparten con todo tu equipo. Una empresa puede estar en tantas como quieras.",
+        "companyNamePlaceholder": "Cuentas objetivo, inversores…"
       },
       "addDialog": {
         "title": "Añadir contacto",
@@ -11432,7 +11441,8 @@
       "layout": {
         "label": "Vista",
         "table": "Tabla",
-        "map": "Mapa"
+        "map": "Mapa",
+        "companies": "Empresas"
       },
       "map": {
         "label": "Lugares",
@@ -11506,6 +11516,42 @@
         "none": "Sin indicar",
         "nobody": "Nadie todavía",
         "more": "y {count} más"
+      },
+      "notSame": "{count, plural, =2 {Separados: no se volverán a sugerir como duplicados} other {Separados: estos # no se volverán a sugerir como duplicados}}",
+      "companies": {
+        "search": "Buscar empresas",
+        "searchPlaceholder": "Buscar empresas…",
+        "allCompanies": "Todas las empresas",
+        "count": "{count, plural, one {# empresa} other {# empresas}}",
+        "showing": "Mostrando {shown} de {total}",
+        "loading": "Cargando empresas…",
+        "loadFailed": "No se pudieron cargar las empresas",
+        "retry": "Reintentar",
+        "emptyTitle": "No hay empresas",
+        "empty": "Las empresas aparecen aquí cuando tus contactos tienen una organización o un correo de trabajo.",
+        "emptyList": "Esta lista está vacía. Selecciona empresas en Todas las empresas y añádelas aquí.",
+        "noMatches": "Ninguna empresa coincide con tu búsqueda.",
+        "selectAll": "Seleccionar todas las empresas",
+        "select": "Seleccionar {name}",
+        "selected": "{count} seleccionadas",
+        "bulkLabel": "Empresas seleccionadas",
+        "addToList": "Añadir a la lista",
+        "removeFromList": "Quitar de la lista",
+        "clearSelection": "Borrar",
+        "newList": "Nueva lista de empresas",
+        "addedToList": "{count, plural, one {# empresa añadida} other {# empresas añadidas}} a {list}",
+        "removedFromList": "{count, plural, one {# empresa quitada} other {# empresas quitadas}} de {list}",
+        "saveFailed": "No se guardó. Inténtalo de nuevo.",
+        "deleteTitle": "¿Eliminar {name}?",
+        "deleteDescription": "La lista desaparece para todos. Las empresas y su gente se quedan.",
+        "deleteConfirm": "Eliminar lista",
+        "cancel": "Cancelar",
+        "columns": {
+          "name": "Empresa",
+          "people": "Personas",
+          "industry": "Sector",
+          "lists": "Listas"
+        }
       }
     },
     "Seo": {

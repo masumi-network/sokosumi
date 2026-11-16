@@ -88,3 +88,4 @@ lint-report.json
 # committed by accident and removed in a follow-up.
 /evidence/recon/
 /evidence/v4/
+/apps/web/e2e/results/

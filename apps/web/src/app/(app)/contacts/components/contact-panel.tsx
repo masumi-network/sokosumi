@@ -255,7 +255,7 @@ function PanelBody({
    * Puts this person on a list just made from their panel. On failure the
    * list stays, so trying again only adds them: never a second list.
    */
-  async function addToNewList(list: ContactList) {
+  async function addToNewList(list: Pick<ContactList, "id" | "name">) {
     try {
       await contactsService.changeMembers(list.id, { add: [contact.id] });
     } catch {
