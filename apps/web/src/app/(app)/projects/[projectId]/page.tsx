@@ -22,8 +22,11 @@ import {
   WorkspaceColumn,
 } from "@/app/projects/components/workspace-column";
 import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { notificationService } from "@/lib/services/notification.service";
 import { projectService } from "@/lib/services/project.service";
+
+import { loadProjectOverviewData } from "./project-overview-data";
 
 export default async function ProjectDetailPage({
   params,
@@ -31,11 +34,12 @@ export default async function ProjectDetailPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const project = await projectService.getProjectById(projectId);
+  const data = await loadProjectOverviewData(projectId);
 
-  if (!project) {
+  if (!data) {
     notFound();
   }
+  const { project, closeStatus, stats } = data;
 
   // Started before the page's own awaits, awaited inside their panels'
   // boundaries, so a slow feed holds up nothing above it.
@@ -46,24 +50,11 @@ export default async function ProjectDetailPage({
     projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS, project.id),
   );
 
-  const [closeStatus, stats, t, formatter, workspaceLabels] = await Promise.all(
-    [
-      project.closingAt || project.closedAt
-        ? projectService.getProjectCloseStatus(project.id)
-        : Promise.resolve(null),
-      // Without counts the strip is left out rather than showing zeros.
-      projectService
-        .getProjectsStats([project.id])
-        .then(([entry]) => entry ?? null)
-        .catch((error: unknown) => {
-          console.warn("Project Overview task counts failed", { error });
-          return null;
-        }),
-      getTranslations("App.Projects.Detail"),
-      getFormatter(),
-      getProjectWorkspaceLabels(),
-    ],
-  );
+  const [t, formatter, workspaceLabels] = await Promise.all([
+    getTranslations("App.Projects.Detail"),
+    getFormatter(),
+    getProjectWorkspaceLabels(),
+  ]);
 
   return (
     <ProjectWorkspaceShell
@@ -114,6 +105,7 @@ export default async function ProjectDetailPage({
         websiteUrl={project.websiteUrl}
       >
         <div className="min-w-0 space-y-8">
+          <RefreshPrefetchedPage />
           {closeStatus ? <ProjectCloseStatusCard status={closeStatus} /> : null}
 
           {stats ? (

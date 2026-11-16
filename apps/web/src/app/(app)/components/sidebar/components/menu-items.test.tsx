@@ -657,6 +657,19 @@ describe("MenuItems prefetch", () => {
     });
   });
 
+  it("loads the selected project's Overview content on a resting hover", () => {
+    pathnameRef.current = "/tasks";
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, false);
+
+    restOn(/^overview$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/projects/p-1",
+      { kind: "full" },
+    );
+  });
+
   // A page whose reads are not cached would render on the server for nothing.
   it("loads only the shell for a page without cached reads", () => {
     renderMenu(true, false);

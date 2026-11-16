@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TASK_DETAIL_SHELL_CLASS } from "@/app/tasks/constants";
 
 const {
+  connectionMock,
   projectServiceMock,
   notificationServiceMock,
   workspaceColumnMock,
   notFoundMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   projectServiceMock: {
     getProjectCloseStatus: vi.fn(),
     getProjectById: vi.fn(),
@@ -21,10 +23,16 @@ const {
   }),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("next/server", () => ({ connection: connectionMock }));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   notFound: notFoundMock,
   // The project tab bar reads the current route to mark its own tab.
   usePathname: () => "/projects/project-1",
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("next-intl/server", async () => {
@@ -164,6 +172,39 @@ describe("ProjectDetailPage", () => {
     );
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).toHaveBeenCalledOnce();
+  });
+
+  // The reads are cached, so a link prefetch carries the Overview.
+  // connection() would drop it back to the skeleton.
+  it("renders the project without deferring to the request", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByText("Launch plan")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a failed read as the page the click opens.
+  it("renders a failed project read fresh on the click", async () => {
+    projectServiceMock.getProjectById
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValue(buildProject());
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(screen.getByText("Launch plan")).toBeInTheDocument();
   });
 
   it("is one column of what the project is, beside its panels", async () => {
