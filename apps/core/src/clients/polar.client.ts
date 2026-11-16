@@ -78,13 +78,14 @@ export interface PolarCheckoutInput {
   returnUrl: string;
   /** Where Polar's back link leads without paying (its `return_url`). */
   backUrl: string;
+  /**
+   * Whether the person may enter a Polar discount code. Each discount names
+   * the products it applies to in Polar; only plan checkouts take codes.
+   */
+  allowDiscountCodes: boolean;
 }
 
-/**
- * Starts a hosted checkout, trial off; returns its URL. Discount codes are on:
- * each Polar discount names the products it applies to (FREEMONTH: the
- * monthly CMO plans), so a code works only where its discount allows.
- */
+/** Starts a hosted checkout, trial off; returns its URL. */
 export async function createPolarCheckout(
   input: PolarCheckoutInput,
 ): Promise<string> {
@@ -94,7 +95,7 @@ export async function createPolarCheckout(
     metadata: input.metadata,
     success_url: input.returnUrl,
     return_url: input.backUrl,
-    allow_discount_codes: true,
+    allow_discount_codes: input.allowDiscountCodes,
     allow_trial: false,
   });
   return checkout.url;

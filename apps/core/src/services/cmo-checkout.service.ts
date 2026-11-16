@@ -45,6 +45,9 @@ export async function startCmoCheckout(
     metadata,
     returnUrl: input.returnUrl,
     backUrl: input.backUrl,
+    // A top-up grants its pack in full whatever was paid: codes for plans only
+    // (FREEMONTH: first month free on the monthly plans).
+    allowDiscountCodes: kind === "plan",
   });
   return { url };
 }
