@@ -90,7 +90,11 @@ describe("TaskDetailLink", () => {
       render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
       const link = screen.getByRole("link", { name: "Open task" });
 
+      // The browser's order for a click: the press focuses the link.
       fireEvent.pointerEnter(link, { pointerType: "mouse" });
+      fireEvent.pointerDown(link, { pointerType: "mouse" });
+      fireEvent.focus(link);
+      fireEvent.pointerUp(link, { pointerType: "mouse" });
       fireEvent.click(link);
       vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
 
@@ -98,6 +102,37 @@ describe("TaskDetailLink", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // A press that turned into a scroll must not mute the next keyboard focus.
+  it("loads the content on keyboard focus after a cancelled press", () => {
+    render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
+    const link = screen.getByRole("link", { name: "Open task" });
+
+    fireEvent.pointerDown(link, { pointerType: "touch" });
+    fireEvent.pointerCancel(link, { pointerType: "touch" });
+    fireEvent.focus(link);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks/task-1",
+      CONTENT_PREFETCH,
+    );
+  });
+
+  // A page whose reads are not cached prefetches only its skeleton, so a
+  // content prefetch would be a server render for nothing.
+  it("prefetches only the shell when content prefetch is off", () => {
+    render(
+      <TaskDetailLink href="/admin/tasks/task-1" prefetchContent={false}>
+        Open task
+      </TaskDetailLink>,
+    );
+
+    fireEvent.focus(screen.getByRole("link", { name: "Open task" }));
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/admin/tasks/task-1",
+    );
   });
 
   // A predicted approach is weaker intent than a hover, so it prefetches only

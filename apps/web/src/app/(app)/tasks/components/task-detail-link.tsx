@@ -32,6 +32,11 @@ export const TASK_HOVER_DWELL_MS = 100;
 interface TaskDetailLinkProps
   extends Omit<ComponentProps<typeof Link>, "href" | "ref"> {
   href: string;
+  /**
+   * False for a route whose page reads are not cached: its prefetch would be
+   * a full server render that still carries only the loading skeleton.
+   */
+  prefetchContent?: boolean;
 }
 
 export function TaskDetailLink({
@@ -39,20 +44,31 @@ export function TaskDetailLink({
   onClick,
   onPointerEnter,
   onPointerLeave,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
   onFocus,
   onTouchStart,
+  prefetchContent = true,
   ...props
 }: TaskDetailLinkProps) {
   const router = useRouter();
 
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Browsers focus a link on the press that starts a click or tap. That focus
+  // is the click itself, so it must not start a content render of its own.
+  const pressing = useRef(false);
   // A predicted approach and a touch load only the shared App Shell. A resting
   // hover and focus also load the page's content, a server render each.
   const prefetchTaskShell = () => {
     router.prefetch(href);
   };
   const prefetchTaskDetail = () => {
-    prefetchRouteContent(router, href);
+    if (prefetchContent) {
+      prefetchRouteContent(router, href);
+    } else {
+      prefetchTaskShell();
+    }
   };
   // The link's box is its text. A card stretches the link over itself with a
   // pseudo-element, which only the hover handler below can see.
@@ -97,9 +113,25 @@ export function TaskDetailLink({
     cancelHoverPrefetch();
   }
 
+  function handlePointerDown(event: PointerEvent<HTMLAnchorElement>) {
+    onPointerDown?.(event);
+    pressing.current = true;
+    cancelHoverPrefetch();
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLAnchorElement>) {
+    onPointerUp?.(event);
+    pressing.current = false;
+  }
+
+  function handlePointerCancel(event: PointerEvent<HTMLAnchorElement>) {
+    onPointerCancel?.(event);
+    pressing.current = false;
+  }
+
   function handleFocus(event: FocusEvent<HTMLAnchorElement>) {
     onFocus?.(event);
-    if (!event.defaultPrevented) {
+    if (!event.defaultPrevented && !pressing.current) {
       prefetchTaskDetail();
     }
   }
@@ -119,6 +151,9 @@ export function TaskDetailLink({
       onClick={handleClick}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onFocus={handleFocus}
       onTouchStart={handleTouchStart}
       ref={approachRef}
