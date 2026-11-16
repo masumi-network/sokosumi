@@ -1059,6 +1059,13 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
               ruth,
             ],
           };
+        case "TWITTER_FOLLOWING_BY_USER_ID":
+          return {
+            data: [
+              person("700", "Lena Fox", "lenafox", "Writes about cities"),
+              person("950", "Zoe Park", "zoepark", "Runs a bakery"),
+            ],
+          };
         default:
           throw new Error(`unexpected tool ${tool}`);
       }
@@ -1121,6 +1128,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
             channels: [{ type: "EMAIL", value: email }],
             upsert: false,
           });
+        // The owner's own X account, added by hand before.
+        await upsertContact(tx, actor, {
+          name: "Alice O.",
+          channels: [{ type: "X", value: "@alice" }],
+          upsert: false,
+        });
       });
       await addBot(xWorkspaceId, ["twitter"]);
       mocks.runIntegrationTool.mockImplementation(async (...args: unknown[]) =>
@@ -1132,6 +1145,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
+        "Alice O.",
         "Gus",
         "Lena Fox",
         "Léa Müller",
@@ -1145,6 +1159,39 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         "Sean Connor",
         "Sean O'Connor",
         "Sean O'Connor",
+        "Zoe Park",
+      ]);
+      expect(contacts.find((c) => c.name === "Alice O.")?.userId).toBe(alice);
+      const follows = await prisma.contactXFollow.findMany({
+        where: { userId: alice, contact: { workspaceId: xWorkspaceId } },
+        include: { contact: { select: { name: true } } },
+      });
+      const followOf = (name: string) =>
+        follows
+          .filter((follow) => follow.contact.name === name)
+          .map(({ followsUser, followedByUser }) => ({
+            followsUser,
+            followedByUser,
+          }));
+      expect(followOf("Lena Fox")).toEqual([
+        { followsUser: true, followedByUser: true },
+      ]);
+      // Joined an existing contact, and one already known from a DM.
+      expect(followOf("Nina Keller")).toEqual([
+        { followsUser: true, followedByUser: false },
+      ]);
+      expect(followOf("Ruth Weber")).toEqual([
+        { followsUser: true, followedByUser: false },
+      ]);
+      expect(followOf("Zoe Park")).toEqual([
+        { followsUser: false, followedByUser: true },
+      ]);
+      const following = await prisma.contactList.findFirstOrThrow({
+        where: { workspaceId: xWorkspaceId, name: "X following" },
+        include: { members: { include: { contact: true } } },
+      });
+      expect(following.members.map((member) => member.contact.name)).toEqual([
+        "Zoe Park",
       ]);
       const ruthContact = contacts.find((c) => c.name === "Ruth Weber");
       expect(
@@ -1271,6 +1318,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
             return { data: user("100", "Alice Owner", "alice") };
           if (tool === "TWITTER_GET_RECENT_DM_EVENTS")
             return { data: [], meta: { result_count: 0 } };
+          if (tool === "TWITTER_FOLLOWING_BY_USER_ID") return { data: [] };
           if (tool !== "TWITTER_FOLLOWERS_BY_USER_ID")
             throw new Error(`unexpected tool ${tool}`);
           const token =

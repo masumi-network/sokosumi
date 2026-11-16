@@ -22,6 +22,7 @@ import {
   findDuplicateContacts,
   getContactDetail,
   inContactTransaction,
+  linkMemberByChannel,
   listContactActivity,
   listContacts,
   logContactInteraction,
@@ -31,6 +32,7 @@ import {
   removeContactInteraction,
   setContactArchived,
   setContactsStage,
+  setContactUser,
   undoContactsStage,
   updateContact,
   upsertContact,
@@ -1246,5 +1248,97 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
         where: { query: { endsWith: workspaceId } },
       });
     }
+  });
+
+  it("links contacts to members, and counts X follows as knowing someone", async () => {
+    const me = await create(asAlice, {
+      name: "Alice Self",
+      channels: [{ type: "EMAIL", value: `CONTACTS-${alice}@sokosumi.test` }],
+    });
+    const fan = await create(asAlice, { name: "Fan Follower" });
+    const twin = await create(asAlice, { name: "Fan Follower Two" });
+
+    // A member's address finds their contact, once.
+    const address = `contacts-${alice}@sokosumi.test`;
+    expect(
+      await linkMemberByChannel(workspaceId, alice, "EMAIL", address),
+    ).toBe(true);
+    expect(
+      await linkMemberByChannel(workspaceId, alice, "EMAIL", address),
+    ).toBe(false);
+    const self = await getContactDetail(asAlice, me.contact.id);
+    expect(self.user).toMatchObject({ id: alice, name: "Alice" });
+
+    // By hand: Bob is the fan; a member is one contact at most.
+    await inContactTransaction((tx) =>
+      setContactUser(tx, asAlice, fan.contact.id, bob),
+    );
+    const moved = await inContactTransaction((tx) =>
+      setContactUser(tx, asAlice, twin.contact.id, bob),
+    );
+    expect(moved.user?.id).toBe(bob);
+    const released = await prisma.contact.findUniqueOrThrow({
+      where: { id: fan.contact.id },
+    });
+    expect(released.userId).toBeNull();
+    await expect(
+      inContactTransaction((tx) =>
+        setContactUser(tx, asAlice, fan.contact.id, outsider),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    // Fan follows Alice on X; Alice and Twin follow each other.
+    await prisma.contactXFollow.createMany({
+      data: [
+        { contactId: fan.contact.id, userId: alice, followsUser: true },
+        {
+          contactId: twin.contact.id,
+          userId: alice,
+          followsUser: true,
+          followedByUser: true,
+        },
+      ],
+    });
+    const fanDetail = await getContactDetail(asAlice, fan.contact.id);
+    expect(fanDetail.knownBy).toEqual([
+      expect.objectContaining({
+        id: alice,
+        interactionCount: 0,
+        lastInteractionAt: null,
+        followsOnX: true,
+        followedOnX: false,
+      }),
+    ]);
+    const names = async (
+      filter: NonNullable<Parameters<typeof listContacts>[1]["filter"]>,
+    ) =>
+      (await listContacts(asAlice, { filter, sort: "name", limit: 50 })).items
+        .map((contact) => contact.name)
+        .filter((name) => name.startsWith("Fan"))
+        .sort();
+    expect(await names({ knownByMe: true })).toEqual([
+      "Fan Follower",
+      "Fan Follower Two",
+    ]);
+    expect(await names({ xFollow: "FOLLOWS_YOU" })).toEqual(["Fan Follower"]);
+    expect(await names({ xFollow: "MUTUAL" })).toEqual(["Fan Follower Two"]);
+    expect(await names({ xFollow: "YOU_FOLLOW" })).toEqual([]);
+
+    // Merging keeps the member and both sides of every follow.
+    await inContactTransaction((tx) =>
+      mergeContacts(tx, asAlice, fan.contact.id, [twin.contact.id]),
+    );
+    const merged = await prisma.contact.findUniqueOrThrow({
+      where: { id: fan.contact.id },
+      include: { xFollows: true },
+    });
+    expect(merged.userId).toBe(bob);
+    expect(merged.xFollows).toEqual([
+      expect.objectContaining({
+        userId: alice,
+        followsUser: true,
+        followedByUser: true,
+      }),
+    ]);
   });
 });

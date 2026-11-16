@@ -51,6 +51,7 @@ import {
   postContactsStage,
   postContactsStageUndo,
   putContactsByIdImportance,
+  putContactsByIdUser,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
@@ -180,6 +181,16 @@ export const contactsService = {
         ...options(),
         path: { id },
         body: { importance },
+      })
+    ).data.data;
+  },
+  /** Says which workspace member this contact is; null says no one. */
+  async setUser(id: string, userId: string | null) {
+    return (
+      await putContactsByIdUser({
+        ...options(),
+        path: { id },
+        body: { userId },
       })
     ).data.data;
   },

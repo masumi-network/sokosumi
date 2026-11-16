@@ -36,6 +36,17 @@ export const CONTACT_REPLY_STATES = [
   "REPLIED",
 ] as const;
 
+/**
+ * How the reader and a contact follow each other on X: they follow the reader
+ * who doesn't follow back, the reader follows them who don't follow back, or
+ * both.
+ */
+export const CONTACT_X_FOLLOWS = [
+  "FOLLOWS_YOU",
+  "YOU_FOLLOW",
+  "MUTUAL",
+] as const;
+
 export const CONTACT_REPLY_WAIT_DAYS = 7;
 export const CONTACT_CONVERSATION_DAYS = 30;
 
@@ -103,6 +114,7 @@ export const CONTACT_SORT_FIELDS = [
 ] as const;
 
 export type ContactChannelType = (typeof CONTACT_CHANNEL_TYPES)[number];
+export type ContactXFollowState = (typeof CONTACT_X_FOLLOWS)[number];
 
 function stripPrefix(value: string, pattern: RegExp): string {
   return value.replace(pattern, "");
@@ -350,8 +362,10 @@ export const contactFilterSchema = z
     /** On any of these manual lists. */
     listIds: z.array(z.uuid()).min(1).max(20).optional(),
     knownByUserId: z.string().min(1).max(200).optional(),
-    /** Someone the reader has had an interaction with. */
+    /** Someone the reader has had an interaction with or is linked to on X. */
     knownByMe: z.boolean().optional(),
+    /** How they and the reader follow each other on X. */
+    xFollow: z.enum(CONTACT_X_FOLLOWS).optional(),
     lastContactAfter: z.iso.datetime({ offset: true }).optional(),
     lastContactBefore: z.iso.datetime({ offset: true }).optional(),
     /** Contacted before, but not in this many days. */
