@@ -198,6 +198,7 @@ function ScopedMenuItems({
       label: t("calendar"),
       Icon: CalendarDays,
       group: "work",
+      prefetchContent: true,
     },
     // Workspace-wide like Files, so it is not scoped to the reader's project.
     {
