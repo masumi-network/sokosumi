@@ -202,7 +202,7 @@ describe("GET /chats/rooms/{id}", () => {
     expect(memberFindUniqueMock).toHaveBeenCalledOnce();
     // The unread count, and the needs-you count beside it; no Threads read.
     expect(queryRawUnsafeMock).toHaveBeenCalledTimes(2);
-    expect(notificationFindManyMock).toHaveBeenCalledTimes(2);
+    expect(notificationFindManyMock).toHaveBeenCalledOnce();
     expect(membershipFindManyMock).toHaveBeenCalledOnce();
     expect(readStateFindManyMock).toHaveBeenCalledOnce();
 

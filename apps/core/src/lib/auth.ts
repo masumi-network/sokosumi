@@ -8,8 +8,6 @@ import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
-  getCreditExpiryDate,
-  grantSignupBonusCredits,
   hasConsumableEnterpriseContract,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
@@ -67,7 +65,6 @@ import {
   prepareStripeEmailSyncForUserUpdate,
 } from "@/services/stripe-user-email.service";
 import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
-import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
@@ -87,6 +84,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { pendingEmailChange } from "./auth-pending-email-change";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -121,42 +119,6 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
-
-async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
-  const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
-  const grantedAt = new Date();
-  const expiresAt = getCreditExpiryDate(grantedAt, SIGNUP_BONUS_TTL_DAYS);
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const { created } = await grantSignupBonusCredits(
-        {
-          credits: SIGNUP_BONUS_CREDITS,
-          expiresAt,
-          userId,
-        },
-        tx,
-      );
-
-      if (created) {
-        await markOutOfCreditsTasksAsToppedUp({
-          organizationId: null,
-          tx,
-          userId,
-        });
-      }
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: {
-        context: "signup_bonus_grant",
-      },
-      extra: {
-        userId,
-      },
-    });
-  }
-}
 
 type StripeBackedLocalSubscription = NonNullable<
   Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
@@ -309,7 +271,6 @@ export const auth = betterAuth({
           });
           // Awaited: it reads this request's OAuth state.
           await recordSignUpContext(user.id);
-          waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient
               .createUserCustomer({
@@ -368,6 +329,9 @@ export const auth = betterAuth({
     "/email-otp/reset-password",
     "/email-otp/request-email-change",
     "/email-otp/change-email",
+    // Its link can be neither shown nor cancelled; `auth-pending-email-change`
+    // replaces it.
+    "/change-email",
   ],
   rateLimit: {
     storage: "database",
@@ -553,6 +517,10 @@ export const auth = betterAuth({
   plugins: [
     createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
     signUpEmailStatus(),
+    pendingEmailChange({
+      expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
+      accountUrl: new URL("/account", webAppBaseUrl).toString(),
+    }),
     // A code, not a link: it goes back into the tab that asked for it, so a
     // sign-in for another app keeps that app's state, and a mail scanner
     // that opens links cannot use it up.

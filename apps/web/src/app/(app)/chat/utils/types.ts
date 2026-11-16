@@ -1,7 +1,5 @@
 import type { CoworkerMetadata } from "@sokosumi/core-client";
 
-export type ChatComposeKind = "chat" | "task";
-
 export interface Coworker {
   id: string;
   name: string;

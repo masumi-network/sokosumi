@@ -62,6 +62,7 @@ beforeEach(() => {
 function renderConnectors(
   integrations: SokoBotIntegration[],
   focusProvider: string | null = null,
+  readOnly = false,
 ) {
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -74,6 +75,7 @@ function renderConnectors(
         <ToolConnectors
           integrations={{ configured: true, integrations }}
           focusProvider={focusProvider}
+          readOnly={readOnly}
         />
       </NextIntlClientProvider>
     </QueryClientProvider>,
@@ -138,5 +140,29 @@ describe("ToolConnectors", () => {
     expect(
       await screen.findByRole("button", { name: "Connect figma" }),
     ).toBeTruthy();
+  });
+
+  it("shows a read-only bot's apps with no Connect, Manage or search", async () => {
+    renderConnectors(
+      [
+        integration({
+          provider: "googlecalendar",
+          name: "Google Calendar",
+          status: "ACTIVE",
+        }),
+        integration({ provider: "gmail", name: "Gmail" }),
+      ],
+      // A bot's connect link must not search away its own apps.
+      "figma",
+      true,
+    );
+
+    expect(screen.getByText("Google Calendar")).toBeTruthy();
+    expect(screen.getByText("Gmail")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    // Unconnected popular apps would only invite a connect Core refuses.
+    await waitFor(() => expect(searchCatalog).not.toHaveBeenCalled());
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 });

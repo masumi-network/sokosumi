@@ -24,6 +24,39 @@ export function sortTaskEventsAscending(
   });
 }
 
+/**
+ * Initial Activities window from the events a task payload carries: all
+ * non-comment events + the newest 5 comments. Older comments load on expand
+ * via `listTaskEventsBefore`.
+ * `keepAllComments` is for views that cannot load them later.
+ */
+export function taskActivityFeedFromEvents(
+  events: readonly TaskEvent[],
+  options: { keepAllComments: boolean },
+): {
+  events: TaskEvent[];
+  pagination: { commentCount: number; latestCommentId: string | null };
+} {
+  const ordered = sortTaskEventsAscending(events);
+  const comments = ordered.filter(isTaskActivityComment);
+  const pagination = {
+    commentCount: comments.length,
+    latestCommentId: comments.at(-1)?.id ?? null,
+  };
+  if (options.keepAllComments) {
+    return { events: ordered, pagination };
+  }
+  const kept = new Set(
+    comments.slice(-TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT).map(({ id }) => id),
+  );
+  return {
+    events: ordered.filter(
+      (event) => !isTaskActivityComment(event) || kept.has(event.id),
+    ),
+    pagination,
+  };
+}
+
 export function getLatestTaskEventId(
   events: readonly TaskEvent[],
 ): string | null {

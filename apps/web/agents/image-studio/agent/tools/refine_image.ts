@@ -8,6 +8,13 @@ export default defineTool({
   description:
     "Make a new version from an existing one, using it as a visual reference. The original is never altered: this always produces a new version.",
   inputSchema: z.object({
+    catalogProductId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe(
+        "When swapping to a saved product, use its id from list_products. Core applies its approved details and photo.",
+      ),
     sourceVersionId: z
       .string()
       .uuid()
@@ -54,6 +61,9 @@ export default defineTool({
       parentAssetId: input.sourceVersionId,
       // The same version is both the lineage parent and the visual reference.
       referenceAssetIds: [input.sourceVersionId],
+      ...(input.catalogProductId
+        ? { catalogProductId: input.catalogProductId }
+        : {}),
       aspectRatio: input.aspectRatio,
       resolution: input.resolution,
       modelId: input.modelId,

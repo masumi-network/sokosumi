@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { type Action, toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -330,6 +330,36 @@ describe("OrganizationSubscriptionSection", () => {
     expect(getByRole("spinbutton")).toHaveValue(1);
     expect(getByText("seatsCheckoutLabel")).toBeInTheDocument();
     expect(queryByText("seatsInputLabel")).not.toBeInTheDocument();
+  });
+
+  it("gives each plan card the picked seat count, or null while invalid", () => {
+    const { getByRole } = render(
+      <OrganizationSubscriptionSection
+        assignedCount={0}
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        scheduledCancelDate={null}
+        scheduledReduction={null}
+        currentSeats={1}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans().map((plan) => ({
+          ...plan,
+          isCurrent: plan.name === "free",
+        }))}
+        returnPath="/billing?tab=subscription"
+      />,
+    );
+
+    fireEvent.change(getByRole("spinbutton"), { target: { value: "3" } });
+    expect(subscriptionPlanCardMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ seats: 3 }),
+    );
+
+    fireEvent.change(getByRole("spinbutton"), { target: { value: "0" } });
+    expect(subscriptionPlanCardMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ seats: null }),
+    );
   });
 
   it("hides the seats card during a consumable enterprise contract", () => {

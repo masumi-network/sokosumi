@@ -281,7 +281,7 @@
           "confirm": "Confirmar",
           "cancel": "Cancelar",
           "success": "Invitación cancelada correctamente",
-          "error": "No se pudo cancelar la invitación",
+          "error": "No se pudo cancelar la invitación para {email}. Sigue pendiente.",
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
           }
@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "No se pudo actualizar el acceso compartido",
-              "copyLink": "No se pudo copiar el enlace"
+              "copyLink": "No se pudo copiar el enlace",
+              "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
             },
             "Errors": {
               "unauthenticated": "Debes iniciar sesión.",
@@ -816,7 +817,40 @@
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
-      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker"
+      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker",
+      "reply": "Responder",
+      "replyTo": "Responder: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# tarea te está esperando} other {# tareas te están esperando}}",
+        "showAll": "Ver todas en Tareas",
+        "loadError": "No se pudieron cargar las tareas que te esperan",
+        "ask": {
+          "INPUT_REQUIRED": "{name} necesita tu respuesta",
+          "APPROVAL_REQUIRED": "{name} necesita tu aprobación",
+          "AUTHENTICATION_REQUIRED": "{name} necesita que inicies sesión"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Necesita tu respuesta",
+          "APPROVAL_REQUIRED": "Necesita tu aprobación",
+          "AUTHENTICATION_REQUIRED": "Necesita que inicies sesión",
+          "OUT_OF_CREDITS": "En pausa hasta que se añadan créditos",
+          "GRANT_PENDING": "Esperando acceso al espacio de trabajo"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Responder",
+          "APPROVAL_REQUIRED": "Revisar",
+          "AUTHENTICATION_REQUIRED": "Iniciar sesión",
+          "OUT_OF_CREDITS": "Abrir",
+          "GRANT_PENDING": "Abrir"
+        }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
+        "loadError": "No se pudieron cargar las preguntas de las salas de datos",
+        "byline": "{who} sobre {document} en {room}",
+        "action": "Responder",
+        "showOlder": "Mostrar preguntas anteriores"
+      }
     },
     "HashValue": {
       "copy": "Copiar",
@@ -857,6 +891,21 @@
       "loading": "Cargando documento…",
       "fetchError": "No se pudo cargar este documento."
     },
+    "VoicePlayer": {
+      "play": "Reproducir {name}",
+      "pause": "Pausar",
+      "seek": "Posición de reproducción",
+      "position": "{current} de {total}",
+      "speed": "Velocidad de reproducción {rate}×",
+      "download": "Descargar {name}",
+      "transcript": "Transcripción",
+      "addTranscript": "Añadir transcripción",
+      "editTranscript": "Editar transcripción",
+      "transcriptHint": "Escribe lo que se dijo. Se guarda en este mensaje, así que todas las personas de esta conversación pueden leerlo y buscarlo. Déjalo vacío para quitar la transcripción.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "transcriptNotSaved": "La transcripción no se guardó. Vuelve a intentarlo en un momento o acórtala si el mensaje es demasiado largo."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -870,7 +919,7 @@
         "IDLE": "Inactivo",
         "RUNNING": "En marcha",
         "PAUSED": "Pausado",
-        "ERROR": "Error"
+        "ERROR": "No pudo responder"
       },
       "TurnStatus": {
         "QUEUED": "En cola",
@@ -1005,6 +1054,8 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openSchedule": "Ver en programaciones",
+      "openScheduleLabel": "Ver {title} en programaciones",
       "openJob": "Abrir job",
       "jobHint": {
         "started": "Iniciando el job.",
@@ -1072,6 +1123,55 @@
     },
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
+    },
+    "SpreadsheetView": {
+      "loading": "Cargando hoja de cálculo",
+      "failed": "No se pudo abrir esta hoja de cálculo.",
+      "sheet": "Hoja {number}",
+      "empty": "Esta hoja está vacía.",
+      "truncated": "Se muestran las primeras {rows} filas y 50 columnas. Descarga el archivo para ver el resto."
+    },
+    "CapTableView": {
+      "loading": "Cargando tabla de capitalización",
+      "failed": "No se puede mostrar este archivo de tabla de capitalización. Comprueba que sea válido.",
+      "title": "Tabla de capitalización de {company}",
+      "asOf": "A {date}",
+      "ownership": "Participación, totalmente diluida",
+      "holder": "Titular",
+      "class": "Clase",
+      "shares": "Acciones",
+      "issued": "Emitidas",
+      "fullyDiluted": "Totalmente diluida",
+      "optionPool": "Pool de opciones",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} concedidas, {available} disponibles",
+      "total": "Total",
+      "issuedShares": "Acciones emitidas",
+      "reservedShares": "Reservadas para el plan de acciones",
+      "unallocatedShares": "Ni emitidas ni reservadas",
+      "authorizedShares": "Acciones autorizadas",
+      "parValue": "Valor nominal"
+    },
+    "TeamView": {
+      "loading": "Cargando equipo",
+      "failed": "No se puede mostrar este archivo de equipo. Comprueba que sea un archivo de equipo válido.",
+      "advisors": "Asesores",
+      "linkedin": "Perfil de LinkedIn",
+      "highlights": "Logros",
+      "experience": "Experiencia",
+      "education": "Formación"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Gestionado por CMO",
+      "description": "CMO gestiona este proyecto, así que los cambios se hacen en CMO. Aquí puedes consultarlo.",
+      "open": "Abrir en CMO",
+      "newTab": "(se abre en una pestaña nueva)"
+    },
+    "FilesArchive": {
+      "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+      "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno.",
+      "empty": "Aún no hay archivos para descargar."
     }
   },
   "Join": {
@@ -1434,6 +1534,7 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "Chat de SEO",
           "topUp": "Recarga",
           "unattributed": "Otros"
         }
@@ -1480,6 +1581,11 @@
         "label": "Créditos gastados por día, últimos 30 días",
         "total": "{count} créditos gastados en los últimos 30 días",
         "day": "{date}: {count} créditos"
+      },
+      "TaskFilter": {
+        "label": "Créditos de {task}",
+        "unknownTask": "esta tarea",
+        "clear": "Ver todas las transacciones"
       }
     },
     "Chat": {
@@ -1591,38 +1697,41 @@
         "sidebarNew": "Nuevo"
       },
       "Landing": {
-        "greeting": "¡Bienvenido!",
-        "greetingWithName": "¡Bienvenido, {name}!",
-        "intro": "Di qué hay que hacer y ellos lo hacen.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chatear con {name}",
-          "searchAgents": "Buscar agentes",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
           "completed": "{count, plural, one {# tarea completada} other {# tareas completadas}}",
           "worked": "{minutes, plural, one {# minuto trabajado} other {# minutos trabajados}}",
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
+          "awaitingTeam": "{count, plural, one {# tarea necesita respuesta} other {# tareas necesitan respuesta}}",
+          "needsYou": "{count, plural, one {# solicitud te necesita} other {# solicitudes te necesitan}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
-          "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}"
-        },
-        "searchAgents": {
-          "label": "Buscar",
-          "subtitle": "Agentes especializados"
         },
         "MyDay": {
           "title": "Mi día",
           "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
-          "error": "No se pudieron cargar más. Inténtalo de nuevo."
+          "error": "No se pudieron cargar más. Inténtalo de nuevo.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {Mover # vencida} other {Mover # vencidas}}",
+            "label": "{count, plural, one {Mover # tarea vencida a} other {Mover # tareas vencidas a}}",
+            "targets": {
+              "today": "Hoy",
+              "tomorrow": "Mañana",
+              "nextMonday": "El próximo lunes"
+            },
+            "moved": "{count, plural, one {# tarea movida al {date}} other {# tareas movidas al {date}}}",
+            "movedPartly": "{count} de {total} tareas movidas al {date}. Las demás cambiaron o no puedes editarlas.",
+            "nothingMoved": "No se movió nada. Esas tareas cambiaron o no puedes editarlas.",
+            "error": "No se pudieron mover tus tareas vencidas. Inténtalo de nuevo.",
+            "undo": "Deshacer",
+            "undone": "{count, plural, one {# tarea devuelta} other {# tareas devueltas}}",
+            "undonePartly": "{count} de {total} tareas devueltas. Las demás cambiaron desde entonces.",
+            "undoError": "No se pudo deshacer el cambio. Inténtalo de nuevo."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1631,13 +1740,22 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
-          "chatKind": "Chat",
+          "newSchedule": "Nueva programación para {name}",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
             "planTomorrow": "Planificar mañana"
-          }
+          },
+          "failedReply": "{name} no pudo terminar su última respuesta",
+          "openChat": "Abrir el chat",
+          "failedWork": "{name} no pudo terminar lo que estaba haciendo",
+          "openBot": "Abrir la página de {name}"
+        },
+        "SokoBotSetup": {
+          "title": "Consigue tu Soko Bot",
+          "intro": "Se ocupa de tus tareas, tu correo y tu calendario.",
+          "cta": "Configurarlo"
         }
       },
       "SokoBot": {
@@ -1652,6 +1770,7 @@
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
         "feedbackThanks": "Gracias, anotado.",
+        "feedbackError": "No se pudo guardar tu valoración.",
         "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
         "review": "Revisar en la página del asistente",
         "task": "Task",
@@ -1673,6 +1792,31 @@
       "Page": {
         "title": "Task Manager",
         "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
+      },
+      "Archived": {
+        "title": "Tareas archivadas",
+        "link": "Archivadas",
+        "description": "Tareas archivadas en este espacio de trabajo, las más recientes primero. Restaura una para devolverla al tablero.",
+        "back": "Volver a las tareas",
+        "empty": "No hay tareas archivadas. Las tareas que archives aparecerán aquí para que puedas recuperarlas.",
+        "draftNote": "Las tareas que esperaban para ejecutarse vuelven como borradores, así que nada empieza hasta que lo inicies de nuevo.",
+        "restore": "Restaurar",
+        "restoreNamed": "Restaurar {name}",
+        "restored": "{name} ha vuelto al tablero",
+        "open": "Abrir",
+        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo.",
+        "searchLabel": "Buscar tareas archivadas",
+        "searchPlaceholder": "Buscar por nombre",
+        "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "noProject": "Sin proyecto",
+        "archivedOn": "Archivada el {date}",
+        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
+      },
+      "NotFound": {
+        "title": "Esta tarea no está aquí",
+        "description": "Puede que se haya archivado o eliminado, o que pertenezca a otro espacio de trabajo. Las tareas archivadas se pueden restaurar.",
+        "archived": "Tareas archivadas",
+        "back": "Volver a las tareas"
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -1758,10 +1902,13 @@
         "removeFilter": "Quitar filtro {filter}",
         "clear": "Borrar filtros",
         "noMatchesTitle": "Ninguna Task coincide con estos filtros",
-        "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks."
+        "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks.",
+        "stuck": "Atascadas {days}+ días",
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
         "parentTask": "Padre:",
@@ -1798,6 +1945,9 @@
         "authenticate": "Autenticar",
         "expand": "Expandir",
         "collapse": "Contraer",
+        "downloadAll": {
+          "button": "Descargar todo"
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorSokoBot": "Asistente",
@@ -1895,7 +2045,26 @@
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
           "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
-          "duplicate": "Duplicar como borrador"
+          "duplicate": "Duplicar como borrador",
+          "sendToChat": {
+            "menuItem": "Enviar al chat",
+            "title": "Enviar tarea al chat",
+            "description": "Publica un enlace a esta tarea en un canal o mensaje directo. Todos allí ven su título; solo quienes pueden abrir la tarea ven más. No se ofrecen salas con coworkers de IA o invitados.",
+            "roomLabel": "Enviar a",
+            "roomPlaceholder": "Elige un canal o mensaje directo",
+            "noteLabel": "Mensaje (opcional)",
+            "notePlaceholder": "Añade una nota, como lo que necesitas",
+            "noRooms": "Aún no tienes chats en este espacio de trabajo a los que enviar.",
+            "send": "Enviar",
+            "cancel": "Cancelar",
+            "success": "Tarea enviada al chat",
+            "openChat": "Abrir chat",
+            "error": "No se pudo enviar la tarea. Inténtalo de nuevo.",
+            "loadError": "No se pudieron cargar tus chats. Inténtalo de nuevo.",
+            "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
+            "retry": "Enviar de nuevo",
+            "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -1910,7 +2079,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
           },
           "Errors": {
             "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
@@ -1958,7 +2128,10 @@
         "subscribe": "Suscribirse",
         "unsubscribe": "Cancelar suscripción",
         "subscribeError": "No se pudo suscribir. Inténtalo de nuevo.",
-        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo.",
+        "credits": "Créditos usados en este espacio de trabajo",
+        "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2003,6 +2176,7 @@
         "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
+        "createError": "No se pudo crear «{name}». Tus datos siguen en el formulario.",
         "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
@@ -2032,7 +2206,15 @@
         "close": "Cerrar",
         "privateLabel": "Privada",
         "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado.",
-        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero."
+        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero.",
+        "Progress": {
+          "title": "Creando tu tarea…",
+          "naming": "Ponerle nombre a partir de tus detalles",
+          "tagging": "Sugerir etiquetas",
+          "tagsReady": "Etiquetas sugeridas",
+          "saving": "Guardar la tarea",
+          "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
+        }
       },
       "EditTask": {
         "title": "Editar Task",
@@ -2126,6 +2308,21 @@
         },
         "newSchedule": "Nueva programación",
         "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
+        "zoneTime": "Hora de {zone}",
+        "localTime": "{datetime} en tu hora",
+        "nextRunWithLocal": "Próxima ejecución {datetime} ({local} en tu hora)",
+        "emptyFiltered": {
+          "ACTIVE": "No hay programaciones activas",
+          "PAUSED": "No hay programaciones en pausa",
+          "ENDED": "No hay programaciones finalizadas"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# está activa} other {# están activas}}",
+          "PAUSED": "{count, plural, one {# está en pausa} other {# están en pausa}}",
+          "ENDED": "{count, plural, one {# ha finalizado} other {# han finalizado}}"
+        },
+        "showAll": "Mostrar todas las programaciones",
         "loadMore": "Cargar más",
         "loadMoreError": "No se pudieron cargar más programaciones.",
         "nextRun": "Próxima ejecución {datetime}",
@@ -2136,7 +2333,10 @@
         "Dialog": {
           "createTitle": "Nueva programación",
           "editTitle": "Editar programación",
+          "copyTitle": "Copiar programación",
+          "copyName": "{name} (copia)",
           "createDescription": "Cada ejecución crea una tarea nueva con estos datos.",
+          "copyDescription": "Al guardar se crea una programación nueva con estos datos. La original no cambia.",
           "futureOnlyNotice": "Los cambios solo afectan a las ejecuciones futuras. Las tareas ya creadas no cambian.",
           "name": "Nombre",
           "description": "Descripción",
@@ -2203,6 +2403,14 @@
         },
         "Actions": {
           "edit": "Editar",
+          "copy": "Copiar",
+          "copyToProject": "Copiar a otro proyecto",
+          "copyToProjectTitle": "¿A qué proyecto copiar?",
+          "copyToProjectDescription": "Elige el proyecto para la nueva programación. La original se queda donde está.",
+          "copyToProjectNone": "No hay otro proyecto abierto al que copiar. Primero crea o reabre uno en Proyectos.",
+          "copyToProjectLoading": "Cargando proyectos…",
+          "copyToProjectFailed": "No se pudieron cargar los proyectos. Cierra esto e inténtalo de nuevo.",
+          "copyToProjectLoadMore": "Mostrar más proyectos",
           "runNow": "Ejecutar ahora",
           "pause": "Pausar",
           "resume": "Reanudar",
@@ -2237,7 +2445,6 @@
           "properties": "Propiedades",
           "state": "Estado",
           "rule": "Se repite",
-          "timezone": "Zona horaria",
           "nextRun": "Próxima ejecución",
           "ends": "Termina",
           "assignee": "Responsable",
@@ -2296,6 +2503,11 @@
           "finance": "Finanzas",
           "qa": "Revisión y QA"
         }
+      },
+      "StatusAge": {
+        "label": "Tiempo en este estado:",
+        "stuck": "Atascada",
+        "since": "En este estado desde"
       }
     },
     "Projects": {
@@ -2713,7 +2925,8 @@
           "pickAccount": "Elige una cuenta en la que publicar.",
           "tooLong": "La longitud del texto supera el límite.",
           "addToQueue": "Añadir a la cola",
-          "queueEmptyHint": "Añade horarios en Cuentas."
+          "queueEmptyHint": "Añade horarios en Cuentas.",
+          "keptOnDraft": "Guardar borrador conserva esta hora. Conecta una cuenta para programarlo."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2745,7 +2958,8 @@
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
           "duplicated": "Borrador creado.",
           "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}",
-          "approved": "Publicación aprobada."
+          "approved": "Publicación aprobada.",
+          "draftTimeNotKept": "Borrador guardado sin su hora. Edítalo para volver a elegir la hora."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2804,6 +3018,14 @@
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
           "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} añadirá márgenes para 4:5.",
+            "pad_1_91_1": "{provider} añadirá márgenes para 1,91:1.",
+            "resize": "{provider} ajustará el tamaño de esta imagen.",
+            "jpeg": "{provider} convertirá esta imagen a JPEG.",
+            "srgb": "{provider} convertirá esta imagen a sRGB.",
+            "smaller_file": "{provider} comprimirá esta imagen."
+          },
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -2834,7 +3056,11 @@
             "videoRequired": "TikTok necesita un video."
           },
           "x": {
-            "more": "Mostrar más"
+            "more": "Mostrar más",
+            "images": "{count, plural, one {# imagen} other {# imágenes}}",
+            "image": "Imagen {index} de {count}",
+            "previousImage": "Imagen anterior",
+            "nextImage": "Imagen siguiente"
           }
         },
         "statistics": {
@@ -3082,7 +3308,8 @@
           "failed": "No se pudo publicar la publicación citada",
           "cancelled": "La publicación citada se canceló",
           "waiting": "Esperando a la publicación citada"
-        }
+        },
+        "plannedFor": "Previsto para {date}"
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -3112,6 +3339,7 @@
           "notSet": "Sin configurar",
           "generate": "Generar desde el sitio web",
           "missingWebsite": "Añade un sitio web al proyecto antes de generar el contexto de marca.",
+          "websiteInvalid": "Introduce un sitio web como example.com.",
           "open": "Abrir",
           "edit": "Editar",
           "remove": "Quitar",
@@ -3440,7 +3668,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendario"
+          "title": "Calendario",
+          "nextIssue": "Próxima edición",
+          "nothingScheduled": "Aún no hay nada programado. Programa una edición y aparecerá aquí.",
+          "openFullCalendar": "Abrir en el calendario",
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Escribe una edición y aparecerá aquí por fecha.",
+          "goToIssues": "Ir a ediciones",
+          "groups": {
+            "scheduled": "Programadas",
+            "unscheduled": "Sin programar",
+            "sent": "Enviadas"
+          },
+          "count": "{count, plural, one {# edición} other {# ediciones}}",
+          "newestOnly": "Se muestran las {count} ediciones más recientes. Abre el calendario para ver las anteriores."
         },
         "Issues": {
           "title": "Ediciones",
@@ -3471,6 +3712,7 @@
           "previewText": "Texto de vista previa",
           "status": "Estado",
           "sentAt": "Enviada el {date}",
+          "sentTo": "Enviada el {date} a {count, plural, one {# suscriptor} other {# suscriptores}}",
           "firstPage": "Primera página",
           "nextPage": "Página siguiente",
           "results": "{count, plural, one {# edición} other {# ediciones}}",
@@ -3653,10 +3895,10 @@
           "Image": {
             "width": "Ancho",
             "widths": {
-              "100": "Ancho completo",
-              "75": "Tres cuartos",
+              "25": "Un cuarto",
               "50": "Mitad",
-              "25": "Un cuarto"
+              "75": "Tres cuartos",
+              "100": "Ancho completo"
             },
             "align": "Alineación",
             "aligns": {
@@ -4034,9 +4276,167 @@
     "Studio": {
       "back": "Volver al proyecto",
       "updated": "Actualizado",
-      "emptyTitle": "Crea tu primera imagen",
-      "emptyBody": "Haz clic en una plantilla para aplicarla o escribe tu propio prompt abajo.",
-      "promptPlaceholder": "Describe la imagen…",
+      "startFromWebsite": "Empezar desde un sitio web",
+      "brandKit": "Kit de marca",
+      "brandKitNewTab": "Abrir el diseño del proyecto en una pestaña nueva",
+      "WebsiteDraft": {
+        "reviewBrand": "Revisar kit de marca",
+        "preparing": "Preparando sugerencias de marca y productos a partir del sitio web…",
+        "prepare": "Preparar desde el sitio web",
+        "reviewCopy": "Revisar texto de marca",
+        "ready": "Las sugerencias del sitio web están listas para revisar.",
+        "partial": "No se pudieron leer algunos datos del sitio web.",
+        "empty": "No se encontraron textos de marca ni productos en el sitio web del proyecto.",
+        "error": "No se pudieron preparar sugerencias del sitio web del proyecto. Inténtalo de nuevo."
+      },
+      "BrandKit": {
+        "websiteLookDraft": "Colores y fuentes sugeridos a partir de tu web. Puedes editarlos antes de guardar el estilo.",
+        "discardWebsiteLook": "Descartar estilo sugerido",
+        "cancelLook": "Descartar cambios de estilo",
+        "editLook": "Editar colores y fuentes",
+        "resetLook": "Usar el diseño del proyecto",
+        "colorsHelp": "Introduce hasta ocho colores hexadecimales, uno por línea, como #23453C.",
+        "fonts": "Fuentes",
+        "fontsHelp": "Introduce hasta cuatro nombres de fuente, uno por línea.",
+        "saveLook": "Guardar estilo",
+        "lookSaved": "Studio usará este estilo en los nuevos anuncios.",
+        "lookReset": "Studio usará el diseño del proyecto en los nuevos anuncios.",
+        "lookSaveError": "No se pudo guardar el estilo de marca. Inténtalo de nuevo.",
+        "lookConflict": "El estilo de marca cambió en otra sesión. Vuelve a cargarlo antes de editarlo.",
+        "reloadLook": "Volver a cargar el estilo",
+        "addWebsiteCopy": "Añadir texto del sitio web al borrador",
+        "websiteCopyAdded": "Texto del sitio web añadido. Revísalo antes de guardar.",
+        "websiteProfileAdded": "Se añadieron sugerencias del sitio web. Revisa la voz de marca y el público antes de guardar.",
+        "websiteCopyEmpty": "No hay texto nuevo del sitio web para añadir.",
+        "websiteCopyError": "No se pudo leer el texto del sitio web del proyecto. Inténtalo de nuevo.",
+        "extractWebsiteStyle": "Extraer colores y tipografías",
+        "websiteStyleHelp": "Extraer el estilo del sitio web sustituye la guía de diseño del proyecto.",
+        "websiteStyleSaved": "Se guardó el estilo del sitio web en la guía de diseño del proyecto.",
+        "logoFile": "Archivo del logotipo del proyecto",
+        "uploadLogo": "Subir logotipo",
+        "replaceLogo": "Reemplazar logotipo",
+        "logoSaved": "Se guardó el logotipo del proyecto.",
+        "logoUploadError": "No se pudo guardar el logotipo del proyecto.",
+        "logoFileInvalid": "Elige una imagen estática PNG, JPEG o WebP de hasta 2 MB.",
+        "logoRequirements": "PNG, JPEG o WebP de hasta 2 MB y 4 megapíxeles.",
+        "logoPosition": "Posición predeterminada del logotipo",
+        "logoPositionHint": "Las nuevas vistas previas y exportaciones ZIP usan esta posición. Puedes cambiarla en cada exportación.",
+        "saveLogoPosition": "Guardar posición del logotipo",
+        "logoPositionSaved": "Se guardó la posición predeterminada del logotipo.",
+        "logoPositionError": "No se pudo guardar la posición predeterminada del logotipo.",
+        "findWebsiteLogo": "Buscar el logo del sitio web",
+        "currentLogo": "Logo actual del proyecto",
+        "websiteLogoPreview": "Logo encontrado en el sitio web del proyecto",
+        "useWebsiteLogo": "Usar este logo",
+        "discardWebsiteLogo": "Descartar",
+        "websiteLogoMissing": "No se encontró un logo utilizable en el sitio web del proyecto.",
+        "websiteLogoError": "No se pudo buscar el logo en el sitio web del proyecto. Inténtalo de nuevo.",
+        "description": "Define el estilo visual, la voz, el público y los textos aprobados para tus anuncios.",
+        "colors": "Colores de la marca",
+        "summary": "Descripción de la marca",
+        "tone": "Voz y tono",
+        "audience": "Público",
+        "approvedLines": "Textos publicitarios aprobados",
+        "onePerLine": "Una entrada por línea",
+        "lineLimits": "Usa hasta ocho entradas por campo. Cada entrada de público admite hasta 400 caracteres y cada línea de texto hasta 2000.",
+        "loading": "Cargando el kit de marca…",
+        "saved": "Se guardaron los textos de marca.",
+        "loadError": "No se pudo cargar el kit de marca.",
+        "saveError": "No se pudieron guardar los textos de marca.",
+        "conflict": "El kit de marca cambió. Vuelve a cargarlo antes de guardar.",
+        "reload": "Volver a cargar el kit",
+        "editDesign": "Editar diseño",
+        "close": "Cerrar",
+        "save": "Guardar textos de marca"
+      },
+      "addProductPhoto": "Añadir foto del producto",
+      "removeProductPhoto": "Quitar foto del producto",
+      "productPhoto": "Foto del producto",
+      "productPhotoType": "Elige una foto en formato JPEG, PNG o WebP.",
+      "productPhotoSize": "Elige una foto de {size} MiB o menos.",
+      "productPhotoDuplicate": "Ya existe un archivo con este nombre en Archivos. Cambia el nombre de la foto o elige otra.",
+      "productPhotoFailed": "No se pudo adjuntar la foto. Vuelve a intentarlo con otro archivo.",
+      "productPhotoNeedsModel": "Selecciona un modelo de imagen compatible con tu foto y con las demás referencias.",
+      "productPhotoGuidance": "Studio usa la foto del producto como referencia para su forma, colores, envase y etiqueta.",
+      "useProductCutout": "Conservar la foto original del producto",
+      "productCutoutSummary": "Foto original",
+      "productCutoutHint": "Usa un PNG transparente. Studio genera el escenario y coloca tu foto original sobre él.",
+      "productCutoutNeedsPhoto": "Adjunta un PNG transparente para cada producto y elimina las demás imágenes de referencia, o desactiva la opción de conservar la foto original.",
+      "tooManyReferences": "Usa hasta {count} imágenes de referencia por anuncio.",
+      "ProductCatalog": {
+        "reviewImportedProducts": "Revisar productos importados",
+        "addImportedToBatch": "{count, plural, one {Añadir # producto importado al lote} other {Añadir # productos importados al lote}}",
+        "catalogFull": "El catálogo está lleno. Quita un producto antes de añadir otro.",
+        "title": "Productos",
+        "description": "Importa o añade hasta {count} productos. Revisa los datos antes de usarlos en un anuncio.",
+        "website": "Tienda o página de producto",
+        "websitePlaceholder": "ejemplo.es",
+        "import": "Importar productos",
+        "count": "{count} de {limit} productos",
+        "add": "Añadir producto",
+        "product": "Producto",
+        "untitled": "Producto sin nombre",
+        "name": "Nombre del producto",
+        "productDescription": "Descripción del producto",
+        "price": "Precio",
+        "productUrl": "URL de la página del producto",
+        "imageUrl": "URL de la foto del producto",
+        "viewPhoto": "Abrir foto del producto",
+        "use": "Usar en el briefing",
+        "remove": "Quitar producto",
+        "loading": "Cargando productos…",
+        "working": "Procesando…",
+        "retry": "Volver a intentar",
+        "close": "Cerrar",
+        "save": "Guardar productos",
+        "loadError": "No se pudieron cargar los productos. Vuelve a intentarlo.",
+        "noImportResults": "No se encontraron productos. Prueba con una página de producto o añade uno a mano.",
+        "alreadyImported": "Esos productos ya están en el catálogo.",
+        "imported": "{count, plural, one {Se encontró # producto} other {Se encontraron # productos}}. Revísalos y guárdalos para conservarlos.",
+        "importError": "No se pudieron importar los productos. Comprueba la URL y vuelve a intentarlo.",
+        "saved": "Productos guardados.",
+        "saveError": "No se pudieron guardar los productos. Revisa los datos o vuelve a cargar el catálogo guardado.",
+        "discardAndReload": "Descartar cambios y volver a cargar",
+        "useDetailsOnly": "Usar solo los datos",
+        "attachPhotoError": "No se pudo adjuntar la foto. Comprueba la URL de la foto o usa solo los datos del producto.",
+        "addToBatch": "Añadir al lote",
+        "batchTitle": "Productos de este lote",
+        "copiesFor": "Copias de {name} por ubicación y modelo",
+        "removeFromBatch": "Quitar {name} del lote",
+        "removeBatchItem": "Quitar",
+        "includePhotos": "Incluir fotos de productos",
+        "batchNote": "Cada copia se genera para todas las ubicaciones y modelos seleccionados.",
+        "useBatch": "Usar lote de productos",
+        "batchPhotoError": "No se pudo adjuntar la foto de {name}. Actualiza la URL de la foto o desmarca Incluir fotos de productos."
+      },
+      "productBatchLimit": "Reduce los productos, las copias, las ubicaciones o los modelos para respetar el límite de {count} imágenes.",
+      "fitBatchModels": "{count, plural, one {Mantener # modelo compatible} other {Mantener # modelos compatibles}}",
+      "batchProductCount": "{count, plural, one {# producto en el lote} other {# productos en el lote}}",
+      "clearProductBatch": "Vaciar lote de productos",
+      "copiesFromProducts": "Define las copias de cada producto en Productos.",
+      "emptyTitle": "Crea tu primer anuncio",
+      "emptyBody": "Elige una plantilla y completa los detalles, o escribe tu propio briefing.",
+      "RecentProjects": {
+        "title": "Continúa donde lo dejaste",
+        "imageCount": "{count, plural, one {# imagen} other {# imágenes}}"
+      },
+      "pauseTemplateMotion": "Pausar las vistas previas flotantes",
+      "resumeTemplateMotion": "Reanudar las vistas previas flotantes",
+      "CreativeStart": {
+        "open": "Elige qué crear",
+        "title": "¿Qué quieres crear primero?",
+        "description": "Elige un punto de partida y adapta el briefing a tu idea.",
+        "product": "Imágenes de producto / comercio electrónico",
+        "campaign": "Conceptos de campaña / imágenes clave",
+        "architecture": "Arquitectura / interiores",
+        "portfolio": "Portafolio / proyectos personales",
+        "social": "Contenido para redes / miniaturas",
+        "video": "Conceptos de vídeo / guiones gráficos / animación",
+        "fashion": "Moda / conceptos editoriales",
+        "worlds": "Personajes, entornos o mundos",
+        "other": "Otro"
+      },
+      "promptPlaceholder": "Describe el anuncio que quieres crear…",
       "generate": "Generar",
       "refine": "Refinar",
       "regenerate": "Nueva variante",
@@ -4053,6 +4453,59 @@
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
+      "moreActions": "Más acciones",
+      "previewAd": "Vista previa del anuncio",
+      "previewAdDescription": "Previsualiza un anuncio en el feed de Instagram o Facebook, o como reel vertical.",
+      "approvedHeadline": "Titular aprobado",
+      "noHeadline": "Sin titular",
+      "headlineHint": "Studio guarda este titular en el anuncio y lo usa en los archivos PNG y ZIP.",
+      "headlineLoading": "Cargando titulares aprobados…",
+      "headlineLoadFailed": "No se pudieron cargar los titulares aprobados.",
+      "useApprovedHeadlines": "Usar titulares aprobados",
+      "useApprovedHeadlinesHint": "Alterna los titulares del kit de marca entre las variantes. Todos los tamaños de cada variante usan el mismo texto en las vistas previas y las exportaciones.",
+      "approvedHeadlinesSummary": "Titulares aprobados",
+      "campaignHeadlineRemoved": "La aprobación en el kit de marca ha cambiado. Vuelve a activar los titulares aprobados para usar el texto actualizado.",
+      "headlineRendering": "Añadiendo el titular…",
+      "headlineRenderFailed": "No se pudo generar la imagen con este titular.",
+      "headlineRemoved": "Este titular ya no está aprobado en el kit de marca.",
+      "headlineSaving": "Guardando titular…",
+      "headlineSaveFailed": "No se pudo guardar el titular. Revisa el kit de marca y vuelve a intentarlo.",
+      "reviewBatchHeadlines": "Revisar los titulares del lote",
+      "reviewBatchHeadlinesHint": "Revisa la última versión lista de cada anuncio. Studio guarda los titulares que elijas y exporta cada anuncio en su tamaño original.",
+      "batchReviewChanged": "El lote ha cambiado. Revisa los anuncios actualizados antes de descargarlos.",
+      "loadingBatchHeadlines": "Cargando anuncios listos y titulares aprobados…",
+      "batchHeadlinesLoadFailed": "No se pudo cargar este lote para revisarlo.",
+      "batchHeadlinesEmpty": "Añade frases breves aprobadas al kit de marca para usarlas como titulares.",
+      "batchAdNumber": "Anuncio {number}",
+      "batchHasNoReadyAds": "Aún no hay anuncios listos en este lote.",
+      "headlineNoLongerApproved": "Ya no está aprobado",
+      "archiveHeadlineRemoved": "Un titular ya no está aprobado. Vuelve a abrir la revisión para sustituirlo o quitarlo.",
+      "previewPlatform": "Plataforma de vista previa",
+      "logoOnCreative": "Logotipo del proyecto en el anuncio",
+      "downloadPlacementPng": "Descargar PNG en {ratio}",
+      "placementExportFailed": "No se pudo exportar el formato. Inténtalo de nuevo.",
+      "archiveLogoPosition": "Logotipo del proyecto en los anuncios seleccionados",
+      "brandExportFailed": "No se pudo exportar con el logotipo del proyecto. Comprueba que sea una imagen PNG, JPEG o WebP.",
+      "LogoPositions": {
+        "none": "Sin logotipo",
+        "top-left": "Arriba a la izquierda",
+        "top-right": "Arriba a la derecha",
+        "bottom-left": "Abajo a la izquierda",
+        "bottom-right": "Abajo a la derecha"
+      },
+      "PreviewPlatforms": {
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "reels": "Reels"
+      },
+      "previewSponsored": "Patrocinado",
+      "downloadAdsZip": "Descargar ZIP",
+      "downloadBatchZip": "Descargar lote en ZIP",
+      "downloadBatchZipHint": "Incluye la última versión lista de cada anuncio y su titular revisado.",
+      "logoOnBatch": "Logotipo del proyecto en todos los anuncios",
+      "archiveImageLimit": "Selecciona hasta {count} imágenes por archivo ZIP.",
+      "archiveSizeLimit": "Selecciona imágenes que en total ocupen {size} MiB o menos.",
+      "archiveDownloadFailed": "No se pudo descargar el archivo ZIP. Vuelve a intentarlo o descarga las imágenes por separado.",
       "compare": "Comparar",
       "version": "Versión",
       "generating": "Generando",
@@ -4074,6 +4527,50 @@
       "composerTitle": "Imágenes nuevas",
       "model": "Modelo",
       "aspectRatio": "Encuadre",
+      "adPlacements": "Ubicaciones de anuncios",
+      "creativeDirection": "Dirección creativa",
+      "adGallery": "Galería de anuncios",
+      "groupByProduct": "Agrupar por producto",
+      "Assistant": {
+        "title": "Asistente de anuncios",
+        "edit": "Editar con el asistente",
+        "empty": "Describe un anuncio nuevo o abre uno existente y elige «Editar con el asistente».",
+        "unavailable": "El asistente de anuncios no está disponible para este proyecto.",
+        "placeholder": "Describe un anuncio o pide un cambio",
+        "send": "Enviar mensaje",
+        "you": "Tú",
+        "thinking": "En proceso…",
+        "resuming": "Abriendo la conversación…",
+        "retryConnection": "Volver a conectar",
+        "error": "El asistente no pudo completar la solicitud.",
+        "errorHint": "Comprueba si hay una nueva versión en la galería antes de volver a enviar la solicitud.",
+        "newConversation": "Nueva conversación",
+        "editResult": "Editar la versión {version}",
+        "viewUpdatedAd": "Ver anuncio actualizado",
+        "editingVersion": "Editando la versión {version}",
+        "editingProduct": "Editando {name} · versión {version}",
+        "refreshFailed": "No se pudo conectar con el asistente."
+      },
+      "CreativeDirections": {
+        "auto": "Automática",
+        "spotlight": "Producto destacado",
+        "lifestyle": "Estilo de vida",
+        "editorial": "Editorial",
+        "explainer": "Anuncio explicativo"
+      },
+      "Placements": {
+        "squareFeed": "Feed cuadrado",
+        "portraitFeed": "Feed vertical",
+        "stories": "Historias y Reels",
+        "landscapeFeed": "Feed horizontal"
+      },
+      "placementCount": "{count, plural, one {# ubicación} other {# ubicaciones}}",
+      "placementNeedsModels": "Elige modelos que admitan esta proporción.",
+      "placementLimit": "Esta ubicación superaría el límite de {count} imágenes por lote.",
+      "unsupportedPlacements": "Algunos modelos no admiten todas las ubicaciones elegidas. Cambia de modelo o elimina una ubicación.",
+      "placementCopiesOverCeiling": "Se generarían {images} imágenes. El límite por lote es de {limit}.",
+      "placementPlan": "{count, plural, one {# imagen} other {# imágenes}}",
+      "placementPlanCredits": "{count, plural, one {# imagen} other {# imágenes}} · {credits, plural, one {# crédito} other {# créditos}}",
       "resolution": "Resolución",
       "outputFormat": "Formato",
       "copies": "Copias",
@@ -4083,22 +4580,13 @@
       "waitingForSlot": "Esperando un turno",
       "waitingForSlotBody": "Esperando un turno: este proyecto ya tiene en marcha todas las generaciones que se le permiten.",
       "queueNotDurable": "Las peticiones restantes se guardan en esta pestaña y se envían a medida que se liberan turnos. Si cierras la pestaña, se pierden las que no se hayan enviado.",
-      "templates": "Plantillas",
+      "templates": "Plantillas de anuncios",
       "Templates": {
-        "poster": "Póster",
-        "headshot": "Retrato",
-        "product-announcement": "Anuncio de producto",
-        "flyer": "Folleto",
-        "infographic": "Infografía",
-        "illustration": "Ilustración",
-        "icon": "Icono",
-        "ad": "Publicidad",
-        "social-post": "Publicación social",
-        "banner": "Banner",
-        "logo-mark": "Logotipo",
-        "background": "Fondo",
-        "thumbnail": "Miniatura",
-        "mockup": "Maqueta"
+        "story-ad": "Anuncio para historias",
+        "social-post": "Anuncio de estilo de vida",
+        "product-announcement": "Lanzamiento de producto",
+        "ad": "Producto destacado",
+        "banner": "Banner publicitario"
       },
       "gallery": "Imágenes",
       "select": "Seleccionar",
@@ -4126,6 +4614,7 @@
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
       "referencesAcrossProjects": "Las referencias tienen que venir de un solo proyecto. Deselecciona las imágenes de otros proyectos y vuelve a generar.",
+      "templateSlotsUnfilled": "Completa {slots} en el brief y vuelve a generar.",
       "scopeLabel": "Proyecto",
       "title": "Content Studio",
       "selectAllModels": "Seleccionar todos",
@@ -4141,6 +4630,7 @@
       "modelChoosesFormat": "El modelo elige",
       "copiesOverCeiling": "{models, plural, one {# modelo} other {# modelos}} x {copies} copias son {images} imágenes, y el límite es {limit}.",
       "batchCeiling": "Como máximo {count} imágenes por pulsación. Sokosumi las envía en grupos pequeños, a medida que el proveedor se libera.",
+      "variedAdCopies": "Studio varía los diseños y titulares de las copias siguiendo tus indicaciones.",
       "savedSubmission": "Solicitud guardada para {model}",
       "submissionUnconfirmed": "Envío sin confirmar",
       "submissionNotStarted": "No se pudo iniciar la generación de imágenes",
@@ -4162,7 +4652,8 @@
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
-      "failedNoCharge": "No se cobró nada por ella.",
+      "failedAfterModel": "falló",
+      "failedNoCharge": "sin cargo",
       "failedBodyUnreported": "El modelo no devolvió ninguna imagen, y esta generación es demasiado antigua para decir por qué.",
       "FailureReasons": {
         "provider_rejected": "El proveedor de imágenes rechazó esta solicitud.",
@@ -4171,6 +4662,7 @@
         "provider_unreachable": "No se pudo contactar con el proveedor de imágenes durante tanto tiempo que el estudio dejó de esperar.",
         "submission_uncertain": "El proveedor de imágenes no confirmó que recibiera esta solicitud, así que puede haberse ejecutado o no.",
         "reference_not_sendable": "No se pudo enviar una imagen de referencia al proveedor de imágenes.",
+        "product_cutout_unavailable": "La foto original debe ser un PNG estático y accesible con fondo transparente.",
         "request_not_supported": "Este modelo, o estos ajustes, ya no están disponibles en el proveedor de imágenes.",
         "cancelled": "Cancelada antes de producir una imagen.",
         "abandoned_before_send": "Esta solicitud se descartó antes de llegar al proveedor de imágenes.",
@@ -4444,7 +4936,8 @@
             "description1": "Línea de descripción 1",
             "description2": "Línea de descripción 2",
             "add": "Añadir enlace de sitio",
-            "remove": "Quitar enlace de sitio {number}"
+            "remove": "Quitar enlace de sitio {number}",
+            "label": "Enlaces de sitio"
           },
           "callouts": {
             "title": "Textos destacados (opcional)",
@@ -4679,6 +5172,16 @@
         "errors": {
           "conflict": "Esta campaña no se puede editar aquí.",
           "failed": "No se pudieron guardar los cambios"
+        },
+        "changes": {
+          "submitCount": "Guardar {count, plural, one {# cambio} other {# cambios}}",
+          "changed": "Cambiado",
+          "was": "Antes:",
+          "now": "Ahora:",
+          "none": "Aún no hay cambios. Cambia un paso para guardar.",
+          "removed": "Eliminado",
+          "added": "Añadido",
+          "empty": "Ninguno"
         }
       },
       "market": {
@@ -4723,6 +5226,7 @@
           },
           "trendLabel": "Búsquedas al mes durante 12 meses, de {from} a {to}",
           "searchesPerMonth": "{count} búsquedas al mes",
+          "noSearchData": "Sin datos de búsqueda",
           "emptyTitle": "No se encontraron palabras clave en tendencia para este mercado",
           "emptyBody": "Prueba con otras palabras clave u otro país."
         },
@@ -4755,7 +5259,10 @@
             "keywords": "No se pudieron cargar las palabras clave",
             "ads": "No se pudieron cargar los anuncios"
           }
-        }
+        },
+        "updating": "Actualizando palabras clave en tendencia…",
+        "stale": "Estos resultados son anteriores a tu último guardado.",
+        "refresh": "Actualizar resultados"
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
@@ -4850,10 +5357,6 @@
         "title": "Elige un proyecto",
         "body": "Luego conecta cuentas."
       },
-      "attentionNeedProject": {
-        "title": "Requiere atención",
-        "body": "Elige un proyecto para ver las publicaciones que fallaron o se omitieron."
-      },
       "draftsNeedProject": {
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
@@ -4866,6 +5369,15 @@
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
         "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+      },
+      "attentionAll": {
+        "label": "Publicaciones que requieren atención en todos los proyectos",
+        "empty": "Nada requiere atención en ningún proyecto.",
+        "waitingApproval": "Esperando aprobación",
+        "review": "Revisar",
+        "open": "Abrir",
+        "actionFor": "{action}: publicación en {project}",
+        "more": "Se muestran las {count} más recientes. Elige un proyecto para ver todas sus publicaciones."
       }
     },
     "Error": {
@@ -4923,7 +5435,8 @@
             "work": "Trabajo",
             "records": "Registros",
             "marketing": "Marketing"
-          }
+          },
+          "seo": "SEO"
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -4939,7 +5452,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Trabajando ahora",
-          "needsAttention": "Requiere atención",
           "activeAgo": "Activo {time}",
           "ready": "Listo",
           "team": "Los Soko Bots de tu equipo"
@@ -4967,7 +5479,8 @@
       "actions": {
         "confirm": "Confirmar",
         "seeMore": "Ver más",
-        "openLink": "Abrir enlace"
+        "openLink": "Abrir enlace",
+        "close": "Cerrar"
       },
       "errors": {
         "acknowledgeFailed": "No se pudo confirmar el aviso"
@@ -4994,6 +5507,8 @@
       "statusCancel": "El checkout de suscripción fue cancelado.",
       "currentPlanBadge": "Actual",
       "pricePerMonth": "por mes",
+      "pricePerSeatPerMonth": "por Seat / mes",
+      "seatTotal": "{total} al mes por {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit incluido} other {# Credits incluidos}}",
       "mostPopularBadge": "Más popular",
       "canceling": "Programando la cancelación...",
@@ -6782,16 +7297,16 @@
       "Evals": {
         "title": "Evals",
         "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
-        "noHistory": "No daily runs yet",
-        "historyLabel": "Pass rate in the last {count} daily runs",
-        "noDailyRuns": "No daily run has finished yet.",
+        "noHistory": "No weekly runs yet",
+        "historyLabel": "Pass rate in the last {count} weekly runs",
+        "noDailyRuns": "No weekly run has finished yet.",
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
-        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
-        "comparedWith": "Compared with the daily run of {when}",
-        "noBaseline": "No daily run before this one to compare with.",
+        "comparedWith": "Compared with the weekly run of {when}",
+        "noBaseline": "No weekly run before this one to compare with.",
         "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
         "passedOf": "{passed} of {scored} passed",
         "suiteFilter": "Suite",
@@ -6851,7 +7366,7 @@
           "sokoBot": "Soko Bot",
           "cmo": "CMO",
           "repeats": "Repeats",
-          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -6939,6 +7454,7 @@
       "topUpDescription": "Elige un importe o introduce uno personalizado",
       "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
       "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
+      "seePlans": "Ver planes",
       "couponExpiryPolicyNotice": "Los créditos promocionales pueden caducar; las condiciones dependen del cupón o de la oferta.",
       "costPerCredit": "{cost} por Credit",
       "youSaveLabel": "Ahorra {amount}",
@@ -6999,11 +7515,22 @@
       "Email": {
         "title": "Cambiar email",
         "description": "Actualizar tu dirección de email",
+        "descriptionWithCurrent": "Has iniciado sesión como {email}. Enviamos un enlace a la nueva dirección para confirmar el cambio.",
         "newEmail": "Nuevo email",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar email",
-        "success": "Email actualizado correctamente",
-        "error": "No se pudo actualizar el email"
+        "success": "Abre el enlace que enviamos a {email} para confirmar tu nueva dirección.",
+        "error": "No se pudo actualizar el email",
+        "pendingBadge": "Esperando tu confirmación",
+        "pendingDescription": "Abre el enlace que enviamos a esta dirección para terminar el cambio.",
+        "resend": "Enviar de nuevo",
+        "cancel": "Cancelar cambio",
+        "cancelled": "Cambio de correo cancelado. El enlace ya no funciona.",
+        "cancelError": "No se pudo cancelar el cambio de correo. Inténtalo de nuevo.",
+        "changed": "Tu correo ahora es {email}.",
+        "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo.",
+        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo.",
+        "cancelTooLate": "Este cambio ya se confirmó o caducó, así que no hay nada que cancelar."
       },
       "Password": {
         "title": "Cambiar contraseña",
@@ -7260,7 +7787,7 @@
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
         "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
-        "tagDirectMessagesDescription": "Permite que Jev lea los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesDescription": "Si está activado, leemos tus mensajes directos para destacar preguntas y decisiones para ti. Solo leemos un mensaje directo si todas las personas en él lo han activado. En los canales lo hacemos siempre.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
         "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
@@ -7664,17 +8191,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Acceso de proveedores al espacio de trabajo",
-        "description": "Aprueba el acceso de proveedores al espacio de trabajo personal (leer, comentar y crear tareas).",
-        "vendorsTitle": "Proveedores",
-        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "title": "Quién puede trabajar en tu espacio de trabajo",
+        "description": "Los socios que permitas pueden ver las tareas de tu espacio de trabajo personal, comentarlas y crear nuevas.",
+        "vendorsTitle": "Socios",
+        "vendorsEmpty": "Ningún socio tiene acceso.",
         "statusPending": "Pendiente",
         "statusGranted": "Concedido",
         "statusDenied": "Denegado",
         "statusRevoked": "Revocado",
-        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "grantFormTitle": "Añadir un socio",
         "GrantForm": {
-          "vendorLabel": "Proveedor",
+          "vendorLabel": "Socio",
           "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
           "submit": "Conceder acceso",
           "success": "Acceso de proveedor concedido",
@@ -7683,17 +8210,20 @@
         "Actions": {
           "approve": "Aprobar",
           "deny": "Denegar",
-          "revoke": "Revocar",
+          "revoke": "Quitar acceso",
           "approveSuccess": "Acceso de proveedor aprobado",
           "denySuccess": "Acceso de proveedor denegado",
-          "revokeSuccess": "Acceso de proveedor revocado",
+          "revokeSuccess": "Acceso quitado",
           "approveError": "No se pudo aprobar el acceso de proveedor",
           "denyError": "No se pudo denegar el acceso de proveedor",
-          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "revokeError": "No se pudo quitar el acceso",
           "grant": "Conceder",
           "grantSuccess": "Acceso de proveedor concedido",
           "grantError": "No se pudo conceder acceso de proveedor"
-        }
+        },
+        "permissionWorkspace": "Puede leer, comentar, crear",
+        "grantedSince": "Tiene acceso desde el {date}. Puedes quitarlo cuando quieras.",
+        "grantedOnRequest": "Pidió acceso, aprobado el {date}. Puedes quitarlo cuando quieras."
       },
       "CoworkerAccess": {
         "title": "Acceso anticipado de coworker",
@@ -7793,6 +8323,7 @@
             "removeCta": "{count, plural, =1 {Quitar # Seat} other {Quitar # Seats}}",
             "decrease": "Quitar un Seat",
             "increase": "Añadir un Seat",
+            "minimum": "{count, plural, =1 {Introduce al menos # Seat.} other {Introduce al menos # Seats.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {¿Añadir # Seat?} other {¿Añadir # Seats?}}",
               "removeTitle": "{count, plural, =1 {¿Quitar # Seat?} other {¿Quitar # Seats?}}",
@@ -7815,6 +8346,18 @@
             }
           },
           "seatsCheckoutLabel": "Seats a comprar"
+        },
+        "CreditSpend": {
+          "title": "Créditos gastados por persona",
+          "description": "Créditos cobrados a cada persona este mes y el mes pasado, antes de reembolsos. Los meses siguen UTC. Las recargas no cuentan.",
+          "person": "Persona",
+          "noPerson": "Cargos de la organización (sin persona)",
+          "unknownPerson": "Persona desconocida",
+          "otherSpend": "Resto del gasto",
+          "formerMember": "Exmiembro",
+          "empty": "No se gastaron créditos este mes ni el mes pasado.",
+          "loadError": "No se pudo cargar el gasto de créditos. Inténtalo de nuevo.",
+          "retry": "Reintentar"
         },
         "Seats": {
           "title": "Resumen de Seats",
@@ -7854,7 +8397,10 @@
             "grant": "Conceder",
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
-          }
+          },
+          "permissionWorkspace": "Puede leer, comentar, crear",
+          "grantedSince": "Tiene acceso desde el {date}.",
+          "grantedOnRequest": "Pidió acceso, aprobado el {date}."
         },
         "CoworkerAccess": {
           "title": "Acceso anticipado de coworker",
@@ -8129,6 +8675,7 @@
       "uploadSuccess": "DESIGN.md subido",
       "uploadError": "No se pudo subir el DESIGN.md",
       "uploadRejected": "Archivo no aceptado",
+      "uploadEmpty": "El archivo está vacío. Elige un DESIGN.md con contenido.",
       "removeSelectedUpload": "Eliminar archivo seleccionado",
       "descriptionPersonal": "Crea y gestiona el DESIGN.md usado para tareas de tu workspace personal.",
       "descriptionOrganization": "Crea y gestiona el DESIGN.md usado para tareas de esta organización.",
@@ -8447,7 +8994,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "No se pudo responder",
+        "failed": "{name} no pudo responder",
+        "failedBody": "La respuesta se detuvo antes de terminar.",
+        "failedSaved": "La respuesta se detuvo antes de terminar. Tu mensaje está guardado.",
         "retry": "Reintentar"
       },
       "Outbound": {
@@ -8509,7 +9058,15 @@
         "removeAttachment": "Eliminar {name}",
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
-        "hideFormatting": "Ocultar formato"
+        "hideFormatting": "Ocultar formato",
+        "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
+        "dictate": "Dictar",
+        "stopDictation": "Detener y escribirlo",
+        "cancelDictation": "Descartar dictado",
+        "dictating": "Dictando",
+        "dictationBlocked": "Permite el acceso al micrófono en tu navegador para dictar.",
+        "dictationFailed": "No se pudo convertir en texto. Inténtalo de nuevo.",
+        "dictationEmpty": "No se entendió nada. Inténtalo de nuevo."
       },
       "Skills": {
         "add": "Añadir una skill",
@@ -8621,7 +9178,9 @@
         "messageRequired": "El mensaje es obligatorio.",
         "roomRequired": "La sala es obligatoria.",
         "pinError": "No se pudo fijar el mensaje.",
-        "unpinError": "No se pudo desfijar el mensaje."
+        "unpinError": "No se pudo desfijar el mensaje.",
+        "statePinned": "El mensaje está fijado.",
+        "stateUnpinned": "El mensaje no está fijado."
       },
       "SavedMessages": {
         "save": "Guardar para después",
@@ -8651,12 +9210,18 @@
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",
         "imageAlt": "Imagen de vista previa de {title}",
-        "remove": "Quitar vista previa del enlace: {title}"
+        "remove": "Quitar vista previa del enlace: {title}",
+        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo.",
+        "restored": "La vista previa del enlace vuelve a estar en el mensaje."
       },
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
+        "deleteNoteTitle": "¿Eliminar esta nota?",
+        "deleteNoteConfirm": "Se elimina para siempre. Solo tú podías verla.",
         "deleted": "Este mensaje fue eliminado",
+        "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a estar en la conversación.",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos"
       },
@@ -8686,7 +9251,9 @@
         "composerAria": "Editar mensaje. Usa Guardar o Cancelar para terminar. Con teclado: Intro guarda, Escape cancela y Mayús+Intro añade una nueva línea.",
         "edited": "Editado",
         "editedAt": "Editado {when}",
-        "save": "Guardar"
+        "save": "Guardar",
+        "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a mostrar su texto anterior."
       },
       "Browse": {
         "trigger": "Explorar canales",
@@ -8754,7 +9321,9 @@
         "removeConfirmTitle": "¿Quitar a {name} de este canal?",
         "removeConfirmDescription": "{name} ya no verá este canal ni sus mensajes.",
         "removeSuccess": "Se quitó a {name} del canal.",
-        "undo": "Deshacer"
+        "removeError": "No se pudo quitar a {name} del canal.",
+        "undo": "Deshacer",
+        "undoError": "No se pudo volver a añadir a {name} al canal."
       },
       "AddMembers": {
         "title": "Añadir miembros",
@@ -8964,7 +9533,7 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
-        "aiNote": "Jev ordena los mensajes según lo que te piden. Puede equivocarse, así que no se oculta nada: corrige una etiqueta en cualquier mensaje con un clic.",
+        "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje, pasa el cursor por encima y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
         "loopClosed": "Hecho",
@@ -8975,8 +9544,8 @@
         "noCoworkerFits": "Ningún Coworker encaja todavía.",
         "createTask": "Crear una tarea",
         "editTags": "Editar etiquetas",
-        "editTagsTitle": "Qué es este mensaje",
-        "editTagsNote": "Tu corrección vale para todos en la sala.",
+        "editTagsTitle": "Etiquetas de este mensaje",
+        "editTagsNote": "Todos en la sala ven tu cambio.",
         "taskDue": "Vence {date}",
         "taskSource": "Del chat:",
         "taskFrom": "{name} escribió:",
@@ -9001,7 +9570,7 @@
           "blockers": "Bloqueos",
           "decisions": "Decisiones",
           "announcements": "Anuncios",
-          "openLoops": "Pendientes",
+          "openLoops": "Aún pendiente",
           "highlights": "Destacados"
         },
         "Chips": {
@@ -9036,14 +9605,19 @@
         "Decisions": {
           "open": "Decisiones",
           "title": "Decisiones",
-          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "empty": "Aún no hay decisiones aquí. Las encontramos en canales y en chats con otras personas que lo permiten. Las notas para ti mismo nunca se etiquetan.",
           "loadOlder": "Cargar anteriores",
-          "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+          "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
+          "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
+          "error": "No se pudieron cargar las decisiones.",
+          "untitled": "Mensaje sin texto",
+          "inThread": "En un hilo"
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
           "threads": "Hilos",
+          "decisions": "Decisiones",
           "saved": "Guardados"
         },
         "Briefing": {
@@ -9090,6 +9664,13 @@
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Archivos",
+      "uploadFolderOption": "Carpeta",
+      "filesUploaded": "{count, plural, one {# archivo subido} other {# archivos subidos}}",
+      "dropToUpload": "Suelta archivos o carpetas para subirlos",
+      "folderUploaded": "{count, plural, one {Se subió # archivo a {folder}} other {Se subieron # archivos a {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# archivo no se subió. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.} other {# archivos no se subieron. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.}}",
+      "folderUploadNothing": "Esta carpeta no tiene archivos que se puedan subir.",
       "emptyTitle": "Aún no hay archivos",
       "emptyDescription": "Sube tu primer archivo para comenzar",
       "searchPlaceholder": "Buscar archivos...",
@@ -9131,6 +9712,30 @@
       "createFolderDialogTitle": "Crear nueva carpeta",
       "createFolderDialogDescription": "Escribe un nombre para la nueva carpeta",
       "createFolderDialogConfirm": "Crear",
+      "GoogleSheet": {
+        "button": "Vincular Google Sheet",
+        "dialogTitle": "Vincular una hoja de Google",
+        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí el PDF de Google y lo actualiza cada hora.",
+        "linkLabel": "Enlace de Google Sheets",
+        "link": "Vincular",
+        "linking": "Vinculando…",
+        "cancel": "Cancelar",
+        "linked": "{name} vinculado",
+        "notALink": "Ese no es un enlace de Google Sheets. Cópialo de la barra de direcciones de la hoja.",
+        "notShared": "Sokosumi no puede abrir esa hoja. Cambia su acceso general a «Cualquier persona con el enlace» y vuelve a intentarlo.",
+        "nameTaken": "Ya hay un archivo con el nombre de esta hoja en esta carpeta.",
+        "failed": "Google Sheets no responde. Inténtalo de nuevo en un minuto.",
+        "source": "Hoja de Google",
+        "updated": "actualizada {when}",
+        "refresh": "Actualizar",
+        "refreshing": "Actualizando…",
+        "open": "Abrir en Google Sheets",
+        "error": {
+          "not_shared": "La última actualización falló: la hoja ya no se comparte por enlace. Esta copia es anterior.",
+          "too_large": "La última actualización falló: la hoja es demasiado grande. Esta copia es anterior.",
+          "failed": "La última actualización falló. Esta copia es anterior."
+        }
+      },
       "deleteFolderDialogTitle": "Eliminar carpeta",
       "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
@@ -9154,6 +9759,9 @@
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
       "moveFolderAction": "Mover carpeta",
+      "downloadFolderButton": "Descargar",
+      "downloadFolderAction": "Descargar {name} como zip",
+      "downloadFolderRoomsLeftOut": "Las salas de datos no están en el zip: {names}. Sus archivos siguen siendo privados para las personas con acceso.",
       "moveFileError": "Error al mover archivo",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
@@ -9187,6 +9795,7 @@
       "recentsTagFilterEmpty": "Aún no hay etiquetas. Los archivos se etiquetan al procesarse.",
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
+      "recentsEmptyOpenWorkspace": "Abrir espacio de trabajo",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
       "loadMoreRecentsError": "No se pudieron cargar más archivos recientes",
       "viewList": "Lista",
@@ -9245,7 +9854,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
         "bulkDeleteCancel": "Cancelar",
         "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
-        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
+        "bulkDeletePartial": "{deleted} eliminados. No se {failed, plural, one {pudo eliminar # archivo} other {pudieron eliminar # archivos}}. Inténtalo de nuevo.",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -9310,7 +9919,8 @@
         "collectionSaved": "Se guardó «{name}»",
         "collectionUpdated": "Se actualizó «{name}»",
         "collectionSaveFailed": "No se pudo guardar esa colección.",
-        "collectionDeleteFailed": "No se pudo eliminar esa colección.",
+        "collectionRenameFailed": "No se pudo cambiar el nombre de «{name}». El nuevo nombre no se guardó.",
+        "collectionDeleteFailed": "No se pudo eliminar «{name}». La colección vuelve a estar en su lugar.",
         "collectionsUnavailable": "No se pudieron cargar las colecciones.",
         "labelsUnavailable": "No se pudieron cargar las categorías ni las etiquetas.",
         "collectionActions": "Acciones para {name}",
@@ -9485,6 +10095,8 @@
         },
         "Settings": {
           "titleLabel": "Título",
+          "welcomeLabel": "Nota de bienvenida",
+          "welcomeHint": "Se muestra en la página de bienvenida al abrir la sala. Se mantienen los saltos de línea.",
           "logoLabel": "Logo",
           "noLogo": "Sin logo",
           "logoHint": "Una imagen de esta sala, junto al título.",
@@ -9533,8 +10145,7 @@
         "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
         "continue": "Continuar",
         "back": "Atrás",
-        "pictureTitle": "Elige una imagen para {name}",
-        "skip": "Omitir"
+        "pictureTitle": "Elige una imagen para {name}"
       },
       "Memory": {
         "title": "Memoria",
@@ -9595,6 +10206,7 @@
         "lastRun": "Última",
         "failures": "Fallos",
         "disabled": "deshabilitada",
+        "yourTime": "({datetime} en tu hora)",
         "enable": "Habilitar programación",
         "disable": "Deshabilitar programación",
         "delete": "Eliminar",
@@ -9819,6 +10431,7 @@
       },
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
+        "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
@@ -9864,8 +10477,8 @@
           "tokenSplit": "{input} entrada · {output} salida",
           "modelCost": "Coste del modelo",
           "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno",
-          "creditSplit": "{own} en sus propios turnos · {delegated} en Coworkers y Agents",
-          "creditsOwnOnly": "Todo en sus propios turnos"
+          "creditSplit": "{own} del propio asistente · {delegated} en Coworkers y Agents",
+          "creditsOwnOnly": "Nada gastado en Coworkers ni Agents"
         },
         "Connectors": {
           "title": "Herramientas",
@@ -9882,6 +10495,9 @@
         "current": "Imagen actual",
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
+        "noneNew": "Ahora no hay imágenes nuevas. Inténtalo de nuevo en un minuto.",
+        "drawing": "Dibujando imágenes nuevas. Puede tardar un minuto.",
+        "noMore": "No hay más imágenes nuevas por ahora. Elige una de arriba.",
         "pictures": "Imágenes",
         "loadError": "No se pudieron cargar las imágenes.",
         "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
@@ -10027,7 +10643,8 @@
         "social": "Publicaciones sociales",
         "newsletter": "Newsletter",
         "contacts": "Seguimientos",
-        "marketing": "Plan de marketing"
+        "marketing": "Plan de marketing",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Espacio de trabajo",
@@ -10039,6 +10656,8 @@
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
+        "runSkipped": "Se omitió la ejecución de {name}.",
+        "undo": "Deshacer",
         "openSchedule": "Abrir programación",
         "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
@@ -10083,7 +10702,10 @@
         "showing": "Horas en {zone}"
       },
       "empty": {
-        "title": "Nada programado coincide con estos filtros.",
+        "title": "{view, select, month {No hay nada programado este mes} week {No hay nada programado esta semana} other {No hay nada próximo}}",
+        "filtered": "Nada programado coincide con estos filtros.",
+        "hint": "Aquí aparecen las tareas con hora de inicio, las ejecuciones de programaciones y las publicaciones con fecha.",
+        "createHint": "{view, select, agenda {Usa «Programar una tarea» para añadir una.} other {Usa «Programar una tarea» o haz clic en un día para empezar en esa fecha.}}",
         "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
@@ -10127,6 +10749,11 @@
         "cancel": "Cancelar",
         "invalid": "Elige una fecha y hora válidas.",
         "past": "Elige una hora en el futuro."
+      },
+      "botRun": {
+        "running": "En curso",
+        "done": "Hecho",
+        "failed": "Falló"
       }
     },
     "You": {
@@ -10149,6 +10776,7 @@
       "noFileChosen": "Ningún archivo seleccionado",
       "csvLimit": "Hasta 5 MB, 10.000 filas y 100 columnas. La primera fila contiene los nombres de las columnas.",
       "mapping": "Asignar columnas y vista previa",
+      "numberGuess": "Todas las celdas con contenido son números, por eso empieza como Número. Cámbialo si los dígitos son un código.",
       "columnName": "Nombre de columna",
       "type": "Tipo",
       "options": "Opciones (separadas por punto y coma)",
@@ -10279,7 +10907,10 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
-        "layout": "El diseño de columnas no se guardó y se restableció. {reason}"
+        "layout": "El diseño de columnas no se guardó y se restableció. {reason}",
+        "archiveRows": "{count, plural, one {No se pudo archivar # fila. Vuelve a estar en la tabla.} other {No se pudieron archivar # filas. Vuelven a estar en la tabla.}} {reason}",
+        "restoreRows": "{count, plural, one {No se pudo restaurar # fila. Vuelve a estar en las filas archivadas.} other {No se pudieron restaurar # filas. Vuelven a estar en las filas archivadas.}} {reason}",
+        "cellNotSaved": "Tu valor no se guardó. Vuelve a estar en el editor. {reason}"
       },
       "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
       "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
@@ -10392,7 +11023,10 @@
         "companies": "Empresas",
         "findCompany": "Buscar una empresa…",
         "noCompanies": "No se encontraron empresas.",
-        "clearCompany": "Mostrar todas las empresas"
+        "clearCompany": "Mostrar todas las empresas",
+        "companyLists": "Listas de empresas",
+        "newCompanyList": "Nueva lista de empresas",
+        "noCompanyLists": "Aún no hay listas de empresas."
       },
       "columns": {
         "name": "Nombre",
@@ -10429,7 +11063,7 @@
       },
       "toolbar": {
         "search": "Buscar contactos",
-        "searchPlaceholder": "Buscar nombre, empresa, correo…",
+        "searchPlaceholder": "Buscar nombre, empresa, correo, lugar…",
         "me": "Yo",
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
@@ -10442,13 +11076,23 @@
       "bulk": {
         "label": "Contactos seleccionados",
         "selected": "{count} seleccionados",
+        "setStage": "Cambiar relación",
+        "stageSet": "{count, plural, =1 {1 contacto cambiado a {stage}} other {# contactos cambiados a {stage}}}",
+        "stageUndone": "{count, plural, =1 {Relación de 1 contacto restaurada} other {Relaciones de # contactos restauradas}}",
+        "stageUndonePartly": "{count, plural, =0 {No se restauró nada: los {total} contactos cambiaron desde entonces} other {Se restauraron # de {total} contactos; el resto cambió desde entonces}}",
+        "undo": "Deshacer",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
+        "copyEmails": "Copiar correos",
         "merge": "Fusionar",
         "clear": "Quitar selección",
         "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
         "addedToList": "{count, plural, =1 {1 contacto añadido a {list}} other {# contactos añadidos a {list}}}",
-        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}"
+        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}",
+        "copiedEmails": "{count, plural, =1 {1 dirección de correo copiada} other {# direcciones de correo copiadas}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contacto no tiene correo y se omitió.} other {# contactos no tienen correo y se omitieron.}}",
+        "noEmails": "Ninguno de los contactos seleccionados tiene dirección de correo.",
+        "copyFailed": "No se pudo copiar al portapapeles. Inténtalo de nuevo."
       },
       "errors": {
         "versionConflict": "Alguien acaba de cambiar este contacto. Cargamos su versión; vuelve a intentar tu cambio.",
@@ -10470,11 +11114,13 @@
       "duplicatesDialog": {
         "title": "{count, plural, =0 {Ningún posible duplicado} =1 {1 posible duplicado} other {# posibles duplicados}}",
         "titleMore": "{count}+ posibles duplicados",
-        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Fusiona los que son una sola persona; abre un registro para revisarlo antes.",
+        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Combina los que son una sola persona o márcalos como distintos; abre un registro para comprobarlo antes.",
         "merge": "Fusionar",
         "mergeGroup": "Fusionar los registros de {name}",
         "noDetails": "Sin email ni empresa",
-        "empty": "No queda nada por fusionar."
+        "empty": "No queda nada por fusionar.",
+        "notSame": "No son la misma persona",
+        "notSameGroup": "{name}: son personas distintas"
       },
       "deleteList": {
         "title": "¿Eliminar {name}?",
@@ -10509,7 +11155,11 @@
         "save": "Guardar",
         "create": "Crear lista",
         "smart": "Llenarla con los filtros actuales",
-        "smartHint": "Una lista inteligente: quien coincida con estos filtros está en ella, ahora y más adelante."
+        "smartHint": "Todas las personas que coincidan con estos filtros están en esta lista. La lista se actualiza sola.",
+        "companyCreateTitle": "Nueva lista de empresas",
+        "companyEditTitle": "Editar lista de empresas",
+        "companyDescription": "Las listas de empresas se comparten con todo tu equipo. Una empresa puede estar en tantas como quieras.",
+        "companyNamePlaceholder": "Cuentas objetivo, inversores…"
       },
       "addDialog": {
         "title": "Añadir contacto",
@@ -10544,6 +11194,7 @@
         "channelTaken": "Alguien de tu equipo ya tiene a esta persona en Contactos.",
         "openExisting": "Abrir contacto",
         "failed": "El contacto no se guardó. Inténtalo de nuevo.",
+        "listFailed": "El contacto está guardado, pero aún no está en la lista. Inténtalo de nuevo para añadirlo.",
         "cancel": "Cancelar",
         "submit": "Añadir contacto"
       },
@@ -10630,11 +11281,16 @@
         "linkCopied": "Enlace copiado",
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
+        "archiveFailed": "No se pudo archivar a {name}. El contacto vuelve a estar en tu lista.",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",
         "noManualLists": "Todavía no hay listas.",
+        "newList": "Nueva lista…",
+        "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
+        "addToListFailed": "No se pudo añadir a {name} a {list}. El contacto vuelve a estar fuera de la lista.",
+        "removeFromListFailed": "No se pudo quitar a {name} de {list}. El contacto vuelve a estar en la lista.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",
@@ -10707,7 +11363,7 @@
         "waitingSince": "Desde el {date}, sin respuesta",
         "heardFrom": "Última noticia suya {when}",
         "automatic": "Automático",
-        "classifier": "Clasificación automática",
+        "classifier": "Sokosumi",
         "enrich": "Enriquecer",
         "enrichHint": "Buscar en la web y rellenar los campos vacíos · 1 crédito",
         "enriched": "{fields} completado desde la web · 1 crédito",
@@ -10738,13 +11394,13 @@
         "medium": "Algo importante",
         "low": "Poco importante",
         "minimal": "Sin importancia",
-        "auto": "Que decida Jev",
+        "auto": "Que decida Sokosumi",
         "change": "Cambiar lo importante que es para ti",
-        "byJev": "Valorado por Jev",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Definido por Sokosumi",
+        "byJevBecause": "Definido por Sokosumi ({reason})",
         "byYou": "Definido por ti",
         "byBot": "Definido por tu Soko Bot",
-        "notYet": "Aún sin valorar",
+        "notYet": "Aún sin definir",
         "familiarityHint": "Según tus propios correos y reuniones con esta persona",
         "reasons": {
           "decides": "toma decisiones",
@@ -10787,7 +11443,8 @@
       "layout": {
         "label": "Vista",
         "table": "Tabla",
-        "map": "Mapa"
+        "map": "Mapa",
+        "companies": "Empresas"
       },
       "map": {
         "label": "Lugares",
@@ -10861,6 +11518,1420 @@
         "none": "Sin indicar",
         "nobody": "Nadie todavía",
         "more": "y {count} más"
+      },
+      "notSame": "{count, plural, =2 {Separados: no se volverán a sugerir como duplicados} other {Separados: estos # no se volverán a sugerir como duplicados}}",
+      "companies": {
+        "search": "Buscar empresas",
+        "searchPlaceholder": "Buscar empresas…",
+        "allCompanies": "Todas las empresas",
+        "count": "{count, plural, one {# empresa} other {# empresas}}",
+        "showing": "Mostrando {shown} de {total}",
+        "loading": "Cargando empresas…",
+        "loadFailed": "No se pudieron cargar las empresas",
+        "retry": "Reintentar",
+        "emptyTitle": "No hay empresas",
+        "empty": "Las empresas aparecen aquí cuando tus contactos tienen una organización o un correo de trabajo.",
+        "emptyList": "Esta lista está vacía. Selecciona empresas en Todas las empresas y añádelas aquí.",
+        "noMatches": "Ninguna empresa coincide con tu búsqueda.",
+        "selectAll": "Seleccionar todas las empresas",
+        "select": "Seleccionar {name}",
+        "selected": "{count} seleccionadas",
+        "bulkLabel": "Empresas seleccionadas",
+        "addToList": "Añadir a la lista",
+        "removeFromList": "Quitar de la lista",
+        "clearSelection": "Borrar",
+        "newList": "Nueva lista de empresas",
+        "addedToList": "{count, plural, one {# empresa añadida} other {# empresas añadidas}} a {list}",
+        "removedFromList": "{count, plural, one {# empresa quitada} other {# empresas quitadas}} de {list}",
+        "saveFailed": "No se guardó. Inténtalo de nuevo.",
+        "deleteTitle": "¿Eliminar {name}?",
+        "deleteDescription": "La lista desaparece para todos. Las empresas y su gente se quedan.",
+        "deleteConfirm": "Eliminar lista",
+        "cancel": "Cancelar",
+        "columns": {
+          "name": "Empresa",
+          "people": "Personas",
+          "industry": "Sector",
+          "lists": "Listas"
+        }
+      }
+    },
+    "Seo": {
+      "title": "SEO",
+      "intro": "Consulta los cambios, el trabajo pendiente y las próximas comprobaciones.",
+      "edit": "Editar",
+      "pickTitle": "Auditorías SEO",
+      "pickBody": "Reúne páginas relacionadas, comprobaciones, estadísticas, acciones y chat en una auditoría.",
+      "pickUnavailable": "Esta auditoría no está disponible. Abre otra auditoría.",
+      "errorTitle": "No se pudo cargar SEO",
+      "errorBody": "Actualiza esta auditoría o vuelve a la lista de auditorías.",
+      "retry": "Intentar de nuevo",
+      "loading": "Cargando resultados de SEO",
+      "refreshFailed": "No se pudieron actualizar los resultados. Inténtalo de nuevo.",
+      "saveFailed": "No se pudo guardar. Revisa los campos e inténtalo de nuevo.",
+      "notEnoughCredits": "No hay créditos suficientes para esta revisión. Recarga créditos e inténtalo de nuevo.",
+      "conflict": "Los datos han cambiado. Actualiza los resultados antes de volver a intentarlo.",
+      "saved": "Cambios guardados",
+      "readOnly": "Puedes consultar esta auditoría. No tienes permiso para editarla.",
+      "dispatchPaused": "Las comprobaciones nuevas, los datos de búsqueda de pago y las comprobaciones programadas están desactivados en este espacio de trabajo. Las estadísticas de Google siguen funcionando.",
+      "empty": "Todavía no hay comprobaciones",
+      "emptyBody": "Ejecuta una comprobación para consultar sus resultados, palabras clave y competidores.",
+      "none": "No disponible",
+      "notChecked": "Sin comprobar",
+      "source": "Fuente",
+      "observed": "Última comprobación",
+      "coverage": "Cobertura",
+      "openTask": "Abrir tarea",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "search": "Buscar",
+      "more": "Cargar más",
+      "allPagesCount": "{count, plural, one {Todas las páginas} other {Las # páginas}}",
+      "page": "Página",
+      "scope": "Páginas",
+      "dateFrom": "Actividad desde",
+      "dateTo": "Actividad hasta",
+      "invalidDates": "Elige una fecha final igual o posterior a la inicial.",
+      "manage": "Gestionar SEO",
+      "addPage": "Añadir una página",
+      "createScope": "Guardar selección de páginas",
+      "editScope": "Editar selección de páginas",
+      "runAnalysis": "Iniciar comprobación",
+      "runFullAudit": "Iniciar auditoría completa",
+      "runPageCheck": "Iniciar comprobación de página",
+      "manageStatistics": "Gestionar estadísticas de Google",
+      "syncStatistics": "Sincronizar estadísticas",
+      "noPages": "Añade una página para empezar",
+      "noPagesBody": "Las páginas definen qué abarcan las comprobaciones y las estadísticas.",
+      "all": "Todas",
+      "related": "Página relacionada",
+      "url": "URL de la página",
+      "label": "Nombre de la página",
+      "relatedTo": "Relacionada con",
+      "notRelated": "No relacionada con otra página",
+      "optional": "Opcional",
+      "name": "Nombre de la selección",
+      "selectPages": "Seleccionar páginas",
+      "scopeVersion": "Versión de la selección {version}",
+      "scopeHelp": "Guarda una selección de páginas relacionadas para repetir comprobaciones. Cada ejecución registra las páginas que abarca.",
+      "pageHelp": "Añade la URL exacta. Añadir una página no inicia una comprobación.",
+      "tabs": {
+        "actions": "Acciones",
+        "agent": "Agente",
+        "traffic": "Tráfico",
+        "rankings": "Posiciones"
+      },
+      "overview": {
+        "measurements": "Tráfico",
+        "not_connected": "Todavía no hay estadísticas de tráfico guardadas para estas páginas. Elige una cuenta para cargarlas.",
+        "unavailable": "Las estadísticas no están disponibles. Revisa aquí la conexión e inténtalo de nuevo.",
+        "partial": "Faltan algunas estadísticas. Abre cada fuente para ver cuáles.",
+        "available": "Hay estadísticas disponibles para los periodos indicados.",
+        "priority": "Acciones recomendadas",
+        "findings": "Problemas aún sin solución",
+        "audits": "Resultados capturados",
+        "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
+        "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
+        "coverageCounts": "Pruebas: {checked} con resultado, {skipped} sin resultado, {failed} no disponibles",
+        "moduleCoverage": "Comprobaciones opcionales: {notRequested} no solicitadas, {failed} no disponibles",
+        "noFindings": "No hay hallazgos para estas páginas",
+        "noFindingsBody": "Inicia una comprobación para consultar la evidencia. Una comprobación ausente no equivale a una comprobación superada.",
+        "manageConnections": "Configurar estadísticas",
+        "dailyTrend": "Evolución diaria",
+        "noDailyTrend": "Esta fuente no incluye mediciones diarias del período seleccionado.",
+        "measurementDetails": "Sobre estos datos",
+        "timeZone": "Zona horaria del informe: {timeZone}",
+        "trafficSetup": "Consulta el rendimiento de estas páginas",
+        "trafficSetupBody": "Configura las estadísticas para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
+        "trafficSyncBody": "Search Console está conectado. Las estadísticas de las páginas seleccionadas se cargan automáticamente. Google Analytics añade visitas y vistas de página.",
+        "recentChecks": "Comprobaciones recientes",
+        "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
+        "noMeasuredReportsBody": "Borra las fechas de actividad para ver informes de otras fechas. Las estadísticas conservan su propio periodo de informe.",
+        "clearActivityDates": "Borrar fechas de actividad",
+        "noFixes": "Estas comprobaciones no recomiendan correcciones",
+        "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
+        "failedCheck": "<prefix>No superada:</prefix> {name}",
+        "checkedOn": "Comprobado el",
+        "diagnostics": "Título, descripción y otros detalles de la página",
+        "perDay": "{metric} por día",
+        "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
+        "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
+        "dailyValues": "Valores diarios",
+        "day": "Día",
+        "synced": "Última sincronización",
+        "windowDays": "Últimos 7 días: {current}. 7 días anteriores: {previous}. Ambos terminan en el día más reciente que informó Google.",
+        "noComparison": "No hay días suficientes para comparar",
+        "weekCompare": "{period}: {current} · semana anterior: {previous}",
+        "weekBetter": "{period}: {current} · semana anterior: {previous}, mejor",
+        "weekWorse": "{period}: {current} · semana anterior: {previous}, peor",
+        "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
+        "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
+        "pickTile": "Elige un número de arriba para verlo en el gráfico.",
+        "tooFewToCompare": "{period}: {current, plural, one {# impresión} other {# impresiones}}. Semana anterior: {previous}. Muy pocas para comparar semanas.",
+        "noteCount": "{count, plural, one {# nota} other {# notas}}",
+        "fromCheck": "De la comprobación del <date></date>",
+        "pageMeasurements": "Mediciones",
+        "pageNotes": "Notas ({count})",
+        "references": "{count, plural, one {# fuente} other {# fuentes}}",
+        "noteRule": "Regla no cumplida: «{name}»",
+        "notesNotCounted": "no cuentan como problemas",
+        "askAgent": "Preguntar al agente",
+        "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
+        "showAll": "Mostrar todo",
+        "showLess": "Mostrar menos",
+        "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?",
+        "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
+        "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
+        "referencesAndRules": "Fuentes e ID de reglas",
+        "ruleIds": "ID de reglas: {ids}",
+        "rulesOnly": "ID de reglas",
+        "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
+        "positionHint": "1 es el primer resultado",
+        "noteFound": "Encontrado: {found}",
+        "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
+        "noteRuleName": "Regla: «{name}»",
+        "suggestion": "Sugerencia:",
+        "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
+        "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
+        "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
+        "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
+        "changeMarker": "Cambio registrado el {day}: {changes}",
+        "points": "{value} p. p.",
+        "googleUpdate": "Google: {name}, del {from} al {to}",
+        "googleUpdateOpen": "Google: {name}, del {from} al {to}, aún en despliegue",
+        "googleUpdateDay": "Google: {name}, {day}",
+        "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}"
+      },
+      "keywords": {
+        "title": "Palabras clave",
+        "edit": "Editar palabra clave",
+        "empty": "Todavía no hay palabras clave seguidas",
+        "emptyBody": "Sigue una búsqueda en la pestaña Tráfico o ejecuta una comprobación para encontrar palabras clave.",
+        "emptyBodyOff": "Sigue una palabra clave para guardar su posición de Search Console en cada sincronización.",
+        "suggest": {
+          "title": "{count, plural, one {Google ya te muestra para # búsqueda} other {Google ya te muestra para # búsquedas}}",
+          "body": "Sigue una para guardar su posición de Search Console en cada sincronización.",
+          "position": "Posición media {position}",
+          "more": "{count, plural, one {Ver # búsqueda más en Tráfico} other {Ver # búsquedas más en Tráfico}}"
+        },
+        "add": "Seguir una palabra clave",
+        "keyword": "Palabra clave",
+        "market": "Mercado",
+        "volume": "Búsquedas al mes",
+        "volumeUnit": "{count, plural, one {búsqueda al mes} other {búsquedas al mes}}",
+        "position": "Posición",
+        "priority": "Prioridad",
+        "rowActions": "Acciones para {keyword}",
+        "save": "Seguir",
+        "unsave": "Dejar de seguir",
+        "ranked": "Posición {position}",
+        "noMatch": "Ninguna palabra clave seguida o comprobada coincide con la búsqueda",
+        "readFailed": "No se leyó ninguna posición",
+        "notFound": "No encontrada",
+        "unavailable": "Aún sin comprobar",
+        "country": "Código de país",
+        "language": "Código de idioma",
+        "target": "Página de destino",
+        "anyPage": "Sin página de destino",
+        "help": "Las mejores ideas primero. Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
+        "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
+        "searchPlaceholder": "Filtrar consultas y palabras clave",
+        "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
+        "searchConsoleNote": "Promedio de Search Console, todos los países",
+        "notListed": "No figura en la lista de Search Console",
+        "notInKeptRows": "No está entre las primeras {count} filas guardadas",
+        "trendShow": "Posiciones diarias",
+        "trendEmpty": "Sin impresiones de Search Console en ningún país",
+        "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
+        "trendLabel": "Posición media de «{keyword}»",
+        "trendNoImpressions": "Sin impresiones",
+        "summary": "En los primeros resultados de Google para {found} de {read, plural, one {# palabra clave comprobada} other {# palabras clave comprobadas}}",
+        "firstPage": "{count} en la primera página",
+        "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
+        "conversion": {
+          "title": "Probabilidad de conversión",
+          "feature": "Función: <feature></feature>",
+          "phrase": {
+            "low": "Probabilidad de conversión baja",
+            "medium": "Probabilidad de conversión media",
+            "high": "Probabilidad de conversión alta"
+          },
+          "note": "La probabilidad de conversión es una estimación de la comprobación: según lo que busca la persona y lo bien que encaja tu producto. No es una tasa medida.",
+          "high": "Alta",
+          "medium": "Media",
+          "low": "Baja"
+        },
+        "ideas": {
+          "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
+          "why": "Por qué aparece",
+          "source": {
+            "gap": "De la competencia",
+            "opportunity": "Búsqueda relacionada"
+          },
+          "short": "Ideas",
+          "more": "{count, plural, one {Mostrar # idea más} other {Mostrar # ideas más}}"
+        },
+        "addButton": "Añadir una palabra clave",
+        "keywordAndPage": "Palabra clave y su página",
+        "readOn": "Última comprobación de posiciones",
+        "checks": "{count, plural, one {Ver la comprobación de posiciones} other {Ver las comprobaciones de posiciones}}",
+        "nextFixes": "{count, plural, one {Siguiente paso: # corrección} other {Siguiente paso: # correcciones}}",
+        "searchKeywords": "Filtrar palabras clave",
+        "map": {
+          "title": "Oportunidades de palabras clave",
+          "subtitle": "Búsquedas al mes frente a la dificultad. Arriba a la izquierda es lo mejor.",
+          "checked": "Sus palabras clave",
+          "idea": "Idea",
+          "hint": "Use las flechas izquierda y derecha para moverse entre las palabras clave, y + o - para hacer zoom.",
+          "axis": "Dificultad",
+          "difficulty": "Dificultad {value} de 100",
+          "top10": "{clicks, plural, =0 {Top 10: sin clics adicionales} one {Top 10: +# clic al mes} other {Top 10: +# clics al mes}}",
+          "top3": "{clicks, plural, =0 {Top 3: sin clics adicionales} one {Top 3: +# clic al mes} other {Top 3: +# clics al mes}}",
+          "gain": "Clics adicionales en el top 3",
+          "table": "Mostrar como tabla",
+          "source": "Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO.",
+          "zoomIn": "Acercar",
+          "zoomOut": "Alejar",
+          "zoomReset": "Mostrar todo el mapa"
+        },
+        "historyShow": "Historial",
+        "historyPaidTitle": "Posiciones en comprobaciones de pago",
+        "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
+        "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
+        "historyNotInRange": "No está en los resultados comprobados",
+        "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una comprobación que no encontró la página en sus resultados no tiene posición.",
+        "historyGscTitle": "Posición media en Search Console, diaria",
+        "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación.",
+        "serp": {
+          "title": "Resultados de búsqueda en comprobaciones de pago",
+          "note": "Lo que mostró la página de resultados en cada comprobación, la más reciente primero.",
+          "check": "Comprobación",
+          "aiOverview": "AI Overview",
+          "featured": "Fragmento destacado",
+          "peopleAlsoAsk": "Más preguntas",
+          "features": "Otros elementos",
+          "suspect": "La lectura parecía errónea y no se usó",
+          "ai": {
+            "cited": "Cita la página",
+            "shown": "Se muestra, la página no se cita",
+            "absent": "Ninguno",
+            "not_checked": "AI Overview no comprobado",
+            "undetermined": "Cita no determinada",
+            "cited_checked": "Cita una página comprobada",
+            "other_page": "Comprobado para otra página"
+          },
+          "snippet": {
+            "owned": "El sitio de la página",
+            "checked_site": "Un sitio comprobado",
+            "other": "Otro sitio",
+            "none": "Ninguno"
+          },
+          "paa": {
+            "owned": "Enlaza el sitio de la página",
+            "checked_site": "Enlaza un sitio comprobado",
+            "shown": "Se muestra",
+            "none": "Ninguno"
+          },
+          "feature": {
+            "video": "Vídeos",
+            "short_videos": "Vídeos cortos",
+            "images": "Imágenes",
+            "local_pack": "Paquete local",
+            "top_stories": "Noticias destacadas",
+            "discussions_and_forums": "Debates y foros",
+            "shopping": "Shopping",
+            "knowledge_graph": "Panel de conocimiento"
+          },
+          "otherFeatures": "{count, plural, one {# más} other {# más}}",
+          "noFeatures": "Ninguno"
+        },
+        "difficulty": {
+          "title": "Dificultad",
+          "easy": "Fácil",
+          "medium": "Media",
+          "hard": "Difícil",
+          "phrase": {
+            "easy": "Fácil de posicionar",
+            "medium": "Dificultad media",
+            "hard": "Difícil de posicionar"
+          }
+        }
+      },
+      "competitors": {
+        "title": "Competidores",
+        "checkedBetween": "Comprobaciones de posiciones del {from} al {to}",
+        "nextActions": "{places, select, yes {{count, plural, one {Siguiente paso: # sitio donde mostrar el producto} other {Siguiente paso: # sitios donde mostrar el producto}}} other {{count, plural, one {Siguiente paso: # acción de la estrategia de palabras clave} other {Siguiente paso: # acciones de la estrategia de palabras clave}}}}",
+        "empty": "Todavía no hay competidores",
+        "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
+        "emptyBodyOff": "El competidor que añadas se guarda aquí. Sus posiciones y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
+        "add": "Añadir un competidor",
+        "suggested": "De los resultados de búsqueda",
+        "confirm": "Confirmar competidor",
+        "unconfirm": "Dejar de seguir",
+        "rank": "Mejor posición",
+        "backlinks": "Enlaces entrantes",
+        "excluded": "No se puede confirmar este candidato.",
+        "noMatch": "Ningún competidor coincide con esta búsqueda",
+        "help": "Sitios en los resultados de Google para tus palabras clave",
+        "rowActions": "Acciones para {url}",
+        "yourPages": "{count, plural, one {Tu página} other {Tus páginas}}",
+        "compare": "Comparar con mi página",
+        "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?",
+        "paidOff": "Las cifras de posición y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
+        "more": "{count, plural, one {Mostrar # sitio más} other {Mostrar # sitios más}}",
+        "site": "Sitio",
+        "morePages": "{count, plural, one {# página más de este sitio} other {# páginas más de este sitio}}",
+        "positionOf": "Posición {rank}",
+        "domainsOf": "{count, plural, one {# sitio que enlaza} other {# sitios que enlazan}}",
+        "platforms": "{count, plural, one {# sitio más en los resultados} other {# sitios más en los resultados}}",
+        "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
+        "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
+        "searchPlaceholder": "Filtrar sitios",
+        "rankHint": "Mejor posición: el lugar más alto que ocupa una página de este sitio para una de tus palabras clave.",
+        "domainsShort": "Sitios que enlazan"
+      },
+      "actions": {
+        "title": "Acciones",
+        "empty": "No hay acciones recomendadas",
+        "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
+        "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",
+        "createTask": "Crear borrador de tarea",
+        "why": "Por qué es importante",
+        "effect": "Efecto esperado",
+        "whyDetails": "Motivo y pruebas",
+        "effort": "Esfuerzo",
+        "before": "Antes",
+        "after": "Cambio sugerido",
+        "noBefore": "No se registró un valor anterior",
+        "recommended": "Recomendada",
+        "task_created": "Borrador de tarea creado",
+        "implemented": "Implementada",
+        "verified": "Verificada",
+        "help": "Una acción cuenta como verificada cuando la comprobación más reciente de la misma página ya no encuentra el problema.",
+        "noFixes": "Estas comprobaciones no recomiendan correcciones",
+        "noFixesBody": "La última comprobación no encontró problemas. Las estadísticas de Google se actualizan automáticamente. Comprueba más páginas para encontrar nuevas tareas.",
+        "checksIncomplete": "Estas comprobaciones están incompletas",
+        "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
+        "unplannedIssues": "Todavía no hay acciones recomendadas",
+        "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o pregunta al agente SEO cuál es el siguiente paso.",
+        "fixesTitle": "Correcciones de los problemas",
+        "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
+        "opportunitiesTitle": "Sugerencias de los datos de búsqueda",
+        "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
+        "noOpportunitiesBody": "La última comprobación no encontró nada que corregir. El resumen muestra lo que el agente SEO sugiere a continuación.",
+        "kind": {
+          "fix": "Problema confirmado",
+          "opportunity": "Sugerencia"
+        },
+        "problem": "{check}. Hallazgo: {found}",
+        "impactLine": "{level}: {hint}"
+      },
+      "pages": {
+        "title": "Páginas",
+        "groups": "Selecciones de páginas guardadas",
+        "relationship": "Relación",
+        "selected": "Seleccionada",
+        "chooseSelection": "Ver selección",
+        "version": "Versión {version}",
+        "count": "{count, plural, one {# página} other {# páginas}}",
+        "topPages": "Páginas principales",
+        "topPagesHelp": "Clics e impresiones por página de las consultas de Search Console mostradas. No se cuentan las consultas que Google oculta.",
+        "queryCount": "Consultas",
+        "topQuery": "Consulta principal",
+        "lastCheck": "Última comprobación",
+        "issues": "{count, plural, =0 {sin problemas} one {# problema} other {# problemas}}",
+        "notChecked": "Aún sin comprobar",
+        "notCheckedInDates": "Sin comprobación en estas fechas",
+        "checkIncomplete": "comprobación incompleta",
+        "home": "Página de inicio"
+      },
+      "timeline": {
+        "title": "Historial",
+        "runNewCheck": "Ejecutar una nueva comprobación",
+        "statuses": {
+          "requested": "Solicitada",
+          "running": "En curso",
+          "failed": "Fallida",
+          "partial": "Parcial",
+          "unavailable": "No disponible"
+        },
+        "empty": "Aún no hay comprobaciones ni cambios para estas páginas",
+        "emptyBody": "Aquí aparecerán las comprobaciones, selecciones de páginas, tareas y sincronizaciones fallidas.",
+        "emptyOff": "No hay nada registrado para estas páginas",
+        "emptyBodyOff": "Aquí aparecen las selecciones de páginas, las tareas y las sincronizaciones fallidas.",
+        "details": "Detalles del trabajo",
+        "graphLabel": "Actividad SEO, lo más reciente primero",
+        "auditRun": "Resultados de la auditoría",
+        "checkRun": "Resultados de la comprobación",
+        "recheckRun": "Resultados de la nueva comprobación",
+        "analysisRequested": "Comprobación solicitada",
+        "metricsSynced": "Estadísticas sincronizadas",
+        "actionLinked": "Tarea de acción vinculada",
+        "scopeChanged": "Selección de páginas cambiada",
+        "pageChanged": "Cambio de página registrado",
+        "checkSummary": "{checked, plural, one {# prueba} other {# pruebas}}",
+        "sourceDetails": "Detalles",
+        "resultsSaved": "Resultados guardados",
+        "incomplete": "No se pudo completar parte del trabajo solicitado.",
+        "showAll": "Mostrar los {count} eventos",
+        "metricsSyncedTimes": "{count, plural, one {Estadísticas sincronizadas} other {Estadísticas sincronizadas # veces}}",
+        "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
+        "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
+        "cleanChecks": "Sin problemas en {count} comprobaciones",
+        "earlierRules": "Algunas comprobaciones anteriores hicieron {counts} pruebas.",
+        "rulesSkipped": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
+        "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
+        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
+        "viewResults": "Ver resultados",
+        "checkSummaryEach": "{checked, plural, one {# prueba} other {# pruebas}} cada una",
+        "device": "{device, select, mobile {móvil} desktop {ordenador} other {{device}}}",
+        "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
+      },
+      "analysis": {
+        "title": "Iniciar comprobación",
+        "description": "El agente empieza con estos ajustes. Los resultados existentes siguen disponibles mientras se ejecuta.",
+        "options": "Cambiar opciones",
+        "summary": {
+          "keywordCount": "{count} palabras clave"
+        },
+        "kind": "Tipo de comprobación",
+        "page_check": "Comprobación de página",
+        "rankings": "Posiciones de palabras clave",
+        "links": "Resumen de enlaces entrantes",
+        "audit_lite": "Audit Lite",
+        "audit_full": "Auditoría completa",
+        "keywords": "Palabras clave, una por línea",
+        "competitors": "URL de competidores, una por línea",
+        "country": "País de búsqueda",
+        "language": "Idioma de búsqueda",
+        "devices": "Dispositivos",
+        "mobile": "Móvil",
+        "desktop": "Ordenador",
+        "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
+        "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
+        "fixedCredits": "{credits, plural, =1 {# crédito} other {# créditos}}",
+        "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
+        "fixedCreditsPerRun": "{credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
+        "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
+        "submit": "Iniciar comprobación",
+        "queued": "Comprobación solicitada",
+        "alreadyRunning": "Hay una comprobación en curso. Espera su resultado antes de iniciar la siguiente.",
+        "noPermission": "No se puede solicitar una comprobación para estas páginas.",
+        "running": "Comprobaciones en curso",
+        "requested": "Solicitada",
+        "completed": "Completada",
+        "failed": "Fallida",
+        "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
+        "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
+        "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
+        "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
+        "returnToAudit": "Volver a la auditoría",
+        "modules": "Revisiones incluidas",
+        "moduleNames": {
+          "page_inspect": "Inspección de página",
+          "keyword_refresh": "Posiciones de palabras clave",
+          "links_refresh": "Resumen de enlaces entrantes"
+        },
+        "budgetTooLow": "Selecciona menos palabras clave y páginas competidoras.",
+        "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas."
+      },
+      "statistics": {
+        "title": "Estadísticas de Google",
+        "description": "Las estadísticas se cargan automáticamente para las páginas seleccionadas. Elige una propiedad solo cuando sea necesario.",
+        "provider": "Fuente",
+        "ga4": "Google Analytics",
+        "search_console": "Search Console",
+        "property": "Propiedad",
+        "chooseProperty": "Elige una propiedad",
+        "propertyNeeded": "Elige una propiedad de Google para cargar las estadísticas de estas páginas.",
+        "channel": "Tráfico",
+        "channelAll": "Todo el tráfico del sitio",
+        "channelOrganic": "Búsqueda orgánica",
+        "submit": "Sincronizar estadísticas",
+        "propertiesLoading": "Cargando propiedades autorizadas",
+        "propertiesFailed": "No se pudieron cargar las propiedades. Inténtalo de nuevo.",
+        "noProperties": "No hay propiedades autorizadas disponibles.",
+        "ownerOnly": "Las estadísticas usan tu cuenta conectada y sus permisos.",
+        "shared": "Las estadísticas guardadas se comparten en esta auditoría de tu organización. Tu cuenta de Google sigue bajo tu control.",
+        "synced": "Estadísticas sincronizadas",
+        "readsSearch": "Lee los últimos {days} días de datos de búsqueda de Google.",
+        "readsOrganic": "Lee los últimos {days} días de tráfico de búsqueda orgánica.",
+        "readsAll": "Lee los últimos {days} días de todo el tráfico del sitio.",
+        "channelAny": "Todos los segmentos medidos",
+        "connectTitle": "Configurar estadísticas",
+        "connectFirst": "Conecta {provider}. Las estadísticas de los últimos 90 días se cargarán automáticamente.",
+        "channelAiAssistant": "Asistentes de IA (ChatGPT, Gemini, Copilot)",
+        "readsAiAssistant": "Lee los últimos {days} días de visitas desde asistentes de IA como ChatGPT, Gemini y Copilot."
+      },
+      "metrics": {
+        "page_views": "Vistas de página",
+        "active_users": "Usuarios activos",
+        "landing_sessions": "Sesiones de entrada",
+        "engagement_rate": "Tasa de interacción",
+        "clicks": "Clics de búsqueda",
+        "impressions": "Impresiones de búsqueda",
+        "ctr": "Porcentaje de clics",
+        "average_position": "Posición media",
+        "position": "Posición media"
+      },
+      "severity": {
+        "critical": "Impacto crítico",
+        "major": "Impacto alto",
+        "minor": "Impacto bajo"
+      },
+      "severityHint": {
+        "critical": "La página no puede aparecer en los resultados de búsqueda.",
+        "major": "No se cumple una regla de posicionamiento de Google, o la página pierde una función de búsqueda.",
+        "minor": "No se cumple una regla sobre el aspecto del resultado de búsqueda o sobre la experiencia de uso."
+      },
+      "priority": {
+        "low": "Baja",
+        "medium": "Media",
+        "high": "Alta"
+      },
+      "coverageStatus": {
+        "complete": "Completa",
+        "partial": "Datos parciales",
+        "unavailable": "No disponible"
+      },
+      "invalidFilters": "Los filtros de páginas o fechas no son válidos. Bórralos para elegir otro ámbito.",
+      "resetFilters": "Borrar filtros",
+      "selectPagesLimit": "Selecciona entre 1 y {count} páginas.",
+      "monitor": {
+        "unavailable": "Las comprobaciones programadas no están disponibles aquí. Vuelve a la auditoría.",
+        "title": "Comprobaciones programadas",
+        "create": "Programar revisiones",
+        "description": "El agente repite esta revisión según un plan. Puedes pausarla o terminarla en cualquier momento.",
+        "created": "Seguimiento SEO programado",
+        "next": "Próxima ejecución",
+        "manage": "Gestionar plan de tareas",
+        "createAnother": "Programar otra revisión",
+        "blocked": {
+          "readOnly": "Puedes ver estas revisiones. Solo un editor puede programarlas o cambiarlas.",
+          "service": "Las revisiones programadas no están disponibles en este espacio de trabajo.",
+          "noPages": "Selecciona al menos una página para programar revisiones."
+        },
+        "last": "Última ejecución",
+        "lastStatus": {
+          "requested": "Solicitada",
+          "running": "En curso",
+          "completed": "Completada",
+          "failed": "Fallida"
+        },
+        "noRunYet": "Aún no hay ejecuciones",
+        "pausedNext": "En pausa. No hay ejecución prevista.",
+        "left": "Ejecuciones restantes",
+        "leftCount": "{count, plural, =0 {Ninguna} one {# ejecución} other {# ejecuciones}}",
+        "leftUntil": "Hasta",
+        "leftUntilStopped": "Hasta que alguien la detenga",
+        "pagesDiffer": "El grupo de páginas seleccionado cambió después de programar esta revisión. Sigue revisando sus {count, plural, one {# página guardada} other {# páginas guardadas}}. Programa una revisión nueva para las páginas actuales.",
+        "runNow": "Ejecutar ahora",
+        "pause": "Pausar",
+        "resume": "Reanudar",
+        "edit": "Editar plan",
+        "end": "Finalizar",
+        "endTitle": "¿Finalizar esta revisión programada?",
+        "endBody": "No se inician más ejecuciones. Los resultados guardados se conservan. No puedes reiniciar una revisión finalizada.",
+        "endConfirm": "Finalizar revisión",
+        "saveRule": "Guardar plan",
+        "cancel": "Cancelar",
+        "belowReleased": "Esta revisión ya se ejecutó {count, plural, one {# vez} other {# veces}}. Elige un número mayor o deja que siga hasta que alguien la detenga.",
+        "done": {
+          "update": "Plan guardado",
+          "pause": "Revisión programada en pausa",
+          "resume": "Revisión programada reanudada",
+          "end": "Revisión programada finalizada",
+          "runNow": "Revisión solicitada"
+        },
+        "change": {
+          "none": "Aún no hay un resultado anterior para comparar.",
+          "notComparable": "Los dos últimos resultados usaron otro mercado u otro conjunto de reglas, así que no se comparan.",
+          "same": "Sin cambios desde la última ejecución.",
+          "summary": "Desde la última ejecución: {parts}",
+          "newFailures": "{count, plural, one {# fallo nuevo} other {# fallos nuevos}}",
+          "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
+          "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
+          "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "newFailuresTitle": "Ahora fallan",
+          "fixedTitle": "Corregidos",
+          "movesTitle": "Cambios de posición",
+          "move": "{keyword}: posición {from} → {to}",
+          "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
+        },
+        "plan": {
+          "daily": "cada día a las {time}",
+          "weekly": "cada {days} a las {time}",
+          "monthly": "el día {day} de cada mes a las {time}",
+          "other": "según su plan guardado",
+          "sentence": "{check} de {pages, plural, one {# página guardada} other {# páginas guardadas}}, {when} ({zone}).",
+          "untilStopped": "Se ejecuta hasta que alguien la detenga.",
+          "endsAfter": "{count, plural, one {Termina tras # ejecución programada.} other {Termina tras # ejecuciones programadas.}}",
+          "interval": "cada {days} días a las {time}",
+          "endsOn": "Termina el {date}."
+        },
+        "onceADay": "Una comprobación de página se ejecuta como máximo una vez al día, a una hora."
+      },
+      "pageChange": {
+        "title": "Registrar un cambio",
+        "description": "Añade una nota con fecha para estas páginas. Registra los cambios hechos fuera de Sokosumi y conserva la entrada original.",
+        "summary": "¿Qué cambió?",
+        "occurredAt": "Cuándo (hora local del dispositivo)",
+        "note": "Detalles (opcional)",
+        "recorded": "Cambio de página registrado",
+        "invalid": "Elige una fecha válida y al menos una página."
+      },
+      "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
+      "audits": {
+        "continue": "Continuar",
+        "create": "Crear auditoría",
+        "saved": "Auditorías guardadas",
+        "updated": "Actualizada",
+        "created": "Creada",
+        "projectWorkspace": "Espacio SEO del proyecto",
+        "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
+        "createHelp": "Añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
+        "name": "Nombre de la auditoría",
+        "firstPage": "URL de la primera página",
+        "createFailed": "No se pudo crear la auditoría. Revisa el nombre y la URL e inténtalo de nuevo.",
+        "all": "Todas las auditorías",
+        "nameHelp": "Opcional. Déjalo vacío para usar el dominio de la página.",
+        "urlPlaceholder": "https://example.com/pagina",
+        "onboarding": {
+          "eyebrow": "Agente SEO",
+          "title": "Empieza tu primera auditoría SEO",
+          "titleProject": "Empieza la primera auditoría SEO de este proyecto",
+          "body": "Tu agente sigue las posiciones, encuentra problemas en las páginas y prepara correcciones. Tú apruebas cada una.",
+          "addTitle": "Añade una página",
+          "addBody": "Empieza con una página pública. Puedes añadir páginas relacionadas después.",
+          "connectTitle": "Conecta Google",
+          "connectBody": "Conecta Google para ver las búsquedas y los clics de tu página. Lo haces después de crear la auditoría.",
+          "checkTitle": "Inicia la primera comprobación",
+          "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones.",
+          "trust": "Guardar una página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
+          "steps": "Pasos de configuración"
+        }
+      },
+      "chat": {
+        "title": "Preguntar al agente SEO",
+        "description": "El agente propone acciones; tú apruebas cada una.",
+        "question": "Tu pregunta",
+        "send": "Enviar pregunta",
+        "working": "Leyendo resultados de la auditoría",
+        "replied": "El agente SEO respondió.",
+        "failed": "No se pudo completar la respuesta. Inténtalo de nuevo.",
+        "loadFailed": "No se pudo cargar esta conversación. Inténtalo de nuevo.",
+        "pages": "{count, plural, one {# página} other {# páginas}}",
+        "private": "Solo tú puedes ver esta conversación y las estadísticas de tus cuentas conectadas.",
+        "shared": "Esta conversación y las estadísticas guardadas se comparten en esta auditoría de tu organización.",
+        "you": "Tú",
+        "member": "Miembro",
+        "open": "Abrir {action}",
+        "auditRequired": "Abre una auditoría para preguntar al agente SEO.",
+        "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
+        "insufficientCredits": "No tienes suficientes créditos para esta respuesta. Añade créditos e inténtalo de nuevo.",
+        "usagePricing": "Las respuestas consumen créditos según el uso del modelo.",
+        "creditsCharged": "{credits, number, :: .##########} créditos usados",
+        "createTask": "Crear borrador de tarea: {title}",
+        "showMore": "Mostrar la pregunta completa",
+        "showLess": "Mostrar menos",
+        "loadingHistory": "Cargando el chat",
+        "placeholder": "Haz una pregunta",
+        "suggestions": "Preguntas sugeridas",
+        "privateShort": "Solo tú puedes leer este chat",
+        "sharedShort": "Compartido en tu organización",
+        "asked": "Pregunta enviada. El agente SEO está trabajando.",
+        "tooLong": "Tu pregunta supera los {limit, number} caracteres. Acórtala y envíala de nuevo."
+      },
+      "connections": {
+        "connect": "Conectar {provider}",
+        "connected": "{provider} conectado",
+        "disconnect": "Desconectar {provider}",
+        "disconnectTitle": "¿Desconectar {provider}?",
+        "disconnectBody": "Las estadísticas dejarán de actualizarse con esta cuenta en todas las auditorías de este espacio hasta que la conectes de nuevo. Las estadísticas guardadas se conservan.",
+        "unavailable": "Las conexiones no están disponibles en este entorno.",
+        "loadFailed": "No se pudo comprobar esta conexión. Inténtalo de nuevo.",
+        "connectFailed": "No se pudo conectar {provider}. Inténtalo de nuevo.",
+        "disconnectFailed": "No se pudo desconectar {provider}. Inténtalo de nuevo.",
+        "popupBlocked": "Permite las ventanas emergentes para conectar {provider} e inténtalo de nuevo.",
+        "inFlight": "Termina primero la conexión en la ventana abierta.",
+        "timeout": "La conexión ha tardado demasiado. Inténtalo de nuevo.",
+        "pending": "Completa la autorización en la ventana de conexión. Después, reintenta la verificación si hace falta.",
+        "changeAccount": "Cambiar de cuenta",
+        "disconnectAccount": "Desconectar",
+        "resume": "Reintentar la verificación de {provider}",
+        "restart": "Iniciar una nueva conexión de {provider}",
+        "reconnect": "Volver a conectar {provider}",
+        "needsReconnect": "El acceso de Google para {provider} caducó o fue retirado. Vuelve a conectar la cuenta.",
+        "viewerChanged": "Tu cuenta o espacio de trabajo cambió. Vuelve a la auditoría e inicia la conexión de nuevo.",
+        "signInRequired": "Inicia sesión de nuevo y vuelve a conectar tu cuenta de Google.",
+        "accessDenied": "Esta cuenta no puede conectar estadísticas aquí. Comprueba tu acceso al espacio de trabajo.",
+        "expired": "Este intento de conexión caducó o fue sustituido. Inicia una nueva conexión desde la auditoría.",
+        "activationPending": "La autorización de Google aún no está lista. Reintenta la verificación o inicia una nueva conexión.",
+        "consentFailed": "La autorización de Google no terminó. Vuelve a la auditoría e inténtalo de nuevo.",
+        "temporarilyUnavailable": "El servicio de conexión no está disponible temporalmente. Reintenta la verificación en un momento.",
+        "callbackTitle": "Conectar estadísticas SEO",
+        "callbackWorking": "Verificando tu autorización de Google",
+        "callbackDone": "Tu cuenta está conectada. Las estadísticas de los últimos 90 días se cargarán automáticamente cuando vuelvas a la auditoría. Elige una propiedad si se solicita.",
+        "returnToAudit": "Volver a la auditoría",
+        "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría.",
+        "connectGoogle": "Conectar Google",
+        "analyticsNext": "Google pide tu aprobación dos veces: primero para Search Console y después para Google Analytics.",
+        "analyticsOff": "Google Analytics no está conectado. Las visitas y las páginas vistas quedan vacías."
+      },
+      "unavailableTitle": "SEO no está disponible en este Workspace",
+      "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
+      "auditNotHereTitle": "Esta auditoría no está disponible en este espacio de trabajo",
+      "projectNotHereTitle": "Este proyecto no está disponible en este espacio de trabajo",
+      "notHereBody": "Puede pertenecer a otro espacio de trabajo. Cambia de espacio de trabajo en la barra lateral o abre las auditorías de este espacio de trabajo.",
+      "workspaceSwitchPrompt": {
+        "title": "Esta auditoría está en otro espacio de trabajo",
+        "description": "“{auditName}” está en el espacio de trabajo <accountName>{account}</accountName>. Cambia de espacio de trabajo para abrirla, o añade una página nueva en este espacio de trabajo.",
+        "stay": "Añadir una página nueva"
+      },
+      "openAllPages": "Abrir todas las páginas",
+      "queries": {
+        "title": "Consultas de Search Console",
+        "help": "Consultas de Search Console: las búsquedas de Google que mostraron estas páginas. Las impresiones cuentan cuántas veces se mostró una página, no el volumen de búsqueda. La posición es la media del periodo.",
+        "lastSynced": "Última sincronización",
+        "truncated": "Solo se guardan las primeras {count} filas por clics",
+        "notLoaded": "Aún no hay consultas guardadas",
+        "notLoadedBody": "El agente carga automáticamente las búsquedas de tus estadísticas guardadas.",
+        "notConnected": "Search Console no está conectado",
+        "notConnectedBody": "Conecta Search Console para ver qué búsquedas muestran estas páginas.",
+        "notSynced": "Aún no hay estadísticas de búsqueda",
+        "notSyncedBody": "Search Console está conectado. Las estadísticas de las páginas seleccionadas se cargan automáticamente.",
+        "connect": "Conectar Search Console",
+        "query": "Consulta",
+        "clicks": "Clics de búsqueda",
+        "impressions": "Impresiones de búsqueda",
+        "ctr": "Porcentaje de clics",
+        "position": "Posición media",
+        "rowActions": "Acciones de la fila",
+        "tracked": "Seguida",
+        "track": "Seguir",
+        "trackLabel": "Seguir {query} como palabra clave",
+        "noMatch": "Ninguna consulta coincide con el filtro",
+        "noMatchBody": "Borra el filtro para ver todas las consultas guardadas.",
+        "empty": "Search Console no devolvió consultas",
+        "emptyBody": "Google no mostró búsquedas atribuibles para estas páginas en este periodo. Las consultas anonimizadas nunca aparecen.",
+        "hiddenImpressions": "Google muestra los términos de búsqueda solo de {listed, number} de tus {total, number} impresiones. Oculta las búsquedas poco frecuentes por privacidad.",
+        "buckets": {
+          "label": "Consultas por posición media",
+          "top3": "Top 3",
+          "top10": "4-10",
+          "top20": "11-20",
+          "rest": "21+"
+        },
+        "sortBy": "Ordenar por",
+        "sortHighest": "{column}, de mayor a menor",
+        "sortLowest": "{column}, de menor a mayor",
+        "sortBest": "{column}, mejor primero",
+        "sortWorst": "{column}, peor primero"
+      },
+      "agent": {
+        "ask": "Preguntar al agente SEO",
+        "title": "Agente SEO",
+        "refreshing": "Cargando estadísticas de Google.",
+        "refreshFailed": "No se pudieron cargar las estadísticas de Google. Inténtalo de nuevo.",
+        "nextTitle": "El agente propone",
+        "nothingNext": "No hay tareas pendientes. Las estadísticas de Google se cargan automáticamente para las páginas seleccionadas y se actualizan cuando sea necesario.",
+        "steps": {
+          "refresh": {
+            "stale": "Las estadísticas de Google se actualizan automáticamente cuando los datos guardados tienen más de un día.",
+            "no_queries": "El agente carga automáticamente las búsquedas de tus totales de Search Console."
+          },
+          "connect": {
+            "search_console": "Conecta Google para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
+            "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
+          },
+          "sync": {
+            "search_console": "Search Console está conectado. Las estadísticas de las páginas seleccionadas se cargan automáticamente.",
+            "ga4": "Google Analytics está conectado. Las estadísticas de las páginas seleccionadas se cargan automáticamente."
+          },
+          "competitors": {
+            "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
+            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
+          },
+          "strategy": "{places, select, yes {{count, plural, one {# sitio donde mostrar el producto} other {# sitios donde mostrar el producto}}} other {{count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave}}"
+        },
+        "prompts": {
+          "first": "¿Qué debo hacer primero?",
+          "unranked": "¿Por qué mis páginas no están en los primeros resultados de Google?",
+          "queries": "¿Qué búsquedas traen personas a estas páginas?",
+          "competitors": "¿Qué sabes de mis competidores?",
+          "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar.",
+          "track": "¿Qué ideas de palabras clave debo seguir?",
+          "howToDo": "¿Cómo hago este cambio?",
+          "whyFirst": "¿Por qué es este el primer paso?",
+          "whichPage": "¿Qué página debo cambiar primero?",
+          "howLong": "¿Cuánto tarda Google en mostrar un cambio?",
+          "moreClicks": "¿Cuáles de estas búsquedas podrían traer más clics?",
+          "whyKeywords": "¿Por qué estas palabras clave?",
+          "theyDo": "¿Qué hacen ellos que mis páginas no hacen?",
+          "simpler": "Explícalo con palabras más sencillas"
+        },
+        "researchCompetitors": "Investigar competidores",
+        "verdict": {
+          "issues": "{count, plural, one {# problema por corregir} other {# problemas por corregir}}",
+          "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
+          "clear": "Sin problemas en la última comprobación",
+          "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
+          "noCheckOff": "Aún no hay comprobación",
+          "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}",
+          "clearRarelyShown": "{pages, plural, one {Tu página pasa la última comprobación, pero Google aún la muestra poco} other {Tus páginas pasan la última comprobación, pero Google aún las muestra poco}}"
+        },
+        "lastCheckOn": "Última comprobación",
+        "askHow": "Preparar un plan",
+        "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
+        "openTraffic": "Abrir tráfico",
+        "openRankings": "Abrir posiciones",
+        "toSteps": "Empezar por el primer paso",
+        "draftFix": "Pedir una corrección al agente",
+        "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
+        "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
+        "statisticsMissing": "Las estadísticas no están configuradas",
+        "demand": {
+          "title": "Palabras clave comprobadas con más búsquedas",
+          "unit": "Búsquedas al mes",
+          "position": "Posición {position}"
+        }
+      },
+      "scopeFilters": "Filtros",
+      "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
+      "runs": {
+        "label": "Comprobaciones",
+        "running": "En curso",
+        "left": "quedan unos {minutes} min",
+        "late": "más de lo habitual",
+        "earlier": "Comprobación anterior ({day}).",
+        "showDay": "Mostrar la comprobación del {day}",
+        "latest": "Ver la más reciente",
+        "inRange": "en el rango de fechas",
+        "dates": "Otras fechas",
+        "checkDay": "Día con comprobación",
+        "shown": "Mostrando {range}.",
+        "shownUntil": "Mostrando hasta {day}.",
+        "scheduled": "Programada",
+        "next": "Próxima comprobación"
+      },
+      "filterDates": "Filtrar por fecha",
+      "syncNow": "Sincronizar ahora",
+      "breakdown": {
+        "title": "Países y dispositivos",
+        "help": "Totales de búsqueda de Google de estas páginas por país de quien busca y por dispositivo.",
+        "country": "País",
+        "device": "Dispositivo",
+        "unknownCountry": "País desconocido",
+        "devices": {
+          "desktop": "Escritorio",
+          "mobile": "Móvil",
+          "tablet": "Tableta"
+        },
+        "more": "{count, plural, one {# país más} other {# países más}} con menos clics.",
+        "truncated": "Solo se leyeron las primeras {count} filas por clics. Puede haber más.",
+        "unlisted": {
+          "country": "Google indica el país solo para {listed, number} de tus {total, number} impresiones.",
+          "device": "Google indica el dispositivo solo para {listed, number} de tus {total, number} impresiones.",
+          "both": "Google indica el país y el dispositivo solo para {listed, number} de tus {total, number} impresiones."
+        }
+      },
+      "index": {
+        "title": "Índice de Google",
+        "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
+        "checked": "estado leído",
+        "state": {
+          "indexed": "Indexada",
+          "warnings": "Indexada, con advertencias",
+          "notIndexed": "No indexada",
+          "unknown": "Estado de índice desconocido"
+        },
+        "google": "Google indica: «{words}»",
+        "lastCrawl": "Último rastreo:",
+        "otherCanonical": "Google eligió otra página canónica:",
+        "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
+      },
+      "setup": {
+        "historyUnavailable": "No se pudo comprobar la configuración de la auditoría. Inténtalo de nuevo antes de iniciar una comprobación.",
+        "googleBody": "Conecta Google para incluir tus estadísticas de búsqueda o continúa solo con comprobaciones de páginas públicas.",
+        "skipGoogle": "Continuar sin Google",
+        "title": "Configura esta auditoría",
+        "steps": "Pasos de configuración",
+        "done": "hecho",
+        "page": "Añade una página",
+        "pageDone": "Página añadida",
+        "pageBody": "Añade la página pública que quieres posicionar.",
+        "pageDoneBody": "{count, plural, one {# página está en esta auditoría.} other {# páginas están en esta auditoría.}} Puedes añadir más páginas después.",
+        "audit": "Inicia la primera auditoría",
+        "auditBody": "El agente comprueba tus páginas, lee las posiciones de tus palabras clave y tus competidores, y prepara correcciones. Tú apruebas cada una.",
+        "check": "Inicia la primera comprobación",
+        "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones. Tú apruebas cada una.",
+        "checkRunning": "El agente está comprobando tus páginas. Puedes salir de esta página: los resultados aparecen aquí cuando termina la comprobación.",
+        "checkStarted": "Iniciada {when}.",
+        "checkStartedNow": "Iniciada ahora mismo.",
+        "checkRunningBadge": "Comprobación en curso",
+        "checkFailed": "La última comprobación no terminó. Iníciala de nuevo.",
+        "checkEnded": "La comprobación terminó.",
+        "checkLeft": "Quedan unos {minutes, plural, one {# minuto} other {# minutos}} (estimación).",
+        "checkLate": "Tarda más de lo habitual.",
+        "checkProgress": "Progreso de la comprobación (estimación)"
+      },
+      "strategy": {
+        "title": "Estrategia de palabras clave",
+        "from": "De la comprobación del",
+        "verdict": {
+          "keep": "Mantén estas palabras clave",
+          "outOfReach": "La mayoría de las búsquedas de estas palabras clave están fuera del alcance del sitio",
+          "lowDemand": "Estas palabras clave tienen pocas búsquedas",
+          "notDetermined": "La auditoría no pudo dar un resultado de palabras clave",
+          "narrow": "Un nicho más estrecho está al alcance del sitio",
+          "move": "Un mercado cercano está al alcance del sitio",
+          "noFit": "Ninguno de los nichos que leyó la auditoría encaja con el sitio"
+        },
+        "reach": {
+          "inReach": "Al alcance",
+          "outOfReach": "Fuera de alcance",
+          "notDetermined": "Alcance no determinado"
+        },
+        "groups": "{first, select, true {{count, plural, one {# grupo de palabras clave parecidas} other {# grupos de palabras clave parecidas}}} other {{count, plural, one {# grupo} other {# grupos}}}}",
+        "reachCount": {
+          "ranks": "{groups} ya {count, plural, one {posiciona} other {posicionan}}",
+          "inReach": "{groups} {count, plural, one {está} other {están}} al alcance",
+          "open": "{groups} {count, plural, one {tiene} other {tienen}} un foro en los resultados",
+          "outOfReach": "{groups} {count, plural, one {está} other {están}} fuera de alcance",
+          "notDetermined": "{groups} {count, plural, one {no tiene} other {no tienen}} un alcance conocido"
+        },
+        "moving": "{count, plural, one {Las búsquedas cambian en # grupo} other {Las búsquedas cambian en # grupos}}",
+        "reachHelp": {
+          "ranks": "Un grupo posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
+          "inReach": "Un grupo está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",
+          "open": "Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas."
+        },
+        "trend": {
+          "falling": "Las búsquedas bajan",
+          "rising": "Las búsquedas suben"
+        },
+        "targetType": {
+          "appStore": "Tienda de apps",
+          "directory": "Directorio",
+          "forum": "Foro",
+          "list": "Lista de productos",
+          "video": "Vídeo"
+        },
+        "targetState": {
+          "links": "Enlaza al sitio",
+          "mentioned": "Nombra el producto sin enlace",
+          "notMentioned": "No nombra el producto"
+        },
+        "actions": {
+          "title": "Acciones de la estrategia de palabras clave",
+          "more": "{count, plural, one {Mostrar # acción más} other {Mostrar # acciones más}}",
+          "limit": "Límite",
+          "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
+          "place": "Lugar"
+        },
+        "placeForm": {
+          "community": "Comunidad",
+          "launch": "Sitio de lanzamiento",
+          "listing": "Ficha",
+          "post": "Publicación",
+          "article": "Artículo",
+          "video": "Vídeo"
+        },
+        "places": {
+          "title": "Lugares de promoción",
+          "help": "Por qué la auditoría del sitio no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
+        },
+        "draft": {
+          "title": "Texto sugerido",
+          "help": "La auditoría del sitio escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
+          "copy": "Copiar texto",
+          "copied": "Texto copiado",
+          "copyError": "No se pudo copiar el texto"
+        },
+        "links": {
+          "title": "Dónde mostrar el producto",
+          "task": {
+            "post": "Publicar en {site}",
+            "answer": "Responder una pregunta en {site}",
+            "submit": "Enviar el producto a {site}",
+            "store": "Aparecer en {site}",
+            "link": "Pedir un enlace a {site}",
+            "listing": "Pedir a {site} que incluya el producto"
+          },
+          "ease": {
+            "easy": "Fácil",
+            "medium": "Intermedio",
+            "hard": "Difícil"
+          },
+          "reach": "Visto en {seen, plural, one {# resultado de Google} other {# resultados de Google}}",
+          "more": "{count, plural, one {Mostrar # sitio más} other {Mostrar # sitios más}}",
+          "reason": {
+            "text": "Lo publicas tú, y la auditoría escribió el texto.",
+            "self": "Lo publicas o lo envías tú.",
+            "answer": "Solo como respuesta a una pregunta que el producto resuelve.",
+            "review": "La tienda revisa la app antes de mostrarla.",
+            "mention": "La página ya nombra el producto: pide un enlace.",
+            "author": "Decide quien escribe la página."
+          }
+        }
+      },
+      "summary": {
+        "issues": "Problemas",
+        "issuesNone": "Ninguno encontrado",
+        "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
+        "keywords": "Palabras clave en los primeros resultados de Google",
+        "of": "de {total}",
+        "searches": "Búsquedas de tus palabras clave",
+        "searchesFor": "Para {keywords} de {of} palabras clave comprobadas",
+        "tests": "Pruebas completadas",
+        "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
+        "testsAll": "Todas las pruebas tienen resultado",
+        "aMonth": "al mes",
+        "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
+      },
+      "traffic": {
+        "searchType": "Tipo de búsqueda",
+        "searchTypes": {
+          "web": "Web",
+          "image": "Imágenes",
+          "video": "Vídeos",
+          "news": "Pestaña Noticias",
+          "discover": "Discover",
+          "googleNews": "Google Noticias"
+        },
+        "keyEvents": "Eventos clave (orgánico)",
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí.",
+        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)",
+        "aiAssistants": "Asistentes de IA",
+        "aiAssistantsHelp": "Visitas del canal «AI Assistant» de Google Analytics (ChatGPT, Perplexity, Gemini, Copilot y otros) según la página de entrada",
+        "aiAssistantsTruncated": "Solo se guardaron las primeras filas, así que los totales pueden ser mayores",
+        "assistant": "Asistente",
+        "landingPage": "Página de entrada",
+        "sessions": "Sesiones",
+        "keyEventsShort": "Eventos clave",
+        "noAiData": "Sin datos del canal «AI Assistant»",
+        "noAiDataBody": "Google Analytics no registró sesiones en su canal «AI Assistant» para estas páginas en este periodo.",
+        "brandSplit": "División por marca",
+        "brandViews": {
+          "all": "Todas las consultas",
+          "branded": "De marca",
+          "non_branded": "Sin marca"
+        },
+        "brandTotals": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "editBrandTerms": "Editar términos de marca",
+        "addBrandTerms": "Añadir términos de marca",
+        "brandTerms": "Términos de marca",
+        "brandTermsHelp": "Un término por línea. Una consulta que contiene un término como palabras completas cuenta como de marca. En chino, japonés, coreano o tailandés, cuenta cualquier consulta que contenga el término. Las mayúsculas y los acentos latinos no importan.",
+        "saveBrandTerms": "Guardar términos de marca",
+        "cancelBrandTerms": "Cancelar",
+        "brandSaved": "Términos de marca guardados",
+        "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
+        "noQueryDataBody": "Para Discover y Google News no se leen consultas. Los clics y las impresiones de este tipo aparecen arriba.",
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
+      },
+      "export": {
+        "csv": "Descargar CSV",
+        "action": "Acción",
+        "kind": "Tipo",
+        "status": "Estado",
+        "csvLabel": "Descargar CSV: {table}"
+      },
+      "datePresets": {
+        "label": "Periodos rápidos",
+        "days": "Últimos {count} días"
+      },
+      "improve": {
+        "catalog": {
+          "title": "Limitaciones del agente",
+          "help": "Qué revisa el agente, qué falta y qué debes hacer por tu cuenta."
+        },
+        "groups": {
+          "technical": "Técnica",
+          "content": "Contenido",
+          "keywords": "Palabras clave y posiciones",
+          "links": "Enlaces",
+          "local": "Local",
+          "measurement": "Medición y conversión",
+          "ai": "Búsqueda con IA",
+          "workflow": "Flujo de trabajo y automatización"
+        },
+        "request": "Copiar solicitud",
+        "requestLabel": "Copiar solicitud: {title}",
+        "requestText": "Solicitud de función para el agente SEO, punto {id}: {title}. Lo que falta: {missing}",
+        "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
+        "copyFailed": "No se pudo copiar la solicitud.",
+        "summary": {
+          "title": "Qué puedes esperar",
+          "site": "Las revisiones cubren las páginas seleccionadas. Un rastreo completo o una revisión de migración requiere trabajo adicional.",
+          "content": "El agente sugiere cambios en las páginas. No incluye artículos completos ni planes de contenido de todo el sitio.",
+          "research": "No incluye investigación detallada de enlaces, posiciones por ciudad ni seguimiento de contactos.",
+          "measurement": "Las reseñas del negocio, menciones de marca en IA, ingresos e impacto de cada cambio no se miden por completo.",
+          "publishing": "Tú aplicas los cambios, vuelves a revisar las correcciones y compartes informes con clientes."
+        },
+        "gaps": {
+          "statisticsIncomplete": "Faltan algunas estadísticas de Google. El agente solo puede evaluar los datos disponibles.",
+          "checksIncomplete": "Algunas revisiones no dieron resultados. Esta auditoría puede pasar por alto problemas.",
+          "title": "Datos que faltan en la auditoría",
+          "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
+          "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
+          "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",
+          "queryFailed": "Una lectura de Google falló en la última sincronización. Algunos días no tienen valor.",
+          "noAggregate": "Search Console no devolvió totales en la última sincronización.",
+          "queryRows": "Las filas de búsqueda de Search Console no estaban disponibles en la última sincronización.",
+          "keywordSeries": "Las posiciones diarias de las palabras clave seguidas no estaban disponibles en la última sincronización.",
+          "breakdown": "Los totales por país o por dispositivo no estaban disponibles en la última sincronización.",
+          "indexStatus": "El estado en el índice de Google no estaba disponible para una o más páginas en la última sincronización.",
+          "analyticsTimeZone": "Google Analytics no devolvió la zona horaria de la propiedad en la última sincronización. Las comparaciones de periodos son limitadas.",
+          "analyticsNoAggregate": "Google Analytics no devolvió totales en la última sincronización.",
+          "analyticsThresholding": "Google Analytics aplicó umbrales o perdió datos en la última sincronización. Faltan algunos valores.",
+          "analyticsSampling": "Analytics informó de datos basados en una muestra. Los totales y los valores diarios son estimaciones.",
+          "analyticsTruncated": "Google Analytics recortó los valores diarios en la última sincronización. Faltan algunos días.",
+          "analyticsLandingPages": "Los eventos clave por página de destino de Google Analytics no estaban disponibles en la última sincronización.",
+          "analyticsSharedLandingPath": "En la última sincronización no se leyeron los eventos clave por página de destino de las páginas que comparten una ruta en distintos hosts.",
+          "keywordRowsCut": "Search Console solo conservó las primeras {count} filas diarias de palabras clave en la última sincronización. Pueden faltar algunos días.",
+          "keywordsLeftOut": "En la última sincronización no se leyeron las posiciones diarias de {count, plural, one {# palabra clave seguida} other {# palabras clave seguidas}}{shown, plural, =0 {.} other {: {names}{more, plural, =0 {.} other { y # más.}}}}",
+          "note": "Nota de la última sincronización: {note}",
+          "queriesTruncated": "Search Console solo lista las primeras {count} filas de búsqueda. Las búsquedas menos frecuentes quedan fuera.",
+          "noCheck": "Aún no se ha hecho ninguna comprobación en estas páginas.",
+          "notChecked": "{count, plural, one {# prueba} other {# pruebas}} de la última comprobación no tuvieron resultado.",
+          "failed": "{count, plural, one {# prueba} other {# pruebas}} de la última comprobación no estaban disponibles.",
+          "modulesNotRequested": "Comprobaciones opcionales no solicitadas en la última comprobación: {names}.",
+          "modulesFailed": "Comprobaciones opcionales no disponibles en la última comprobación: {names}.",
+          "paidOff": "Los volúmenes de búsqueda y las posiciones actuales necesitan datos de búsqueda de pago, que están desactivados para estas páginas.",
+          "historyLimited": "Solo se cargan las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones. El historial anterior no se incluye."
+        },
+        "fix": {
+          "connect_search_console": "Configurar estadísticas",
+          "connect_ga4": "Configurar estadísticas",
+          "sync": "Gestionar estadísticas de Google",
+          "run_check": "Iniciar comprobación"
+        },
+        "items": {
+          "1": {
+            "title": "Rastreo de todo el sitio",
+            "missing": "Solo se comprueban las páginas que añades, no todas las páginas del sitio."
+          },
+          "2": {
+            "title": "Enlaces rotos y cadenas de redirecciones de todo el sitio",
+            "missing": "Los enlaces rotos y las cadenas de redirección no se listan para todo el sitio."
+          },
+          "3": {
+            "title": "Cobertura del índice de todas las URL",
+            "missing": "El estado de indexación de Google no se muestra para cada página del sitio."
+          },
+          "4": {
+            "title": "Páginas huérfanas",
+            "missing": "No hay lista de páginas a las que ninguna otra página enlaza."
+          },
+          "5": {
+            "title": "Páginas casi duplicadas",
+            "missing": "No hay lista de páginas con casi el mismo texto."
+          },
+          "6": {
+            "title": "Core Web Vitals en la pestaña SEO",
+            "missing": "Las puntuaciones de velocidad de carga y de diseño no se muestran en la pestaña SEO."
+          },
+          "7": {
+            "title": "Comprobación de una migración del sitio",
+            "missing": "No hay una comprobación de las redirecciones al mover un dominio o unas URL."
+          },
+          "8": {
+            "title": "Datos de rastreo de Googlebot",
+            "missing": "No hay importación de registros del servidor ni del informe de estadísticas de rastreo."
+          },
+          "9": {
+            "title": "Brief de contenido para una palabra clave",
+            "missing": "No hay un esquema de lo que debe cubrir una página nueva para una palabra clave."
+          },
+          "10": {
+            "title": "Borradores y reescrituras del texto principal",
+            "missing": "El agente redacta solo títulos y descripciones, no el texto principal."
+          },
+          "11": {
+            "title": "Cola de actualización de contenido",
+            "missing": "No hay lista de páginas antiguas que actualizar primero."
+          },
+          "12": {
+            "title": "Canibalización desde Search Console",
+            "missing": "No hay lista de búsquedas en las que compiten dos de tus páginas."
+          },
+          "13": {
+            "title": "Señales de autor, Quiénes somos y Contacto",
+            "missing": ""
+          },
+          "14": {
+            "title": "Comprobación de fechas de publicación",
+            "missing": ""
+          },
+          "15": {
+            "title": "Mapa de grupos de temas",
+            "missing": "No hay un mapa de los temas del sitio ni de los temas sin página."
+          },
+          "16": {
+            "title": "Historial de posiciones de las palabras clave seguidas",
+            "missing": ""
+          },
+          "17": {
+            "title": "Funciones de la SERP a lo largo del tiempo",
+            "missing": ""
+          },
+          "18": {
+            "title": "Posición por ciudad",
+            "missing": "Las posiciones se leen solo por país, no por ciudad."
+          },
+          "19": {
+            "title": "Cuota de visibilidad",
+            "missing": ""
+          },
+          "20": {
+            "title": "Tráfico de marca y de otras búsquedas",
+            "missing": ""
+          },
+          "21": {
+            "title": "Estacionalidad",
+            "missing": "Cada palabra clave muestra un volumen de búsqueda mensual y su tendencia, no los 12 meses anteriores."
+          },
+          "22": {
+            "title": "Intención de búsqueda y clase de conversión por palabra clave",
+            "missing": "Las palabras clave tienen una probabilidad de conversión, pero no una etiqueta de lo que quiere hacer la persona que busca."
+          },
+          "23": {
+            "title": "Perfil de backlinks propio",
+            "missing": "Tus páginas muestran cuántos sitios enlazan a ellas, no qué enlaces son."
+          },
+          "24": {
+            "title": "Dominios de referencia nuevos y perdidos",
+            "missing": "No hay una lista de los dominios que empezaron o dejaron de enlazar al sitio."
+          },
+          "25": {
+            "title": "Intersección de enlaces",
+            "missing": "No hay una lista de los dominios que enlazan a la competencia pero no al sitio."
+          },
+          "26": {
+            "title": "Menciones de la marca sin enlace",
+            "missing": "No hay una búsqueda de páginas que nombran la marca sin un enlace."
+          },
+          "27": {
+            "title": "Perfil de textos de anclaje",
+            "missing": "No hay una vista de los textos de anclaje de los enlaces entrantes."
+          },
+          "28": {
+            "title": "Seguimiento de contactos",
+            "missing": "Los textos de las publicaciones se pueden copiar, pero no se siguen las propuestas ni los enlaces conseguidos."
+          },
+          "29": {
+            "title": "Conexión con el Perfil de Empresa",
+            "missing": "No hay conexión con el Perfil de Empresa de Google."
+          },
+          "30": {
+            "title": "Seguimiento de reseñas y borradores de respuesta",
+            "missing": "No hay una lista de reseñas nuevas de Google ni borradores de respuesta."
+          },
+          "31": {
+            "title": "Cuadrícula del paquete local",
+            "missing": "No hay una posición en el mapa en puntos alrededor del negocio."
+          },
+          "32": {
+            "title": "Historial de Search Console de más de 16 meses",
+            "missing": "Una sincronización lee los últimos 90 días. No se guarda historial más allá de 16 meses."
+          },
+          "33": {
+            "title": "Alertas de caída de tráfico y posiciones",
+            "missing": "No se envía ninguna alerta cuando bajan el tráfico o las posiciones."
+          },
+          "34": {
+            "title": "Marcas de actualizaciones de Google en los gráficos",
+            "missing": ""
+          },
+          "35": {
+            "title": "Conversiones orgánicas por página de destino",
+            "missing": "No se muestran los ingresos por página de destino. Los eventos clave solo se muestran en la tabla Páginas principales, que necesita filas de consultas de Search Console y 2 o más páginas, y solo cuando están configurados en Google Analytics."
+          },
+          "36": {
+            "title": "Impacto antes y después por acción",
+            "missing": "La pestaña no muestra clics y posición antes y después de una acción hecha."
+          },
+          "37": {
+            "title": "Rendimiento en Discover, Noticias, Imágenes y Vídeos",
+            "missing": ""
+          },
+          "38": {
+            "title": "Exportación y periodos predefinidos",
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas de países y dispositivos, competidores, ideas de palabras clave y asistentes de IA no tienen descarga CSV. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
+          },
+          "39": {
+            "title": "Historial de citas en resúmenes de IA",
+            "missing": "No se comprueban los resúmenes de IA que Google carga después de la página, porque esa lectura cuesta más."
+          },
+          "40": {
+            "title": "Tráfico desde asistentes de IA",
+            "missing": ""
+          },
+          "41": {
+            "title": "Menciones de la marca en respuestas de modelos de IA",
+            "missing": "No hay una comprobación de si las respuestas de IA nombran la marca."
+          },
+          "42": {
+            "title": "Aplicar correcciones en el CMS o como pull request",
+            "missing": "Las correcciones no se escriben en el CMS ni se envían como pull request."
+          },
+          "43": {
+            "title": "Resumen semanal",
+            "missing": "No hay un correo ni un mensaje semanal con los cambios principales."
+          },
+          "44": {
+            "title": "Nueva comprobación y rastreo tras una corrección",
+            "missing": "No hay una nueva comprobación automática ni una comprobación del índice tras una corrección hecha."
+          },
+          "45": {
+            "title": "Informe para clientes que se puede compartir",
+            "missing": "No hay un enlace de solo lectura ni un PDF de la auditoría para clientes."
+          }
+        }
+      },
+      "shareOfVoice": {
+        "title": "Cuota de voz",
+        "description": "Cuota estimada de clics orgánicos en las palabras clave seguidas en la semana del {week}, a partir de {count, plural, one {# lectura de palabra clave} other {# lecturas de palabras clave}}. Cada palabra clave cuenta igual.",
+        "site": "Tus páginas",
+        "others": "Otros sitios",
+        "unattributed": "Resultados sin sitio conocido",
+        "change": "{points} pts",
+        "changeNote": "Puntos: cambio desde la semana del {week}.",
+        "method": "Una estimación, no una medición: cada resultado orgánico recibe el porcentaje de clics de su posición (Advanced Web Ranking, julio de 2026).",
+        "weekly": "Valores semanales",
+        "week": "Semana del",
+        "siteShare": "Cuota de tus páginas"
+      },
+      "keywordReach": {
+        "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} al mes",
+        "searchesBoth": "{count, plural, one {# búsqueda} other {# búsquedas}} al mes ({suggested, number} en las sugerencias de keywords)",
+        "position": "posición {position}",
+        "reach": {
+          "ranks": "Posiciona",
+          "inReach": "Al alcance",
+          "open": "Un foro en los resultados",
+          "outOfReach": "Fuera de alcance",
+          "notDetermined": "Alcance no determinado"
+        },
+        "features": {
+          "title": "Mejor búsqueda de cada función",
+          "help": "Para cada función: la búsqueda con más búsquedas que ningún grupo de keywords contiene, y su alcance."
+        },
+        "rivals": {
+          "title": "Keywords de productos competidores",
+          "help": "Las keywords para las que posiciona cada producto competidor, primero las de más búsquedas.",
+          "topic": "Keywords con una palabra de tu tema ({words}):",
+          "word": "«{word}»",
+          "noTopic": "Ninguna keyword tiene una palabra de tu tema ({words}).",
+          "other": "{count, plural, one {# keyword no tiene} other {# keywords no tienen}} ninguna de estas palabras: otros productos del sitio o nombres de productos",
+          "otherOne": "{count, plural, one {# keyword no tiene} other {# keywords no tienen}} esta palabra: otros productos del sitio o nombres de productos",
+          "more": "{count} más en el informe del sitio"
+        },
+        "ideas": {
+          "title": "Ideas para artículos",
+          "help": "Búsquedas que tus usuarios hacen antes de necesitar el producto. Un artículo sobre ellas trae lectores que pueden necesitarlo más tarde."
+        }
       }
     }
   },
@@ -10907,6 +12978,7 @@
       "open": "Abrir",
       "download": "Descargar",
       "downloadFile": "Descargar {name}",
+      "downloadAll": "Descargar todo",
       "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
       "emptyFolder": "Esta carpeta está vacía.",
       "errors": {
@@ -10937,8 +13009,6 @@
       "signOut": "Cerrar sesión",
       "empty": "Todavía no hay nada en esta sala de datos.",
       "indexLabel": "Contenido",
-      "pickFile": "Elige un archivo para abrirlo.",
-      "new": "Nuevo",
       "download": "Descargar",
       "watermarkNote": "Las páginas e imágenes que abres llevan tu correo y la hora.",
       "downloadToOpen": "Este archivo no se puede mostrar aquí. Descárgalo para abrirlo.",
@@ -10950,7 +13020,11 @@
       "awaitingAnswer": "Esperando respuesta",
       "askLabel": "Pregunta sobre este documento",
       "ask": "Preguntar",
-      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo."
+      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo.",
+      "welcome": "Bienvenida",
+      "welcomeTitle": "Te damos la bienvenida a {title}",
+      "contents": "{files, plural, one {# documento} other {# documentos}}{folders, plural, =0 {} one { en # carpeta} other { en # carpetas}}",
+      "openFirst": "Abrir {name}"
     }
   },
   "NotFound": {
@@ -11104,7 +13178,8 @@
         "scheduleOccurrenceChangedByMember": "Un miembro del equipo cambió una ocurrencia de {taskName}",
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
-        "followUp": "{taskName} sigue esperándote"
+        "followUp": "{taskName} sigue esperándote",
+        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}."
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",
@@ -11204,7 +13279,7 @@
     "Assistant": {
       "metadataTitle": "Configura tu asistente",
       "later": "Más tarde",
-      "laterHint": "Puedes configurarlo en cualquier momento desde Soko Bots.",
+      "laterHint": "Puedes configurarlo en cualquier momento desde Inicio.",
       "skip": "Omitir",
       "continue": "Continuar"
     }

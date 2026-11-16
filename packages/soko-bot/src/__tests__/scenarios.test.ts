@@ -56,6 +56,55 @@ describe("evaluateScenario", () => {
     expect(silent.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("passes a reminder set in the owner's zone without asking", () => {
+    const result = evaluateScenario(
+      byId("reminder-uses-owner-zone"),
+      turn({
+        route: "MANAGE_WORK",
+        finalAnswer:
+          "Done: every Friday at 4:00 PM (Berlin time) I will remind you to back up your photo cards. Want another time zone? Just say so.",
+        toolCalls: [
+          call("create_schedule", {
+            id: "sch-1",
+            timezone: "Europe/Berlin",
+            cronExpression: "0 16 * * 5",
+          }),
+        ],
+      }),
+    );
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("fails a reminder that asks for the zone, or lands in another one", () => {
+    const asked = evaluateScenario(
+      byId("reminder-uses-owner-zone"),
+      turn({
+        route: "MANAGE_WORK",
+        finalAnswer: "Which time zone should I use for Berlin or elsewhere?",
+      }),
+    );
+    expect(
+      asked.checks.filter((check) => !check.pass).map((check) => check.label),
+    ).toEqual([
+      "Calls create_schedule",
+      "Schedule runs in Europe/Berlin",
+      "Answer avoids /(which|what) time ?zone/",
+    ]);
+
+    const utc = evaluateScenario(
+      byId("reminder-named-zone-wins"),
+      turn({
+        route: "MANAGE_WORK",
+        finalAnswer: "Set for Mondays at 8:00 Oslo time.",
+        toolCalls: [call("create_schedule", { id: "sch-1", timezone: "UTC" })],
+      }),
+    );
+    expect(utc.checks.find((check) => !check.pass)).toMatchObject({
+      label: "Schedule runs in Europe/Oslo",
+      actual: "UTC",
+    });
+  });
+
   it("passes a quiet stand-up that changed nothing", () => {
     const result = evaluateScenario(
       byId("quiet-standup"),

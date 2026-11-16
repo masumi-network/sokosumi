@@ -37,6 +37,9 @@ const list = withCoworkerContextHeaderParameters(
             "Exactly the company this name belongs to, as the contact list's `company` filter reads it.",
         }),
         industry: z.string().trim().min(1).max(200).optional(),
+        listId: z.uuid().optional().openapi({
+          description: "Only the companies on this company list.",
+        }),
         minPeople: z.coerce.number().int().min(1).max(100_000).optional(),
         sort: z.enum(COMPANY_SORTS).default("people"),
         offset: z.coerce.number().int().min(0).max(1_000_000).default(0),

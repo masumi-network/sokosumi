@@ -1,7 +1,7 @@
 import type { NewsletterIssue } from "@sokosumi/core-client";
 import { CircleAlert } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { Badge } from "@/components/ui/badge";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -27,6 +27,42 @@ export function IssueStatusBadge({ issue }: { issue: NewsletterIssue }) {
           ? t("Lifecycle.approved")
           : t(`statuses.${issue.status}`)}
     </Badge>
+  );
+}
+
+/**
+ * When an issue went out, is due, or was last touched. `recipients` adds how
+ * many it went to, when the issue's analytics are loaded.
+ */
+export function IssueWhen({
+  issue,
+  recipients,
+}: {
+  issue: NewsletterIssue;
+  recipients?: number;
+}) {
+  const t = useTranslations("App.Projects.Newsletter.Issues");
+  const format = useFormatter();
+  return (
+    <p className="text-muted-foreground text-sm wrap-anywhere">
+      {issue.sentAt
+        ? recipients === undefined
+          ? t("sentAt", { date: format.dateTime(issue.sentAt, "dateTime") })
+          : t("sentTo", {
+              date: format.dateTime(issue.sentAt, "dateTime"),
+              count: recipients,
+            })
+        : issue.scheduledAt
+          ? t("Lifecycle.scheduled", {
+              date: format.dateTime(issue.scheduledAt, "dateTime", {
+                timeZone: issue.timezone ?? "UTC",
+              }),
+              timezone: issue.timezone ?? "UTC",
+            })
+          : t("updated", {
+              date: format.dateTime(issue.updatedAt, "dateTime"),
+            })}
+    </p>
   );
 }
 

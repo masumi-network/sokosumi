@@ -35,6 +35,7 @@ export interface OAuthClientPublic {
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
+const CORE_EMAIL_CHANGE_STATUS_PATH = "/auth/email-change/status";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
 /**
  * The one Core auth status that means "this browser has no session". 403 and
@@ -315,6 +316,26 @@ export async function listUserAccounts(): Promise<
   Result<Account[], CoreAuthReadError>
 > {
   return getCachedUserAccounts();
+}
+
+/**
+ * The person's email change as Core records it
+ * (`auth-pending-email-change.ts`): the address a link waits for, and an
+ * address the account changed to through a link and has not shown yet.
+ */
+export interface EmailChangeStatus {
+  pending: { newEmail: string } | null;
+  completed: { newEmail: string } | null;
+}
+
+export async function getEmailChangeStatus(): Promise<
+  Result<EmailChangeStatus, CoreAuthReadError>
+> {
+  return fetchCoreAuth<EmailChangeStatus>(
+    CORE_EMAIL_CHANGE_STATUS_PATH,
+    await getRequestHeaders(),
+    { failureLogMessage: "Failed to fetch email change status from Core" },
+  );
 }
 
 const getCachedOAuthClientPublic = cache(

@@ -33,14 +33,8 @@ export const APP_MAIN_MOBILE_PT_CLASS =
  * room scroll. `dvh` tracks the real layout viewport there. Guarded by
  * `lib/utils/__tests__/src-walk-guards.test.ts`.
  */
-export const APP_SHELL_BELOW_HEADER_HEIGHT_CLASS =
-  "h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
-
 export const APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS =
   "min-h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
-
-export const APP_SHELL_BELOW_HEADER_MAX_HEIGHT_CLASS =
-  "max-h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;
 
 /** Sticky desktop main column: same below-header calc (header is in-flow). */
 export const APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS =

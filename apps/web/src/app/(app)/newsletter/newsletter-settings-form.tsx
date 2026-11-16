@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Newsletter } from "@sokosumi/core-client";
 import { Mail } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -52,6 +51,7 @@ interface NewsletterSettingsFormProps {
   projectName: string;
   projectLogo: string | null;
   newsletter: Newsletter | null;
+  readOnly?: boolean;
   /** The project's sending domain card, shown above the Save button. */
   sendingDomain?: ReactNode;
 }
@@ -61,11 +61,11 @@ export function NewsletterSettingsForm({
   projectName,
   projectLogo,
   newsletter,
+  readOnly = false,
   sendingDomain,
 }: NewsletterSettingsFormProps) {
   const t = useTranslations("App.Projects.Newsletter");
   const validationT = useTranslations("App.Projects.Newsletter.Validation");
-  const router = useRouter();
   const [publicSlug, setPublicSlug] = useState(newsletter?.publicSlug);
   const form = useForm<NewsletterSettingsValues>({
     resolver: zodResolver(newsletterSettingsSchema(validationT)),
@@ -105,10 +105,52 @@ export function NewsletterSettingsForm({
       setPublicSlug(result.value.publicSlug);
       form.reset(values);
       toast.success(t("success"));
-      router.refresh();
     } catch {
       form.setError("root", { message: t("error") });
     }
+  }
+
+  if (readOnly) {
+    if (!newsletter) return null;
+    return (
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <div className={cn(HOLDER_CLASS, "min-w-0 space-y-3 p-3")}>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("general")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid gap-4 md:grid-cols-2">
+                {(
+                  [
+                    "name",
+                    "senderName",
+                    "replyTo",
+                    "welcomeSubject",
+                    "welcomeBody",
+                  ] as const
+                ).map((field) =>
+                  newsletter[field] ? (
+                    <div key={field} className="min-w-0">
+                      <dt className="text-muted-foreground text-sm">
+                        {t(`fields.${field}`)}
+                      </dt>
+                      <dd className="whitespace-pre-wrap break-words">
+                        {newsletter[field]}
+                      </dd>
+                    </div>
+                  ) : null,
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+          {sendingDomain}
+        </div>
+        <aside className="min-w-0 lg:sticky lg:top-4">
+          <NewsletterBrandPreview control={form.control} />
+        </aside>
+      </div>
+    );
   }
 
   return (

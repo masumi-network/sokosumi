@@ -40,6 +40,10 @@ function roomCanPaint(
  * Core answered only for a member.
  */
 export function PersistentRoomView({ children }: { children: ReactNode }) {
+  // Reads the cache's mutable availability during render. React Compiler
+  // would keep that read until the cache object changes, so a cache that
+  // comes back from a clear (a hidden app shell, a session end) never paints.
+  "use no memo";
   const cache = useRoomCache();
   const path = useRoomSelection();
   const [registered, setRegistered] = useState<RoomsClientProps | null>(null);
@@ -101,6 +105,8 @@ function SelectedRoom({
   bootstrap: RoomsClientProps | null;
   children: ReactNode;
 }) {
+  // Same mutable availability read as PersistentRoomView.
+  "use no memo";
   const cache = useRoomCache()!;
   const { data } = useQuery<RoomTranscriptEntry>(
     { queryKey: cache.key(roomId), queryFn: skipToken },

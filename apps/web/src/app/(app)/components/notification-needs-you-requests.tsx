@@ -2,6 +2,8 @@
 
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
+import { NotificationDataRoomQuestions } from "@/components/notifications/notification-data-room-questions";
+import { NotificationWaitingTasks } from "@/components/notifications/notification-waiting-tasks";
 import { useNotifications } from "@/contexts/notification-provider";
 
 interface NotificationNeedsYouRequestsProps {
@@ -12,9 +14,11 @@ interface NotificationNeedsYouRequestsProps {
 
 /**
  * What the account asks of the reader, as the first rows of the Needs you
- * list in both frames: the account notice and the push primer. They are
- * requests, not news, so they live on Needs you and nowhere else, and the
- * tab counts the notice (see the view filter).
+ * list in both frames: the account notice, the push primer, the Tasks
+ * waiting on the reader and the unanswered questions in their data rooms.
+ * They are requests, not news, so they live on Needs you and nowhere else,
+ * and the tab counts the notice, the Tasks and the questions (see the view
+ * filter).
  *
  * The same divider as the list's rows runs between and under them, so the
  * two read as one list. Under the last thing in the frame the card's own
@@ -38,6 +42,8 @@ export function NotificationNeedsYouRequests({
         variant={variant}
         onNavigate={onNavigate}
       />
+      <NotificationWaitingTasks onNavigate={onNavigate} />
+      <NotificationDataRoomQuestions onNavigate={onNavigate} />
     </div>
   );
 }

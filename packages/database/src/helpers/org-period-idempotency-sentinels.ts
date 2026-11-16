@@ -3,6 +3,7 @@ import {
   Prisma,
   type PrismaClient,
 } from "../generated/prisma/client.js";
+import { isPrismaUniqueConstraintError } from "../prisma-errors.js";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
@@ -85,15 +86,6 @@ interface ParsedMemberPeriodLeftover {
 
 const MEMBER_LOCAL_FREE_REF = /^member:[^:]+:local-free:([^:]+):(.+)$/;
 const MEMBER_INVOICE_SUBSCRIPTION_REF = /^member:[^:]+:([^:]+):subscription$/;
-
-function isPrismaUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  );
-}
 
 function sentinelExpiresAt(expiresAt: Date | null): Date {
   return expiresAt ?? new Date(0);
@@ -195,7 +187,7 @@ async function listLeftoverMemberPeriodRows(
   `;
 }
 
-export async function collectOrgPeriodSentinelSpecs(
+async function collectOrgPeriodSentinelSpecs(
   prisma: PrismaClient | Prisma.TransactionClient,
   params: { debug?: SentinelDebugLog; organizationId?: string } = {},
 ): Promise<{
@@ -264,7 +256,7 @@ export async function collectOrgPeriodSentinelSpecs(
   };
 }
 
-export async function listExistingOrgPeriodFingerprints(
+async function listExistingOrgPeriodFingerprints(
   prisma: PrismaClient | Prisma.TransactionClient,
   referenceIds: readonly OrgPeriodIdempotencyReferenceId[],
 ): Promise<Set<OrgPeriodIdempotencyReferenceId>> {

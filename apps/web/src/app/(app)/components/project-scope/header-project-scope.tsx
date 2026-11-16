@@ -133,6 +133,7 @@ export function HeaderProjectScope() {
             onSelectAll={request ? undefined : () => select(null)}
             onCreate={openScopeCreate}
             onDone={() => setScopeMenuOpen(false)}
+            excludeCmo={request?.excludeCmo}
           />
         </PopoverContent>
       </Popover>

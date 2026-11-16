@@ -1,19 +1,16 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
+import { loadWorkspaceSwitchAccounts } from "@/app/components/user-avatar/workspace-switch-accounts";
 import { TaskCanonicalUrl } from "@/app/tasks/components/task-canonical-url";
+import { TaskDetailStatusProvider } from "@/app/tasks/components/task-detail-optimistic";
+import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
 import { getSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
-import { userService } from "@/lib/services/user.service";
-import {
-  resolveAccountName,
-  resolveOrganization,
-} from "@/lib/utils/account-name";
 import { isUuidString } from "@/lib/utils/uuid";
 
 export default async function TaskDetailPage({
@@ -39,7 +36,11 @@ export default async function TaskDetailPage({
   if (task) {
     return (
       <>
-        <TaskDetailView task={task} />
+        <TaskDetailStatusProvider status={task.status}>
+          <TaskDetailLinksProvider>
+            <TaskDetailView task={task} />
+          </TaskDetailLinksProvider>
+        </TaskDetailStatusProvider>
         <TaskCanonicalUrl href={taskHref(task)} />
         {/* Opening the task is reading what its notifications were about.
             Not on the admin or developer views: those inspect someone else's
@@ -70,34 +71,10 @@ export default async function TaskDetailPage({
     return notFound();
   }
 
-  const [members, tDetail, tOrganizationSwitcher] = await Promise.all([
-    userService.getMyMembersWithOrganizations(),
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("Components.OrganizationSwitcher"),
-  ]);
-  const targetAccountName = resolveAccountName(
-    targetOrganizationId,
-    members,
-    tOrganizationSwitcher("personalAccount"),
-  );
-  const currentAccountName = resolveAccountName(
-    activeOrganizationId,
-    members,
-    tOrganizationSwitcher("personalAccount"),
-  );
-
   return (
     <TaskWorkspaceSwitchDialog
-      currentAccountName={currentAccountName}
-      currentOrganization={resolveOrganization(activeOrganizationId, members)}
-      sessionUser={session.user}
+      {...(await loadWorkspaceSwitchAccounts(session, targetOrganizationId))}
       taskName={taskWorkspace.name}
-      targetOrganization={resolveOrganization(targetOrganizationId, members)}
-      targetOrganizationId={targetOrganizationId}
-      targetAccountName={targetAccountName}
-      successMessage={tDetail("switchedWorkspace", {
-        account: targetAccountName,
-      })}
     />
   );
 }

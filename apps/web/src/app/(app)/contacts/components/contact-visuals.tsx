@@ -1,7 +1,9 @@
 "use client";
 import type {
+  Contact,
   ContactChannelType,
   ContactKind,
+  ContactList,
   ContactListColor,
   ContactPerson,
   ContactReplyState,
@@ -28,6 +30,7 @@ import {
   STAGE_DOT,
 } from "@/app/contacts/contacts-view";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 type GlyphProps = ComponentProps<"svg">;
@@ -259,18 +262,23 @@ export function ListChip({
   name,
   color,
   automatic = false,
+  saving = false,
 }: {
   name: string;
   color: ContactListColor;
   automatic?: boolean;
+  /** The change that put the contact on this list has not saved yet. */
+  saving?: boolean;
 }) {
   const t = useTranslations("App.Contacts.grid");
   return (
     <span
       title={automatic ? t("addedAutomatically", { list: name }) : undefined}
+      aria-busy={saving || undefined}
       className={cn(
         "text-foreground inline-flex h-6 max-w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs whitespace-nowrap",
         automatic ? "border-dashed" : "border-border",
+        saving && "opacity-60",
       )}
     >
       <Dot className={LIST_COLOR_DOT[color]} />
@@ -287,6 +295,39 @@ export function ListChip({
         </>
       ) : null}
     </span>
+  );
+}
+
+/** One manual list in the contact's list menu, ticked when they are on it. */
+export function ListOption({
+  list,
+  membership,
+  saving,
+  onToggle,
+}: {
+  list: ContactList;
+  membership?: Contact["lists"][number];
+  /** The last tick on this list has not saved yet. */
+  saving: boolean;
+  onToggle: (on: boolean) => void;
+}) {
+  const t = useTranslations("App.Contacts.panel");
+  return (
+    <DropdownMenuCheckboxItem
+      checked={!!membership}
+      aria-busy={saving || undefined}
+      className={cn(saving && "opacity-60")}
+      onSelect={(event) => event.preventDefault()}
+      onCheckedChange={(checked) => onToggle(checked === true)}
+    >
+      <Dot className={LIST_COLOR_DOT[list.color]} />
+      {list.name}
+      {membership?.addedAutomatically ? (
+        <span className="text-muted-foreground ms-auto ps-3 text-xs">
+          {t("automatic")}
+        </span>
+      ) : null}
+    </DropdownMenuCheckboxItem>
   );
 }
 

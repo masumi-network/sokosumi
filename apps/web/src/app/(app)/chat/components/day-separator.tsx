@@ -10,8 +10,8 @@ interface DaySeparatorProps {
 }
 
 /**
- * Day labels ("Today", weekday, dd/mm/yyyy) depend on the runtime's local
- * calendar and "now". SSR (UTC on Vercel) disagrees with the browser — that
+ * Day labels ("Today", weekday, a date in the reader's locale) depend on
+ * the runtime's local calendar and "now". SSR (UTC on Vercel) disagrees with the browser — that
  * mismatched text was Sentry SOKOSUMI-A (`Today` vs `Thursday`). Render a
  * stable empty shell until the client calendar is ready.
  */

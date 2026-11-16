@@ -50,6 +50,14 @@ export async function listChatRoomDecisionsAction(
   );
 }
 
+export async function listChatDecisionsAction(
+  cursor: string,
+): Promise<
+  SignalActionResult<{ messages: ChatRoomMessage[]; nextCursor: string | null }>
+> {
+  return run(() => chatSignalsService.listAllDecisions({ cursor }));
+}
+
 export async function correctChatSignalTagAction(
   messageId: string,
   tag: ChatSignalTag,

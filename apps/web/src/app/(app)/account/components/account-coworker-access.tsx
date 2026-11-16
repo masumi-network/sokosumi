@@ -35,6 +35,12 @@ export async function AccountCoworkerAccess() {
     );
   }
 
+  // Nothing to approve or remove: an empty early-access card only raises
+  // questions. It returns once a coworker asks.
+  if (rows.length === 0) {
+    return null;
+  }
+
   return (
     <Card id="coworker-early-access">
       <CardHeader className="space-y-2">

@@ -28,6 +28,7 @@ import {
   driveHead,
   driveList,
   drivePut,
+  driveRead,
   forgetDriveRooms,
   isInDataRoom,
   publicDriveUrl,
@@ -224,5 +225,31 @@ describe("listings", () => {
       expect.objectContaining({ cursor: "c1", token: "public-token" }),
     );
     expect(page.cursor).toBe("c2");
+  });
+});
+
+describe("driveRead", () => {
+  it("reads text uncompressed, so its size is the real one", async () => {
+    // Blob brotli-compresses text and then sends no content-length, which
+    // `get` reports as size 0 — and a route that trusts it serves nothing.
+    blob.get.mockImplementation(
+      async (
+        _pathname: string,
+        options: { headers?: Record<string, string> },
+      ) => {
+        const compressed = options.headers?.["accept-encoding"] !== "identity";
+        return {
+          statusCode: 200,
+          stream: new ReadableStream(),
+          headers: new Headers(),
+          blob: { contentType: "image/svg+xml", size: compressed ? 0 : 2109 },
+        };
+      },
+    );
+    db.dataRoom.findMany.mockResolvedValue([]);
+
+    const read = await driveRead(`${OWNER}merged-prs.svg`);
+
+    expect(read?.size).toBe(2109);
   });
 });

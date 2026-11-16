@@ -20,7 +20,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -39,6 +38,11 @@ import {
 } from "@/app/tasks/types/task-board";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
+import { buildPendingTask } from "@/app/tasks/utils/pending-created-task";
+import {
+  appendUniqueTasks,
+  buildInitialColumnCursorById,
+} from "@/app/tasks/utils/task-pages";
 import {
   buildTasksFiltersSearchParams,
   clearTasksFilters,
@@ -87,12 +91,14 @@ import {
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
+import { usePendingCreatedTasks } from "./use-pending-created-tasks";
 
 interface PendingBoardReopen {
   taskId: string;
   fromColumn: KanbanColumnId;
   toColumn: KanbanColumnId;
   previousStatus: TaskStatus;
+  previousStatusSince: string | undefined;
   desiredStatus: TaskStatus;
   moveVersion: number;
 }
@@ -297,6 +303,14 @@ export function TasksView({
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // Drag, merge and paging keep reading `items`: a pending row is display only.
+  const shownItems = usePendingCreatedTasks(
+    items,
+    useCallback(
+      (input) => buildPendingTask(input, { coworkerOptions, projectOptions }),
+      [coworkerOptions, projectOptions],
+    ),
+  );
   const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
   // Every setListCursor / setIsLoadingListMore call writes these refs directly.
@@ -383,7 +397,9 @@ export function TasksView({
     tasks,
   ]);
 
-  useEffect(() => {
+  // Before paint: the commit that brings new rows also drops a pending row,
+  // and the board must not show a frame without either.
+  useLayoutEffect(() => {
     const isListView = defaultViewMode === "list";
     const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
     const next = mergeTasksOnServerRefresh({
@@ -479,6 +495,7 @@ export function TasksView({
 
     // Preserve the task's prior status on rollback when a drag update fails.
     const previousStatus = draggedTask.status;
+    const previousStatusSince = draggedTask.statusSince;
 
     const moveVersion = (moveVersionRef.current += 1);
     pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
@@ -486,7 +503,13 @@ export function TasksView({
     setItems((prev) =>
       prev.map((task) =>
         task.id === activeId
-          ? { ...task, status: desiredStatus, columnId: toColumn }
+          ? {
+              ...task,
+              status: desiredStatus,
+              columnId: toColumn,
+              // The new status starts its clock now.
+              statusSince: new Date().toISOString(),
+            }
           : task,
       ),
     );
@@ -500,6 +523,7 @@ export function TasksView({
         fromColumn,
         toColumn,
         previousStatus,
+        previousStatusSince,
         desiredStatus,
         moveVersion,
       });
@@ -517,7 +541,12 @@ export function TasksView({
           task.id === activeId &&
           task.columnId === toColumn &&
           task.status === desiredStatus
-            ? { ...task, status: previousStatus, columnId: fromColumn }
+            ? {
+                ...task,
+                status: previousStatus,
+                columnId: fromColumn,
+                statusSince: previousStatusSince,
+              }
             : task,
         ),
       );
@@ -562,6 +591,7 @@ export function TasksView({
               ...task,
               status: pending.previousStatus,
               columnId: pending.fromColumn,
+              statusSince: pending.previousStatusSince,
             }
           : task,
       ),
@@ -642,6 +672,7 @@ export function TasksView({
           status: routeFilters.status,
           projectId: routeFilters.projectId,
           visibility: routeFilters.visibility,
+          stuck: routeFilters.stuck,
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
@@ -685,6 +716,7 @@ export function TasksView({
       routeFilters.projectId,
       routeFilters.scope,
       routeFilters.status,
+      routeFilters.stuck,
       routeFilters.visibility,
     ],
   );
@@ -708,6 +740,7 @@ export function TasksView({
         status: routeFilters.status,
         projectId: routeFilters.projectId,
         visibility: routeFilters.visibility,
+        stuck: routeFilters.stuck,
       });
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
       const nextCursor = result.nextCursor;
@@ -730,12 +763,22 @@ export function TasksView({
     routeFilters.projectId,
     routeFilters.scope,
     routeFilters.status,
+    routeFilters.stuck,
     routeFilters.visibility,
   ]);
 
   const handleViewModeChange = (next: TasksViewMode) => {
     setViewMode(next);
     document.cookie = serializeTasksViewModeCookie(next);
+    // A link's `?view=` held only that visit; once chosen here, the saved
+    // view decides, so drop it or the refresh would read the old view.
+    if (searchParams.has("view")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("view");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+      return;
+    }
     router.refresh();
   };
 
@@ -811,7 +854,7 @@ export function TasksView({
 
   // Only once the server answered for these filters, so a stale board never says "no match".
   const showFilteredEmpty =
-    items.length === 0 &&
+    shownItems.length === 0 &&
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
@@ -888,7 +931,7 @@ export function TasksView({
               >
                 {viewMode === "board" ? (
                   <KanbanBoard
-                    tasks={items}
+                    tasks={shownItems}
                     columns={columns}
                     columnHiddenCountById={columnHiddenById}
                     columnFooterById={columnFooterById}
@@ -904,7 +947,7 @@ export function TasksView({
                   />
                 ) : (
                   <TaskListView
-                    tasks={items}
+                    tasks={shownItems}
                     footer={listFooter}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
@@ -942,7 +985,7 @@ export function TasksView({
               </DndContext>
             ) : viewMode === "board" ? (
               <KanbanBoard
-                tasks={items}
+                tasks={shownItems}
                 columns={columns}
                 columnHiddenCountById={columnHiddenById}
                 columnFooterById={columnFooterById}
@@ -956,7 +999,7 @@ export function TasksView({
               />
             ) : (
               <TaskListView
-                tasks={items}
+                tasks={shownItems}
                 footer={listFooter}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
@@ -1015,27 +1058,5 @@ export function TasksView({
         isPending={isReopenPending}
       />
     </CreateTaskModalProvider>
-  );
-}
-
-function appendUniqueTasks(
-  prevTasks: TaskWithCoworker[],
-  newTasks: TaskWithCoworker[],
-) {
-  const existingIds = new Set(prevTasks.map((task) => task.id));
-  const uniqueNewTasks = newTasks.filter((task) => !existingIds.has(task.id));
-  return [...prevTasks, ...uniqueNewTasks];
-}
-
-function buildInitialColumnCursorById(
-  columns: KanbanColumnDefinition[],
-  initialColumnNextCursorById: Record<KanbanColumnId, string | null>,
-): Record<KanbanColumnId, string | null> {
-  return columns.reduce(
-    (acc, column) => {
-      acc[column.id] = initialColumnNextCursorById[column.id] ?? null;
-      return acc;
-    },
-    {} as Record<KanbanColumnId, string | null>,
   );
 }

@@ -88,18 +88,6 @@ function roomFolderPath(raw: string): string {
   return folderPath;
 }
 
-export function findDataRoom(store: DataRoomStore, folderPath: string) {
-  return prisma.dataRoom.findUnique({
-    where: {
-      sourceScope_ownerId_folderPath: {
-        sourceScope: sourceScopeOf(store.scope),
-        ownerId: store.ownerId,
-        folderPath: normalizeDriveFolderPath(folderPath),
-      },
-    },
-  });
-}
-
 /** The store's rooms this caller is in. */
 export async function listDataRooms(store: DataRoomCaller) {
   const [rooms, hidden] = await Promise.all([

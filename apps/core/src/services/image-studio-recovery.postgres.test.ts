@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   afterAll,
   beforeAll,
@@ -66,11 +67,16 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   fetchQueueResult: fetchQueueResultMock,
   downloadMedia: downloadMediaMock,
 }));
-vi.mock("@/services/image-studio-assets.service", () => ({
+vi.mock("@/services/image-studio-assets.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/image-studio-assets.service")
+  >()),
   readAssetBytes: vi.fn(),
 }));
 
 import prisma from "@/lib/db/prisma";
+import type { EnvVariables } from "@/lib/hono";
+import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import {
   reconcileJob,
   reconcileProjectJobs,
@@ -141,6 +147,104 @@ beforeEach(() => {
   fetchQueueResultMock.mockResolvedValue({
     kind: "media",
     media: [{ url: "https://v3b.fal.media/files/a.png" }],
+  });
+});
+
+describe.skipIf(!enabled)("Studio ad batches", () => {
+  it("returns every finished ad in the batch and excludes other batches and projects", async () => {
+    const batchId = randomUUID();
+    const campaign = await prisma.project.create({
+      data: { workspaceId, name: "Ad batch fixture" },
+    });
+    const other = await prisma.project.create({
+      data: { workspaceId, name: "Another project" },
+    });
+    async function finishedAd(
+      scopeId: string,
+      savedBatchId: string,
+      createdAt: Date,
+    ) {
+      const job = await makeJob({
+        projectId: scopeId,
+        batchId: savedBatchId,
+        status: "SUCCEEDED",
+      });
+      return prisma.projectImageAsset.create({
+        data: {
+          projectId: scopeId,
+          workspaceId,
+          jobId: job.id,
+          rootId: randomUUID(),
+          version: 1,
+          model: job.model,
+          prompt: job.prompt,
+          settings: {},
+          blobPathname: `projects/${scopeId}/${job.id}.png`,
+          contentType: "image/png",
+          width: 1024,
+          height: 1024,
+          bytes: 42,
+          checksum: job.id,
+          createdAt,
+        },
+      });
+    }
+
+    try {
+      const first = await finishedAd(
+        campaign.id,
+        batchId,
+        new Date("2026-08-01"),
+      );
+      const last = await finishedAd(
+        campaign.id,
+        batchId,
+        new Date("2026-09-01"),
+      );
+      await finishedAd(other.id, batchId, new Date());
+      await finishedAd(campaign.id, randomUUID(), new Date());
+      await makeJob({ projectId: campaign.id, batchId });
+
+      const app = new OpenAPIHono<EnvVariables>();
+      app.use("*", async (c, next) => {
+        c.set("requestId", "studio-batch");
+        c.set("authContext", {
+          actor: "user",
+          authenticationMethod: "session",
+          userId,
+          organizationId: null,
+          role: "user",
+        });
+        c.set("workspaceContext", {
+          userId,
+          workspaceId,
+          organizationId: null,
+        });
+        await next();
+      });
+      mountBatchAssets(app);
+      const response = await app.request(
+        `/${campaign.id}/image-studio/batches/${batchId}/assets`,
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: [
+          { id: last.id, projectId: campaign.id, batchId },
+          { id: first.id, projectId: campaign.id, batchId },
+        ],
+      });
+      expect(accessMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: campaign.id,
+          userId,
+          workspaceId,
+        }),
+      );
+    } finally {
+      await prisma.project.deleteMany({
+        where: { id: { in: [campaign.id, other.id] } },
+      });
+    }
   });
 });
 

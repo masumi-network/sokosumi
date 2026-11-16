@@ -57,7 +57,7 @@ function resolveSupportedEmailLocale(
   return DEFAULT_EMAIL_LOCALE;
 }
 
-export function getEmailMessages(locale?: null | string): AbstractIntlMessages {
+function getEmailMessages(locale?: null | string): AbstractIntlMessages {
   const resolvedLocale = resolveSupportedEmailLocale(locale);
 
   return EMAIL_MESSAGES[resolvedLocale];

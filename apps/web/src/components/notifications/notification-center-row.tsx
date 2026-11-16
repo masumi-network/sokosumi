@@ -1,6 +1,8 @@
 "use client";
 
 import type { NotificationItem } from "@sokosumi/core-client";
+import { isMentionNotification } from "@sokosumi/utils";
+import { useTranslations } from "next-intl";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { NotificationReadToggle } from "@/components/notifications/notification-read-toggle";
 import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
@@ -9,6 +11,7 @@ import {
   NotificationUnreadRail,
 } from "@/components/notifications/notification-unread-signal";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
@@ -20,6 +23,8 @@ interface NotificationCenterRowProps {
   notification: NotificationItem;
   isPending: boolean;
   message: string;
+  /** What a mention said, quoted under the line; null for any other row. */
+  preview?: string | null;
   timeLabel: string;
   onClick: (notification: NotificationItem) => void;
 }
@@ -39,9 +44,12 @@ export function NotificationCenterRow({
   notification,
   isPending,
   message,
+  preview = null,
   timeLabel,
   onClick,
 }: NotificationCenterRowProps) {
+  const t = useTranslations("Components.NotificationCenter");
+  const isMention = isMentionNotification(notification.messageKey);
   const showVendorGrantActions = isPendingWorkspaceApprovalNotification(
     notification,
     VENDOR_GRANT_PENDING_MESSAGE_KEY,
@@ -81,6 +89,14 @@ export function NotificationCenterRow({
         ) : (
           <>
             <p className="text-sm text-pretty">{message}</p>
+            {/* The mention's own words, so the reader can tell what was asked
+                without opening the room. Two lines at most: the room has the
+                rest. */}
+            {preview ? (
+              <p className="text-muted-foreground border-border line-clamp-2 border-l-2 pl-2 text-sm break-words">
+                {preview}
+              </p>
+            ) : null}
             <p className="text-muted-foreground text-xs tabular-nums">
               {timeLabel}
             </p>
@@ -104,8 +120,21 @@ export function NotificationCenterRow({
 
   // Beside the row rather than inside it, because the row itself is the button
   // that opens the notification and a button cannot nest in a button.
+  // A mention asks for an answer, so the move sits beside the read toggle:
+  // Reply opens the message in its room, where the composer is.
   const readToggle = (
-    <div className="p-3">
+    <div className="flex items-center gap-1 p-3">
+      {isMention ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label={t("replyTo", { message })}
+          onClick={() => onClick(notification)}
+        >
+          {t("reply")}
+        </Button>
+      ) : null}
       <NotificationReadToggle
         notificationId={notification.id}
         isRead={notification.isRead}

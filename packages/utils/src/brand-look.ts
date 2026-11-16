@@ -56,11 +56,17 @@ export function isNeutral(hex: string): boolean {
   return saturation < 0.18 || max < 28;
 }
 
-/** Colours in CSS (hex and rgb()), most frequent first, neutrals dropped. */
-export function brandColors(css: string, limit = 5): string[] {
+/** Colours in CSS (hex and rgb()), most frequent first, neutrals dropped by default. */
+export function brandColors(
+  css: string,
+  limit = 5,
+  {
+    includeDeclaredNeutrals = false,
+  }: { includeDeclaredNeutrals?: boolean } = {},
+): string[] {
   const counts = new Map<string, number>();
-  const add = (hex: string | null, weight = 1) => {
-    if (!hex || isNeutral(hex)) return;
+  const add = (hex: string | null, weight = 1, allowNeutral = false) => {
+    if (!hex || (!allowNeutral && isNeutral(hex))) return;
     counts.set(hex, (counts.get(hex) ?? 0) + weight);
   };
   for (const match of css.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g)) {
@@ -77,8 +83,12 @@ export function brandColors(css: string, limit = 5): string[] {
   for (const match of css.matchAll(
     /(?<![\w-])--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,6})\b/g,
   )) {
-    if (/brand|primary|accent/i.test(match[1] ?? "")) {
-      add(normalizeHex(match[2] ?? ""), 5);
+    const name = match[1] ?? "";
+    const declared =
+      includeDeclaredNeutrals &&
+      /(?:^|-)(?:brand|primary|secondary|accent)(?:-|$)/i.test(name);
+    if (declared || /brand|primary|accent/i.test(name)) {
+      add(normalizeHex(match[2] ?? ""), 5, declared);
     }
   }
   return distinctColors(

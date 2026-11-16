@@ -48,6 +48,12 @@ vi.mock("@/config/env", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        task: { findFirst: taskFindFirstMock, findUnique: taskFindUniqueMock },
+        coworker: { findFirst: coworkerFindFirstMock },
+        projectSeoAnalysis: { findUnique: async () => null },
+      }),
     task: {
       findFirst: taskFindFirstMock,
       findUnique: taskFindUniqueMock,

@@ -8,7 +8,7 @@ import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
 import { AGENT_NAME } from "../lib/agent";
-import { CusoAvatar } from "./cuso";
+import { AccountMenu } from "./account-menu";
 import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
@@ -54,6 +54,11 @@ function aimLabels(stage: HTMLElement) {
 interface OnboardingProps {
   /** The website a CMO sign-up link carried, to start the field with. */
   websiteUrl?: string | undefined;
+  /** The person's organizations, which Cuso may go into instead of a new one. */
+  organizations?: { id: string; name: string }[];
+  signOut?: () => Promise<void>;
+  /** False without a Cuso: the picker would only reload this form. */
+  cusoPicker?: boolean;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -61,10 +66,17 @@ interface OnboardingProps {
 }
 
 /**
- * Hiring Cuso, step one: the website. An error sits by it and what was
+ * Hiring Cuso, step one: the website, then where he goes when the person
+ * belongs to an organization (ADR 0065). An error sits by it and what was
  * typed stays.
  */
-export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
+export function Onboarding({
+  websiteUrl,
+  organizations = [],
+  signOut,
+  cusoPicker,
+  onboard,
+}: OnboardingProps) {
   const [state, formAction] = useActionState(onboard, {
     attempt: 0,
     websiteUrl: websiteUrl ?? "",
@@ -73,109 +85,126 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
-  // The hero plays first: Cuso announces the labels, and the avatar by the
-  // intro answers once it ends.
+  // Cuso announces the labels once his hero clip starts.
   const stage = useRef<HTMLDivElement>(null);
   const [announcing, setAnnouncing] = useState(false);
-  const [heroPlayed, setHeroPlayed] = useState(false);
 
   return (
     <div className="ob">
       <header className="ob-top">
         <Logo />
         <StepMarkers current={0} reached={0} />
-        <span />
+        {signOut ? (
+          <AccountMenu
+            label="Account"
+            signOut={signOut}
+            cusoPicker={cusoPicker}
+          />
+        ) : (
+          <span />
+        )}
       </header>
       <main className="ob-main">
-        <div className="ob-hire">
-          {/* Remounts after each submit (useFocusFirstInvalid). */}
-          <form
-            key={state.attempt}
-            ref={formRef}
-            action={formAction}
-            className="ob-hire-copy"
+        {/* Remounts after each submit (useFocusFirstInvalid). */}
+        <form
+          key={state.attempt}
+          ref={formRef}
+          action={formAction}
+          className="ob-hire"
+        >
+          <div
+            ref={stage}
+            className={announcing ? "ob-stage ob-stage-live" : "ob-stage"}
           >
-            <div className="ob-intro">
-              <CusoAvatar pose="needs-you" size={48} play={heroPlayed} />
-              <p className="muted">
-                {AGENT_NAME} is your AI CMO. He reads your site, plans your
-                month and runs it.
-              </p>
-            </div>
-            <h1 className="ob-display">
-              Give me your website. I'll bring back a plan.
-            </h1>
-            {errors.form ? (
-              <p className="alert" role="alert" tabIndex={-1}>
-                {errors.form}
-                {state.topUpUrl ? (
-                  <>
-                    {" "}
-                    <a
-                      className="ob-link"
-                      href={state.topUpUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Top up
-                    </a>
-                  </>
-                ) : null}
-              </p>
-            ) : null}
-            <div className="field">
-              <label htmlFor="ob-website">Your website</label>
-              <div className="ob-hire-row">
-                <input
-                  id="ob-website"
-                  name="websiteUrl"
-                  required
-                  placeholder="yourbusiness.com"
-                  autoComplete="url"
-                  inputMode="url"
-                  defaultValue={state.websiteUrl}
-                  aria-invalid={errors.websiteUrl ? true : undefined}
-                  aria-describedby={websiteErrorId}
-                />
-                <StartButton />
-              </div>
-              {errors.websiteUrl ? (
-                <p id={websiteErrorId} className="alert" role="alert">
-                  {errors.websiteUrl}
-                </p>
-              ) : (
-                <span className="ob-small muted">
-                  A shop, a SaaS, a portfolio. Any public site works.
-                </span>
-              )}
-            </div>
-            <StatRow stats={STATS} />
-          </form>
-          <div className="panel ob-hire-stage">
-            <div
-              ref={stage}
-              className={announcing ? "ob-stage ob-stage-live" : "ob-stage"}
-            >
-              <CusoClip
-                className="ob-stage-art"
-                src="/cuso/hero.jpg"
-                alt={`${AGENT_NAME} walking with a megaphone`}
-                width={640}
-                height={800}
-                onStart={() => {
-                  if (stage.current) aimLabels(stage.current);
-                  setAnnouncing(true);
-                }}
-                onEnded={() => setHeroPlayed(true)}
-              />
-              <span className="ob-tilt ob-tilt-a">Reads your site</span>
-              <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
-              <span className="ob-tilt ob-tilt-c ob-tilt-ink">
-                Drafts your first month
-              </span>
-            </div>
+            <CusoClip
+              className="ob-stage-art"
+              src="/cuso/hero.jpg"
+              alt={`${AGENT_NAME} walking with a megaphone`}
+              width={640}
+              height={800}
+              onStart={() => {
+                if (stage.current) aimLabels(stage.current);
+                setAnnouncing(true);
+              }}
+            />
+            <span className="ob-tilt ob-tilt-a">Reads your site</span>
+            <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
+            <span className="ob-tilt ob-tilt-c ob-tilt-ink">
+              Drafts your first month
+            </span>
           </div>
-        </div>
+          <h1 className="ob-display">
+            Give me your website. I'll bring back a plan.
+          </h1>
+          <p className="muted">
+            {AGENT_NAME} is your AI CMO. He reads your site, plans your month
+            and runs it.
+          </p>
+          {errors.form ? (
+            <p className="alert" role="alert" tabIndex={-1}>
+              {errors.form}
+              {state.unpaidCuso ? (
+                <>
+                  {" "}
+                  <a className="ob-link" href={state.unpaidCuso.href}>
+                    Open {state.unpaidCuso.businessName}
+                  </a>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+          <div className="field">
+            <label htmlFor="ob-website">Your website</label>
+            <div className="ob-hire-row">
+              <input
+                id="ob-website"
+                name="websiteUrl"
+                required
+                placeholder="yourbusiness.com"
+                autoComplete="url"
+                inputMode="url"
+                defaultValue={state.websiteUrl}
+                aria-invalid={errors.websiteUrl ? true : undefined}
+                aria-describedby={websiteErrorId}
+              />
+              <StartButton />
+            </div>
+            {errors.websiteUrl ? (
+              <p id={websiteErrorId} className="alert" role="alert">
+                {errors.websiteUrl}
+              </p>
+            ) : (
+              <span className="ob-small muted">
+                A shop, a SaaS, a portfolio. Any public site works.
+              </span>
+            )}
+          </div>
+          {organizations.length > 0 ? (
+            <fieldset className="ob-where">
+              <legend>Where</legend>
+              {[
+                {
+                  id: "",
+                  name: "New organization (named after your website)",
+                },
+                ...organizations,
+              ].map((organization) => (
+                <label key={organization.id}>
+                  <input
+                    type="radio"
+                    name="organizationId"
+                    value={organization.id}
+                    defaultChecked={
+                      organization.id === (state.organizationId ?? "")
+                    }
+                  />
+                  {organization.name}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
+          <StatRow stats={STATS} />
+        </form>
       </main>
     </div>
   );

@@ -18,9 +18,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 process.env.IMAGE_STUDIO_AGENT_SECRET = "x".repeat(48);
 process.env.CORE_APP_BASE_URL = "http://core.invalid";
 
-const { registerCreatedSession, transitionInitialTurn } = await import(
-  "./core"
-);
+const {
+  readAdHeadline,
+  registerCreatedSession,
+  saveAdHeadline,
+  transitionInitialTurn,
+} = await import("./core");
 
 const IDENTITY = { userId: "user-a", projectId: "project-a" };
 
@@ -36,6 +39,40 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+it("uses the versioned Core endpoint with an agent grant and reports a headline conflict", async () => {
+  const assetId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+  const data = {
+    headline: { text: null, revision: 0 },
+    approvedLines: ["Brew at your own pace."],
+  };
+  const fetchMock = vi
+    .fn<(url: string, init: RequestInit) => Promise<Response>>()
+    .mockResolvedValueOnce(
+      Response.json({ data, meta: { timestamp: new Date().toISOString() } }),
+    )
+    .mockResolvedValueOnce(
+      Response.json({ kind: "studio_headline_changed" }, { status: 409 }),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await readAdHeadline(IDENTITY, assetId)).toEqual(data);
+  await expect(
+    saveAdHeadline(IDENTITY, assetId, {
+      text: data.approvedLines[0],
+      expectedRevision: 0,
+    }),
+  ).rejects.toThrow(/may have changed/);
+  const [[getUrl, get], [putUrl, put]] = fetchMock.mock.calls;
+  expect(getUrl).toBe(
+    `http://core.invalid/v1/image-studio-agent/assets/${assetId}/headline`,
+  );
+  expect(putUrl).toBe(getUrl);
+  expect(new Headers(get.headers).get("authorization")).toMatch(/^Bearer /);
+  expect(put.method).toBe("PUT");
+  expect(put.body).toBe(
+    JSON.stringify({ text: data.approvedLines[0], expectedRevision: 0 }),
+  );
 });
 
 /** The shapes the review reproduced, plus the neighbours they generalize to. */

@@ -185,7 +185,7 @@ describe("TaskActivitySubscribeControl", () => {
     });
   });
 
-  it("keeps Unsubscribe after subscribe succeeds before refresh props land", async () => {
+  it("keeps Unsubscribe after subscribe succeeds before the new props land", async () => {
     const user = userEvent.setup();
     let resolveSubscribe: (value: {
       ok: true;
@@ -200,9 +200,11 @@ describe("TaskActivitySubscribeControl", () => {
     await user.click(screen.getByRole("button", { name: "subscribe" }));
     expect(screen.getByRole("button", { name: "unsubscribe" })).toBeDisabled();
     resolveSubscribe!({ ok: true, value: { taskId: "task-1" } });
-    await waitFor(() => {
-      expect(refreshMock).toHaveBeenCalled();
-    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "unsubscribe" })).toBeEnabled(),
+    );
+    // The action revalidates; a refresh on top is a second page render.
+    expect(refreshMock).not.toHaveBeenCalled();
     // Still committed local state — props never changed.
     expect(
       screen.getByRole("button", { name: "unsubscribe" }),

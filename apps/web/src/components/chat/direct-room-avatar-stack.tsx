@@ -1,5 +1,6 @@
-import type { ChatRoom } from "@sokosumi/core-client";
+import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   type ChatParticipantHoverProfile,
   getRoomParticipantPreviews,
@@ -8,6 +9,9 @@ import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
+import { useFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
+import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
+import { STATUS_TONE_DOT_CLASS } from "@/components/soko-bot/status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -92,6 +96,8 @@ export function DirectRoomAvatarStack({
   currentUserId,
 }: DirectRoomAvatarStackProps) {
   const participants = getDirectParticipants(room, currentUserId);
+  const tStatus = useTranslations("Components.SokoBot.BotStatus");
+  const failedSokoBotId = useFailedSokoBotId();
   // Former members are not here to be online, and their faces sit back.
   const showsPresence = !room.isSelfDirect && !room.isReadOnly;
 
@@ -116,6 +122,10 @@ export function DirectRoomAvatarStack({
         // roster panel says "Online" for the same member.
         const isAi =
           participant.kind === "coworker" || participant.kind === "sokoBot";
+        // Your own bot after a failed reply: the status its sidebar row and
+        // page show, not "Online".
+        const failed =
+          participant.kind === "sokoBot" && participant.id === failedSokoBotId;
 
         return (
           <span
@@ -137,7 +147,26 @@ export function DirectRoomAvatarStack({
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            {showsPresence ? (
+            {showsPresence && failed ? (
+              <>
+                <span
+                  aria-hidden
+                  data-testid="dm-sidebar-bot-failed"
+                  title={tStatus(SokoBotStatus.ERROR)}
+                  className={cn(
+                    "border-sidebar absolute -right-0.5 -bottom-0.5 size-2 rounded-full border",
+                    STATUS_TONE_DOT_CLASS[
+                      SOKO_BOT_STATUS_TONE[SokoBotStatus.ERROR]
+                    ],
+                  )}
+                />
+                {participants.length === 1 ? (
+                  <span className="sr-only">
+                    {tStatus(SokoBotStatus.ERROR)}
+                  </span>
+                ) : null}
+              </>
+            ) : showsPresence ? (
               <LiveMemberPresenceDot
                 className="-right-0.5 -bottom-0.5 absolute size-2 border"
                 fallback={participant.presence}
@@ -146,7 +175,7 @@ export function DirectRoomAvatarStack({
                 userId={participant.id}
               />
             ) : null}
-            {participants.length === 1 && showsPresence ? (
+            {participants.length === 1 && showsPresence && !failed ? (
               <LiveMemberPresenceText
                 className="sr-only"
                 fallback={participant.presence}

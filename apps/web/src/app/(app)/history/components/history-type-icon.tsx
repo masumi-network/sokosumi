@@ -36,6 +36,7 @@ export function HistoryTypeIcon({
       return <ImagePlus className={className} aria-hidden />;
     case "coworker":
       return <Users className={className} aria-hidden />;
+    case "seoChat":
     case "sokoBot":
       return <Bot className={className} aria-hidden />;
     case "contacts":

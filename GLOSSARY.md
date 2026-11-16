@@ -99,12 +99,40 @@ The product at cmo.xyz: an AI agent that runs a business's marketing end to end 
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
 **Cuso**:
-CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that works in one Project of the business's organization, for every member of it. A Project has at most one, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
 
+**CMO Project**:
+A Project with a live Cuso. Sokosumi shows it read-only and sends every change to CMO; after Start over it is an ordinary Project again.
+_Avoid_: Cuso Project, managed Project, locked Project
+
+**Business**:
+The company one Cuso markets, known by his website and named after its host. It belongs to his Project, not to the organization; one organization may market several.
+_Avoid_: Organization (when meaning this), brand, client
+
+**Cuso picker**:
+CMO's list of every Cuso a person can work with, across their organizations, with the way to hire another. CMO opens on it only when a person has several Cusos and none was opened last on that device.
+_Avoid_: Workspace switcher (that is Sokosumi's), Cuso switcher, Business picker
+
 **Hiring Cuso**:
-CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
+CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Its last step is the checkout for a CMO plan. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
+
+**Tester credits**:
+The 10,000 credits a person whose verified email is on Core's `CMO_SUBSCRIPTION_SKIP_ALLOWLIST` gives a Cuso in place of a CMO subscription, again once they are used up; the credits each Hiring Cuso granted before CMO subscriptions are Tester credits now ([ADR 0068](docs/adr/0068-cmo-sells-its-plans-through-polar.md)). They are Project credits of his Project with their own credit bucket type, never expire, keep him working while unspent, end his hiring without a checkout, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
+_Avoid_: Starter credits (the former name), trial credits (CMO has no trial), free credits (that is any admin grant), skip credits
+
+**CMO plan**:
+One of the three tiers CMO sells, monthly or yearly: a price and the credits it grants each month.
+_Avoid_: Subscription plan (that is Sokosumi's seat-based plan), tier, package
+
+**CMO subscription**:
+One Cuso's paid CMO plan, bought through Polar. Its monthly grant is Project credits of his Project that expire at the end of the month; without an active one Cuso is paused.
+_Avoid_: Subscription (alone, that is the organization's Stripe plan), CMO hire, membership
+
+**Project top-up**:
+A one-time purchase of Project credits for one subscribed Cuso's Project, bought through Polar. They expire 12 months after purchase.
+_Avoid_: Top-up (alone, that is a Stripe purchase into the Organization credit pool), credit pack, refill
 
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
@@ -140,6 +168,10 @@ _Avoid_: Schedule, scheduled task (for a single Task), once mode
 The day a Task should be done by: a calendar day with no time, set on the Task page in any status except Grant pending (Web only for now; the CLI and Apple apps do not show it). Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
 _Avoid_: Deadline (in UI copy), due time
 
+**Archived Task**:
+A Task taken off the board with Archive. Its record stays; the Tasks page's Archived view lists the archived Tasks of the active workspace the reader can see, latest first, and Restore puts one back (same access as Archive). A Task that was Queued, Ready or Grant pending comes back as a Draft without its Run at, so restoring never starts work; Draft, Completed, Failed and Canceled keep their status. Notifications read at archive stay read.
+_Avoid_: Deleted task, trash
+
 **Task Schedule**:
 A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
 _Avoid_: Recurring task, series task, template Task, automation
@@ -173,7 +205,7 @@ _Avoid_: Participant (when meaning a Task), follower, watcher
 ### Calendar
 
 **Calendar**:
-A destination of its own in the sidebar (`/calendar`) that shows everything with a date. Each feature is a filter on it, chosen with Show: Tasks (Runs and Run at), Social posts, Newsletter, Follow-ups and Marketing plan. It follows the Project scope. Social embeds it locked to Social posts.
+A destination of its own in the sidebar (`/calendar`) that shows everything with a date. Each feature is a filter on it, chosen with Show: Tasks (Runs and Run at), Social posts, Newsletter, Follow-ups, Marketing plan and Soko Bot (the runs of your own Soko Bot's schedules and of the Project and workspace bots you share, still to come and from the last week's history, never built-in rhythms or follow-ups; any of a bot's runs in the next 90 days can be moved, skipped or restored there, as Task Schedule Runs can; the cron stays as it is). It follows the Project scope. Social embeds it locked to Social posts.
 _Avoid_: Tasks calendar tab, content calendar (one calendar per feature)
 
 ### Social publishing
@@ -428,6 +460,10 @@ _Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a pe
 Credits owned by an Organization. Free period grant is the free monthly amount (250), shared by every member. Paid self-serve period grant is purchased seats × credits per seat, spent by assigned Seats. Enterprise keeps its own shared pool. OTC/admin grants sit in the same pool. Distinct from personal credits.
 _Avoid_: Org balance (ambiguous with Stripe), member credits, seat credits (that reads as a private per-member grant), scaling the free 250 by member count
 
+**Project credits**:
+Organization credits only a charge for one Project may spend, drawn before the Organization credit pool. Seats still gate them. Left out of the organization's balance. They come from a CMO subscription's monthly grant, a Project top-up, or Tester credits.
+_Avoid_: Project balance (it also includes the pool), project budget, project wallet
+
 **Personal credits**:
 Credits owned by a User with no Organization. Spent only in a personal workspace.
 _Avoid_: Account credits, default credits, treating these as spendable in an organization workspace
@@ -557,6 +593,10 @@ _Avoid_: Announcement (a use of this), pinned room, thread pin
 **Saved message**:
 A room message one reader saved for later, on their private Saved list (Catch up's Saved tab). Any message they can read, in a Channel, Direct or Thread. Nobody else sees it. The list reads each message live, so a deleted message or a room they left drops out. Distinct from a Pinned message, which is shared, and from Send to yourself, which copies the message.
 _Avoid_: Bookmark, starred message
+
+**Decisions list**:
+Catch up's Decisions tab: every message Jev read as a decision made (chat signals, readers' corrections applied) in the rooms the reader's sidebar lists, newest first. Read or unread, muted rooms and Thread replies included, because muting silences alerts, not access. A deleted message or a room they left drops out. Distinct from a room's decision log (one room, in its header) and from the Catch up overview, which covers unread decisions only. A detected decision, not a formal approval.
+_Avoid_: Decision register, approvals
 
 ### Chat reactions
 
@@ -738,3 +778,21 @@ _Avoid_: Production build, GA, latest (the newest build of any kind)
 **Beta build**:
 The newest build of the Mac app from main, signed and notarized for direct download but never offered as an update. Testers install it by hand and leave it when a newer Stable release reaches them.
 _Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha build (the TestFlight track was removed on 2026-10-09)
+
+### SEO
+
+**Audit**:
+VERIFIED: A named, Workspace-owned collection of related pages, checks, evidence, statistics and action Tasks. It can be created without a Sokosumi Project. An optional native Project link supplies work context. Evidence: `packages/database/prisma/seo.prisma` (`SeoAudit`) and `apps/core/src/services/seo-audit.service.ts` (`createSeoAudit`).
+_Avoid_: SEO project, personal assistant, bot profile
+
+**Page selection**:
+VERIFIED: A saved subset of an Audit's pages for repeated checks and monitoring. Each execution freezes the selected page IDs and version. Evidence: `ProjectSeoScope` and `ProjectSeoAnalysis` in `packages/database/prisma/seo.prisma`.
+_Avoid_: Project, Audit (when referring only to a saved subset)
+
+**Check**:
+VERIFIED: One SEO analysis execution over selected pages. Full and light audits are check kinds; their output is a Report. Evidence: `seoAnalysisKindSchema` in `apps/core/src/schemas/project-seo.schema.ts`.
+_Avoid_: Audit (when referring to the persistent collection)
+
+**Report**:
+VERIFIED: Captured evidence from a completed check, imported with its source and observation time. Evidence: `apps/core/src/services/project-seo-import.service.ts`.
+_Avoid_: Project, Audit (when referring to the evidence file alone)

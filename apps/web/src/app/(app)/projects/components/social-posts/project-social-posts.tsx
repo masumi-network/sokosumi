@@ -7,7 +7,10 @@ import {
   type SocialPostStatus,
   type SocialQueueSlot,
 } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
+import {
+  isValidTimezone,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+} from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
@@ -69,6 +72,7 @@ import {
 } from "@/components/ui/tabs";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import {
   type ActionError,
   toActionRejectionError,
@@ -101,6 +105,16 @@ import {
   formatComposerHandle,
 } from "./social-post-account-chip-label";
 import { socialPostCreatorLabel } from "./social-post-creator-label";
+import {
+  calendarDateParam,
+  isBrowserOffline,
+  isRevisionConflict,
+  isTimeoutRejection,
+  sectionOf,
+  sortSection,
+  upsertPost,
+  withoutActions,
+} from "./social-post-list";
 import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
@@ -151,6 +165,11 @@ interface ProjectSocialPostsProps {
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
   previewOnly?: boolean;
+  /**
+   * A CMO Project: CMO writes and schedules its posts, so they can be read
+   * and previewed here but not changed (ADR 0066).
+   */
+  readOnly?: boolean;
   returnFocus?: () => void;
   /**
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
@@ -185,45 +204,6 @@ const LOAD_MORE_ERROR_COPY = {
   failed: "loadMoreError",
 } as const;
 
-function timeOf(value: Date | null): number {
-  return value ? new Date(value).getTime() : 0;
-}
-
-function sectionOf(post: SocialPost): SectionKey | undefined {
-  return SECTION_ORDER.find((section) =>
-    SECTION_STATUSES[section].includes(post.status),
-  );
-}
-
-function sortSection(posts: SocialPost[], section: SectionKey): SocialPost[] {
-  if (section === "attention") {
-    return [...posts].sort(
-      (a, b) =>
-        timeOf(b.lastAttemptAt) - timeOf(a.lastAttemptAt) ||
-        timeOf(b.scheduledAt) - timeOf(a.scheduledAt) ||
-        b.id.localeCompare(a.id),
-    );
-  }
-  return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
-}
-
-/** Same `yyyy-MM-dd` WorkspaceCalendar reads from `?date=`. */
-function calendarDateParam(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
-  for (const part of parts) {
-    if (part.type !== "literal") {
-      values[part.type] = part.value;
-    }
-  }
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
 function actionSubject(post: SocialPost, untitled: string): string {
   const handle = formatComposerHandle(
     post.socialConnection?.externalHandle ?? null,
@@ -232,31 +212,6 @@ function actionSubject(post: SocialPost, untitled: string): string {
   const name = post.socialConnection?.displayName?.trim();
   if (name) return name;
   return untitled;
-}
-
-function isRevisionConflict(error: ActionError): boolean {
-  return error.kind === CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT;
-}
-
-function isBrowserOffline(): boolean {
-  return typeof navigator !== "undefined" && navigator.onLine === false;
-}
-
-function isTimeoutRejection(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const name = "name" in error ? error.name : undefined;
-  if (name === "AbortError" || name === "TimeoutError") return true;
-  const message =
-    "message" in error && typeof error.message === "string"
-      ? error.message.toLowerCase()
-      : "";
-  return message.includes("timed out") || message.includes("timeout");
-}
-
-function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
-  const index = posts.findIndex((post) => post.id === next.id);
-  if (index === -1) return [next, ...posts];
-  return posts.map((post) => (post.id === next.id ? next : post));
 }
 
 function previewAccountFor(
@@ -312,12 +267,14 @@ export function ProjectSocialPosts({
   requestedPostId,
   selectedPostFailed = false,
   previewOnly = false,
+  readOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
   const { enabledProviders, isProviderEnabled } =
     useSocialProviderAvailability();
   function canRetryPost(post: SocialPost): boolean {
     return (
+      !readOnly &&
       isProviderEnabled(post.provider) &&
       RETRY_STATUSES.includes(post.status) &&
       post.canPublishNow
@@ -350,9 +307,12 @@ export function ProjectSocialPosts({
   const [, setDate] = useQueryState("date", parseAsString);
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
+  // Posts shown ahead of a write that has not answered. A fresh server list
+  // arrives with every answer and does not know them yet.
+  const [unanswered, setUnanswered] = useState<readonly SocialPost[]>([]);
   if (syncedPosts !== initialPosts) {
     setSyncedPosts(initialPosts);
-    setPosts(initialPosts);
+    setPosts(unanswered.reduce(upsertPost, initialPosts));
     setCursors(nextCursors ?? {});
     setLoadMoreError(null);
   }
@@ -362,19 +322,19 @@ export function ProjectSocialPosts({
   const studioPrefill = compose?.open
     ? peekSocialComposePrefill(projectId)
     : null;
-  const composerMode: SocialPostComposerMode | null =
-    composer ??
-    (compose?.open
-      ? ({
-          kind: "create",
-          ...peekSocialComposePrefill(projectId),
-          scheduledAt: compose.scheduledAt ?? undefined,
-          ...studioPrefill,
-          source: studioPrefill ? "studio" : undefined,
-        } satisfies SocialPostComposerMode)
-      : null);
+  const composerMode: SocialPostComposerMode | null = readOnly
+    ? null
+    : (composer ??
+      (compose?.open
+        ? ({
+            kind: "create",
+            ...peekSocialComposePrefill(projectId),
+            scheduledAt: compose.scheduledAt ?? undefined,
+            ...studioPrefill,
+            source: studioPrefill ? "studio" : undefined,
+          } satisfies SocialPostComposerMode)
+        : null));
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
-  const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
   const [actionPendingPostId, setActionPendingPostId] = useState<string | null>(
@@ -438,7 +398,9 @@ export function ProjectSocialPosts({
       connection,
   );
   const allAffectedPosts = posts.reduce(upsertPost, affectedPosts);
-  const reconnections = getSocialReconnections(managed, allAffectedPosts);
+  const reconnections = readOnly
+    ? []
+    : getSocialReconnections(managed, allAffectedPosts);
 
   function handleReconnected(connection: ProjectSocialConnection): void {
     const failedPosts =
@@ -514,7 +476,7 @@ export function ProjectSocialPosts({
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
   const listedAccountCount = accountCount ?? connections.length;
   const accountPrompt =
-    accounts === undefined || tab === "accounts" || accountsFailed
+    readOnly || accounts === undefined || tab === "accounts" || accountsFailed
       ? null
       : listedAccountCount === 0
         ? "connect"
@@ -600,14 +562,61 @@ export function ProjectSocialPosts({
     }
   }
 
-  function handleSaved(post: SocialPost): void {
+  function showPost(post: SocialPost): void {
     setPreviewTarget((current) => (current?.id === post.id ? post : current));
     setPosts((current) => upsertPost(current, post));
+  }
+
+  /**
+   * Shows `shown` the way a saved post shows, before Core answers. A failed
+   * write puts `post` and the tab back, and reports the error.
+   */
+  async function saveShowing(
+    post: SocialPost,
+    shown: SocialPost,
+    write: () => Promise<ActionResultDto<SocialPost, ActionError>>,
+  ): Promise<SocialPost | null> {
+    const tabBefore = tabParam;
+    shown = withoutActions(shown);
+    handleSaved(shown);
+    setUnanswered((current) => [...current, shown]);
+    function putBack(): void {
+      showPost(post);
+      void setTabParam(tabBefore);
+    }
+    try {
+      const result = await write();
+      if (!result.ok) {
+        putBack();
+        // The reader has moved on by now: a conflict here must not close a
+        // composer or dialog they opened since.
+        if (isRevisionConflict(result.error)) {
+          toast.error(t("toasts.conflict"));
+          router.refresh();
+        } else handleActionError(result.error);
+        return null;
+      }
+      // Core decides the status. Where it differs from the one shown, the
+      // post may belong on another tab.
+      if (result.value.status === shown.status) showPost(result.value);
+      else handleSaved(result.value);
+      return result.value;
+    } catch (error) {
+      putBack();
+      handleActionError(toActionRejectionError(error), error);
+      return null;
+    } finally {
+      setUnanswered((current) => current.filter((held) => held !== shown));
+    }
+  }
+
+  function handleSaved(post: SocialPost): void {
+    showPost(post);
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
     // while other posts still need attention.
-    // Calendar entries are server-rendered, so refresh after every save.
-    router.refresh();
+    // Calendar entries are server-rendered. Every save is an action that
+    // revalidates, so its response carries them: no router.refresh() here.
     const nextSection = sectionOf(post);
     const previous = posts.find((candidate) => candidate.id === post.id);
     const attentionRemains = posts.some(
@@ -663,32 +672,26 @@ export function ProjectSocialPosts({
 
   async function handleConfirmCancel(): Promise<void> {
     const target = cancelTarget;
-    if (!target || cancelPending) return;
-    setCancelPending(true);
-    try {
-      const result = await cancelProjectSocialPost({
-        projectId,
-        postId: target.id,
-        revision: target.revision,
-      });
-      if (!result.ok) {
-        handleActionError(result.error);
-        return;
-      }
-      toast.success(
-        t(
-          RETRY_STATUSES.includes(target.status)
-            ? "toasts.dismissed"
-            : "toasts.canceled",
-        ),
-      );
-      handleSaved(result.value);
-    } catch (error) {
-      handleActionError(toActionRejectionError(error), error);
-    } finally {
-      setCancelPending(false);
-      setCancelTarget(null);
-    }
+    if (!target) return;
+    setCancelTarget(null);
+    const canceled = await saveShowing(
+      target,
+      { ...target, status: "CANCELED" },
+      () =>
+        cancelProjectSocialPost({
+          projectId,
+          postId: target.id,
+          revision: target.revision,
+        }),
+    );
+    if (!canceled) return;
+    toast.success(
+      t(
+        RETRY_STATUSES.includes(target.status)
+          ? "toasts.dismissed"
+          : "toasts.canceled",
+      ),
+    );
   }
 
   async function handleConfirmPublish(
@@ -832,25 +835,23 @@ export function ProjectSocialPosts({
   }
 
   async function handleApprove(post: SocialPost): Promise<void> {
-    if (actionPendingPostId) return;
-    setActionPendingPostId(post.id);
-    try {
-      const result = await approveProjectSocialPost({
-        projectId,
-        postId: post.id,
-        revision: post.revision,
-      });
-      if (!result.ok) {
-        handleActionError(result.error);
-        return;
-      }
-      handleSaved(result.value);
-      toast.success(t("toasts.approved"));
-    } catch (error) {
-      handleActionError(toActionRejectionError(error), error);
-    } finally {
-      setActionPendingPostId(null);
-    }
+    // Core schedules an approved post whose time is still far enough ahead,
+    // and keeps any other as a draft.
+    const schedules =
+      post.scheduledAt != null &&
+      new Date(post.scheduledAt).getTime() >=
+        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+    const approved = await saveShowing(
+      post,
+      { ...post, status: schedules ? "SCHEDULED" : "DRAFT" },
+      () =>
+        approveProjectSocialPost({
+          projectId,
+          postId: post.id,
+          revision: post.revision,
+        }),
+    );
+    if (approved) toast.success(t("toasts.approved"));
   }
 
   async function handleResume(post: SocialPost): Promise<void> {
@@ -877,28 +878,28 @@ export function ProjectSocialPosts({
   }
 
   async function handleRemoveQuote(post: SocialPost): Promise<void> {
-    setActionPendingPostId(post.id);
-    try {
-      const result = await updateProjectSocialPost({
-        projectId,
-        postId: post.id,
+    const updated = await saveShowing(
+      post,
+      {
+        ...post,
         quotedPostId: null,
-        revision: post.revision,
-      });
-      if (!result.ok) {
-        handleActionError(result.error);
-        return;
-      }
-      handleSaved(result.value);
-      toast.success(t("toasts.updated"));
-    } catch (error) {
-      handleActionError(toActionRejectionError(error), error);
-    } finally {
-      setActionPendingPostId(null);
-    }
+        quotedPost: null,
+        needsAttentionReason: null,
+        lastError: null,
+      },
+      () =>
+        updateProjectSocialPost({
+          projectId,
+          postId: post.id,
+          quotedPostId: null,
+          revision: post.revision,
+        }),
+    );
+    if (updated) toast.success(t("toasts.updated"));
   }
 
-  function renderPostActions(post: SocialPost, preview = false) {
+  function renderPostActions(target: SocialPost, preview = false) {
+    const post = readOnly ? withoutActions(target) : target;
     const providerEnabled = isProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
@@ -939,7 +940,6 @@ export function ProjectSocialPosts({
               variant="outline"
               className="min-h-11 md:min-h-10"
               disabled={Boolean(actionPendingPostId)}
-              loading={actionPendingPostId === post.id}
               onClick={() => void handleRemoveQuote(post)}
             >
               {t("quote.remove")}
@@ -968,13 +968,13 @@ export function ProjectSocialPosts({
             variant="primary"
             className="min-h-11 md:min-h-10"
             disabled={Boolean(actionPendingPostId)}
-            loading={actionPendingPostId === post.id}
             onClick={() => void handleApprove(post)}
           >
             {t("actions.approve")}
           </Button>
         ) : null}
-        {preview &&
+        {!readOnly &&
+        preview &&
         post.status === "FAILED" &&
         post.publishingThreadPartPosition != null ? (
           <Button
@@ -1128,6 +1128,8 @@ export function ProjectSocialPosts({
       post.waitingForQuotedPost ||
       post.status === "PUBLISHING" ||
       post.status === "NEEDS_APPROVAL";
+    // The time a draft keeps until someone schedules it.
+    const plannedAt = post.status === "PUBLISHING" ? null : post.scheduledAt;
 
     function openPreview() {
       setPreviewTarget(post);
@@ -1149,8 +1151,25 @@ export function ProjectSocialPosts({
           onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
-          timestamp={null}
+          timestamp={plannedAt}
         />
+        {plannedAt ? (
+          <p
+            className="text-muted-foreground text-xs"
+            data-testid={`social-post-planned-${post.id}`}
+          >
+            <time dateTime={plannedAt.toISOString()}>
+              {t("plannedFor", {
+                date: formatter.dateTime(plannedAt, "dateTime"),
+              })}{" "}
+              <TimezoneLabel
+                timeZone={displayTimezone}
+                at={plannedAt}
+                variant="short"
+              />
+            </time>
+          </p>
+        ) : null}
         {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
             {showStatus ? (
@@ -1710,7 +1729,7 @@ export function ProjectSocialPosts({
         post={
           previewTarget
             ? {
-                ...previewTarget,
+                ...(readOnly ? withoutActions(previewTarget) : previewTarget),
                 socialConnection: previewTarget.socialConnection
                   ? {
                       ...previewTarget.socialConnection,
@@ -1740,7 +1759,7 @@ export function ProjectSocialPosts({
       <AlertDialog
         open={cancelTarget !== null}
         onOpenChange={(open) => {
-          if (!open && !cancelPending) setCancelTarget(null);
+          if (!open) setCancelTarget(null);
         }}
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
@@ -1751,11 +1770,8 @@ export function ProjectSocialPosts({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelPending}>
-              {t("composer.close")}
-            </AlertDialogCancel>
+            <AlertDialogCancel>{t("composer.close")}</AlertDialogCancel>
             <AlertDialogAction
-              loading={cancelPending}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmCancel();

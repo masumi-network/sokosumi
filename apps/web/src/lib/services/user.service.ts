@@ -119,12 +119,22 @@ export const userService = (() => {
    * workspace switcher. Deduplicated per request via React cache().
    */
   const getMyWorkspaces = cache(async (): Promise<UserWorkspaces | null> => {
+    // Core authenticates this read from the cookie itself, so it runs next to
+    // the session read instead of one round trip after it. It settles here,
+    // so its failure (a 401 redirect included) only counts with a session.
+    const workspacesRead = coreClient.getMyWorkspaces().then(
+      (response) => ({ data: response.data }),
+      (error: unknown) => ({ error }),
+    );
     const session = await getSession();
     if (!session) {
       return null;
     }
-    const response = await coreClient.getMyWorkspaces();
-    return response.data;
+    const read = await workspacesRead;
+    if ("error" in read) {
+      throw read.error;
+    }
+    return read.data;
   });
 
   /**

@@ -2,7 +2,13 @@ import type {
   ChatRoomMessage,
   ChatRoomPinnedMessageListItem,
 } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PinnedMessagesPanel } from "./pinned-messages-panel";
@@ -125,7 +131,10 @@ function pinnedItem(): ChatRoomPinnedMessageListItem {
   };
 }
 
-function renderPanel(onJump: (messageId: string) => Promise<boolean>) {
+function renderPanel(
+  onJump: (messageId: string) => Promise<boolean>,
+  onUnpin: (messageId: string) => Promise<boolean> = vi.fn(async () => true),
+) {
   const onClose = vi.fn();
   render(
     <PinnedMessagesPanel
@@ -143,7 +152,7 @@ function renderPanel(onJump: (messageId: string) => Promise<boolean>) {
       openingDirectParticipantKey={null}
       onClose={onClose}
       onJump={onJump}
-      onUnpin={vi.fn(async () => true)}
+      onUnpin={onUnpin}
     />,
   );
   return { onClose };
@@ -272,5 +281,46 @@ describe("PinnedMessagesPanel", () => {
     await user.keyboard("{Enter}");
 
     expect(onJump).toHaveBeenCalledExactlyOnceWith(MESSAGE_ID);
+  });
+
+  it("takes the row out before the unpin is answered", async () => {
+    let answer: (removed: boolean) => void = () => {};
+    const onUnpin = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderPanel(
+      vi.fn(async () => true),
+      onUnpin,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: labels.unpin }));
+
+    expect(screen.queryByRole("button", { name: /Ada/ })).toBeNull();
+    expect(screen.getByText(labels.empty)).toBeInTheDocument();
+    expect(onUnpin).toHaveBeenCalledExactlyOnceWith(MESSAGE_ID);
+
+    await act(async () => {
+      answer(true);
+    });
+    expect(screen.queryByRole("button", { name: /Ada/ })).toBeNull();
+  });
+
+  it.each([
+    ["is refused", async () => false],
+    ["fails", async () => Promise.reject(new Error("down"))],
+  ])("puts the row back when the unpin %s", async (_case, onUnpin) => {
+    renderPanel(
+      vi.fn(async () => true),
+      onUnpin,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: labels.unpin }));
+
+    expect(
+      await screen.findByRole("button", { name: /Ada/ }),
+    ).toBeInTheDocument();
   });
 });

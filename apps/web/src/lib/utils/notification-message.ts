@@ -3,6 +3,7 @@
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_ALL_LABEL_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -11,6 +12,8 @@ import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_MESSAGE_KEY,
+  isMentionNotification,
+  localizeChatMentionAllPreview,
 } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
@@ -113,6 +116,51 @@ export function useNotificationMessage() {
         return messageKey;
       }
     },
+    [t],
+  );
+}
+
+/**
+ * The words a mention row quotes under its line, or null.
+ *
+ * Core cleans the message into `messagePreview` when it writes the row (the
+ * same text an OS banner shows) and takes it off again when the message is
+ * deleted, so the row only ever quotes what the room still says. A row that
+ * stands for several messages quotes none of them, as a grouped banner does.
+ */
+export function getNotificationPreview(
+  messageKey: string,
+  messageParams: Record<string, unknown>,
+  mentionAllLabel: string,
+): string | null {
+  const preview = messageParams.messagePreview;
+  if (
+    !isMentionNotification(messageKey) ||
+    typeof preview !== "string" ||
+    preview.length === 0 ||
+    countsMany(messageParams.count)
+  ) {
+    return null;
+  }
+
+  return localizeChatMentionAllPreview(preview, mentionAllLabel);
+}
+
+/** {@link getNotificationPreview} with the reader's word for `@all`. */
+export function useNotificationPreview() {
+  const t = useTranslations();
+
+  return useCallback(
+    (messageKey: string, messageParams: Record<string, unknown> = {}) =>
+      getNotificationPreview(
+        messageKey,
+        messageParams,
+        t(
+          getNotificationMessageTranslationKey(
+            CHAT_MENTION_ALL_LABEL_MESSAGE_KEY,
+          ) as never,
+        ),
+      ),
     [t],
   );
 }

@@ -45,6 +45,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
     const project = await createProject(workspaceContext.workspaceId, body);
-    return created(c, mapProjectForApi(project));
+    return created(
+      c,
+      mapProjectForApi(project, {
+        // A new Project has no Cuso yet.
+        cmo: false,
+      }),
+    );
   });
 }

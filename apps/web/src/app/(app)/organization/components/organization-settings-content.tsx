@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { OrganizationBillingAccessRestricted } from "@/app/organizations/[organizationSlug]/components/organization-billing-access-restricted";
 import OrganizationBillingDetails from "@/app/organizations/[organizationSlug]/components/organization-billing-details";
 import { OrganizationCoworkerAccess } from "@/app/organizations/[organizationSlug]/components/organization-coworker-access";
+import { OrganizationCreditSpendCard } from "@/app/organizations/[organizationSlug]/components/organization-credit-spend";
 import OrganizationInformation from "@/app/organizations/[organizationSlug]/components/organization-information";
 import OrganizationInviteButton from "@/app/organizations/[organizationSlug]/components/organization-invite-button";
 import { OrganizationInviteLinks } from "@/app/organizations/[organizationSlug]/components/organization-invite-links";
@@ -177,6 +178,9 @@ export async function OrganizationSettingsContent({
         )}
         {isOwnerOrAdmin && seatSummary ? (
           <OrganizationSeatSummaryCard seatSummary={seatSummary} />
+        ) : null}
+        {isOwnerOrAdmin ? (
+          <OrganizationCreditSpendCard organizationId={organization.id} />
         ) : null}
         {isOwnerOrAdmin ? (
           <OrganizationVendorGrants organizationId={organization.id} />

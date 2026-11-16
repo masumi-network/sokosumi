@@ -91,6 +91,29 @@ describe("GET drive file content", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-cache");
   });
 
+  it("keeps an SVG an attachment under the sandbox, so only <img> can show it", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        "<svg xmlns='http://www.w3.org/2000/svg'><script>1</script></svg>",
+        {
+          headers: {
+            "content-type": "image/svg+xml",
+            "content-disposition": 'attachment; filename="a.svg"',
+          },
+        },
+      ),
+    );
+
+    const response = await GET(request(), { params });
+
+    expect(response.headers.get("content-type")).toBe("image/svg+xml");
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment/);
+    expect(response.headers.get("content-security-policy")).toBe(
+      "sandbox; default-src 'none'",
+    );
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   it("forwards the scope and organization it was given", async () => {
     fetchMock.mockResolvedValue(bytes());
 

@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const postDriveFilesMock = vi.fn();
+const finalizeDriveFileMock = vi.fn();
 const getBrowserCoreClientMock = vi.fn(() => ({ id: "browser-core-client" }));
 
 vi.mock("@sokosumi/core-client", () => ({
   postDriveFiles: (...args: unknown[]) => postDriveFilesMock(...args),
+  postDriveFilesFinalize: (...args: unknown[]) =>
+    finalizeDriveFileMock(...args),
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -65,6 +68,7 @@ describe("uploadDriveFile", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    finalizeDriveFileMock.mockResolvedValue({ data: undefined });
     vi.unstubAllGlobals();
     originalXHR = globalThis.XMLHttpRequest;
   });
@@ -87,6 +91,9 @@ describe("uploadDriveFile", () => {
     vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
+    finalizeDriveFileMock.mockResolvedValue({
+      data: { data: { resourceId: "file-1" } },
+    });
 
     const uploaded = await uploadDriveFile(file, {
       scope: "me",
@@ -94,6 +101,7 @@ describe("uploadDriveFile", () => {
     });
 
     expect(uploaded).toEqual({
+      resourceId: "file-1",
       pathname: "drive/users/user_123/report.pdf",
       fileUrl:
         "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf",

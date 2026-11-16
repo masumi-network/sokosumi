@@ -15,16 +15,24 @@ describe("connect callback", () => {
   it("finishes the connection and resumes onboarding on Accounts", async () => {
     finalizeChannel.mockResolvedValue(true);
     const response = await callback(
-      "from=onboarding&status=success&connectedAccountId=ca_1&session_uri=s_1",
+      "from=onboarding&project=project-2&status=success&connectedAccountId=ca_1&session_uri=s_1",
     );
-    expect(finalizeChannel).toHaveBeenCalledWith("ca_1", "s_1");
+    expect(finalizeChannel).toHaveBeenCalledWith("project-2", "ca_1", "s_1");
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=connect&from=onboarding",
+      "http://localhost:3110/?step=connect&from=onboarding&project=project-2",
     );
   });
 
   it("says it failed when the provider refused", async () => {
-    const response = await callback("status=failed&connectedAccountId=ca_1");
+    const response = await callback(
+      "project=project-2&status=failed&connectedAccountId=ca_1",
+    );
+    expect(finalizeChannel).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toContain("connect=failed");
+  });
+
+  it("finishes nothing without the Project it started from", async () => {
+    const response = await callback("from=app&connectedAccountId=ca_1");
     expect(finalizeChannel).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toContain("connect=failed");
   });

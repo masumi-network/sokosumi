@@ -2,6 +2,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { socialPostStatusTone } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
 import { FILE_STATUS_MARKERS } from "@/components/tasks/task-file-status-badge";
@@ -13,7 +14,11 @@ import {
   type StatusTone,
   type StatusWeight,
 } from "@/components/ui/status-marker";
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/core-client";
+import {
+  SocialPostStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
 
 import {
   BRIDGES,
@@ -29,6 +34,10 @@ const HUES: StatusHue[] = [
   "blocked",
   "resolved",
   "fault",
+  "warning",
+  "info",
+  "success",
+  "destructive",
 ];
 const WEIGHTS: StatusWeight[] = ["filled", "outline", "solid"];
 
@@ -51,6 +60,9 @@ const TONES_IN_USE: StatusTone[] = (() => {
   }
   for (const spec of Object.values(FILE_STATUS_MARKERS)) {
     add(spec.tone);
+  }
+  for (const status of Object.values(SocialPostStatus)) {
+    add(socialPostStatusTone(status));
   }
   return [...seen.values()];
 })();

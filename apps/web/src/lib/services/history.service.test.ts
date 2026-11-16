@@ -4,6 +4,8 @@ vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
   getTransactions: vi.fn(),
+  getTransactionsDaily: vi.fn(),
+  getTransactionsTotal: vi.fn(),
 };
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -110,6 +112,40 @@ describe("history.service", () => {
     expect(result).toEqual({
       history: [item],
       pagination: null,
+    });
+  });
+
+  it("forwards one Task filter to both the list and the daily chart", async () => {
+    coreClientMock.getTransactions.mockResolvedValue({ data: [] });
+    coreClientMock.getTransactionsDaily.mockResolvedValue({ data: [] });
+
+    const { historyService } = await import("./history.service");
+    const filters = { scope: "workspace" as const, taskId: "task-1" };
+    await historyService.listHistory(filters);
+    await historyService.listDailySpend(filters);
+
+    expect(coreClientMock.getTransactions).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: "task-1", scope: "workspace" }),
+    );
+    expect(coreClientMock.getTransactionsDaily).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: "task-1", scope: "workspace" }),
+    );
+  });
+
+  it("reads one Task's total from the workspace ledger", async () => {
+    coreClientMock.getTransactionsTotal.mockResolvedValue({
+      data: { credits: 1.5, count: 2 },
+    });
+
+    const { historyService } = await import("./history.service");
+
+    await expect(historyService.getTaskTotal("task-1")).resolves.toEqual({
+      credits: 1.5,
+      count: 2,
+    });
+    expect(coreClientMock.getTransactionsTotal).toHaveBeenCalledWith({
+      scope: "workspace",
+      taskId: "task-1",
     });
   });
 });

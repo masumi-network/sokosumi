@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TableCell } from "@/app/drive/tables/table-cell";
 import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
@@ -50,6 +50,9 @@ const f = vi.hoisted(() => {
     get: vi.fn(),
     view: vi.fn(),
     invalidate: vi.fn(async () => {}),
+    setQueryData: vi.fn(),
+    cancelQueries: vi.fn(),
+    rowsPoll: (): number | false => 0,
     toastError: vi.fn(),
     push: vi.fn(),
     views: [] as TableView[],
@@ -85,12 +88,22 @@ vi.mock("@tanstack/react-query", () => ({
   keepPreviousData: vi.fn(),
   useQueryClient: () => ({
     invalidateQueries: f.invalidate,
-    setQueryData: vi.fn(),
+    setQueryData: f.setQueryData,
+    cancelQueries: f.cancelQueries,
     setQueriesData: vi.fn(),
     getQueriesData: () => [],
   }),
-  useQuery: ({ queryKey }: { queryKey: string[] }) => {
-    if (queryKey[0] === "table-rows") f.rowsKey = queryKey;
+  useQuery: ({
+    queryKey,
+    refetchInterval,
+  }: {
+    queryKey: string[];
+    refetchInterval?: () => number | false;
+  }) => {
+    if (queryKey[0] === "table-rows") {
+      f.rowsKey = queryKey;
+      if (refetchInterval) f.rowsPoll = refetchInterval;
+    }
     return {
       isPending: false,
       error: null,
@@ -211,7 +224,7 @@ it("F4: definitive cell rejection does not leave the cell retry-locked", async (
         .getAllByRole("alert")
         .map((item) => item.textContent)
         .join(" "),
-    ).toContain("errors.forbidden"),
+    ).toContain("errors.cellNotSaved"),
   );
   expect(cell).not.toBeDisabled();
   expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
@@ -236,7 +249,7 @@ it("F4: workspace rejection does not clear an unrelated cell retry", async () =>
         .getAllByRole("alert")
         .map((item) => item.textContent)
         .join(" "),
-    ).toContain("errors.forbidden"),
+    ).toContain("errors.archiveRows"),
   );
   f.batch.mockResolvedValueOnce({ rows: [] });
   fireEvent.click(screen.getByRole("button", { name: "addRow" }));
@@ -372,6 +385,50 @@ it("F3: legal large CSV is byte-bounded and retries the same chunk", async () =>
       .slice(1)
       .reduce((n, call) => n + call[1].insert.length, 0),
   ).toBe(60);
+});
+it("CSV import presets Number for numeric columns and lets people override it", async () => {
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  const csv = "month,revenue,zip\nJan,1200,01234\nFeb,,02345\nMar,1900.5,03456";
+  fireEvent.change(screen.getByLabelText("importCsv"), {
+    target: { files: [{ size: csv.length, text: async () => csv }] },
+  });
+  await waitFor(() => expect(screen.getAllByLabelText("type")).toHaveLength(3));
+  const [month, revenue, zip] = screen.getAllByLabelText("type");
+  expect(month).toHaveValue("text");
+  expect(zip).toHaveValue("text");
+  expect(revenue).toHaveValue("number");
+  expect(revenue).toHaveAccessibleDescription("numberGuess");
+  fireEvent.change(revenue, { target: { value: "text" } });
+  expect(revenue).toHaveValue("text");
+  expect(screen.queryByText("numberGuess")).not.toBeInTheDocument();
+});
+it("CSV import keeps a tiny decimal as text and imports guessed numbers as numbers", async () => {
+  f.create.mockResolvedValue({ id: f.column.tableId });
+  f.batch.mockResolvedValue({ rows: [] });
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  fireEvent.change(screen.getByLabelText("title"), {
+    target: { value: "Amounts" },
+  });
+  const tiny = `0.${"0".repeat(323)}1`;
+  const csv = `amount,count\n${tiny},5\n,7`;
+  fireEvent.change(screen.getByLabelText("importCsv"), {
+    target: { files: [{ size: csv.length, text: async () => csv }] },
+  });
+  await waitFor(() => expect(screen.getAllByLabelText("type")).toHaveLength(2));
+  const [amount, count] = screen.getAllByLabelText("type");
+  expect(amount).toHaveValue("text");
+  expect(count).toHaveValue("number");
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+  const [amountId, countId] = f.create.mock.calls[0][0].columns.map(
+    (column: { id: string }) => column.id,
+  );
+  expect(f.batch.mock.calls[0][1].insert).toEqual([
+    { values: { [amountId]: tiny, [countId]: 5 }, evidence: {} },
+    { values: { [amountId]: null, [countId]: 7 }, evidence: {} },
+  ]);
 });
 it("F3: definitive create rejection releases the create attempt", async () => {
   f.create.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
@@ -896,7 +953,8 @@ it("F3: a cell error wraps instead of painting across the next column", async ()
   fireEvent.blur(cell);
   const alert = await screen.findByRole("alert");
   expect(alert.className).toContain("whitespace-normal");
-  expect(cell.closest("td")?.className).not.toContain("whitespace-nowrap");
+  // The editor leaves while the save runs, so `cell` is a detached node now.
+  expect(alert.closest("td")?.className).not.toContain("whitespace-nowrap");
 });
 
 it("F4: value cells and the row checkbox align to the top of an uneven row", () => {
@@ -1279,4 +1337,57 @@ it("R11: tags render as chips, and a chip filters the grid by that tag", async (
   const chip = screen.getByRole("button", { name: "filterByTag" });
   fireEvent.doubleClick(chip.closest("td") as HTMLElement);
   expect(screen.getByRole("textbox", { name: "Tags" })).toHaveValue("lead");
+});
+
+describe("archive rows", () => {
+  function archive() {
+    render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "selectRow" }));
+    fireEvent.click(screen.getByRole("button", { name: "archiveRows" }));
+  }
+  it("takes the rows off the page before the save answers", async () => {
+    f.batch.mockReturnValue(new Promise(() => {}));
+    archive();
+    await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+    // A load under way would put the rows back, and so would a poll.
+    expect(f.cancelQueries).toHaveBeenCalledWith({ queryKey: f.rowsKey });
+    expect(f.rowsPoll()).toBe(false);
+    expect(f.setQueryData).toHaveBeenCalledOnce();
+    const [key, update] = f.setQueryData.mock.calls[0];
+    expect(key).toEqual(f.rowsKey);
+    const other = { ...f.row, id: "00000000-0000-4000-8000-000000000009" };
+    expect(
+      update({ rows: [f.row, other], nextCursor: "next", total: 7 }),
+    ).toEqual({ rows: [other], nextCursor: "next", total: 6 });
+    expect(update(undefined)).toBeUndefined();
+    // The selection goes with its rows.
+    expect(
+      screen.queryByRole("button", { name: "archiveRows" }),
+    ).not.toBeInTheDocument();
+  });
+  it("polls again once the save is over", async () => {
+    f.batch.mockResolvedValue({ rows: [] });
+    archive();
+    await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+    await waitFor(() => expect(f.rowsPoll()).toBe(3000));
+  });
+  it("sends nothing when no selected row is on the page", () => {
+    const view = render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "selectRow" }));
+    f.shown = [];
+    view.rerender(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("button", { name: "archiveRows" }));
+    expect(f.setQueryData).not.toHaveBeenCalled();
+    expect(f.batch).not.toHaveBeenCalled();
+  });
+  it("reloads the page when the save is rejected", async () => {
+    f.batch.mockRejectedValue({ error: "Forbidden", message: "No" });
+    archive();
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("errors.archiveRows"),
+    );
+    expect(f.invalidate).toHaveBeenCalledWith({
+      queryKey: ["table-rows", f.column.tableId],
+    });
+  });
 });

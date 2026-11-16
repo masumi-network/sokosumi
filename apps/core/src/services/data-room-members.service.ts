@@ -2,6 +2,7 @@ import {
   type DataRoom,
   DataRoomEventKind,
   type DataRoomMember,
+  DataRoomStorage,
   FileSourceScope,
 } from "@sokosumi/database";
 import { normalizeDriveFolderPath } from "@sokosumi/utils";
@@ -10,7 +11,10 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { canSeeDataRoom } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
-import type { DataRoomCaller } from "@/services/data-room.service";
+import {
+  type DataRoomCaller,
+  listDataRooms,
+} from "@/services/data-room.service";
 import {
   logDataRoomEvent,
   memberSeesPath,
@@ -132,6 +136,7 @@ export async function updateDataRoomSettings(input: {
   store: DataRoomCaller;
   roomId: string;
   title?: string | null;
+  welcomeNote?: string | null;
   logoFileId?: string | null;
   allowedDomains?: string[];
   expiresAt?: Date | null;
@@ -153,6 +158,9 @@ export async function updateDataRoomSettings(input: {
     data: {
       ...(input.title !== undefined
         ? { title: input.title?.trim() || null }
+        : {}),
+      ...(input.welcomeNote !== undefined
+        ? { welcomeNote: input.welcomeNote?.trim() || null }
         : {}),
       ...(input.logoFileId !== undefined
         ? { logoFileId: input.logoFileId }
@@ -367,6 +375,48 @@ export async function listDataRoomQuestions(input: {
     orderBy: { createdAt: "desc" },
     include: { member: { select: { email: true, name: true } } },
   });
+}
+
+/**
+ * Questions nobody has answered yet, across every room of this Drive the
+ * caller may run (the rooms `listDataRooms` shows them), newest first, a
+ * page at a time. A closing room's questions are left out: its viewers are
+ * being let go.
+ *
+ * Ids are UUIDv7, so id order is creation order: the cursor is the last id
+ * seen and the next page is every id below it. That keeps working when the
+ * cursor's own question was answered in the meantime.
+ */
+export async function listWaitingDataRoomQuestions(
+  store: DataRoomCaller,
+  page: { cursor?: string; take: number },
+) {
+  const rooms = (await listDataRooms(store)).filter(
+    (room) => room.storage !== DataRoomStorage.MOVING_OUT,
+  );
+  if (rooms.length === 0) return { count: 0, questions: [], hasMore: false };
+  const where = {
+    roomId: { in: rooms.map((room) => room.id) },
+    answeredAt: null,
+  };
+  const [count, rows] = await Promise.all([
+    prisma.dataRoomQuestion.count({ where }),
+    prisma.dataRoomQuestion.findMany({
+      where: page.cursor ? { ...where, id: { lt: page.cursor } } : where,
+      orderBy: { id: "desc" },
+      take: page.take + 1,
+      include: { member: { select: { email: true, name: true } } },
+    }),
+  ]);
+  const byId = new Map(rooms.map((room) => [room.id, room]));
+  return {
+    count,
+    hasMore: rows.length > page.take,
+    questions: rows.slice(0, page.take).flatMap((question) => {
+      const room = byId.get(question.roomId);
+      return room ? [{ ...question, room }] : [];
+    }),
+  };
 }
 
 export async function answerDataRoomQuestion(input: {

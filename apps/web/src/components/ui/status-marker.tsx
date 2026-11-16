@@ -65,7 +65,12 @@ export type StatusHue =
   /** There is a result to read. */
   | "resolved"
   /** Something is wrong. Overrides the column it sits in. */
-  | "fault";
+  | "fault"
+  /** Semantic ink for social posts, independent of Task board columns. */
+  | "warning"
+  | "info"
+  | "success"
+  | "destructive";
 
 /**
  * How much of the chip the status spends.
@@ -92,6 +97,8 @@ interface HueClasses {
   mark: string;
   /** The colour fill behind the glyph, for the hues the guide colours. */
   disc?: string;
+  /** Static fill utility so Tailwind emits colors also used by rails/dots. */
+  dot?: string;
 }
 
 const HUE_CLASSES: Record<StatusHue, HueClasses> = {
@@ -107,6 +114,10 @@ const HUE_CLASSES: Record<StatusHue, HueClasses> = {
     disc: "bg-semantic-success",
   },
   fault: { mark: "text-semantic-destructive" },
+  warning: { mark: "text-status-warning", dot: "bg-status-warning" },
+  info: { mark: "text-status-info", dot: "bg-status-info" },
+  success: { mark: "text-status-success", dot: "bg-status-success" },
+  destructive: { mark: "text-status-destructive", dot: "bg-status-destructive" },
 };
 
 const CHIP = {
@@ -160,7 +171,7 @@ export function getToneStyle(tone: StatusTone): ToneStyle {
     label: "text-foreground",
     mark: hue.mark,
     disc: hue.disc,
-    dot: hue.disc ?? asFill(hue.mark),
+    dot: hue.disc ?? hue.dot ?? asFill(hue.mark),
     // Off its disc a glyph cannot keep the disc's Neutral 950: in dark it
     // would vanish into the card.
     onSurface: hue.disc ? "text-foreground" : hue.mark,

@@ -6,7 +6,11 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { createNewsletterIssueRequestSchema } from "@/schemas/newsletter.schema";
-import { type Cuso, requireCuso } from "@/services/cmo-cuso.service";
+import {
+  type Cuso,
+  type CusoTarget,
+  requireCuso,
+} from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
   parseMarketingPlan,
@@ -14,9 +18,7 @@ import {
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 import { createNewsletterIssue } from "@/services/newsletter-issues.service";
 
-interface CalendarNewsletterInput {
-  userId: string;
-  projectId: string;
+interface CalendarNewsletterInput extends CusoTarget {
   strategyId: string;
   entryId: string;
   issueId?: string;
@@ -94,10 +96,7 @@ function issueFromCopy(title: string, text: string | null) {
 export async function prepareCalendarNewsletterIssue(
   input: CalendarNewsletterInput,
 ): Promise<string> {
-  const cuso = await requireCuso({ userId: input.userId });
-  if (cuso.projectId !== input.projectId) {
-    throw conflict("The active business changed. Reopen the calendar.");
-  }
+  const cuso = await requireCuso(input);
   if (!(await isNewsletterWorkspaceEnabled(cuso.workspaceId))) {
     throw notFound("Newsletter is not enabled");
   }

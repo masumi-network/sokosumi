@@ -13,7 +13,7 @@ import {
   postProjectsByIdNewsletterIssuesByIssueIdSubmit,
   postProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSubscribersFromContacts,
-  prepareCmoCalendarNewsletterIssue,
+  prepareCmoCalendarNewsletterIssueForProject,
 } from "@sokosumi/core-client";
 
 import { errorText } from "../lib/error-text";
@@ -21,7 +21,7 @@ import { inCusoWorkspace, requireCore } from "../lib/workspace-options";
 import { loadOverview } from "./cmo-actions";
 
 async function newsletterProject(projectId: string) {
-  const overview = await loadOverview();
+  const overview = await loadOverview(projectId);
   if (
     !overview ||
     overview.projectId !== projectId ||
@@ -144,10 +144,10 @@ export async function prepareCalendarIssue(
   issueId?: string,
 ) {
   const core = await requireCore();
-  const { data, error } = await prepareCmoCalendarNewsletterIssue({
+  const { data, error } = await prepareCmoCalendarNewsletterIssueForProject({
     ...core,
-    path: { id: entryId },
-    body: { projectId, strategyId, issueId },
+    path: { projectId, id: entryId },
+    body: { strategyId, issueId },
   });
   if (!data)
     return {

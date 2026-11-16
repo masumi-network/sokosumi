@@ -10,6 +10,25 @@ const { authorize, createJob, listAssets, listJobs, getJob, getAsset } =
     getAsset: vi.fn(),
   }));
 vi.mock("./authorize", () => ({ authorizeAgentGrant: authorize }));
+const { readCatalog, copyPhoto, findJob } = vi.hoisted(() => ({
+  readCatalog: vi.fn(),
+  copyPhoto: vi.fn(),
+  findJob: vi.fn(),
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    projectImageJob: { findUnique: findJob },
+    // Only "cmo-project" has a live Cuso.
+    sokoBot: {
+      findFirst: async ({ where }: { where: { projectId: string } }) =>
+        where.projectId === "cmo-project" ? { id: "cuso" } : null,
+    },
+  },
+}));
+vi.mock("@/services/studio-product-catalog.service", () => ({
+  readStudioProductCatalog: readCatalog,
+  copyRemoteStudioProductPhoto: copyPhoto,
+}));
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: createJob,
   DEFAULT_SETTINGS: {
@@ -45,10 +64,168 @@ beforeEach(() => {
     userId: "user",
     projectId: "project",
     workspaceId: "workspace",
+    organizationId: "org",
   });
+  findJob.mockResolvedValue(null);
 });
 
 describe("agent catalog and generation HTTP contract", () => {
+  const productId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+  const sourceId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const fileId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const selectedProduct = {
+    id: productId,
+    name: "Clay mug",
+    description: "Glazed stoneware",
+    price: "EUR 19",
+  };
+
+  function swapProduct(catalogProductId = productId) {
+    return app.request("/generations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Switch the product and keep the layout",
+        modelId: "flux-2-pro",
+        idempotencyKey: "valid-key",
+        parentAssetId: sourceId,
+        referenceAssetIds: [sourceId],
+        catalogProductId,
+      }),
+    });
+  }
+
+  it("refuses a generation in a CMO Project in the agent's own shape", async () => {
+    authorize.mockResolvedValueOnce({
+      userId: "user",
+      projectId: "cmo-project",
+      workspaceId: "workspace",
+      organizationId: "org",
+    });
+
+    const response = await swapProduct();
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: "cmo_project_read_only",
+    });
+    expect(createJob).not.toHaveBeenCalled();
+  });
+
+  it("resolves a saved replacement product and its uploaded photo in the granted project", async () => {
+    readCatalog.mockResolvedValueOnce({
+      products: [
+        { ...selectedProduct, photo: { id: fileId, name: "mug.png" } },
+      ],
+    });
+    createJob.mockResolvedValueOnce({ id: "new-job", status: "QUEUED" });
+
+    const response = await swapProduct();
+
+    expect(response.status).toBe(200);
+    expect(readCatalog).toHaveBeenCalledWith("project");
+    expect(createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        product: { id: productId, name: "Clay mug" },
+        parentAssetId: sourceId,
+        referenceAssetIds: [sourceId],
+        referenceFileIds: [fileId],
+        reuseParentPhotoIfAvailable: false,
+        reuseParentHeadlineIfAvailable: false,
+        referenceFileActor: {
+          kind: "interactive",
+          userId: "user",
+          organizationId: "org",
+        },
+        prompt:
+          "Switch the product and keep the layout\n\nFeature one product: Clay mug.\nGlazed stoneware\nApproved price: EUR 19.",
+      }),
+    );
+    expect(copyPhoto).not.toHaveBeenCalled();
+  });
+
+  it("allows a regular edit to reuse the original product photo", async () => {
+    createJob.mockResolvedValueOnce({ id: "new-job", status: "QUEUED" });
+
+    const response = await app.request("/generations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Change the headline",
+        modelId: "flux-2-pro",
+        idempotencyKey: "valid-key",
+        parentAssetId: sourceId,
+        referenceAssetIds: [sourceId],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(readCatalog).not.toHaveBeenCalled();
+    expect(createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentAssetId: sourceId,
+        referenceAssetIds: [sourceId],
+        reuseParentPhotoIfAvailable: true,
+        reuseParentHeadlineIfAvailable: true,
+        referenceFileActor: {
+          kind: "interactive",
+          userId: "user",
+          organizationId: "org",
+        },
+      }),
+    );
+  });
+
+  it("copies a saved storefront photo before attaching it as a reference", async () => {
+    const imageUrl = "https://shop.example.com/mug.png";
+    readCatalog.mockResolvedValueOnce({
+      products: [{ ...selectedProduct, imageUrl }],
+    });
+    copyPhoto.mockResolvedValueOnce({ id: fileId, name: "Clay mug" });
+    createJob.mockResolvedValueOnce({ id: "new-job", status: "QUEUED" });
+
+    expect((await swapProduct()).status).toBe(200);
+    expect(copyPhoto).toHaveBeenCalledWith({
+      imageUrl,
+      name: "Clay mug",
+      workspaceId: "workspace",
+      organizationId: "org",
+      userId: "user",
+    });
+    expect(createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceFileIds: [fileId],
+      }),
+    );
+  });
+
+  it("refuses a missing product before queueing any work", async () => {
+    readCatalog.mockResolvedValueOnce({ products: [] });
+    const response = await swapProduct();
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: "product_not_found" });
+    expect(createJob).not.toHaveBeenCalled();
+    expect(copyPhoto).not.toHaveBeenCalled();
+  });
+
+  it("replays an existing product job without preparing the current photo or buying again", async () => {
+    findJob.mockResolvedValueOnce({ id: "prior-job", status: "QUEUED" });
+    const response = await swapProduct();
+    expect(await response.json()).toMatchObject({ job: { id: "prior-job" } });
+    expect(findJob).toHaveBeenCalledWith({
+      where: {
+        projectId_idempotencyKey: {
+          projectId: "project",
+          idempotencyKey: "valid-key",
+        },
+      },
+    });
+    expect(readCatalog).not.toHaveBeenCalled();
+    expect(copyPhoto).not.toHaveBeenCalled();
+    expect(createJob).not.toHaveBeenCalled();
+  });
+
   it("returns the same non-empty catalog the browser reads, after authorization", async () => {
     const response = await app.request("/options");
     expect(response.status).toBe(200);

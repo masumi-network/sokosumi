@@ -88,6 +88,7 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
         userId: USER_ID,
         organizationId: ORGANIZATION_ID,
+        projectId: null,
         cents: 2n * 10n ** 10n,
         currentStatus: TaskStatus.RUNNING,
         tx,
@@ -115,6 +116,7 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
         userId: null,
         organizationId: ORGANIZATION_ID,
+        projectId: null,
         cents: 3n * 10n ** 10n,
         currentStatus: TaskStatus.RUNNING,
         tx,
@@ -143,6 +145,7 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
         userId: null,
         organizationId: ORGANIZATION_ID,
+        projectId: null,
         cents: 11n * 10n ** 10n,
         currentStatus: TaskStatus.RUNNING,
         tx,

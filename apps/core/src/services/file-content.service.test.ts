@@ -162,6 +162,13 @@ describe("entityTagFor", () => {
     expect(before).not.toBe(after);
   });
 
+  it("never matches a tag served while text files went out empty", () => {
+    // Browsers cached those empty bodies, and a matching tag gets a 304.
+    expect(entityTagFor({ resourceId: "res-1", contentRevision: 1 })).not.toBe(
+      "res-1-1",
+    );
+  });
+
   it("is stable for the same revision", () => {
     // It still has to be a usable validator: same bytes, same tag.
     expect(entityTagFor({ resourceId: "res-1", contentRevision: 3 })).toBe(

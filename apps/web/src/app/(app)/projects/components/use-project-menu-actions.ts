@@ -12,6 +12,8 @@ import {
 } from "@/app/projects/actions";
 import { PINNED_PROJECTS_QUERY_KEY } from "@/hooks/use-pinned-projects";
 
+export type ProjectMenuChange = "pin" | "unpin" | "hide" | "show";
+
 export interface ProjectHideLabels {
   hide: string;
   show: string;
@@ -30,13 +32,16 @@ export interface ProjectHideLabels {
 export function useProjectMenuActions({
   labels,
   pinError,
-  onChange,
+  onChanging,
 }: {
   labels: ProjectHideLabels;
   /** Toast when a Pin or Unpin fails. */
   pinError?: string;
-  /** Runs once a Hide, Show or Undo has landed, e.g. to refetch the page. */
-  onChange?: () => void;
+  /**
+   * Runs first inside the transition of a write, so the caller can show the
+   * change with `useOptimistic` before Core answers. Not for Undo.
+   */
+  onChanging?: (change: ProjectMenuChange) => void;
 }) {
   // Best-effort, as in `ProjectPinButton`: these stay renderable without a
   // query provider.
@@ -49,7 +54,6 @@ export function useProjectMenuActions({
       queryClient?.invalidateQueries({ queryKey: [PINNED_PROJECTS_QUERY_KEY] }),
       queryClient?.invalidateQueries({ queryKey: [SCOPE_PAGE_QUERY_KEY] }),
     ]);
-    onChange?.();
   }
 
   async function undoHide(projectId: string, unpinned: boolean) {
@@ -66,6 +70,7 @@ export function useProjectMenuActions({
 
   function hide(projectId: string) {
     startTransition(async () => {
+      onChanging?.("hide");
       let unpinned: boolean;
       try {
         ({ unpinned } = await hideProjectAction({ projectId }));
@@ -85,6 +90,7 @@ export function useProjectMenuActions({
 
   function show(projectId: string) {
     startTransition(async () => {
+      onChanging?.("show");
       try {
         await showProjectAction({ projectId });
       } catch {
@@ -97,6 +103,7 @@ export function useProjectMenuActions({
 
   function setPinned(projectId: string, pinned: boolean) {
     startTransition(async () => {
+      onChanging?.(pinned ? "pin" : "unpin");
       try {
         await (pinned
           ? pinProjectAction({ projectId })

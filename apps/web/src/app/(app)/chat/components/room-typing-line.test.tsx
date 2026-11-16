@@ -52,6 +52,9 @@ describe("RoomTypingLine", () => {
     const line = screen.getByTestId("room-typing-line");
     expect(line).toBeInTheDocument();
     expect(line).toHaveTextContent("");
+    expect(line).toHaveClass("pointer-events-none");
+    expect(line).not.toHaveClass("bg-background");
+    expect(line.children).toHaveLength(0);
   });
 
   it("drops a typist it cannot name rather than showing a placeholder", () => {
@@ -109,5 +112,10 @@ describe("RoomTypingLine", () => {
     expect(line.className).toContain("md:absolute");
     expect(line.className).toContain("md:bottom-1");
     expect(line.className).toContain("md:min-h-0");
+    expect(screen.getByText(/Patrick Tobin is typing/)).toHaveClass(
+      "pointer-events-auto",
+      "rounded-md",
+      "bg-background",
+    );
   });
 });

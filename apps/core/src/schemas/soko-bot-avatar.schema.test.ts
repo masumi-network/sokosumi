@@ -21,7 +21,7 @@ describe("soko bot avatar list and top-up schemas", () => {
   it("takes the top-up request as a body instead", () => {
     const parsed = topUpSokoBotAvatarsRequestSchema.parse({ take: 6 });
 
-    expect(parsed).toEqual({ take: 6, excludeIds: [] });
+    expect(parsed).toEqual({ take: 6, excludeIds: [], fresh: false });
   });
 
   it("caps a top-up at one generation batch", () => {

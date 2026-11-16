@@ -30,6 +30,8 @@ interface SubscriptionPlanCardProps {
   isPlanPending: boolean;
   onAction: (plan: PaidSubscriptionPlanName) => void;
   plan: PaidSubscriptionPlanView;
+  /** Organization checkout: price reads per seat; null hides the total (invalid seat count). */
+  seats?: null | number;
 }
 
 export function SubscriptionPlanCard({
@@ -40,6 +42,7 @@ export function SubscriptionPlanCard({
   isPlanPending,
   onAction,
   plan,
+  seats,
 }: SubscriptionPlanCardProps) {
   const t = useTranslations("App.Subscriptions");
   const formatter = useFormatter();
@@ -53,6 +56,14 @@ export function SubscriptionPlanCard({
         ? t("currentPlanCta")
         : t("upgradePlanCta")
       : actionLabel;
+  const formatCurrency = (amount: number, compact: boolean) =>
+    formatter.number(amount, {
+      style: "currency",
+      currency: plan.currency.toUpperCase(),
+      ...(compact
+        ? { notation: "compact" }
+        : { trailingZeroDisplay: "stripIfInteger" }),
+    });
 
   return (
     <Card
@@ -77,17 +88,14 @@ export function SubscriptionPlanCard({
       <CardContent className="space-y-3">
         <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
           {formatPlanPrice({
-            formatCurrency: (amount) =>
-              formatter.number(amount, {
-                style: "currency",
-                currency: plan.currency.toUpperCase(),
-                notation: "compact",
-              }),
+            formatCurrency: (amount) => formatCurrency(amount, true),
             freePriceLabel: t("freePrice"),
             monthlyAmount: plan.monthlyAmount,
           })}
         </p>
-        <p className="text-muted-foreground text-sm">{t("pricePerMonth")}</p>
+        <p className="text-muted-foreground text-sm">
+          {seats === undefined ? t("pricePerMonth") : t("pricePerSeatPerMonth")}
+        </p>
         <p className="text-sm">
           {creditsText ?? t("includedCredits", { credits: plan.credits })}
         </p>
@@ -97,7 +105,18 @@ export function SubscriptionPlanCard({
         />
       </CardContent>
       {resolvedActionLabel ? (
-        <CardFooter className="mt-auto">
+        <CardFooter className="mt-auto flex-col items-stretch gap-3">
+          {seats ? (
+            <p aria-live="polite" className="text-sm font-medium tabular-nums">
+              {t("seatTotal", {
+                seats,
+                total: formatCurrency(
+                  (plan.monthlyAmount * seats) / 100,
+                  false,
+                ),
+              })}
+            </p>
+          ) : null}
           <SubscriptionPlanActionButton
             actionLabel={resolvedActionLabel}
             disabled={resolvedDisabled}

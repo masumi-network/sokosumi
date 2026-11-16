@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEFAULT_FILES_VIEW_MODE,
   effectiveFilesViewMode,
   FILES_VIEW_MODE_COOKIE_MAX_AGE,
   FILES_VIEW_MODE_COOKIE_NAME,
   parseFilesViewMode,
-  parseFilesViewModeCookieHeader,
-  resolveFilesViewModeFromClientCookie,
   serializeFilesViewModeCookie,
 } from "@/lib/ui-preferences/files-view-mode";
+
+function filesViewModeCookieValue(header: string): string | undefined {
+  return header
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${FILES_VIEW_MODE_COOKIE_NAME}=`))
+    ?.slice(`${FILES_VIEW_MODE_COOKIE_NAME}=`.length);
+}
 
 describe("parseFilesViewMode", () => {
   it("returns list for list", () => {
@@ -48,44 +53,30 @@ describe("serializeFilesViewModeCookie", () => {
   });
 });
 
-describe("parseFilesViewModeCookieHeader", () => {
+describe("parseFilesViewMode on a cookie value", () => {
   it("reads files_view_mode from a cookie header", () => {
     expect(
-      parseFilesViewModeCookieHeader(
-        `other=1; ${FILES_VIEW_MODE_COOKIE_NAME}=grid; theme=dark`,
+      parseFilesViewMode(
+        filesViewModeCookieValue(
+          `other=1; ${FILES_VIEW_MODE_COOKIE_NAME}=grid; theme=dark`,
+        ),
       ),
     ).toBe("grid");
     expect(
-      parseFilesViewModeCookieHeader(`${FILES_VIEW_MODE_COOKIE_NAME}=list`),
+      parseFilesViewMode(
+        filesViewModeCookieValue(`${FILES_VIEW_MODE_COOKIE_NAME}=list`),
+      ),
     ).toBe("list");
   });
 
   it("returns null when missing or invalid", () => {
-    expect(parseFilesViewModeCookieHeader("theme=dark")).toBeNull();
     expect(
-      parseFilesViewModeCookieHeader(`${FILES_VIEW_MODE_COOKIE_NAME}=board`),
+      parseFilesViewMode(filesViewModeCookieValue("theme=dark")),
     ).toBeNull();
-  });
-});
-
-describe("resolveFilesViewModeFromClientCookie", () => {
-  it("prefers cookie when present", () => {
     expect(
-      resolveFilesViewModeFromClientCookie(
-        `${FILES_VIEW_MODE_COOKIE_NAME}=grid`,
+      parseFilesViewMode(
+        filesViewModeCookieValue(`${FILES_VIEW_MODE_COOKIE_NAME}=board`),
       ),
-    ).toBe("grid");
-    expect(
-      resolveFilesViewModeFromClientCookie(
-        `${FILES_VIEW_MODE_COOKIE_NAME}=list`,
-      ),
-    ).toBe("list");
-  });
-
-  it("defaults to list when cookie is missing", () => {
-    expect(resolveFilesViewModeFromClientCookie("")).toBe(
-      DEFAULT_FILES_VIEW_MODE,
-    );
-    expect(resolveFilesViewModeFromClientCookie("theme=dark")).toBe("list");
+    ).toBeNull();
   });
 });

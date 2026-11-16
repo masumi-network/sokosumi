@@ -13,6 +13,7 @@ import {
   fileResourceSchema,
   updateFileMetadataRequestSchema,
 } from "@/schemas/file-resource.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import {
   assertFileEditAllowed,
   updateFileMetadata,
@@ -84,6 +85,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId: query.organizationId,
     });
     assertFileEditAllowed(context.actor);
+    // Linking a file to a Project, or unlinking it, writes to that Project.
+    for (const projectId of [
+      ...(body.confirmProjectIds ?? []),
+      ...(body.removeProjectIds ?? []),
+    ]) {
+      await requireNotCmoProject(projectId, context.workspaceId);
+    }
 
     const outcome = await updateFileMetadata({
       workspaceId: context.workspaceId,

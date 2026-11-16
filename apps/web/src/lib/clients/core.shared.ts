@@ -1,7 +1,23 @@
 import {
+  attachStudioProductPhoto as coreAttachStudioProductPhoto,
+  findStudioWebsiteLogo as coreFindStudioWebsiteLogo,
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
+  getStudioBrandKit as coreGetStudioBrandKit,
+  getStudioProductCatalog as coreGetStudioProductCatalog,
+  getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
+  importStudioProductCatalog as coreImportStudioProductCatalog,
+  listStudioBatchAssets as coreListStudioBatchAssets,
+  replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
+  researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
+  saveStudioAdHeadline as coreSaveStudioAdHeadline,
+  saveStudioBrandCopy as coreSaveStudioBrandCopy,
+  saveStudioBrandLook as coreSaveStudioBrandLook,
   suggestTaskTags as coreSuggestTaskTags,
+  uploadStudioProjectLogo as coreUploadStudioProjectLogo,
+  type SaveStudioBrandCopy,
+  type SaveStudioBrandLook,
+  type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
@@ -44,6 +60,7 @@ import type {
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetChatsSavedMessagesData,
+  GetChatsSignalsDecisionsData,
   GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
@@ -71,6 +88,7 @@ import type {
   GetProjectsStatsData,
   GetPublicNewslettersByPublicSlugIssuesData,
   GetShareByTokenError,
+  GetTasksByIdData,
   GetTasksByIdEventsData,
   GetTasksData,
   GetTasksSchedulesByIdRunsData,
@@ -78,8 +96,10 @@ import type {
   GetTasksSummaryData,
   GetTransactionsDailyData,
   GetTransactionsData,
+  GetTransactionsTotalData,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
+  GetWorkspacesSocialPostsData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
   ListChatPeopleData,
@@ -139,9 +159,12 @@ import type {
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
+  PostTasksByIdChatMessagesData,
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
+  PostTasksDueDatesMoveOverdueData,
+  PostTasksDueDatesUndoData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -240,7 +263,6 @@ import {
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
   getChatsInvitationsById as coreGetChatsInvitationsById,
-  getChatsRecent as coreGetChatsRecent,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
@@ -256,6 +278,8 @@ import {
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSavedMessages as coreGetChatsSavedMessages,
+  getChatsSignalsDecisions as coreGetChatsSignalsDecisions,
+  getChatsSignalsImportant as coreGetChatsSignalsImportant,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -273,6 +297,7 @@ import {
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
   getImageStudioCatalog as coreGetImageStudioCatalog,
+  getImageStudioRecentProjects as coreGetImageStudioRecentProjects,
   getImageStudioState as coreGetImageStudioState,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
@@ -287,6 +312,7 @@ import {
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdCoworkerAccess as coreGetOrganizationsByIdCoworkerAccess,
+  getOrganizationsByIdCreditSpend as coreGetOrganizationsByIdCreditSpend,
   getOrganizationsByIdDeletion as coreGetOrganizationsByIdDeletion,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
@@ -352,6 +378,7 @@ import {
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getTransactions as coreGetTransactions,
   getTransactionsDaily as coreGetTransactionsDaily,
+  getTransactionsTotal as coreGetTransactionsTotal,
   getUserBadgeCampaigns as coreGetUserBadgeCampaigns,
   getUsersById as coreGetUsersById,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
@@ -373,6 +400,7 @@ import {
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  getWorkspacesSocialPosts as coreGetWorkspacesSocialPosts,
   listAdminAgents as coreListAdminAgents,
   listAdminBadgeCampaigns as coreListAdminBadgeCampaigns,
   listAdminInvoices as coreListAdminInvoices,
@@ -503,10 +531,13 @@ import {
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postPublicNewslettersByPublicSlugSubscribe as corePostPublicNewslettersByPublicSlugSubscribe,
   postTasks as corePostTasks,
+  postTasksByIdChatMessages as corePostTasksByIdChatMessages,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postTasksByIdParticipants as corePostTasksByIdParticipants,
+  postTasksDueDatesMoveOverdue as corePostTasksDueDatesMoveOverdue,
+  postTasksDueDatesUndo as corePostTasksDueDatesUndo,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -620,8 +651,14 @@ function transformTaskListResponseEnvelope(data: any) {
   data.data = (data.data ?? []).map((item: any) => {
     item.createdAt = toDate(item.createdAt);
     item.updatedAt = toDate(item.updatedAt);
+    if (item.statusSince) {
+      item.statusSince = toDate(item.statusSince);
+    }
     if (item.runAt) {
       item.runAt = toDate(item.runAt);
+    }
+    if (item.archivedAt) {
+      item.archivedAt = toDate(item.archivedAt);
     }
 
     return item;
@@ -640,6 +677,9 @@ function transformTaskResponseEnvelope(data: any) {
   task.updatedAt = toDate(task.updatedAt);
   if (task.runAt) {
     task.runAt = toDate(task.runAt);
+  }
+  if (task.archivedAt) {
+    task.archivedAt = toDate(task.archivedAt);
   }
   task.events = task.events.map((event: any) => ({
     ...event,
@@ -1769,6 +1809,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatDecisions(
+    query?: GetChatsSignalsDecisionsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsDecisions({ client, query, cache: "no-store" }),
+      "Failed to fetch decisions",
+    );
+  }
+
   async function getChatRoomDecisions(
     id: string,
     query?: GetChatsSignalsRoomsByIdDecisionsData["query"],
@@ -1855,6 +1906,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function sendTaskToChat(
+    taskId: string,
+    body: NonNullable<PostTasksByIdChatMessagesData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdChatMessages({
+          client,
+          path: { id: taskId },
+          body,
+        }),
+      "Failed to send task to chat",
+    );
+  }
+
   async function unpinChatRoomMessage(roomId: string, messageId: string) {
     return executeCoreOperation(
       getClient,
@@ -1897,11 +1964,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getChatRecentSokoBotMessages() {
+  async function getChatImportantMessages() {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetChatsRecent({ client, cache: "no-store" }),
-      "Failed to fetch recent Soko Bot chats",
+      (client) => coreGetChatsSignalsImportant({ client, cache: "no-store" }),
+      "Failed to fetch important chat messages",
     );
   }
 
@@ -2237,6 +2304,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getTransactionsTotal(
+    query?: GetTransactionsTotalData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTransactionsTotal({ client, query, cache: "no-store" }),
+      "Failed to fetch the transactions total",
+    );
+  }
+
   async function getNotifications(query?: GetNotificationsData["query"]) {
     return executeCoreOperation(
       getClient,
@@ -2289,13 +2367,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getTaskById(id: string) {
+  async function getTaskById(id: string, query?: GetTasksByIdData["query"]) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
+          query,
           cache: "no-store",
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
@@ -3623,6 +3702,23 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
+   * Credits an organization spent this UTC month and last, per billed user.
+   * Core allows owners and admins only.
+   */
+  async function getOrganizationCreditSpend(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdCreditSpend({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credit spend",
+    );
+  }
+
+  /**
    * Assigns a seat to an organization member. Core enforces that the caller
    * is an organization owner or admin and runs the assignment, capacity
    * check, and resulting credit grants (with per-seat amounts resolved from
@@ -4114,6 +4210,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /** The workspace's three projects with the newest Studio images. */
+  async function getImageStudioRecentProjects() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioRecentProjects({ client, cache: "no-store" }),
+      "Failed to fetch recent Studio projects",
+    );
+  }
+
   /** The studio across every project in the session's workspace. */
   async function getImageStudioState(query?: GetImageStudioStateData["query"]) {
     return executeCoreOperation(
@@ -4142,6 +4248,145 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project image studio",
+    );
+  }
+
+  async function attachStudioProductPhoto(
+    id: string,
+    body: { name: string; imageUrl: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreAttachStudioProductPhoto({ client, path: { id }, body }),
+      "Failed to attach a Studio product photo",
+    );
+  }
+
+  async function getStudioBrandKit(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioBrandKit({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch the Studio brand kit",
+    );
+  }
+
+  async function saveStudioBrandCopy(id: string, body: SaveStudioBrandCopy) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandCopy({ client, path: { id }, body }),
+      "Failed to save Studio brand copy",
+    );
+  }
+
+  async function saveStudioBrandLook(id: string, body: SaveStudioBrandLook) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveStudioBrandLook({ client, path: { id }, body }),
+      "Failed to save the Studio brand look",
+    );
+  }
+
+  async function getStudioWebsiteCopy(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioWebsiteCopy({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch website copy for Studio",
+    );
+  }
+
+  async function prepareStudioWebsiteDraft(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreResearchStudioWebsiteDraft({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to prepare website suggestions for Studio",
+    );
+  }
+
+  async function saveStudioAdHeadline(
+    id: string,
+    assetId: string,
+    text: string | null,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSaveStudioAdHeadline({
+          client,
+          path: { id, assetId },
+          body: { text },
+        }),
+      "Failed to save the Studio ad headline",
+    );
+  }
+
+  async function listStudioBatchAssets(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListStudioBatchAssets({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch ads from the Studio batch",
+    );
+  }
+
+  async function uploadStudioProjectLogo(id: string, file: File) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUploadStudioProjectLogo({ client, path: { id }, body: { file } }),
+      "Failed to upload the Studio project logo",
+    );
+  }
+
+  async function findStudioWebsiteLogo(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreFindStudioWebsiteLogo({ client, path: { id } }),
+      "Failed to find a logo on the Studio project website",
+    );
+  }
+
+  async function getStudioProductCatalog(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioProductCatalog({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio products",
+    );
+  }
+
+  async function replaceStudioProductCatalog(
+    id: string,
+    body: StudioProductCatalog,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreReplaceStudioProductCatalog({ client, path: { id }, body }),
+      "Failed to save Studio products",
+    );
+  }
+
+  async function importStudioProductCatalog(id: string, body: { url: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreImportStudioProductCatalog({ client, path: { id }, body }),
+      "Failed to import Studio products",
     );
   }
 
@@ -4237,6 +4482,21 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getWorkspacesSocialPosts(
+    query?: GetWorkspacesSocialPostsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesSocialPosts({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace social posts",
     );
   }
 
@@ -5499,6 +5759,26 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function moveOverdueTasks(
+    body: NonNullable<PostTasksDueDatesMoveOverdueData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksDueDatesMoveOverdue({ client, body }),
+      "Failed to move overdue tasks",
+    );
+  }
+
+  async function undoMoveOverdueTasks(
+    body: NonNullable<PostTasksDueDatesUndoData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksDueDatesUndo({ client, body }),
+      "Failed to undo moving overdue tasks",
+    );
+  }
+
   async function getTaskLinks(id: string) {
     return executeCoreOperation(
       getClient,
@@ -6752,7 +7032,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
-    getChatRecentSokoBotMessages,
+    getChatImportantMessages,
     getChatUnreadThreads,
     getChatEarlierThreads,
     getChatRooms,
@@ -6773,6 +7053,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unsaveChatMessage,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
+    getChatDecisions,
     getChatRoomDecisions,
     correctChatMessageSignal,
     setChatMessageSignalLoop,
@@ -6780,6 +7061,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     pinChatRoomMessage,
     unpinChatRoomMessage,
     sendChatRoomMessageToSelf,
+    sendTaskToChat,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,
@@ -6791,6 +7073,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getHistory,
     getTransactions,
     getTransactionsDaily,
+    getTransactionsTotal,
     getNotifications,
     getNotificationsCounts,
     updateChatRoom,
@@ -6932,6 +7215,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listCoworkerAssignments,
     assignCoworkerDeveloper,
     unassignCoworkerDeveloper,
+    getOrganizationCreditSpend,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
@@ -6976,7 +7260,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdAdsMarketAds,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
+    getImageStudioRecentProjects,
     getImageStudioState,
+    attachStudioProductPhoto,
+    getStudioProductCatalog,
+    getStudioBrandKit,
+    getStudioWebsiteCopy,
+    prepareStudioWebsiteDraft,
+    listStudioBatchAssets,
+    saveStudioAdHeadline,
+    saveStudioBrandCopy,
+    saveStudioBrandLook,
+    uploadStudioProjectLogo,
+    findStudioWebsiteLogo,
+    replaceStudioProductCatalog,
+    importStudioProductCatalog,
     getProjectsByIdImageStudio,
     getProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
     postProjectsByIdImageStudioAssetsByAssetIdCaption,
@@ -6984,6 +7282,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
     getProjectsByIdSocialPosts,
+    getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
@@ -7036,6 +7335,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
+    moveOverdueTasks,
+    undoMoveOverdueTasks,
     suggestTaskTags,
     putJobShare,
     putTaskShare,

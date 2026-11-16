@@ -70,6 +70,7 @@ vi.mock("@/middleware/workspace", async (importOriginal) => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    sokoBot: { findFirst: async () => null, findMany: async () => [] },
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,
@@ -186,7 +187,9 @@ describe("POST /projects/{id}/tasks", () => {
     lockTaskRowsMock.mockResolvedValue(true);
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         task: {
+          findFirst: taskFindFirstMock,
           updateMany: taskUpdateManyMock,
         },
       }),

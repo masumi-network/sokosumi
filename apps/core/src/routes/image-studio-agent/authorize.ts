@@ -7,6 +7,7 @@ export interface AgentGrantContext {
   userId: string;
   projectId: string;
   workspaceId: string;
+  organizationId: string | null;
 }
 
 /** Why a grant did not get through, before anything is said about it. */
@@ -46,6 +47,7 @@ async function resolveAgentGrant(
     userId: access.userId,
     projectId: access.projectId,
     workspaceId: access.workspaceId,
+    organizationId: access.organizationId,
   };
 }
 

@@ -10,6 +10,7 @@ const {
   socialPostFindManyMock,
   scheduleSocialPostMock,
   getSocialPostMock,
+  prepareSocialPostMutationMediaMock,
   transactionMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
@@ -19,6 +20,7 @@ const {
   socialPostFindManyMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
+  prepareSocialPostMutationMediaMock: vi.fn(async (input) => input),
   transactionMock: vi.fn(),
 }));
 
@@ -38,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/services/social-posts.service", () => ({
   scheduleSocialPost: scheduleSocialPostMock,
   getSocialPost: getSocialPostMock,
+  prepareSocialPostMutationMedia: prepareSocialPostMutationMediaMock,
 }));
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -238,6 +241,32 @@ describe("social queue service", () => {
           socialConnectionId: "other-connection",
         }),
       }),
+    );
+  });
+
+  it("prepares media before opening the queue transaction", async () => {
+    const media = [{ pathname: "prepared-image.jpg" }];
+    prepareSocialPostMutationMediaMock.mockImplementationOnce(
+      async (input) => ({
+        ...input,
+        media,
+      }),
+    );
+    const { queueSocialPost } = await loadService();
+    await queueSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+      socialConnectionId: "other-connection",
+    });
+    expect(
+      prepareSocialPostMutationMediaMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(transactionMock.mock.invocationCallOrder[0]);
+    expect(scheduleSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ media }),
+      prisma,
     );
   });
 

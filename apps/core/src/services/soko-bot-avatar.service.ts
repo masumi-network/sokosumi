@@ -3,15 +3,14 @@ import crypto from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
-import { waitUntil } from "@vercel/functions";
-import { createGateway, generateText } from "ai";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
-
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
+  conflict,
   notFound,
+  serviceUnavailable,
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
@@ -22,6 +21,12 @@ import {
   CONCURRENCY_CONFLICT_KIND,
   serializableTransaction,
 } from "@/lib/db/transaction";
+import { imageModel } from "@/lib/image-studio/catalog";
+import {
+  buildFalInput,
+  downloadMedia,
+  parseMedia,
+} from "@/lib/image-studio/fal-client";
 
 /**
  * Soko Bot avatar pool. Images follow the "IP as logo" recipe
@@ -31,22 +36,50 @@ import {
  * topped up when it runs low so onboarding always has choices.
  */
 
-/** The AI Gateway image model that draws the pool. */
-const AVATAR_MODEL = "google/gemini-3.1-flash-image";
+/** The fal endpoint that draws the pool (Nano Banana 2, the studio default). */
+const avatarEndpoint = () => imageModel("gemini-flash").generateEndpoint;
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
 /**
  * How long a reservation can still be in flight: one image, then one upload,
  * each under `GENERATION_TIMEOUT_MS`. Younger reservations are a run that may
- * still finish; a background draw waits for it rather than buying more.
+ * still finish; a refresh draws nothing rather than buying more.
  */
 const IN_FLIGHT_MS = 2 * GENERATION_TIMEOUT_MS;
+/** `kind` on the 409 for a fresh draw that reserved nothing. */
+const AVATAR_DRAW_BUSY_KIND = "avatar_draw_busy";
+
+/**
+ * The Masumi Family palette (brand guide, "Color"), plus the two neutrals a
+ * character needs. Avatars use nothing else, so a bot looks like the product
+ * it lives in. `family` groups colours too close to tell apart: a character
+ * never sits on a background of its own family.
+ */
+const PALETTE = {
+  crimsonPurple: { name: "crimson purple", hex: "#460A23", family: "dark" },
+  irisFlower: { name: "iris flower pink", hex: "#FF51FF", family: "pink" },
+  electricPink: { name: "electric pink", hex: "#FA008C", family: "pink" },
+  vividSakura: { name: "vivid sakura pink", hex: "#FF6ED2", family: "pink" },
+  peachBlossom: { name: "peach blossom pink", hex: "#FFC8F0", family: "pink" },
+  sand: { name: "sand", hex: "#D7BE8C", family: "sand" },
+  persimmon: { name: "persimmon orange", hex: "#FF6400", family: "warm" },
+  scarlet: { name: "scarlet red", hex: "#FA140A", family: "warm" },
+  goldenYellow: { name: "golden yellow", hex: "#FFD300", family: "yellow" },
+  white: { name: "white", hex: "#FFFFFF", family: "light" },
+  ink: { name: "ink black", hex: "#0C0C0C", family: "dark" },
+} as const;
+
+type PaletteColor = (typeof PALETTE)[keyof typeof PALETTE];
 
 interface AvatarSubject {
   subject: string;
   feature: string;
-  colors: string;
+  /** The colour most of the character is drawn in. */
+  body: PaletteColor;
+  /** The second colour, and what it is used for. */
+  mark: PaletteColor;
+  markFor: string;
 }
 
 /** Subjects a personal project manager can plausibly be, each with one defining feature. */
@@ -54,118 +87,139 @@ const SUBJECTS: readonly AvatarSubject[] = [
   {
     subject: "owl",
     feature: "two large round tufted ear-bumps",
-    colors:
-      "warm cream (#F4EBDD) body and deep ink (#1E1B2E) for the face mask and eyes",
+    body: PALETTE.peachBlossom,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the face mask and eyes",
   },
   {
     subject: "fox",
     feature: "two large rounded ears",
-    colors:
-      "warm apricot (#F09A5A) body and deep plum ink (#2B1E3A) for the eyes and muzzle patch",
+    body: PALETTE.persimmon,
+    mark: PALETTE.white,
+    markFor: "the muzzle patch and eyes",
   },
   {
     subject: "round helper robot",
     feature: "one broad rounded visor face",
-    colors:
-      "soft porcelain white (#F3F1EC) body and deep navy ink (#1B2140) for the visor and eyes",
+    body: PALETTE.white,
+    mark: PALETTE.ink,
+    markFor: "the visor and eyes",
   },
   {
     subject: "bear cub",
     feature: "two small round ears",
-    colors:
-      "cocoa brown (#8B5E3C) body and pale cream (#F7EFE3) for the muzzle patch and eyes",
+    body: PALETTE.sand,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the muzzle patch and eyes",
   },
   {
     subject: "whale",
     feature: "one broad rounded tail fin",
-    colors:
-      "soft ocean blue (#5B8DEF) body and pale cream (#F4F1EA) for the belly and eyes",
+    body: PALETTE.irisFlower,
+    mark: PALETTE.white,
+    markFor: "the belly and eyes",
   },
   {
     subject: "cat",
     feature: "two rounded ears",
-    colors:
-      "charcoal (#2F2F38) body and warm cream (#F5EDE0) for the muzzle patch and eyes",
+    body: PALETTE.ink,
+    mark: PALETTE.peachBlossom,
+    markFor: "the muzzle patch and eyes",
   },
   {
     subject: "penguin",
     feature: "one small rounded beak",
-    colors:
-      "deep ink (#1F2233) body and soft white (#F6F5F0) for the belly patch and eyes",
+    body: PALETTE.ink,
+    mark: PALETTE.white,
+    markFor: "the belly patch and eyes",
   },
   {
     subject: "sloth",
     feature: "one broad rounded face mask",
-    colors:
-      "warm taupe (#A98F72) body and cream (#F3EAD9) for the face mask and eyes",
+    body: PALETTE.sand,
+    mark: PALETTE.white,
+    markFor: "the face mask and eyes",
   },
   {
     subject: "axolotl",
     feature: "two rounded external gill puffs",
-    colors:
-      "soft pink (#F3A6B8) body and deep berry ink (#4A2138) for the eyes and tiny mouth",
+    body: PALETTE.vividSakura,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the eyes and tiny mouth",
   },
   {
     subject: "frog",
     feature: "two large round eye bumps",
-    colors:
-      "leaf green (#7BB662) body and cream (#F5F1DF) for the belly and eyes",
+    body: PALETTE.goldenYellow,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the eyes and tiny mouth",
   },
   {
     subject: "elephant",
     feature: "two big round ears",
-    colors:
-      "dusty blue-gray (#8D9AB3) body and pale blush (#F5E4E0) for the inner ears and eyes",
+    body: PALETTE.peachBlossom,
+    mark: PALETTE.electricPink,
+    markFor: "the inner ears and eyes",
   },
   {
     subject: "koala",
     feature: "two big fluffy round ears",
-    colors:
-      "soft gray (#B8B5B0) body and deep ink (#26242C) for the nose patch and eyes",
+    body: PALETTE.white,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the nose patch and eyes",
   },
   {
     subject: "duckling",
     feature: "one small rounded bill",
-    colors:
-      "sunny yellow (#F2C94C) body and warm orange (#E07A2F) for the bill and eyes",
+    body: PALETTE.goldenYellow,
+    mark: PALETTE.persimmon,
+    markFor: "the bill and eyes",
   },
   {
     subject: "hedgehog",
     feature: "one rounded quill cap",
-    colors: "chestnut (#8F5B3C) quill cap and cream (#F6EBDA) face",
+    body: PALETTE.crimsonPurple,
+    mark: PALETTE.peachBlossom,
+    markFor: "the face",
   },
   {
     subject: "rabbit",
     feature: "two tall rounded ears",
-    colors:
-      "soft white (#F5F2EC) body and dusty rose (#C98A8A) for the inner ears and eyes",
+    body: PALETTE.white,
+    mark: PALETTE.vividSakura,
+    markFor: "the inner ears and eyes",
   },
   {
     subject: "otter",
     feature: "one small rounded muzzle patch",
-    colors:
-      "warm brown (#7C5A3E) body and cream (#F4E9D6) for the muzzle patch and eyes",
+    body: PALETTE.sand,
+    mark: PALETTE.white,
+    markFor: "the muzzle patch and eyes",
   },
 ] as const;
 
-interface AvatarBackground {
-  name: string;
-  hex: string;
-}
+type AvatarBackground = PaletteColor;
 
-/** Muted, clearly chromatic backgrounds; the brand wisteria is one of them, not the default for all. */
+/** Every palette colour is a background; the neutrals are not. */
 const BACKGROUNDS: readonly AvatarBackground[] = [
-  { name: "gently muted lavender purple", hex: "#7A5AD6" },
-  { name: "gently muted sage green", hex: "#8FB59C" },
-  { name: "gently muted slate blue", hex: "#6B7FB3" },
-  { name: "gently muted peach", hex: "#E8B79A" },
-  { name: "gently muted teal", hex: "#5FA8A3" },
-  { name: "gently muted mustard", hex: "#D9B24C" },
-  { name: "gently muted dusty rose", hex: "#D98C9E" },
-  { name: "gently muted mint", hex: "#9CCFB8" },
-  { name: "gently muted terracotta", hex: "#D27D5B" },
-  { name: "gently muted periwinkle", hex: "#8C93D9" },
+  PALETTE.irisFlower,
+  PALETTE.goldenYellow,
+  PALETTE.crimsonPurple,
+  PALETTE.peachBlossom,
+  PALETTE.persimmon,
+  PALETTE.vividSakura,
+  PALETTE.sand,
+  PALETTE.electricPink,
+  PALETTE.scarlet,
 ] as const;
+
+/** A character on a background of its own colour family cannot be read. */
+function readableOn(subject: AvatarSubject, background: AvatarBackground) {
+  return (
+    subject.body.family !== background.family &&
+    subject.mark.hex !== background.hex
+  );
+}
 
 /** One avatar to draw: what it shows, and the corner it emerges from. */
 interface AvatarDraw {
@@ -179,10 +233,10 @@ function buildAvatarPrompt(input: AvatarDraw): string {
   const side = input.corner === "lower-left" ? "left" : "right";
   return [
     "Create one complete full-bleed 1:1 square image.",
-    `Background: fill the entire square with solid ${input.background.name} (like ${input.background.hex} with slightly lowered saturation). Keep that color visible in every open area and in the corners not occupied by the character; the ${input.corner} corner must be occupied by the character.`,
+    `Background: fill the entire square with solid ${input.background.name}, exactly ${input.background.hex}. Keep that color visible in every open area and in the corners not occupied by the character; the ${input.corner} corner must be occupied by the character.`,
     `Subject: place one extremely simplified, cute, endearing ${input.subject.subject} character on the background, reduced to one soft rounded continuous silhouette and one defining feature: ${input.subject.feature}.`,
     "Complexity: use only 4–7 large basic shapes and at most two broad internal color regions. Use two simple eyes and add one tiny mouth only when it helps the expression. Remove every nonessential line, outline, anatomical detail, texture, and decoration. Keep the character readable at 32 × 32.",
-    `Color behavior: use exactly three semantic colors in the complete image: exactly two character base colors plus the background color. Character colors: ${input.subject.colors}. Reuse those two colors for facial marks. Keep the character, facial marks, and background clearly separated.`,
+    `Color behavior: use exactly three semantic colors in the complete image: exactly two character base colors plus the background color. Character colors: ${input.subject.body.name} (${input.subject.body.hex}) for the body and ${input.subject.mark.name} (${input.subject.mark.hex}) for ${input.subject.markFor}. Use these exact colors and no other hue. Reuse those two colors for facial marks. Keep the character, facial marks, and background clearly separated.`,
     `Composition: keep the character upright and emerging from the ${input.corner} corner, filling about 85–95% of the square so it remains visually dominant. Cropping at the bottom or ${side} side is welcome when it strengthens the corner emergence. Preserve both paired identifying features. Never center or bottom-center the character.`,
     "Style: make simplification, cuteness, and lovable baby-like appeal the strongest qualities. Use large soft forms, compact proportions, thick rounded contours, and an ultra-clean graphic treatment. Prefer one clear shape over several explanatory details. Add an extremely, extremely subtle, almost imperceptible sense of depth through a barely-there neo-skeuomorphic treatment.",
     "Finish: show only the character on the full-canvas background, with clean surfaces and normal square outer corners.",
@@ -194,6 +248,7 @@ function buildAvatarPrompt(input: AvatarDraw): string {
 async function nextAvatarDraws(
   count: number,
   client: Prisma.TransactionClient | typeof prisma = prisma,
+  subjects: readonly AvatarSubject[] = SUBJECTS,
 ): Promise<AvatarDraw[]> {
   const existing = await client.sokoBotAvatar.findMany({
     select: { subject: true, background: true, seed: true },
@@ -205,11 +260,11 @@ async function nextAvatarDraws(
   // Walk subject × background diagonally so consecutive draws differ in both,
   // then bump the seed once the grid is exhausted.
   for (let seed = 1; draws.length < count && seed < 1_000; seed += 1) {
-    for (let i = 0; i < SUBJECTS.length && draws.length < count; i += 1) {
-      const subject = SUBJECTS[i]!;
+    for (let i = 0; i < subjects.length && draws.length < count; i += 1) {
+      const subject = subjects[i]!;
       const background = BACKGROUNDS[(i + seed) % BACKGROUNDS.length]!;
       const key = `${subject.subject}|${background.name}|${seed}`;
-      if (used.has(key)) continue;
+      if (used.has(key) || !readableOn(subject, background)) continue;
       used.add(key);
       draws.push({
         subject,
@@ -222,29 +277,44 @@ async function nextAvatarDraws(
   return draws;
 }
 
-/** One image from the Gateway image model, as PNG or whatever it answers with. */
+/** One image from the fal image model, as PNG or whatever it answers with. */
 async function generateImage(prompt: string): Promise<Buffer> {
-  const apiKey = getEnv().AI_GATEWAY_API_KEY;
-  if (!apiKey) throw new Error("AI_GATEWAY_API_KEY is not configured");
-  const result = await generateText({
-    model: createGateway({ apiKey }).languageModel(AVATAR_MODEL),
-    prompt,
-    providerOptions: {
-      google: {
-        responseModalities: ["TEXT", "IMAGE"],
-        imageConfig: { aspectRatio: "1:1" },
-      },
+  const key = getEnv().FAL_KEY;
+  if (!key) throw new Error("FAL_KEY is not configured");
+  const endpoint = avatarEndpoint();
+  // One synchronous call, no retry. Each call is billed. A hidden retry would
+  // be a second paid image the hourly cap cannot see.
+  const response = await fetch(`https://fal.run/${endpoint}`, {
+    method: "POST",
+    headers: {
+      authorization: `Key ${key}`,
+      "content-type": "application/json",
     },
-    // Each call is billed. A hidden retry would be a second paid image the
-    // hourly cap cannot see.
-    maxRetries: 0,
-    abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+    body: JSON.stringify(
+      buildFalInput(
+        {
+          prompt,
+          aspectRatio: "1:1",
+          resolution: "1K",
+          outputFormat: "png",
+          seed: null,
+          imageUrls: [],
+        },
+        endpoint,
+      ),
+    ),
+    signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
   });
-  const image = result.files.find((file) =>
-    file.mediaType.startsWith("image/"),
-  );
+  if (!response.ok) {
+    throw new Error(`The image model answered ${response.status}`);
+  }
+  const [image] = parseMedia(await response.json().catch(() => null));
   if (!image) throw new Error("The image model returned no image");
-  return Buffer.from(image.uint8Array);
+  const { bytes } = await downloadMedia(
+    image.url,
+    LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
+  );
+  return Buffer.from(bytes);
 }
 
 /**
@@ -290,10 +360,10 @@ interface AvatarReservation {
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
 class AvatarGenerationCappedError extends Error {}
 
-/** Whether the pool can draw at all: it needs the Gateway and a blob store. */
+/** Whether the pool can draw at all: it needs fal and a blob store. */
 function canDraw(): boolean {
   const env = getEnv();
-  return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(env.FAL_KEY && env.BLOB_READ_WRITE_TOKEN);
 }
 
 /** How a draw treats the caller's runs that are still in flight. */
@@ -320,7 +390,7 @@ interface AvatarDrawOptions {
  *
  * With `skipWhileInFlight`, nothing is reserved while one of the caller's own
  * runs is still in flight. Checked in the same Serializable step, so two
- * background draws racing each other cannot both see none.
+ * refreshes racing each other cannot both see none.
  */
 async function reserveDraws(
   count: number,
@@ -361,7 +431,7 @@ async function reserveDraws(
           subject: draw.subject.subject,
           background: draw.background.name,
           seed: draw.seed,
-          model: AVATAR_MODEL,
+          model: avatarEndpoint(),
           // Filled in once the image exists. `reservedAt` keeps the row out of
           // every read until then, so nobody sees or claims a blank avatar.
           imageUrl: "",
@@ -463,12 +533,31 @@ export async function generateAvatars(
   requestedByUserId: string,
   options: AvatarDrawOptions = {},
 ): Promise<number> {
+  const { drawnIds } = await drawAvatars(count, requestedByUserId, options);
+  return drawnIds.length;
+}
+
+/**
+ * What a run did: how many draws it reserved (zero means nothing was tried,
+ * so nothing was billed) and the ids of the avatars it published.
+ */
+interface AvatarDrawRun {
+  reserved: number;
+  drawnIds: string[];
+}
+
+async function drawAvatars(
+  count: number,
+  requestedByUserId: string,
+  options: AvatarDrawOptions = {},
+): Promise<AvatarDrawRun> {
   const reservations = await reserveDraws(
     Math.min(count, MAX_TOP_UP_PER_CALL),
     requestedByUserId,
     options,
   );
-  if (reservations.length === 0) return 0;
+  const reserved = reservations.length;
+  if (reserved === 0) return { reserved, drawnIds: [] };
 
   // Fill one before committing to the rest. The image model bills for an
   // image whether or not we manage to store it, so a misconfigured blob token
@@ -485,22 +574,21 @@ export async function generateAvatars(
     // The probe may have been billed, so its row stays and counts. The rest
     // were never attempted, so hand their draws and their allowance back.
     await releaseReservations(rest);
-    return 0;
+    return { reserved, drawnIds: [] };
   }
-  if (rest.length === 0) return 1;
 
   const results = await Promise.allSettled(rest.map(fillReservation));
-  let generated = 1;
-  for (const result of results) {
+  const drawnIds = [probe.id];
+  results.forEach((result, index) => {
     if (result.status === "fulfilled") {
-      generated += 1;
-      continue;
+      drawnIds.push(rest[index].id);
+      return;
     }
     console.warn("Soko Bot avatar generation failed", {
       error: errorText(result.reason),
     });
-  }
-  return generated;
+  });
+  return { reserved, drawnIds };
 }
 
 export interface AvailableAvatar {
@@ -543,6 +631,9 @@ function avatarGenerationCapped() {
 function unclaimedAvatarFilter(excludeIds?: string[]) {
   return {
     claimedBySokoBotId: null,
+    // Avatars drawn before the brand palette stay with the bots that claimed
+    // them and are no longer offered.
+    background: { in: BACKGROUNDS.map((background) => background.name) },
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
@@ -590,52 +681,14 @@ async function sweepAndDraw(
 }
 
 /**
- * Draw a refresh's shortfall after its response, kept alive past it on Vercel.
- *
- * Never throws: the caller was already answered with what the pool held. A
- * spent allowance or a lost race is expected and only noted; anything else is
- * a fault worth an error log. Concurrent draws stay under the hourly cap
- * because `reserveDraws` counts and reserves in one Serializable step.
- *
- * A refresh answers at once, so quick "show others" clicks would each start a
- * draw and spend the hour's allowance before the first one lands. While one of
- * the user's draws is still in flight, a new one buys nothing; that draw's
- * avatars fill the next refresh.
- */
-function drawShortfallInBackground(
-  count: number,
-  requestedByUserId: string,
-): void {
-  // Sweeps first, like every draw, so a dead run cannot hold the allowance.
-  waitUntil(
-    sweepAndDraw(count, requestedByUserId, { skipWhileInFlight: true }).then(
-      (result) => {
-        if (!result) return;
-        console.warn("Soko Bot avatar background draw skipped", {
-          count,
-          error: errorText(result.recoverableError),
-        });
-      },
-      (error: unknown) => {
-        console.error("Soko Bot avatar background draw failed", {
-          count,
-          error: errorText(error),
-        });
-      },
-    ),
-  );
-}
-
-/**
  * Fill a short pool, then read it back. There is no cron: the picker asks to
  * fill the pool when it opens, so new avatars are drawn only when someone is
- * about to pick one.
+ * about to pick one. A first open waits for the drawing: it has nothing else
+ * to show.
  *
- * Only a first open (nothing excluded) waits for the drawing: it has nothing
- * else to show. A "show others" refresh gets the unseen avatars there are at
- * once, and its shortfall is drawn after the response, ready for the next
- * refresh. Drawing takes up to a minute, and Web queues server actions per
- * session, so a refresh that waited would also hold back "Use this picture".
+ * With `fresh` ("show others") the pool is not read at all: this draws `take`
+ * new avatars and answers with exactly those, so a refresh always shows
+ * pictures nobody has seen. See `drawFreshAvatars`.
  *
  * This spends image budget and writes rows, so it belongs behind a POST.
  * Decorative reads use `listAvailableAvatars` so a page render never waits on
@@ -643,21 +696,24 @@ function drawShortfallInBackground(
  */
 export async function topUpAvailableAvatars(
   take: number,
-  options: { excludeIds?: string[]; requestedByUserId: string },
+  options: {
+    excludeIds?: string[];
+    fresh?: boolean;
+    requestedByUserId: string;
+  },
 ): Promise<AvailableAvatar[]> {
+  if (options.fresh) {
+    return await drawFreshAvatars(take, options.requestedByUserId);
+  }
   if (canDraw()) {
-    // Count what the caller has not seen yet. "Show others" hands back every
-    // id it has shown, so counting the whole pool found it full and never drew
-    // anything new. Handing ids back does let a caller drive the count to
-    // zero, and each image is billed, so that is spend on demand: what bounds
-    // it is `MAX_TOP_UP_PER_CALL` and the per-user hourly cap in
-    // `reserveDraws`.
+    // Count what the caller has not seen yet. Handing ids back does let a
+    // caller drive the count to zero, and each image is billed, so that is
+    // spend on demand: what bounds it is `MAX_TOP_UP_PER_CALL` and the
+    // per-user hourly cap in `reserveDraws`.
     const available = await prisma.sokoBotAvatar.count({
       where: unclaimedAvatarFilter(options.excludeIds),
     });
-    if (available < take && options.excludeIds?.length) {
-      drawShortfallInBackground(take - available, options.requestedByUserId);
-    } else if (available < take) {
+    if (available < take) {
       // `sweepAndDraw` sweeps first, as every draw does.
       const result = await sweepAndDraw(
         take - available,
@@ -676,6 +732,55 @@ export async function topUpAvailableAvatars(
     }
   }
   return await listAvailableAvatars(take, options);
+}
+
+/**
+ * Draw a new set for "show others" and answer with it.
+ *
+ * An answer means a draw was tried, and may have been billed, even when it is
+ * empty (the image model answered but storing failed). Every no-work outcome
+ * is an error instead, so the picker can tell a free retry from a spent turn:
+ * 429 when the hourly allowance is spent, 409 when nothing was reserved (one
+ * of the user's own draws is still in flight, a concurrent draw won the race,
+ * or the pool has no combination left), and 503 when this deployment cannot
+ * draw at all.
+ */
+async function drawFreshAvatars(
+  take: number,
+  requestedByUserId: string,
+): Promise<AvailableAvatar[]> {
+  if (!canDraw()) {
+    throw serviceUnavailable("New Soko Bot pictures cannot be drawn here.");
+  }
+  await sweepStaleReservations();
+  let run: AvatarDrawRun;
+  try {
+    // While one of the user's draws runs, a second tab or a repeated request
+    // reserves nothing rather than buying the same set twice.
+    run = await drawAvatars(take, requestedByUserId, {
+      skipWhileInFlight: true,
+    });
+  } catch (error) {
+    if (error instanceof AvatarGenerationCappedError) {
+      throw avatarGenerationCapped();
+    }
+    if (isRecoverableGenerationFailure(error)) throw drawBusy();
+    throw error;
+  }
+  if (run.reserved === 0) throw drawBusy();
+  if (run.drawnIds.length === 0) return [];
+  return await prisma.sokoBotAvatar.findMany({
+    where: { ...unclaimedAvatarFilter(), id: { in: run.drawnIds } },
+    orderBy: [{ createdAt: "desc" }],
+    select: { id: true, imageUrl: true, subject: true, background: true },
+  });
+}
+
+/** The 409 for a fresh draw that reserved nothing, so nothing was billed. */
+function drawBusy() {
+  return conflict("New pictures are already being drawn. Try again shortly.", {
+    kind: AVATAR_DRAW_BUSY_KIND,
+  });
 }
 
 /**
@@ -732,4 +837,81 @@ export async function claimAvatar(
         run,
         "Another avatar change is running. Try again.",
       );
+}
+
+/** Claimed avatars drawn before the brand palette. */
+const BEFORE_PALETTE = {
+  claimedBySokoBotId: { not: null },
+  reservedAt: null,
+  background: { notIn: BACKGROUNDS.map((background) => background.name) },
+};
+
+/** Hold one palette draw of a bot's own character, charged to no user. */
+async function reserveRestyle(subjectName: string): Promise<AvatarReservation> {
+  const subject = SUBJECTS.find((one) => one.subject === subjectName);
+  return await serializableTransaction(async (tx) => {
+    const [draw] = await nextAvatarDraws(1, tx, subject ? [subject] : SUBJECTS);
+    if (!draw) throw new Error(`No palette draw left for ${subjectName}`);
+    const row = await tx.sokoBotAvatar.create({
+      data: {
+        subject: draw.subject.subject,
+        background: draw.background.name,
+        seed: draw.seed,
+        model: avatarEndpoint(),
+        imageUrl: "",
+        reservedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    return { id: row.id, draw };
+  }, "Another avatar top-up is running. Try again.");
+}
+
+/**
+ * Redraw avatars from before the brand palette: each bot keeps its character
+ * and gets it on a palette background. One call redraws at most `limit`; the
+ * caller repeats until `remaining` is zero. A bot whose draw fails keeps its
+ * old avatar and is picked up by the next call.
+ */
+export async function restyleAvatars(
+  limit: number,
+): Promise<{ restyled: number; remaining: number }> {
+  let restyled = 0;
+  if (canDraw()) {
+    const old = await prisma.sokoBotAvatar.findMany({
+      where: BEFORE_PALETTE,
+      take: limit,
+      select: { subject: true, claimedBySokoBotId: true },
+    });
+    // One at a time: two draws of the same character would otherwise pick the
+    // same free combination and one would lose on the unique index.
+    const held: Array<{ sokoBotId: string; reservation: AvatarReservation }> =
+      [];
+    for (const row of old) {
+      if (!row.claimedBySokoBotId) continue;
+      held.push({
+        sokoBotId: row.claimedBySokoBotId,
+        reservation: await reserveRestyle(row.subject),
+      });
+    }
+    const results = await Promise.allSettled(
+      held.map(async ({ sokoBotId, reservation }) => {
+        await fillReservation(reservation);
+        await claimAvatar(sokoBotId, reservation.id);
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        restyled += 1;
+        continue;
+      }
+      console.warn("Soko Bot avatar restyle failed", {
+        error: errorText(result.reason),
+      });
+    }
+  }
+  return {
+    restyled,
+    remaining: await prisma.sokoBotAvatar.count({ where: BEFORE_PALETTE }),
+  };
 }

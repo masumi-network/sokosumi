@@ -16,6 +16,7 @@ import {
   countTransactionHistory,
   findTransactionHistoryPage,
   mapTransactionHistoryRow,
+  sumTransactionHistory,
 } from "./transaction-history";
 
 const url = process.env.DATABASE_URL;
@@ -382,6 +383,28 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
         description: "Refund approved · Audit the contract",
         refundedJobId: "tx-refund-job-job",
         refundedAgentId: "txhist-agent",
+      });
+    });
+  });
+
+  it("names the job behind the unlinked pool part of a split refund", async () => {
+    await withSeededLedger(async (tx) => {
+      await seedRefundTransaction(tx, "tx-refund-job");
+      await seedRefundedJob(tx, "tx-refund-job", "REFUND_WITHDRAWN");
+      await tx.$executeRaw`
+        UPDATE "credit_bucket" SET "referenceId" = 'tx-refund-job-job'
+        WHERE "sourceTransactionId" = 'tx-refund-job'
+      `;
+      await seedRefundTransaction(tx, "tx-refund-pool");
+      await tx.$executeRaw`
+        UPDATE "credit_bucket" SET "referenceId" = 'tx-refund-job-job#pool'
+        WHERE "sourceTransactionId" = 'tx-refund-pool'
+      `;
+
+      expect(await findRefundRow(tx, "tx-refund-pool")).toMatchObject({
+        refundSource: "job",
+        refundedJobId: "tx-refund-job-job",
+        refundedJobName: "Audit the contract",
       });
     });
   });
@@ -756,6 +779,162 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
     });
   });
 
+  it("totals a Task's charges and refunds across every source, once each", async () => {
+    await withSeededLedger(async (tx) => {
+      const task = "txhist-task";
+      // Its Job's charge (3), beside the event charge (2) from the seed.
+      await tx.$executeRaw`
+        UPDATE "Job" SET "taskId" = ${task} WHERE "id" = 'txhist-job'
+      `;
+
+      // A payment claim: its event carries the charge (4), the claim the refund (4).
+      await seedRefundTransaction(tx, "tx-claim");
+      await seedRefundedClaim(tx, "tx-claim");
+      await tx.$executeRaw`
+        UPDATE "taskEvent" SET "taskId" = ${task}, "transactionId" = 'tx-claim-charge'
+        WHERE "id" = 'tx-claim-event'
+      `;
+
+      // An x402 payment: charge (4) on its event, refund (4) on the payment.
+      await seedRefundTransaction(tx, "tx-x402");
+      await seedRefundedX402Payment(tx, "tx-x402", "NODE_REFUSAL");
+      await tx.$executeRaw`
+        UPDATE "task_x402_payment" SET "taskId" = ${task} WHERE "id" = 'tx-x402-x402'
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+        VALUES ('tx-x402-event', NOW(), NOW(), ${task}, 'Agent run', 'tx-x402-charge')
+      `;
+
+      // A refunded Job of the Task (charge 4), refunded in a split: the linked
+      // part (3) and a pool part (1) that names it only through its bucket.
+      await seedRefundTransaction(tx, "tx-job-refund");
+      await seedRefundedJob(tx, "tx-job-refund", "REFUND_WITHDRAWN");
+      await tx.$executeRaw`
+        UPDATE "Job" SET "taskId" = ${task} WHERE "id" = 'tx-job-refund-job'
+      `;
+      await tx.$executeRaw`
+        UPDATE "credit_bucket" SET "referenceId" = 'tx-job-refund-job'
+        WHERE "sourceTransactionId" = 'tx-job-refund'
+      `;
+      await tx.$executeRaw`
+        UPDATE "Transaction" SET "amount" = ${3n * CREDIT} WHERE "id" = 'tx-job-refund'
+      `;
+      await seedRefundTransaction(tx, "tx-job-refund-pool");
+      await tx.$executeRaw`
+        UPDATE "credit_bucket" SET "referenceId" = 'tx-job-refund-job#pool'
+        WHERE "sourceTransactionId" = 'tx-job-refund-pool'
+      `;
+      await tx.$executeRaw`
+        UPDATE "Transaction" SET "amount" = ${1n * CREDIT} WHERE "id" = 'tx-job-refund-pool'
+      `;
+
+      // One debit (6) that both a Job of the Task and a Task event point at.
+      await tx.$executeRaw`
+        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        VALUES ('tx-shared', TIMESTAMP '2026-09-01 10:00:00', NOW(), ${-6n * CREDIT}, ${USER_ID}, NULL)
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "Job" (
+          "id", "createdAt", "updatedAt", "ownerId", "agentId", "agentJobId",
+          "jobType", "workspaceId", "name", "transactionId", "taskId",
+          "blockchainIdentifier", "payByTime", "submitResultTime", "unlockTime",
+          "externalDisputeUnlockTime", "sellerVkey", "identifierFromPurchaser"
+        )
+        VALUES (
+          'txhist-shared-job', NOW(), NOW(), ${USER_ID}, 'txhist-agent',
+          'txhist-shared-remote', 'PAID'::"JobType", ${WORKSPACE_ID}::uuid,
+          'Shared debit', 'tx-shared', ${task},
+          'txhist-shared-chain', NOW(), NOW(), NOW(), NOW(), 'txhist-vkey', 'txhist-purchaser'
+        )
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+        VALUES ('txhist-shared-event', NOW(), NOW(), ${task}, 'Agent run', 'tx-shared')
+      `;
+
+      const params = { ...personalScope, taskId: task };
+      const { rows } = await findTransactionHistoryPage(
+        params,
+        { take: 50 },
+        tx,
+      );
+      expect(new Set(rows.map((row) => row.id))).toEqual(
+        new Set([
+          "tx-task",
+          "tx-job",
+          "tx-claim-charge",
+          "tx-claim",
+          "tx-x402-charge",
+          "tx-x402",
+          "tx-job-refund-charge",
+          "tx-job-refund",
+          "tx-job-refund-pool",
+          "tx-shared",
+        ]),
+      );
+      expect(rows).toHaveLength(10);
+      // Spent 2 + 3 + 4 + 4 + 4 + 6 = 23; refunded 4 + 4 + 3 + 1 = 12.
+      expect(await sumTransactionHistory(params, tx)).toEqual({
+        credits: 11,
+        count: 10,
+      });
+      expect(
+        await sumTransactionHistory(
+          { ...personalScope, taskId: "no-such-task" },
+          tx,
+        ),
+      ).toEqual({ credits: 0, count: 0 });
+    });
+  });
+
+  it("totals a moved Task per billing workspace, never across them", async () => {
+    await withSeededLedger(async (tx) => {
+      const task = "txhist-task";
+      const organizationParams = {
+        scope: "workspace",
+        taskId: task,
+        userContext: {
+          source: "context",
+          userId: USER_ID,
+          organizationId: ORGANIZATION_ID,
+        },
+        workspaceContext: {
+          workspaceId: ORGANIZATION_WORKSPACE_ID,
+          userId: null,
+          organizationId: ORGANIZATION_ID,
+        },
+      } satisfies BuildTransactionHistoryParams;
+
+      // Spent 2 in the personal workspace, then moved to the organization.
+      await tx.$executeRaw`
+        UPDATE "task" SET "workspaceId" = ${ORGANIZATION_WORKSPACE_ID}::uuid, "projectId" = NULL
+        WHERE "id" = ${task}
+      `;
+      expect(await sumTransactionHistory(organizationParams, tx)).toEqual({
+        credits: 0,
+        count: 0,
+      });
+
+      // Later organization spend counts there; the old spend stays personal.
+      await tx.$executeRaw`
+        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        VALUES ('tx-moved', NOW(), NOW(), ${-5n * CREDIT}, ${USER_ID}, ${ORGANIZATION_ID})
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "taskEvent" ("id", "createdAt", "updatedAt", "taskId", "comment", "transactionId")
+        VALUES ('txhist-moved-event', NOW(), NOW(), ${task}, 'Agent run', 'tx-moved')
+      `;
+      expect(await sumTransactionHistory(organizationParams, tx)).toEqual({
+        credits: 5,
+        count: 1,
+      });
+      expect(
+        await sumTransactionHistory({ ...personalScope, taskId: task }, tx),
+      ).toEqual({ credits: 2, count: 1 });
+    });
+  });
+
   it("scopes an organization workspace to the organization", async () => {
     await withSeededLedger(async (tx) => {
       const organizationParams = {
@@ -786,6 +965,71 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
         tx,
       );
       expect(ownedRows.rows).toHaveLength(0);
+    });
+  });
+
+  it("lists a Project credits grant and its write-off under the Project", async () => {
+    await withSeededLedger(async (tx) => {
+      const organizationProjectId = "dddddddd-dddd-4ddd-8ddd-ddddddddddd8";
+      await tx.$executeRaw`
+        INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name")
+        VALUES (${organizationProjectId}::uuid, NOW(), NOW(), ${ORGANIZATION_WORKSPACE_ID}::uuid, 'Cuso project')
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        VALUES
+          ('tx-cmo-grant', TIMESTAMP '2026-08-01 10:00:00', NOW(), ${25_000n * CREDIT}, NULL, ${ORGANIZATION_ID}),
+          ('tx-cmo-write-off', TIMESTAMP '2026-08-02 10:00:00', NOW(), ${-4n * CREDIT}, NULL, ${ORGANIZATION_ID})
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "credit_bucket" (
+          "id", "createdAt", "updatedAt", "amount", "sourceTransactionId", "organizationId",
+          "projectId", "referenceId", "referenceType", "referenceNote"
+        )
+        VALUES (
+          'txhist-cmo-bucket', NOW(), NOW(), ${25_000n * CREDIT}, 'tx-cmo-grant', ${ORGANIZATION_ID},
+          ${organizationProjectId}::uuid, 'order_1:0',
+          'POLAR_SUBSCRIPTION_MONTH'::"CreditBucketReferenceType", 'Growth'
+        )
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "credit_consumption" ("id", "createdAt", "amount", "bucketId", "transactionId")
+        VALUES ('txhist-cmo-consumption', NOW(), ${4n * CREDIT}, 'txhist-cmo-bucket', 'tx-cmo-write-off')
+      `;
+
+      const { rows } = await findTransactionHistoryPage(
+        {
+          scope: "workspace",
+          userContext: {
+            source: "context",
+            userId: USER_ID,
+            organizationId: ORGANIZATION_ID,
+          },
+          workspaceContext: {
+            workspaceId: ORGANIZATION_WORKSPACE_ID,
+            userId: null,
+            organizationId: ORGANIZATION_ID,
+          },
+          projectId: organizationProjectId,
+        },
+        { take: 20 },
+        tx,
+      );
+
+      expect(
+        rows.map((row) => [row.id, row.kind, row.projectId, row.topUpSource]),
+      ).toEqual([
+        ["tx-cmo-write-off", "unattributed", organizationProjectId, null],
+        [
+          "tx-cmo-grant",
+          "topUp",
+          organizationProjectId,
+          "POLAR_SUBSCRIPTION_MONTH",
+        ],
+      ]);
+      expect(rows.map((row) => mapTransactionHistoryRow(row))[1]).toMatchObject(
+        { title: "CMO plan credits", description: "Growth" },
+      );
     });
   });
 });

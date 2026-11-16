@@ -135,24 +135,27 @@ export function RoomMessageComposer({
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
+  const safeAreaPaddingClassName =
+    withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen);
   return (
     <form
       ref={formRef}
       className={cn(
-        "relative shrink-0",
+        "pointer-events-none relative isolate shrink-0",
         withOuterPadding && "px-5 pt-2 md:pt-3",
-        withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen),
+        safeAreaPaddingClassName,
         className,
       )}
       onSubmit={onSubmit}
     >
       {typingLine}
-      {aboveCard}
-      <div className="w-full">
+      <div className="pointer-events-auto contents">{aboveCard}</div>
+      <div className="relative w-full">
         {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
             uses editor scroll-margin during mouse selection and jumps long drafts. */}
+        {/* WebKit needs an explicit rounded clip for corner hit testing. */}
         <div
-          className="border-border overflow-hidden rounded-xl border bg-background"
+          className="pointer-events-auto border-border overflow-hidden rounded-xl border bg-background [clip-path:inset(0_round_calc(var(--radius)+4px))]"
           data-room-composer-mention-anchor
           style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
         >

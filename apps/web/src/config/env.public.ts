@@ -27,6 +27,8 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_MASUMI_URL: z.url().default("https://www.masumi.network"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.url().default("https://app.sokosumi.com"),
   NEXT_PUBLIC_MCP_URL: z.url().default("https://mcp.sokosumi.com"),
+  // Where "Open in CMO" sends a CMO Project (ADR 0066).
+  NEXT_PUBLIC_CMO_APP_URL: z.url().default("https://app.cmo.xyz"),
   NEXT_PUBLIC_CORE_APP_BASE_URL: z.url().optional(),
   NEXT_PUBLIC_NETWORK: z
     .literal("Preprod")
@@ -64,6 +66,7 @@ function validateEnv() {
     NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
     NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
+    NEXT_PUBLIC_CMO_APP_URL: process.env.NEXT_PUBLIC_CMO_APP_URL,
     NEXT_PUBLIC_CORE_APP_BASE_URL: process.env.NEXT_PUBLIC_CORE_APP_BASE_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
     NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,

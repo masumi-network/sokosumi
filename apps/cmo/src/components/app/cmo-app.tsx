@@ -2,7 +2,7 @@
 
 import "../onboarding/onboarding.css";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
 import {
   useCallback,
@@ -26,6 +26,7 @@ import {
   NewsletterPage,
 } from "../newsletter-page";
 import { StatusText } from "../status";
+import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -43,8 +44,10 @@ import {
   ResultsPage,
   SettingsPage,
 } from "./pages";
+import { cmoPause, PausedBanner } from "./paused";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
+import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { UpNext } from "./up-next";
 
 const POLL_MS = 4_000;
@@ -100,6 +103,15 @@ export interface CmoAppActions extends AdActions {
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Starts the checkout for a Project top-up of this Cuso. */
+  startTopUp: StartTopUp;
+  /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
+  subscribe: StartTopUp;
+  /** A tester continues without a subscription; a refusal comes back as text. */
+  skipSubscription: () => Promise<{ error: string | null }>;
+  /** Owners and admins: another tier of the interval, and Polar's portal. */
+  changePlan: ChangePlan;
+  openPortal: OpenPortal;
   signOut: () => Promise<void>;
 }
 
@@ -112,7 +124,29 @@ interface CmoAppProps {
   initialView?: View;
   /** The channel connection that sent the founder back did not finish. */
   connectFailed?: boolean;
+  /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
+  plans?: CmoSubscriptionPlan[];
   actions: CmoAppActions;
+}
+
+/**
+ * Cuso is paused because the credits ran out; the top-up is offered when
+ * this Cuso may have one.
+ */
+export function OutOfCreditsBanner({ topUp }: { topUp: StartTopUp | null }) {
+  return (
+    <div className="banner" role="status">
+      <span className="sw" aria-hidden="true" />
+      <b>{AGENT_NAME} is paused: out of credits.</b>
+      {topUp ? (
+        <>
+          <span className="muted">Scheduled work waits until you top up.</span>
+          <span className="sp" />
+          <TopUpButton startTopUp={topUp} />
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 const INLINE = /(\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\))/g;
@@ -174,6 +208,7 @@ export function CmoApp({
   email,
   initialView = "chat",
   connectFailed = false,
+  plans = [],
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
@@ -255,6 +290,22 @@ export function CmoApp({
     [go],
   );
 
+  // Core writes Polar's answer before the change returns, so the card reads
+  // it now; an upgrade's credits follow with Polar's paid order on the poll.
+  const changePlan: ChangePlan = async (tier) => {
+    const result = await actions.changePlan(tier);
+    if (result.change) await refresh();
+    return result;
+  };
+
+  const topUp = topUpOffer(overview, actions.startTopUp);
+  // A tester continues without a subscription; the overview then shows him
+  // working on his Tester credits.
+  const skip = skipOffer(overview, async () => {
+    const { error } = await actions.skipSubscription();
+    if (!error) await refresh();
+    return error;
+  });
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
@@ -265,6 +316,7 @@ export function CmoApp({
     },
     compose,
     open: (target) => go(target),
+    topUp,
   };
 
   function send(event: React.FormEvent) {
@@ -300,6 +352,7 @@ export function CmoApp({
   const status = cusoStatus(overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
+  const pause = strategyApproved(overview) ? cmoPause(overview) : null;
   const upNextCount = overview.upNext.length;
   const approvedStrategyId = overview.approvedStrategy
     ? overview.approvedStrategyId
@@ -324,6 +377,7 @@ export function CmoApp({
         onSelect={go}
         name={name}
         email={email}
+        signOut={actions.signOut}
       />
 
       <main className="main">
@@ -384,23 +438,16 @@ export function CmoApp({
           ) : null}
         </div>
 
-        {outOfCredits ? (
-          <div className="banner" role="status">
-            <span className="sw" aria-hidden="true" />
-            <b>{AGENT_NAME} is paused: out of credits.</b>
-            <span className="muted">
-              Scheduled work waits until you top up.
-            </span>
-            <span className="sp" />
-            <a
-              className="button button-small"
-              href={overview.subscribeUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Top up
-            </a>
-          </div>
+        {pause ? (
+          <PausedBanner
+            pause={pause}
+            billing={overview.billing}
+            subscribe={actions.subscribe}
+            openPortal={actions.openPortal}
+            skip={skip}
+          />
+        ) : outOfCredits ? (
+          <OutOfCreditsBanner topUp={topUp} />
         ) : null}
 
         {view === "chat" ? (
@@ -596,6 +643,11 @@ export function CmoApp({
                   email={email}
                   startOver={actions.startOver}
                   signOut={actions.signOut}
+                  topUp={topUp}
+                  plans={plans}
+                  changePlan={changePlan}
+                  openPortal={actions.openPortal}
+                  subscribe={actions.subscribe}
                 />
               )}
             </div>
@@ -612,6 +664,7 @@ export function CmoApp({
           setUpNextOpen(false);
           setDrawerOpen(false);
         }}
+        topUp={topUp}
       />
       {drawerOpen ? (
         <button

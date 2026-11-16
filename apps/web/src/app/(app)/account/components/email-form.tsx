@@ -1,12 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { useAuthCaptcha } from "@/components/auth-captcha";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,13 +27,31 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { changeEmail } from "@/lib/auth/auth.client";
-import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
+import { authClient } from "@/lib/auth/auth.client";
+import type { EmailChangeStatus } from "@/lib/auth/auth.server";
 import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 
-export function EmailForm() {
+/** Marks the change link's return to this page; a refused link adds `error`. */
+const EMAIL_CHANGE_PARAM = "emailChange";
+
+interface EmailFormProps {
+  /** The address the account signs in with today. */
+  currentEmail?: string;
+  /** Core's record of the change; `null` when it could not be read. */
+  emailChange?: EmailChangeStatus | null;
+}
+
+export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
+  const pendingEmail = emailChange?.pending?.newEmail;
+  const completedEmail = emailChange?.completed?.newEmail;
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const handledReturnRef = useRef(false);
+  const [pendingAction, setPendingAction] = useState<
+    "cancel" | "resend" | null
+  >(null);
   const {
     widget: captcha,
     runWithCaptcha,
@@ -47,13 +67,44 @@ export function EmailForm() {
     },
   });
 
-  const handleSubmit = async (values: EmailFormSchemaType) => {
-    await runWithCaptcha(async (fetchOptions) => {
-      const changeEmailResult = await changeEmail({
-        fetchOptions,
-        newEmail: values.email,
-        callbackURL: getAbsoluteAuthRedirectUrl("/"),
+  // Only Core's completion record says the change went through: the query
+  // flag just marks a return from the link, where Better Auth adds `error`.
+  useEffect(() => {
+    if (handledReturnRef.current) return;
+    const changedTo =
+      completedEmail && completedEmail === currentEmail?.toLowerCase()
+        ? completedEmail
+        : null;
+    const returned = searchParams.has(EMAIL_CHANGE_PARAM);
+    if (!changedTo && !returned) return;
+    handledReturnRef.current = true;
+    if (changedTo) {
+      toast.success(t("changed", { email: changedTo }));
+      // An empty JSON body: Core answers a POST without one with 415.
+      void authClient.$fetch("/email-change/acknowledge", {
+        method: "POST",
+        body: {},
       });
+    } else if (searchParams.has("error")) {
+      toast.error(t("linkFailed"));
+    }
+    if (returned) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete(EMAIL_CHANGE_PARAM);
+      nextParams.delete("error");
+      const query = nextParams.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    }
+  }, [completedEmail, currentEmail, pathname, router, searchParams, t]);
+
+  const requestChange = async (newEmail: string) =>
+    runWithCaptcha(async (fetchOptions) => {
+      // Core's own change link, which can be shown and cancelled; its
+      // confirmation returns to this page (`auth-pending-email-change.ts`).
+      const changeEmailResult = await authClient.$fetch(
+        "/email-change/request",
+        { method: "POST", body: { newEmail }, headers: fetchOptions.headers },
+      );
 
       if (changeEmailResult.error) {
         const errorMessage = getErrorMessage(
@@ -62,11 +113,50 @@ export function EmailForm() {
         );
         toast.error(errorMessage);
       } else {
-        toast.success(t("success"));
+        // Only a link goes to the new address; the email changes when that
+        // link is opened, so this is not a success yet.
+        toast.success(t("success", { email: newEmail }));
         form.reset();
         router.refresh();
       }
     });
+
+  const handleSubmit = async (values: EmailFormSchemaType) => {
+    await requestChange(values.email);
+  };
+
+  const handleResend = async () => {
+    if (!pendingEmail) return;
+    setPendingAction("resend");
+    try {
+      await requestChange(pendingEmail);
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleCancel = async () => {
+    setPendingAction("cancel");
+    try {
+      const result = await authClient.$fetch<{ cancelled: boolean }>(
+        "/email-change/cancel",
+        { method: "POST", body: {} },
+      );
+      if (result.error) {
+        toast.error(t("cancelError"));
+        return;
+      }
+      // Nothing removed: a link already changed the email (or the request
+      // expired), so say so instead of claiming a cancel.
+      if (result.data.cancelled) {
+        toast.success(t("cancelled"));
+      } else {
+        toast.error(t("cancelTooLate"));
+      }
+      router.refresh();
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   const { isSubmitting } = form.formState;
@@ -78,9 +168,53 @@ export function EmailForm() {
           <fieldset className="space-y-6" disabled={isSubmitting}>
             <CardHeader>
               <CardTitle>{t("title")}</CardTitle>
-              <CardDescription>{t("description")}</CardDescription>
+              <CardDescription>
+                {currentEmail
+                  ? t("descriptionWithCurrent", { email: currentEmail })
+                  : t("description")}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {emailChange === null ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("statusUnavailable")}
+                </p>
+              ) : null}
+              {pendingEmail ? (
+                <div className="space-y-2 rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="min-w-0 text-sm font-medium break-all">
+                      {pendingEmail}
+                    </p>
+                    <Badge variant="secondary">{t("pendingBadge")}</Badge>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    {t("pendingDescription")}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleResend}
+                      disabled={pendingAction !== null}
+                      loading={pendingAction === "resend"}
+                    >
+                      {t("resend")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={pendingAction !== null}
+                      loading={pendingAction === "cancel"}
+                    >
+                      {t("cancel")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               <FormField
                 control={form.control}
                 name="email"

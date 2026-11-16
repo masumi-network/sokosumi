@@ -215,7 +215,7 @@ test("evals show --markdown prints the PR table with what changed", async () => 
   const text = output();
   assert.match(
     text,
-    /\*\*Evals\*\* \(mainnet, #6940, 2 repeats, vs daily run #6931\)/,
+    /\*\*Evals\*\* \(mainnet, #6940, 2 repeats, vs weekly run #6931\)/,
   );
   assert.match(text, /\| soko-bot \| 4\/6 \| 1 \| 1 \| 0 \| 0 \|/);
   assert.match(

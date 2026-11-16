@@ -16,6 +16,11 @@ interface CreateTaskEventTransactionInput {
    */
   userId: string | null;
   organizationId: string | null;
+  /**
+   * The Project the work belongs to: its Project credits are spent first,
+   * then the pool. Absent or null sees only the pool (ADR 0067).
+   */
+  projectId?: string | null;
   cents: bigint;
   tx: Prisma.TransactionClient;
 }
@@ -48,6 +53,7 @@ export async function createTaskEventTransaction(
       input.organizationId,
       input.cents,
       input.tx,
+      { projectId: input.projectId ?? null },
     );
   } catch (error) {
     if (error instanceof InsufficientBalanceError) {

@@ -9,6 +9,7 @@ const {
   modalMock,
   notFoundMock,
   projectServiceMock,
+  redirectMock,
   setupMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn(), getCampaignDetails: vi.fn() },
@@ -18,11 +19,17 @@ const {
     throw new Error("NEXT_NOT_FOUND");
   }),
   projectServiceMock: { getProjectById: vi.fn() },
+  redirectMock: vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
   setupMock: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
-vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
+vi.mock("next/navigation", () => ({
+  notFound: notFoundMock,
+  redirect: redirectMock,
+}));
 vi.mock("next-intl/server", () => ({
   getTranslations:
     async (namespace: string) => (key: string, values?: object) =>
@@ -125,6 +132,18 @@ describe.each([
     ["a Meta account", { projectId: "project-1", accountId: "a2" }],
   ])("is a 404 for %s, asking Core nothing", async (_name, params) => {
     await expect(visit(params)).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(adsServiceMock.getCampaignDetails).not.toHaveBeenCalled();
+  });
+
+  it("sends a CMO Project's campaign back to its details", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue({
+      ...PROJECT,
+      cmo: true,
+    });
+
+    await expect(visit()).rejects.toThrow(
+      "NEXT_REDIRECT:/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
+    );
     expect(adsServiceMock.getCampaignDetails).not.toHaveBeenCalled();
   });
 

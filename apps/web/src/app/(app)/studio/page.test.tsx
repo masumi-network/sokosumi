@@ -1,5 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+
+import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
 
 const {
   imageStudioServiceMock,
@@ -15,6 +25,7 @@ const {
   useHasAnyScopeProjectMock: vi.fn(),
   imageStudioServiceMock: {
     getCatalog: vi.fn(),
+    getRecentProjects: vi.fn(),
     getState: vi.fn(),
     getWorkspaceState: vi.fn(),
   },
@@ -29,8 +40,12 @@ vi.mock("next-intl/server", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
+  useTranslations:
+    (namespace: string) => (key: string, values?: { count?: number }) =>
+      values?.count === undefined
+        ? `${namespace}.${key}`
+        : `${namespace}.${key}:${values.count}`,
+  useFormatter: () => ({ dateTime: () => "Nov 11" }),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -41,12 +56,27 @@ vi.mock("@/lib/services/image-studio.service", () => ({
   imageStudioService: imageStudioServiceMock,
 }));
 
+vi.mock("@/app/projects/components/project-brand-card", () => ({
+  ProjectBrandProvider: ({
+    children,
+    autoStart,
+  }: {
+    children: React.ReactNode;
+    autoStart?: boolean;
+  }) => (
+    <div data-testid="studio-brand-provider" data-auto-start={autoStart}>
+      {children}
+    </div>
+  ),
+}));
+
 vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
   ImageStudio: (props: {
     catalog: { models: unknown[] };
     initialSelectedAssetId: string | null;
     projectId: string | null;
     projectScopePrompt?: React.ReactNode;
+    recentProjects?: React.ReactNode;
     initialState: { assets: unknown[] };
   }) => (
     <div
@@ -56,6 +86,7 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
     >
+      {props.recentProjects}
       {props.projectScopePrompt}
     </div>
   ),
@@ -69,9 +100,35 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   setScopeCreateOpen: setScopeCreateOpenMock,
 }));
 
+vi.mock("@/app/components/project-scope/use-project-scope", () => ({
+  useProjectScopeSwitch: () => ({ select: vi.fn() }),
+}));
+
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: useHasAnyScopeProjectMock,
 }));
+
+// happy-dom fetches no image, so every <img> reads as finished and empty: a
+// failed load. A browser still loading it says `complete: false`.
+const IMAGE_COMPLETE = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "complete",
+);
+beforeAll(() => {
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    get: () => false,
+  });
+});
+afterAll(() => {
+  if (IMAGE_COMPLETE) {
+    Object.defineProperty(
+      HTMLImageElement.prototype,
+      "complete",
+      IMAGE_COMPLETE,
+    );
+  }
+});
 
 const PROJECT = {
   id: "project-1",
@@ -97,6 +154,7 @@ describe("StudioPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
+    imageStudioServiceMock.getRecentProjects.mockResolvedValue([]);
     useHasAnyScopeProjectMock.mockReturnValue({
       isPending: false,
       hasProjects: true,
@@ -133,7 +191,8 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
+      onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     // Nothing is loaded for a project nobody named.
@@ -155,15 +214,38 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).not.toHaveBeenCalled();
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     const button = screen.getByRole("button", {
-      name: "App.ProjectScope.create",
+      name: "App.Studio.startFromWebsite",
     });
     fireEvent.click(button);
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
+      onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
+    const request = openProjectScopeMock.mock.calls[0][0];
+    request.onCreated("without-website", null);
+    expect(consumeStudioWebsiteDraftRequest("without-website")).toBe(false);
+    request.onCreated("with-website", "https://shop.example/");
+    expect(consumeStudioWebsiteDraftRequest("unrelated")).toBe(false);
+    expect(consumeStudioWebsiteDraftRequest("with-website")).toBe(true);
+    expect(consumeStudioWebsiteDraftRequest("with-website")).toBe(false);
+  });
+
+  it("opens the website setup wizard even when the workspace already has projects", async () => {
+    const { default: StudioPage } = await import("./page");
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
+    ).toBeInTheDocument();
+    const setup = screen.getByRole("button", {
+      name: "App.Studio.startFromWebsite",
+    });
+    fireEvent.click(setup);
+
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(setup);
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
@@ -215,7 +297,8 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickUnavailable",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
+      onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
@@ -231,6 +314,10 @@ describe("StudioPage", () => {
       await StudioPage({
         searchParams: Promise.resolve({ projectId: "project-1" }),
       }),
+    );
+    expect(screen.getByTestId("studio-brand-provider")).toHaveAttribute(
+      "data-auto-start",
+      "false",
     );
 
     expect(imageStudioServiceMock.getState).toHaveBeenCalledWith(
@@ -337,6 +424,66 @@ describe("StudioPage", () => {
     );
 
     expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+  });
+
+  it("leads All projects with the newest Studio projects, each linking to its gallery", async () => {
+    imageStudioServiceMock.getRecentProjects.mockResolvedValue([
+      {
+        projectId: "project-1",
+        projectName: "Autumn menu",
+        imageCount: 24,
+        latestAt: new Date("2026-11-11T10:00:00.000Z"),
+        latestImageId: "asset-9",
+      },
+    ]);
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.getByRole("heading", { name: "App.Studio.RecentProjects.title" }),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Autumn menu/ });
+    expect(link).toHaveAttribute("href", "/studio?projectId=project-1");
+    expect(link).toHaveTextContent(
+      "App.Studio.RecentProjects.imageCount:24 · Nov 11",
+    );
+    expect(link.querySelector("img")).toHaveAttribute(
+      "src",
+      "/api/projects/project-1/image-studio/assets/asset-9/content",
+    );
+    // Picking a project from here is still possible.
+    expect(screen.getByTestId("studio-no-project")).toBeInTheDocument();
+  });
+
+  it("keeps the first-ad screen when recent projects are empty or unavailable", async () => {
+    imageStudioServiceMock.getRecentProjects.mockRejectedValue(
+      new Error("Core down"),
+    );
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "App.Studio.RecentProjects.title",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+  });
+
+  it("does not ask for recent projects inside a project", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(imageStudioServiceMock.getRecentProjects).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

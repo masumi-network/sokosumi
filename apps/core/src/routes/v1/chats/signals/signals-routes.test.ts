@@ -13,6 +13,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const views = vi.hoisted(() => ({
   getChatRoomCatchUp: vi.fn(),
   listChatRoomMessagesWithTag: vi.fn(),
+  listChatDecisions: vi.fn(),
   listChatNeedsYou: vi.fn(),
   listChatOpenLoops: vi.fn(),
   correctChatMessageSignal: vi.fn(),
@@ -20,15 +21,20 @@ const views = vi.hoisted(() => ({
 }));
 vi.mock("@/services/chat-signal-views.service", () => views);
 
-const { getChatCatchUpSummaryMock, suggestMock, answerMock } = vi.hoisted(
-  () => ({
-    getChatCatchUpSummaryMock: vi.fn(),
-    suggestMock: vi.fn(),
-    answerMock: vi.fn(),
-  }),
-);
+const {
+  getChatCatchUpSummaryMock,
+  listImportantChatItemsMock,
+  suggestMock,
+  answerMock,
+} = vi.hoisted(() => ({
+  getChatCatchUpSummaryMock: vi.fn(),
+  listImportantChatItemsMock: vi.fn(),
+  suggestMock: vi.fn(),
+  answerMock: vi.fn(),
+}));
 vi.mock("@/services/chat-catch-up-summary.service", () => ({
   getChatCatchUpSummary: getChatCatchUpSummaryMock,
+  listImportantChatItems: listImportantChatItemsMock,
 }));
 vi.mock("@/services/chat-signal-routing.service", () => ({
   suggestCoworkersForChatMessage: suggestMock,
@@ -37,6 +43,10 @@ vi.mock("./messages/updated-message", () => ({
   answerWithUpdatedMessage: answerMock,
 }));
 
+import mountGetAllDecisions, {
+  encodeChatDecisionCursor,
+} from "./decisions/get";
+import mountGetImportant from "./important/get";
 import mountPutCorrection from "./messages/[messageId]/corrections/put";
 import mountPutLoop from "./messages/[messageId]/loop/put";
 import mountGetRouting from "./messages/[messageId]/routing/get";
@@ -93,7 +103,9 @@ function createApp(actor: "user" | "coworker" = "user") {
     return await next();
   });
   for (const mount of [
+    mountGetAllDecisions,
     mountGetNeedsYou,
+    mountGetImportant,
     mountGetOpenLoops,
     mountGetSummary,
     mountGetCatchUp,
@@ -159,6 +171,45 @@ describe("chat signal routes", () => {
     );
   });
 
+  it("lists decisions across rooms in the active organization, paged by position", async () => {
+    views.listChatDecisions.mockResolvedValue({
+      messages: [],
+      total: 7,
+      hasMore: false,
+    });
+    const cursor = encodeChatDecisionCursor({
+      createdAt: new Date("2026-10-24T09:00:00.000Z"),
+      id: MESSAGE_ID,
+    });
+    const response = await createApp().request(
+      `/decisions?limit=1&cursor=${encodeURIComponent(cursor)}`,
+    );
+    expect(response.status).toBe(200);
+    expect(views.listChatDecisions).toHaveBeenCalledWith(USER_ID, ORG_ID, {
+      after: {
+        createdAt: new Date("2026-10-24T09:00:00.000Z"),
+        id: MESSAGE_ID,
+      },
+      take: 1,
+    });
+    expect((await response.json()).meta.pagination).toMatchObject({
+      total: 7,
+      nextCursor: null,
+    });
+  });
+
+  it("refuses a malformed decisions cursor", async () => {
+    const response = await createApp().request("/decisions?cursor=nope");
+    expect(response.status).toBe(400);
+    expect(views.listChatDecisions).not.toHaveBeenCalled();
+  });
+
+  it("refuses coworker credentials for the decisions list", async () => {
+    const response = await createApp("coworker").request("/decisions");
+    expect(response.status).toBe(403);
+    expect(views.listChatDecisions).not.toHaveBeenCalled();
+  });
+
   it("lists needs-you and open loops in the active organization", async () => {
     views.listChatNeedsYou.mockResolvedValue([]);
     views.listChatOpenLoops.mockResolvedValue([]);
@@ -166,6 +217,36 @@ describe("chat signal routes", () => {
     expect((await createApp().request("/open-loops")).status).toBe(200);
     expect(views.listChatNeedsYou).toHaveBeenCalledWith(USER_ID, ORG_ID);
     expect(views.listChatOpenLoops).toHaveBeenCalledWith(USER_ID, ORG_ID);
+  });
+
+  it("lists the last day's important messages for Home", async () => {
+    vi.useFakeTimers({ now: new Date("2026-11-10T12:00:00Z") });
+    listImportantChatItemsMock.mockResolvedValue([
+      {
+        messageId: MESSAGE_ID,
+        roomId: ROOM_ID,
+        roomName: "launch",
+        roomKind: "channel",
+        parentMessageId: null,
+        senderName: "Bob",
+        senderImageUrl: null,
+        excerpt: "Alice, can you send the pricing sheet?",
+        bucket: "needsYou",
+        createdAt: new Date("2026-11-10T10:00:00Z"),
+        dueAt: null,
+        inReplyTo: null,
+      },
+    ]);
+    const response = await createApp().request("/important");
+    vi.useRealTimers();
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0].senderName).toBe("Bob");
+    expect(listImportantChatItemsMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      organizationId: ORG_ID,
+      since: new Date("2026-11-09T12:00:00Z"),
+      limit: 8,
+    });
   });
 
   it("scopes the summary to one room when asked", async () => {

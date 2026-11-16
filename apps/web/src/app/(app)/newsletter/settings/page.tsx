@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -21,10 +20,7 @@ interface NewsletterSettingsPageProps {
   searchParams: Promise<SearchParams>;
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Newsletter");
-  return { title: t("title") };
-}
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
 
 /**
  * The newsletter's Settings tab, where a project's newsletter is created.
@@ -50,23 +46,35 @@ export default async function NewsletterSettingsPage({
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
+  // CMO sets up a CMO Project's newsletter; existing settings stay readable.
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, !!newsletter, t)}
+      tabs={getNewsletterTabs(project.id, !!newsletter, t, project.cmo)}
       title={page("title")}
     >
-      <NewsletterSettingsForm
-        key={newsletter?.id ?? project.id}
-        newsletter={newsletter}
-        projectId={project.id}
-        projectName={project.name}
-        projectLogo={project.logo}
-        sendingDomain={
-          <SendingDomainCard state={sendingDomain} projectId={project.id} />
-        }
-      />
+      {!project.cmo || newsletter ? (
+        <NewsletterSettingsForm
+          key={newsletter?.id ?? project.id}
+          newsletter={newsletter}
+          projectId={project.id}
+          projectName={project.name}
+          projectLogo={project.logo}
+          readOnly={project.cmo}
+          sendingDomain={
+            <SendingDomainCard
+              state={
+                project.cmo
+                  ? { ...sendingDomain, canManage: false }
+                  : sendingDomain
+              }
+              projectId={project.id}
+            />
+          }
+        />
+      ) : null}
     </NewsletterPageShell>
   );
 }

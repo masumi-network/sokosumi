@@ -123,9 +123,13 @@ describe("measurement", () => {
       ]);
     }
     cusoFind.mockResolvedValue(cuso);
-    projectFindUnique.mockResolvedValue({ sitePlatform: "other" });
+    projectFindUnique.mockResolvedValue({
+      ...(await projectFindUnique()),
+      sitePlatform: "other",
+    });
     await expect(
       connectCmoMeasurement({
+        projectId: "project-1",
         userId: "user-1",
         provider: "shopify",
         returnUrl: "https://app.cmo.xyz/measure/callback",
@@ -135,9 +139,13 @@ describe("measurement", () => {
 
   it("connects to Cuso's own bot and returns only to CMO", async () => {
     cusoFind.mockResolvedValue(cuso);
-    projectFindUnique.mockResolvedValue({ sitePlatform: "shopify" });
+    projectFindUnique.mockResolvedValue({
+      ...(await projectFindUnique()),
+      sitePlatform: "shopify",
+    });
     connectSokoBotIntegration.mockResolvedValue({ redirectUrl: "https://x" });
     await connectCmoMeasurement({
+      projectId: "project-1",
       userId: "user-1",
       provider: "shopify",
       returnUrl: "https://app.cmo.xyz/measure/callback",
@@ -151,6 +159,7 @@ describe("measurement", () => {
     );
     await expect(
       connectCmoMeasurement({
+        projectId: "project-1",
         userId: "user-1",
         provider: "shopify",
         returnUrl: "https://evil.example/",
@@ -158,6 +167,7 @@ describe("measurement", () => {
     ).rejects.toThrow(/return address/);
     await expect(
       connectCmoMeasurement({
+        projectId: "project-1",
         userId: "user-1",
         provider: "gmail",
         returnUrl: "https://app.cmo.xyz/measure/callback",
@@ -168,6 +178,7 @@ describe("measurement", () => {
   it("finalizes on Cuso's bot", async () => {
     cusoFind.mockResolvedValue(cuso);
     await finalizeCmoMeasurement({
+      projectId: "project-1",
       userId: "user-1",
       provider: "google_analytics",
     });

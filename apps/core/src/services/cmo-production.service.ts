@@ -686,7 +686,7 @@ export async function advanceCmoProduction(
       version,
       strategy,
       voice: brain?.voice ?? null,
-      facts: brain ? cmoBrandFacts(brain) : null,
+      facts: brain ? cmoBrandFacts(brain, strategy.offer) : null,
       runs,
       runIdPrefix: approvalRunPrefix(cuso.sokoBotId, approvedAt),
       ready: current.ready,

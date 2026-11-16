@@ -1,4 +1,3 @@
-export const DYNAMIC_TYPE_MAX_SCALE = 1.25 as const;
 export const DYNAMIC_TYPE_DEFAULT_ROOT_PX = 16 as const;
 export const DYNAMIC_TYPE_MAX_ROOT_PX = 20 as const; // 16 * 1.25
 

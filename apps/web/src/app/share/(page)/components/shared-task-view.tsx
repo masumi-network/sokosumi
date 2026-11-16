@@ -170,6 +170,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             files={task.files ?? []}
             expandLabel={tTaskDetail("expand")}
             collapseLabel={tTaskDetail("collapse")}
+            downloadAllName={stripInlineMarkdown(task.name)}
           />
 
           {task.jobs.length > 0 ? (

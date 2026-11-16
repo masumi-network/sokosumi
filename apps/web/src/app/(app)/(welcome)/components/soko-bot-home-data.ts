@@ -1,11 +1,14 @@
-import type {
-  ChatRecentSokoBotMessage,
-  ChatRoom,
-  TaskListItem,
+import {
+  type ChatCatchUpItem,
+  type ChatRoom,
+  type SokoBotSchedule,
+  type SokoBotState,
+  SokoBotStatus,
+  type TaskListItem,
 } from "@sokosumi/core-client";
-import { buildChatMessagePreview } from "@sokosumi/utils";
-
-import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
+import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
 type TeamTask = Pick<
   TaskListItem,
@@ -30,6 +33,35 @@ export function findSokoBotDirectRoom(
         room.sokoBotMembers[0]?.id === sokoBotId,
     ) ?? null
   );
+}
+
+/**
+ * Home's Needs you row for a bot in error. A failed chat reply in a room the
+ * reader belongs to opens that reply, Direct or channel alike; anything else
+ * (scheduled or event work, a room they cannot open) says the bot could not
+ * finish its work and opens the bot's page, which lists its turns.
+ */
+export function sokoBotFailureLead(
+  bot: { name: string; status: SokoBotStatus },
+  lastFailure: SokoBotState["lastFailure"] | null,
+  t: (
+    key: "failedReply" | "failedWork" | "openChat" | "openBot",
+    values?: { name: string },
+  ) => string,
+): NeedsYouLead | undefined {
+  if (bot.status !== SokoBotStatus.ERROR) return undefined;
+  const name = { name: bot.name };
+  return lastFailure?.roomId && lastFailure.messageId
+    ? {
+        title: t("failedReply", name),
+        detail: t("openChat"),
+        href: chatRoomMessageHref(lastFailure.roomId, lastFailure.messageId),
+      }
+    : {
+        title: t("failedWork", name),
+        detail: t("openBot", name),
+        href: SOKO_BOT_ROUTE,
+      };
 }
 
 /** A Task the team moved in the last day, as one row of the home. */
@@ -72,51 +104,64 @@ export function toTeamDay(
     }));
 }
 
-/** A chat with a Soko Bot the reader took part in during the last day. */
+/** A schedule the reader's bot got in the last day, as one row of the home. */
+export interface SokoBotHomeSchedule {
+  id: string;
+  name: string;
+  createdAt: Date;
+}
+
+/**
+ * The bot's own schedules set up in the 24 hours before `now`, newest first.
+ * Built-in rhythms come with every bot, so they are not news.
+ */
+export function toNewSchedules(
+  schedules: readonly Pick<
+    SokoBotSchedule,
+    "id" | "name" | "systemKey" | "createdAt"
+  >[],
+  now: Date,
+  limit = SOKO_BOT_HOME_TASK_LIMIT,
+): SokoBotHomeSchedule[] {
+  return schedules
+    .filter(
+      (schedule) =>
+        !schedule.systemKey &&
+        now.getTime() - schedule.createdAt.getTime() <= DAY_MS,
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit)
+    .map(({ id, name, createdAt }) => ({ id, name, createdAt }));
+}
+
+/**
+ * An important chat message from someone else that the reader has not read,
+ * from the last day: a request, a decision, a blocker and the like.
+ */
 export interface SokoBotHomeChat {
   roomId: string;
-  /** The reader's newest message there, a Thread reply included; the row
-   * opens at it. */
+  /** The row opens at it, a Thread reply included. */
   messageId: string;
-  /** That message as plain text: what the chat was about, in their words. */
+  /** The message as plain text, mentions named. */
   title: string;
-  /** Last activity: the room's, or the reader's reply when that is newer
-   * (a reply leaves the room's timestamp alone). */
+  /** Who wrote it: a person, a Coworker or a Soko Bot. */
+  from: string;
   at: Date;
 }
 
 /**
- * Core's per-room newest reader messages as Home rows. Core already picked
- * the reader's own messages in this workspace's Soko Bot rooms, Thread
- * replies included, newest first and capped; the room list supplies the
- * names a mention token carries. A room missing from that list is left
- * out. `allLabel` is what the room-wide mention reads as; `untitled` names
- * a message with no text.
+ * Core's important messages as Home rows, in Core's order: newest first,
+ * one per room. `untitled` names a message with no text.
  */
-export function toSokoBotChats(
-  recent: readonly ChatRecentSokoBotMessage[],
-  rooms: readonly ChatRoom[],
-  allLabel: string,
+export function toImportantChats(
+  items: readonly ChatCatchUpItem[],
   untitled: string,
 ): SokoBotHomeChat[] {
-  const byId = new Map(rooms.map((room) => [room.id, room]));
-  return recent.flatMap((message) => {
-    const room = byId.get(message.roomId);
-    if (!room) return [];
-    return [
-      {
-        roomId: room.id,
-        messageId: message.messageId,
-        title:
-          buildChatMessagePreview(
-            message.content,
-            roomMentionNames(room, allLabel),
-          ) || untitled,
-        at:
-          message.createdAt > room.updatedAt
-            ? message.createdAt
-            : room.updatedAt,
-      },
-    ];
-  });
+  return items.map((item) => ({
+    roomId: item.roomId,
+    messageId: item.messageId,
+    title: item.excerpt || untitled,
+    from: item.senderName,
+    at: item.createdAt,
+  }));
 }

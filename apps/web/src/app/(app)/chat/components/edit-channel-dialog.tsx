@@ -122,7 +122,6 @@ export function EditChannelDialog({
         return;
       }
       setOpen(false);
-      router.refresh();
     });
   }
 
@@ -146,7 +145,6 @@ export function EditChannelDialog({
     // The room is gone, so land them back on the room list rather than a view
     // they can no longer read.
     router.replace("/");
-    router.refresh();
   }
 
   function handleRequestArchive() {

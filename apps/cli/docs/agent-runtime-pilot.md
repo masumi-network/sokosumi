@@ -2,7 +2,7 @@
 
 [REPORTED: user direction, 2026-09-27] Keep the developer's existing agent on their machine or cloud host. Use current Core permissions.
 
-[CORRECTION, VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) adds the Core receipt route and `runtime receipt`. Payment submission remains unimplemented in the CLI completion path (`apps/cli/src/coworker/runtime-task.ts:195-203`). [OPEN] A delivered live Task with payment to its intended seller remains unproven. The [three payment drafts](developer-cli-implementation-plan.md#payment-delivery-status-2026-09-30) contain plans only.
+[CORRECTION, VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) adds the Core receipt route and `runtime receipt`. Payment submission remains unimplemented in the CLI completion path (`completeVerifiedTask` in `apps/cli/src/coworker/runtime-task.ts`). [OPEN] A delivered live Task with payment to its intended seller remains unproven. The [three payment drafts](developer-cli-implementation-plan.md#payment-delivery-status-2026-09-30) contain plans only.
 
 [CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation and live seller proof remain pending.
 

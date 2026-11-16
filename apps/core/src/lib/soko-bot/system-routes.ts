@@ -2,6 +2,7 @@ import {
   capabilitiesForClassification,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  SOKO_BOT_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { type PresetRoute, presetClassificationResult } from "./classifier";
@@ -162,7 +163,7 @@ export function inheritedScheduleRoute(
   if (!capabilities.length) return undefined;
   return {
     route: "DELEGATE_TASK",
-    reason: "Follow-up the bot set for itself, with that turn's tools.",
+    reason: "Schedule run, with the tools of whoever wrote it.",
     capabilities,
     sandbox: capabilities.some(isSokoBotSandboxCapability),
   };
@@ -177,6 +178,18 @@ export const OWN_SCHEDULE_CAPABILITIES = [
   "update_schedule",
   "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * A schedule a person wrote in the console runs with the tools that person
+ * gets in chat: its prompt is their own words, like a message, and Jev's
+ * guess at it must not leave a weekly job read-only. Changing or removing
+ * other schedules stays out; a run still reaches its own.
+ */
+export const PERSON_SCHEDULE_CAPABILITIES: readonly SokoBotCapability[] =
+  SOKO_BOT_CAPABILITIES.filter(
+    (capability) =>
+      !(OWN_SCHEDULE_CAPABILITIES as readonly string[]).includes(capability),
+  );
 
 export function withOwnScheduleTools(
   capabilities: readonly SokoBotCapability[],

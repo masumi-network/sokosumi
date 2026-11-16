@@ -21,6 +21,7 @@ import mount from "./jobs-post";
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const JOB_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const PHOTO_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 function createApp() {
   const app = new OpenAPIHono<EnvVariables>();
@@ -67,6 +68,7 @@ describe("POST /projects/{id}/image-studio/jobs", () => {
           seed: null,
         },
         referenceAssetIds: [],
+        referenceFileIds: [PHOTO_ID],
         error: null,
         failureReason: null,
         parentAssetId: null,
@@ -83,6 +85,7 @@ describe("POST /projects/{id}/image-studio/jobs", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: "A red vase",
+            referenceFileIds: [PHOTO_ID],
             idempotencyKey: "generation-intent-a",
           }),
         },
@@ -90,13 +93,24 @@ describe("POST /projects/{id}/image-studio/jobs", () => {
 
       expect(response.status).toBe(201);
       expect(await response.json()).toMatchObject({
-        data: { id: JOB_ID, projectId: PROJECT_ID, status },
+        data: {
+          id: JOB_ID,
+          projectId: PROJECT_ID,
+          status,
+          referenceFileIds: [PHOTO_ID],
+        },
       });
       expect(createImageJobMock).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           projectId: PROJECT_ID,
           workspaceId: "workspace-a",
           userId: "user-a",
+          referenceFileIds: [PHOTO_ID],
+          referenceFileActor: {
+            userId: "user-a",
+            organizationId: null,
+            kind: "interactive",
+          },
           idempotencyKey: "generation-intent-a",
         }),
       );

@@ -408,7 +408,12 @@ export function SocialMobileCalendar({
                     )
                     .slice(0, 3)
                     .map((item) => (
-                      <SocialPostStatusDot key={item.id} status={item.status} />
+                      <SocialPostStatusDot
+                        key={item.id}
+                        status={item.status}
+                        partiallyPublished={item.partiallyPublished}
+                        waitingForQuotedPost={item.waitingForQuotedPost}
+                      />
                     ))}
                   {dayItems.length > 3 ? (
                     <span className="text-2xs leading-none">+</span>

@@ -10,6 +10,7 @@ import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useState } from "react";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { authorizeAbly } from "./authorize.client";
 
 import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
 
@@ -152,7 +153,7 @@ export function useOrgPresenceMap(
     async function runSyncOnce() {
       let tokenDetails: Ably.TokenDetails | null = null;
       try {
-        tokenDetails = await ably.auth.authorize();
+        tokenDetails = await authorizeAbly(ably);
       } catch (error) {
         if (!cancelled) {
           console.error("Ably authorize for presence map failed:", error);

@@ -12,6 +12,7 @@ describe("availableCalendarTypes", () => {
       "newsletter",
       "contacts",
       "marketing",
+      "sokoBot",
     ]);
   });
 
@@ -21,6 +22,7 @@ describe("availableCalendarTypes", () => {
       "social",
       "contacts",
       "marketing",
+      "sokoBot",
     ]);
   });
 
@@ -30,6 +32,7 @@ describe("availableCalendarTypes", () => {
       "social",
       "newsletter",
       "marketing",
+      "sokoBot",
     ]);
   });
 
@@ -39,6 +42,7 @@ describe("availableCalendarTypes", () => {
       "social",
       "newsletter",
       "contacts",
+      "sokoBot",
     ]);
   });
 
@@ -48,7 +52,7 @@ describe("availableCalendarTypes", () => {
         projectId: "project-1",
         scope: "owned",
       }),
-    ).toEqual(["tasks", "social"]);
+    ).toEqual(["tasks", "social", "sokoBot"]);
   });
 });
 
@@ -59,6 +63,6 @@ describe("selectedCalendarTypes", () => {
         ["contacts"],
         availableCalendarTypes(true, { projectId: "project-1" }),
       ),
-    ).toEqual(["tasks", "social", "newsletter", "marketing"]);
+    ).toEqual(["tasks", "social", "newsletter", "marketing", "sokoBot"]);
   });
 });

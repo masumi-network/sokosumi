@@ -9,9 +9,7 @@ import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-p
 import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { BillingTabs } from "@/components/billing/billing-tabs";
-import CouponSection from "@/components/billing/coupon-section";
 import { CreditsCheckoutReturn } from "@/components/billing/credits-checkout-return";
-import CreditsSection from "@/components/billing/credits-section";
 import { EnterpriseContractSummary } from "@/components/billing/enterprise-contract-summary";
 import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
@@ -24,6 +22,8 @@ import {
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
+import CouponForm from "@/components/credits/coupon-form";
+import CreditsForm from "@/components/credits/credits-form";
 import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
@@ -312,7 +312,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               />
             }
             creditsContent={
-              <CreditsSection
+              <CreditsForm
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={activeOrganization}
                 pricing={creditPricing}
@@ -320,7 +320,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               />
             }
             couponContent={
-              <CouponSection
+              <CouponForm
                 organization={activeOrganization}
                 returnPath="/billing?tab=coupon"
               />
@@ -424,7 +424,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             />
           }
           creditsContent={
-            <CreditsSection
+            <CreditsForm
               isPurchaseEnabled={canPurchaseCredits}
               organization={null}
               pricing={creditPricing}
@@ -432,10 +432,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             />
           }
           couponContent={
-            <CouponSection
-              organization={null}
-              returnPath="/billing?tab=coupon"
-            />
+            <CouponForm organization={null} returnPath="/billing?tab=coupon" />
           }
         />
       </div>

@@ -7,6 +7,7 @@ import type { StudioAsset } from "./types";
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({ dateTime: () => "today" }),
+  useTranslations: () => (key: string) => key,
 }));
 
 const ASSET = {

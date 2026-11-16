@@ -238,4 +238,51 @@ describe("getTasksListPage", () => {
       expect.objectContaining({ assigneeUserId: "user-1" }),
     );
   });
+
+  it("lists only waiting statuses unchanged for three days under Stuck", async () => {
+    vi.useFakeTimers({ now: new Date("2026-11-14T12:00:00.000Z") });
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: null });
+
+    await getTasksListPage({
+      cursor: null,
+      limit: 10,
+      scope: "owned",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      stuck: true,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    });
+    vi.useRealTimers();
+
+    const params = listTasksMock.mock.calls[0]?.[0];
+    expect(params.statusBefore).toEqual(new Date("2026-11-11T12:00:00.000Z"));
+    expect(params.status).toContain(TaskStatus.INPUT_REQUIRED);
+    expect(params.status).not.toContain(TaskStatus.DRAFT);
+    expect(params.status).not.toContain(TaskStatus.COMPLETED);
+  });
+
+  it("lists nothing under Stuck for a status that cannot wait", async () => {
+    const page = await getTasksListPage({
+      cursor: null,
+      limit: 10,
+      scope: "owned",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.COMPLETED,
+      projectId: null,
+      visibility: null,
+      stuck: true,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    });
+
+    expect(page).toEqual({ tasks: [], nextCursor: null });
+    expect(listTasksMock).not.toHaveBeenCalled();
+  });
 });

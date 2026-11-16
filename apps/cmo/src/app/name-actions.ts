@@ -16,8 +16,8 @@ export interface NameFormState {
 }
 
 /**
- * The workspace gate's name step: Web's rule for the name, then Core saves
- * it (and makes it the display name when there is none).
+ * Hiring Cuso's name step: Web's rule for the name, then Core saves it (and
+ * makes it the display name when there is none).
  */
 export async function saveName(
   previous: NameFormState,
@@ -43,7 +43,7 @@ export async function saveName(
     unstable_rethrow(error);
     console.error("Saving the name failed", error);
   }
-  // 200: home now shows the workspace choice. 401 or 403: Core refused the
+  // 200: home now shows the hire form (ADR 0065). 401 or 403: Core refused the
   // token, and home shows the signed-out page.
   if (status === 200 || status === 401 || status === 403) redirect("/");
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadOverview = vi.fn();
+const prepareCmoCalendarNewsletterIssueForProject = vi.fn();
 const getNewsletterAvailability = vi.fn();
 const getProjectsByIdNewsletter = vi.fn();
 const getProjectsByIdNewsletterIssues = vi.fn();
@@ -17,6 +18,7 @@ vi.mock("../lib/core", () => ({
   }),
 }));
 vi.mock("@sokosumi/core-client", () => ({
+  prepareCmoCalendarNewsletterIssueForProject,
   getNewsletterAvailability,
   getProjectsByIdNewsletter,
   getProjectsByIdNewsletterIssues,
@@ -32,6 +34,7 @@ const {
   loadCalendarDrafts,
   loadNewsletter,
   previewNewsletterIssue,
+  prepareCalendarIssue,
   subscribeNewsletterContacts,
 } = await import("./newsletter-actions");
 
@@ -66,6 +69,54 @@ describe("CMO newsletter", () => {
       expect.objectContaining(project),
     );
     expect(getProjectsByIdNewsletterIssues).not.toHaveBeenCalled();
+  });
+
+  it("loads the newsletter for the named Cuso and his workspace", async () => {
+    loadOverview.mockResolvedValue({
+      projectId: "project-2",
+      organizationSlug: "beta",
+    });
+    getNewsletterAvailability.mockResolvedValue({
+      data: { data: { enabled: false } },
+    });
+
+    expect(await loadNewsletter("project-2")).toEqual({ state: "disabled" });
+    expect(loadOverview).toHaveBeenCalledWith("project-2");
+    expect(getNewsletterAvailability).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { authorization: "Bearer t", "x-organization-slug": "beta" },
+      }),
+    );
+  });
+
+  it("prepares a calendar issue on the named Project with its approved strategy", async () => {
+    prepareCmoCalendarNewsletterIssueForProject.mockResolvedValue({
+      data: { data: { issueId: "issue-1" } },
+    });
+    expect(
+      await prepareCalendarIssue(
+        "project-2",
+        "strategy-2",
+        "entry-1",
+        "issue-1",
+      ),
+    ).toEqual({ issueId: "issue-1" });
+    expect(prepareCmoCalendarNewsletterIssueForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { authorization: "Bearer t" },
+        path: { projectId: "project-2", id: "entry-1" },
+        body: { strategyId: "strategy-2", issueId: "issue-1" },
+      }),
+    );
+  });
+
+  it("passes a stale approved calendar refusal back to the issue sheet", async () => {
+    prepareCmoCalendarNewsletterIssueForProject.mockResolvedValue({
+      error: { message: "The approved strategy changed" },
+    });
+    expect(
+      await prepareCalendarIssue("project-2", "strategy-old", "entry-1"),
+    ).toEqual({ error: "The approved strategy changed" });
   });
 
   it("loads older eligible drafts without paging through sent issues", async () => {

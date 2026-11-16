@@ -8,6 +8,13 @@ export default defineTool({
   description:
     "Generate a new image from a description. Use this for a genuinely new idea. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
   inputSchema: z.object({
+    catalogProductId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe(
+        "Use a saved product id from list_products when the user wants to feature that product. Core applies its approved details and photo.",
+      ),
     prompt: z
       .string()
       .min(1)
@@ -54,6 +61,9 @@ export default defineTool({
       aspectRatio: input.aspectRatio,
       resolution: input.resolution,
       modelId: input.modelId,
+      ...(input.catalogProductId
+        ? { catalogProductId: input.catalogProductId }
+        : {}),
       placementId: input.placementId,
       outputFormat: input.outputFormat,
       seed: input.seed,

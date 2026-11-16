@@ -24,6 +24,7 @@ sokosumi tasks update TASK_ID --organization-slug WORKSPACE_SLUG --priority HIGH
 sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation child --to PARENT_TASK_ID --json
 sokosumi tasks links TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks unlink TASK_ID --organization-slug WORKSPACE_SLUG --to OTHER_TASK_ID --json
+sokosumi tasks relink TASK_ID --organization-slug WORKSPACE_SLUG --relation child --to OTHER_TASK_ID --json
 sokosumi tasks archive TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 

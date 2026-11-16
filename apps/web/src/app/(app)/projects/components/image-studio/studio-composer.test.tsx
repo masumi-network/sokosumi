@@ -1,8 +1,9 @@
+import { MAX_STUDIO_BATCH_IMAGES as MAX_BATCH } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { MAX_BATCH, StudioComposer } from "./studio-composer";
+import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioCatalog, StudioLabels, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";

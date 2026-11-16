@@ -24,7 +24,7 @@ public extension WorkspaceState {
   /// throttle. Called from the platform adapter for every event, so it must
   /// stay cheap and publish nothing while idle presence is unchanged.
   func recordPresenceActivity() {
-    presence.recordActivity(now: Date())
+    presence.recordActivity(now: now())
     publishPresence(force: false)
   }
 
@@ -49,12 +49,12 @@ extension WorkspaceState {
   }
 
   func publishPresence(force: Bool) {
-    guard let realtime, let data = presence.publication(force: force, now: Date()) else { return }
+    guard let realtime, let data = presence.publication(force: force, now: now()) else { return }
     realtime.publishPresence(data)
   }
 
   func applyPresenceRoster(organizationId: String, members: [ChatPresenceMember]) {
-    presence.replaceRoster(organizationId: organizationId, members: members, now: Date())
+    presence.replaceRoster(organizationId: organizationId, members: members, now: now())
   }
 
   /// The self dot reads offline only after the socket was up once.
@@ -62,7 +62,7 @@ extension WorkspaceState {
     if healthy {
       realtimeEverConnected = true
     }
-    presence.setReachable(!realtimeEverConnected || healthy, now: Date())
+    presence.setReachable(!realtimeEverConnected || healthy, now: now())
   }
 
   /// Web reclassifies teammates every 30 s and rechecks its own idle state on
@@ -73,7 +73,7 @@ extension WorkspaceState {
       while !Task.isCancelled {
         do { try await Task.sleep(for: .seconds(30)) } catch { return }
         guard let self else { return }
-        presence.reclassify(now: Date())
+        presence.reclassify(now: now())
         publishPresence(force: false)
       }
     }
@@ -83,6 +83,6 @@ extension WorkspaceState {
     presenceTickTask?.cancel()
     presenceTickTask = nil
     realtimeEverConnected = false
-    presence.reset(now: Date())
+    presence.reset(now: now())
   }
 }

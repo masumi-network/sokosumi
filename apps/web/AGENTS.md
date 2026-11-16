@@ -328,6 +328,49 @@ Web data access for domain entities goes through the Core API
   call (see the `TODO(core-api)` in `core-loaders.ts`); until then, do not
   add new per-request all-pages loops.
 
+### After a mutation: refresh only what changed
+
+`router.refresh()` makes a new server request and re-renders every Server
+Component of the current route. Most mutations change one path, tag or query.
+Refresh only that.
+
+- A Server Action that calls `revalidatePath`, `updateTag` or `refresh()`
+  (from `next/cache`) already sends the re-rendered route in its own response
+  (`node_modules/next/dist/docs/01-app/02-guides/server-actions.md`). Do **not**
+  also call `router.refresh()` on the client after that action. It is a second
+  roundtrip for the same data.
+- Pick the first option that works:
+  1. Update client state from the action result (local state, or React Query
+     `setQueryData`).
+  2. Invalidate the exact scope: `revalidatePath(path)` or `updateTag(tag)` in
+     the Server Action, or `queryClient.invalidateQueries({ queryKey })` for
+     React Query data.
+  3. `refresh()` in the Server Action, when the view reads state outside the
+     cache that the action changed.
+  4. `router.refresh()` on the client, only when no Server Action ran (for
+     example after a `fetch` to a Route Handler) and no narrower option covers
+     the change. Write the reason in a code comment.
+- Do not call `revalidatePath("/", "layout")` to be safe. It invalidates all
+  cached data of every route.
+
+### Optimistic UI
+
+Think about optimistic UI for each user-triggered mutation.
+
+- Use it when the action is fast, usually succeeds and is easy to undo:
+  toggles, pins, renames, reorders, read markers, adding or removing a list
+  item. Use `useOptimistic` with `useTransition`
+  (`node_modules/next/dist/docs/01-app/02-guides/interactive-apps.md`), or
+  React Query `onMutate` with a rollback in `onError`.
+- Do not use it when the action charges money (Stripe checkout, billing),
+  deletes data that cannot be restored, or returns a value the server decides
+  (IDs, prices, validation errors). Show a pending state and wait for the
+  result.
+- On failure, show the error and go back to the server value. A Server Action
+  that returns `{ ok: false }` (see
+  [Server action Results](#server-action-results-neverthrow--wire-dto)) does
+  not throw, so no error boundary catches it. Handle that result yourself.
+
 ### Better Auth ID generation
 
 - Better Auth runs on **Core**, not web. `apps/core/src/lib/auth.ts` sets `advanced.database.generateId: "uuid"` so Better Auth–managed rows get UUID-shaped primary keys, consistent with `@sokosumi/database` Prisma models. Web reaches auth via `auth.client.ts` / `auth.server.ts` → Core `/auth` only. Do not remove or change UUID generation without aligning the shared schema and any database migrations.
@@ -457,37 +500,12 @@ by then.
 
 `$WEB_URL` is `pnpm portless:url web` (or `web_url=` from `verify-sokosumi doctor`). Do not hardcode `:3000`.
 
-Each coworker stores their **own** credentials (nothing shared/committed):
-
-```bash
-# one-time, per machine — password read from stdin, never echoed
-WEB_URL="$(pnpm portless:url web)"
-agent-browser auth save sokosumi \
-  --url "$WEB_URL/signin" \
-  --username you@example.com --password-stdin \
-  --username-selector '[data-testid="auth-field-email"]' \
-  --password-selector '[data-testid="auth-field-currentPassword"]'
-```
-
-Prefer `verify-sokosumi sign-in` (fixtures, then this vault). Manual recipe:
-
-```bash
-WEB_URL="$(pnpm portless:url web)"
-agent-browser open "$WEB_URL/signin"
-agent-browser auth login sokosumi \
-  --url "$WEB_URL/signin" \
-  --username-selector '[data-testid="auth-field-email"]' \
-  --password-selector '[data-testid="auth-field-currentPassword"]'
-# if still on /signin: press Enter (vault click can race react-hook-form)
-agent-browser open "$WEB_URL/agents"
-agent-browser wait --url "**/agents"
-```
+Each coworker stores their **own** credentials (nothing shared/committed).
+Prefer `verify-sokosumi sign-in` (fixtures, then the vault). The sign-in steps
+live in [verify-sokosumi](../../.cursor/skills/verify-sokosumi/SKILL.md) and
+[sign-in](../../.cursor/skills/verify-sokosumi/features/sign-in.md).
 
 Do not `wait --load networkidle` on `/chat` after login — Ably hangs that wait. Prove the session on `/agents`.
-
-Stable selectors exist for deterministic targeting if you fill fields yourself:
-`[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`,
-`[data-testid="auth-submit"]`.
 
 Prefer session reuse so you only log in once per machine:
 

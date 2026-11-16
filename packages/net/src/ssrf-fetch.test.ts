@@ -222,10 +222,15 @@ describe("ssrfSafeFetch", () => {
         mockRequestImplementation({ status: 200, body: "ok" }),
       );
 
+    const onFinalUrl = vi.fn();
     const response = await ssrfSafeFetch("https://example.com/file.pdf", {
       maxResponseBytes: 1024,
+      onFinalUrl,
     });
 
+    expect(onFinalUrl).toHaveBeenCalledExactlyOnceWith(
+      "https://cdn.example.com/file.pdf",
+    );
     expect(response.status).toBe(200);
     expect(httpsRequestMock).toHaveBeenCalledTimes(2);
     expect(useAgentMock).toHaveBeenCalledWith(

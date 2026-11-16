@@ -98,7 +98,7 @@ function runRef(run: Pick<EvalRun, "prNumber" | "commitSha">): string {
 }
 
 /** Why a case did not pass, in one line: a failed check, the judge, or the error. */
-export function caseReason(evalCase: EvalCaseReport): string {
+function caseReason(evalCase: EvalCaseReport): string {
   for (const result of evalCase.results) {
     const check = result.checks.find((item) => !item.pass);
     if (check) return `${check.label}: ${check.actual}`.slice(0, 200);
@@ -129,15 +129,15 @@ function counts(report: EvalRunReport): string {
     .join(" · ");
 }
 
-export function formatReportText(report: EvalRunReport): string[] {
+function formatReportText(report: EvalRunReport): string[] {
   const { run, summary } = report;
   const rate = summary.scored ? summary.passed / summary.scored : null;
   return [
     `Eval run ${run.id} · ${run.trigger.toLowerCase()} · ${run.environment} · ${runRef(run)} · ${run.status.toLowerCase()}`,
     `${percent(rate)} passed (${summary.passed} of ${summary.scored})${summary.open ? `, ${summary.open} to go` : ""} · $${summary.costUsd.toFixed(2)}`,
     report.baseline
-      ? `Compared with the daily run of ${report.baseline.createdAt} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })})`
-      : "No daily run before this one to compare with.",
+      ? `Compared with the weekly run of ${report.baseline.createdAt} (${runRef({ prNumber: report.baseline.prNumber, commitSha: null })})`
+      : "No weekly run before this one to compare with.",
     counts(report),
     ...sorted(report.cases)
       .filter(needsALook)
@@ -149,11 +149,11 @@ export function formatReportText(report: EvalRunReport): string[] {
 }
 
 /** The table a PR's Evidence section takes. */
-export function formatReportMarkdown(report: EvalRunReport): string[] {
+function formatReportMarkdown(report: EvalRunReport): string[] {
   const { run, summary } = report;
   const suites = [...new Set(report.cases.map((evalCase) => evalCase.suite))];
   const lines = [
-    `**Evals** (${run.environment}, ${runRef(run)}, ${run.repeats} ${run.repeats === 1 ? "repeat" : "repeats"}${report.baseline ? `, vs daily run ${runRef({ prNumber: report.baseline.prNumber, commitSha: null })}` : ""})`,
+    `**Evals** (${run.environment}, ${runRef(run)}, ${run.repeats} ${run.repeats === 1 ? "repeat" : "repeats"}${report.baseline ? `, vs weekly run ${runRef({ prNumber: report.baseline.prNumber, commitSha: null })}` : ""})`,
     "",
     "| Suite | Passed | Regressed | Fixed | Flaky | Failing |",
     "| --- | --- | --- | --- | --- | --- |",

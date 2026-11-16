@@ -4,6 +4,7 @@ import {
   buildChatSummaryPrompt,
   chatSummaryCacheCovers,
   parseChatSummaryText,
+  pickImportantChatMessages,
 } from "./chat-catch-up-summary.service";
 
 describe("chatSummaryCacheCovers", () => {
@@ -187,5 +188,86 @@ describe("buildChatCatchUpTopics", () => {
       new Map(),
     );
     expect(topic.status).toBe("waitingOnYou");
+  });
+});
+
+describe("pickImportantChatMessages", () => {
+  const since = new Date("2026-11-10T00:00:00Z");
+  const message = (
+    id: string,
+    roomId: string,
+    hour: number,
+    probabilities: Record<string, number> | null,
+    addressedUserIds: string[] = [],
+  ) => ({
+    id,
+    roomId,
+    createdAt: new Date(Date.UTC(2026, 10, 10, hour)),
+    signal: probabilities
+      ? {
+          state: "tagged",
+          probabilities,
+          addressedUserIds,
+          commitmentDueAt: null,
+          loopClosedAt: null,
+          loopTaskId: null,
+          corrections: [],
+        }
+      : null,
+  });
+  const ids = (picked: { message: { id: string } }[]) =>
+    picked.map((entry) => entry.message.id);
+
+  it("keeps what asks something of the reader or changes their work", () => {
+    const picked = pickImportantChatMessages(
+      [
+        message("ask", "r1", 9, { question: 0.9 }, ["alice"]),
+        message("blocked", "r2", 8, { blocker: 0.9 }),
+        message("decided", "r3", 7, { decisionMade: 0.9 }),
+        message("fyi", "r4", 6, { fyi: 0.9 }),
+        message("chat", "r5", 5, { chitChat: 0.9 }),
+        message("asked-bob", "r6", 4, { question: 0.9 }, ["bob"]),
+        message("untagged", "r7", 3, null),
+      ],
+      "alice",
+      since,
+      8,
+    );
+    expect(ids(picked)).toEqual(["ask", "blocked", "decided"]);
+    expect(picked[0]?.bucket).toBe("needsYou");
+  });
+
+  it("shows one row per room, the newest, and stops at the limit", () => {
+    expect(
+      ids(
+        pickImportantChatMessages(
+          [
+            message("new", "r1", 9, { urgent: 0.95 }),
+            message("old", "r1", 8, { blocker: 0.9 }),
+            message("other", "r2", 7, { bug: 0.9 }),
+            message("third", "r3", 6, { review: 0.9 }),
+          ],
+          "alice",
+          since,
+          2,
+        ),
+      ),
+    ).toEqual(["new", "other"]);
+  });
+
+  it("leaves out anything older than `since`", () => {
+    expect(
+      pickImportantChatMessages(
+        [
+          {
+            ...message("yesterday", "r1", 9, { blocker: 0.9 }),
+            createdAt: new Date("2026-11-09T09:00:00Z"),
+          },
+        ],
+        "alice",
+        since,
+        8,
+      ),
+    ).toEqual([]);
   });
 });

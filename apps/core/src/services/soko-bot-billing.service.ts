@@ -1,5 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
+import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -9,12 +11,30 @@ import { serializableTransaction } from "@/lib/db/transaction";
 const SOKO_BOT_TURN_COST_HISTORY_SIZE = 3;
 const SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND = "insufficient_credits";
 
-export class SokoBotBillingAccessError extends Error {}
+/** A turn cannot start: the member has no Seat, or there are not enough credits. */
+export class SokoBotBillingAccessError extends Error {
+  constructor(
+    message: string,
+    /** `cmo_paused`: a Cuso without a paid CMO plan (ADR 0068). */
+    readonly reason: "seat" | "credits" | "cmo_paused" = "credits",
+  ) {
+    super(message);
+  }
+}
 
 export interface SokoBotUsageChargeResult {
   chargedCents: bigint;
   expectedCents: bigint;
   shortfall: boolean;
+  /** The wallet the charge drew on: its organization, null for a personal
+   * one. Null too when the turn had nothing to charge. */
+  organizationId: string | null;
+  /**
+   * A Cuso's Project, whose Project credits (plan, top-up, Tester) pay his
+   * charges first (ADR 0067): the pool's low-credit notice, which links to
+   * Sokosumi's pool top-up, is not his. Null for every other bot.
+   */
+  cusoProjectId: string | null;
 }
 
 function sokoBotTurnUsageIdempotencyKey(turnId: string): string {
@@ -47,12 +67,30 @@ export interface SokoBotPayer {
   /** Personal owner; null for a shared bot, which only the organization pays for. */
   userId: string | null;
   organizationId: string | null;
+  /** The bot's Project (Cuso's): its Project credits pay first (ADR 0067). */
+  projectId?: string | null;
+  /**
+   * Cuso in free hiring (ADR 0068): his turns are not charged and start
+   * without credits.
+   */
+  freeHiring?: boolean;
+  /** A Cuso: the CMO subscription gate applies to his turns. */
+  cuso?: boolean;
+}
+
+/** The credit scope a bot's charges and gates read: its Project, or none. */
+function payerProjectScope(payer: SokoBotPayer | null): {
+  projectId: string | null;
+} {
+  return { projectId: payer?.projectId ?? null };
 }
 
 /**
  * Bots in an organization workspace bill the organization, like its Tasks.
  * A member's turn spends through that member, whose Seat gates it; a turn
- * nobody asked for draws on the pool with no Seat check (ADR 0057).
+ * nobody asked for draws on the pool with no Seat check (ADR 0057). This is
+ * where a charge's Project is resolved from Cuso, so free hiring is decided
+ * here too.
  */
 async function sokoBotPayer(
   sokoBotId: string,
@@ -60,18 +98,45 @@ async function sokoBotPayer(
 ): Promise<SokoBotPayer | null> {
   const bot = await client.sokoBot.findUnique({
     where: { id: sokoBotId },
-    select: { userId: true, workspace: { select: { organizationId: true } } },
+    select: {
+      userId: true,
+      projectId: true,
+      versionId: true,
+      workspace: { select: { organizationId: true } },
+    },
   });
-  return bot
-    ? { userId: bot.userId, organizationId: bot.workspace.organizationId }
-    : null;
+  if (!bot) return null;
+  const mayBeCuso =
+    bot.userId === null &&
+    bot.projectId !== null &&
+    CMO_SOKO_BOT_VERSION_IDS.includes(bot.versionId ?? "");
+  return {
+    userId: bot.userId,
+    organizationId: bot.workspace.organizationId,
+    projectId: bot.projectId,
+    freeHiring: mayBeCuso && (await cusoInFreeHiring(sokoBotId, client)),
+    cuso: mayBeCuso,
+  };
+}
+
+async function cusoInFreeHiring(
+  sokoBotId: string,
+  client: Pick<Prisma.TransactionClient, "sokoBot">,
+): Promise<boolean> {
+  const { isCusoInFreeHiring } = await import("@/services/cmo-billing.service");
+  return isCusoInFreeHiring(sokoBotId, client);
+}
+
+async function cusoMayWork(projectId: string): Promise<boolean> {
+  const { isCmoSubscribed } = await import("@/services/cmo-billing.service");
+  return isCmoSubscribed({ projectId });
 }
 
 /** A shared bot's payer is its organization alone, whoever asked. */
 export function sokoBotPayerKey(payer: SokoBotPayer): string {
   return isPersonalSokoBot(payer)
     ? `${payer.userId}:${payer.organizationId ?? ""}`
-    : `org:${payer.organizationId ?? ""}`;
+    : `org:${payer.organizationId ?? ""}${payer.projectId ? `:${payer.projectId}` : ""}`;
 }
 
 /**
@@ -84,12 +149,14 @@ async function sokoBotPayerBalance(payer: SokoBotPayer): Promise<bigint> {
       payer.userId,
       payer.organizationId,
       prisma,
+      payerProjectScope(payer),
     );
   }
   if (payer.organizationId === null) return 0n;
   return await creditBucketRepository.getOrganizationPoolBalance(
     payer.organizationId,
     prisma,
+    payerProjectScope(payer),
   );
 }
 
@@ -110,6 +177,7 @@ export async function notifySokoBotOutOfCredits(
     where: { id: sokoBotId },
     select: {
       userId: true,
+      projectId: true,
       workspace: {
         select: {
           organizationId: true,
@@ -122,6 +190,7 @@ export async function notifySokoBotOutOfCredits(
   const payer: SokoBotPayer = {
     userId: bot.userId,
     organizationId: bot.workspace.organizationId,
+    projectId: bot.projectId,
   };
   if (isSharedSokoBot(payer)) {
     const outOfCredits = await sokoBotIdsOutOfCredits([
@@ -181,6 +250,20 @@ export async function requireSokoBotTurnFunding(
   sokoBotId: string,
 ): Promise<void> {
   const payer = await sokoBotPayer(sokoBotId, prisma);
+  if (payer?.freeHiring) {
+    // Nothing is charged, so only a member's Seat still gates the turn.
+    if (userId !== null && payer.organizationId !== null) {
+      await requireMemberSeat(userId, payer.organizationId);
+    }
+    return;
+  }
+  // Pool credits alone never pay for a Cuso's turn (ADR 0068).
+  if (payer?.cuso && payer.projectId && !(await cusoMayWork(payer.projectId))) {
+    throw new SokoBotBillingAccessError(
+      "Cuso is paused: his Project has no active CMO subscription.",
+      "cmo_paused",
+    );
+  }
   const shared = payer !== null && isSharedSokoBot(payer);
   // Turns record the Requester; usage records the member who paid.
   const historyMember = shared ? {} : { requestedByUserId: userId };
@@ -237,9 +320,6 @@ export async function requireSokoBotTurnFunding(
         })
       : null,
   ]);
-  const minimumCents = convertCreditsToCents(
-    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
-  );
   const recentTurnCents = recentUsage.reduce(
     (maximum, usage) => (usage.cents > maximum ? usage.cents : maximum),
     0n,
@@ -256,15 +336,40 @@ export async function requireSokoBotTurnFunding(
     userId,
     organizationId,
     prisma,
+    payerProjectScope(payer),
   );
   if (balance < shortfallCents) {
     throw new SokoBotBillingAccessError(
       `Insufficient ${payerLabel(organizationId)} credits to cover the unpaid remainder from a prior Soko Bot turn.`,
     );
   }
+  requireTurnMinimum(balance, organizationId, recentTurnCents);
+}
+
+function requireTurnMinimum(
+  balance: bigint,
+  organizationId: string | null,
+  recentTurnCents = 0n,
+): void {
+  const minimumCents = convertCreditsToCents(
+    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
+  );
   if (balance < minimumCents || balance < recentTurnCents) {
     throw new SokoBotBillingAccessError(
       `Insufficient ${payerLabel(organizationId)} credits to start a Soko Bot turn.`,
+    );
+  }
+}
+
+/** A member's turn in a paid organization needs their Seat (ADR 0057). */
+export async function requireMemberSeat(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (!(await hasAssignedOrganizationSeat(userId, organizationId, prisma))) {
+    throw new SokoBotBillingAccessError(
+      "An assigned seat is required to use this organization",
+      "seat",
     );
   }
 }
@@ -335,8 +440,16 @@ async function chargeSokoBotUsage(
   tx: Prisma.TransactionClient,
 ): Promise<SokoBotUsageChargeResult> {
   const { expectedCents, idempotencyKey } = input;
+  const payer = await sokoBotPayer(input.sokoBotId, tx);
+  const cusoProjectId = payer?.cuso ? (payer.projectId ?? null) : null;
   if (expectedCents <= 0n) {
-    return { chargedCents: 0n, expectedCents, shortfall: false };
+    return {
+      chargedCents: 0n,
+      expectedCents,
+      shortfall: false,
+      organizationId: null,
+      cusoProjectId,
+    };
   }
 
   const existing = await tx.sokoBotUsage.findUnique({
@@ -346,32 +459,53 @@ async function chargeSokoBotUsage(
         idempotencyKey,
       },
     },
-    select: { cents: true },
+    select: { cents: true, organizationId: true },
   });
   if (existing) {
     return {
       chargedCents: existing.cents,
       expectedCents,
       shortfall: existing.cents < expectedCents,
+      organizationId: existing.organizationId,
+      cusoProjectId,
     };
   }
 
-  const organizationId =
-    (await sokoBotPayer(input.sokoBotId, tx))?.organizationId ?? null;
+  // No usage row: a shortfall would make the next turn pay the remainder.
+  if (payer?.freeHiring) {
+    // Nothing drawn, so no wallet for the low-balance check.
+    return {
+      chargedCents: 0n,
+      expectedCents,
+      shortfall: false,
+      organizationId: null,
+      cusoProjectId,
+    };
+  }
+  const organizationId = payer?.organizationId ?? null;
+  const projectScope = payerProjectScope(payer);
   const balance = await creditBucketRepository.getBalance(
     input.userId,
     organizationId,
     tx,
+    projectScope,
   );
   const chargedCents = balance < expectedCents ? balance : expectedCents;
   if (chargedCents <= 0n) {
-    return { chargedCents: 0n, expectedCents, shortfall: true };
+    return {
+      chargedCents: 0n,
+      expectedCents,
+      shortfall: true,
+      organizationId,
+      cusoProjectId,
+    };
   }
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     organizationId,
     chargedCents,
     tx,
+    projectScope,
   );
   const transaction = await tx.transaction.create({
     data: {
@@ -397,5 +531,7 @@ async function chargeSokoBotUsage(
     chargedCents,
     expectedCents,
     shortfall: chargedCents < expectedCents,
+    organizationId,
+    cusoProjectId,
   };
 }

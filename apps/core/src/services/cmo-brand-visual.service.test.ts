@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   projectUpdate: vi.fn(),
+  projectUpdateMany: vi.fn(),
   readBrandVisual: vi.fn(),
   siteIcon: vi.fn(),
   upload: vi.fn(),
@@ -10,7 +11,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    project: { update: mocks.projectUpdate },
+    project: {
+      update: mocks.projectUpdate,
+      updateMany: mocks.projectUpdateMany,
+    },
   },
 }));
 vi.mock("@/lib/brand-visual", async (importOriginal) => ({
@@ -61,9 +65,12 @@ describe("brand capture", () => {
   it("writes the Project's logo and a DESIGN.md of the site's look, nothing on the hire", async () => {
     await learnCmoBrandVisual(cuso);
 
-    expect(mocks.projectUpdate).toHaveBeenCalledWith({
-      where: { id: "project-1" },
-      data: { logo: "https://blob.example/logo.png" },
+    expect(mocks.projectUpdateMany).toHaveBeenCalledWith({
+      where: { id: "project-1", logo: null },
+      data: {
+        logo: "https://blob.example/logo.png",
+        projectRevision: { increment: 1 },
+      },
     });
     expect(mocks.projectUpdate).toHaveBeenCalledWith({
       where: { id: "project-1" },

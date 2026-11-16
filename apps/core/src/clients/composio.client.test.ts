@@ -27,6 +27,403 @@ const input = {
   executorUserId: "sokosumi:project-executor:project_123",
 };
 
+describe("X image upload failures", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ COMPOSIO_API_KEY: "test-composio-key" });
+  });
+
+  it.each([
+    [
+      { error: { message: "Unsupported media type: image/webp" } },
+      "The image type was rejected. Try a JPEG or PNG image.",
+    ],
+    [
+      { error: { detail: [{ msg: "File size exceeds the upload limit" }] } },
+      "The image file is too large. Use an image under 5 MB.",
+    ],
+    [
+      { errors: [{ message: "Invalid image data" }] },
+      "The image file is invalid or damaged. Try a different image.",
+    ],
+    [
+      {
+        detail: [
+          {
+            loc: ["body", "file", "mimetype"],
+            msg: "Input should be 'image/jpeg' or 'image/png'",
+            input: "private-rejected-value",
+          },
+        ],
+      },
+      "The image type was rejected. Try a JPEG or PNG image.",
+    ],
+    [
+      { detail: [{ loc: ["body", "file"], msg: "Field required" }] },
+      "The image file is missing. Attach it again.",
+    ],
+  ])("preserves a safe upload explanation from %j", async (body, reason) => {
+    const { projectComposioResponse } = await import("./composio.client");
+    const { classifyPublishError } = await import(
+      "@/helpers/social-post-publish-errors"
+    );
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    const message = `X could not upload the image (400): ${reason}`;
+    expect(failure).toMatchObject({
+      message,
+      httpStatus: 400,
+      body: undefined,
+    });
+    expect(classifyPublishError(failure, "x")).toEqual({
+      kind: "rejected",
+      transient: false,
+      summary: message,
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      composio: expect.objectContaining({ reason }),
+    });
+    expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(
+      "private-rejected-value",
+    );
+  });
+
+  it.each([
+    { error: { message: "Unrecognized failure: secret-response" } },
+    { error: { message: "Image dimensions too large" } },
+    {
+      request: { message: "Unsupported image type: secret-request" },
+      error: { input: "File size too large: secret-input" },
+    },
+    "Unsupported media type: secret-plain-response",
+  ])(
+    "uses an honest fallback for unsafe or unknown details: %j",
+    async (body) => {
+      const { projectComposioResponse } = await import("./composio.client");
+      const response =
+        typeof body === "string"
+          ? new Response(body, { status: 400 })
+          : Response.json(body, { status: 400 });
+      await expect(
+        projectComposioResponse(response, "upload X image"),
+      ).rejects.toMatchObject({
+        message:
+          "X could not upload the image (400): The upload service could not accept the image. Try again or use a different image.",
+        body: undefined,
+      });
+      expect(JSON.stringify(logSetMock.mock.calls)).not.toContain("secret-");
+    },
+  );
+
+  it.each([
+    (problem: Record<string, unknown>) => problem,
+    (problem: Record<string, unknown>) => JSON.stringify(problem),
+    (problem: Record<string, unknown>) => ({
+      data: { error: JSON.stringify({ response: problem }) },
+    }),
+    (problem: Record<string, unknown>) => ({ errors: [problem] }),
+  ])("preserves only allowlisted X problem diagnostics", async (wrap) => {
+    const { projectComposioResponse } = await import("./composio.client");
+    const body = wrap({
+      type: "https://api.x.com/2/problems/invalid-request",
+      title: "Invalid Request",
+      status: 400,
+      detail: "One or more parameters to your request was invalid.",
+      errors: [
+        {
+          message: "media contains private-error-value",
+          parameters: { media: "private-parameter-value" },
+        },
+      ],
+      request: { title: "private-request-value" },
+    });
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      message:
+        "X could not upload the image (400, invalid-request): The image upload request has invalid parameters. Try again or use a different image.",
+      httpStatus: 400,
+      body: undefined,
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      composio: expect.objectContaining({
+        providerStatus: 400,
+        problem: { type: "invalid-request", title: "Invalid Request" },
+        reason:
+          "The image upload request has invalid parameters. Try again or use a different image.",
+      }),
+    });
+    const retained = JSON.stringify([failure, logSetMock.mock.calls]);
+    expect(retained).not.toContain("private-");
+    expect(retained).not.toContain("One or more parameters");
+    expect(retained).not.toContain("https://api.x.com");
+  });
+
+  it("drops free-form problem titles, types, statuses and validation values", async () => {
+    const { composioXImageUploadFailure, projectComposioResponse } =
+      await import("./composio.client");
+    const body = {
+      error: {
+        title: "private-title",
+        type: "https://api.x.com/2/problems/private-type",
+        status: "400 private-status",
+        detail: "private-detail",
+        errors: [{ input: "private-input", parameters: "private-parameters" }],
+      },
+    };
+    expect(composioXImageUploadFailure(body)).toEqual({
+      reason:
+        "The upload service could not accept the image. Try again or use a different image.",
+      message:
+        "X could not upload the image: The upload service could not accept the image. Try again or use a different image.",
+      status: null,
+    });
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(JSON.stringify([failure, logSetMock.mock.calls])).not.toContain(
+      "private-",
+    );
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate limit"],
+    [408, "timed out"],
+    [504, "timed out"],
+  ])(
+    "uses nested provider status %s for its safe reason",
+    async (status, reason) => {
+      const { composioXImageUploadFailure } = await import("./composio.client");
+      const failure = composioXImageUploadFailure(
+        {
+          status: 400,
+          data: JSON.stringify({ error: { response: { status } } }),
+        },
+        400,
+      );
+      expect(failure.status).toBe(status);
+      expect(failure.reason).toContain(reason);
+    },
+  );
+
+  it.each([401, 429, 503])(
+    "retains provider status %s separately from an HTTP 400 wrapper",
+    async (providerStatus) => {
+      const { projectComposioResponse } = await import("./composio.client");
+      const failure = await projectComposioResponse(
+        Response.json(
+          {
+            error: {
+              response: JSON.stringify({
+                status: providerStatus,
+                request: { token: "private-request-token" },
+              }),
+            },
+          },
+          { status: 400 },
+        ),
+        "upload X image",
+      ).catch((error: unknown) => error);
+      expect(failure).toMatchObject({
+        httpStatus: 400,
+        providerStatus,
+        body: undefined,
+        message: expect.stringContaining(`(${providerStatus})`),
+      });
+      expect(logSetMock).toHaveBeenCalledWith({
+        composio: expect.objectContaining({
+          upstreamStatus: 400,
+          providerStatus,
+        }),
+      });
+      expect(JSON.stringify([failure, logSetMock.mock.calls])).not.toContain(
+        "private-request-token",
+      );
+    },
+  );
+
+  it("does not label a 403 parameter rejection as unauthorized", async () => {
+    const { composioXImageUploadFailure } = await import("./composio.client");
+    expect(
+      composioXImageUploadFailure({
+        status: 403,
+        type: "https://api.x.com/2/problems/invalid-request",
+        title: "Invalid Request",
+      }).reason,
+    ).toBe(
+      "The image upload request has invalid parameters. Try again or use a different image.",
+    );
+  });
+
+  it("never retains secrets echoed inside a recognized provider message", async () => {
+    const { projectComposioResponse } = await import("./composio.client");
+    const secrets = ["short-secret", "bare-private-value", "alice@example.com"];
+    const failure = await projectComposioResponse(
+      Response.json(
+        {
+          error: {
+            message: `Invalid MIME type; SOKOSUMI_API_KEY=${secrets[0]} Basic ${secrets[1]} ${secrets[2]}`,
+            credentials: secrets,
+          },
+        },
+        { status: 400 },
+      ),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      message:
+        "X could not upload the image (400): The image type was rejected. Try a JPEG or PNG image.",
+      body: undefined,
+    });
+    for (const secret of secrets) {
+      expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(secret);
+      expect(String(failure)).not.toContain(secret);
+    }
+  });
+
+  it.each([
+    { error: { message: "Unsupported media type", status: 400 } },
+    { data: { error: { message: "Unsupported media type", status: 400 } } },
+    {
+      data: {
+        successful: false,
+        error: { detail: [{ msg: "Unsupported media type" }], status: 400 },
+      },
+    },
+  ])("also explains HTTP-200 failed upload envelopes: %j", async (body) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(body)));
+    const { executeComposioTool } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    const { classifyPublishError } = await import(
+      "@/helpers/social-post-publish-errors"
+    );
+    const failure = await executeComposioTool({
+      sessionId: "session-for-unit-test",
+      toolSlug: "TWITTER_UPLOAD_MEDIA",
+      arguments: {},
+      context: "upload X image",
+      refused: "X refused the image upload",
+    }).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      name: "ComposioToolError",
+      providerStatus: 400,
+    });
+    expect(classifyPublishError(failure, "x")).toEqual({
+      kind: "rejected",
+      transient: false,
+      summary:
+        "X could not upload the image (400): The image type was rejected. Try a JPEG or PNG image.",
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      composio: expect.objectContaining({
+        failure: "tool_error",
+        reason: "The image type was rejected. Try a JPEG or PNG image.",
+      }),
+    });
+  });
+
+  it.each([
+    [401, "Invalid access token while uploading media", "unauthorized", false],
+    [403, "Missing permission to upload media", "unauthorized", false],
+    [429, "Too many requests", "rate_limited", true],
+    [null, "Upload timed out", "timeout", true],
+    [503, "Service temporarily unavailable", "provider_unavailable", true],
+    [
+      null,
+      "401 Client Error: invalid media credentials",
+      "unauthorized",
+      false,
+    ],
+    [null, "Missing permission for media_type", "unauthorized", false],
+    [null, "missing_scope", "unauthorized", false],
+    [null, "Rate limit exceeded for invalid media", "rate_limited", true],
+    [null, "Missing image after the upload timed out", "timeout", true],
+  ])(
+    "preserves upload retry and reconnect classification for %s",
+    async (status, message, kind, transient) => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(Response.json({ error: { message, status } })),
+      );
+      const { executeComposioTool } = await import(
+        "@/clients/social-post-providers/tools"
+      );
+      const { classifyPublishError, shouldRequestReauthorization } =
+        await import("@/helpers/social-post-publish-errors");
+      const failure = await executeComposioTool({
+        sessionId: "session-for-unit-test",
+        toolSlug: "TWITTER_UPLOAD_MEDIA",
+        arguments: {},
+        context: "upload X image",
+        refused: "X refused the image upload",
+      }).catch((error: unknown) => error);
+      const classification = classifyPublishError(failure, "x");
+      expect(classification).toMatchObject({ kind, transient });
+      expect(shouldRequestReauthorization(failure, classification)).toBe(
+        kind === "unauthorized",
+      );
+    },
+  );
+
+  it("uses the safe fallback for an unsuccessful tool result without details", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ data: { successful: false } })),
+    );
+    const { executeComposioTool } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    await expect(
+      executeComposioTool({
+        sessionId: "session-for-unit-test",
+        toolSlug: "TWITTER_UPLOAD_MEDIA",
+        arguments: {},
+        context: "upload X image",
+        refused: "X refused the image upload",
+      }),
+    ).rejects.toMatchObject({
+      message:
+        "X could not upload the image: The upload service could not accept the image. Try again or use a different image.",
+    });
+  });
+
+  it("reads the explanation of a failed tool without an error field", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          data: { successful: false, message: "Unsupported image format" },
+        }),
+      ),
+    );
+    const { executeComposioTool } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    await expect(
+      executeComposioTool({
+        sessionId: "session-for-unit-test",
+        toolSlug: "TWITTER_UPLOAD_MEDIA",
+        arguments: {},
+        context: "upload X image",
+        refused: "X refused the image upload",
+      }),
+    ).rejects.toMatchObject({
+      message:
+        "X could not upload the image: The image type was rejected. Try a JPEG or PNG image.",
+    });
+  });
+});
+
 describe("initiateComposioConnection", () => {
   beforeEach(() => {
     vi.resetModules();

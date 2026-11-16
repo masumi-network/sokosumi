@@ -13,6 +13,7 @@ export {
   cmoReportUpdateInputSchema,
   cmoRoutineSkipReason,
   cmoSaveBrandBrainInputSchema,
+  cmoStrategySaveClears,
   cmoStrategySavePart,
   isCmoMeasurementSource,
   isCmoScheduleKey,
@@ -54,11 +55,13 @@ export {
 export {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
+  isSokoBotAnnouncementCapability,
   isSokoBotCapability,
   isSokoBotCmoCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSandboxCapability,
   limitSokoBotWrites,
+  SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_CMO_CAPABILITIES,
@@ -143,6 +146,7 @@ export type {
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
+export { SEO_EVAL_CAPABILITIES, SEO_SCENARIOS } from "./scenario-seo.js";
 export {
   CMO_PLACEHOLDER_PATTERN,
   CMO_SCENARIOS,
@@ -152,6 +156,15 @@ export {
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "./scenarios.js";
+export {
+  isSokoBotSeoCapability,
+  SOKO_BOT_SEO_CAPABILITIES,
+  SOKO_BOT_SEO_DESCRIPTIONS,
+  SOKO_BOT_SEO_INPUT_SCHEMAS,
+  SOKO_BOT_SEO_READ_CAPABILITIES,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+  type SokoBotSeoCapability,
+} from "./seo.js";
 export {
   isSokoBotDecisionTarget,
   SOKO_BOT_CONTACT_BREAKDOWNS,

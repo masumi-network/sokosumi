@@ -18,6 +18,8 @@ import { loadIssueSearchParams } from "./search-params";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 export default async function NewsletterIssuesPage({
   searchParams,
 }: {
@@ -57,8 +59,9 @@ export default async function NewsletterIssuesPage({
 
   return (
     <NewsletterPageShell
+      cmoProjectId={project.cmo ? project.id : undefined}
       navigationLabel={t("navigation")}
-      tabs={getNewsletterTabs(project.id, true, t)}
+      tabs={getNewsletterTabs(project.id, true, t, project.cmo)}
       title={page("title")}
     >
       <Issues
@@ -66,6 +69,7 @@ export default async function NewsletterIssuesPage({
         issues={response.data}
         pagination={response.meta.pagination}
         activeSubscribers={subscribers.data.counts.ACTIVE}
+        readOnly={project.cmo}
       />
     </NewsletterPageShell>
   );

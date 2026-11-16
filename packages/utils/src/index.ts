@@ -178,6 +178,9 @@ export {
   type ContactChannelType,
   type ContactFilter,
   calendarDateSchema,
+  companyListInputSchema,
+  companyListMembersSchema,
+  companyListUpdateSchema,
   contactChannelInputSchema,
   contactFieldsSchema,
   contactFilterSchema,
@@ -191,9 +194,14 @@ export {
   createContactSchema,
   mergeContactsSchema,
   normalizeContactChannelValue,
+  setContactsStageSchema,
+  undoContactsStageSchema,
   updateContactSchema,
 } from "./contacts.js";
-export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
+export {
+  CORE_API_ERROR_KINDS,
+  type CoreApiErrorKind,
+} from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -257,7 +265,11 @@ export {
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
-export { isVercelBlobPublicHost } from "./entity-image-upload.js";
+export {
+  ENTITY_IMAGE_MAX_SIZE_BYTES,
+  extensionForEntityImageMime,
+  isVercelBlobPublicHost,
+} from "./entity-image-upload.js";
 export {
   CURATED_FILE_VOCABULARY,
   CURATED_VOCABULARY_VERSION,
@@ -349,6 +361,12 @@ export {
   newsletterImageBlockSchema,
   newsletterSignupLinks,
 } from "./newsletter.js";
+export {
+  buildNoticeTemplate,
+  type NoticeTemplateHeader,
+  type ParsedNoticeTemplate,
+  parseNoticeTemplate,
+} from "./notice-template.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
@@ -443,6 +461,63 @@ export {
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
 export {
+  SEO_CAPABILITIES,
+  SEO_CAPABILITIES_AS_OF,
+  SEO_CAPABILITY_GROUPS,
+  SEO_CAPABILITY_UNLOCKS,
+  type SeoCapability,
+  type SeoCapabilityGroup,
+  type SeoCapabilityId,
+  type SeoCapabilityStatus,
+  type SeoCapabilityUnlock,
+} from "./seo-capabilities.js";
+export {
+  SEO_DEFAULT_FULL_AUDIT_USD,
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MAX_PROVIDER_USD,
+  SEO_FULL_AUDIT_MAX_SECONDS,
+  SEO_MARKUP_PERCENT,
+  SEO_MAX_CALL_CENTS,
+  SEO_MIN_AUDIT_USD,
+  SEO_PAGE_CEILING_CENTS,
+  type SeoCreditCeilingInput,
+  seoCreditsForCents,
+  seoMaxCredits,
+} from "./seo-credits.js";
+export {
+  GOOGLE_EVENTS,
+  GOOGLE_EVENTS_AS_OF,
+  type GoogleEvent,
+  type GoogleEventKind,
+} from "./seo-google-events.js";
+export { normalizeSeoQuery } from "./seo-query.js";
+export {
+  readSeoStatisticsNote,
+  SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE,
+  SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
+  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
+  SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
+  SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
+  SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_FIXED_NOTES,
+  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_QUERY_FAILED_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
+  type SeoStatisticsNoteGap,
+  type SeoStatisticsNoteReading,
+  seoStatisticsKeywordRowsCutNote,
+  seoStatisticsKeywordsLeftOutNote,
+  seoStatisticsLostData,
+  seoStatisticsQueryRowsCutNote,
+} from "./seo-statistics-notes.js";
+export { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic.js";
+export {
   buildSocialAccountAvatarPathname,
   isOwnedSocialAccountAvatarUrl,
   isSocialAccountAvatarAllowedContentType,
@@ -486,9 +561,22 @@ export {
   X_PREMIUM_TEXT_LIMIT,
   type XLongPostSubscriptionType,
 } from "./social-post.js";
+export {
+  isStaleSokoBotReply,
+  readSokoBotAttemptAt,
+} from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
-export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export {
+  MAX_STUDIO_BATCH_IMAGES,
+  MAX_STUDIO_HEADLINE_LENGTH,
+} from "./studio-limits.js";
+export {
+  isStudioLogoMime,
+  STUDIO_LOGO_MIME_TYPES,
+} from "./studio-logo-upload.js";
+export { productBrief } from "./studio-product-brief.js";
+export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
@@ -503,6 +591,13 @@ export {
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
 } from "./task-attachments.js";
+export {
+  type TaskChatMessageTask,
+  type TaskChatRoomAudience,
+  type TaskChatRoomRefusal,
+  taskChatMessage,
+  taskChatRoomRefusal,
+} from "./task-chat-share.js";
 export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,

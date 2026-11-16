@@ -164,6 +164,38 @@ describe("ProjectScopeMenu", () => {
     expect(screen.queryByText("Closed One")).not.toBeInTheDocument();
   });
 
+  it("leaves CMO Projects out of a pick that creates inside a Project", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        project("active-1", "Active One"),
+        { ...project("cmo-1", "Cuso Business"), cmo: true },
+      ],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([
+      { ...project("cmo-pinned", "Pinned Cuso"), cmo: true },
+    ]);
+    setup({ excludeCmo: true });
+
+    await screen.findByText("Active One");
+    expect(rowIds()).toEqual(["active-1"]);
+  });
+
+  it("lists CMO Projects when the pick only switches scope", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        project("active-1", "Active One"),
+        { ...project("cmo-1", "Cuso Business"), cmo: true },
+      ],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([]);
+    setup();
+
+    await screen.findByText("Active One");
+    expect(rowIds()).toEqual(["active-1", "cmo-1"]);
+  });
+
   it("ends with Create project and offers no Manage projects row", async () => {
     setup();
 

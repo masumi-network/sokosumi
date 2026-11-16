@@ -30,6 +30,8 @@ interface SharedBotsSectionProps {
   canCreatePersonal: boolean;
   defaultScope: SokoBotScope;
   defaultProjectId?: string | null;
+  /** False leaves out the create dialog, as in a CMO Project. */
+  canCreate?: boolean;
   title: string;
 }
 
@@ -133,6 +135,7 @@ export async function SharedBotsSection({
   canCreatePersonal,
   defaultScope,
   defaultProjectId = null,
+  canCreate = true,
   title,
 }: SharedBotsSectionProps) {
   const [t, tStatus] = await Promise.all([
@@ -168,14 +171,16 @@ export async function SharedBotsSection({
             {t("Shared.empty")}
           </p>
         )}
-        <div className="px-1 pb-1">
-          <CreateSokoBotDialog
-            canCreatePersonal={canCreatePersonal}
-            projects={projects}
-            defaultScope={defaultScope}
-            defaultProjectId={defaultProjectId}
-          />
-        </div>
+        {canCreate ? (
+          <div className="px-1 pb-1">
+            <CreateSokoBotDialog
+              canCreatePersonal={canCreatePersonal}
+              projects={projects}
+              defaultScope={defaultScope}
+              defaultProjectId={defaultProjectId}
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   );

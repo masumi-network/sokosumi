@@ -8,6 +8,10 @@ import {
   streamModelCall,
 } from "@/lib/soko-bot/stream-model-call";
 
+const envState = vi.hoisted(() => ({
+  value: {} as Record<string, string>,
+}));
+
 const {
   authorizeMock,
   createEventMock,
@@ -33,7 +37,7 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ AI_GATEWAY_API_KEY: "gateway-key" }),
+  getEnv: () => envState.value,
 }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
@@ -42,7 +46,11 @@ vi.mock("@/lib/db/prisma", () => {
       findFirst: findFirstEventMock,
       count: countEventMock,
     },
-    sokoBotTurn: { findUnique: turnFindUniqueMock },
+    evalLane: { findUnique: vi.fn().mockResolvedValue(null) },
+    sokoBotTurn: {
+      findUnique: turnFindUniqueMock,
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+    },
     sokoBotToolCall: {
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
@@ -74,8 +82,12 @@ vi.mock("@/services/soko-bot-version.service", () => ({
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
   stopTurnSandbox: vi.fn(),
 }));
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { reconcileTurn: vi.fn() },
+}));
 
 import {
+  failSandboxTurn,
   grantSandboxUpload,
   proxySandboxModelCall,
   recordSandboxAction,
@@ -145,6 +157,7 @@ function gatewayAnswer(parts: unknown[] = []) {
 describe("sandbox turn service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    envState.value = { AI_GATEWAY_API_KEY: "gateway-key" };
     vi.stubGlobal("fetch", fetchMock);
     findFirstEventMock.mockResolvedValue(null);
     turnFindUniqueMock.mockResolvedValue(null);
@@ -190,6 +203,46 @@ describe("sandbox turn service", () => {
       ),
     ).rejects.toThrow("not this turn's");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["chat:1", "bot-key"],
+    ["cmo-daily-run:1", "cmo-key"],
+    ["lab:eval:r1", "evals-key"],
+  ])("bills turn %s to its purpose key", async (clientTurnId, key) => {
+    envState.value = {
+      AI_GATEWAY_API_KEY: "gateway-key",
+      SOKO_BOT_AI_GATEWAY_API_KEY: "bot-key",
+      CMO_AI_GATEWAY_API_KEY: "cmo-key",
+      EVALS_AI_GATEWAY_API_KEY: "evals-key",
+    };
+    turnFindUniqueMock.mockResolvedValue({
+      clientTurnId,
+      versionId: "v16",
+      workspaceId: "ws-1",
+    });
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, modelRequest());
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("authorization")).toBe(
+      `Bearer ${key}`,
+    );
+  });
+
+  it("keeps the shared key for every turn until a purpose key is set", async () => {
+    for (const clientTurnId of ["chat:1", "cmo-daily-run:1", "lab:eval:r1"]) {
+      turnFindUniqueMock.mockResolvedValue({
+        clientTurnId,
+        versionId: "v16",
+        workspaceId: "ws-1",
+      });
+      fetchMock.mockResolvedValue(gatewayAnswer());
+      await proxySandboxModelCall(claims, modelRequest());
+    }
+    for (const [, init] of fetchMock.mock.calls as [string, RequestInit][])
+      expect(new Headers(init.headers).get("authorization")).toBe(
+        "Bearer gateway-key",
+      );
   });
 
   it("forwards with Core's key and EU routing, and meters the step itself", async () => {
@@ -964,5 +1017,49 @@ describe("sandbox turn service", () => {
       }),
     ).rejects.toThrow("ask the owner in chat");
     expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
+  describe("a runner's failure report", () => {
+    const died = { code: "runner_exited", message: "exit code 1" };
+    const recorded = (...types: string[]) =>
+      findFirstEventMock.mockImplementation(
+        async ({ where }: { where: { type?: string | { in: string[] } } }) => {
+          const asked =
+            typeof where.type === "string"
+              ? [where.type]
+              : (where.type?.in ?? []);
+          return asked.some((type) => types.includes(type))
+            ? { id: "event" }
+            : null;
+        },
+      );
+    const types = () => events().map((event) => event.type);
+
+    it("announces a turn that never started, so the failure settles it", async () => {
+      recorded();
+      await failSandboxTurn(claims, died);
+      expect(types()).toEqual([
+        "session.started",
+        "turn.started",
+        "message.received",
+        "turn.failed",
+        "session.waiting",
+      ]);
+    });
+
+    it("fails a started turn once", async () => {
+      recorded("turn.started");
+      await failSandboxTurn(claims, died);
+      expect(types()).toEqual(["turn.failed", "session.waiting"]);
+    });
+
+    it.each(["turn.completed", "turn.failed"])(
+      "keeps a recorded %s and still closes the turn",
+      async (outcome) => {
+        recorded("turn.started", outcome);
+        await failSandboxTurn(claims, died);
+        expect(types()).toEqual(["session.waiting"]);
+      },
+    );
   });
 });

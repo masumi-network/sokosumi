@@ -8,6 +8,7 @@ import type {
   DataRoomQuestion,
   Member,
   UpdateDataRoomRequest,
+  WaitingDataRoomQuestion,
 } from "@sokosumi/core-client";
 import {
   deleteDriveDataRoomsById,
@@ -16,9 +17,9 @@ import {
   getDriveDataRoomsById,
   getDriveDataRoomsByIdEvents,
   getDriveDataRoomsByIdQuestions,
+  getDriveDataRoomsQuestions,
   getOrganizationsByIdMembers,
   patchDriveDataRoomsById,
-  patchDriveDataRoomsByIdMembersByMemberId,
   patchDriveDataRoomsByIdQuestionsByQuestionId,
   postDriveDataRooms,
   postDriveDataRoomsByIdMembers,
@@ -115,28 +116,6 @@ export async function inviteToDataRoom(input: {
   });
 }
 
-export async function updateDataRoomMember(input: {
-  store: FileStore;
-  roomId: string;
-  memberId: string;
-  expiresAt?: string | null;
-  folderPaths?: string[];
-}): Promise<void> {
-  const { store, roomId, memberId, expiresAt, folderPaths } = input;
-  await patchDriveDataRoomsByIdMembersByMemberId({
-    client: getBrowserCoreClient(),
-    path: { id: roomId, memberId },
-    body: {
-      ...storeQuery(store),
-      ...(expiresAt !== undefined
-        ? { expiresAt: expiresAt ? new Date(expiresAt) : null }
-        : {}),
-      ...(folderPaths ? { folderPaths } : {}),
-    },
-    throwOnError: true,
-  });
-}
-
 export async function removeDataRoomMember(input: {
   store: FileStore;
   roomId: string;
@@ -180,6 +159,36 @@ export async function fetchDataRoomQuestions(input: {
     throwOnError: true,
   });
   return data.data;
+}
+
+export interface WaitingDataRoomQuestionsPage {
+  questions: WaitingDataRoomQuestion[];
+  /** Every unanswered question, past this page too. */
+  total: number;
+  /** Where the next page starts; null on the last one. */
+  nextCursor: string | null;
+}
+
+/** Unanswered questions across every room of the Drive the reader runs. */
+export async function fetchWaitingDataRoomQuestions(input: {
+  store: FileStore;
+  cursor?: string;
+  limit: number;
+}): Promise<WaitingDataRoomQuestionsPage> {
+  const { data } = await getDriveDataRoomsQuestions({
+    client: getBrowserCoreClient(),
+    query: {
+      ...storeQuery(input.store),
+      limit: input.limit,
+      ...(input.cursor ? { cursor: input.cursor } : {}),
+    },
+    throwOnError: true,
+  });
+  return {
+    questions: data.data,
+    total: data.meta.pagination.total,
+    nextCursor: data.meta.pagination.nextCursor,
+  };
 }
 
 export async function answerDataRoomQuestion(input: {

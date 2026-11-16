@@ -317,15 +317,17 @@ describe("header project scope", () => {
     it("answers the page's own choice instead of switching scope", async () => {
       const user = userEvent.setup();
       const onSelect = vi.fn();
+      const onCreated = vi.fn();
       const onDismiss = vi.fn();
       renderScope();
       act(() => {
-        openProjectScope({ required: true, onSelect, onDismiss });
+        openProjectScope({ required: true, onSelect, onCreated, onDismiss });
       });
 
       await user.click(await screen.findByTestId("project-scope-item-p-2"));
 
       expect(onSelect).toHaveBeenCalledExactlyOnceWith("p-2");
+      expect(onCreated).not.toHaveBeenCalled();
       expect(onDismiss).not.toHaveBeenCalled();
       expect(mocks.push).not.toHaveBeenCalled();
       expect(screen.queryByTestId("project-scope-backdrop")).toBeNull();
@@ -334,19 +336,25 @@ describe("header project scope", () => {
     it("hands the page's choice to Create project", async () => {
       const user = userEvent.setup();
       const onSelect = vi.fn();
+      const onCreated = vi.fn();
       const onDismiss = vi.fn();
       const switchScope = vi.fn();
       renderScope();
       act(() => {
-        openProjectScope({ required: true, onSelect, onDismiss });
+        openProjectScope({ required: true, onSelect, onCreated, onDismiss });
       });
 
       await user.click(await screen.findByTestId("project-scope-create"));
       expect(onDismiss).not.toHaveBeenCalled();
-      selectCreatedProject("p-new", switchScope);
+      selectCreatedProject("p-new", switchScope, "https://shop.example/");
       act(() => setScopeCreateOpen(false));
 
       expect(onSelect).toHaveBeenCalledExactlyOnceWith("p-new");
+      expect(onCreated).toHaveBeenCalledExactlyOnceWith(
+        "p-new",
+        "https://shop.example/",
+      );
+      expect(onCreated).toHaveBeenCalledBefore(onSelect);
       expect(switchScope).not.toHaveBeenCalled();
       expect(onDismiss).not.toHaveBeenCalled();
     });

@@ -8,6 +8,7 @@ const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
 const isNewsletterEnabledMock = vi.fn();
+const getTimeZoneMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 // Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
@@ -25,6 +26,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/server", () => ({
   connection: vi.fn(),
+}));
+
+vi.mock("next-intl/server", () => ({
+  getTimeZone: () => getTimeZoneMock(),
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -143,6 +148,7 @@ describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isNewsletterEnabledMock.mockResolvedValue(true);
+    getTimeZoneMock.mockResolvedValue("UTC");
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -186,7 +192,7 @@ describe("loadWorkspaceCalendarPage", () => {
     });
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        types: "tasks,social,newsletter,contacts,marketing",
+        types: "tasks,social,newsletter,contacts,marketing,sokoBot",
         timeZone: "Europe/Berlin",
       }),
     );
@@ -208,7 +214,7 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(getProjectCalendarMock).toHaveBeenCalledWith(
       PROJECT.id,
       expect.objectContaining({
-        types: "tasks,social,newsletter,marketing",
+        types: "tasks,social,newsletter,marketing,sokoBot",
         timeZone: "Europe/Berlin",
       }),
     );
@@ -223,7 +229,7 @@ describe("loadWorkspaceCalendarPage", () => {
     });
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        types: "tasks,social,newsletter,contacts",
+        types: "tasks,social,newsletter,contacts,sokoBot",
         scope: "owned",
       }),
     );
@@ -237,6 +243,45 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({ timeZone: "UTC" }),
     );
+  });
+
+  it("renders a URL without a zone in the zone the browser reported", async () => {
+    getTimeZoneMock.mockResolvedValue("Europe/Oslo");
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Europe/Oslo" }),
+    );
+    expect(result.renderedTimezone).toBe("Europe/Oslo");
+  });
+
+  it("keeps the URL's zone over the reported one", async () => {
+    getTimeZoneMock.mockResolvedValue("Europe/Oslo");
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "Asia/Tokyo" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Asia/Tokyo" }),
+    );
+    expect(result.renderedTimezone).toBe("Asia/Tokyo");
+  });
+
+  it("renders a URL with an unknown zone in the reported one", async () => {
+    getTimeZoneMock.mockResolvedValue("Europe/Oslo");
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "garbage" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Europe/Oslo" }),
+    );
+    expect(result.renderedTimezone).toBe("Europe/Oslo");
   });
 
   it("reports whether the workspace has Newsletter, for the Show filter", async () => {
@@ -275,8 +320,8 @@ describe("loadWorkspaceCalendarPage", () => {
 
   it.each([
     ["newsletter,contacts", "newsletter,contacts"],
-    [undefined, "tasks,social,newsletter,contacts,marketing"],
-    ["bogus", "tasks,social,newsletter,contacts,marketing"],
+    [undefined, "tasks,social,newsletter,contacts,marketing,sokoBot"],
+    ["bogus", "tasks,social,newsletter,contacts,marketing,sokoBot"],
   ])(
     "asks Core only for the selected features (types=%s)",
     async (types, query) => {
@@ -296,7 +341,9 @@ describe("loadWorkspaceCalendarPage", () => {
     await loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) });
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ types: "tasks,social,contacts,marketing" }),
+      expect.objectContaining({
+        types: "tasks,social,contacts,marketing,sokoBot",
+      }),
     );
   });
 
