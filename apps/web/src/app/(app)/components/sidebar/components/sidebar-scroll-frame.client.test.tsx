@@ -69,14 +69,33 @@ function wheel(target: HTMLElement, options: WheelEventInit = {}) {
 }
 
 describe("Sidebar wheel forwarding", () => {
-  it("pins at 55% and restores full scrolling above the limit", () => {
+  it("pins at 70% and restores full scrolling above the limit", () => {
     const { frame, navigation, viewport } = setup();
+    Object.defineProperty(navigation, "offsetHeight", {
+      value: 700,
+      configurable: true,
+    });
+    act(() => resize());
     expect(frame).toHaveAttribute("data-fixed-navigation", "true");
-    Object.defineProperty(navigation, "offsetHeight", { value: 551 });
+    Object.defineProperty(navigation, "offsetHeight", { value: 701 });
     act(() => resize());
     expect(frame).toHaveAttribute("data-fixed-navigation", "false");
     expect(wheel(navigation).defaultPrevented).toBe(false);
     expect(viewport.scrollTop).toBe(0);
+  });
+
+  it("includes the exact 70% boundary at a 720px page height", () => {
+    const { frame, navigation } = setup();
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(720);
+    Object.defineProperty(navigation, "offsetHeight", {
+      value: 504,
+      configurable: true,
+    });
+    act(() => resize());
+    expect(frame).toHaveAttribute("data-fixed-navigation", "true");
+    Object.defineProperty(navigation, "offsetHeight", { value: 505 });
+    act(() => resize());
+    expect(frame).toHaveAttribute("data-fixed-navigation", "false");
   });
 
   it("uses page height even when the sidebar has less available height", () => {
@@ -84,7 +103,7 @@ describe("Sidebar wheel forwarding", () => {
     Object.defineProperty(frame, "clientHeight", { value: 600 });
     act(() => resize());
     expect(frame).toHaveAttribute("data-fixed-navigation", "true");
-    vi.spyOn(window, "innerHeight", "get").mockReturnValue(900);
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(700);
     fireEvent(window, new Event("resize"));
     expect(frame).toHaveAttribute("data-fixed-navigation", "false");
   });

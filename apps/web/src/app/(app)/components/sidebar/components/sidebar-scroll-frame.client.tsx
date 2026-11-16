@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { SIDEBAR_COMPACT_MEDIA_QUERY } from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 
-const MAX_FIXED_HEIGHT_RATIO = 0.55;
+const MAX_FIXED_HEIGHT_RATIO = 0.7;
 const NORMAL_LINE_HEIGHT_RATIO = 1.5;
 const CHAT_VIEWPORT_SELECTOR =
   '[data-slot="sidebar-content"] [data-slot="scroll-area-viewport"]';
@@ -36,7 +36,8 @@ export function SidebarScrollFrame({ children }: { children: ReactNode }) {
       canFixNavigation =
         !compactDevice.matches &&
         frame.clientHeight > fixedHeight &&
-        fixedHeight <= window.innerHeight * MAX_FIXED_HEIGHT_RATIO;
+        window.innerHeight > 0 &&
+        fixedHeight / window.innerHeight <= MAX_FIXED_HEIGHT_RATIO;
       setFixedNavigation(canFixNavigation);
     }
     const observer = new ResizeObserver(measure);
