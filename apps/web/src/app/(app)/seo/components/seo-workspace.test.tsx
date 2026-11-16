@@ -2639,6 +2639,95 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
+  it("includes Search Console indexing issues and their suggested fixes in the audit findings", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const pageUrl = workspace.pages[0].url;
+    const checkedAt = new Date("2026-11-16T08:00:00Z");
+    const reason =
+      "Google could not fetch this page, and the audit found a server error.";
+    const suggestedFix =
+      "Repair the server error, then check the page again before requesting a recrawl.";
+    workspace.findings = [
+      {
+        id: "gsc-indexing-issue",
+        observationId: workspace.observations[0].id,
+        pageUrl,
+        device: null,
+        rowId: "AC-20",
+        title: "Google Search Console indexing",
+        severity: "major",
+        evidence: [reason, "Google says: Server error (5xx)."],
+        suggestedFix,
+        visibility: "PRIVATE",
+        sourceRef: "seo-indexing:receipt",
+        observedAt: checkedAt,
+      },
+      {
+        id: "public-page-issue",
+        observationId: workspace.observations[0].id,
+        pageUrl,
+        device: "mobile",
+        rowId: "O-01",
+        title: "Public page issue",
+        severity: "minor",
+        evidence: ["The public page is missing a description."],
+        sourceRef: "public-page:receipt",
+        observedAt: checkedAt,
+      },
+    ];
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt,
+          pageUrl,
+          status: "issue",
+          report: true,
+          reason,
+          suggestedFix,
+          evidence: ["Google says: Server error (5xx)."],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    const findings = screen
+      .getByRole("heading", { name: "Audit findings" })
+      .closest("section");
+    if (!findings) throw new Error("Audit findings section missing");
+    const summary = within(findings)
+      .getByText("Google Search Console indexing")
+      .closest("summary");
+    if (!summary) throw new Error("Indexing finding summary missing");
+    expect(
+      screen.queryByRole("heading", { name: "Indexing review notes" }),
+    ).toBeNull();
+    await user.click(summary);
+    expect(within(findings).getByText(reason)).toBeVisible();
+    expect(
+      within(findings).getByText("Google says: Server error (5xx)."),
+    ).toBeVisible();
+    expect(within(findings).getByText("Suggested fix")).toBeVisible();
+    expect(within(findings).getByText(suggestedFix)).toBeVisible();
+    expect(
+      within(findings).getByText("Only you can see this finding."),
+    ).toBeVisible();
+    const publicDetails = within(findings)
+      .getByText("Public page issue")
+      .closest("details");
+    if (!publicDetails) throw new Error("Public finding details missing");
+    expect(
+      within(publicDetails).queryByText("Only you can see this finding."),
+    ).toBeNull();
+    expect(
+      within(findings).queryByRole("button", { name: /create task/i }),
+    ).toBeNull();
+  });
+
   it("lists search totals by country and device, folding countries past ten", () => {
     const workspace = seoTestWorkspace();
     const row = (key: string, clicks: number) => ({
