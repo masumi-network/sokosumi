@@ -29,6 +29,8 @@ const {
   threadPartUpdateMock,
   connectionUpdateManyMock,
   projectFindFirstMock,
+  projectFindManyMock,
+  isCmoSubscribedMock,
   queryRawMock,
   transactionMock,
   ssrfSafeFetchMock,
@@ -48,6 +50,8 @@ const {
   threadPartUpdateMock: vi.fn(),
   connectionUpdateManyMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
+  projectFindManyMock: vi.fn(),
+  isCmoSubscribedMock: vi.fn(),
   queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
@@ -69,7 +73,7 @@ vi.mock("@/helpers/social-post-access", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    project: { findFirst: projectFindFirstMock },
+    project: { findFirst: projectFindFirstMock, findMany: projectFindManyMock },
     $queryRaw: queryRawMock,
     $transaction: transactionMock,
     socialPost: {
@@ -97,6 +101,9 @@ vi.mock("@/clients/social-post-providers/first-comment", () => ({
   publishSocialPostFirstComment: publishFirstCommentMock,
 }));
 
+vi.mock("@/services/cmo-billing.service", () => ({
+  isCmoSubscribed: isCmoSubscribedMock,
+}));
 vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: getSocialPostMock,
 }));
@@ -222,6 +229,8 @@ describe("social post publisher service", () => {
       .mockResolvedValue(null);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
     socialPostFindManyMock.mockResolvedValue([]);
+    // No Cuso's Project has a post due: nothing is held.
+    projectFindManyMock.mockResolvedValue([]);
     connectionUpdateManyMock.mockResolvedValue({ count: 1 });
     attemptFindFirstMock.mockResolvedValue(null);
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: null } });
@@ -237,6 +246,70 @@ describe("social post publisher service", () => {
     ssrfSafeFetchMock.mockImplementation(async () =>
       mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
     );
+  });
+
+  describe("a Cuso paused without a CMO plan", () => {
+    const PAUSED_PROJECT_ID = "99999999-9999-4999-8999-999999999999";
+
+    it("holds his posts: none is claimed, attempted or failed", async () => {
+      projectFindManyMock.mockResolvedValue([{ id: PAUSED_PROJECT_ID }]);
+      isCmoSubscribedMock.mockResolvedValue(false);
+      socialPostFindFirstMock.mockReset().mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        claimed: 0,
+        failed: 0,
+      });
+      // One gate per Project, not per post.
+      expect(isCmoSubscribedMock).toHaveBeenCalledExactlyOnceWith({
+        projectId: PAUSED_PROJECT_ID,
+      });
+      expect(projectFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            sokoBots: { some: expect.objectContaining({ archivedAt: null }) },
+          }),
+        }),
+      );
+      const claimed = socialPostFindFirstMock.mock.calls[0]?.[0].where;
+      expect(claimed.OR[0]).toMatchObject({
+        status: "SCHEDULED",
+        projectId: { notIn: [PAUSED_PROJECT_ID] },
+      });
+      expect(attemptCreateMock).not.toHaveBeenCalled();
+      expect(publishXPostMock).not.toHaveBeenCalled();
+    });
+
+    it("claims the posts of a Cuso who may work, and of a Project without one", async () => {
+      projectFindManyMock.mockResolvedValue([{ id: PROJECT_ID }]);
+      isCmoSubscribedMock.mockResolvedValue(true);
+      const { publishDueSocialPosts } = await loadService();
+
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        published: 1,
+      });
+      const claimed = socialPostFindFirstMock.mock.calls[0]?.[0].where;
+      expect(claimed.OR[0].projectId).toBeUndefined();
+    });
+
+    it("misses a post whose time passed by over an hour while he was paused, so the person decides", async () => {
+      // Resumed: he may work again, and the post is two hours late.
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...duePost,
+          scheduledAt: new Date(NOW.getTime() - 2 * 60 * 60_000),
+        })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        missed: 1,
+      });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(settleCall()).toMatchObject({ data: { status: "MISSED" } });
+    });
   });
 
   describe("X quote publishing", () => {

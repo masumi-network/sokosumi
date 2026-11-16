@@ -109,7 +109,8 @@ export async function dispatchAnnouncementTools(
     case "publish_announcement": {
       const { announcementId, live } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.publish_announcement.parse(input.input);
-      // Every user sees it: only the owner's word in their own chat counts.
+      // Every user sees it: only the owner's word counts, in their own chat or
+      // a follow-up of a turn they started.
       const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
       if (!(await isOwnerDirected(authorized.turn.id)))
         throw new SokoBotRefusedUnsentError(
