@@ -9,6 +9,7 @@ import {
   Radar,
   RefreshCw,
   Search,
+  Settings2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
@@ -36,8 +37,6 @@ const STEP_ICONS: Record<SeoButtonStep["kind"], LucideIcon> = {
 export function SeoStepRow({
   step,
   model,
-  refresh,
-  refreshing,
   first,
   banner,
 }: {
@@ -45,8 +44,6 @@ export function SeoStepRow({
   banner?: string;
   step: SeoButtonStep;
   model: SeoWorkspaceModel;
-  refresh: () => void;
-  refreshing: boolean;
   /** The agent's top proposal carries the one primary button. */
   first: boolean;
 }) {
@@ -67,17 +64,18 @@ export function SeoStepRow({
     step.kind === "refresh"
       ? [
           t(`agent.steps.refresh.${step.reason}`),
-          <Button
-            key="refresh"
-            size="sm"
-            variant={variant}
-            loading={refreshing}
-            disabled={model.pending}
-            onClick={refresh}
-          >
-            <RefreshCw />
-            {t("syncNow")}
-          </Button>,
+          model.statisticsSync.state === "failed" ? (
+            <Button
+              key="refresh"
+              size="sm"
+              variant={variant}
+              disabled={model.pending}
+              onClick={model.statisticsSync.retry}
+            >
+              <RefreshCw />
+              {t("retry")}
+            </Button>
+          ) : null,
         ]
       : step.kind === "connect"
         ? [
@@ -93,14 +91,13 @@ export function SeoStepRow({
                 variant={variant}
                 onClick={() => model.openStatistics(step.provider)}
               >
-                <RefreshCw />
-                {t("syncStatistics")}
+                <Settings2 />
+                {t("manageStatistics")}
               </Button>
             ) : step.provider === "search_console" ? (
               <SeoGoogleConnection
                 key="connect"
                 variant={variant}
-                onConnected={model.openStatistics}
                 onError={setConnectError}
                 inRow
               />
@@ -109,7 +106,6 @@ export function SeoStepRow({
                 key="connect"
                 provider={step.provider}
                 variant={variant}
-                onConnected={() => model.openStatistics(step.provider)}
                 onError={setConnectError}
               />
             ),

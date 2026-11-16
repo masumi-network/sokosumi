@@ -84,8 +84,11 @@ describe("SEO statistics presentation", () => {
         ids.map((id) => property(id)),
         url,
       );
-    // One property needs no match.
-    expect(choose(["sc-domain:other.org"])).toBe("sc-domain:other.org");
+    // Even one property must cover the selected page.
+    expect(choose(["sc-domain:other.org"])).toBe("");
+    expect(
+      choose(["sc-domain:www.example.com"], "https://www.example.com/"),
+    ).toBe("sc-domain:www.example.com");
     // The domain property covers every address of the site: it beats the address prefix.
     expect(
       choose([

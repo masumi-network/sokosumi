@@ -43585,6 +43585,9 @@ export const SyncProjectSeoStatisticsRequestSchema = {
                 'googleNews'
             ],
             default: 'web'
+        },
+        automatic: {
+            type: 'boolean'
         }
     },
     required: [
@@ -44157,6 +44160,10 @@ export const SeoConnectionStatusSchema = {
         },
         canResume: {
             type: 'boolean'
+        },
+        connectionVersion: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
         }
     },
     required: [

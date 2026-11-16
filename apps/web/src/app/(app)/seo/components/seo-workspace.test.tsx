@@ -1,6 +1,7 @@
 import type {
   ProjectSeoWorkspace,
   SeoAuditChatHistory,
+  SyncProjectSeoStatisticsRequest,
 } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -3069,7 +3070,9 @@ describe("SEO workspace integration", () => {
       expect(
         within(dialog).getByTestId("seo-statistics-reads"),
       ).toHaveTextContent("Reads the last 90 days of Google search data.");
-      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await user.click(
+        within(dialog).getAllByRole("button", { name: "Close" })[0],
+      );
     }
   });
 
@@ -3085,9 +3088,23 @@ describe("SEO workspace integration", () => {
     async ({ query, from, to }) => {
       const user = userEvent.setup();
       const workspace = seoTestWorkspace();
+      const statistics = vi.fn(async (_body: SyncProjectSeoStatisticsRequest) =>
+        Response.json(null),
+      );
       vi.stubGlobal(
         "fetch",
-        vi.fn(async (url: string) => {
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if (init?.method === "POST" && String(url).endsWith("/statistics"))
+            return statistics(JSON.parse(String(init.body)));
+          if (String(url).includes("/connections/")) {
+            const provider = String(url).split("/").at(-1);
+            return Response.json({
+              provider,
+              name: provider,
+              status: provider === "ga4" ? "connected" : "not_connected",
+              source: "native",
+            });
+          }
           if (String(url).includes("statistics/properties"))
             return Response.json({
               provider: "ga4",
@@ -3098,22 +3115,17 @@ describe("SEO workspace integration", () => {
           return Response.json(workspace);
         }),
       );
-      mutate.mockResolvedValue({ ok: true, value: null });
       renderWorkspace(workspace, `tab=traffic&${query}`);
       await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
       // One property: it is chosen, and shown as a line.
       expect(await within(dialog).findByText("Example website")).toBeVisible();
-      await user.click(
-        within(dialog).getByRole("button", { name: "Sync statistics" }),
-      );
+      expect(
+        within(dialog).queryByRole("button", { name: /sync/i }),
+      ).toBeNull();
       // A new Google Analytics sync reads organic search, and the view follows it.
-      await waitFor(() =>
-        expect(fetch).toHaveBeenCalledWith(
-          expect.stringContaining("channel=organic"),
-          expect.anything(),
-        ),
-      );
+      // Automatic collection keeps the Audit filters and only refreshes its data.
+      await waitFor(() => expect(statistics).toHaveBeenCalled());
       if (from) {
         expect(screen.getByLabelText(messages.App.Seo.dateFrom)).toHaveValue(
           from,
@@ -3123,20 +3135,16 @@ describe("SEO workspace integration", () => {
         // Unset activity dates stay folded and unset.
         expect(screen.queryByLabelText(messages.App.Seo.dateFrom)).toBeNull();
       }
-      expect(mutate).toHaveBeenCalledWith(
+      expect(statistics).toHaveBeenCalledWith(
         expect.objectContaining({
-          command: {
-            kind: "sync_statistics",
-            body: expect.objectContaining({
-              provider: "ga4",
-              propertyId: "properties/123",
-              channel: "organic",
-            }),
-          },
+          provider: "ga4",
+          propertyId: "properties/123",
+          channel: "organic",
+          automatic: true,
         }),
       );
       // The period is the 90 complete days up to yesterday, whatever the Audit's dates are.
-      const body = mutate.mock.calls[0][0].command.body;
+      const body = statistics.mock.calls[0][0];
       const day = 86_400_000;
       expect(body.to).toBe(
         new Date(Date.now() - day).toISOString().slice(0, 10),
@@ -3793,7 +3801,6 @@ describe("SEO workspace integration", () => {
   });
 
   it("shows newly synced Search Console metrics under the organic filter", async () => {
-    const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const measured = {
       ...workspace,
@@ -3818,10 +3825,27 @@ describe("SEO workspace integration", () => {
         },
       ],
     };
+    let collected = false;
+    const statistics = vi.fn(async (_body: SyncProjectSeoStatisticsRequest) => {
+      collected = true;
+      return Response.json(null);
+    });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: string) => {
+      vi.fn(async (input: string, init?: RequestInit) => {
         const url = new URL(input, "https://web.test");
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+          return statistics(JSON.parse(String(init.body)));
+        if (url.pathname.includes("/connections/")) {
+          const provider = url.pathname.split("/").at(-1);
+          return Response.json({
+            provider,
+            name: provider,
+            status:
+              provider === "search_console" ? "connected" : "not_connected",
+            source: "native",
+          });
+        }
         if (url.pathname.endsWith("statistics/properties")) {
           const provider = url.searchParams.get("provider");
           return Response.json({
@@ -3839,36 +3863,21 @@ describe("SEO workspace integration", () => {
             ],
           });
         }
-        return Response.json(
-          url.searchParams.get("channel") === "organic" ? measured : workspace,
-        );
+        return Response.json(collected ? measured : workspace);
       }),
     );
-    mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace, "?tab=traffic");
-    await openStatisticsSetup(user);
-    const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("combobox", { name: "Source" }));
-    await user.click(screen.getByRole("option", { name: "Search Console" }));
-    // The one property is chosen for the reader.
-    expect(await within(dialog).findByText("Website property")).toBeVisible();
-    await user.click(
-      within(dialog).getByRole("button", { name: "Sync statistics" }),
+    renderWorkspace(workspace, "?tab=traffic&channel=organic");
+    await waitFor(() => expect(statistics).toHaveBeenCalled());
+    expect(statistics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        scopeId: workspace.scope.id,
+        expectedScopeVersion: 2,
+        automatic: true,
+      }),
     );
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
-    expect(mutate).toHaveBeenCalledWith({
-      owner: { kind: "project", id: workspace.projectId },
-      command: {
-        kind: "sync_statistics",
-        body: expect.objectContaining({
-          provider: "search_console",
-          propertyId: "sc-domain:example.com",
-          channel: "organic",
-          scopeId: workspace.scope.id,
-          expectedScopeVersion: 2,
-        }),
-      },
-    });
     expect(await screen.findByText("41")).toBeVisible();
   });
 
@@ -4948,7 +4957,7 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByText(
         // No account at all: Search Console is the first one to connect.
-        "Connect Search Console first. You can then sync its statistics here.",
+        "Connect Search Console. Statistics for the last 90 days will load automatically.",
       ),
     ).toBeVisible();
     expect(within(dialog).queryByTestId("seo-statistics-reads")).toBeNull();

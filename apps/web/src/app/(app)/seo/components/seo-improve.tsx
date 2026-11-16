@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Play, Plug, RefreshCw } from "lucide-react";
+import { Copy, Play, Plug, Settings2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const FIX_SOURCES = {
 const FIX_ICONS = {
   connect_search_console: Plug,
   connect_ga4: Plug,
-  sync: RefreshCw,
+  sync: Settings2,
   run_check: Play,
 } as const;
 

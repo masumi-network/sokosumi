@@ -31,6 +31,13 @@ export const nativeSeoMetricsSchema = z
     to: seoDateSchema,
     timeZone: z.string().min(1).max(100),
     observedAt: dateTimeSchema,
+    /** Original Google read time. Selecting a cached property does not renew freshness. */
+    collectedAt: dateTimeSchema.optional(),
+    /** Internal cache identity. Account credentials and identifiers never enter the projection. */
+    collectionFingerprint: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
     coverage: z.enum(["complete", "partial", "unavailable"]),
     notes: z.array(z.string().max(2000)).max(50),
     metrics: z

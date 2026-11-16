@@ -19,6 +19,16 @@ const state = vi.hoisted(() => {
     member: true,
     closing: false,
     integrationActive: true,
+    accountRevision: 0,
+    locks: new Map<
+      string,
+      {
+        key: string;
+        isLocked: boolean;
+        lockedBy: string | null;
+        lockedAt: Date | null;
+      }
+    >(),
     pageUrl: "https://example.test/a",
     observations: [] as Array<Record<string, unknown>>,
     keywords: [] as Array<Record<string, unknown>>,
@@ -65,7 +75,13 @@ vi.mock("@/lib/db/prisma", () => {
     sokoBotIntegration: {
       findMany: async () =>
         state.integrationActive
-          ? [{ composioAccountId: "account", sokoBotId: "personal-bot" }]
+          ? [
+              {
+                composioAccountId: "account",
+                sokoBotId: "personal-bot",
+                updatedAt: new Date(state.at.getTime() + state.accountRevision),
+              },
+            ]
           : [],
     },
     projectSeoPage: { findMany: async () => [{ ...page, url: state.pageUrl }] },
@@ -75,10 +91,27 @@ vi.mock("@/lib/db/prisma", () => {
     },
     projectSeoObservation: {
       // The workspace reads public evidence (no owner) and metric snapshots (an owner) apart.
-      findMany: async ({ where }: { where: { ownerId?: unknown } }) =>
-        state.observations.filter((row) =>
-          where.ownerId === null ? !row.ownerId : Boolean(row.ownerId),
-        ),
+      findMany: async ({
+        where,
+        take,
+      }: {
+        where: { ownerId?: unknown; payload?: { equals: string } };
+        take?: number;
+      }) =>
+        state.observations
+          .filter(
+            (row) =>
+              (where.ownerId === null ? !row.ownerId : Boolean(row.ownerId)) &&
+              (!where.payload ||
+                nativeSeoMetricsSchema.parse(row.payload)
+                  .collectionFingerprint === where.payload.equals),
+          )
+          .sort(
+            (a, b) =>
+              new Date(String(b.observedAt)).getTime() -
+              new Date(String(a.observedAt)).getTime(),
+          )
+          .slice(0, take),
       // No brand terms saved.
       findFirst: async () => null,
       upsert: async ({ create }: { create: Record<string, unknown> }) => {
@@ -98,6 +131,50 @@ vi.mock("@/lib/db/prisma", () => {
     projectSeoAnalysis: { findMany: async () => [] },
     projectSeoActionTask: { findMany: async () => [] },
     taskSchedule: { findMany: async () => [] },
+    lock: {
+      upsert: async ({ create }: { create: { key: string } }) => {
+        if (!state.locks.has(create.key))
+          state.locks.set(create.key, {
+            ...create,
+            isLocked: false,
+            lockedBy: null,
+            lockedAt: null,
+          });
+        return state.locks.get(create.key);
+      },
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: {
+          key: string;
+          isLocked?: boolean;
+          lockedBy?: string;
+          lockedAt?: { gte: Date };
+          OR?: Array<{ lockedAt?: { lt: Date } }>;
+        };
+        data: Partial<NonNullable<ReturnType<typeof state.locks.get>>>;
+      }) => {
+        const lock = state.locks.get(where.key);
+        if (
+          !lock ||
+          lock.key !== where.key ||
+          (where.lockedBy !== undefined && lock.lockedBy !== where.lockedBy) ||
+          (where.isLocked !== undefined && lock.isLocked !== where.isLocked) ||
+          (where.lockedAt &&
+            (!lock.lockedAt || lock.lockedAt < where.lockedAt.gte)) ||
+          (where.OR &&
+            lock.isLocked &&
+            lock.lockedAt &&
+            !where.OR.some(
+              (part) => part.lockedAt && lock.lockedAt! < part.lockedAt.lt,
+            ))
+        )
+          return { count: 0 };
+        Object.assign(lock, data);
+        return { count: 1 };
+      },
+    },
     $queryRaw: async (_query: TemplateStringsArray, id: string) => [{ id }],
     $transaction: async (work: (tx: unknown) => unknown) => work(db),
   };
@@ -262,6 +339,8 @@ beforeEach(() => {
   state.closing = false;
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
+  state.accountRevision = 0;
+  state.locks.clear();
   state.observations.length = 0;
   state.keywords.length = 0;
   state.reads.length = 0;
@@ -275,6 +354,98 @@ beforeEach(() => {
 });
 
 describe("native statistics collection boundary", () => {
+  it("reuses fresh automatic statistics without another Google request", async () => {
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    const reads = state.reads.length;
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    expect(state.reads).toHaveLength(reads);
+    expect(state.observations).toHaveLength(1);
+  });
+
+  it("collects again after a connection revision changes despite the same account ID", async () => {
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    const reads = state.reads.length;
+    state.accountRevision++;
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    expect(state.reads.length).toBeGreaterThan(reads);
+    expect(state.observations).toHaveLength(2);
+  });
+
+  it("collects a fresh snapshot for a different traffic selection", async () => {
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    const reads = state.reads.length;
+    await syncProjectSeoStatistics(actor, {
+      ...input,
+      channel: "organic",
+      automatic: true,
+    });
+    expect(state.reads.length).toBeGreaterThan(reads);
+  });
+
+  it("reactivates a previously collected selection without Google reads or renewing its freshness", async () => {
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    const first = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    vi.setSystemTime(new Date("2026-01-20T13:00:00Z"));
+    await syncProjectSeoStatistics(actor, {
+      ...input,
+      channel: "organic",
+      automatic: true,
+    });
+    const reads = state.reads.length;
+    vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+    const workspace = await syncProjectSeoStatistics(actor, {
+      ...input,
+      automatic: true,
+    });
+    expect(state.reads).toHaveLength(reads);
+    const activated = nativeSeoMetricsSchema.parse(
+      state.observations.at(-1)?.payload,
+    );
+    expect(activated.collectedAt).toBe(first.collectedAt);
+    expect(activated.observedAt).toBe("2026-01-20T14:00:00.000Z");
+    expect(workspace.metrics[0].channel).toBe("all");
+    vi.setSystemTime(new Date("2026-01-21T12:00:01Z"));
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    expect(state.reads.length).toBeGreaterThan(reads);
+  });
+
+  it("refreshes an automatic snapshot after its freshness period", async () => {
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    const reads = state.reads.length;
+    vi.setSystemTime(new Date("2026-01-21T12:00:01Z"));
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    expect(state.reads.length).toBeGreaterThan(reads);
+  });
+
+  it("does not retain automatic statistics after an account revision changes during collection", async () => {
+    state.answer = (slug, args) => {
+      if (slug.endsWith("RUN_REPORT")) state.accountRevision++;
+      return answer(slug, args);
+    };
+    await expect(
+      syncProjectSeoStatistics(actor, { ...input, automatic: true }),
+    ).rejects.toThrow("connection changed");
+    expect(state.observations).toHaveLength(0);
+    expect([...state.locks.values()].every((lock) => !lock.isLocked)).toBe(
+      true,
+    );
+  });
+
+  it("releases the automatic lease after provider failures so a later request can recover", async () => {
+    state.answer = () => {
+      throw new Error("Google unavailable");
+    };
+    await expect(
+      syncProjectSeoStatistics(actor, { ...input, automatic: true }),
+    ).rejects.toThrow();
+    expect([...state.locks.values()].every((lock) => !lock.isLocked)).toBe(
+      true,
+    );
+    state.answer = answer;
+    await syncProjectSeoStatistics(actor, { ...input, automatic: true });
+    expect(state.observations).toHaveLength(1);
+  });
+
   it("retains the sampling warning when only the earlier comparison period is sampled", async () => {
     state.answer = (slug, args) =>
       JSON.stringify(args.dateRanges ?? []).includes("2025-12-30")
@@ -585,6 +756,27 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("keeps partial Search Console data fresh for a day when query rows were collected", async () => {
+    state.answer = gsc({ rows: [] });
+    await syncProjectSeoStatistics(actor, { ...gscInput, automatic: true });
+    const reads = state.reads.length;
+    vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+    await syncProjectSeoStatistics(actor, { ...gscInput, automatic: true });
+    expect(state.reads).toHaveLength(reads);
+  });
+
+  it("waits one hour before retrying a missing Search Console query read", async () => {
+    state.answer = gsc(null);
+    await syncProjectSeoStatistics(actor, { ...gscInput, automatic: true });
+    const reads = state.reads.length;
+    vi.setSystemTime(new Date("2026-01-20T12:30:00Z"));
+    await syncProjectSeoStatistics(actor, { ...gscInput, automatic: true });
+    expect(state.reads).toHaveLength(reads);
+    vi.setSystemTime(new Date("2026-01-20T13:00:01Z"));
+    await syncProjectSeoStatistics(actor, { ...gscInput, automatic: true });
+    expect(state.reads.length).toBeGreaterThan(reads);
+  });
 
   it("stores query/page rows from the same page-filtered read", async () => {
     state.answer = gsc({

@@ -85,9 +85,46 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("native SEO connection ownership", () => {
+  it("returns a stable opaque version that changes when native consent is replaced", async () => {
+    const selected = {
+      id: "native-selection",
+      status: "ACTIVE",
+      composioAccountId: "ca-native",
+      entityId: identity,
+      revision: 2,
+    };
+    m.selection.mockResolvedValue(selected);
+    const first = await getSeoConnection(owner, "ga4");
+    expect(first.connectionVersion).toMatch(/^[a-f0-9]{64}$/);
+    expect((await getSeoConnection(owner, "ga4")).connectionVersion).toBe(
+      first.connectionVersion,
+    );
+    selected.revision++;
+    expect((await getSeoConnection(owner, "ga4")).connectionVersion).not.toBe(
+      first.connectionVersion,
+    );
+  });
+
+  it("changes the inherited consent version after the same account is reconnected", async () => {
+    const inherited = {
+      composioAccountId: "ca-personal",
+      sokoBotId: "existing-bot",
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    };
+    m.selection.mockResolvedValue(null);
+    m.legacy.mockResolvedValue([inherited]);
+    const first = await getSeoConnection(owner, "ga4");
+    expect(first.connectionVersion).toMatch(/^[a-f0-9]{64}$/);
+    inherited.updatedAt = new Date("2026-01-02T00:00:00Z");
+    expect((await getSeoConnection(owner, "ga4")).connectionVersion).not.toBe(
+      first.connectionVersion,
+    );
+  });
   it("uses an explicit native account without needing or creating a bot", async () => {
     m.selection.mockResolvedValue({
       status: "ACTIVE",
+      id: "native-selection",
+      revision: 2,
       composioAccountId: "ca-native",
       entityId: identity,
     });
@@ -95,6 +132,7 @@ describe("native SEO connection ownership", () => {
     expect(integration).toMatchObject({
       composioAccountId: "ca-native",
       entityId: identity,
+      connectionRevision: "native:native-selection:2",
     });
     expect(m.legacy).not.toHaveBeenCalled();
     expect(m.complete).not.toHaveBeenCalled();
@@ -107,13 +145,18 @@ describe("native SEO connection ownership", () => {
   it("retains the actual legacy account execution identity when reusing consent", async () => {
     m.selection.mockResolvedValue(null);
     m.legacy.mockResolvedValue([
-      { composioAccountId: "ca-personal", sokoBotId: "existing-bot" },
+      {
+        composioAccountId: "ca-personal",
+        sokoBotId: "existing-bot",
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+      },
     ]);
     expect(
       await resolveSeoStatisticsIntegration(owner, "search_console"),
     ).toMatchObject({
       composioAccountId: "ca-personal",
       entityId: "sokobot:existing-bot",
+      connectionRevision: "personal:2026-01-01T00:00:00.000Z",
     });
     expect(m.legacy).toHaveBeenCalledWith(
       expect.objectContaining({

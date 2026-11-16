@@ -79,11 +79,13 @@ import {
 import {
   recordSeoConnectionFailure,
   resolveSeoStatisticsIntegration,
+  type SeoStatisticsIntegration,
 } from "@/services/seo-connections.service";
 import {
   getProjectSeoWorkspace,
   recordNativeSeoMetrics,
 } from "./project-seo.service";
+import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
 import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
 
 const MAX_PROPERTY_PAGES = 5;
@@ -93,7 +95,7 @@ const PROPERTY_PAGE_SIZE = 100;
 async function integrationFor(
   actor: SeoActor,
   provider: SyncProjectSeoStatistics["provider"],
-): Promise<ComposioIntegrationAccount | null> {
+): Promise<SeoStatisticsIntegration | null> {
   await requireSeoOwner(actor);
   if (actor.sokoBotId && actor.privateMetricsAllowed !== true) return null;
   return resolveSeoStatisticsIntegration(actor, provider);
@@ -295,328 +297,367 @@ export async function syncProjectSeoStatistics(
   const integration = await integrationFor(actor, input.provider);
   if (!integration)
     throw unprocessableEntity("Connect this account in SEO statistics");
-  const choices = await propertyChoices(integration, input.provider).catch(
-    async (error) => {
-      await recordSeoConnectionFailure(actor, input.provider, integration);
-      throw error;
-    },
-  );
-  if (!choices.properties.some((property) => property.id === input.propertyId))
-    throw unprocessableEntity(
-      "The selected property was not returned by this native connection",
-    );
-  if (
-    input.provider === "search_console" &&
-    !propertyCovers(input.propertyId, pageUrls)
-  )
-    throw unprocessableEntity(
-      "The Search Console property does not cover the selected pages",
-    );
-  const tool = await toolFor(
-    integration,
-    input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
-  );
-  const query: NativeStatisticsQuery = { ...input, pageUrls };
-  const build =
-    input.provider === "ga4" ? ga4StatisticsArguments : gscStatisticsArguments;
-  const expected = input.provider === "ga4" ? ["metricHeaders"] : ["rows"];
-  const normalize =
-    input.provider === "ga4" ? normalizeGa4Statistics : normalizeGscStatistics;
-  const collect = async (daily: boolean) => {
-    const payload = unwrapNativeStatistics(
-      await read(integration, tool, build(query, daily)),
-      expected,
-    );
-    // Validate each independent response before combining it, so one malformed half cannot discard the other.
-    normalize(
-      query,
-      daily ? null : payload,
-      daily ? payload : null,
-      new Date().toISOString(),
-    );
-    return payload;
-  };
-  // The daily read is shared: Search Console's earlier window needs its last reported day.
-  const dailyRead = collect(true);
-  // Totals over the equal window before the reported days, read the same way. Google reports a
-  // few days late, so the current total covers [from, last reported day]; the earlier window
-  // has as many days, so a reporting delay never reads as a drop. GA4 needs no
-  // retention cutoff: its retention setting does not limit aggregated reports.
-  const collectPrevious = async () => {
-    // GA4 totals cover the requested period. A missing daily row means no traffic, not an earlier period end.
-    let end = query.to;
-    if (input.provider === "search_console") {
-      const reported = normalize(query, null, await dailyRead, "")
-        .metrics.flatMap((metric) => metric.points)
-        .filter((point) => point.value !== null)
-        .map((point) => point.date);
-      if (!reported.length) throw new Error("No reported day to compare");
-      const last = reported.reduce((a, b) => (a > b ? a : b));
-      end = searchConsoleSettledEnd(query.to, last);
-    }
-    const window = previousSeoPeriod(query.from, end);
-    // Search Console keeps about 16 months; an older window would be partly empty.
+  const readWorkspace = () =>
+    getProjectSeoWorkspace(actor, {
+      ...(input.scopeId
+        ? { scopeId: input.scopeId }
+        : pageIds.length === 1
+          ? { pageId: pageIds[0] }
+          : { pageIds }),
+      from: input.from,
+      to: input.to,
+      channel: input.provider === "search_console" ? "organic" : input.channel,
+      ...(input.searchType !== "web" ? { searchType: input.searchType } : {}),
+    });
+  const retain = async (
+    snapshot: Parameters<typeof recordNativeSeoMetrics>[1],
+    mutationHooks: SeoMutationHooks,
+  ) => {
+    const current = await integrationFor(actor, input.provider);
     if (
-      input.provider === "search_console" &&
-      !withinSearchConsoleRetention(window.from)
+      !current ||
+      current.connectionRevision !== integration.connectionRevision ||
+      current.composioAccountId !== integration.composioAccountId ||
+      current.entityId !== integration.entityId
     )
-      throw new Error("The earlier window is past Search Console retention");
-    const earlier = { ...query, ...window };
-    const totals = normalize(
-      earlier,
-      unwrapNativeStatistics(
-        await read(integration, tool, build(earlier, false)),
-        expected,
-      ),
-      null,
-      new Date().toISOString(),
-    );
-    return { window, totals };
+      throw unprocessableEntity(
+        "The native connection changed during statistics collection",
+      );
+    await recordNativeSeoMetrics(actor, snapshot, {
+      ...mutationHooks,
+      scope: {
+        id: input.scopeId ?? null,
+        version: workspace.scope.version,
+        pageIds,
+      },
+    });
+    return readWorkspace();
   };
-  // Discover and Google News have no search query: no query rows and no keyword days to read.
-  // INFERRED from the Search Console help; the API page does not say so (see seoSearchTypeHasQueries).
-  const readsQueries =
-    input.provider === "search_console" &&
-    seoSearchTypeHasQueries(input.searchType);
-  const collectQueries = async (): Promise<NativeSearchQueries | null> =>
-    readsQueries
-      ? normalizeGscQueries(
+  return withAutomaticSeoStatistics({
+    actor,
+    input,
+    integration,
+    pageIds,
+    pageUrls,
+    keywords: workspace.keywords,
+    hooks,
+    readWorkspace,
+    activate: retain,
+    collect: async (fingerprint, collectionHooks) => {
+      const choices = await propertyChoices(integration, input.provider).catch(
+        async (error) => {
+          await recordSeoConnectionFailure(actor, input.provider, integration);
+          throw error;
+        },
+      );
+      if (
+        !choices.properties.some((property) => property.id === input.propertyId)
+      )
+        throw unprocessableEntity(
+          "The selected property was not returned by this native connection",
+        );
+      if (
+        input.provider === "search_console" &&
+        !propertyCovers(input.propertyId, pageUrls)
+      )
+        throw unprocessableEntity(
+          "The Search Console property does not cover the selected pages",
+        );
+      const tool = await toolFor(
+        integration,
+        input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
+      );
+      const query: NativeStatisticsQuery = { ...input, pageUrls };
+      const build =
+        input.provider === "ga4"
+          ? ga4StatisticsArguments
+          : gscStatisticsArguments;
+      const expected = input.provider === "ga4" ? ["metricHeaders"] : ["rows"];
+      const normalize =
+        input.provider === "ga4"
+          ? normalizeGa4Statistics
+          : normalizeGscStatistics;
+      const collect = async (daily: boolean) => {
+        const payload = unwrapNativeStatistics(
+          await read(integration, tool, build(query, daily)),
+          expected,
+        );
+        // Validate each independent response before combining it, so one malformed half cannot discard the other.
+        normalize(
           query,
-          unwrapNativeStatistics(
-            await read(integration, tool, gscQueryArguments(query)),
-            ["rows"],
-          ),
+          daily ? null : payload,
+          daily ? payload : null,
+          new Date().toISOString(),
+        );
+        return payload;
+      };
+      // The daily read is shared: Search Console's earlier window needs its last reported day.
+      const dailyRead = collect(true);
+      // Totals over the equal window before the reported days, read the same way. Google reports a
+      // few days late, so the current total covers [from, last reported day]; the earlier window
+      // has as many days, so a reporting delay never reads as a drop. GA4 needs no
+      // retention cutoff: its retention setting does not limit aggregated reports.
+      const collectPrevious = async () => {
+        // GA4 totals cover the requested period. A missing daily row means no traffic, not an earlier period end.
+        let end = query.to;
+        if (input.provider === "search_console") {
+          const reported = normalize(query, null, await dailyRead, "")
+            .metrics.flatMap((metric) => metric.points)
+            .filter((point) => point.value !== null)
+            .map((point) => point.date);
+          if (!reported.length) throw new Error("No reported day to compare");
+          const last = reported.reduce((a, b) => (a > b ? a : b));
+          end = searchConsoleSettledEnd(query.to, last);
+        }
+        const window = previousSeoPeriod(query.from, end);
+        // Search Console keeps about 16 months; an older window would be partly empty.
+        if (
+          input.provider === "search_console" &&
+          !withinSearchConsoleRetention(window.from)
         )
-      : null;
-  const collectBreakdown = async (dimension: GscBreakdownDimension) =>
-    input.provider === "search_console"
-      ? normalizeGscBreakdown(
-          dimension,
+          throw new Error(
+            "The earlier window is past Search Console retention",
+          );
+        const earlier = { ...query, ...window };
+        const totals = normalize(
+          earlier,
           unwrapNativeStatistics(
-            await read(
-              integration,
-              tool,
-              gscBreakdownArguments(query, dimension),
-            ),
-            ["rows"],
+            await read(integration, tool, build(earlier, false)),
+            expected,
           ),
-          query.searchType,
-        )
-      : null;
-  // Organic key events per landing page. Google Analytics only.
-  const landingPlan = input.provider === "ga4" ? ga4LandingPlan(query) : null;
-  const collectLandingPages = async () => {
-    if (!landingPlan?.query.pageUrls.length) return null;
-    const hosts = unwrapNativeStatistics(
-      await read(integration, tool, ga4LandingHostArguments(query)),
-      ["metricHeaders"],
-    );
-    assertGa4LandingHost(query, hosts);
-    return {
-      ...normalizeGa4LandingPages(
-        landingPlan.query,
-        unwrapNativeStatistics(
-          await read(
-            integration,
-            tool,
-            ga4LandingPageArguments(landingPlan.query),
-          ),
+          null,
+          new Date().toISOString(),
+        );
+        return { window, totals };
+      };
+      // Discover and Google News have no search query: no query rows and no keyword days to read.
+      // INFERRED from the Search Console help; the API page does not say so (see seoSearchTypeHasQueries).
+      const readsQueries =
+        input.provider === "search_console" &&
+        seoSearchTypeHasQueries(input.searchType);
+      const collectQueries = async (): Promise<NativeSearchQueries | null> =>
+        readsQueries
+          ? normalizeGscQueries(
+              query,
+              unwrapNativeStatistics(
+                await read(integration, tool, gscQueryArguments(query)),
+                ["rows"],
+              ),
+            )
+          : null;
+      const collectBreakdown = async (dimension: GscBreakdownDimension) =>
+        input.provider === "search_console"
+          ? normalizeGscBreakdown(
+              dimension,
+              unwrapNativeStatistics(
+                await read(
+                  integration,
+                  tool,
+                  gscBreakdownArguments(query, dimension),
+                ),
+                ["rows"],
+              ),
+              query.searchType,
+            )
+          : null;
+      // Organic key events per landing page. Google Analytics only.
+      const landingPlan =
+        input.provider === "ga4" ? ga4LandingPlan(query) : null;
+      const collectLandingPages = async () => {
+        if (!landingPlan?.query.pageUrls.length) return null;
+        const hosts = unwrapNativeStatistics(
+          await read(integration, tool, ga4LandingHostArguments(query)),
           ["metricHeaders"],
-        ),
-        landingPlan.skippedUrls,
-      ),
-      verifiedHost: new URL(query.pageUrls[0]!).hostname,
-    };
-  };
-  // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
-  const collectIndexedPages = async () => {
-    if (input.provider !== "search_console") return null;
-    const inspect = await toolFor(integration, GSC_INSPECT_TOOL);
-    const results = await Promise.allSettled(
-      pageUrls.map(async (pageUrl) =>
-        normalizeGscInspection(
-          pageUrl,
-          unwrapNativeStatistics(
-            await read(
-              integration,
-              inspect,
-              gscInspectionArguments(input.propertyId, pageUrl),
-            ),
-            ["inspectionResult"],
-          ),
-        ),
-      ),
-    );
-    return results.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
-    );
-  };
-  const tracked = readsQueries
-    ? selectTrackedKeywords(workspace.keywords)
-    : { groups: [], leftOut: [] };
-  // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
-  const collectKeywordSeries =
-    async (): Promise<NativeKeywordSeries | null> => {
-      if (!tracked.groups.length) return null;
-      const parts = await Promise.all(
-        tracked.groups.map(async (group) =>
-          normalizeGscKeywordSeries(
-            query,
-            group,
+        );
+        assertGa4LandingHost(query, hosts);
+        return {
+          ...normalizeGa4LandingPages(
+            landingPlan.query,
             unwrapNativeStatistics(
               await read(
                 integration,
                 tool,
-                gscKeywordSeriesArguments(query, group),
+                ga4LandingPageArguments(landingPlan.query),
               ),
-              ["rows"],
+              ["metricHeaders"],
+            ),
+            landingPlan.skippedUrls,
+          ),
+          verifiedHost: new URL(query.pageUrls[0]!).hostname,
+        };
+      };
+      // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
+      const collectIndexedPages = async () => {
+        if (input.provider !== "search_console") return null;
+        const inspect = await toolFor(integration, GSC_INSPECT_TOOL);
+        const results = await Promise.allSettled(
+          pageUrls.map(async (pageUrl) =>
+            normalizeGscInspection(
+              pageUrl,
+              unwrapNativeStatistics(
+                await read(
+                  integration,
+                  inspect,
+                  gscInspectionArguments(input.propertyId, pageUrl),
+                ),
+                ["inspectionResult"],
+              ),
             ),
           ),
-        ),
-      );
-      return {
-        rowLimit: parts[0].rowLimit,
-        truncated: parts.some((part) => part.truncated),
-        keywords: parts.flatMap((part) => part.keywords),
-      };
-    };
-  // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
-  const [
-    period,
-    daily,
-    queries,
-    keywordSeries,
-    previous,
-    byCountry,
-    byDevice,
-    indexed,
-    landing,
-  ] = await Promise.allSettled([
-    collect(false),
-    dailyRead,
-    collectQueries(),
-    collectKeywordSeries(),
-    collectPrevious(),
-    collectBreakdown("country"),
-    collectBreakdown("device"),
-    collectIndexedPages(),
-    collectLandingPages(),
-  ]);
-  if (period.status === "rejected" && daily.status === "rejected") {
-    await recordSeoConnectionFailure(actor, input.provider, integration);
-    throw unprocessableEntity(
-      "The native connection could not provide statistics",
-    );
-  }
-  const metrics = normalize(
-    query,
-    period.status === "fulfilled" ? period.value : null,
-    daily.status === "fulfilled" ? daily.value : null,
-    new Date().toISOString(),
-  );
-  // A failed earlier window leaves the change unknown; it never reads as zero.
-  if (previous.status === "fulfilled" && period.status === "fulfilled") {
-    const previousNotes = previous.value.totals.notes;
-    if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
-      metrics.coverage = "partial";
-      if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
-        metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
-    }
-    if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)) {
-      metrics.coverage = "partial";
-      if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE))
-        metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
-    }
-    for (const metric of metrics.metrics) {
-      const before = previous.value.totals.metrics.find(
-        (candidate) => candidate.key === metric.key,
-      );
-      if (before)
-        metric.previous = {
-          ...previous.value.window,
-          value: before.value,
-        };
-    }
-  }
-  if (landingPlan) {
-    if (landingPlan.skippedUrls.length)
-      metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
-    if (landing.status === "fulfilled" && landing.value)
-      metrics.landingPages = landing.value;
-    else if (landingPlan.query.pageUrls.length)
-      metrics.notes.push(
-        SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
-      );
-  }
-  if (input.provider === "search_console") {
-    if (queries.status === "fulfilled" && queries.value) {
-      metrics.queries = queries.value;
-      metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE);
-      if (queries.value.truncated)
-        metrics.notes.push(
-          seoStatisticsQueryRowsCutNote(queries.value.rowLimit),
         );
-    } else if (readsQueries)
-      metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
-    if (tracked.groups.length) {
-      if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
-        metrics.keywordSeries = keywordSeries.value;
-        if (keywordSeries.value.truncated)
-          metrics.notes.push(
-            seoStatisticsKeywordRowsCutNote(keywordSeries.value.rowLimit),
+        return results.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : [],
+        );
+      };
+      const tracked = readsQueries
+        ? selectTrackedKeywords(workspace.keywords)
+        : { groups: [], leftOut: [] };
+      // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
+      const collectKeywordSeries =
+        async (): Promise<NativeKeywordSeries | null> => {
+          if (!tracked.groups.length) return null;
+          const parts = await Promise.all(
+            tracked.groups.map(async (group) =>
+              normalizeGscKeywordSeries(
+                query,
+                group,
+                unwrapNativeStatistics(
+                  await read(
+                    integration,
+                    tool,
+                    gscKeywordSeriesArguments(query, group),
+                  ),
+                  ["rows"],
+                ),
+              ),
+            ),
           );
-      } else metrics.notes.push(SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE);
-    }
-    const country = byCountry.status === "fulfilled" ? byCountry.value : null;
-    if (country?.feed) metrics.feedCountries = country.split;
-    else if (country) metrics.countries = country.split;
-    const device = byDevice.status === "fulfilled" ? byDevice.value : null;
-    if (device?.feed) metrics.feedDevices = device.split;
-    else if (device) metrics.devices = device.split;
-    if (byCountry.status === "rejected" || byDevice.status === "rejected")
-      metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
-    if (indexed.status === "fulfilled" && indexed.value?.length)
-      metrics.indexedPages = indexed.value;
-    if (
-      indexed.status === "rejected" ||
-      (indexed.value?.length ?? 0) < pageUrls.length
-    )
-      metrics.notes.push(SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE);
-    if (tracked.leftOut.length)
-      metrics.notes.push(
-        seoStatisticsKeywordsLeftOutNote(
-          tracked.leftOut,
-          SEO_KEYWORD_SERIES_MAX_KEYWORDS,
-          SEO_KEYWORD_SERIES_MAX_COUNTRIES,
-        ),
+          return {
+            rowLimit: parts[0].rowLimit,
+            truncated: parts.some((part) => part.truncated),
+            keywords: parts.flatMap((part) => part.keywords),
+          };
+        };
+      // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
+      const [
+        period,
+        daily,
+        queries,
+        keywordSeries,
+        previous,
+        byCountry,
+        byDevice,
+        indexed,
+        landing,
+      ] = await Promise.allSettled([
+        collect(false),
+        dailyRead,
+        collectQueries(),
+        collectKeywordSeries(),
+        collectPrevious(),
+        collectBreakdown("country"),
+        collectBreakdown("device"),
+        collectIndexedPages(),
+        collectLandingPages(),
+      ]);
+      if (period.status === "rejected" && daily.status === "rejected") {
+        await recordSeoConnectionFailure(actor, input.provider, integration);
+        throw unprocessableEntity(
+          "The native connection could not provide statistics",
+        );
+      }
+      const metrics = normalize(
+        query,
+        period.status === "fulfilled" ? period.value : null,
+        daily.status === "fulfilled" ? daily.value : null,
+        new Date().toISOString(),
       );
-  }
-  const current = await integrationFor(actor, input.provider);
-  if (
-    !current ||
-    current.entityId !== integration.entityId ||
-    current.composioAccountId !== integration.composioAccountId
-  )
-    throw unprocessableEntity(
-      "The native connection changed during statistics collection",
-    );
-  await recordNativeSeoMetrics(actor, metrics, {
-    ...hooks,
-    scope: {
-      id: input.scopeId ?? null,
-      version: workspace.scope.version,
-      pageIds,
+      // A failed earlier window leaves the change unknown; it never reads as zero.
+      if (previous.status === "fulfilled" && period.status === "fulfilled") {
+        const previousNotes = previous.value.totals.notes;
+        if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
+          metrics.coverage = "partial";
+          if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
+            metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
+        }
+        if (
+          previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)
+        ) {
+          metrics.coverage = "partial";
+          if (
+            !metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)
+          )
+            metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
+        }
+        for (const metric of metrics.metrics) {
+          const before = previous.value.totals.metrics.find(
+            (candidate) => candidate.key === metric.key,
+          );
+          if (before)
+            metric.previous = {
+              ...previous.value.window,
+              value: before.value,
+            };
+        }
+      }
+      if (landingPlan) {
+        if (landingPlan.skippedUrls.length)
+          metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
+        if (landing.status === "fulfilled" && landing.value)
+          metrics.landingPages = landing.value;
+        else if (landingPlan.query.pageUrls.length)
+          metrics.notes.push(
+            SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+          );
+      }
+      if (input.provider === "search_console") {
+        if (queries.status === "fulfilled" && queries.value) {
+          metrics.queries = queries.value;
+          metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE);
+          if (queries.value.truncated)
+            metrics.notes.push(
+              seoStatisticsQueryRowsCutNote(queries.value.rowLimit),
+            );
+        } else if (readsQueries)
+          metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
+        if (tracked.groups.length) {
+          if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
+            metrics.keywordSeries = keywordSeries.value;
+            if (keywordSeries.value.truncated)
+              metrics.notes.push(
+                seoStatisticsKeywordRowsCutNote(keywordSeries.value.rowLimit),
+              );
+          } else
+            metrics.notes.push(SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE);
+        }
+        const country =
+          byCountry.status === "fulfilled" ? byCountry.value : null;
+        if (country?.feed) metrics.feedCountries = country.split;
+        else if (country) metrics.countries = country.split;
+        const device = byDevice.status === "fulfilled" ? byDevice.value : null;
+        if (device?.feed) metrics.feedDevices = device.split;
+        else if (device) metrics.devices = device.split;
+        if (byCountry.status === "rejected" || byDevice.status === "rejected")
+          metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
+        if (indexed.status === "fulfilled" && indexed.value?.length)
+          metrics.indexedPages = indexed.value;
+        if (
+          indexed.status === "rejected" ||
+          (indexed.value?.length ?? 0) < pageUrls.length
+        )
+          metrics.notes.push(SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE);
+        if (tracked.leftOut.length)
+          metrics.notes.push(
+            seoStatisticsKeywordsLeftOutNote(
+              tracked.leftOut,
+              SEO_KEYWORD_SERIES_MAX_KEYWORDS,
+              SEO_KEYWORD_SERIES_MAX_COUNTRIES,
+            ),
+          );
+      }
+      metrics.collectionFingerprint = fingerprint;
+      metrics.collectedAt = metrics.observedAt;
+      return retain(metrics, collectionHooks);
     },
-  });
-  return getProjectSeoWorkspace(actor, {
-    ...(input.scopeId
-      ? { scopeId: input.scopeId }
-      : pageIds.length === 1
-        ? { pageId: pageIds[0] }
-        : { pageIds }),
-    from: input.from,
-    to: input.to,
-    channel: metrics.channel,
-    ...(input.searchType !== "web" ? { searchType: input.searchType } : {}),
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,13 +56,7 @@ export function SeoStatisticsDialog({
               : t("statistics.description")}
           </DialogDescription>
         </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.submit();
-          }}
-        >
+        <div className="space-y-4">
           <SeoField
             id="seo-statistics-provider"
             label={t("statistics.provider")}
@@ -167,26 +161,10 @@ export function SeoStatisticsDialog({
               disabled={model.pending}
               onClick={() => model.setDialog(null)}
             >
-              {t("cancel")}
+              {t("close")}
             </Button>
-            {connectFirst ? null : (
-              <Button
-                type="submit"
-                loading={model.pending}
-                disabled={
-                  model.pending ||
-                  form.propertiesUnavailable ||
-                  !form.propertyId ||
-                  !model.data.scope.pageIds.length ||
-                  !model.data.availableActions.canSyncMetrics
-                }
-              >
-                <RefreshCw />
-                {t("statistics.submit")}
-              </Button>
-            )}
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

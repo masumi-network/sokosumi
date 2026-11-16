@@ -85,20 +85,20 @@ export function seoMatchingProperty(
   properties: readonly { id: string; name: string }[],
   pageUrl: string | undefined,
 ): string {
-  if (properties.length === 1) return properties[0].id;
+  if (provider === "ga4" && properties.length === 1) return properties[0].id;
   let page: URL;
   try {
     page = new URL(pageUrl ?? "");
   } catch {
     return "";
   }
-  const host = page.hostname.replace(/^www\./, "");
+  const host = page.hostname;
   const rank = (property: { id: string; name: string }) => {
     if (provider === "ga4")
       return namesHost(
         // "www." counts only where a host starts: "awww.com" keeps its name.
         property.name.toLowerCase().replace(/(^|[^a-z0-9.-])www\./g, "$1"),
-        host,
+        host.replace(/^www\./, ""),
       )
         ? 1
         : 0;

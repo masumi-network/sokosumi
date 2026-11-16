@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
   getComposio,
@@ -20,6 +21,24 @@ import { resolveProvider } from "@/services/soko-bot-integrations.service";
 export interface SeoConnectionOwner {
   userId: string;
   workspaceId: string;
+}
+export interface SeoStatisticsIntegration extends ComposioIntegrationAccount {
+  connectionRevision: string;
+}
+function connectionVersion(account: {
+  composioAccountId: string;
+  entityId: string;
+  connectionRevision: string;
+}) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify([
+        account.composioAccountId,
+        account.entityId,
+        account.connectionRevision,
+      ]),
+    )
+    .digest("hex");
 }
 export function seoConnectionKey(
   owner: SeoConnectionOwner,
@@ -68,7 +87,7 @@ async function personalConnection(
         deletedAt: null,
       },
     },
-    select: { composioAccountId: true, sokoBotId: true },
+    select: { composioAccountId: true, sokoBotId: true, updatedAt: true },
     take: 2,
   });
   if (rows.length > 1)
@@ -78,6 +97,7 @@ async function personalConnection(
     ? {
         composioAccountId: row.composioAccountId,
         entityId: composioEntityId(row.sokoBotId),
+        connectionRevision: `personal:${row.updatedAt.toISOString()}`,
       }
     : null;
 }
@@ -86,7 +106,7 @@ async function personalConnection(
 export async function resolveSeoStatisticsIntegration(
   owner: SeoConnectionOwner,
   provider: SeoConnectionProvider,
-): Promise<ComposioIntegrationAccount | null> {
+): Promise<SeoStatisticsIntegration | null> {
   await requireSeoConnectionOwner(owner);
   const selected = await prisma.seoConnection.findUnique({
     where: { workspaceId_userId_provider: seoConnectionKey(owner, provider) },
@@ -98,6 +118,7 @@ export async function resolveSeoStatisticsIntegration(
       ? {
           composioAccountId: selected.composioAccountId,
           entityId: selected.entityId,
+          connectionRevision: `native:${selected.id}:${selected.revision}`,
         }
       : !selected || selected.status === "INHERIT"
         ? await personalConnection(owner, provider)
@@ -149,15 +170,22 @@ export async function getSeoConnection(
       ...base,
       status: "connected",
       source: "native",
+      connectionVersion: connectionVersion({
+        composioAccountId: row.composioAccountId,
+        entityId: row.entityId,
+        connectionRevision: `native:${row.id}:${row.revision}`,
+      }),
     });
-  if (
-    (!row || row.status === "INHERIT") &&
-    (await personalConnection(owner, provider))
-  )
+  const inherited =
+    !row || row.status === "INHERIT"
+      ? await personalConnection(owner, provider)
+      : null;
+  if (inherited)
     return seoConnectionStatusSchema.parse({
       ...base,
       status: "connected",
       source: "personal",
+      connectionVersion: connectionVersion(inherited),
     });
   return seoConnectionStatusSchema.parse({
     ...base,

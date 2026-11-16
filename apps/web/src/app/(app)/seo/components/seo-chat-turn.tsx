@@ -7,7 +7,7 @@ import {
   PencilLine,
   Play,
   Plus,
-  RefreshCw,
+  Settings2,
 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Link from "next/link";
@@ -26,7 +26,7 @@ const ACTION_LABELS = {
   keyword: "keywords.add",
   competitor: "competitors.add",
   analysis: "runAnalysis",
-  statistics: "syncStatistics",
+  statistics: "manageStatistics",
   page_change: "pageChange.title",
 } as const;
 const ACTION_ICONS = {
@@ -34,7 +34,7 @@ const ACTION_ICONS = {
   keyword: Plus,
   competitor: Plus,
   analysis: Play,
-  statistics: RefreshCw,
+  statistics: Settings2,
   page_change: PencilLine,
 } as const;
 /** One seed, so the SEO agent has the same face in every Audit. */

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
-import { ArrowDown, ArrowUp, Plug, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, Plug, Settings2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -195,20 +195,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     );
   }
   // Sync sits in the header next to the date it changes, as on Keywords.
-  const syncButton = !active ? null : canSync &&
-    active.source === "search_console" ? (
-    <Button
-      variant="outline"
-      size="sm"
-      loading={model.pending}
-      onClick={() => {
-        void model.refreshSearchStatistics(active);
-      }}
-    >
-      <RefreshCw />
-      {t("syncNow")}
-    </Button>
-  ) : canSync ? (
+  const syncButton = !active ? null : canSync ? (
     <Button
       variant="outline"
       size="sm"
@@ -220,8 +207,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         )
       }
     >
-      <RefreshCw />
-      {t("syncStatistics")}
+      <Settings2 />
+      {t("manageStatistics")}
     </Button>
   ) : null;
   return (
@@ -465,8 +452,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                 model.openStatistics(connected ? "search_console" : undefined)
               }
             >
-              {connected ? <RefreshCw /> : <Plug />}
-              {t(connected ? "syncStatistics" : "overview.manageConnections")}
+              {connected ? <Settings2 /> : <Plug />}
+              {t(connected ? "manageStatistics" : "overview.manageConnections")}
             </Button>
           ) : null}
         </div>

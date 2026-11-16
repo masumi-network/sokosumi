@@ -23,6 +23,11 @@ export const seoConnectionStatusSchema = z
     source: z.enum(["native", "personal", "none"]),
     pendingConnectionId: z.string().nullable().optional(),
     canResume: z.boolean().optional(),
+    /** Opaque cache identity for this account selection. It changes after reconnection. */
+    connectionVersion: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
   })
   .openapi("SeoConnectionStatus");
 export const connectSeoConnectionSchema = z

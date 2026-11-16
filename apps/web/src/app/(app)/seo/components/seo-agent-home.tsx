@@ -39,7 +39,6 @@ import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
-import { useSeoAutopilot } from "./use-seo-autopilot";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Next steps past this count fold behind a "show more" button: three choices are enough to start. */
@@ -50,7 +49,7 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
   const [now] = useState(() => new Date());
   const brief = seoAgentBrief(model.data, now);
   // Upkeep lives outside the keyed panel, so a session that finishes loading does not restart it.
-  const autopilot = useSeoAutopilot(model, brief);
+  const statisticsSync = model.statisticsSync;
   // Keyed by viewer and Audit, so a changed account starts with its own view state.
   const identity = useSeoChatIdentity(model);
   return (
@@ -58,7 +57,7 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
       key={identity}
       model={model}
       brief={brief}
-      autopilot={autopilot}
+      statisticsSync={statisticsSync}
     />
   );
 }
@@ -66,11 +65,11 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
 function SeoAgentPanel({
   model,
   brief,
-  autopilot,
+  statisticsSync,
 }: {
   model: SeoWorkspaceModel;
   brief: SeoAgentBrief;
-  autopilot: ReturnType<typeof useSeoAutopilot>;
+  statisticsSync: SeoWorkspaceModel["statisticsSync"];
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -169,10 +168,6 @@ function SeoAgentPanel({
         model={model}
         // The banner carries the filled button only where no step does.
         first={primary === -1}
-        refresh={() => {
-          void autopilot.refresh();
-        }}
-        refreshing={autopilot.state === "refreshing"}
       />
     ) : null;
   const stepItem = (step: SeoAgentStep, index: number) =>
@@ -211,10 +206,6 @@ function SeoAgentPanel({
         step={step}
         model={model}
         first={index === primary}
-        refresh={() => {
-          void autopilot.refresh();
-        }}
-        refreshing={autopilot.state === "refreshing"}
       />
     );
   const trafficLine = traffic
@@ -241,14 +232,17 @@ function SeoAgentPanel({
     !model.filters.from &&
     !model.filters.to;
   const upkeep =
-    autopilot.state === "refreshing" ? (
+    statisticsSync.state === "loading" ? (
       <p role="status" className="text-muted-foreground text-sm">
         {t("agent.refreshing")}
       </p>
-    ) : autopilot.state === "failed" ? (
-      <p role="alert" className="text-destructive text-sm">
-        {t("agent.refreshFailed")}
-      </p>
+    ) : statisticsSync.state === "failed" ? (
+      <div role="alert" className="space-y-2 text-sm">
+        <p className="text-destructive">{t("agent.refreshFailed")}</p>
+        <Button size="sm" variant="outline" onClick={statisticsSync.retry}>
+          {t("retry")}
+        </Button>
+      </div>
     ) : null;
   return (
     <section

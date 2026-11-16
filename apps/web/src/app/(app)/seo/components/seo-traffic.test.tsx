@@ -31,14 +31,39 @@ vi.mock("next/navigation", async () => ({
 }));
 
 const clients: QueryClient[] = [];
-function renderTraffic(workspace: ProjectSeoWorkspace, searchParams = "") {
+function renderTraffic(
+  workspace: ProjectSeoWorkspace,
+  searchParams = "",
+  searchConnected = false,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
   });
   clients.push(client);
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => Response.json(workspace)),
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input, "https://web.test");
+      if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+        return Response.json(null);
+      if (searchConnected && url.pathname.includes("/connections/")) {
+        const provider = url.pathname.split("/").at(-1);
+        return Response.json({
+          provider,
+          name: provider,
+          status: provider === "search_console" ? "connected" : "not_connected",
+          source: "native",
+        });
+      }
+      if (searchConnected && url.pathname.endsWith("statistics/properties"))
+        return Response.json({
+          provider: "search_console",
+          status: "available",
+          reason: null,
+          properties: [{ id: "sc-domain:example.com", name: "example.com" }],
+        });
+      return Response.json(workspace);
+    }),
   );
   return render(
     <QueryClientProvider client={client}>
@@ -117,6 +142,30 @@ describe("SEO Traffic search type", () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.metrics = [{ ...seoTestMetric(), searchType: "discover" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const url = new URL(input, "https://web.test");
+        if (url.pathname.includes("/connections/")) {
+          const provider = url.pathname.split("/").at(-1);
+          return Response.json({
+            provider,
+            name: provider,
+            status:
+              provider === "search_console" ? "connected" : "not_connected",
+            source: "native",
+          });
+        }
+        if (url.pathname.endsWith("statistics/properties"))
+          return Response.json({
+            provider: "search_console",
+            status: "available",
+            reason: null,
+            properties: [{ id: "sc-domain:example.com", name: "example.com" }],
+          });
+        return Response.json(workspace);
+      }),
+    );
     renderTraffic(workspace, "&searchType=discover");
     await user.click(screen.getByRole("tab", { name: "Rankings" }));
     await waitFor(() =>
@@ -167,28 +216,33 @@ describe("SEO Traffic search type", () => {
     );
   });
 
-  it("refreshes the search type in view", async () => {
-    const user = userEvent.setup();
+  it("automatically collects the search type in view", async () => {
     mutate.mockResolvedValue({ ok: true, value: null });
     const workspace = seoTestWorkspace();
     workspace.metrics = [{ ...seoTestMetric(), searchType: "discover" }];
-    renderTraffic(workspace, "&searchType=discover");
+    renderTraffic(workspace, "&searchType=discover", true);
     // Discover syncs no query rows, so the query table says that instead of asking for a sync.
     expect(
       screen.getByText("This search type has no query data"),
     ).toBeVisible();
     expect(screen.queryByText("No query rows saved yet")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Sync now" }));
+    expect(screen.queryByRole("button", { name: "Sync now" })).toBeNull();
     await waitFor(() =>
-      expect(mutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          command: expect.objectContaining({
-            kind: "sync_statistics",
-            body: expect.objectContaining({ searchType: "discover" }),
-          }),
-        }),
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/statistics$/),
+        expect.objectContaining({ method: "POST", body: expect.any(String) }),
       ),
     );
+    const request = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith("/statistics") && init?.method === "POST",
+      );
+    expect(JSON.parse(String(request?.[1]?.body))).toMatchObject({
+      searchType: "discover",
+      automatic: true,
+    });
   });
 });
 

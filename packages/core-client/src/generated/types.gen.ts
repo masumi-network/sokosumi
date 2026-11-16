@@ -11343,6 +11343,7 @@ export type SyncProjectSeoStatisticsRequest = {
     to: string;
     channel?: 'all' | 'organic' | 'ai_assistant';
     searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
+    automatic?: boolean;
 };
 
 export type RecordProjectSeoPageChangeRequest = {
@@ -11464,6 +11465,7 @@ export type SeoConnectionStatus = {
     source: 'native' | 'personal' | 'none';
     pendingConnectionId?: string | null;
     canResume?: boolean;
+    connectionVersion?: string;
 };
 
 export type ConnectSeoConnectionResponse = {

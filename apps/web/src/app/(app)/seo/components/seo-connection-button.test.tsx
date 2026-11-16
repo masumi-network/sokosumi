@@ -260,8 +260,6 @@ describe("native SEO connection consent", () => {
             banner="Statistics are not set up"
             step={{ kind: "connect", provider: "search_console" }}
             model={model as unknown as SeoWorkspaceModel}
-            refresh={vi.fn()}
-            refreshing={false}
             first
           />
         </NextIntlClientProvider>

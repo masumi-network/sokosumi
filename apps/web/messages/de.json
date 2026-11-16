@@ -11552,6 +11552,7 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
+      "manageStatistics": "Google-Statistiken verwalten",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
@@ -11595,7 +11596,7 @@
         "timeZone": "Zeitzone des Berichts: {timeZone}",
         "trafficSetup": "So entwickeln sich diese Seiten",
         "trafficSetupBody": "Richte die Statistiken ein, um zu sehen, bei welchen Suchen diese Seiten erscheinen und wie oft sie angeklickt werden.",
-        "trafficSyncBody": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um zu sehen, bei welchen Suchen diese Seiten erscheinen und wie oft sie angeklickt werden. Google Analytics ergänzt Besuche und Seitenaufrufe.",
+        "trafficSyncBody": "Search Console ist verbunden. Statistiken für die ausgewählten Seiten werden automatisch geladen. Google Analytics ergänzt Besuche und Seitenaufrufe.",
         "recentChecks": "Letzte Prüfungen",
         "noMeasuredReports": "Keine Berichte in diesem Aktivitätszeitraum gemessen",
         "noMeasuredReportsBody": "Entferne die Aktivitätsdaten, um Berichte aus anderen Zeiträumen zu sehen. Statistiken behalten ihren eigenen Berichtszeitraum.",
@@ -11861,7 +11862,7 @@
         "verified": "Verifiziert",
         "help": "Eine Aktion gilt als bestätigt, wenn die neueste Prüfung derselben Seite das Problem nicht mehr findet.",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
-        "noFixesBody": "Die letzte Prüfung fand nichts zu beheben. Synchronisiere Statistiken oder prüfe weitere Seiten, um neue Arbeit zu finden.",
+        "noFixesBody": "Die letzte Prüfung hat keine Probleme gefunden. Google-Statistiken werden automatisch aktualisiert. Prüfe weitere Seiten, um neue Aufgaben zu finden.",
         "checksIncomplete": "Diese Prüfungen sind unvollständig",
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
@@ -11986,13 +11987,14 @@
         "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten."
       },
       "statistics": {
-        "title": "Statistiken synchronisieren",
-        "description": "Lies Messwerte über dein verbundenes Konto für die ausgewählten Seiten.",
+        "title": "Google-Statistiken",
+        "description": "Statistiken werden für die ausgewählten Seiten automatisch geladen. Wähle nur bei Bedarf eine Property.",
         "provider": "Quelle",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
         "property": "Property",
         "chooseProperty": "Property auswählen",
+        "propertyNeeded": "Wähle eine Google-Property, um Statistiken für diese Seiten zu laden.",
         "channel": "Traffic",
         "channelAll": "Gesamter Website-Traffic",
         "channelOrganic": "Organische Suche",
@@ -12000,7 +12002,7 @@
         "propertiesLoading": "Autorisierte Properties werden geladen",
         "propertiesFailed": "Properties konnten nicht geladen werden. Versuche es erneut.",
         "noProperties": "Keine autorisierten Properties verfügbar.",
-        "ownerOnly": "Statistiken nutzen das Konto und die Zugriffsrechte der synchronisierenden Person.",
+        "ownerOnly": "Statistiken verwenden dein verbundenes Konto und dessen Zugriffsrechte.",
         "shared": "Gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt. Dein Google-Konto bleibt unter deiner Kontrolle.",
         "synced": "Statistiken synchronisiert",
         "readsSearch": "Liest die letzten {days} Tage der Google-Suchdaten.",
@@ -12008,7 +12010,7 @@
         "readsAll": "Liest die letzten {days} Tage des gesamten Website-Traffics.",
         "channelAny": "Alle gemessenen Segmente",
         "connectTitle": "Statistiken einrichten",
-        "connectFirst": "Verbinde zuerst {provider}. Danach synchronisierst du hier die Statistiken.",
+        "connectFirst": "Verbinde {provider}. Statistiken der letzten 90 Tage werden automatisch geladen.",
         "channelAiAssistant": "KI-Assistenten (ChatGPT, Gemini, Copilot)",
         "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot."
       },
@@ -12192,7 +12194,7 @@
         "connected": "{provider} verbunden",
         "disconnect": "{provider} trennen",
         "disconnectTitle": "{provider} trennen?",
-        "disconnectBody": "Mit diesem Konto kannst du dann in keinem Audit in diesem Workspace eine neue Synchronisierung starten, bis du es wieder verbindest. Bereits gespeicherte Statistiken bleiben erhalten.",
+        "disconnectBody": "Statistiken werden in keinem Audit dieses Arbeitsbereichs mehr über dieses Konto aktualisiert, bis du es wieder verbindest. Gespeicherte Statistiken bleiben erhalten.",
         "unavailable": "Verbindungen sind in dieser Umgebung nicht verfügbar.",
         "loadFailed": "Die Verbindung konnte nicht geprüft werden. Versuche es erneut.",
         "connectFailed": "{provider} konnte nicht verbunden werden. Versuche es erneut.",
@@ -12216,7 +12218,7 @@
         "temporarilyUnavailable": "Der Verbindungsdienst ist vorübergehend nicht verfügbar. Wiederhole die Prüfung gleich noch einmal.",
         "callbackTitle": "SEO-Statistiken verbinden",
         "callbackWorking": "Deine Google-Freigabe wird geprüft",
-        "callbackDone": "Dein Konto ist verbunden. Kehre zum Audit zurück, wähle eine Property und synchronisiere die Statistiken.",
+        "callbackDone": "Dein Konto ist verbunden. Die Statistiken der letzten 90 Tage werden automatisch geladen, wenn du zum Audit zurückkehrst. Wähle bei Bedarf eine Property.",
         "returnToAudit": "Zurück zum Audit",
         "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit.",
         "connectGoogle": "Google verbinden",
@@ -12240,11 +12242,11 @@
         "lastSynced": "Zuletzt synchronisiert",
         "truncated": "Nur die ersten {count} Zeilen nach Klicks sind gespeichert",
         "notLoaded": "Noch keine Suchanfragen gespeichert",
-        "notLoadedBody": "Deine gespeicherten Statistiken stammen aus der Zeit vor dem Abruf von Suchanfragen. Synchronisiere die Statistiken, um sie zu laden.",
+        "notLoadedBody": "Der Agent lädt die Suchanfragen hinter deinen gespeicherten Statistiken automatisch.",
         "notConnected": "Search Console ist nicht verbunden",
         "notConnectedBody": "Verbinde die Search Console, um zu sehen, bei welchen Suchen diese Seiten erscheinen.",
         "notSynced": "Noch keine Suchstatistiken",
-        "notSyncedBody": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um zu sehen, bei welchen Suchen diese Seiten erscheinen.",
+        "notSyncedBody": "Search Console ist verbunden. Statistiken für die ausgewählten Seiten werden automatisch geladen.",
         "connect": "Search Console verbinden",
         "query": "Suchanfrage",
         "clicks": "Suchklicks",
@@ -12276,22 +12278,22 @@
       "agent": {
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
-        "refreshing": "Der Agent aktualisiert die Search Console.",
-        "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es mit „Jetzt synchronisieren“ erneut.",
+        "refreshing": "Google-Statistiken werden geladen.",
+        "refreshFailed": "Google-Statistiken konnten nicht geladen werden. Versuche es erneut.",
         "nextTitle": "Der Agent schlägt vor",
-        "nothingNext": "Nichts wartet. Der Agent synchronisiert die Search Console, wenn du dieses Audit öffnest und die Daten älter als einen Tag sind.",
+        "nothingNext": "Es steht nichts an. Google-Statistiken werden für die ausgewählten Seiten automatisch geladen und bei Bedarf aktualisiert.",
         "steps": {
           "refresh": {
-            "stale": "Die Search-Console-Daten sind älter als einen Tag. Synchronisiere sie, um aktuelle Suchanfragen zu sehen.",
-            "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Arbeit vorschlagen kann."
+            "stale": "Google-Statistiken werden automatisch aktualisiert, wenn die gespeicherten Daten älter als ein Tag sind.",
+            "no_queries": "Der Agent lädt die Suchanfragen hinter deinen Search-Console-Summen automatisch."
           },
           "connect": {
             "search_console": "Verbinde Google, um zu sehen, bei welchen Suchen diese Seiten erscheinen und wie oft sie angeklickt werden.",
             "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
           },
           "sync": {
-            "search_console": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um zu sehen, bei welchen Suchen diese Seiten erscheinen und wie oft sie angeklickt werden.",
-            "ga4": "Google Analytics ist verbunden. Synchronisiere die Statistiken, um Besuche und Seitenaufrufe zu messen."
+            "search_console": "Search Console ist verbunden. Statistiken für die ausgewählten Seiten werden automatisch geladen.",
+            "ga4": "Google Analytics ist verbunden. Statistiken für die ausgewählten Seiten werden automatisch geladen."
           },
           "competitors": {
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
@@ -12638,7 +12640,7 @@
         "fix": {
           "connect_search_console": "Statistiken einrichten",
           "connect_ga4": "Statistiken einrichten",
-          "sync": "Statistiken synchronisieren",
+          "sync": "Google-Statistiken verwalten",
           "run_check": "Prüfung starten"
         },
         "items": {

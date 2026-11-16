@@ -11,7 +11,7 @@ type GoogleConnectionProps = {
   /** The view's one primary action passes "primary"; it goes to the Search Console button. */
   variant?: "primary" | "outline";
   /** Runs after an approval, with the source that was approved. */
-  onConnected: (provider: SeoConnectionProvider) => void;
+  onConnected?: (provider: SeoConnectionProvider) => void;
   /**
    * The control is the one action of a row: only the Search Console button,
    * unless a Google Analytics account waits for a repair. The second account
@@ -49,7 +49,7 @@ export function SeoGoogleConnection({
       connectLabel={
         analyticsStarted ? undefined : t("connections.connectGoogle")
       }
-      onConnected={() => onConnected("search_console")}
+      onConnected={() => onConnected?.("search_console")}
       inRow={inRow}
       onError={onError}
     />
@@ -57,7 +57,7 @@ export function SeoGoogleConnection({
   const analyticsButton = (
     <SeoConnectionButton
       provider="ga4"
-      onConnected={() => onConnected("ga4")}
+      onConnected={() => onConnected?.("ga4")}
     />
   );
   if (inRow && ga4 !== "needs_reconnect") return searchButton;

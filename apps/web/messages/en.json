@@ -11552,6 +11552,7 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
+      "manageStatistics": "Google statistics settings",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
       "noPagesBody": "Pages define what each check and statistic covers.",
@@ -11595,7 +11596,7 @@
         "timeZone": "Reporting time zone: {timeZone}",
         "trafficSetup": "See how these pages perform",
         "trafficSetupBody": "Set up statistics to see which searches show these pages and how often people click them.",
-        "trafficSyncBody": "Search Console is connected. Sync statistics to see which searches show these pages and how often people click them. Google Analytics adds visits and page views.",
+        "trafficSyncBody": "Search Console is connected. Statistics for the selected pages load automatically. Google Analytics adds visits and page views.",
         "recentChecks": "Recent checks",
         "noMeasuredReports": "No reports measured in these activity dates",
         "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
@@ -11861,7 +11862,7 @@
         "verified": "Verified",
         "help": "An action counts as verified when the newest check of the same page no longer finds the issue.",
         "noFixes": "No fixes recommended from these checks",
-        "noFixesBody": "The last check found nothing to fix. Sync statistics or check more pages to find new work.",
+        "noFixesBody": "The last check found nothing to fix. Google statistics refresh automatically. Check more pages to find new work.",
         "checksIncomplete": "These checks are incomplete",
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
@@ -11986,13 +11987,14 @@
         "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
       },
       "statistics": {
-        "title": "Sync statistics",
-        "description": "Read measurements through your connected account for the selected pages.",
+        "title": "Google statistics",
+        "description": "Statistics load automatically for the selected pages. Choose a property only when needed.",
         "provider": "Source",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
         "property": "Property",
         "chooseProperty": "Choose a property",
+        "propertyNeeded": "Choose a Google property to load statistics for these pages.",
         "channel": "Traffic",
         "channelAll": "All website traffic",
         "channelOrganic": "Organic search",
@@ -12000,7 +12002,7 @@
         "propertiesLoading": "Loading authorized properties",
         "propertiesFailed": "Failed to load properties. Try again.",
         "noProperties": "No authorized properties available.",
-        "ownerOnly": "Statistics use the account and access of the person who syncs them.",
+        "ownerOnly": "Statistics use your connected account and its access.",
         "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
         "readsSearch": "Reads the last {days} days of Google search data.",
@@ -12008,7 +12010,7 @@
         "readsAll": "Reads the last {days} days of all website traffic.",
         "channelAny": "All measured segments",
         "connectTitle": "Set up statistics",
-        "connectFirst": "Connect {provider} first. You can then sync its statistics here.",
+        "connectFirst": "Connect {provider}. Statistics for the last 90 days will load automatically.",
         "channelAiAssistant": "AI assistants (ChatGPT, Gemini, Copilot)",
         "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot."
       },
@@ -12192,7 +12194,7 @@
         "connected": "{provider} connected",
         "disconnect": "Disconnect {provider}",
         "disconnectTitle": "Disconnect {provider}?",
-        "disconnectBody": "You cannot start a new sync with this account, in any audit of this workspace, until you connect it again. Statistics that are already saved stay.",
+        "disconnectBody": "Statistics will stop updating through this account in every audit of this workspace until you connect it again. Saved statistics stay.",
         "unavailable": "Connections are unavailable in this environment.",
         "loadFailed": "Could not check this connection. Try again.",
         "connectFailed": "Could not connect {provider}. Try again.",
@@ -12216,7 +12218,7 @@
         "temporarilyUnavailable": "The connection service is temporarily unavailable. Retry verification in a moment.",
         "callbackTitle": "Connect SEO statistics",
         "callbackWorking": "Verifying your Google approval",
-        "callbackDone": "Your account is connected. Return to the audit to choose a property and sync statistics.",
+        "callbackDone": "Your account is connected. Statistics for the last 90 days load automatically when you return to the audit. Choose a property if asked.",
         "returnToAudit": "Return to audit",
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
         "connectGoogle": "Connect Google",
@@ -12240,11 +12242,11 @@
         "lastSynced": "Last synced",
         "truncated": "Only the first {count} rows by clicks are kept",
         "notLoaded": "No query rows saved yet",
-        "notLoadedBody": "Your saved statistics are from before searches were collected. Sync statistics to load them.",
+        "notLoadedBody": "The agent loads the searches behind your saved statistics automatically.",
         "notConnected": "Search Console is not connected",
         "notConnectedBody": "Connect Search Console to see which searches show these pages.",
         "notSynced": "No search statistics yet",
-        "notSyncedBody": "Search Console is connected. Sync statistics to see which searches show these pages.",
+        "notSyncedBody": "Search Console is connected. Statistics for the selected pages load automatically.",
         "connect": "Connect Search Console",
         "query": "Query",
         "clicks": "Search clicks",
@@ -12276,22 +12278,22 @@
       "agent": {
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
-        "refreshing": "The agent is refreshing Search Console.",
-        "refreshFailed": "Search Console could not be refreshed. Use “Sync now” to try again.",
+        "refreshing": "Loading Google statistics.",
+        "refreshFailed": "Google statistics could not load. Try again.",
         "nextTitle": "The agent proposes",
-        "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
+        "nothingNext": "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
         "steps": {
           "refresh": {
-            "stale": "Search Console data is older than a day. Sync it to see current searches.",
-            "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
+            "stale": "Google statistics refresh automatically when the saved data is older than a day.",
+            "no_queries": "The agent loads the searches behind your Search Console totals automatically."
           },
           "connect": {
             "search_console": "Connect Google to see which searches show these pages and how often people click them.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
           "sync": {
-            "search_console": "Search Console is connected. Sync statistics to see which searches show these pages and how often people click them.",
-            "ga4": "Google Analytics is connected. Sync statistics to measure visits and page views."
+            "search_console": "Search Console is connected. Statistics for the selected pages load automatically.",
+            "ga4": "Google Analytics is connected. Statistics for the selected pages load automatically."
           },
           "competitors": {
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
@@ -12638,7 +12640,7 @@
         "fix": {
           "connect_search_console": "Set up statistics",
           "connect_ga4": "Set up statistics",
-          "sync": "Sync statistics",
+          "sync": "Google statistics settings",
           "run_check": "Run a check"
         },
         "items": {

@@ -28,6 +28,8 @@ export const syncProjectSeoStatisticsSchema = z
     to: seoDateSchema,
     channel: seoTrafficChannelSchema.default("all"),
     searchType: seoSearchTypeSchema.default("web"),
+    /** Reuse a fresh snapshot of this connection and selection before collecting again. */
+    automatic: z.boolean().optional(),
   })
   .strict()
   .refine(

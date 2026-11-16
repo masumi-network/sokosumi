@@ -458,13 +458,15 @@ describe("SEO audit first run", () => {
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     const setup = screen.getByTestId("seo-setup");
     expect(
-      await within(setup).findByRole("button", { name: "Sync statistics" }),
+      await within(setup).findByRole("button", {
+        name: "Google statistics settings",
+      }),
     ).toBeVisible();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
     expect(primaryButtons(setup)).toEqual([]);
   });
 
-  it("asks for the sync, not the account, on the Traffic tab once the account is connected", async () => {
+  it("explains automatic collection on Traffic once the account is connected", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {
       connection: (provider) => ({
@@ -485,11 +487,11 @@ describe("SEO audit first run", () => {
     // Nothing is measured yet: one card asks for the sync, and no second empty card asks again.
     expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Sync statistics" }),
+      screen.getAllByRole("button", { name: "Google statistics settings" }),
     ).toHaveLength(1);
   });
 
-  it("asks for the sync in the agent's next step once the account is connected", async () => {
+  it("offers Google settings in the agent's next step once the account is connected", async () => {
     const workspace = seoTestWorkspace();
     // A finished check: the setup card is gone and the agent lists its next steps.
     workspace.observations = [
@@ -540,19 +542,19 @@ describe("SEO audit first run", () => {
       within(row)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Sync statistics"]);
+    ).toEqual(["Google statistics settings"]);
     // The dialog opens on this banner's source.
     await userEvent.click(within(row).getByRole("button"));
     expect(
       within(
-        await screen.findByRole("dialog", { name: "Sync statistics" }),
+        await screen.findByRole("dialog", { name: "Google statistics" }),
       ).getByRole("combobox", { name: "Source" }),
     ).toHaveTextContent("Search Console");
     // Without a source the dialog starts on the connected account too: on Google Analytics it had no sync.
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
     await openStatisticsSetup(userEvent);
     const reopened = await screen.findByRole("dialog", {
-      name: "Sync statistics",
+      name: "Google statistics",
     });
     await waitFor(() =>
       expect(

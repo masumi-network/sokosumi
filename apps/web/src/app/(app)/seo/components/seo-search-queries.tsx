@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plug, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, Plug, RefreshCw, Settings2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -166,24 +166,18 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
           title={t(`queries.${empty}`)}
           body={t(`queries.${empty}Body`)}
         >
-          {canSync && saved ? (
-            <Button
-              variant="outline"
-              loading={model.pending}
-              onClick={() => {
-                void model.refreshSearchStatistics(saved);
-              }}
-            >
+          {canSync && model.statisticsSync.state === "failed" ? (
+            <Button variant="outline" onClick={model.statisticsSync.retry}>
               <RefreshCw />
-              {t("syncNow")}
+              {t("retry")}
             </Button>
           ) : canSync ? (
             <Button
               variant="outline"
               onClick={() => model.openStatistics("search_console")}
             >
-              {connected ? <RefreshCw /> : <Plug />}
-              {t(connected ? "syncStatistics" : "queries.connect")}
+              {connected ? <Settings2 /> : <Plug />}
+              {t(connected ? "manageStatistics" : "queries.connect")}
             </Button>
           ) : null}
         </SeoEmpty>

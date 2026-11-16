@@ -20,11 +20,11 @@ import messages from "../../../../../messages/en.json";
 import { openStatisticsSetup, seoTestWorkspace } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 
-const { mutate, viewer } = vi.hoisted(() => ({
-  mutate: vi.fn(),
+const { statistics, viewer } = vi.hoisted(() => ({
+  statistics: vi.fn(),
   viewer: { userId: "owner" as string | null },
 }));
-vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: vi.fn() }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     // A null viewer is a session the client has not read yet.
@@ -97,8 +97,19 @@ function properties(provider: string) {
   };
 }
 
+function connection(pathname: string, connected = ["search_console"]) {
+  const provider = pathname.split("/").at(-1) ?? "search_console";
+  return {
+    provider,
+    name: provider === "ga4" ? "Google Analytics" : "Search Console",
+    status: connected.includes(provider) ? "connected" : "not_connected",
+    source: connected.includes(provider) ? "native" : "none",
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  statistics.mockImplementation(async () => Response.json(null));
   viewer.userId = "owner";
 });
 afterEach(() => {
@@ -122,16 +133,20 @@ async function renderWithPendingAgentRefresh() {
     }),
   ];
   let finish: (value: { ok: true; value: null }) => void = () => {};
-  mutate.mockReturnValue(
+  statistics.mockReturnValue(
     new Promise((resolve) => {
-      finish = resolve;
+      finish = () => resolve(Response.json(null));
     }),
   );
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string) => {
+    vi.fn(async (input: string, init?: RequestInit) => {
       const url = new URL(input, "https://web.test");
+      if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+        return statistics(JSON.parse(String(init.body)));
       if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
+      if (url.pathname.includes("/connections/"))
+        return Response.json(connection(url.pathname));
       return Response.json(
         url.pathname.endsWith("statistics/properties")
           ? properties(url.searchParams.get("provider") ?? "ga4")
@@ -140,7 +155,7 @@ async function renderWithPendingAgentRefresh() {
     }),
   );
   renderWorkspace(workspace);
-  await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+  await waitFor(() => expect(statistics).toHaveBeenCalledOnce());
   return { finish: (value: { ok: true; value: null }) => finish(value) };
 }
 
@@ -156,26 +171,33 @@ describe("statistics source and property recovery", () => {
         channel: "organic",
       }),
     ];
-    mutate.mockResolvedValue({ ok: true, value: null });
     const viewers: string[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string, init?: RequestInit) => {
         const url = new URL(input, "https://web.test");
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+          return statistics(JSON.parse(String(init.body)));
         if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
         viewers.push(
           new Headers(init?.headers).get("x-seo-viewer") ?? "missing",
         );
+        if (url.pathname.includes("/connections/"))
+          return Response.json(connection(url.pathname));
+        if (url.pathname.endsWith("statistics/properties"))
+          return Response.json(
+            properties(url.searchParams.get("provider") ?? "ga4"),
+          );
         return Response.json(workspace);
       }),
     );
     viewer.userId = null;
     const view = renderWorkspace(workspace);
     await act(async () => {});
-    expect(mutate).not.toHaveBeenCalled();
+    expect(statistics).not.toHaveBeenCalled();
     viewer.userId = "owner";
     view.refreshViewer();
-    await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+    await waitFor(() => expect(statistics).toHaveBeenCalledOnce());
     await waitFor(() => expect(viewers.length).toBeGreaterThan(0));
     // A read without the viewer is refused (409) and would hide the page.
     expect(viewers.every((id) => id === "owner")).toBe(true);
@@ -217,8 +239,14 @@ describe("statistics source and property recovery", () => {
     ];
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: string) => {
+      vi.fn(async (input: string, init?: RequestInit) => {
         const url = new URL(input, "https://web.test");
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+          return statistics(JSON.parse(String(init.body)));
+        if (url.pathname.includes("/connections/"))
+          return Response.json(
+            connection(url.pathname, ["ga4", "search_console"]),
+          );
         return Response.json(
           url.pathname.endsWith("statistics/properties")
             ? properties(url.searchParams.get("provider") ?? "ga4")
@@ -226,20 +254,32 @@ describe("statistics source and property recovery", () => {
         );
       }),
     );
-    mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
     // Stale Search Console data makes the agent refresh it once on open.
-    await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
-    expect(mutate.mock.calls[0][0].command).toMatchObject({
-      kind: "sync_statistics",
-      body: { provider: "search_console", propertyId: "sc-domain:example.com" },
-    });
-    mutate.mockClear();
+    // Both connected sources now collect automatically, using their saved properties.
+    await waitFor(() => expect(statistics).toHaveBeenCalledTimes(2));
+    expect(statistics.mock.calls.map(([input]) => input)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: "search_console",
+          propertyId: "sc-domain:example.com",
+          automatic: true,
+        }),
+        expect.objectContaining({
+          provider: "ga4",
+          propertyId: "properties/123",
+          automatic: true,
+        }),
+      ]),
+    );
+    statistics.mockClear();
     await user.click(screen.getByRole("tab", { name: "Traffic" }));
     await user.click(screen.getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Google Analytics" }));
     // Analytics has no one-click sync; its button opens the dialog for the displayed source.
-    await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+    await user.click(
+      screen.getAllByRole("button", { name: "Google statistics settings" })[0],
+    );
     const dialog = screen.getByRole("dialog");
     expect(
       within(dialog).getByRole("combobox", { name: "Source" }),
@@ -257,7 +297,9 @@ describe("statistics source and property recovery", () => {
     expect(
       within(dialog).getByTestId("seo-statistics-reads"),
     ).toHaveTextContent("Reads the last 90 days of all website traffic.");
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await user.click(
+      within(dialog).getAllByRole("button", { name: "Close" })[0],
+    );
     await openStatisticsSetup(user);
     const generic = screen.getByRole("dialog");
     expect(
@@ -284,7 +326,7 @@ describe("statistics source and property recovery", () => {
     expect(
       within(generic).getByTestId("seo-statistics-reads"),
     ).toHaveTextContent("Reads the last 90 days of all website traffic.");
-    expect(mutate).not.toHaveBeenCalled();
+    expect(statistics).not.toHaveBeenCalled();
   });
 
   it("keeps an open dialog while the agent refreshes stale Search Console data", async () => {
@@ -294,30 +336,29 @@ describe("statistics source and property recovery", () => {
     const dialog = screen.getByRole("dialog");
     // The user's own dialog is not blocked by the background refresh.
     expect(
-      within(dialog).getByRole("button", { name: "Cancel" }),
+      within(dialog).getAllByRole("button", { name: "Close" })[0],
     ).toBeEnabled();
     finish({ ok: true, value: null });
     await waitFor(() =>
-      expect(
-        screen.queryByText("The agent is refreshing Search Console."),
-      ).toBeNull(),
+      expect(screen.queryByText("Loading Google statistics.")).toBeNull(),
     );
     expect(screen.getByRole("dialog")).toBe(dialog);
   });
 
-  it("runs the user's sync after the agent refresh, so the user's result is newest", async () => {
+  it("does not duplicate an in-flight collection when Google settings open", async () => {
     const user = userEvent.setup();
     const { finish } = await renderWithPendingAgentRefresh();
     await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByTestId("seo-statistics-reads");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Sync statistics" }),
-    );
-    expect(mutate).toHaveBeenCalledOnce();
+    expect(within(dialog).queryByRole("button", { name: /sync/i })).toBeNull();
+    expect(statistics).toHaveBeenCalledOnce();
     finish({ ok: true, value: null });
-    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByText("Loading Google statistics.")).toBeNull(),
+    );
+    expect(statistics).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog")).toBe(dialog);
   });
 
   it("chooses the property that names the audit's site among several", async () => {
@@ -325,8 +366,12 @@ describe("statistics source and property recovery", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: string) => {
+      vi.fn(async (input: string, init?: RequestInit) => {
         const url = new URL(input, "https://web.test");
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+          return statistics(JSON.parse(String(init.body)));
+        if (url.pathname.includes("/connections/"))
+          return Response.json(connection(url.pathname, ["ga4"]));
         return Response.json(
           url.pathname.endsWith("statistics/properties")
             ? {
@@ -351,9 +396,13 @@ describe("statistics source and property recovery", () => {
         within(dialog).getByRole("combobox", { name: "Property" }),
       ).toHaveTextContent("example.com website"),
     );
-    expect(
-      within(dialog).getByRole("button", { name: "Sync statistics" }),
-    ).toBeEnabled();
+    await waitFor(() => expect(statistics).toHaveBeenCalledOnce());
+    expect(statistics.mock.calls[0][0]).toMatchObject({
+      provider: "ga4",
+      propertyId: "properties/2",
+      automatic: true,
+    });
+    expect(within(dialog).queryByRole("button", { name: /sync/i })).toBeNull();
   });
 
   it("retries a temporary unavailable property result in place", async () => {
@@ -362,8 +411,10 @@ describe("statistics source and property recovery", () => {
     let propertyReads = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: string) => {
+      vi.fn(async (input: string, init?: RequestInit) => {
         const url = new URL(input, "https://web.test");
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics"))
+          return statistics(JSON.parse(String(init.body)));
         if (url.pathname.endsWith("statistics/properties")) {
           propertyReads += 1;
           return Response.json(
@@ -378,11 +429,7 @@ describe("statistics source and property recovery", () => {
           );
         }
         if (url.pathname.includes("/connections/"))
-          return Response.json({
-            provider: "ga4",
-            status: "connected",
-            source: "native",
-          });
+          return Response.json(connection(url.pathname, ["ga4"]));
         if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
         return Response.json(workspace);
       }),
@@ -391,12 +438,10 @@ describe("statistics source and property recovery", () => {
     await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByText("Temporary native property read failure");
-    expect(
-      within(dialog).getByRole("button", { name: "Sync statistics" }),
-    ).toBeDisabled();
+    expect(within(dialog).queryByRole("button", { name: /sync/i })).toBeNull();
     await user.click(within(dialog).getByRole("button", { name: "Try again" }));
     await within(dialog).findByRole("combobox", { name: "Property" });
     expect(propertyReads).toBe(2);
-    expect(mutate).not.toHaveBeenCalled();
+    expect(statistics).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,6 @@ import type {
   ProjectSeoAction,
   ProjectSeoCompetitor,
   ProjectSeoKeyword,
-  ProjectSeoMetric,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
@@ -35,12 +34,9 @@ import {
 } from "@/lib/seo/owner";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
-import {
-  SEO_DEFAULT_STATISTICS_DAYS,
-  type SeoStatisticsProvider,
-  seoStatisticsPeriod,
-} from "./seo-statistics-model";
+import { type SeoStatisticsProvider } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
+import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 
 /** The form of a day in the period filter, as Core reads it. */
@@ -316,7 +312,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     useState<ProjectSeoKeyword | null>(null);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
-  const backgroundRef = useRef<Promise<boolean> | null>(null);
   // One browser request keeps its key after an uncertain acknowledgement.
   const operationKeys = useRef(new Map<string, string>());
   function operationKey(input: string) {
@@ -327,40 +322,11 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     }
     return value;
   }
-  /**
-   * A background command (agent upkeep) neither waits for nor blocks the user's
-   * own command, keeps any open dialog, and reports only through its result.
-   */
-  async function execute(
-    command: SeoCommand,
-    success = t("saved"),
-    background = false,
-  ) {
-    if (background) {
-      // Skipped, not failed: the user's own command is running.
-      if (pendingRef.current) return null;
-      const run = (async () => {
-        try {
-          const response = await mutateSeo({ owner, command });
-          if (response.ok) await refetchForViewer();
-          return response.ok;
-        } catch {
-          return false;
-        }
-      })();
-      backgroundRef.current = run;
-      try {
-        return await run;
-      } finally {
-        if (backgroundRef.current === run) backgroundRef.current = null;
-      }
-    }
+  async function execute(command: SeoCommand, success = t("saved")) {
     if (pendingRef.current) return false;
     pendingRef.current = true;
     setPending(true);
     try {
-      // A user command lands after agent upkeep, so the user's result is the newest.
-      await backgroundRef.current;
       const response = await mutateSeo({
         owner,
         command,
@@ -433,37 +399,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       pageId: data.pages.find((page) => page.url === row.pageUrl)?.id ?? null,
     });
   }
-  /** Rerun the saved Search Console read for the current pages over the default rolling period. */
-  function refreshSearchStatistics(
-    saved: Pick<ProjectSeoMetric, "propertyId" | "channel" | "searchType">,
-    background = false,
-  ) {
-    const period = seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS);
-    return execute(
-      {
-        kind: "sync_statistics",
-        body: {
-          provider: "search_console",
-          propertyId: saved.propertyId,
-          from: period.from,
-          to: period.to,
-          // The saved traffic channel, so the refreshed rows show in the same view.
-          channel: saved.channel,
-          ...(saved.searchType && saved.searchType !== "web"
-            ? { searchType: saved.searchType }
-            : {}),
-          ...(data.scope.id
-            ? {
-                scopeId: data.scope.id,
-                expectedScopeVersion: data.scope.version,
-              }
-            : { pageIds: data.scope.pageIds }),
-        },
-      },
-      t("statistics.synced"),
-      background,
-    );
-  }
   const filteredCompetitors = data.competitors.filter((row) =>
     row.url.toLocaleLowerCase().includes(competitorSearch.toLocaleLowerCase()),
   );
@@ -507,8 +442,21 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  const statisticsSync = useSeoAutopilot({
+    data,
+    viewerKey: identity,
+    enabled:
+      Boolean(session?.user.id) &&
+      Boolean(result.data) &&
+      !invalidDates &&
+      data.scope.pageIds.length > 0 &&
+      data.availableActions.canSyncMetrics,
+    channel: filters.channel,
+    searchType: filters.searchType,
+  });
   return {
     data,
+    statisticsSync,
     setup,
     waitingForGoogle,
     googleConnected: google.data?.status === "connected",
@@ -537,7 +485,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     openAnalysis,
     openMonitor,
     checkInFlight,
-    refreshSearchStatistics,
     filteredCompetitors,
     toggleKeyword,
     openKeywordEdit,
