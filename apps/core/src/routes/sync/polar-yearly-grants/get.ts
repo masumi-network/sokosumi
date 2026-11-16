@@ -17,15 +17,19 @@ export default function mount(app: Hono) {
       c,
       POLAR_YEARLY_GRANTS_SYNC_LOCK_KEY,
       async (context) => {
-        const result = await syncPolarYearlyGrants(context.shouldContinue);
-        console.info("[sync/polar-yearly-grants] Completed sync", result);
-        // After the grants: Polar's SDK sets no timeout, so a revoke that
-        // hangs there would take their time.
-        const revokes = await retryOwedPolarRevokes(context.shouldContinue);
-        console.info(
-          "[sync/polar-yearly-grants] Retried owed revokes",
-          revokes,
-        );
+        // Revokes after the grants, so revokes failing one by one (each up to
+        // the Polar SDK's 5 s timeout) cannot take their time; and in
+        // `finally`, so failing grants cannot stop a revoke.
+        try {
+          const result = await syncPolarYearlyGrants(context.shouldContinue);
+          console.info("[sync/polar-yearly-grants] Completed sync", result);
+        } finally {
+          const revokes = await retryOwedPolarRevokes(context.shouldContinue);
+          console.info(
+            "[sync/polar-yearly-grants] Retried owed revokes",
+            revokes,
+          );
+        }
       },
     );
   });

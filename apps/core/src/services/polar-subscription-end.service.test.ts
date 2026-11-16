@@ -341,7 +341,7 @@ describe("retryOwedPolarRevokes", () => {
     );
   });
 
-  it("tries the least recently attempted first, so a revoke that hangs does not hold back the rest", async () => {
+  it("tries the least recently attempted first, so a revoke that keeps failing does not hold back the rest", async () => {
     await retryOwedPolarRevokes(always);
 
     // A failed attempt writes the row's `updatedAt`.

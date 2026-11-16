@@ -163,7 +163,7 @@ export async function retryOwedPolarRevokes(
     where: { revokeOwedAt: { not: null } },
     select: { id: true, polarSubscriptionId: true },
     // Least recently attempted first (a failure writes `updatedAt`): a revoke
-    // that hangs at Polar until the deadline holds back no other.
+    // that keeps failing slowly holds back no other.
     orderBy: { updatedAt: "asc" },
   });
   const result = { errors: 0, revoked: 0, stoppedEarly: false };

@@ -682,10 +682,24 @@ describe("sync routes", () => {
     expect(retryOwedPolarRevokesMock).toHaveBeenCalledExactlyOnceWith(
       expect.any(Function),
     );
-    // Grants first: a revoke that hangs at Polar cannot take their time.
+    // Grants first: revokes failing at Polar cannot take their time.
     expect(syncPolarYearlyGrantsMock.mock.invocationCallOrder[0]).toBeLessThan(
       retryOwedPolarRevokesMock.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("retries owed revokes even when the CMO yearly grants fail", async () => {
+    syncPolarYearlyGrantsMock.mockRejectedValue(new Error("catalog down"));
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/polar-yearly-grants",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(retryOwedPolarRevokesMock).toHaveBeenCalledOnce();
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {
