@@ -15,23 +15,23 @@ export function useSeoFocusHandoff(key: unknown, hidden: boolean) {
     handoff.current ||= Boolean(box.current?.contains(document.activeElement));
     shown.current = { key, hidden };
   }
+  // A press or a focus anywhere is the reader's next step, a focus back on the line too: a pending handoff is
+  // over. Not in a dialog: the line's own control opens one, and the work there is the same step.
   useEffect(() => {
-    if (!handoff.current) return;
-    if (hidden) {
-      // A press or a focus anywhere while the line waits is the reader's next step: the handoff is over. Not in
-      // a dialog: the line's own control opens one, and the work there is the same step.
-      const drop = (event: Event) => {
-        if ((event.target as Element | null)?.closest?.('[role="dialog"]'))
-          return;
-        handoff.current = false;
-      };
-      document.addEventListener("pointerdown", drop, true);
-      document.addEventListener("focusin", drop, true);
-      return () => {
-        document.removeEventListener("pointerdown", drop, true);
-        document.removeEventListener("focusin", drop, true);
-      };
-    }
+    const drop = (event: Event) => {
+      if ((event.target as Element | null)?.closest?.('[role="dialog"]'))
+        return;
+      handoff.current = false;
+    };
+    document.addEventListener("pointerdown", drop, true);
+    document.addEventListener("focusin", drop, true);
+    return () => {
+      document.removeEventListener("pointerdown", drop, true);
+      document.removeEventListener("focusin", drop, true);
+    };
+  }, []);
+  useEffect(() => {
+    if (!handoff.current || hidden) return;
     handoff.current = false;
     // The page stays where the reader scrolled it.
     if (document.activeElement === document.body)

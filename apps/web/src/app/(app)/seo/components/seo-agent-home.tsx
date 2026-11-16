@@ -68,10 +68,8 @@ function SeoAgentPanel({
   const t = useTranslations("App.Seo");
   const analyticsLine = useSeoAnalyticsLine(
     model,
-    Boolean(
-      brief.steps.some(
-        (step) => step.kind === "connect" && step.provider === "ga4",
-      ),
+    brief.steps.some(
+      (step) => step.kind === "connect" && step.provider === "ga4",
     ),
   );
   const format = useFormatter();
@@ -393,10 +391,11 @@ function SeoAgentPanel({
             {steps.map((step, index) => stepItem(step, index))}
           </ul>
         </div>
-      ) : (analyticsStep && analyticsLine.analytics !== "unknown") ||
+      ) : (analyticsStep &&
+          (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
         statisticsSync.state === "failed" ? null : (
         // The Analytics line, a sync that runs or failed, each still ask for something: "nothing is waiting"
-        // would be wrong. Only a line with no cause to name asks for nothing.
+        // would be wrong. Only a hidden line with no cause to name asks for nothing.
         <p className="text-muted-foreground max-w-prose px-2 text-sm">
           {t("agent.nothingNext")}
         </p>

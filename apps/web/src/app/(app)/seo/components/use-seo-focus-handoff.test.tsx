@@ -5,7 +5,7 @@ import { useSeoFocusHandoff } from "./use-seo-focus-handoff";
 afterEach(cleanup);
 
 function Line({ cause, hidden }: { cause: string; hidden: boolean }) {
-  const { box, target } = useSeoFocusHandoff(cause, hidden);
+  const { box, target, arm } = useSeoFocusHandoff(cause, hidden);
   return (
     <div>
       <input aria-label="Elsewhere" />
@@ -14,7 +14,9 @@ function Line({ cause, hidden }: { cause: string; hidden: boolean }) {
           {hidden ? "" : cause}
         </p>
         {!hidden && cause === "missing" ? (
-          <button type="button">Connect</button>
+          <button type="button" onClick={arm}>
+            Connect
+          </button>
         ) : null}
       </div>
     </div>
@@ -71,6 +73,20 @@ describe("useSeoFocusHandoff", () => {
     rerender(<WithDialog hidden open={false} />);
     rerender(<WithDialog hidden={false} open={false} />);
     expect(screen.getByText("Choose")).toHaveFocus();
+  });
+
+  it("drops an armed handoff when the dialog is cancelled and the focus comes back to the control", () => {
+    const { rerender } = render(<Line cause="missing" hidden={false} />);
+    const control = screen.getByRole("button", { name: "Connect" });
+    control.focus();
+    fireEvent.click(control);
+    // The dialog closes with nothing done: the focus is back on the control, then the reader goes on.
+    control.blur();
+    control.focus();
+    control.blur();
+    rerender(<Line cause="missing" hidden />);
+    rerender(<Line cause="empty" hidden={false} />);
+    expect(screen.getByText("empty")).not.toHaveFocus();
   });
 
   it("drops the handoff when the reader presses somewhere while the line waits", () => {

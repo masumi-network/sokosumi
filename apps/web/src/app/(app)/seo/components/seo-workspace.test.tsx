@@ -3007,6 +3007,21 @@ describe("SEO workspace integration", () => {
         "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
       ),
     ).toBeVisible();
+    cleanup();
+    // A connection not read yet: the line shows its connect button, so something is waiting.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/connections/ga4")
+          ? new Promise<Response>(() => {})
+          : Response.json(workspace),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    expect(
+      await screen.findByTestId("seo-agent-statistics"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Nothing is waiting/)).toBeNull();
   });
 
   it("says whether Google indexes the page in view and names another canonical", () => {
