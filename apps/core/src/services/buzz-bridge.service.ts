@@ -2533,7 +2533,7 @@ export function buzzTextOf(message: {
  * A message as the Buzz app writes it, with Sokosumi's chat files uploaded to
  * the relay as the author's attachments.
  */
-async function buzzMessageOf(
+export async function buzzMessageOf(
   text: string,
   relayUrl: string,
   authorKey: Uint8Array,
@@ -2606,7 +2606,7 @@ export async function buzzContentOf(
     ? original.replace(/\]\((\/(?!\/)[^)\s]*)\)/g, `](${origin}$1)`)
     : original;
   const keys = readChatMentionKeys(content).filter((key) => key !== "all");
-  if (keys.length === 0) return content;
+  if (keys.length === 0) return everyoneOf(content);
   // People may have 32-character auth ids; Soko Bot ids are uuids.
   const uuidKeys = keys.filter((key) => UUID.test(key));
   const identities = await prisma.buzzIdentity.findMany({
@@ -2674,7 +2674,15 @@ export async function buzzContentOf(
       owner.name ?? "",
     ]),
   );
-  return chatMessageTextWithNames(text, names);
+  return everyoneOf(chatMessageTextWithNames(text, names));
+}
+
+/** Sokosumi's room-wide mention, which Buzz has no mention for, as words. */
+function everyoneOf(text: string): string {
+  return text.replace(
+    /(^|[^\p{L}\p{N}_@])@all(?::[\p{L}\p{N}_-]*)?(?![\p{L}\p{N}_-])/giu,
+    "$1@everyone",
+  );
 }
 
 export async function mentionPubkeysOf(message: {

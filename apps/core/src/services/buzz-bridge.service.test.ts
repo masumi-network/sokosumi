@@ -1881,6 +1881,12 @@ describe("buzzContentOf", () => {
     env.value = { ...env.value, WEB_APP_BASE_URL: undefined };
   });
 
+  it("writes Sokosumi's room-wide mention as words, since Buzz has none", async () => {
+    await expect(
+      buzzContentOf("@all:all video model, and @allison stays, a@all too"),
+    ).resolves.toBe("@everyone video model, and @allison stays, a@all too");
+  });
+
   it("leaves a message without mentions alone", async () => {
     await expect(buzzContentOf("plain")).resolves.toBe("plain");
     expect(db.buzzIdentity.findMany).not.toHaveBeenCalled();

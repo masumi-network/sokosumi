@@ -28,8 +28,8 @@ import { checkpoint } from "@/lib/buzz/run-scope";
 import prisma from "@/lib/db/prisma";
 import {
   authorOf,
-  buzzContentOf,
   buzzHashOf,
+  buzzMessageOf,
   buzzTextOf,
   ensureIdentity,
   identitySecretKey,
@@ -315,7 +315,11 @@ async function importMessage(
       identity,
       messageDraft({
         channelId,
-        content: await buzzContentOf(buzzTextOf(message), relayUrl),
+        ...(await buzzMessageOf(
+          buzzTextOf(message),
+          relayUrl,
+          identitySecretKey(identity),
+        )),
         threadRootEventId: root?.eventId ?? null,
         mentionPubkeys: await mentionPubkeysOf(message),
         messageId: message.id,
