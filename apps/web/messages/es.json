@@ -11111,11 +11111,13 @@
       "duplicatesDialog": {
         "title": "{count, plural, =0 {Ningún posible duplicado} =1 {1 posible duplicado} other {# posibles duplicados}}",
         "titleMore": "{count}+ posibles duplicados",
-        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Fusiona los que son una sola persona; abre un registro para revisarlo antes.",
+        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Combina los que son una sola persona o márcalos como distintos; abre un registro para comprobarlo antes.",
         "merge": "Fusionar",
         "mergeGroup": "Fusionar los registros de {name}",
         "noDetails": "Sin email ni empresa",
-        "empty": "No queda nada por fusionar."
+        "empty": "No queda nada por fusionar.",
+        "notSame": "No son la misma persona",
+        "notSameGroup": "{name}: son personas distintas"
       },
       "deleteList": {
         "title": "¿Eliminar {name}?",
@@ -11514,6 +11516,7 @@
         "nobody": "Nadie todavía",
         "more": "y {count} más"
       },
+      "notSame": "{count, plural, =2 {Separados: no se volverán a sugerir como duplicados} other {Separados: estos # no se volverán a sugerir como duplicados}}",
       "companies": {
         "search": "Buscar empresas",
         "searchPlaceholder": "Buscar empresas…",

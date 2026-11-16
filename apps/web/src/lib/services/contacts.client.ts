@@ -45,6 +45,7 @@ import {
   postContactsByIdEnrich,
   postContactsCompanyLists,
   postContactsCompanyListsByListIdMembers,
+  postContactsDuplicatesDismiss,
   postContactsImport,
   postContactsMerge,
   postContactsStage,
@@ -228,6 +229,10 @@ export const contactsService = {
   },
   async duplicates(query: { contactId?: string; limit?: number } = {}) {
     return (await getContactsDuplicates({ ...options(), query })).data.data;
+  },
+  /** These contacts are different people; duplicates stop grouping them. */
+  async notDuplicates(contactIds: string[]) {
+    await postContactsDuplicatesDismiss({ ...options(), body: { contactIds } });
   },
   async merge(winnerId: string, loserIds: string[]) {
     return (
