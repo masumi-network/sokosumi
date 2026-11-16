@@ -1,4 +1,4 @@
-/** A real PNG header, so code that reads an image's size has one to read. */
+/** A real PNG header, so the byte-reading fallback has something to read. */
 export function pngBytes(width: number, height: number): Uint8Array {
   const bytes = new Uint8Array(24);
   bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);

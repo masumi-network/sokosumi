@@ -68,6 +68,33 @@ describe("console guard", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
+  it.fails("fails a plain replacement restored within the test", () => {
+    const saved = console.warn;
+    console.warn = () => {};
+    console.warn("console guard: muted (this test is expected to fail)");
+    console.warn = saved;
+  });
+
+  it.fails("fails a plain replacement left installed", () => {
+    console.error = () => {};
+  });
+
+  it("puts the guard back after a replacement was left installed", () => {
+    const calls = expectConsole("error", "routed through the guard");
+    console.error("routed through the guard");
+    expect(calls).toHaveLength(1);
+  });
+
+  it.fails("does not let ^ match after a newline (m flag)", () => {
+    expectConsole("warn", /^declared/m);
+    console.warn("unexpected prefix\ndeclared (this test is expected to fail)");
+  });
+
+  it.fails("does not let an unanchored alternative match later", () => {
+    expectConsole("warn", /^declared|other/);
+    console.warn("unexpected prefix, other (this test is expected to fail)");
+  });
+
   it.fails("fails a test that mocks console.warn and restores it", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     console.warn("console guard: muted (this test is expected to fail)");

@@ -236,6 +236,7 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     const warnings = expectConsole(
       "warn",
       "[files] drive store adoption failed; serving the catalog",
+      2,
     );
 
     // Does not throw — that is the whole point.
@@ -245,7 +246,7 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     });
 
     // And it says why, rather than degrading silently.
-    expect(warnings).not.toHaveLength(0);
+    expect(warnings).toHaveLength(1);
 
     // The store is still pending, correctly: nothing was adopted, so
     // claiming completion would be a lie that outlives the outage. The

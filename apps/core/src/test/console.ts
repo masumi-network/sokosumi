@@ -26,8 +26,9 @@ interface ExpectedMessage {
 interface ConsoleGuardState {
   expected: ExpectedMessage[];
   unexpected: string[];
-  /** Mock implementations put on console.error/warn during this test. */
+  /** Replacements of console.error/warn during this test. */
   muted: string[];
+  guarded: Record<ConsoleMethod, (...args: unknown[]) => void>;
 }
 
 // The unit project reuses one worker across files and re-evaluates this
@@ -36,9 +37,15 @@ interface ConsoleGuardState {
 const STATE_KEY = Symbol.for("sokosumi.test.console-guard");
 
 function matches(entry: ExpectedMessage, text: string): boolean {
-  return typeof entry.start === "string"
-    ? text.startsWith(entry.start)
-    : entry.start.test(stripVTControlCharacters(text));
+  if (typeof entry.start === "string") return text.startsWith(entry.start);
+  // A fresh pattern without g, y or m: no lastIndex carried between calls,
+  // and ^ cannot match after a newline. Index 0 also catches an unanchored
+  // alternative (`/^a|b/`) that matched later in the text.
+  const pattern = new RegExp(
+    entry.start.source,
+    entry.start.flags.replace(/[gmy]/g, ""),
+  );
+  return pattern.exec(stripVTControlCharacters(text))?.index === 0;
 }
 
 function guardState(): ConsoleGuardState {
@@ -46,10 +53,15 @@ function guardState(): ConsoleGuardState {
   const existing = holder[STATE_KEY];
   if (existing) return existing;
 
-  const state: ConsoleGuardState = { expected: [], unexpected: [], muted: [] };
+  const state = {
+    expected: [],
+    unexpected: [],
+    muted: [],
+    guarded: {},
+  } as unknown as ConsoleGuardState;
   for (const method of METHODS) {
     const original = console[method].bind(console);
-    console[method] = (...args: unknown[]) => {
+    const guarded = (...args: unknown[]) => {
       const text = format(...args);
       const match = state.expected.find(
         (entry) =>
@@ -64,6 +76,22 @@ function guardState(): ConsoleGuardState {
       state.unexpected.push(`console.${method}: ${text}`);
       original(...args);
     };
+    state.guarded[method] = guarded;
+    // An accessor, so a plain `console.warn = fn` is seen when it happens,
+    // not only if it is still there when the test ends. Vitest's spies are
+    // checked by the `vi.spyOn` wrapper below.
+    let current: (...args: unknown[]) => void = guarded;
+    Object.defineProperty(console, method, {
+      configurable: true,
+      enumerable: true,
+      get: () => current,
+      set: (next: (...args: unknown[]) => void) => {
+        if (next !== guarded && !vi.isMockFunction(next)) {
+          state.muted.push(`console.${method} = …`);
+        }
+        current = next;
+      },
+    });
   }
 
   // A spy given an implementation swallows output, even when the test
@@ -140,6 +168,15 @@ export function installConsoleGuard(): void {
         vi.mocked(console[method]).getMockImplementation() !== undefined,
     );
     for (const method of mocked) vi.mocked(console[method]).mockRestore();
+    // A plain replacement left in place would mute every later test and file
+    // in this worker: put the guard back.
+    for (const method of METHODS) {
+      const now = console[method];
+      if (now !== state.guarded[method] && !vi.isMockFunction(now)) {
+        state.muted.push(`console.${method} (left replaced)`);
+        console[method] = state.guarded[method];
+      }
+    }
     const muted = state.muted.splice(0);
     if (mocked.length > 0 || muted.length > 0) {
       state.expected.length = 0;
