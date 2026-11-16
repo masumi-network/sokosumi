@@ -140,7 +140,7 @@ function SeoAgentPanel({
       ? lead.action.id
       : lead.kind
     : null;
-  // Only focus that was in the lead list counts: a page nobody has entered also has its focus on the body.
+  // Only focus that was in the list of steps counts: a page nobody has entered also has its focus on the body.
   const leadSeen = useRef(leadKey);
   const leadFocused = useRef(false);
   useEffect(() => {

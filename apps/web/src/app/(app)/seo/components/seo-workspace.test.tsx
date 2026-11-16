@@ -6090,6 +6090,9 @@ describe("SEO workspace integration", () => {
       name: "The agent proposes",
     });
     expect(firstStep).toBeVisible();
+    expect(
+      screen.getByTestId("seo-agent-verdict").parentElement,
+    ).toContainElement(firstStep);
     // Inside the card the step has no frame of its own.
     expect(within(firstStep).getByRole("listitem")).not.toHaveClass("border");
     expect(
