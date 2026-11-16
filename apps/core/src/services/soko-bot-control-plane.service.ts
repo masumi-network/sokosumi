@@ -3450,7 +3450,7 @@ export class SokoBotControlPlane {
       );
     }
     // Leaving CMO ends Cuso: Polar stops charging before anything is
-    // written (ADR 0068). A failure throws, so the version stays.
+    // written (ADR 0068). A revoke Polar fails is owed to the sync job.
     await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
     await serializableTransaction(async (tx) => {
       await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
@@ -4197,7 +4197,7 @@ export class SokoBotControlPlane {
       const versionId = input.versionId as string;
       try {
         // Before the transaction, which is retried: Polar is called once
-        // (ADR 0068). A failure throws, so the version stays.
+        // (ADR 0068). A revoke Polar fails is owed to the sync job.
         await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
         await serializableTransaction(async (tx) => {
           const current = await tx.sokoBot.findUnique({
@@ -4655,7 +4655,7 @@ export class SokoBotControlPlane {
     // Polar stops charging for a live Cuso before he is archived (ADR 0068).
     // It is called here, once, because the transaction below is retried; the
     // role check runs first so only someone who may archive ends it. A
-    // failure throws, so nothing is archived.
+    // revoke Polar fails is owed to the sync job; the archive goes on.
     const candidate = await memberSokoBot(userId, workspaceId, selector);
     if (candidate) {
       await assertSokoBotManagement(userId, candidate, "archive");

@@ -239,6 +239,7 @@ describe("POST /v1/webhooks/polar after the first payment", () => {
         where: {
           polarSubscriptionId: "sub_1",
           polarEventAt: { lte: new Date("2026-12-13T10:05:00.000Z") },
+          revokeOwedAt: null,
         },
         data: {
           cancelAtPeriodEnd: false,
