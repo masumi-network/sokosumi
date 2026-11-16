@@ -5,12 +5,14 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import type { FormEvent } from "react";
+import { type FormEvent, type Ref, useImperativeHandle, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ensureRoom = vi.fn();
 const sendMessage = vi.fn();
 const push = vi.fn();
+/** The composer's text at the moment the caret was put at its end. */
+const focusedAtEnd = vi.fn();
 
 function translate(key: string, values?: Record<string, unknown>): string {
   return values ? `${key}:${JSON.stringify(values)}` : key;
@@ -36,25 +38,34 @@ vi.mock("@/components/soko-bot/bot-face", async (importOriginal) => ({
 }));
 // The real composer is a rich editor; a plain textarea keeps the contract.
 vi.mock("@/app/chat/components/room-composer", () => ({
-  RoomComposer: (props: {
+  RoomComposer: function RoomComposer(props: {
+    ref?: Ref<{ focus: () => void; focusAtEnd: () => void }>;
     value: string;
     onValueChange: (value: string) => void;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     placeholder: string;
     sendDisabled: boolean;
-  }) => (
-    <form onSubmit={props.onSubmit}>
-      <textarea
-        aria-label="composer"
-        placeholder={props.placeholder}
-        value={props.value}
-        onChange={(event) => props.onValueChange(event.target.value)}
-      />
-      <button type="submit" disabled={props.sendDisabled}>
-        send
-      </button>
-    </form>
-  ),
+  }) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    useImperativeHandle(props.ref, () => ({
+      focus: () => {},
+      focusAtEnd: () => focusedAtEnd(textareaRef.current?.value),
+    }));
+    return (
+      <form onSubmit={props.onSubmit}>
+        <textarea
+          ref={textareaRef}
+          aria-label="composer"
+          placeholder={props.placeholder}
+          value={props.value}
+          onChange={(event) => props.onValueChange(event.target.value)}
+        />
+        <button type="submit" disabled={props.sendDisabled}>
+          send
+        </button>
+      </form>
+    );
+  },
 }));
 
 import { SokoBotHome } from "./soko-bot-home";
@@ -129,6 +140,8 @@ describe("SokoBotHome", () => {
     expect(
       (screen.getByLabelText("composer") as HTMLTextAreaElement).value,
     ).toBe("suggestions.catchUp");
+    // The caret goes after the prompt once it is in, so typing extends it.
+    expect(focusedAtEnd).toHaveBeenCalledWith("suggestions.catchUp");
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
@@ -202,6 +215,42 @@ describe("SokoBotHome", () => {
     expect(screen.queryByText(/quietDay/)).toBeNull();
   });
 
+  it("lists a schedule the bot just got among the Tasks, linked to its row", async () => {
+    await renderHome({
+      schedules: [
+        {
+          id: "sched-1",
+          name: "Monday invoices",
+          createdAt: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/personal-assistant?schedule=sched-1",
+      "/tasks/task-1",
+    ]);
+    expect(links[0]?.textContent).toContain('newSchedule:{"name":"Joseph"}');
+    expect(links[0]?.textContent).toContain("Monday invoices");
+    expect(links[0]?.textContent).toContain("2h");
+  });
+
+  it("drops the quiet line once the bot set up a schedule, with no Tasks", async () => {
+    await renderHome({
+      teamTasks: [],
+      schedules: [
+        {
+          id: "sched-1",
+          name: "Monday invoices",
+          createdAt: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
   it("drops the quiet line once a chat happened, with no Tasks", async () => {
     await renderHome({
       teamTasks: [],
@@ -257,10 +306,70 @@ describe("SokoBotHome", () => {
       screen
         .getByRole("link", { name: 'awaiting:{"count":3}' })
         .getAttribute("href"),
-    ).toBe("/tasks");
+    ).toBe("/tasks?view=board#input-required");
     cleanup();
     await renderHome({ summary: { ...summary, awaitingInput: 0 } });
     expect(screen.queryByText(/awaiting/)).toBeNull();
+  });
+
+  describe("in an org", () => {
+    const summary = {
+      since: new Date(),
+      completed: 0,
+      awaitingInput: 9,
+      createdByOtherHumans: 0,
+      workedMinutes: 0,
+      previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+    };
+
+    it("names the team's waiting Tasks and Needs you's requests apart", async () => {
+      await renderHome({ summary, inOrganization: true, needsYouCount: 2 });
+      expect(
+        screen
+          .getByRole("link", { name: 'awaitingTeam:{"count":9}' })
+          .getAttribute("href"),
+      ).toBe("/tasks?view=board#input-required");
+      expect(
+        screen
+          .getByRole("link", { name: 'needsYou:{"count":2}' })
+          .getAttribute("href"),
+      ).toBe("#soko-bot-home-needs-you");
+      expect(document.getElementById("soko-bot-home-needs-you")).toBeTruthy();
+    });
+
+    // Needs you holds Job, grant and access asks and other workspaces' asks,
+    // so it can be larger than the workspace's waiting Tasks, even with none.
+    it("shows Needs you's requests with no Task waiting in the workspace", async () => {
+      await renderHome({
+        summary: { ...summary, awaitingInput: 0 },
+        inOrganization: true,
+        needsYouCount: 3,
+      });
+      expect(screen.getByRole("link", { name: 'needsYou:{"count":3}' }));
+      expect(screen.queryByText(/awaiting/)).toBeNull();
+    });
+
+    // A Task waiting in another status (approval, credits) asks nobody in
+    // Needs you: the team count stands alone.
+    it("shows the team's count alone when nothing is in Needs you", async () => {
+      await renderHome({ summary, inOrganization: true, needsYouCount: 0 });
+      expect(screen.getByRole("link", { name: 'awaitingTeam:{"count":9}' }));
+      expect(screen.queryByText(/needsYou/)).toBeNull();
+    });
+  });
+
+  it("keeps a personal workspace's own copy and no requests pill", async () => {
+    const summary = {
+      since: new Date(),
+      completed: 0,
+      awaitingInput: 2,
+      createdByOtherHumans: 0,
+      workedMinutes: 0,
+      previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+    };
+    await renderHome({ summary, needsYouCount: 4 });
+    expect(screen.getByRole("link", { name: 'awaiting:{"count":2}' }));
+    expect(screen.queryByText(/needsYou/)).toBeNull();
   });
 
   it("sends into the bot's room and opens it", async () => {

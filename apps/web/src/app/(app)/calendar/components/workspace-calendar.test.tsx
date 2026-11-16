@@ -1282,7 +1282,7 @@ describe("WorkspaceCalendar", () => {
           from: new Date("2026-08-01T00:00:00.000Z"),
           to: new Date("2026-09-01T00:00:00.000Z"),
           // Project drops Follow-ups; owned drops Marketing.
-          types: "tasks,social,newsletter",
+          types: "tasks,social,newsletter,sokoBot",
           timeZone: "UTC",
           agendaOnly: undefined,
           cursor: "cursor-2",

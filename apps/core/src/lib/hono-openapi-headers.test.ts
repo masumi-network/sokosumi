@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRoute, type RouteConfig } from "@hono/zod-openapi";
+import ts from "@typescript/typescript6";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -29,6 +30,17 @@ const baseRoute = createRoute({
     },
   },
 });
+
+function calledFunctions(node: ts.Node): Set<string> {
+  const names = new Set<string>();
+  function visit(child: ts.Node): void {
+    if (ts.isCallExpression(child) && ts.isIdentifier(child.expression))
+      names.add(child.expression.text);
+    ts.forEachChild(child, visit);
+  }
+  visit(node);
+  return names;
+}
 
 describe("OpenAPI header parameter helpers", () => {
   it("withOrganizationSlugHeaderParameter documents only X-Organization-Slug", () => {
@@ -83,11 +95,25 @@ describe("coworker context responses", () => {
       .map((file) => ({
         file,
         source: readFileSync(join(srcDir, file), "utf8"),
+      }))
+      .map(({ file, source }) => ({
+        file,
+        source,
+        tree: ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true),
       }));
     const isRoute = (source: string) => source.includes("createRoute(");
     const helpers = sources.filter(({ source }) => !isRoute(source));
-    const callsAny = (source: string, names: Set<string>) =>
-      [...names].some((name) => source.includes(`${name}(`));
+    const callsAny = (node: ts.Node, names: Set<string>) =>
+      [...calledFunctions(node)].some((name) => names.has(name));
+    const exportedHelpers = helpers.flatMap(({ tree }) =>
+      tree.statements.filter(
+        (node): node is ts.FunctionDeclaration =>
+          ts.isFunctionDeclaration(node) &&
+          !!node.modifiers?.some(
+            (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+          ),
+      ),
+    );
 
     // A helper that calls a binder binds too: the exported function around
     // each call joins the set, until no helper adds a name.
@@ -95,24 +121,20 @@ describe("coworker context responses", () => {
     let grew = true;
     while (grew) {
       grew = false;
-      for (const { source } of helpers) {
-        let enclosing: string | undefined;
-        for (const line of source.split("\n")) {
-          enclosing =
-            /^export (?:async )?function (\w+)/.exec(line)?.[1] ?? enclosing;
-          if (enclosing && !binders.has(enclosing) && callsAny(line, binders)) {
-            binders.add(enclosing);
-            grew = true;
-          }
+      for (const helper of exportedHelpers) {
+        const name = helper.name?.text;
+        if (name && !binders.has(name) && callsAny(helper, binders)) {
+          binders.add(name);
+          grew = true;
         }
       }
     }
 
     const undocumented = sources
       .filter(
-        ({ source }) =>
+        ({ source, tree }) =>
           isRoute(source) &&
-          callsAny(source, binders) &&
+          callsAny(tree, binders) &&
           !source.includes("withCoworkerContextHeaderParameters("),
       )
       .map(({ file }) => file);

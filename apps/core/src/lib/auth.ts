@@ -84,6 +84,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { pendingEmailChange } from "./auth-pending-email-change";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -328,6 +329,9 @@ export const auth = betterAuth({
     "/email-otp/reset-password",
     "/email-otp/request-email-change",
     "/email-otp/change-email",
+    // Its link can be neither shown nor cancelled; `auth-pending-email-change`
+    // replaces it.
+    "/change-email",
   ],
   rateLimit: {
     storage: "database",
@@ -513,6 +517,10 @@ export const auth = betterAuth({
   plugins: [
     createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
     signUpEmailStatus(),
+    pendingEmailChange({
+      expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
+      accountUrl: new URL("/account", webAppBaseUrl).toString(),
+    }),
     // A code, not a link: it goes back into the tab that asked for it, so a
     // sign-in for another app keeps that app's state, and a mail scanner
     // that opens links cannot use it up.

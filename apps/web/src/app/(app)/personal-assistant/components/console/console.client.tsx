@@ -19,12 +19,14 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
+import { formatTaskScheduleTime } from "@/app/tasks/utils/task-schedule-view";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import Markdown from "@/components/markdown";
@@ -108,14 +110,28 @@ function HolderSection({
 /**
  * One schedule: name, when, what it does and when it runs next. A built-in
  * rhythm says what it does in a line; the bot's own schedules show their prompt.
+ * A chat card's "View in schedules" (`?schedule=<id>`) lands on its row:
+ * scrolled to, focused for keyboard and screen reader users, highlighted.
  */
 function ScheduleRow({
   schedule,
   readOnly,
+  focused,
 }: {
   schedule: ChatSchedule;
   readOnly: boolean;
+  focused: boolean;
 }) {
+  const row = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (!focused) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    row.current?.scrollIntoView({
+      block: "center",
+      behavior: reduce.matches ? "auto" : "smooth",
+    });
+    row.current?.focus({ preventScroll: true });
+  }, [focused]);
   const t = useTranslations("App.SokoBot");
   const format = useFormatter();
   const rhythm = schedule.systemKey
@@ -123,12 +139,29 @@ function ScheduleRow({
         (entry) => entry.key === schedule.systemKey,
       )
     : undefined;
+  // Next run reads on the schedule's own clock, as its rule above does; the
+  // viewer's clock follows only when it reads differently.
+  const nextRun = formatTaskScheduleTime(
+    new Date(schedule.nextRunAt),
+    schedule.timezone,
+    format,
+  );
   // A schedule being deleted leaves the list at once and comes back when
   // the delete fails.
   const [removed, setRemoved] = useState(false);
   if (removed) return null;
   return (
-    <li className="space-y-1.5 px-3 py-3">
+    <li
+      ref={row}
+      tabIndex={focused ? -1 : undefined}
+      aria-current={focused || undefined}
+      className={cn(
+        "space-y-1.5 px-3 py-3 outline-none",
+        // The list sits on the gray holder, so the row turns white and
+        // takes the outline a focused connector card has.
+        focused && "bg-background ring-foreground rounded-md ring-2 ring-inset",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 truncate text-sm font-medium">
@@ -161,10 +194,11 @@ function ScheduleRow({
       <p className="text-muted-foreground text-xs">
         {t("Schedules.nextRun")}{" "}
         <span className="text-foreground tabular-nums">
-          {schedule.enabled
-            ? format.dateTime(new Date(schedule.nextRunAt), "dateTimeShort")
-            : t("Schedules.disabled")}
+          {schedule.enabled ? nextRun.schedule : t("Schedules.disabled")}
         </span>
+        {schedule.enabled && nextRun.local ? (
+          <> {t("Schedules.yourTime", { datetime: nextRun.local })}</>
+        ) : null}
         {schedule.consecutiveFailures > 0 ? (
           <span className="text-semantic-destructive ml-3 tabular-nums">
             {t("Schedules.failures")} {schedule.consecutiveFailures}
@@ -258,6 +292,7 @@ export function SokoBotConsole({
   // shallow: false so flipping Advanced re-runs the server component, which is
   // what fetches the skills and integrations that view needs.
   const [view, setView] = useQueryState("view", { shallow: false });
+  const [focusScheduleId] = useQueryState("schedule");
   const isAdvanced = view === "advanced" || focusTurnId !== null;
   const format = useFormatter();
   const router = useRouter();
@@ -646,6 +681,7 @@ export function SokoBotConsole({
                               key={schedule.id}
                               schedule={schedule}
                               readOnly={isCuso}
+                              focused={schedule.id === focusScheduleId}
                             />
                           ))}
                         </ul>

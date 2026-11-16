@@ -75,14 +75,16 @@ export function mountSokoBotAvatarRoutes(app: OpenAPIHonoWithAuth): void {
       409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Unprocessable Entity"),
       429: jsonErrorResponse("Too Many Requests"),
+      503: jsonErrorResponse("Service Unavailable"),
     },
   });
 
   app.openapi(topUpAvatarsRoute, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    const { take, excludeIds } = c.req.valid("json");
+    const { take, excludeIds, fresh } = c.req.valid("json");
     const avatars = await topUpAvailableAvatars(take, {
       excludeIds,
+      fresh,
       requestedByUserId: userId,
     });
     return ok(c, z.array(sokoBotAvatarSchema).parse(avatars));

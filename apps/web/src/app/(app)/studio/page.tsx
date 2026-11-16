@@ -11,6 +11,7 @@ import { projectService } from "@/lib/services/project.service";
 
 import { StudioPageShell } from "./components/studio-page-shell";
 import { StudioProjectScopePrompt } from "./components/studio-project-scope-prompt";
+import { StudioRecentProjects } from "./components/studio-recent-projects";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -60,11 +61,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // In parallel, and the catalog only once per render: it is ~158KB and it is
   // deliberately no longer part of the state payload the open studio refetches
   // every three seconds.
-  const [state, catalog] = await Promise.all([
+  const [state, catalog, recentProjects] = await Promise.all([
     scopeId
       ? loadStudioState(scopeId, query.v)
       : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
+    scopeId ? [] : loadRecentProjects(),
   ]);
 
   const initialSelectedAssetId =
@@ -81,7 +83,10 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         initialState={state}
         // Remounted per project, so no filter, selection, draft prompt or
         // queued request from the previous one can survive the switch. The
-        // state hook resets on its own too; see `useStudioState`.
+        // state hook resets on its own too; see `useStudioState`. The one
+        // exception is a brief typed in the All-projects view, which moves to
+        // a project picked or created from its own prompt
+        // (`studio-workspace-brief.ts`).
         key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
         projectId={scopeId}
@@ -89,6 +94,11 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         projectLogo={project?.logo}
         studioLogoPosition={project?.studioLogoPosition}
         websiteUrl={project?.websiteUrl}
+        recentProjects={
+          recentProjects.length > 0 ? (
+            <StudioRecentProjects now={new Date()} projects={recentProjects} />
+          ) : undefined
+        }
         projectScopePrompt={
           scopeId ? undefined : (
             <StudioProjectScopePrompt
@@ -146,5 +156,18 @@ async function loadStudioState(projectId: string, assetId: string | undefined) {
       error,
     });
     return load({});
+  }
+}
+
+/**
+ * A shortcut, not the page: without it All projects falls back to the
+ * first-ad screen, which still works.
+ */
+async function loadRecentProjects() {
+  try {
+    return await imageStudioService.getRecentProjects();
+  } catch (error) {
+    console.warn("Image studio: recent projects unavailable", { error });
+    return [];
   }
 }

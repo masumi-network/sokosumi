@@ -2,6 +2,7 @@
  * Native overflow scroller for room + thread message lists.
  * Replaces Radix ScrollArea so the scrollbar tracks the same node as list scroll.
  * The bottom edge meets the composer box directly and cuts content there.
+ * RoomShellLayout overlays its composer instead, with matching list padding.
  *
  * Normal scroll coordinates: TanStack owns prepend and streaming anchoring.
  * Disable browser anchoring so it does not apply a second correction.

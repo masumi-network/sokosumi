@@ -11,6 +11,11 @@ vi.mock("next-intl", () => ({
   useFormatter: () => ({
     dateTime: (value: Date) => value.toISOString(),
   }),
+  useNow: () => new Date("2026-03-10T00:00:00.000Z"),
+}));
+
+vi.mock("@/components/time-ago", () => ({
+  TimeAgo: ({ date }: { date: string }) => <time>{date}</time>,
 }));
 
 vi.mock("./task-detail-link", () => ({
@@ -231,5 +236,28 @@ describe("TaskListItem actor cluster", () => {
       screen.getByRole("img", { name: "Soko, Ada, Bea, Cy, Dee" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/Owner/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskListItem time in status", () => {
+  it("shows how long a waiting Task has sat in its status", () => {
+    render(
+      <TaskListItem
+        task={{
+          ...buildTask(TaskVisibility.PUBLIC),
+          statusSince: "2026-03-01T00:00:00.000Z",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("stuck")).toBeVisible();
+    expect(screen.getByText("2026-03-01T00:00:00.000Z")).toBeTruthy();
+  });
+
+  it("shows nothing without a status time", () => {
+    render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
+
+    expect(screen.queryByText("stuck")).toBeNull();
+    expect(screen.queryByText("label")).toBeNull();
   });
 });

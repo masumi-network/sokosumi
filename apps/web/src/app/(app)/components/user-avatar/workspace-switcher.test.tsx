@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAgentJobsBasePath,
   getOrganizationSettingsPath,
+  getSeoBasePath,
   getTaskDetailBasePath,
   switchOrganizationWorkspace,
   useWorkspaceSwitcher,
@@ -48,6 +49,9 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: { getChatRoom: vi.fn() },
 }));
 
+/** Lets the switch's remaining promise steps run. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 function WorkspaceSwitcherTestComponent() {
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
 
@@ -61,6 +65,7 @@ function WorkspaceSwitcherTestComponent() {
 describe("workspace switcher", () => {
   beforeEach(() => {
     pathnameMock = "/";
+    window.history.replaceState(null, "", "/");
     replaceMock.mockClear();
     refreshMock.mockClear();
     vi.mocked(authClient.organization.setActive).mockReset();
@@ -88,6 +93,19 @@ describe("workspace switcher", () => {
     it("returns null for task edit and list routes", () => {
       expect(getTaskDetailBasePath("/tasks")).toBeNull();
       expect(getTaskDetailBasePath("/tasks/task-9/edit")).toBeNull();
+    });
+  });
+
+  describe("getSeoBasePath", () => {
+    it("returns the SEO page for the SEO page only", () => {
+      expect(getSeoBasePath("/seo")).toBe("/seo");
+      expect(getSeoBasePath("/seo", "?projectId=p1&view=project")).toBe("/seo");
+      // An open Audit stays, without its Project: its page asks what to do in the new workspace.
+      expect(
+        getSeoBasePath("/seo", "?projectId=p1&auditId=a1&tab=health"),
+      ).toBe("/seo?auditId=a1&tab=health");
+      expect(getSeoBasePath("/seo/connections/return")).toBeNull();
+      expect(getSeoBasePath("/tasks")).toBeNull();
     });
   });
 
@@ -158,7 +176,9 @@ describe("workspace switcher", () => {
       await user.click(
         screen.getByRole("button", { name: "Switch workspace" }),
       );
-      await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+      await waitFor(() => expect(coreClient.getChatRoom).toHaveBeenCalled());
+      await settle();
+      expect(refreshMock).not.toHaveBeenCalled();
     }
 
     it("keeps the room open on a switch to the workspace it belongs to", async () => {
@@ -234,7 +254,7 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
-      expect(refreshMock).toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
     });
   });
 
@@ -264,6 +284,62 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).toHaveBeenCalledWith("/tasks");
+      expect(refreshMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps an open Audit in the address after a switch on the SEO page", async () => {
+    pathnameMock = "/seo";
+    window.history.replaceState(
+      null,
+      "",
+      "/seo?projectId=p1&auditId=a1&tab=health",
+    );
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: "org-1",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    // The page then shows the prompt: switch back, or add a new page here.
+    // The Project goes: the header would clear it and open the list.
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith(
+      "/seo?auditId=a1&tab=health",
+    );
+  });
+
+  it("opens the new workspace's SEO audit list when no Audit is open on the SEO page", async () => {
+    pathnameMock = "/seo";
+    window.history.replaceState(null, "", "/seo?projectId=p1&view=project");
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: "org-1",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/seo");
       expect(refreshMock).toHaveBeenCalled();
     });
   });
@@ -294,7 +370,7 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).toHaveBeenCalledWith("/organization");
-      expect(refreshMock).toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
     });
   });
 
@@ -335,11 +411,11 @@ describe("workspace switcher", () => {
         organizationId: null,
       });
       expect(replaceMock).toHaveBeenCalledWith("/");
-      expect(refreshMock).toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
     });
   });
 
-  it("refreshes the current route when outside agent jobs routes", async () => {
+  it("leaves the current route to the action's own render outside agent jobs routes", async () => {
     pathnameMock = "/tasks";
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
@@ -364,9 +440,11 @@ describe("workspace switcher", () => {
       expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: "org-1",
       });
-      expect(refreshMock).toHaveBeenCalled();
       expect(replaceMock).not.toHaveBeenCalled();
     });
+    // The preferred-workspace action already rendered the new workspace.
+    await settle();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("supports disabling job route replacement and shows success toast", async () => {
@@ -414,7 +492,7 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).not.toHaveBeenCalled();
-      expect(refreshMock).toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Switched to Org One account");
     });
   });
@@ -464,7 +542,7 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).not.toHaveBeenCalled();
-      expect(refreshMock).toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
     });
   });
 
@@ -515,7 +593,53 @@ describe("workspace switcher", () => {
     });
   });
 
-  it("keeps the current switch when persisting the preferred organization fails", async () => {
+  it("settles a waiter only once the switch has rendered", async () => {
+    pathnameMock = "/tasks";
+    let resolveSetActive: (() => void) | undefined;
+    vi.mocked(authClient.organization.setActive).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSetActive = () => resolve({ data: null, error: null });
+        }),
+    );
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: { organizationId: "org-1" },
+    });
+    let settled = false;
+
+    function WorkspaceSwitcherSettledTestComponent() {
+      const { handleSelectWorkspace, whenSettled } = useWorkspaceSwitcher();
+
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            void whenSettled().then(() => {
+              settled = true;
+            });
+            void handleSelectWorkspace("org-1");
+          }}
+        >
+          Switch workspace
+        </button>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherSettledTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+    expect(settled).toBe(false);
+
+    resolveSetActive?.();
+
+    await waitFor(() => {
+      expect(settled).toBe(true);
+    });
+  });
+
+  it("keeps the current switch and refreshes when persisting the preferred organization fails", async () => {
     pathnameMock = "/tasks";
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
@@ -618,7 +742,7 @@ describe("workspace switcher", () => {
         organizationId: null,
       });
       expect(replaceMock).toHaveBeenCalledWith("/");
-      expect(refreshMock).toHaveBeenCalled();
+      expect(refreshMock).not.toHaveBeenCalled();
     });
 
     expect(unhandledReasons).toEqual([]);

@@ -8,6 +8,7 @@ import {
 } from "@/clients/task-tag-classifier";
 import { getEnv } from "@/config/env";
 import { TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, tryUseLogger } from "@/lib/evlog";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
@@ -74,7 +75,7 @@ export async function classifyTaskTagsInline(input: {
   description?: string | null;
 }): Promise<string[] | null> {
   // A local flag check, not the catalog probe: one fewer round trip per create.
-  if (!getEnv().TASK_TAG_CLASSIFICATION_ENABLED || !getEnv().AI_GATEWAY_API_KEY)
+  if (!getEnv().TASK_TAG_CLASSIFICATION_ENABLED || !aiGatewayApiKey())
     return null;
   try {
     const signal = AbortSignal.timeout(INLINE_TIMEOUT_MS);

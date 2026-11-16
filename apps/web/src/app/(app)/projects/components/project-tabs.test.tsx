@@ -9,6 +9,13 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
 }));
 
+const linkStatus = vi.hoisted(() => ({ pending: false }));
+
+vi.mock("next/link", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/link")>()),
+  useLinkStatus: () => linkStatus,
+}));
+
 const TABS = [
   { id: "overview", href: "/projects/p1", label: "Overview", exact: true },
   { id: "studio", href: "/projects/p1/studio", label: "Image studio" },
@@ -106,5 +113,21 @@ describe("ProjectTabs", () => {
       "href",
       "/projects/p1/calendar",
     );
+  });
+});
+
+describe("ProjectTabs pending cue", () => {
+  it("pulses the clicked tab's underline until its route renders", () => {
+    linkStatus.pending = true;
+    const { container, unmount } = render(
+      <ProjectTabs ariaLabel="Project" tabs={TABS.slice(0, 1)} />,
+    );
+    const link = screen.getByRole("link", { name: "Overview" });
+    expect(link.querySelector("[data-pending]")).toHaveClass("opacity-100");
+    unmount();
+
+    linkStatus.pending = false;
+    render(<ProjectTabs ariaLabel="Project" tabs={TABS.slice(0, 1)} />);
+    expect(container.ownerDocument.querySelector("[data-pending]")).toBeNull();
   });
 });

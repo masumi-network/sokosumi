@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
-import { cmoStrategyVersion } from "../../test-fixtures/cmo";
+import { cmoBilling, cmoStrategyVersion } from "../../test-fixtures/cmo";
 import {
   asking,
   brain,
@@ -167,7 +167,7 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Reading your site");
     expect(html).toContain("Cuso is reading · ");
     expect(html).toContain(" so far");
-    expect(html).toContain("/cuso/reading.png");
+    expect(html).toContain("/cuso/reading-scene.jpg");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
     expect(html).toContain("questions come when the read lands");
@@ -245,11 +245,47 @@ describe("Site while Cuso reads", () => {
       reading({
         work: null,
         learning: "failed",
-        billing: { plan: null, subscriptionStatus: null, availableCredits: 0 },
+        billing: cmoBilling({ availableCredits: 0 }),
       }),
     );
     expect(html).toContain("out of credits");
     expect(html).toContain("Try again");
+    // Hiring is before the subscription: no top-up without one.
+    expect(html).not.toContain("Top up");
+  });
+
+  it("offers the top-up when credits ran out for a Cuso who may have one", () => {
+    const html = site(
+      reading({
+        work: null,
+        learning: "failed",
+        billing: cmoBilling({ availableCredits: 0 }),
+      }),
+      { topUp: async () => ({ url: null, error: null }) },
+    );
+    expect(html).toContain("out of credits");
+    expect(html).toContain(">Top up</button>");
+  });
+});
+
+describe("a Cuso with Tester credits who ran out before his plan", () => {
+  const ranOut = reading({
+    work: null,
+    learning: "failed",
+    subscriptionActive: false,
+    billing: cmoBilling({
+      availableCredits: 0,
+      status: null,
+      hasTesterCredits: true,
+    }),
+  });
+  const subscribe = async () => ({ url: null, error: null });
+
+  it("offers the plan checkout on the read, not a top-up", () => {
+    const html = site(ranOut, { subscribe });
+    expect(html).toContain("out of credits");
+    expect(html).toContain(">Subscribe</button>");
+    expect(html).not.toMatch(/top up/i);
   });
 });
 
@@ -273,7 +309,7 @@ describe("Brand", () => {
   it("leads with the promise and one primary: Looks like us", () => {
     const html = render(draft({ brandBrainConfirmedAt: null, strategy: null }));
     expect(html).toContain("Here&#x27;s acme.io as I see it.");
-    expect(html).toContain("tap any tile to see the source or fix it");
+    expect(html).toContain("Tap any line to see the source or fix it.");
     expect(html).toContain("Your promise, in one line");
     expect(html).toContain("Looks like us");
     expect(html).toContain("Source: acme.io");

@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { splitVoiceTranscript } from "@/lib/utils/voice-message";
 
 const SEARCH_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -498,7 +499,9 @@ export function RoomSearchPanel({
                   </span>
                 </div>
                 <p className="text-muted-foreground line-clamp-2 text-xs">
-                  {message.content}
+                  {/* A voice hit reads as what was said, not as its file link. */}
+                  {splitVoiceTranscript(message.content).transcript ??
+                    message.content}
                 </p>
               </div>
             );

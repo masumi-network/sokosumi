@@ -118,6 +118,16 @@ describe("ThreadPanel empty vs loading", () => {
     expect(screen.queryByText("Thread.empty")).toBeNull();
   });
 
+  it("shows a reply sent while replies are still loading", () => {
+    renderPanel({
+      isLoading: true,
+      replies: [parentMessage({ id: "r1", parentMessageId: "parent-1" })],
+    });
+
+    expect(screen.getByText("row-r1")).toBeTruthy();
+    expect(screen.getByText("Thread.loading")).toBeTruthy();
+  });
+
   it("shows empty only after load settles with zero replies", () => {
     renderPanel({
       isLoading: false,

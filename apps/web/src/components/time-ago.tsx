@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  formatDistanceToNow,
-  formatDistanceToNowStrict,
-  type Locale,
-} from "date-fns";
+import { formatDistance, formatDistanceStrict, type Locale } from "date-fns";
 import { de, enUS, es } from "date-fns/locale";
 import { useFormatter, useLocale } from "next-intl";
 import { Suspense, use } from "react";
@@ -15,7 +11,7 @@ import { browser } from "react-dom";
  * relative string is localized to match the rest of the UI. Falls back to
  * English for any locale without a mapping.
  */
-const DATE_FNS_LOCALES: Record<string, Locale> = {
+export const DATE_FNS_LOCALES: Record<string, Locale> = {
   de,
   en: enUS,
   es,
@@ -37,6 +33,11 @@ interface TimeAgoProps {
    * activity". Without it the title is the absolute stamp alone.
    */
   titlePrefix?: string;
+  /**
+   * Measure against this time instead of the clock at render. Pass a ticking
+   * value (`useNow`) to keep the label current: a memoized render won't.
+   */
+  now?: Date;
   className?: string;
 }
 
@@ -61,6 +62,7 @@ interface TimeAgoRelativeProps {
   addSuffix: boolean;
   strict: boolean;
   locale: string;
+  now?: Date;
   className?: string;
 }
 
@@ -70,13 +72,17 @@ function TimeAgoRelative({
   addSuffix,
   strict,
   locale,
+  now,
   className,
 }: TimeAgoRelativeProps) {
   use(browser());
-  const dateFnsLocale = DATE_FNS_LOCALES[locale] ?? enUS;
+  const options = { addSuffix, locale: DATE_FNS_LOCALES[locale] ?? enUS };
+  // A tick older than the date (a status that just reset) would read as a
+  // stale distance; the real clock gives the near-zero answer.
+  const base = now && now > dateObj ? now : new Date();
   const label = strict
-    ? formatDistanceToNowStrict(dateObj, { addSuffix, locale: dateFnsLocale })
-    : formatDistanceToNow(dateObj, { addSuffix, locale: dateFnsLocale });
+    ? formatDistanceStrict(dateObj, base, options)
+    : formatDistance(dateObj, base, options);
 
   return (
     <TimeAgoStamp
@@ -104,6 +110,7 @@ export function TimeAgo({
   addSuffix = true,
   strict = false,
   titlePrefix,
+  now,
   className,
 }: TimeAgoProps) {
   const format = useFormatter();
@@ -133,6 +140,7 @@ export function TimeAgo({
         addSuffix={addSuffix}
         strict={strict}
         locale={locale}
+        now={now}
         className={className}
       />
     </Suspense>

@@ -62,13 +62,13 @@ import {
   type FileStore,
   fetchFileCollections,
   fetchFileSearchPage,
-  fetchWorkspaceFolders,
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
 import * as moves from "./drive-all-files-moves";
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 import { DriveCollectionChip } from "./drive-collection-chip";
+import { useWorkspaceFolders } from "./use-workspace-folders";
 
 /**
  * All files: one search field over filenames, extracted text and confirmed
@@ -209,7 +209,7 @@ export function DriveAllFilesPanel({
     ...EMPTY_FILE_FILTERS,
     folder: initialFolder,
   });
-  const [folders, setFolders] = useState<string[]>([]);
+  const folders = useWorkspaceFolders(store, reloadToken);
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
   const [labelsState, setLabelsState] = useState<
     "loading" | "ready" | "failed"
@@ -397,19 +397,11 @@ export function DriveAllFilesPanel({
     setCollectionsState("loading");
 
     void (async () => {
-      const [labelResult, collectionResult, folderResult] =
-        await Promise.allSettled([
-          fetchWorkspaceLabels({ store, signal: controller.signal }),
-          fetchFileCollections({ store, signal: controller.signal }),
-          fetchWorkspaceFolders({ store, signal: controller.signal }),
-        ]);
+      const [labelResult, collectionResult] = await Promise.allSettled([
+        fetchWorkspaceLabels({ store, signal: controller.signal }),
+        fetchFileCollections({ store, signal: controller.signal }),
+      ]);
       if (controller.signal.aborted) return;
-
-      // No state of its own. A folder facet the reader cannot see is a filter
-      // they do not miss, and the search box above it is the better tool
-      // anyway — so a failure here is silent rather than an error about
-      // something they were not looking for.
-      setFolders(folderResult.status === "fulfilled" ? folderResult.value : []);
 
       if (labelResult.status === "fulfilled") {
         setLabels(labelResult.value);

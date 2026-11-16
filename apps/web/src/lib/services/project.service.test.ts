@@ -13,6 +13,7 @@ const coreClientMock = {
   getProjectsByIdContextMd: vi.fn(),
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
+  getWorkspacesSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
   getProjectsByIdSocialQueueSlots: vi.fn(),
   getProjectsByIdSocialConnectionsStatistics: vi.fn(),
@@ -699,6 +700,25 @@ describe("project.service", () => {
       );
     });
 
+    it("lists every project's posts for the given statuses", async () => {
+      coreClientMock.getWorkspacesSocialPosts.mockResolvedValue({
+        data: [{ post, projectName: "Launch plan" }],
+        meta: { pagination: { nextCursor: "more" } },
+      });
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listWorkspaceSocialPosts(["FAILED", "NEEDS_APPROVAL"]),
+      ).resolves.toEqual({
+        items: [{ post, projectName: "Launch plan" }],
+        hasMore: true,
+      });
+      expect(coreClientMock.getWorkspacesSocialPosts).toHaveBeenCalledWith({
+        status: "FAILED,NEEDS_APPROVAL",
+        limit: 50,
+      });
+    });
+
     it("reads a single social post", async () => {
       coreClientMock.getProjectsByIdSocialPostsByPostId.mockResolvedValue({
         data: post,
@@ -882,6 +902,25 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdQueue,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 0 });
+    });
+
+    it("reads a closed posting queue as null and rethrows other failures", async () => {
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      coreClientMock.getProjectsByIdSocialQueueSlots.mockRejectedValueOnce(
+        new CoreApiRequestError("forbidden", { status: 403 }),
+      );
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listSocialQueueSlots("project-1"),
+      ).resolves.toBeNull();
+
+      coreClientMock.getProjectsByIdSocialQueueSlots.mockRejectedValueOnce(
+        new CoreApiRequestError("down", { status: 500 }),
+      );
+      await expect(
+        projectService.listSocialQueueSlots("project-1"),
+      ).rejects.toThrow("down");
     });
 
     it("publishes a post now with the observed revision", async () => {

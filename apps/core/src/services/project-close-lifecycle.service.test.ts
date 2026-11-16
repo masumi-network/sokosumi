@@ -19,6 +19,7 @@ const {
   lockCalendarScopeMock: vi.fn(),
   prismaMock: {
     project: { findFirst: vi.fn() },
+    projectCloseOperation: { findUnique: vi.fn() },
     taskScheduleRun: { count: vi.fn() },
   },
   projectCloseOperationCreateMock: vi.fn(),
@@ -47,6 +48,14 @@ const { archiveProjectSokoBotsMock, publishMentionStatusesMock } = vi.hoisted(
 );
 vi.mock("@/services/project-soko-bots-close.service", () => ({
   archiveProjectSokoBotsForClose: archiveProjectSokoBotsMock,
+}));
+const { revokeSubscriptionMock, revokeLeftByEndingMock } = vi.hoisted(() => ({
+  revokeSubscriptionMock: vi.fn(),
+  revokeLeftByEndingMock: vi.fn(),
+}));
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  revokeProjectCusoSubscription: revokeSubscriptionMock,
+  revokeSubscriptionsLeftByEnding: revokeLeftByEndingMock,
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -157,10 +166,83 @@ describe("project close lifecycle", () => {
     projectCloseOperationFindUniqueMock.mockResolvedValue(null);
     prismaMock.taskScheduleRun.count = taskScheduleRunCountMock;
     prismaMock.project.findFirst = projectFindFirstMock;
+    prismaMock.projectCloseOperation.findUnique =
+      projectCloseOperationFindUniqueMock;
     serializableTransactionMock.mockImplementation(async (callback) =>
       callback(transactionClient()),
     );
   });
+
+  it("ends the Project's CMO subscription at Polar before it closes, and closes nothing when Polar refuses", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    projectCloseOperationCreateMock.mockImplementation(async ({ data }) => ({
+      ...operation,
+      ...data,
+      state: ProjectCloseOperationState.CLOSING,
+      attempts: 0,
+      failureSummary: null,
+    }));
+    const close = () =>
+      requestProjectClose(scope, {
+        operationId: CLOSE_ID,
+        expectedProjectRevision: 4,
+      });
+
+    await close();
+
+    expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(
+      PROJECT_ID,
+      WORKSPACE_ID,
+    );
+    expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      archiveProjectSokoBotsMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    // A first subscription created while the close ran is revoked after it.
+    expect(revokeLeftByEndingMock).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
+    expect(
+      archiveProjectSokoBotsMock.mock.invocationCallOrder[0] ?? 0,
+    ).toBeLessThan(revokeLeftByEndingMock.mock.invocationCallOrder[0] ?? 0);
+
+    archiveProjectSokoBotsMock.mockClear();
+    revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+    await expect(close()).rejects.toThrow("polar refused");
+
+    expect(archiveProjectSokoBotsMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a stale revision", 3, null],
+    ["a close key another Project used", 4, { id: CLOSE_ID }],
+  ])(
+    "ends no CMO subscription for a close refused for %s",
+    async (_case, expectedProjectRevision, reusedOperation) => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        projectRevision: 4,
+        closingAt: null,
+        closedAt: null,
+        closeOperation: null,
+      });
+      projectCloseOperationFindUniqueMock.mockResolvedValue(reusedOperation);
+
+      await expect(
+        requestProjectClose(scope, {
+          operationId: CLOSE_ID,
+          expectedProjectRevision,
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(revokeSubscriptionMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("freezes one cutoff and creates an idempotent close operation", async () => {
     projectFindFirstMock.mockResolvedValue({

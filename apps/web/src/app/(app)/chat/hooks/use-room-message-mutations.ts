@@ -21,6 +21,7 @@ import {
 import { keepKnownThreadUnreadReplyCount } from "@/app/chat/utils/merge-room-messages";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { tombstoneChatRoomMessage } from "@/lib/ably/apply-chat-room-message-id-envelope";
+import { setVoiceTranscript } from "@/lib/utils/voice-message";
 
 interface RoomMessageMutationsOptions {
   /** Read at call time: the open Room is resolved after this hook runs. */
@@ -240,15 +241,40 @@ export function useRoomMessageMutations({
   }
 
   function handleSaveEdit(contentOverride?: string) {
-    const roomId = getSelectedRoomId();
-    if (!roomId || !editSession) return;
-    const { messageId, draft } = editSession;
-    // Two saves in one tick both see the session open.
-    if (openEditSaves.has(messageId)) return;
+    if (!editSession) return;
+    const { messageId, draft, inThread } = editSession;
     // Prefer live editor text (Enter can fire before React flushes onChange).
-    const raw = contentOverride ?? draft;
+    if (saveMessageContent(messageId, contentOverride ?? draft, inThread)) {
+      setEditSession(null);
+    }
+  }
+
+  /**
+   * Writes a voice message's transcript into its content, as an edit. False
+   * when nothing was sent (an edit of this message still saving, or too long).
+   */
+  function handleSaveTranscript(
+    message: ChatRoomMessage,
+    transcript: string,
+    inThread: boolean,
+  ): boolean {
+    const content = setVoiceTranscript(message.content, transcript);
+    if (content === message.content) return true;
+    return saveMessageContent(message.id, content, inThread);
+  }
+
+  /** Saves new content optimistically; false when nothing was sent. */
+  function saveMessageContent(
+    messageId: string,
+    raw: string,
+    inThread: boolean,
+  ): boolean {
+    const roomId = getSelectedRoomId();
+    if (!roomId) return false;
+    // Two saves in one tick both see the session open.
+    if (openEditSaves.has(messageId)) return false;
     const content = raw.trim();
-    if (!content) return;
+    if (!content) return false;
     if (isRoomComposerContentOverLimit(content)) {
       toast.error(
         t("composerTooLong", {
@@ -256,7 +282,7 @@ export function useRoomMessageMutations({
           max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
         }),
       );
-      return;
+      return false;
     }
 
     // The editor closes and the row shows the new text at once. A refused
@@ -264,14 +290,12 @@ export function useRoomMessageMutations({
     // toast offers the editor again with the text the user confirmed: it does
     // not open by itself, because it would take the focus from what the user
     // types by then.
-    const { inThread } = editSession;
     const editedAt = new Date();
     let before: Pick<ChatRoomMessage, "content" | "editedAt"> | null = null;
     patchMessage(messageId, (row) => {
       before ??= { content: row.content, editedAt: row.editedAt };
       return { ...row, content, editedAt };
     });
-    setEditSession(null);
     openEditSaves.add(messageId);
     setMessageSaving(messageId, true);
     void editRoomMessageAction(roomId, messageId, content)
@@ -311,6 +335,7 @@ export function useRoomMessageMutations({
         }
         mergeUpdatedMessage(result.value);
       });
+    return true;
   }
 
   /** Changes one message in the room list, the open thread and its parent. */
@@ -470,6 +495,7 @@ export function useRoomMessageMutations({
     handleCancelEdit,
     handleEditDraftChange,
     handleSaveEdit,
+    handleSaveTranscript,
     handleRemoveUnfurl,
     handleDeleteMessage,
     mergeUpdatedMessage,

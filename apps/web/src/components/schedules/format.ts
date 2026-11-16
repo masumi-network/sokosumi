@@ -138,3 +138,27 @@ export function formatScheduleTitle(
       return t("option.custom");
   }
 }
+
+/**
+ * `m h * * DOW` and `m h D * *`, with plain weekday tokens. The parser reads
+ * other shapes too but drops part of them: `1#1` (first Monday) parses as
+ * every Monday, and `1,3` (days 1 and 3) as every 2 days.
+ */
+const EXACTLY_NAMED_CRON =
+  /^\d{1,2} \d{1,2} (?:\* \* (?:\*|(?:[0-7]|[A-Za-z]{3})(?:[-,](?:[0-7]|[A-Za-z]{3}))*)|\d{1,2} \* \*)$/;
+
+/**
+ * A cron that carries its whole rule (a Soko Bot follow-up's) in words:
+ * "Weekly (Monday, 9:00 AM)". Null when the labels would change its meaning;
+ * show the cron itself then.
+ */
+export function formatCronScheduleTitle(
+  cron: string,
+  timezone: string,
+  formatter: DateTimeFormatter,
+  t: ScheduleTitleTranslateFn,
+): string | null {
+  if (!EXACTLY_NAMED_CRON.test(cron.trim())) return null;
+  const info = computeScheduleTitleInfo({ cron, timezone }, formatter);
+  return info.key === "custom" ? null : formatScheduleTitle(info, t);
+}

@@ -29,6 +29,7 @@ import {
   clampToModel,
   creditsForBatch,
   creditsForImage,
+  modelVariants,
   priceUnitLabelKey,
 } from "./catalog";
 import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
@@ -340,15 +341,29 @@ export function StudioComposer({
     [availableModels, selectedModelIds],
   );
 
+  // Over the whole catalog, so a reference filter cannot hide the twin that
+  // made a label ambiguous and take its line away.
+  const variants = useMemo(
+    () => modelVariants(catalog.models),
+    [catalog.models],
+  );
+  /** The label, with the variant when another model shares it. */
+  const modelName = (model: StudioModel) => {
+    const variant = variants.get(model.id);
+    return variant ? `${model.label} (${variant})` : model.label;
+  };
+
   const needle = modelQuery.trim().toLowerCase();
   const shownModels = useMemo(
     () =>
       needle === ""
         ? availableModels
         : availableModels.filter((model) =>
-            `${model.label} ${model.id}`.toLowerCase().includes(needle),
+            `${model.label} ${variants.get(model.id) ?? ""} ${model.id}`
+              .toLowerCase()
+              .includes(needle),
           ),
-    [availableModels, needle],
+    [availableModels, needle, variants],
   );
 
   /** Select the shown models that fit, keeping the existing selection first. */
@@ -593,7 +608,7 @@ export function StudioComposer({
           )?.id,
         variationIndex: studioAdVariationIndex(leg.prompt),
         modelId: leg.model.id,
-        modelLabel: leg.model.label,
+        modelLabel: modelName(leg.model),
         settings: leg.settings,
         parentAssetId:
           parentAssetId === undefined
@@ -616,7 +631,7 @@ export function StudioComposer({
 
   const modelSummary =
     selectedModels.length === 1
-      ? selectedModels[0].label
+      ? modelName(selectedModels[0])
       : t("modelCount", { count: selectedModels.length });
 
   const hasSharedFormat = shared.outputFormats.length > 0;
@@ -912,12 +927,18 @@ export function StudioComposer({
                   placeholder={labels.searchModels}
                   value={modelQuery}
                 />
-                <p
-                  className="text-muted-foreground mb-2 px-1 text-xs"
-                  id="studio-model-selection-limit"
-                >
-                  {selectionLimitReason}
-                </p>
+                {/* The "Select up to N" button already states the plain model
+                  limit, so this line only appears once the limit is reached
+                  (it explains the disabled rows) or for a product batch,
+                  where it says which choices count toward the image limit. */}
+                {selectionLimitReached || hasProductBatch ? (
+                  <p
+                    className="text-muted-foreground mb-2 px-1 text-xs"
+                    id="studio-model-selection-limit"
+                  >
+                    {selectionLimitReason}
+                  </p>
+                ) : null}
                 <div
                   className="app-scrollbar max-h-80 overflow-y-auto overscroll-contain"
                   role="group"
@@ -975,6 +996,11 @@ export function StudioComposer({
                               </span>
                             ) : null}
                           </span>
+                          {variants.has(model.id) ? (
+                            <span className="text-muted-foreground block truncate text-xs font-medium">
+                              {variants.get(model.id)}
+                            </span>
+                          ) : null}
                           <span className="text-muted-foreground block truncate text-xs">
                             {model.description}
                           </span>
@@ -1219,7 +1245,9 @@ export function StudioComposer({
                       {plan.configured.map(({ model }, index) =>
                         plannedSettings[index] === commonSettings ? null : (
                           <li key={model.id}>
-                            <span className="font-medium">{model.label}</span>
+                            <span className="font-medium">
+                              {modelName(model)}
+                            </span>
                             <span className="text-muted-foreground tabular-nums">
                               {" · "}
                               {plannedSettings[index]}
@@ -1380,7 +1408,7 @@ export function StudioComposer({
                           <li key={`${model.id}:${actual.aspectRatio}`}>
                             <div className="flex min-w-0 items-baseline gap-2">
                               <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                                {model.label}
+                                {modelName(model)}
                               </span>
                               <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                                 {credits === null

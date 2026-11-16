@@ -82,6 +82,12 @@ public struct MessageMarkdown: Equatable, Sendable {
     })
   }
 
+  /// Web `segmentRoomMessageContent`: a `transcript` fence is a voice transcript only in a message with an audio
+  /// card; anywhere else it stays code.
+  public var showsVoiceTranscript: Bool {
+    segments.contains { $0.attachments.contains { $0.kind == .audio } }
+  }
+
   /// Row 31b3 (web `endsWithAttachmentRow`): whether the body's last segment is a run of files rather than text —
   /// what the newest row keeps the Seen by corner clear under. Reads the same source runs as `segments` without
   /// parsing the document, so a row can ask before its document is ready.

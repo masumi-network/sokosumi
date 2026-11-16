@@ -138,8 +138,11 @@ export function RoomMessageMarkdown({
       span: (props) => (
         <RoomMentionHoverSpan {...props} lookupsRef={lookupsRef} />
       ),
+      // Non-interactive text sits inside a button (a quote's jump target),
+      // where a link would nest one control inside another.
+      ...(hoverInteractive ? {} : { a: ({ children }) => <>{children}</> }),
     }),
-    [],
+    [hoverInteractive],
   );
 
   if (!content.trim()) {

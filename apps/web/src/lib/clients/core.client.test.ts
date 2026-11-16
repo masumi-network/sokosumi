@@ -805,6 +805,7 @@ describe("core.client", () => {
               runAt: null,
               jobsCount: 2,
               commentsCount: 4,
+              statusSince: "2026-07-13T10:02:00.000Z",
               workspace: {
                 id: "ws_1",
                 organizationId: null,
@@ -845,6 +846,10 @@ describe("core.client", () => {
     expect(response.data).toHaveLength(1);
     expect(response.data[0]?.createdAt).toEqual(
       new Date("2026-07-13T10:00:00.000Z"),
+    );
+    // The board formats it as a Date; a string crashed the Tasks page.
+    expect(response.data[0]?.statusSince).toEqual(
+      new Date("2026-07-13T10:02:00.000Z"),
     );
     expect(response.data[0]).toMatchObject({
       jobsCount: 2,

@@ -2,22 +2,22 @@
 
 import type { Notice } from "@sokosumi/core-client";
 import { NoticeKind } from "@sokosumi/core-client";
+import { parseNoticeTemplate } from "@sokosumi/utils";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { acknowledgeNoticeAction } from "@/lib/actions/notice/action";
+import { cn } from "@/lib/utils";
 import { isVideoUrl } from "@/lib/utils/file-preview";
-import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
 const Markdown = dynamic(() => import("@/components/markdown"), {
   loading: () => (
@@ -132,9 +132,8 @@ export function NoticeDialog({
   return (
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={
-          isLegalNotice ? "sm:max-w-2xl [&>button]:hidden" : "sm:max-w-2xl"
-        }
+        className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6"
+        showCloseButton={!isLegalNotice}
         onEscapeKeyDown={
           isLegalNotice ? (event) => event.preventDefault() : undefined
         }
@@ -142,60 +141,100 @@ export function NoticeDialog({
           isLegalNotice ? (event) => event.preventDefault() : undefined
         }
       >
-        <DialogHeader className="-mx-6 -mt-6 gap-0">
-          {coverUrl ? (
-            <div className="bg-muted overflow-hidden rounded-t-lg">
-              {isVideoUrl(coverUrl) ? (
-                <video
-                  src={coverUrl}
-                  controls
-                  className="aspect-16/7 w-full object-cover"
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverUrl}
-                  alt={noticeTitle}
-                  className="aspect-16/7 w-full object-cover"
-                />
-              )}
-            </div>
-          ) : null}
-          <div className="space-y-2 px-6 pt-4">
-            <DialogTitle>{noticeTitle}</DialogTitle>
-            {noticeSummary ? (
-              <DialogDescription>{noticeSummary}</DialogDescription>
-            ) : null}
-          </div>
-        </DialogHeader>
-
-        <div className="app-scrollbar max-h-[45dvh] overflow-y-auto pr-1">
-          <Markdown>{parsedTemplate.bodyMarkdown}</Markdown>
+        <div className="flex h-16 items-center px-6 sm:px-8">
+          <ThemedLogo LogoComponent={SokosumiLogo} height={16} width={123} />
         </div>
 
-        <DialogFooter>
-          {actionUrl ? (
+        <div className="app-scrollbar min-h-0 overflow-y-auto overscroll-contain px-6 py-4 sm:px-10">
+          <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none">
+            {coverUrl ? (
+              <NoticeCover
+                url={coverUrl}
+                alt={noticeTitle}
+                controls
+                className="rounded-xl border"
+              />
+            ) : null}
+            <div className="text-center">
+              <DialogTitle className="mt-6 text-3xl leading-[1.1] font-semibold tracking-[-0.02em] text-balance">
+                {noticeTitle}
+              </DialogTitle>
+              <DialogDescription
+                className={
+                  noticeSummary
+                    ? "text-muted-foreground mx-auto mt-2 max-w-[42ch] text-base leading-[1.6] text-balance"
+                    : "sr-only"
+                }
+              >
+                {noticeSummary ?? noticeTitle}
+              </DialogDescription>
+            </div>
+            {parsedTemplate.bodyMarkdown.trim() ? (
+              <Markdown className="mx-auto mt-6 max-w-md text-sm">
+                {parsedTemplate.bodyMarkdown}
+              </Markdown>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="bg-background flex min-h-20 items-center justify-between gap-3 px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8">
+          {isLegalNotice ? (
+            <span />
+          ) : (
             <Button
-              type="button"
-              variant="primary"
-              onClick={handleOpenAction}
-              loading={isSubmitting}
+              variant="ghost"
+              className="text-muted-foreground h-11 px-4"
+              onClick={() => handleOpenChange(false)}
+              disabled={isSubmitting}
             >
-              {actionLabel ?? t("actions.openLink")}
+              {t("actions.close")}
             </Button>
-          ) : null}
-          {!actionUrl ? (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleAcknowledge}
-              loading={isSubmitting}
-            >
-              {t("actions.confirm")}
-            </Button>
-          ) : null}
-        </DialogFooter>
+          )}
+          <Button
+            variant="primary"
+            size="lg"
+            className="h-11 rounded-full px-6"
+            onClick={actionUrl ? handleOpenAction : handleAcknowledge}
+            loading={isSubmitting}
+          >
+            {actionUrl
+              ? (actionLabel ?? t("actions.openLink"))
+              : t("actions.confirm")}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A notice's cover: a video plays muted on a loop, like a GIF. */
+export function NoticeCover({
+  url,
+  alt,
+  controls = false,
+  className,
+}: {
+  url: string;
+  alt: string;
+  controls?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("bg-muted overflow-hidden", className)}>
+      {isVideoUrl(url) ? (
+        <video
+          src={url}
+          autoPlay
+          loop
+          muted
+          playsInline
+          controls={controls}
+          className="aspect-video w-full object-cover"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={alt} className="aspect-video w-full object-cover" />
+      )}
+    </div>
   );
 }

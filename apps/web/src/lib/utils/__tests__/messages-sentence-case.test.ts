@@ -24,6 +24,8 @@ const PROPER_PHRASES = [
   // Ad platforms.
   "Google Ads",
   "Google Search",
+  "Google Analytics",
+  "Search Console",
   "Display Network",
   // Google's spreadsheet product, which Files links.
   "Google Sheets",
@@ -49,6 +51,10 @@ const PROPER_PHRASES = [
   "Acme Inc.",
   "Times New Roman",
   "Google Domains",
+  // The Google News app and site, a Search Console search type.
+  "Google News",
+  // Google's search feature; replaceAll also covers "AI Overviews".
+  "AI Overview",
   // Example organization name in a placeholder.
   "My Organization",
   // Example brands in the Ads and Newsletter no-project backdrops.
@@ -59,6 +65,7 @@ const PROPER_PHRASES = [
   "Field Notes Studio",
   "Field Notes",
   "Studio Weekly",
+  "Advanced Web Ranking",
 ];
 
 /** Longest first, so "Soko Bots" is not stripped as "Soko Bot" plus a stray "s". */
@@ -79,6 +86,10 @@ const PROPER_WORDS = new Set([
   "Claude",
   "Eve",
   "YouTube",
+  // AI assistants that GA4 counts in its AI Assistant channel.
+  "ChatGPT",
+  "Gemini",
+  "Copilot",
   "Slack",
   "Notion",
   "Linear",

@@ -38,6 +38,7 @@ export const loadMoreHistory = withSession<
         scope: filters.scope,
         type: filters.type ?? undefined,
         projectId: filters.projectId ?? undefined,
+        taskId: filters.taskId ?? undefined,
       },
       activeOrganizationId,
     ),
@@ -49,6 +50,7 @@ export const loadMoreHistory = withSession<
     projectId: resolvedFilters.projectId ?? undefined,
     q: resolvedFilters.q ?? undefined,
     scope: resolvedFilters.scope,
+    taskId: resolvedFilters.taskId ?? undefined,
     types: resolveHistoryApiTypes(resolvedFilters.type),
   });
 

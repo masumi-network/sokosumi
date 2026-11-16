@@ -116,6 +116,8 @@ import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
 import { CalendarShowFilter } from "./calendar-show-filter";
 import {
+  type BotRunHandlers,
+  type ChangeableBotRun,
   calendarCardClassName,
   FeatureCalendarEvent,
   featureEntryPlacement,
@@ -143,6 +145,7 @@ import {
 import { SocialPostMoveDialog } from "./social-post-move-dialog";
 import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
+import { useBotRunChanges } from "./use-bot-run-changes";
 import { useRunChanges } from "./use-run-changes";
 import { useUrlTimezone } from "./use-url-timezone";
 
@@ -353,7 +356,7 @@ function isDraggableCalendarEntry(item: WorkspaceCalendarEntry) {
   return isChangeableRun(item) || isChangeableSocialPost(item);
 }
 
-interface RunHandlers {
+interface RunHandlers extends BotRunHandlers {
   onMoveRun: (item: ChangeableRun) => void;
   onRestoreRun: (item: ChangeableRun) => void;
   onSkipRun: (item: ChangeableRun) => void;
@@ -840,6 +843,7 @@ function CalendarView({
                   ) : (
                     <FeatureCalendarEvent
                       item={item}
+                      {...runHandlers}
                       source={sources.find(
                         ({ sourceId }) => sourceId === item.sourceId,
                       )}
@@ -992,6 +996,7 @@ function CalendarView({
               return (
                 <FeatureCalendarEvent
                   item={item}
+                  {...runHandlers}
                   source={sources.find(
                     ({ sourceId }) => sourceId === item.sourceId,
                   )}
@@ -1073,6 +1078,10 @@ export function WorkspaceCalendar({
     items: WorkspaceCalendarEntry[];
   } | null>(null);
   const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
+  const [movingBotRun, setMovingBotRun] = useState<ChangeableBotRun | null>(
+    null,
+  );
+  const { moveBotRun, restoreBotRun, skipBotRun } = useBotRunChanges();
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
@@ -1368,6 +1377,9 @@ export function WorkspaceCalendar({
     onMoveRun: setMovingRun,
     onRestoreRun: (item) => changeShownRun(item, { action: "restore" }),
     onSkipRun: (item) => changeShownRun(item, { action: "skip" }),
+    onMoveBotRun: setMovingBotRun,
+    onSkipBotRun: (item) => void skipBotRun(item),
+    onRestoreBotRun: restoreBotRun,
     onOpen: (path) => {
       // A task opened here offers Back to this view, period and filters.
       if (path.startsWith("/tasks/")) {
@@ -1430,6 +1442,7 @@ export function WorkspaceCalendar({
     setNextCursor(null);
     setLoadMoreError(false);
     setMovingRun(null);
+    setMovingBotRun(null);
   }
 
   function handleCalendarInvalidated() {
@@ -1440,6 +1453,7 @@ export function WorkspaceCalendar({
     handleCalendarInvalidated();
     setLoadMoreError(false);
     setMovingRun(null);
+    setMovingBotRun(null);
   }
 
   // Month/week grids must show every event: a day holding three of its five
@@ -1823,12 +1837,23 @@ export function WorkspaceCalendar({
       {movingRun ? (
         <RunMoveDialog
           key={movingRun.id}
-          item={movingRun}
+          name={movingRun.taskName}
+          scheduledAt={movingRun.scheduledAt}
           timeZone={timeZone}
           onClose={() => setMovingRun(null)}
           onMove={(scheduledAt) =>
             changeShownRun(movingRun, { action: "move", scheduledAt })
           }
+        />
+      ) : null}
+      {movingBotRun ? (
+        <RunMoveDialog
+          key={movingBotRun.id}
+          name={movingBotRun.name}
+          scheduledAt={movingBotRun.scheduledAt}
+          timeZone={timeZone}
+          onClose={() => setMovingBotRun(null)}
+          onMove={(scheduledAt) => moveBotRun(movingBotRun, scheduledAt)}
         />
       ) : null}
     </div>

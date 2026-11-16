@@ -40,6 +40,10 @@ Web (`@sentry/nextjs`, `apps/web/sentry.*.config.ts`) and Core (`apps/core/src/l
 
 A reported Core `requestId` (it is in every error body's `meta`) is one query in Sentry Logs, region `https://de.sentry.io`: `requestId:<id>`. Its wide event carries `actor` (`user`, `coworker`, `sokoBot`, or none when authentication failed), `path` (the route template) and `tags[status,number]`, which together tell which credential made the call and how it ended. Filter across requests by `path` and `actor`; `user.id` is not a searchable attribute.
 
+### Ably (realtime)
+
+Chat, typing, presence, and notification push use Ably. Core signs client tokens at `POST /v1/realtime/ably-token`; Web proxies that at `POST /api/ably/auth`. Channel and key rules: [ADR 0022](../adr/0022-channel-based-push-delivery.md), [ADR 0033](../adr/0033-typing-rides-its-own-ephemeral-channel.md), [ADR 0055](../adr/0055-realtime-channels-are-scoped-outside-production.md). Load [`using-ably`](../../.agents/skills/using-ably/) when changing that integration, and [`debugging-with-ably-cli`](../../.agents/skills/debugging-with-ably-cli/) when a message, presence update, or token auth fails. Placeholder keys locally: [local development](./local-development.md).
+
 ### Apple (apps/apple only)
 
 Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skill`), installed app-scoped under `apps/apple/.agents/skills/` — never the repo root. Load it when writing, reviewing, or refactoring SwiftUI for macOS/iOS. Install or update with `apps/apple` as cwd: `npx skills add https://github.com/avdlee/swiftui-agent-skill -s swiftui-expert-skill -y`. The repo's second skill, `update-swiftui-apis`, is intentionally not installed (skill maintenance; requires Sosumi MCP).
