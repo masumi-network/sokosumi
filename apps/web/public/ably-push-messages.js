@@ -59,6 +59,8 @@ globalThis.MESSAGES = {
       "The schedule for {taskName} was removed after review",
     "Notifications.Billing.lowBalance":
       "Your credits are running low: {credits} left",
+    "Notifications.Billing.cusoLowCredits":
+      "{cusoName} for {businessName} is running low: {credits} credits left",
     "Notifications.Billing.paymentFailed": "A subscription payment failed",
     "Notifications.Billing.creditsAdded":
       "{credits} credits were added to your balance",
@@ -138,6 +140,8 @@ globalThis.MESSAGES = {
       "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
     "Notifications.Billing.lowBalance":
       "Deine Credits werden knapp: noch {credits}",
+    "Notifications.Billing.cusoLowCredits":
+      "{cusoName} für {businessName} gehen die Credits aus: noch {credits}",
     "Notifications.Billing.paymentFailed":
       "Eine Abo-Zahlung ist fehlgeschlagen",
     "Notifications.Billing.creditsAdded":
@@ -219,6 +223,8 @@ globalThis.MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Billing.lowBalance":
       "Tus créditos se están agotando: quedan {credits}",
+    "Notifications.Billing.cusoLowCredits":
+      "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",
     "Notifications.Billing.paymentFailed": "Un pago de suscripción falló",
     "Notifications.Billing.creditsAdded":
       "Se añadieron {credits} créditos a tu saldo",

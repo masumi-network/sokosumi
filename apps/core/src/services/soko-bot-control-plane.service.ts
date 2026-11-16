@@ -38,6 +38,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
@@ -1472,9 +1473,12 @@ export class SokoBotControlPlane {
       userId: string;
       organizationId: string | null;
     } | null = null;
+    // A Cuso's charge gets his own notice, on his Project (SOKD-246).
+    let chargedCusoProjectId: string | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
+      chargedCusoProjectId = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1526,6 +1530,9 @@ export class SokoBotControlPlane {
         tx,
       );
       const chargedUserId = sokoBotActingUserId(turn);
+      if (usageCharge.chargedCents > 0n && usageCharge.cusoProjectId) {
+        chargedCusoProjectId = usageCharge.cusoProjectId;
+      }
       // A Cuso's charge drew on his Project credits first: the pool's
       // notice, which sends people to Sokosumi's top-up, is not his.
       if (
@@ -1682,6 +1689,9 @@ export class SokoBotControlPlane {
         // usage was recorded still committed that charge.
         if (chargedWallet) {
           await notifyLowBalanceAfterCharge(chargedWallet);
+        }
+        if (chargedCusoProjectId) {
+          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
         }
         if (settled) {
           waitUntil(

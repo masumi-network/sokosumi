@@ -9,6 +9,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import prisma from "@/lib/db/prisma";
 import {
   evaluateWithJev,
@@ -604,11 +605,15 @@ export async function advanceCmoMonthReview(input: {
       .length,
     costUsd: read.costUsd,
   });
-  await recordSokoBotCheckUsage({
+  const charge = await recordSokoBotCheckUsage({
     sokoBotId: input.sokoBotId,
     key: `cmo-review:${version.id}:${round}`,
     costUsd: read.costUsd,
   });
+  // After the charge committed, like a turn's (SOKD-246).
+  if (charge.chargedCents > 0n && charge.cusoProjectId) {
+    await notifyCusoLowCreditsAfterCharge(charge.cusoProjectId);
+  }
   if (
     Object.keys(read.pieces).length === 0 &&
     Object.keys(read.writing).length === 0

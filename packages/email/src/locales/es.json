@@ -252,6 +252,14 @@
         "title": "Créditos agotándose",
         "body": "Tus créditos se están agotando. Te quedan {credits}. El trabajo se detiene cuando se acaban.",
         "button": "Añadir créditos"
+      },
+      "cusoLowCredits": {
+        "subject": "CMO - A {cusoName} para {businessName} se le acaban los créditos",
+        "preview": "A {cusoName} le quedan {credits} créditos.",
+        "title": "Créditos agotándose",
+        "body": "A {cusoName} para {businessName} le quedan {credits} créditos. Se pausa cuando se acaban.",
+        "nextGrant": "Sus próximos créditos del plan llegan el {date}.",
+        "button": "Recargar o cambiar de plan"
       }
     }
   },
