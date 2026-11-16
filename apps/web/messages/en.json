@@ -5478,7 +5478,8 @@
       "actions": {
         "confirm": "Confirm",
         "seeMore": "See more",
-        "openLink": "Open link"
+        "openLink": "Open link",
+        "close": "Close"
       },
       "errors": {
         "acknowledgeFailed": "Failed to acknowledge notice"

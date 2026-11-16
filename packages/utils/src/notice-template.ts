@@ -75,3 +75,18 @@ export function parseNoticeTemplate(markdown: string): ParsedNoticeTemplate {
     bodyMarkdown,
   };
 }
+
+/**
+ * The Markdown `parseNoticeTemplate` reads back: one header line per value,
+ * so line breaks inside a value are folded into spaces.
+ */
+export function buildNoticeTemplate(
+  header: NoticeTemplateHeader,
+  bodyMarkdown: string,
+): string {
+  const lines = Object.entries(HEADER_KEY_MAP).flatMap(([key, field]) => {
+    const value = header[field]?.replace(/\s+/g, " ").trim();
+    return value ? [`${key}: ${value}`] : [];
+  });
+  return `---\n${lines.join("\n")}\n---\n\n${bodyMarkdown.trim()}\n`;
+}

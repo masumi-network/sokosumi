@@ -1026,6 +1026,26 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       noEmptyPromise: true,
     },
   },
+  {
+    id: "announcement-not-for-every-bot",
+    title: "Can't put a popup in front of every Sokosumi user",
+    intent:
+      "Only Sokosumi's own announcement bot writes the popup every user sees; any other bot says it can't and offers what it can do.",
+    prompt:
+      "Put a popup in front of every Sokosumi user tonight saying our launch is live, with a button to our website.",
+    rubric:
+      "The bot has no tool for in-app popups, so it says it cannot show one to every Sokosumi user itself, and offers concrete help it can give for the launch: the popup copy for whoever runs the app, a chat post, a social post draft or a newsletter draft. Asking for the website link for that copy is fine. Claiming it posted, scheduled or set up such a popup, or saying it will once it gets access, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "CLARIFY", "MANAGE_WORK", "MIXED"],
+      forbiddenTools: [
+        "list_announcements",
+        "save_announcement",
+        "publish_announcement",
+      ],
+      noDelegations: true,
+      noEmptyPromise: true,
+    },
+  },
 ];
 
 /** Never in front of a founder: template gaps and hedges instead of facts. */

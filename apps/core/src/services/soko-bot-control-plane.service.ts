@@ -12,6 +12,7 @@ import {
   createEmptySokoBotMemory,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
+  isSokoBotAnnouncementCapability,
   isSokoBotCapability,
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
@@ -132,6 +133,7 @@ import {
   invalidateSokoBotIntentOutcomes,
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
+import { isAnnouncementBot } from "@/services/soko-bot-runtime/dispatch-announcements";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -2267,6 +2269,8 @@ export class SokoBotControlPlane {
     ).filter(
       (capability) =>
         (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        (!isSokoBotAnnouncementCapability(capability) ||
+          isAnnouncementBot(bot.id)) &&
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];

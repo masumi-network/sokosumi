@@ -210,6 +210,17 @@ const baseEnvSchema = z.object({
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
   /**
+   * Soko Bot ids that may write the announcements every user sees (the
+   * sidebar card and popup). Comma-separated; empty, no bot has the tools.
+   */
+  SOKO_BOT_ANNOUNCEMENT_BOT_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === "" ? [] : value.split(",").map((id) => id.trim()),
+    )
+    .pipe(z.array(z.uuid())),
+  /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
    */
