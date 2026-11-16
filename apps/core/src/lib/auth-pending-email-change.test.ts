@@ -46,16 +46,20 @@ async function signedInAuth() {
     advanced: { database: { generateId: "uuid" } },
     // Each write goes straight to the store, as each statement does to the
     // row it locks in Postgres; the memory adapter's own transaction merges
-    // snapshots instead and would hide those locks.
-    database: (options: BetterAuthOptions) => ({
-      ...memoryAdapter({
+    // snapshots instead and would hide those locks. A transaction runs its
+    // callback on the adapter itself, as Better Auth's fallback would.
+    database: (options: BetterAuthOptions) => {
+      const adapter = memoryAdapter({
         user: [],
         session: [],
         account: [],
         verification: [],
-      })(options),
-      transaction: undefined as never,
-    }),
+      })(options);
+      return {
+        ...adapter,
+        transaction: (run) => run(adapter),
+      } satisfies typeof adapter;
+    },
     databaseHooks: {
       user: {
         update: {

@@ -67,7 +67,9 @@ export async function deleteStripeCustomerBestEffort(
     return;
   }
   if (runningSubscription) {
-    console.warn(
+    // Expected: the subscription keeps its customer. Info, not a warning;
+    // this runs in waitUntil, after the request's wide event has gone.
+    console.info(
       `Skipping Stripe customer ${input.stripeCustomerId} delete: running subscription still present for ${input.ownerType} ${input.ownerId}`,
     );
     return;

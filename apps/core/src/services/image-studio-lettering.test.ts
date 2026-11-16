@@ -103,6 +103,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: mocks.assetFindMany,
       create: mocks.assetCreate,
     },
+    projectImagePromptSnapshot: { upsert: vi.fn() },
     brandBrain: {
       findUnique: async () => ({
         body: {
@@ -133,6 +134,8 @@ import {
   setResolvedImageCatalog,
 } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
+import { expectConsole } from "@/test/console";
+import { pngBytes } from "@/test/image-bytes";
 import {
   createImageJob,
   failImageJob,
@@ -162,6 +165,8 @@ type Row = Record<string, unknown>;
 let jobs: Row[];
 let assets: Row[];
 let stored: Map<string, Uint8Array>;
+// What the compositor hands back: a real PNG, so the stored version has a size.
+const COMPOSITE_BYTES = pngBytes(1024, 1024);
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -261,7 +266,7 @@ beforeEach(async () => {
     contentType: "image/png",
   });
   mocks.compose.mockResolvedValue({
-    bytes: new Uint8Array([4, 5, 6]),
+    bytes: COMPOSITE_BYTES,
     contentType: "image/png",
   });
 });
@@ -376,6 +381,7 @@ describe("optional two-step lettering", () => {
   });
 
   it("delivers the backdrop even if Ideogram leaves the catalog between steps", async () => {
+    expectConsole("warn", "[image-studio] a generation could not be prepared");
     await createImageJob({ ...INPUT, lettering: "ideogram" });
     const catalog = getImageCatalog();
     setResolvedImageCatalog(
@@ -437,7 +443,7 @@ describe("optional two-step lettering", () => {
       await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
       expect(mocks.compose).toHaveBeenCalledTimes(1);
       expect(mocks.upload).toHaveBeenCalledWith(
-        expect.objectContaining({ bytes: new Uint8Array([4, 5, 6]) }),
+        expect.objectContaining({ bytes: COMPOSITE_BYTES }),
       );
       expect(jobs[1]?.useProductCutout).toBe(false);
     } finally {
@@ -488,7 +494,7 @@ describe("optional two-step lettering", () => {
       expect(jobs[2]?.referenceFileIds).toEqual([]);
       expect(jobs[2]?.letteringQuoteCents).toBeUndefined();
       expect(mocks.upload).toHaveBeenCalledWith(
-        expect.objectContaining({ bytes: new Uint8Array([4, 5, 6]) }),
+        expect.objectContaining({ bytes: COMPOSITE_BYTES }),
       );
       expect(mocks.upload).toHaveBeenLastCalledWith(
         expect.objectContaining({ fileName: "headline-mask.png" }),

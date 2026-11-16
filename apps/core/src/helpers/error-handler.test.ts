@@ -42,36 +42,22 @@ describe("errorHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("logs the route template, not the token path, on an unexpected error", async () => {
+  it("writes no console line that could carry the token path on an unexpected error", async () => {
     const app = createApp();
     app.get("/v1/share/:token", () => {
       throw new Error("boom");
     });
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
-    try {
-      const pathToken = "share-capability-token";
-      const response = await app.request(
-        `http://localhost/v1/share/${pathToken}`,
-      );
+    const response = await app.request(
+      "http://localhost/v1/share/share-capability-token",
+    );
 
-      expect(response.status).toBe(500);
-
-      // Sentry's Console integration turns these arguments into a breadcrumb
-      // on the event captured immediately after, and beforeSend only strips
-      // env secrets. A concrete path here ships the capability token.
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Unexpected error:",
-        expect.objectContaining({ path: "/v1/share/:token" }),
-      );
-      expect(JSON.stringify(consoleErrorSpy.mock.calls)).not.toContain(
-        pathToken,
-      );
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    // Sentry's Console integration turns console arguments into a breadcrumb
+    // on the event captured next, and beforeSend only strips env secrets. The
+    // error goes on the request's wide event instead, whose path is the route
+    // template (`bindCoreRequestContext`); the console guard fails this test
+    // on any console.error.
+    expect(response.status).toBe(500);
   });
 
   it("reports generic 503 HTTPExceptions to Sentry", async () => {

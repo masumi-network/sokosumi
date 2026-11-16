@@ -2,7 +2,7 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { CAPTCHA_PASS_IDENTIFIER_PREFIX } from "./auth-captcha-pass.js";
 import {
@@ -301,6 +301,10 @@ describe("sign-up email status", () => {
   });
 
   it("answers nobody whose captcha token Cloudflare rejects", async () => {
+    expectConsole(
+      "warn",
+      /^\S+ WARN \[Better Auth\]: Cloudflare Turnstile verification failed/,
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(

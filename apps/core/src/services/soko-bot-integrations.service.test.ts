@@ -44,6 +44,8 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: mocks.findMany,
       delete: mocks.deleteRow,
     },
+    // An active connection schedules its contact capture.
+    contactCaptureState: { deleteMany: vi.fn(), upsert: vi.fn() },
   },
 }));
 vi.mock("@/clients/composio.client", () => ({
@@ -88,6 +90,7 @@ import {
   searchSokoBotIntegrationCatalog,
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
+import { expectConsole } from "@/test/console";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
@@ -615,20 +618,16 @@ it("attempts both account revocations and reports a provider once on partial fai
     { ...existing, pendingComposioAccountId: "replacement" },
   ]);
   mocks.remove.mockRejectedValue(new Error("upstream unavailable"));
-  const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-  try {
-    expect(
-      await revokeSokoBotIntegrationAccounts("bot", [
-        { ...existing, pendingComposioAccountId: "replacement" },
-      ]),
-    ).toEqual({
-      revoked: 0,
-      failed: ["gmail"],
-    });
-    expect(mocks.remove.mock.calls).toEqual([["selected"], ["replacement"]]);
-  } finally {
-    log.mockRestore();
-  }
+  expectConsole("error", "Soko Bot integration revoke failed", 2);
+  expect(
+    await revokeSokoBotIntegrationAccounts("bot", [
+      { ...existing, pendingComposioAccountId: "replacement" },
+    ]),
+  ).toEqual({
+    revoked: 0,
+    failed: ["gmail"],
+  });
+  expect(mocks.remove.mock.calls).toEqual([["selected"], ["replacement"]]);
 });
 
 describe("OAuth retries and failures", () => {
@@ -827,6 +826,14 @@ describe("installed Composio link contract", () => {
           }),
         ).rejects.toThrow("Multiple connected accounts found");
         expect(transport).not.toHaveBeenCalled();
+      }
+      // Core links with allowMultiple: true, and the SDK warns on that branch
+      // whenever an active account exists (pending: patch the SDK or ticket 10).
+      if (statuses.includes("ACTIVE")) {
+        expectConsole(
+          "warn",
+          /^\S+ - \[Warn:AllowMultiple\] Multiple connected accounts found/,
+        );
       }
       mocks.link.mockImplementation(
         sdk.connectedAccounts.link.bind(sdk.connectedAccounts),

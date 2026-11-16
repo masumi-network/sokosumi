@@ -4,6 +4,7 @@ import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { expectConsole } from "@/test/console";
 
 /**
  * Backfill has to *record* that it finished, or it never finishes.
@@ -232,7 +233,10 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     };
 
     listMock.mockRejectedValue(new Error("Blob store unavailable"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "[files] drive store adoption failed; serving the catalog",
+    );
 
     // Does not throw — that is the whole point.
     await expect(adoptDriveStoreIfPending(store)).resolves.toEqual({
@@ -241,8 +245,7 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     });
 
     // And it says why, rather than degrading silently.
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(warnings).not.toHaveLength(0);
 
     // The store is still pending, correctly: nothing was adopted, so
     // claiming completion would be a lie that outlives the outage. The

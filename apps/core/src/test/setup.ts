@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 
+import { installConsoleGuard } from "./console";
 import { workerDatabaseUrl } from "./worker-database-url";
 
 const envDefaults: Record<string, string> = {
@@ -112,3 +113,5 @@ vi.mock("@sentry/node", () => {
     requestDataIntegration: () => ({}),
   };
 });
+
+installConsoleGuard();
