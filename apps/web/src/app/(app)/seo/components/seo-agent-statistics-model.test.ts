@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { seoAnalyticsState } from "./seo-agent-statistics-model";
+import {
+  seoAnalyticsAction,
+  seoAnalyticsState,
+} from "./seo-agent-statistics-model";
 
 const idle = {
   collected: false,
@@ -47,5 +50,26 @@ describe("seoAnalyticsState", () => {
       }),
     ).toBe("empty");
     expect(seoAnalyticsState({ ...connected, sync: idle })).toBe("unknown");
+  });
+
+  it("lets the connect button speak where connections are not offered", () => {
+    expect(
+      seoAnalyticsState({
+        status: "unavailable",
+        sync: idle,
+        properties: null,
+      }),
+    ).toBe("unknown");
+  });
+});
+
+describe("seoAnalyticsAction", () => {
+  it("offers the fix of each cause, and a choice only where there is one", () => {
+    expect(seoAnalyticsAction("missing", false, 0)).toBe("connect");
+    expect(seoAnalyticsAction("unknown", false, 0)).toBe("connect");
+    expect(seoAnalyticsAction("failed", true, 3)).toBe("retry");
+    expect(seoAnalyticsAction("empty", true, 1)).toBe("manage");
+    expect(seoAnalyticsAction("empty", true, 2)).toBe("choose");
+    expect(seoAnalyticsAction("loading", true, 2)).toBeNull();
   });
 });

@@ -12417,7 +12417,7 @@
         "nextTitle": "The agent proposes",
         "chart": "Picture to show",
         "chartKeywords": "Keyword searches",
-        "statistics": "{analytics, select, missing {Google statistics: Analytics not connected} loading {Google statistics: loading Analytics} failed {Google statistics: Analytics could not be read} no_property {Google statistics: this Google account has no Analytics property} choose {Google statistics: no Analytics property is picked for {site}. Choose one of your {count, number}.} empty {Google statistics: the Analytics property {property} has no visits for these pages yet} other {Google statistics}}",
+        "statistics": "{analytics, select, missing {Google statistics: Analytics not connected} loading {Google statistics: loading Analytics} failed {Google statistics: Analytics could not be read} no_property {Google statistics: this Google account has no Analytics property} choose {Google statistics: no Analytics property is picked for {site}. Choose one of your {count, plural, one {# property} other {# properties}}.} empty {Google statistics: the Analytics property {property} has no visits for these pages yet} other {Google statistics}}",
         "figures": {
           "label": "Key figures",
           "rankings": "{depth, select, same {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {max} results read per keyword} range {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {min} to {max} results read per keyword} other {{found} of {read} {count, plural, one {keyword} other {keywords}} found}}",

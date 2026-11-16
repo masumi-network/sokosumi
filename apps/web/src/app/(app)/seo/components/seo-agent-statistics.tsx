@@ -1,11 +1,14 @@
 "use client";
 
-import { ChartColumn, Settings2 } from "lucide-react";
+import { ChartColumn, RotateCw, Settings2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { seoAnalyticsState } from "./seo-agent-statistics-model";
+import {
+  seoAnalyticsAction,
+  seoAnalyticsState,
+} from "./seo-agent-statistics-model";
 import { seoAuditName } from "./seo-audit-name";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { useSeoConnectionStatus } from "./use-seo-connection";
@@ -39,30 +42,53 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
   const page = model.data.pages.find((item) =>
     model.data.scope.pageIds.includes(item.id),
   );
+  const action = seoAnalyticsAction(analytics, connected, listed?.length ?? 0);
+  const line = useRef<HTMLDivElement>(null);
+  const text = useRef<HTMLParagraphElement>(null);
+  const focused = useRef(false);
+  const shownAction = useRef(action);
+  // A fix that leaves with its cause (a connect that finished) takes the focus with it: the new cause gets it.
+  useEffect(() => {
+    if (shownAction.current === action) return;
+    shownAction.current = action;
+    if (focused.current && !line.current?.contains(document.activeElement))
+      text.current?.focus();
+  }, [action]);
   // A connected account with no cause yet has nothing to say: the line waits for one.
-  if (analytics === "unknown" && status !== undefined) return null;
-  // A failed or running sync has no fix here: the line only names it. A status that is not read yet gets the
-  // connect button, which shows its wait and its own Retry.
+  if (analytics === "unknown" && connected) return null;
+  // A running sync has no fix: the line only names it. A status that is not read yet gets the connect button,
+  // which shows its wait and its own Try again.
   const control =
-    analytics === "missing" || analytics === "unknown" ? (
+    action === "connect" ? (
       <SeoConnectionButton provider="ga4" onError={setConnectError} compact />
-    ) : analytics === "choose" ||
-      analytics === "no_property" ||
-      analytics === "empty" ? (
+    ) : action === "retry" ? (
+      <Button size="sm" variant="secondary" onClick={() => void sync.retry()}>
+        <RotateCw />
+        {t("retry")}
+      </Button>
+    ) : action ? (
       <Button
         size="sm"
         variant="secondary"
         onClick={() => model.openStatistics("ga4")}
       >
         <Settings2 />
-        {analytics === "no_property" ||
-        (analytics === "empty" && (listed?.length ?? 0) < 2)
+        {action === "manage"
           ? t("manageStatistics")
           : t("agent.chooseProperty")}
       </Button>
     ) : null;
   return (
     <div
+      ref={line}
+      onFocus={() => {
+        focused.current = true;
+      }}
+      onBlur={(event) => {
+        focused.current = Boolean(
+          line.current?.contains(event.relatedTarget as Node | null),
+        );
+      }}
       className={cn(
         "bg-background flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2 text-sm",
         // A cause that stops the data stands out: a property to choose, or a read that failed.
@@ -85,7 +111,9 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
       ) : (
         // The cause changes on its own: a screen reader hears the new one.
         <p
+          ref={text}
           role="status"
+          tabIndex={-1}
           className={cn(
             "min-w-0 flex-1 basis-48 break-words",
             analytics === "loading" && "text-muted-foreground",

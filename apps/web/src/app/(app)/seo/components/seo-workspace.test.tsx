@@ -2856,7 +2856,7 @@ describe("SEO workspace integration", () => {
         "Start a new Google Analytics connection",
       ],
       // A connection that could not be read keeps its button to try again.
-      ["unread", unrelated, "Google statistics", "Try again"],
+      ["unread", unrelated, /^Google statistics(?!:)/, "Try again"],
       [
         "connected",
         [],
@@ -2866,7 +2866,7 @@ describe("SEO workspace integration", () => {
       [
         "connected",
         unrelated,
-        "Google statistics: no Analytics property is picked for example.com. Choose one of your 2.",
+        "Google statistics: no Analytics property is picked for example.com. Choose one of your 2 properties.",
         "Choose property",
       ],
       [
@@ -2891,11 +2891,12 @@ describe("SEO workspace integration", () => {
         "connected",
         null,
         "Google statistics: Analytics could not be read",
-        null,
+        "Try again",
       ],
     ] as const) {
       // The loading row's collection never finishes: "no visits" is what a finished collection found.
-      const running = text.endsWith("loading Analytics");
+      const running =
+        typeof text === "string" && text.endsWith("loading Analytics");
       const fetch = vi.fn(async (url: string) =>
         url.endsWith("/connections/ga4")
           ? status === "unread"
@@ -2931,6 +2932,18 @@ describe("SEO workspace integration", () => {
           await within(line()).findByRole("button", { name: button }),
         ).toBeVisible();
       else expect(within(line()).queryByRole("button")).toBeNull();
+      // A failed read has its Retry on the line: it asks for the properties again.
+      if (text === "Google statistics: Analytics could not be read") {
+        const reads = () =>
+          fetch.mock.calls.filter(([url]) =>
+            url.includes("/statistics/properties"),
+          ).length;
+        const before = reads();
+        await userEvent.click(
+          within(line()).getByRole("button", { name: "Try again" }),
+        );
+        await waitFor(() => expect(reads()).toBeGreaterThan(before));
+      }
       cleanup();
     }
     // A connected account with no cause to name has no bare line: here the property list says the connection

@@ -29,7 +29,8 @@ export function seoAnalyticsState({
   /** The number of Analytics properties of the account; null while the list is not read. */
   properties: number | null;
 }): SeoAnalyticsState {
-  if (status === undefined) return "unknown";
+  // Not read yet, or not offered here: the connect button speaks for itself.
+  if (status === undefined || status === "unavailable") return "unknown";
   if (status !== "connected") return "missing";
   if (sync.failed) return "failed";
   if (properties === 0) return "no_property";
@@ -37,4 +38,20 @@ export function seoAnalyticsState({
   if (sync.collected) return "empty";
   if (sync.loading) return "loading";
   return "unknown";
+}
+
+/** The fix the line offers for its cause; null where the cause has none. */
+export function seoAnalyticsAction(
+  state: SeoAnalyticsState,
+  connected: boolean,
+  properties: number,
+): "connect" | "retry" | "choose" | "manage" | null {
+  if (state === "missing" || (state === "unknown" && !connected))
+    return "connect";
+  if (state === "failed") return "retry";
+  if (state === "choose") return "choose";
+  // One property or none: the connections dialog is where another account or property comes from.
+  if (state === "no_property") return "manage";
+  if (state === "empty") return properties < 2 ? "manage" : "choose";
+  return null;
 }
