@@ -98,12 +98,18 @@ const {
   pollCoworkerResponseStatusMock: vi.fn(),
 }));
 
+const buzzCommunityForRoomMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/buzz-bridge.service", () => ({
+  buzzCommunityForRoom: buzzCommunityForRoomMock,
+}));
 vi.mock("@vercel/functions", () => ({
   waitUntil: (...args: unknown[]) => waitUntilMock(...args),
 }));
 
 vi.mock("ai", () => ({
   convertToModelMessages: convertToModelMessagesMock,
+  createUIMessageStream: vi.fn(() => new ReadableStream()),
+  createUIMessageStreamResponse: vi.fn(() => new Response(null)),
   generateId: vi.fn(() => "generated-id-test"),
   streamText: streamTextMock,
   validateUIMessages: validateUIMessagesMock,
@@ -634,6 +640,40 @@ describe("POST /chats/rooms/{id}/stream", () => {
             filename: "a.png",
           },
         ],
+      }),
+    );
+  });
+
+  it("hands a personal agent its file parts as links in the text, which is what the bridge reads", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    requireCoworkerChatCapabilityInWorkspaceMock.mockResolvedValue({
+      id: COWORKER_ID,
+      slug: "agent",
+      baseURL: "buzz://acme.chat.example",
+    });
+    buzzCommunityForRoomMock.mockResolvedValue({ id: "community" });
+
+    const response = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: OWNED_ROOM_FILE_URL,
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(response.status).toBe(200);
+    expect(persistUserMessageToChatRoomMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentText: `Look\n[a.png](${OWNED_ROOM_FILE_URL})`,
       }),
     );
   });

@@ -303,10 +303,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
       if (lastMessage.role === "user" || lastMessage.role === "system") {
+        // The bridge reads files from the text, as Sokosumi writes them: a
+        // link on a line of its own, for each one the text does not hold.
+        const fileLinks = lastUserFileParts
+          .filter((part) => !lastUserMessageText.includes(part.url))
+          .map(
+            (part) =>
+              `[${(part.filename ?? "file").replace(/[[\]\r\n]/g, " ")}](${part.url})`,
+          );
         await persistUserMessageToChatRoom({
           roomId: room.id,
           senderUserId: userContext.userId,
-          contentText: lastUserMessageText,
+          contentText: [lastUserMessageText, ...fileLinks].join("\n"),
           clientMessageId:
             typeof lastMessage.id === "string" ? lastMessage.id : null,
           parentMessageId,

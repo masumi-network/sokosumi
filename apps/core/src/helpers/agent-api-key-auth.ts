@@ -54,6 +54,7 @@ export async function resolveAgentApiKeyAuthContext(
           baseURL: true,
           buzzIdentity: {
             select: {
+              encryptedSecretKey: true,
               ownerIdentity: {
                 select: {
                   user: { select: { banned: true, banExpires: true } },
@@ -94,10 +95,13 @@ export async function resolveAgentApiKeyAuthContext(
     }
     // A personal agent via Buzz acts for its owner: not once that owner is
     // banned or gone (their account deleted takes the ownership with it).
-    if (
-      isBuzzAgentBaseUrl(apiKey.coworker.baseURL) &&
-      !isActiveUser(apiKey.coworker.buzzIdentity?.ownerIdentity?.user)
-    ) {
+    // Known by its key, which Sokosumi never holds, not by its URL, which
+    // its owner can edit.
+    const identity = apiKey.coworker.buzzIdentity;
+    const personalAgent =
+      isBuzzAgentBaseUrl(apiKey.coworker.baseURL) ||
+      (identity !== null && !identity.encryptedSecretKey);
+    if (personalAgent && !isActiveUser(identity?.ownerIdentity?.user)) {
       return null;
     }
 

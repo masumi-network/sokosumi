@@ -145,8 +145,12 @@ async function importChannel(
           { senderSokoBotId: { not: null } },
           {
             senderCoworkerId: { not: null },
+            // A missing URL is no Buzz agent's (SQL's NOT LIKE skips NULL).
             senderCoworker: {
-              NOT: { baseURL: { startsWith: BUZZ_AGENT_URL_PREFIX } },
+              OR: [
+                { baseURL: null },
+                { NOT: { baseURL: { startsWith: BUZZ_AGENT_URL_PREFIX } } },
+              ],
             },
           },
         ],

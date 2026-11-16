@@ -637,6 +637,35 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.baseURL).toBe("https://responses.example.com/v1");
   });
 
+  it("refuses to change a personal agent's Buzz address, which marks it as one", async () => {
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock,
+        findFirst: coworkerFindFirstTxMock.mockResolvedValue(
+          createCoworkerRecord({ baseURL: "buzz://acme.chat.example" }),
+        ),
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
+    };
+    mockTransaction(tx);
+
+    const response = await createApp().request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ baseURL: "https://agent.example/v1" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(coworkerUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("clears coworker baseURL when null is provided", async () => {
     const tx: TransactionMock = {
       coworker: {

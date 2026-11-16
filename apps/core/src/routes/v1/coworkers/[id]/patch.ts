@@ -1,10 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
-import { notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { nullableJsonInput } from "@/helpers/prisma-json";
 import { ok } from "@/helpers/response";
+import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { hasAdminRole, requireAdminAuthContext } from "@/middleware/auth";
@@ -38,6 +39,7 @@ const route = createRoute({
   },
   responses: {
     200: jsonSuccessResponse(coworkerSchema, "Update coworker"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -64,11 +66,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: mutationWhere,
         select: {
           metadata: true,
+          baseURL: true,
         },
       });
 
       if (!existingCoworker) {
         throw notFound("Coworker not found");
+      }
+      // A personal agent's address is Buzz's, and what marks it as one.
+      if (
+        body.baseURL !== undefined &&
+        body.baseURL !== existingCoworker.baseURL &&
+        (isBuzzAgentBaseUrl(existingCoworker.baseURL) ||
+          isBuzzAgentBaseUrl(body.baseURL))
+      ) {
+        throw badRequest("A personal agent's address is set by Buzz");
       }
 
       const metadata = nullableJsonInput(

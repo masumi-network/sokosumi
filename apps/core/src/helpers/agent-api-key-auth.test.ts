@@ -57,6 +57,31 @@ describe("resolveAgentApiKeyAuthContext for a personal agent via Buzz", () => {
     await expect(resolveAgentApiKeyAuthContext(TOKEN)).resolves.toBeNull();
   });
 
+  it("stops for a banned owner even after its URL was edited away from Buzz", async () => {
+    findUnique.mockResolvedValue(
+      keyFor({
+        baseURL: "https://agent.example",
+        buzzIdentity: {
+          encryptedSecretKey: null,
+          ownerIdentity: { user: { banned: true, banExpires: null } },
+        },
+      }),
+    );
+    await expect(resolveAgentApiKeyAuthContext(TOKEN)).resolves.toBeNull();
+  });
+
+  it("leaves a shared Coworker on Buzz (whose key Sokosumi holds) as it was", async () => {
+    findUnique.mockResolvedValue(
+      keyFor({
+        baseURL: "https://agent.example",
+        buzzIdentity: { encryptedSecretKey: "sealed", ownerIdentity: null },
+      }),
+    );
+    await expect(resolveAgentApiKeyAuthContext(TOKEN)).resolves.toMatchObject({
+      actor: "coworker",
+    });
+  });
+
   it("leaves other Coworkers as they were", async () => {
     findUnique.mockResolvedValue(
       keyFor({ baseURL: "https://agent.example", buzzIdentity: null }),
