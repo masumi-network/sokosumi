@@ -1,6 +1,10 @@
 import { createEmailTranslator } from "../i18n/translate.js";
 import { renderActionEmail } from "../templates/action-email.js";
-import type { BillingLowBalanceEmailProps, RenderedEmail } from "../types.js";
+import type {
+  BillingLowBalanceEmailProps,
+  CusoLowCreditsEmailProps,
+  RenderedEmail,
+} from "../types.js";
 import { footerNote } from "./notification-shared.js";
 
 const BILLING_SCOPE = "notifications.billing";
@@ -30,5 +34,45 @@ export function renderLowBalanceEmail({
     preview: t(`${BILLING_SCOPE}.lowBalance.preview`, values),
     subject: t(`${BILLING_SCOPE}.lowBalance.subject`, values),
     title: t(`${BILLING_SCOPE}.lowBalance.title`),
+  });
+}
+
+/** A Cuso's Project credits ran low: names him, what is left and his next grant. */
+export function renderCusoLowCreditsEmail({
+  actionUrl,
+  businessName,
+  credits,
+  cusoName,
+  locale,
+  nextGrantAt,
+  recipientName,
+  settingsUrl,
+}: CusoLowCreditsEmailProps): Promise<RenderedEmail> {
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
+  const scope = `${BILLING_SCOPE}.cusoLowCredits`;
+  const trimmedName = recipientName?.trim();
+  const values = { businessName, credits: String(credits), cusoName };
+  const nextGrant = nextGrantAt
+    ? ` ${t(`${scope}.nextGrant`, {
+        date: new Intl.DateTimeFormat(lang, {
+          dateStyle: "long",
+          timeZone: "UTC",
+        }).format(nextGrantAt),
+      })}`
+    : "";
+
+  return renderActionEmail({
+    actionLabel: t(`${scope}.button`),
+    actionUrl,
+    body: `${t(`${scope}.body`, values)}${nextGrant}`,
+    footer: footerNote(rich, `${BILLING_SCOPE}.footer`, settingsUrl),
+    lang,
+    greeting: trimmedName
+      ? t(`${BILLING_SCOPE}.greeting`, { name: trimmedName })
+      : t(`${BILLING_SCOPE}.greetingWithoutName`),
+    linkInstructions: t(`${BILLING_SCOPE}.linkInstructions`),
+    preview: t(`${scope}.preview`, values),
+    subject: t(`${scope}.subject`, values),
+    title: t(`${scope}.title`),
   });
 }
