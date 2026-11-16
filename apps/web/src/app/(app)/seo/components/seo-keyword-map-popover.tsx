@@ -51,7 +51,7 @@ export function SeoKeywordMapPopover({
   const wizard = useOptionalNewTaskWizard();
   const { lead } = point.group;
   const band = seoDifficultyBand(point.difficulty) ?? "hard";
-  const brief = t("map.brief", {
+  const facts = {
     keyword: lead.keyword,
     volume: point.volume,
     market: seoMarketName(locale, lead.countryCode, lead.languageCode),
@@ -60,7 +60,9 @@ export function SeoKeywordMapPopover({
     value: Math.round(point.difficulty),
     site: seoKeywordBriefSite(lead.pageUrl, model.data),
     feature: point.group.feature ?? "none",
-  });
+  };
+  // The Task gets the order to write; the agent gets a question, so it advises before it writes.
+  const brief = t("map.brief", facts);
   const { canEdit } = model.data.availableActions;
   return (
     <PopoverContent
@@ -147,7 +149,7 @@ export function SeoKeywordMapPopover({
             className="flex-1"
             onClick={() => {
               onLeave();
-              model.openChat(brief);
+              model.openChat(t("map.question", facts));
             }}
           >
             <Bot />

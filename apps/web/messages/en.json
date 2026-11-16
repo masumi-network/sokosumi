@@ -11856,10 +11856,11 @@
           "zoomOut": "Zoom out",
           "zoomReset": "Show the whole map",
           "yours": "Your keyword",
-          "gainShort": "Top 3 clicks",
+          "gainShort": "Extra clicks in top 3",
           "contentTask": "Create content task",
           "ask": "Ask the SEO agent",
           "brief": "Write web content that can rank on Google for the search \"{keyword}\"{site, select, none {.} other { on {site}.}} It has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { Lead with this product feature: {feature}.}}",
+          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"? It has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { The product feature it fits: {feature}.}}",
           "noGain": "Unknown"
         },
         "historyShow": "History",

@@ -31,8 +31,6 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** How far from a dot, in px, the pointer still picks it. */
 const POINTER_REACH = 16;
-/** A press that moves farther than this, in px, drags the map: it opens no keyword. */
-const PRESS_SLOP = 4;
 /** From this dot on, the dots come in together: a map of many keywords does not keep the reader waiting. */
 const DOT_STAGGER_MAX = 12;
 /** Room in px between the frame and the outer dots, so no dot is cut at an edge. */
@@ -76,7 +74,6 @@ export function SeoKeywordMap({
   const [keyed, setKeyed] = useState(false);
   // The keyword whose popover is open: its own state, so a blur of the map, which drops the picked dot, keeps it.
   const [openId, setOpenId] = useState<string | null>(null);
-  const pressAt = useRef<{ x: number; y: number } | null>(null);
   const group = useRef<HTMLDivElement>(null);
   // The popover closed by a press outside it: the focus stays where the press put it.
   const outside = useRef(false);
@@ -167,6 +164,12 @@ export function SeoKeywordMap({
   if (openId && !opened) setOpenId(null);
   // The card of the picked dot gives way to the open keyword.
   const focus = opened || active === null ? null : points[active];
+  // A press or Enter on a dot opens it, and on the open dot closes it. The popover it replaces closes after the
+  // new one took the focus: its close must not pull the focus back to the map.
+  function openKeyword(id: string | null) {
+    if (openId) outside.current = true;
+    setOpenId(id === openId ? null : id);
+  }
   function pick(event: PointerEvent<HTMLDivElement>) {
     setKeyed(false);
     const box = event.currentTarget.getBoundingClientRect();
@@ -191,7 +194,7 @@ export function SeoKeywordMap({
     if (event.key === "Escape") return setActive(null);
     if ((event.key === "Enter" || event.key === " ") && active !== null) {
       event.preventDefault();
-      return setOpenId(points[active]?.group.lead.id ?? null);
+      return openKeyword(points[active]?.group.lead.id ?? null);
     }
     // Ctrl or Cmd with + or - is the zoom of the page: keep it for readers who need it.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -335,29 +338,16 @@ export function SeoKeywordMap({
                 PLOT_HEIGHT,
               )}
               onPointerMove={pick}
-              onPointerDown={(event) => {
-                pressAt.current = { x: event.clientX, y: event.clientY };
-                pick(event);
-              }}
-              onClick={(event) => {
-                const start = pressAt.current;
-                pressAt.current = null;
-                if (
-                  start &&
-                  Math.hypot(event.clientX - start.x, event.clientY - start.y) >
-                    PRESS_SLOP
-                )
-                  return;
-                // The zoom stops the press before the popover sees it outside: the map closes it here. A press on
-                // another dot opens that one, and the focus goes to its popover, not back to the map.
-                const id =
+              onPointerDown={pick}
+              // A drag gets no click: the zoom keeps it. The zoom also stops the press before the popover sees it
+              // outside, so the map closes the popover here.
+              onClick={() =>
+                openKeyword(
                   active === null
                     ? null
-                    : (points[active]?.group.lead.id ?? null);
-                if (id === openId) return;
-                if (openId) outside.current = true;
-                setOpenId(id);
-              }}
+                    : (points[active]?.group.lead.id ?? null),
+                )
+              }
               onPointerLeave={(event) => {
                 // Keep the keyword under a lifted finger and the one the keyboard is on.
                 if (event.pointerType === "mouse" && !keyed) setActive(null);

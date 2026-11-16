@@ -11856,10 +11856,11 @@
           "zoomOut": "Verkleinern",
           "zoomReset": "Ganze Karte zeigen",
           "yours": "Dein Keyword",
-          "gainShort": "Top-3-Klicks",
+          "gainShort": "Zusätzliche Klicks (Top 3)",
           "contentTask": "Content-Aufgabe erstellen",
           "ask": "SEO-Agent fragen",
           "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können. Sie hat {volume, number} Suchen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
+          "question": "Wie kann {site, select, none {meine Website} other {{site}}} bei Google für die Suche „{keyword}“ ranken? Sie hat {volume, number} Suchen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Die passende Produktfunktion: {feature}.}}",
           "noGain": "Unbekannt"
         },
         "historyShow": "Verlauf",

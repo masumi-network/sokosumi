@@ -109,9 +109,9 @@ export function seoKeywordBriefSite(
   pageUrl: string | null,
   workspace: Pick<ProjectSeoWorkspace, "pages" | "scope">,
 ): string {
-  const url =
-    pageUrl ||
-    workspace.pages.find((page) => workspace.scope.pageIds.includes(page.id))
-      ?.url;
-  return (url && seoAuditName("", url)) || "none";
+  const own = pageUrl ? seoAuditName("", pageUrl) : "";
+  const inView = workspace.pages.find((page) =>
+    workspace.scope.pageIds.includes(page.id),
+  )?.url;
+  return own || (inView && seoAuditName("", inView)) || "none";
 }

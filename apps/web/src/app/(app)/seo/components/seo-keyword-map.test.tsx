@@ -178,7 +178,10 @@ describe("SEO keyword map", () => {
         { name: "Ask the SEO agent" },
       ),
     );
-    expect(model.openChat).toHaveBeenCalledWith(brief);
+    // The agent gets a question, not the order to write.
+    expect(model.openChat).toHaveBeenCalledWith(
+      'How can example.com rank on Google for the search "battery app"? It has 1,000 searches a month (market: United States · English), and its difficulty is easy (12 of 100). The product feature it fits: Cycle count.',
+    );
     expect(map).toHaveFocus();
     // Escape gives the focus back to the map too; the next keyword, an idea, can be tracked.
     await user.keyboard("{Enter}");
@@ -217,19 +220,23 @@ describe("SEO keyword map", () => {
         clientX: 12 + (point.x / 100) * 376,
         clientY: 12 + (point.y / 100) * 276,
       };
+      const end = { ...at, clientX: at.clientX + moved, view: window };
       fireEvent.pointerDown(frame, { ...at, pointerType: "mouse" });
       // The zoom takes the mousedown and stops it, as in a browser: the popover never sees the press outside.
       fireEvent.mouseDown(frame, { ...at, view: window });
       // A mousedown focuses the map, as a browser does: happy-dom moves no focus for it.
       screen.getByRole("group", { name: "Keyword opportunities" }).focus();
-      fireEvent.mouseUp(window, { ...at, view: window });
-      fireEvent.click(frame, { ...at, clientX: at.clientX + moved });
+      if (moved) fireEvent.mouseMove(window, end);
+      fireEvent.mouseUp(window, end);
+      fireEvent.click(frame, end);
     };
     const popover = () => screen.queryByTestId("seo-keyword-popover");
-    // A drag pans the map: it opens nothing.
+    // A drag pans the map: it opens nothing. A hand that shakes by 2 px still presses.
     press("battery health", 10);
     expect(popover()).toBeNull();
-    press("battery app");
+    // The zoom drops its block on clicks one tick after a drag, as in a browser.
+    await new Promise((done) => setTimeout(done, 0));
+    press("battery app", 2);
     await waitFor(() => expect(popover()).toHaveTextContent("battery app"));
     // A press on another dot opens that one, and its popover takes the focus.
     await new Promise((done) => setTimeout(done, 0));
@@ -246,7 +253,11 @@ describe("SEO keyword map", () => {
     expect(screen.getByTestId("seo-keyword-card")).toHaveTextContent(
       "battery health",
     );
-    // A press on no dot closes it.
+    // A press on the open dot closes it, and a press on no dot too.
+    press("battery app");
+    await waitFor(() => expect(popover()).toHaveTextContent("battery app"));
+    press("battery app");
+    await waitFor(() => expect(popover()).toBeNull());
     press("battery app");
     await waitFor(() => expect(popover()).toHaveTextContent("battery app"));
     fireEvent.pointerDown(frame, { clientX: 399, clientY: 1 });
@@ -254,6 +265,55 @@ describe("SEO keyword map", () => {
     fireEvent.mouseUp(window, { view: window });
     fireEvent.click(frame, { clientX: 399, clientY: 1 });
     await waitFor(() => expect(popover()).toBeNull());
+  });
+
+  it("keeps the popover the keyboard opens while another one is still open", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 400, height: 300 }),
+    );
+    const rows = [
+      row({ keyword: "battery app", volume: 1000, difficulty: 12 }),
+      row({ keyword: "battery health", volume: 5000, difficulty: 70 }),
+    ];
+    renderMap(rows);
+    const { points } = seoKeywordMap(keywordGroups(rows))!;
+    const frame = screen.getByTestId("seo-keyword-map");
+    const map = screen.getByRole("group", { name: "Keyword opportunities" });
+    const point = points.find(
+      (item) => item.group.lead.keyword === "battery app",
+    )!;
+    const at = {
+      clientX: 12 + (point.x / 100) * 376,
+      clientY: 12 + (point.y / 100) * 276,
+      view: window,
+    };
+    fireEvent.pointerDown(frame, at);
+    fireEvent.mouseDown(frame, at);
+    map.focus();
+    fireEvent.mouseUp(window, at);
+    fireEvent.click(frame, at);
+    await screen.findByTestId("seo-keyword-popover");
+    await new Promise((done) => setTimeout(done, 0));
+    // A press on the map let go outside it gets no click: the open popover stays, and the map has the focus.
+    fireEvent.pointerDown(frame, at);
+    fireEvent.mouseDown(frame, at);
+    map.focus();
+    fireEvent.mouseUp(window, at);
+    expect(screen.getByTestId("seo-keyword-popover")).toBeInTheDocument();
+    const next = points.findIndex(
+      (item) => item.group.lead.keyword === "battery health",
+    );
+    const keys = next > points.indexOf(point) ? "ArrowRight" : "ArrowLeft";
+    fireEvent.keyDown(map, { key: keys });
+    fireEvent.keyDown(map, { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByTestId("seo-keyword-popover")).toHaveTextContent(
+        "battery health",
+      ),
+    );
+    // The close of the first popover comes later and must not take the focus from the new one.
+    await new Promise((done) => setTimeout(done, 10));
+    expect(screen.getByTestId("seo-keyword-popover")).toHaveFocus();
   });
 
   it("goes back to the map on a Tab out of either end of the popover", async () => {

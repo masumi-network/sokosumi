@@ -190,6 +190,9 @@ describe("seoKeywordBriefSite", () => {
     expect(seoKeywordBriefSite(null, workspace)).toBe("shop.example.com");
     // An empty page of the keyword is no page: the page in view is named.
     expect(seoKeywordBriefSite("", workspace)).toBe("shop.example.com");
+    expect(seoKeywordBriefSite("not a url", workspace)).toBe(
+      "shop.example.com",
+    );
     expect(seoKeywordBriefSite(null, { ...workspace, pages: [] })).toBe("none");
   });
 });
