@@ -188,7 +188,12 @@ export const config = {
      * - icons directory in /public (public static brand SVGs)
      * - legal directory in /public (public static legal documents)
      * - js directory in /public (public static js files)
+     * - Vercel Analytics and Speed Insights: the hashed `/<16 hex>/script.js`
+     *   loaders and the `/_vercel/insights` and `/_vercel/speed-insights`
+     *   event endpoints. A redirect to `/signin` fails a script fetch and
+     *   drops the beacon, so signed-out visitors lost their analytics. Only
+     *   these exact shapes skip the proxy; `proxy.test.ts` pins them.
      */
-    "/((?!api|_next/static|_next/image|images|icons|public|legal|js).*)",
+    "/((?!api|_next/static|_next/image|images|icons|public|legal|js|[0-9a-f]{16}/script\\.js$|_vercel/insights/(?:view|event|session)$|_vercel/speed-insights/vitals$).*)",
   ],
 };

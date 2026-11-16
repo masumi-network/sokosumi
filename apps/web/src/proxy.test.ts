@@ -476,4 +476,35 @@ describe("proxy", () => {
       "max-age=31536000; includeSubDomains",
     );
   });
+
+  describe("matcher", () => {
+    const matches = async (path: string) => {
+      const { config } = await import("./proxy");
+      return new RegExp(`^${config.matcher[0]}$`).test(path);
+    };
+
+    it.each([
+      "/cae7d796f25c4c0e/script.js",
+      "/f15bb43a7a4c110d/script.js",
+      "/_vercel/insights/view",
+      "/_vercel/insights/event",
+      "/_vercel/speed-insights/vitals",
+    ])("skips the proxy for Vercel analytics path: %s", async (path) => {
+      expect(await matches(path)).toBe(false);
+    });
+
+    it.each([
+      "/",
+      "/tasks",
+      "/cae7d796f25c4c0e/script.js/extra",
+      "/cae7d796f25c4c0e/other.js",
+      "/cae7d796f25c4c0/script.js",
+      "/CAE7D796F25C4C0E/script.js",
+      "/deadbeefdeadbeef/nested/script.js",
+      "/_vercel/other",
+      "/tasks/cae7d796f25c4c0e/script.js",
+    ])("keeps the proxy on other paths: %s", async (path) => {
+      expect(await matches(path)).toBe(true);
+    });
+  });
 });
