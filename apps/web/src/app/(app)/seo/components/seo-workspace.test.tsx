@@ -631,8 +631,12 @@ describe("SEO workspace integration", () => {
     expect(
       within(leadList).getByText("Make the markup price match the page"),
     ).toBeVisible();
-    // The card is part of the verdict card: it has no frame of its own.
-    expect(within(leadList).getByRole("article")).not.toHaveClass("border");
+    // The row is part of the verdict card: it has no frame of its own.
+    expect(
+      within(leadList).getByRole("button", {
+        name: /^Make the markup price match the page/,
+      }),
+    ).not.toHaveClass("border");
     expect(
       firstStep.compareDocumentPosition(tiles) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -5756,10 +5760,20 @@ describe("SEO workspace integration", () => {
         name: "1 of 2 keywords found · 20 results read per keyword",
       }),
     ).toBeVisible();
-    expect(screen.getByText("The title is missing")).not.toBeVisible();
-    await user.click(screen.getByText("Reason and evidence"));
-    expect(screen.getByText("The title is missing")).toBeVisible();
-    expect(screen.getByText("A descriptive search result")).toBeVisible();
+    // The lead row is short: its reasons are in the dialog it opens.
+    expect(screen.queryByText("The title is missing")).toBeNull();
+    const [leadRow] = within(
+      screen.getByRole("list", { name: "First step" }),
+    ).getAllByRole("button");
+    await user.click(leadRow!);
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByText("Reason and evidence"));
+    expect(within(dialog).getByText("The title is missing")).toBeVisible();
+    expect(
+      within(dialog).getByText("A descriptive search result"),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     // The Actions tab is the full list of the same cards: the reasons stay closed, and the run keeps the fill.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(await screen.findByText("The title is missing")).not.toBeVisible();
@@ -5969,15 +5983,18 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // Only the top fix is a full card with its own button.
+    // Only the top fix has its own button; it is a short row, its reasons wait in the dialog.
     expect(
       await screen.findAllByRole("button", { name: "Create draft task" }),
     ).toHaveLength(1);
-    expect(screen.getAllByText("Reason and evidence")).toHaveLength(1);
-    // The one proposal of the Agent tab stays open: its title is no button that could close it.
+    expect(screen.queryByText("Reason and evidence")).toBeNull();
+    const leadList = screen.getByRole("list", { name: "First step" });
     expect(
-      screen.queryByRole("button", { name: /^Fix the page title/ }),
-    ).toBeNull();
+      within(leadList).getByRole("button", { name: /^Fix the page title/ }),
+    ).toBeVisible();
+    expect(
+      within(leadList).getByRole("button", { name: "Create draft task" }),
+    ).toBeVisible();
     // The other fixes wait behind one press; open, every one of them is a row.
     expect(screen.queryByText("Write a description")).toBeNull();
     const more = screen.getByRole("button", { name: /^Show \d+ more steps?$/ });
@@ -5987,6 +6004,10 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("Describe the images")).toBeVisible();
     const row = screen.getByText("Write a description").closest("li");
     expect(row).not.toBeNull();
+    // The other steps open right under the first, in the verdict card.
+    expect(
+      screen.getByTestId("seo-agent-verdict").parentElement,
+    ).toContainElement(row);
     // One page: the row needs no page.
     expect(within(row!).queryByRole("link")).toBeNull();
     // The whole row is the control: no second button repeats it.
@@ -6268,10 +6289,10 @@ describe("SEO workspace integration", () => {
     const verdict = screen.getByTestId("seo-agent-verdict");
     expect(verdict).toHaveFocus();
     // Focus that left the list by a click on the page moves no focus when the lead changes.
-    await user.click(
-      within(screen.getByRole("list", { name: "First step" })).getByText(
-        "Reason and evidence",
-      ),
+    act(() =>
+      within(screen.getByRole("list", { name: "First step" }))
+        .getByRole("button", { name: "Create draft task" })
+        .focus(),
     );
     expect(screen.getByRole("list", { name: "First step" })).toContainElement(
       document.activeElement as HTMLElement,

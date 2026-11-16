@@ -14,7 +14,6 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SeoActionCard } from "./seo-actions";
 import { SeoAgentFigures } from "./seo-agent-figures";
 import { SeoAgentGraphics } from "./seo-agent-graphics";
 import {
@@ -125,7 +124,7 @@ function SeoAgentPanel({
           !(step.kind === "refresh" && statisticsSync.state === "failed"),
       );
   const [showAllSteps, setShowAllSteps] = useState(false);
-  // The first proposal with its own button is the lead step: an action shows as a card. It carries the one
+  // The first proposal with its own button is the lead step: an action shows as a row with its finding and button. It carries the one
   // brand fill of the tab (owner, after pass 59); the run keeps the secondary look. A refresh step has no
   // button of its own: its retry is in the verdict card.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -138,7 +137,7 @@ function SeoAgentPanel({
             ? false
             : step.kind !== "action" || (canEdit && !step.action.taskId),
       );
-  // The lead step sits in the verdict card; the list under the pictures holds the rest, folded.
+  // The lead step sits in the verdict card, with the rest folded under it.
   const lead = primary === -1 ? undefined : steps[primary];
   // A Task for the lead action takes it out of the card, and its button with it. Focus that fell to the
   // page moves to the verdict, where the next first step now stands.
@@ -185,32 +184,17 @@ function SeoAgentPanel({
     ) : null;
   const stepItem = (step: SeoAgentStep, index: number) =>
     step.kind === "action" ? (
-      index === primary ? (
-        <li
-          className="content-rise"
-          key={`${step.action.observationId}:${step.action.id}`}
-        >
-          <SeoActionCard
-            action={step.action}
-            model={model}
-            severity={actionSeverity(step.action)}
-            primary
-            fixed
-            flush
-          />
-        </li>
-      ) : (
-        <SeoActionStepRow
-          key={`${step.action.observationId}:${step.action.id}`}
-          action={step.action}
-          severity={actionSeverity(step.action)}
-          model={model}
-          onOpen={(row) => {
-            dialogRow.current = row;
-            setDialogKey(seoActionKey(step.action));
-          }}
-        />
-      )
+      <SeoActionStepRow
+        key={`${step.action.observationId}:${step.action.id}`}
+        action={step.action}
+        severity={actionSeverity(step.action)}
+        model={model}
+        lead={index === primary}
+        onOpen={(row) => {
+          dialogRow.current = row;
+          setDialogKey(seoActionKey(step.action));
+        }}
+      />
     ) : step.kind === "strategy" ? (
       <SeoActionsLinkRow key="strategy" model={model}>
         {t("agent.steps.strategy", {
@@ -353,27 +337,64 @@ function SeoAgentPanel({
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
           {lead ? (
-            // The verdict and its first step are one card: the headline says what is wrong, the step under it
-            // what to do first. The other steps follow the pictures.
-            <ul
-              role="list"
-              aria-label={t("agent.firstStep")}
-              className="-mx-4 -mb-4 border-t"
-              onFocus={() => {
-                leadFocused.current = true;
-              }}
-              onBlur={(event) => {
-                // Focus that moved on, or went to the page by a click, has left. Focus whose element is gone,
-                // or whose window lost focus, still counts as in the list.
-                if (
-                  event.relatedTarget ||
-                  (document.hasFocus() && event.target.isConnected)
-                )
-                  leadFocused.current = false;
-              }}
-            >
-              {stepItem(lead, primary)}
-            </ul>
+            // The verdict and its steps are one card: the headline says what is wrong, the first step under it
+            // what to do first, and the other steps wait behind one press right under that step.
+            <div className="-mx-4 -mb-4 border-t">
+              <ul
+                role="list"
+                aria-label={t("agent.firstStep")}
+                onFocus={() => {
+                  leadFocused.current = true;
+                }}
+                onBlur={(event) => {
+                  // Focus that moved on, or went to the page by a click, has left. Focus whose element is gone,
+                  // or whose window lost focus, still counts as in the list.
+                  if (
+                    event.relatedTarget ||
+                    (document.hasFocus() && event.target.isConnected)
+                  )
+                    leadFocused.current = false;
+                }}
+              >
+                {stepItem(lead, primary)}
+              </ul>
+              {steps.length > 1 ? (
+                <Collapsible open={showAllSteps} onOpenChange={setShowAllSteps}>
+                  {/* The rows open over the press, so they stand right under the first step. */}
+                  <CollapsibleContent>
+                    <ul
+                      role="list"
+                      aria-label={t("agent.nextTitle")}
+                      className={cn(
+                        SEO_ROW_LIST_CLASS,
+                        "rounded-none border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none [&>li:last-child]:rounded-b-none [&>li:last-child>button]:rounded-b-none",
+                      )}
+                    >
+                      {steps.map((step, index) =>
+                        index === primary ? null : stepItem(step, index),
+                      )}
+                    </ul>
+                  </CollapsibleContent>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-10 w-full justify-start rounded-none rounded-b-lg border-t px-4"
+                    >
+                      {showAllSteps
+                        ? t("overview.showLess")
+                        : t("agent.moreSteps", { count: steps.length - 1 })}
+                      <ChevronDown
+                        className={cn(
+                          "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                          showAllSteps && "rotate-180",
+                        )}
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                </Collapsible>
+              ) : null}
+            </div>
           ) : null}
         </div>
       )}
@@ -383,47 +404,23 @@ function SeoAgentPanel({
         <SeoGettingStarted model={model} />
       ) : null}
       {setup ? null : <SeoAgentGraphics model={model} />}
-      {/* The steps after the first wait behind one press: the tab shows the result, its first step and the
-          pictures. Without a first step nothing is above the list, so it shows open. */}
-      {((setup || banner) && !steps.length) ||
-      (lead && steps.length === 1) ? null : steps.length ? (
-        <Collapsible
-          open={!lead || showAllSteps}
-          onOpenChange={setShowAllSteps}
-          className="space-y-2"
-        >
-          {lead ? (
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm">
-                {showAllSteps
-                  ? t("overview.showLess")
-                  : t("agent.moreSteps", { count: steps.length - 1 })}
-                <ChevronDown
-                  className={cn(
-                    "transition-transform duration-150 ease-out motion-reduce:transition-none",
-                    showAllSteps && "rotate-180",
-                  )}
-                />
-              </Button>
-            </CollapsibleTrigger>
-          ) : null}
-          <CollapsibleContent className="space-y-2">
-            {brief.issues ? null : (
-              <h3 className="px-2 text-sm font-semibold">
-                {t("agent.nextTitle")}
-              </h3>
-            )}
-            <ul
-              role="list"
-              aria-label={t("agent.nextTitle")}
-              className={SEO_ROW_LIST_CLASS}
-            >
-              {steps.map((step, index) =>
-                index === primary ? null : stepItem(step, index),
-              )}
-            </ul>
-          </CollapsibleContent>
-        </Collapsible>
+      {/* With a first step, every step is in the verdict card. Without one nothing is above the list, so it
+          shows open under the pictures. */}
+      {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
+        <div className="space-y-2">
+          {brief.issues ? null : (
+            <h3 className="px-2 text-sm font-semibold">
+              {t("agent.nextTitle")}
+            </h3>
+          )}
+          <ul
+            role="list"
+            aria-label={t("agent.nextTitle")}
+            className={SEO_ROW_LIST_CLASS}
+          >
+            {steps.map((step, index) => stepItem(step, index))}
+          </ul>
+        </div>
       ) : analyticsStep || statisticsSync.state === "failed" ? null : (
         // The Analytics line and a failed sync each still ask for something: "nothing is waiting" would be wrong.
         <p className="text-muted-foreground max-w-prose px-2 text-sm">

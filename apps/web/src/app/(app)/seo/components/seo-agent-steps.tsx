@@ -17,7 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SeoActionCard } from "./seo-actions";
+import {
+  SeoActionCard,
+  SeoActionFinding,
+  SeoActionTaskButton,
+} from "./seo-actions";
 import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
@@ -222,41 +226,64 @@ export function SeoActionsLinkRow({
   );
 }
 
-/** An action without the primary button: its title, and a press opens its card in a dialog on the same tab. */
+/**
+ * An action as one row: its title, and a press opens its card in a dialog on the same tab. The lead row also
+ * says what the check found and has the action's button under it, outside the row's own button.
+ */
 export function SeoActionStepRow({
   action,
   severity,
   model,
   onOpen,
+  lead = false,
 }: {
   action: Extract<SeoAgentStep, { kind: "action" }>["action"];
   severity: SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
   /** Opens the action's card in the tab's one action dialog; the row is the place focus returns to. */
   onOpen: (row: HTMLButtonElement) => void;
+  /** The first step of the verdict card: no frame of its own, the finding and the button. */
+  lead?: boolean;
 }) {
   return (
     <li className="content-rise">
       <button
         type="button"
-        className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
+        className={cn(
+          SEO_ROW_BUTTON_CLASS,
+          "px-4 py-2.5",
+          lead && "rounded-none border-0 bg-transparent",
+        )}
         onClick={(event) => onOpen(event.currentTarget)}
       >
-        {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
-        <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
-          <SeoActionName
-            title={action.title}
-            pageUrl={action.pageUrl}
-            workspace={model.data}
-          />
-          {severity ? (
-            <span className="flex max-sm:mt-1">
-              <SeoSeverity severity={severity} />
+        <span className="min-w-0 flex-1">
+          {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
+          <span className="gap-3 sm:flex sm:items-center">
+            <SeoActionName
+              title={action.title}
+              pageUrl={action.pageUrl}
+              workspace={model.data}
+              strong={lead}
+            />
+            {severity ? (
+              <span className="flex max-sm:mt-1">
+                <SeoSeverity severity={severity} />
+              </span>
+            ) : null}
+          </span>
+          {lead ? (
+            <span className="text-muted-foreground mt-1 line-clamp-2 block text-sm break-words">
+              <SeoActionFinding action={action} model={model} />
             </span>
           ) : null}
         </span>
         <ChevronRight className="text-muted-foreground size-4 shrink-0" />
       </button>
+      {lead ? (
+        <div className="px-4 pb-3 empty:hidden">
+          <SeoActionTaskButton action={action} model={model} />
+        </div>
+      ) : null}
     </li>
   );
 }

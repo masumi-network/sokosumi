@@ -129,16 +129,7 @@ export function SeoActionCard({
           </span>
           {/* What the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
           <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
-            {problem
-              ? t("actions.problem", {
-                  check: t.markup("overview.failedCheck", {
-                    name: problem.check,
-                    // Plain words in a running line: the tag is for the title of an issue row.
-                    prefix: (chunks) => chunks,
-                  }),
-                  found: problem.found,
-                })
-              : action.expectedEffect}
+            <SeoActionFinding action={action} model={model} />
             {problem?.footnote ? (
               <span className="hidden group-has-[details[open]]:inline">
                 {" "}
@@ -207,31 +198,65 @@ export function SeoActionCard({
               ) : null}
             </div>
           </details>
-          {action.taskId ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
-                <ArrowUpRight />
-                {t("openTask")}
-              </Link>
-            </Button>
-          ) : model.data.availableActions.canEdit ? (
-            <Button
-              size="sm"
-              // Tinted, not the brand fill: a draft is a quiet step the owner reviews later (owner, 2026-11-13).
-              variant="secondary"
-              loading={model.pending}
-              onClick={() => {
-                void model.createActionTask(action);
-              }}
-            >
-              <ClipboardPlus />
-              {t("actions.createTask")}
-            </Button>
-          ) : null}
+          <SeoActionTaskButton action={action} model={model} />
         </div>
       ) : null}
     </article>
   );
+}
+
+/** What the check found, where an issue is behind the action; else the effect of the fix. */
+export function SeoActionFinding({
+  action,
+  model,
+}: {
+  action: ProjectSeoAction;
+  model: SeoWorkspaceModel;
+}) {
+  const t = useTranslations("App.Seo");
+  const problem = seoOverviewModel(model.data).actionProblem(action);
+  return problem
+    ? t("actions.problem", {
+        check: t.markup("overview.failedCheck", {
+          name: problem.check,
+          // Plain words in a running line: the tag is for the title of an issue row.
+          prefix: (chunks) => chunks,
+        }),
+        found: problem.found,
+      })
+    : action.expectedEffect;
+}
+
+/** The action's Task: a link once it exists, else the button that drafts it for an editor. */
+export function SeoActionTaskButton({
+  action,
+  model,
+}: {
+  action: ProjectSeoAction;
+  model: SeoWorkspaceModel;
+}) {
+  const t = useTranslations("App.Seo");
+  return action.taskId ? (
+    <Button asChild size="sm" variant="outline">
+      <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
+        <ArrowUpRight />
+        {t("openTask")}
+      </Link>
+    </Button>
+  ) : model.data.availableActions.canEdit ? (
+    <Button
+      size="sm"
+      // Tinted, not the brand fill: a draft is a quiet step the owner reviews later (owner, 2026-11-13).
+      variant="secondary"
+      loading={model.pending}
+      onClick={() => {
+        void model.createActionTask(action);
+      }}
+    >
+      <ClipboardPlus />
+      {t("actions.createTask")}
+    </Button>
+  ) : null;
 }
 
 function ActionGroup({
