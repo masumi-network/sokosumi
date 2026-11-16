@@ -16,10 +16,11 @@ export function useSeoFocusHandoff(key: unknown, hidden: boolean) {
     shown.current = { key, hidden };
   }
   // A press or a focus anywhere is the reader's next step, a focus back on the line too: a pending handoff is
-  // over. Not in a dialog: the line's own control opens one, and the work there is the same step.
+  // over. Not while a dialog is open: the line's own control opens one, and the work there is the same step,
+  // in its menus and confirms too, which sit outside it in a portal.
   useEffect(() => {
-    const drop = (event: Event) => {
-      if ((event.target as Element | null)?.closest?.('[role="dialog"]'))
+    const drop = () => {
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]'))
         return;
       handoff.current = false;
     };

@@ -60,6 +60,14 @@ describe("useSeoFocusHandoff", () => {
               <input aria-label="Property" />
             </div>
           ) : null}
+          {/* The account menu of the dialog sits outside it, in a portal. */}
+          {open ? (
+            <div role="menu">
+              <button type="button" role="menuitem">
+                Switch account
+              </button>
+            </div>
+          ) : null}
         </div>
       );
     }
@@ -70,7 +78,11 @@ describe("useSeoFocusHandoff", () => {
     // The pick starts a sync: the line hides, the dialog closes, the focus falls to the page.
     rerender(<WithDialog hidden open />);
     fireEvent.pointerDown(screen.getByLabelText("Property"));
+    const item = screen.getByRole("menuitem", { name: "Switch account" });
+    fireEvent.pointerDown(item);
+    item.focus();
     rerender(<WithDialog hidden open={false} />);
+    item.blur();
     rerender(<WithDialog hidden={false} open={false} />);
     expect(screen.getByText("Choose")).toHaveFocus();
   });
