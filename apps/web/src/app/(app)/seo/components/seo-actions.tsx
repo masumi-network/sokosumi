@@ -4,7 +4,7 @@ import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -56,28 +56,13 @@ export function SeoActionCard({
   // Inside another card the title ranks under that card's heading.
   const Heading = flush ? "h4" : "h3";
   const problem = seoOverviewModel(model.data).actionProblem(action);
-  const card = useRef<HTMLElement>(null);
-  // An action row on the Agent tab leads here: the card scrolls into view and takes the focus once.
-  const shown = model.shownAction === seoActionKey(action);
-  const { setShownAction } = model;
-  // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.
-  const [marked, setMarked] = useState(false);
-  // A card that a row leads to is open on its first paint, so it scrolls into view at its full height.
-  const [opened, setOpen] = useState(primary || shown);
+  const [opened, setOpen] = useState(primary);
   const open = fixed || opened;
   const bodyId = useId();
   // The filled button moves on once a Task exists for the card before: the card that gets it opens.
   useEffect(() => {
     if (primary) setOpen(true);
   }, [primary]);
-  useEffect(() => {
-    if (!shown) return;
-    setOpen(true);
-    card.current?.scrollIntoView({ block: "center" });
-    card.current?.focus();
-    setMarked(true);
-    setShownAction(null);
-  }, [shown, setShownAction]);
   const labels = (
     <>
       {/* The severity of the issue it fixes; a suggestion from search data has none. */}
@@ -92,20 +77,7 @@ export function SeoActionCard({
     </>
   );
   return (
-    <article
-      ref={card}
-      tabIndex={-1}
-      aria-current={marked || undefined}
-      onBlur={(event) => {
-        // Focus on a control of the card is still on the card.
-        if (!event.currentTarget.contains(event.relatedTarget))
-          setMarked(false);
-      }}
-      className={cn(
-        !flush && HOLDER_ITEM_CLASS,
-        "group focus-visible:outline-ring aria-[current=true]:ring-ring min-w-0 focus-visible:outline-2 aria-[current=true]:ring-2",
-      )}
-    >
+    <article className={cn(!flush && HOLDER_ITEM_CLASS, "group min-w-0")}>
       <Heading>
         {/* The closed card is one row: the title, its page and how bad the issue is. A press opens what the check found and the button. */}
         <SeoActionCardHead

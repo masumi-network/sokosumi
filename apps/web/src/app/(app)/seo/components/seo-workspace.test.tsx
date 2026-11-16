@@ -5833,7 +5833,7 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
   });
 
-  it("shows one fix as a card on the Agent tab and each later fix as a row that opens it on the Actions tab", async () => {
+  it("shows one fix as a card on the Agent tab and each later fix as a row that opens it in a dialog", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observationId = "b5efedab-c394-4ce9-a089-0979e8a18fdb";
@@ -5895,30 +5895,44 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("1 more fix")).toBeVisible();
     // The whole row is the control: no second button repeats it.
     expect(within(row!).getAllByRole("button")).toHaveLength(1);
-    await user.click(
-      within(row!).getByRole("button", { name: /^Write a description/ }),
-    );
-    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+    const rowButton = within(row!).getByRole("button", {
+      name: /^Write a description/,
+    });
+    // A press opens the fix's card in a dialog on the same tab, with its own button.
+    await user.click(rowButton);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Write a description",
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
+    ).toBeVisible();
+    expect(within(dialog).getByText("Reason and evidence")).toBeVisible();
+    // Closing it returns the focus to the row, still on the Agent tab.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(rowButton).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Agent" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    // The Actions tab lists each fix as a closed row. Two cards are open: the first one that waits, and the
-    // card of the opened row, which takes the focus.
+    // The Actions tab lists each fix as a closed row; the first one that waits is open.
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(
       await screen.findAllByRole("button", { name: "Create draft task" }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(screen.getAllByRole("article")).toHaveLength(4);
     const card = screen
       .getByRole("heading", { name: /^Write a description/ })
       .closest("article");
-    await waitFor(() => expect(card).toHaveFocus());
+    const head = within(card!).getByRole("button", {
+      name: /^Write a description/,
+    });
+    await user.click(head);
     expect(
       within(card!).getByRole("button", { name: "Create draft task" }),
     ).toBeVisible();
     // A press on the title row closes the card again: the row is the one control of a closed card.
-    await user.click(
-      within(card!).getByRole("button", { name: /^Write a description/ }),
-    );
+    await user.click(head);
     expect(within(card!).getAllByRole("button")).toHaveLength(1);
     expect(within(card!).queryByRole("link")).toBeNull();
     // The row that counts the rest leads to the same list.
@@ -6172,7 +6186,7 @@ describe("SEO workspace integration", () => {
     // Focus that left the list by a click on the page moves no focus when the lead changes.
     await user.click(
       within(screen.getByRole("list", { name: "First step" })).getByText(
-        /^Write a description/,
+        "Reason and evidence",
       ),
     );
     expect(screen.getByRole("list", { name: "First step" })).toContainElement(

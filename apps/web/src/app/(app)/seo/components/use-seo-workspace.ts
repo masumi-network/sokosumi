@@ -368,12 +368,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       setPending(false);
     }
   }
-  // The action an Agent row leads to. Its card takes the focus once.
-  const [shownAction, setShownAction] = useState<string | null>(null);
-  function showAction(action: { observationId: string; id: string }) {
-    setShownAction(seoActionKey(action));
-    void setFilters({ tab: "actions" });
-  }
   // A row that names the strategy actions (Agent tab, Competitors list) leads to their group. The group opens in
   // full and takes the focus once.
   const [shownStrategy, setShownStrategy] = useState(false);
@@ -466,9 +460,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     skipGoogleSetup,
     viewerKey: identity,
     openChat,
-    shownAction,
-    setShownAction,
-    showAction,
     shownStrategy,
     setShownStrategy,
     showStrategy,

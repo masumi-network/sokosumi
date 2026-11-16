@@ -14,8 +14,15 @@ import {
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { SeoActionCard } from "./seo-actions";
 import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
@@ -236,7 +243,7 @@ export function SeoActionsLinkRow({
   );
 }
 
-/** An action without the primary button: its title and the way to its card. The Actions tab holds the cards, once. */
+/** An action without the primary button: its title, and a press opens its card in a dialog on the same tab. */
 export function SeoActionStepRow({
   action,
   severity,
@@ -248,26 +255,42 @@ export function SeoActionStepRow({
 }) {
   return (
     <li className="content-rise">
-      <button
-        type="button"
-        className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
-        onClick={() => model.showAction(action)}
-      >
-        {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
-        <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
-          <SeoActionName
-            title={action.title}
-            pageUrl={action.pageUrl}
-            workspace={model.data}
-          />
-          {severity ? (
-            <span className="flex max-sm:mt-1">
-              <SeoSeverity severity={severity} />
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
+          >
+            {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
+            <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
+              <SeoActionName
+                title={action.title}
+                pageUrl={action.pageUrl}
+                workspace={model.data}
+              />
+              {severity ? (
+                <span className="flex max-sm:mt-1">
+                  <SeoSeverity severity={severity} />
+                </span>
+              ) : null}
             </span>
-          ) : null}
-        </span>
-        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-      </button>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+          </button>
+        </DialogTrigger>
+        {/* The card names the action in its own heading; the dialog title repeats it for the dialog's name. The
+            top padding keeps the close button clear of the title. */}
+        <DialogContent className="gap-0 p-0 pt-10 sm:max-w-xl">
+          <DialogTitle className="sr-only">{action.title}</DialogTitle>
+          <SeoActionCard
+            action={action}
+            model={model}
+            severity={severity}
+            primary
+            fixed
+            flush
+          />
+        </DialogContent>
+      </Dialog>
     </li>
   );
 }
