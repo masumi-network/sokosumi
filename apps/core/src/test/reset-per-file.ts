@@ -47,10 +47,30 @@ for (const [id, node] of modules) {
   node.importers.clear();
 }
 
+// evlog keeps `initLogger()`'s config (drain, silent, …) in one process-wide
+// record, shared on purpose by every evlog copy under this symbol. Files
+// that call `initCoreLogger` would hand their drain to later files, so each
+// file ends on the config a fresh process starts with.
+await import("evlog");
+const evlogConfig = (
+  globalThis as Record<symbol, { config?: Record<string, unknown> } | undefined>
+)[Symbol.for("evlog.registry.v2")]?.config;
+if (!evlogConfig) {
+  throw new Error(
+    "reset-per-file: evlog registry not found; update this setup for the installed evlog",
+  );
+}
+const freshEvlogKey = Symbol.for("sokosumi.test.freshEvlogConfig");
+const workerState = globalThis as Record<symbol, unknown>;
+// The first file in a worker sees the config before any test touched it.
+workerState[freshEvlogKey] ??= { ...evlogConfig };
+const freshEvlogConfig = workerState[freshEvlogKey] as Record<string, unknown>;
+
 // Process-wide state outlives the file that set it. Vitest restores mocks
-// between files itself; these three it does not.
+// between files itself; these it does not.
 afterAll(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  Object.assign(evlogConfig, freshEvlogConfig);
 });
