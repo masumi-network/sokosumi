@@ -645,6 +645,7 @@ describe("MenuItems prefetch", () => {
     ["seo", "/seo"],
     ["calendar", "/calendar"],
     ["social", "/social"],
+    ["exploreAgents", "/agents"],
   ])("loads the %s page content on a resting hover", (label, href) => {
     renderMenu(true, false);
 
@@ -659,9 +660,9 @@ describe("MenuItems prefetch", () => {
   it("loads only the shell for a page without cached reads", () => {
     renderMenu(true, false);
 
-    restOn(/exploreAgents/);
+    restOn(/^contacts$/);
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/agents");
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/contacts");
   });
 
   // The page on screen would render on the server again for nothing.
