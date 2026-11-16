@@ -115,9 +115,11 @@ export function ProjectMoveDatesDialog({
       }}
     >
       {/* One shrinkable column, so a long Task name wraps instead of
-          widening the dialog past a phone screen. */}
+          widening the dialog past a phone screen; capped at the screen
+          height and scrolling, so a long preview never pushes the title or
+          the buttons off-screen. */}
       <DialogContent
-        className="grid-cols-[minmax(0,1fr)]"
+        className="app-scrollbar max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto"
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
