@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   access: vi.fn(),
   asset: vi.fn(),
   hide: vi.fn(),
-  upsert: vi.fn(),
+  findFirst: vi.fn(),
+  create: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
   thumbs: vi.fn(),
@@ -23,7 +24,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     projectImageAsset: { findFirst: mocks.asset, updateMany: mocks.hide },
     adFeedback: {
-      upsert: mocks.upsert,
+      findFirst: mocks.findFirst,
+      create: mocks.create,
       update: mocks.update,
       deleteMany: mocks.remove,
       groupBy: mocks.thumbs,
@@ -56,6 +58,8 @@ beforeEach(() => {
     job: { batchId: "batch-1", batchSlot: null },
   });
   mocks.hide.mockResolvedValue({ count: 1 });
+  mocks.findFirst.mockResolvedValue(null);
+  mocks.create.mockResolvedValue({ id: "feedback-1" });
   mocks.thumbs.mockResolvedValue([]);
   mocks.mine.mockResolvedValue([]);
   mocks.events.mockResolvedValue([]);
@@ -68,7 +72,8 @@ describe("studio feedback", () => {
       setStudioAssetFeedback({ ...SCOPE, thumb: 1 }),
     ).rejects.toThrow("Project not found");
     expect(mocks.asset).not.toHaveBeenCalled();
-    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("never rates an asset outside the project and workspace", async () => {
@@ -85,27 +90,16 @@ describe("studio feedback", () => {
         },
       }),
     );
-    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
-  it("upserts through the unique person/asset thumb key for retries and opposite thumbs", async () => {
+  it("creates a thumb the first time and updates it for retries and opposite thumbs", async () => {
     await setStudioAssetFeedback({ ...SCOPE, thumb: 1 });
-    await setStudioAssetFeedback({
-      ...SCOPE,
-      thumb: -1,
-      reasons: ["ugly", "ugly"],
-      comment: "  Try softer light  ",
-    });
-    expect(mocks.upsert).toHaveBeenCalledTimes(2);
-    expect(mocks.upsert).toHaveBeenLastCalledWith({
-      where: {
-        userId_assetId: { userId: "user-1", assetId: "asset-1" },
-        kind: "THUMB",
-      },
-      create: {
-        thumb: -1,
-        reasons: ["ugly"],
-        comment: "Try softer light",
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith({
+      data: {
+        thumb: 1,
+        reasons: [],
+        comment: null,
         userId: "user-1",
         assetId: "asset-1",
         workspaceId: "workspace-1",
@@ -113,24 +107,36 @@ describe("studio feedback", () => {
         kind: "THUMB",
         batchId: "batch-1",
       },
-      update: { thumb: -1, reasons: ["ugly"], comment: "Try softer light" },
+    });
+
+    mocks.findFirst.mockResolvedValue({ id: "feedback-1" });
+    await setStudioAssetFeedback({
+      ...SCOPE,
+      thumb: -1,
+      reasons: ["ugly", "ugly"],
+      comment: "  Try softer light  ",
+    });
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "feedback-1" },
+      data: { thumb: -1, reasons: ["ugly"], comment: "Try softer light" },
     });
   });
 
   it("retries a concurrent first vote against the existing thumb without changing pairwise feedback", async () => {
-    mocks.upsert.mockRejectedValue({ code: "P2002" });
+    mocks.create.mockRejectedValue({ code: "P2002" });
+    mocks.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "feedback-1" });
     await setStudioAssetFeedback({ ...SCOPE, thumb: -1 });
     expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
-      where: {
-        userId_assetId: { userId: "user-1", assetId: "asset-1" },
-        kind: "THUMB",
-      },
+      where: { id: "feedback-1" },
       data: { thumb: -1, reasons: [], comment: null },
     });
   });
 
   it("does not swallow a failed feedback write", async () => {
-    mocks.upsert.mockRejectedValue(new Error("write failed"));
+    mocks.create.mockRejectedValue(new Error("write failed"));
     await expect(
       setStudioAssetFeedback({ ...SCOPE, thumb: 1 }),
     ).rejects.toThrow("write failed");
@@ -142,7 +148,7 @@ describe("studio feedback", () => {
     expect(mocks.remove).toHaveBeenCalledExactlyOnceWith({
       where: { userId: "user-1", assetId: "asset-1", kind: "THUMB" },
     });
-    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("returns team counts and only the caller's reasons and comment", async () => {
