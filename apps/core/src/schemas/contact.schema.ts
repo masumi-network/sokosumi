@@ -421,8 +421,27 @@ export const contactCompanySchema = z
         "warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.",
     }),
     strongestStage: z.union([contactStageSchema, z.null()]),
+    listIds: z
+      .array(z.uuid())
+      .openapi({ description: "The company lists it is on." }),
   })
   .openapi("ContactCompany");
+
+export const contactCompanyListSchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    color: contactListColorSchema,
+    description: z.string().nullable(),
+    count: z
+      .int()
+      .openapi({ description: "Companies on it that someone still works at." }),
+    createdByUserId: z.string().nullable(),
+    createdBySokoBotId: z.string().nullable(),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("ContactCompanyList");
 
 export const contactCompanyDetailSchema = z
   .object({

@@ -16012,6 +16012,14 @@ export const ContactCompanySchema = {
                     type: 'null'
                 }
             ]
+        },
+        listIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            description: 'The company lists it is on.'
         }
     },
     required: [
@@ -16032,7 +16040,8 @@ export const ContactCompanySchema = {
         'interactions',
         'lastContactAt',
         'warmth',
-        'strongestStage'
+        'strongestStage',
+        'listIds'
     ]
 } as const;
 
@@ -16184,6 +16193,65 @@ export const ContactCompanyDetailSchema = {
         'teammates',
         'nextSteps',
         'recentInteractions'
+    ]
+} as const;
+
+export const ContactCompanyListSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        color: {
+            $ref: '#/components/schemas/ContactListColor'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        count: {
+            type: 'integer',
+            description: 'Companies on it that someone still works at.'
+        },
+        createdByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdBySokoBotId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'color',
+        'description',
+        'count',
+        'createdByUserId',
+        'createdBySokoBotId',
+        'createdAt',
+        'updatedAt'
     ]
 } as const;
 

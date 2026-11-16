@@ -11020,7 +11020,10 @@
         "companies": "Companies",
         "findCompany": "Find a company…",
         "noCompanies": "No companies found.",
-        "clearCompany": "Show every company"
+        "clearCompany": "Show every company",
+        "companyLists": "Company lists",
+        "newCompanyList": "New company list",
+        "noCompanyLists": "No company lists yet."
       },
       "columns": {
         "name": "Name",
@@ -11147,7 +11150,11 @@
         "save": "Save",
         "create": "Create list",
         "smart": "Keep it filled from the current filters",
-        "smartHint": "Anyone who matches these filters is on this list. The list updates by itself."
+        "smartHint": "Anyone who matches these filters is on this list. The list updates by itself.",
+        "companyCreateTitle": "New company list",
+        "companyEditTitle": "Edit company list",
+        "companyDescription": "Company lists are shared with your whole team. A company can be on as many as you like.",
+        "companyNamePlaceholder": "Target accounts, investors…"
       },
       "addDialog": {
         "title": "Add contact",
@@ -11431,7 +11438,8 @@
       "layout": {
         "label": "Layout",
         "table": "Table",
-        "map": "Map"
+        "map": "Map",
+        "companies": "Companies"
       },
       "map": {
         "label": "Places",
@@ -11505,6 +11513,41 @@
         "none": "Not set",
         "nobody": "Nobody yet",
         "more": "and {count} more"
+      },
+      "companies": {
+        "search": "Search companies",
+        "searchPlaceholder": "Search companies…",
+        "allCompanies": "All companies",
+        "count": "{count, plural, one {# company} other {# companies}}",
+        "showing": "Showing {shown} of {total}",
+        "loading": "Loading companies…",
+        "loadFailed": "Companies didn't load",
+        "retry": "Try again",
+        "emptyTitle": "No companies",
+        "empty": "Companies show up here once your contacts have an organization or a work email.",
+        "emptyList": "This list is empty. Select companies in All companies and add them here.",
+        "noMatches": "No company matches your search.",
+        "selectAll": "Select all companies",
+        "select": "Select {name}",
+        "selected": "{count} selected",
+        "bulkLabel": "Selected companies",
+        "addToList": "Add to list",
+        "removeFromList": "Remove from list",
+        "clearSelection": "Clear",
+        "newList": "New company list",
+        "addedToList": "{count, plural, one {# company} other {# companies}} added to {list}",
+        "removedFromList": "{count, plural, one {# company} other {# companies}} removed from {list}",
+        "saveFailed": "That didn't save. Try again.",
+        "deleteTitle": "Delete {name}?",
+        "deleteDescription": "The list goes away for everyone. The companies and their people stay.",
+        "deleteConfirm": "Delete list",
+        "cancel": "Cancel",
+        "columns": {
+          "name": "Company",
+          "people": "People",
+          "industry": "Industry",
+          "lists": "Lists"
+        }
       }
     }
   },
