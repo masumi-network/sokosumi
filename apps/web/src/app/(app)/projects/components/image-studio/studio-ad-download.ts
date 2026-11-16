@@ -1,5 +1,8 @@
 import type { StudioLogoPosition } from "@sokosumi/core-client";
-import { renderStudioHeadline } from "./studio-ad-headline";
+import {
+  renderStudioHeadline,
+  type StudioHeadlineLook,
+} from "./studio-ad-headline";
 import {
   assetContentUrl,
   assetFileExtension,
@@ -45,6 +48,7 @@ export async function createStudioAdArchive(
   assets: StudioAsset[],
   logo?: StudioLogoPosition,
   headlines?: Readonly<Record<string, string>>,
+  looks?: Readonly<Record<string, StudioHeadlineLook>>,
 ): Promise<ArrayBuffer> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
@@ -56,7 +60,12 @@ export async function createStudioAdArchive(
     const response = await fetchStudioAd(asset, { logo });
     const source = await response.blob();
     const image = headline
-      ? await renderStudioHeadline(source, headline, logo)
+      ? await renderStudioHeadline(
+          source,
+          headline,
+          logo,
+          looks?.[asset.projectId],
+        )
       : source;
     bytes += image.size;
     if (bytes > MAX_ARCHIVE_BYTES) throw new Error("Studio archive too large");

@@ -26,8 +26,9 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { fetchStudioAd, saveStudioDownload } from "./studio-ad-download";
-import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
+import type { StudioHeadlineLook } from "./studio-ad-headline";
 import { useStudioHeadlineImage } from "./studio-headline-image";
+import { readStudioHeadlineKit } from "./studio-headline-kit";
 import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -74,6 +75,7 @@ export function StudioAdPreview({
   const [downloading, startDownload] = useTransition();
   const [open, setOpen] = useState(false);
   const [headlines, setHeadlines] = useState<string[]>([]);
+  const [look, setLook] = useState<StudioHeadlineLook>();
   const [headlineLoadFailed, setHeadlineLoadFailed] = useState(false);
   const [loadingHeadlines, startHeadlineLoad] = useTransition();
   const headlineRequest = useRef(0);
@@ -81,7 +83,7 @@ export function StudioAdPreview({
     open && headlines.includes(headline) ? headline : undefined;
   const invalidHeadline = Boolean(headline && !selectedHeadline);
   const { result: headlineImage, retry: retryHeadline } =
-    useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline);
+    useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline, look);
   const isReel = platform === "reels";
   const isFacebook = platform === "facebook";
   const platformRatios: readonly PlacementRatio[] = PLATFORM_RATIOS[platform];
@@ -114,8 +116,11 @@ export function StudioAdPreview({
     setHeadlineLoadFailed(false);
     startHeadlineLoad(async () => {
       try {
-        const options = await readApprovedStudioHeadlines(asset.projectId);
-        if (request === headlineRequest.current) setHeadlines(options);
+        const kit = await readStudioHeadlineKit(asset.projectId);
+        if (request === headlineRequest.current) {
+          setHeadlines(kit.approvedLines);
+          setLook(kit.look);
+        }
       } catch {
         if (request === headlineRequest.current) setHeadlineLoadFailed(true);
       }
@@ -128,7 +133,9 @@ export function StudioAdPreview({
       try {
         if (selectedHeadline) {
           if (headlineImage?.status !== "ready") return;
-          const options = await readApprovedStudioHeadlines(asset.projectId);
+          const { approvedLines: options } = await readStudioHeadlineKit(
+            asset.projectId,
+          );
           if (!options.includes(selectedHeadline)) {
             setHeadlines(options);
             toast.error(t("headlineRemoved"));

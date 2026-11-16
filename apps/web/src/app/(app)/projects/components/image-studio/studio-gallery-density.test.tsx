@@ -407,7 +407,14 @@ describe("a gallery with work in it", () => {
     const first = "A slower morning.";
     const second = "Pour with precision.";
     mocks.listBatchAssets.mockResolvedValue([open, older]);
-    mocks.loadBrandKit.mockResolvedValue({ approvedLines: [first, second] });
+    const look = {
+      colors: ["#A33421", "#F5EBDD"],
+      fonts: ["Playfair Display"],
+    };
+    mocks.loadBrandKit.mockResolvedValue({
+      approvedLines: [first, second],
+      ...look,
+    });
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
@@ -444,6 +451,7 @@ describe("a gallery with work in it", () => {
         [open, older],
         undefined,
         { [open.id]: first, [older.id]: second },
+        { p: look },
       ),
     );
   });

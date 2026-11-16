@@ -13,9 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { listStudioBatchAssets } from "@/lib/actions/image-studio/action";
-
-import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type { StudioBatchDownloadReview } from "./studio-batch";
+import { readStudioHeadlineKit } from "./studio-headline-kit";
 import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";
 import { isVideoAsset, type StudioAsset, type StudioLabels } from "./types";
@@ -54,14 +53,14 @@ export function StudioBatchHeadlines({
     setFailed(false);
     startLoad(async () => {
       try {
-        const [assets, options] = await Promise.all([
+        const [assets, kit] = await Promise.all([
           listStudioBatchAssets({ projectId, batchId }),
-          readApprovedStudioHeadlines(projectId),
+          readStudioHeadlineKit(projectId),
         ]);
         if (request === requestId.current) {
           setReview({
             assets: assets.filter((asset) => !isVideoAsset(asset)),
-            options,
+            options: kit.approvedLines,
           });
         }
       } catch {

@@ -32,7 +32,6 @@ import {
   modelVariants,
   priceUnitLabelKey,
 } from "./catalog";
-import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type { StudioBatchProduct } from "./studio-batch";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
@@ -43,6 +42,7 @@ import {
   type StudioCreativeDirection,
   studioAdCopyPrompts,
 } from "./studio-creative-directions";
+import { readStudioHeadlineKit } from "./studio-headline-kit";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioProductPhotoControl } from "./studio-product-photo";
 import { StudioTemplateMenu } from "./studio-template-picker";
@@ -267,7 +267,8 @@ export function StudioComposer({
     }
     startLoadingHeadlines(async () => {
       try {
-        const lines = await readApprovedStudioHeadlines(generationProjectId);
+        const { approvedLines: lines } =
+          await readStudioHeadlineKit(generationProjectId);
         if (!lines.length) {
           setHeadlineStatus({
             projectId: generationProjectId,

@@ -2,7 +2,10 @@ import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 
 import { fetchStudioAd } from "./studio-ad-download";
-import { renderStudioHeadline } from "./studio-ad-headline";
+import {
+  renderStudioHeadline,
+  type StudioHeadlineLook,
+} from "./studio-ad-headline";
 import type { PlacementRatio } from "./studio-placements";
 import type { StudioAsset } from "./types";
 
@@ -15,6 +18,7 @@ export function useStudioHeadlineImage(
   placement: PlacementRatio,
   logo: StudioLogoPosition | undefined,
   headline: string | undefined,
+  look?: StudioHeadlineLook,
 ) {
   const [result, setResult] = useState<RenderedHeadline | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -24,6 +28,7 @@ export function useStudioHeadlineImage(
     placement,
     logo,
     headline,
+    look,
     attempt,
   ]);
   const [previousKey, setPreviousKey] = useState(key);
@@ -47,6 +52,7 @@ export function useStudioHeadlineImage(
           await response.blob(),
           text,
           logo,
+          look,
         );
         if (request.signal.aborted) return;
         url = URL.createObjectURL(blob);
@@ -60,7 +66,7 @@ export function useStudioHeadlineImage(
       request.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [headline, id, key, logo, placement, projectId]);
+  }, [headline, id, key, logo, placement, projectId, look]);
 
   return {
     result: headline && result?.key === key ? result : null,

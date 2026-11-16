@@ -25,8 +25,8 @@ import { buildStudioLabels } from "./studio-labels";
 import type { StudioCatalog } from "./types";
 
 vi.mock("@/lib/auth/auth.client", () => ({ authClient: {} }));
-vi.mock("./studio-approved-headlines", () => ({
-  readApprovedStudioHeadlines: vi.fn(),
+vi.mock("./studio-headline-kit", () => ({
+  readStudioHeadlineKit: vi.fn(),
 }));
 // Static markup has no open Radix popover, so each popover's content renders
 // in place with the shell classes of `PopoverContent`. `showOptions` then lifts
