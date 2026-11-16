@@ -115,6 +115,7 @@ export function Onboarding({
               alt={`${AGENT_NAME} walking with a megaphone`}
               width={640}
               height={800}
+              replayAfterMs={0}
               onStart={() => {
                 if (stage.current) aimLabels(stage.current);
                 setAnnouncing(true);

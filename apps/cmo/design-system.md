@@ -81,7 +81,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
-**Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Site, Brand, Plan, Launch, Subscribe.
+**Step marker.** 8px radius, small 500, "1 Research". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Research, Brand, Plan, Launch, Subscribe.
 
 **Buttons.** 44px high, 8px radius, body 500, 0 18px.
 

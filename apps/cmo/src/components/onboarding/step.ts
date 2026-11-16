@@ -23,7 +23,7 @@ type Phase =
   | "writing-needed"
   | "review";
 
-/** The phases of the Site step. */
+/** The phases of the Research step. */
 export type SitePhase = Extract<Phase, "reading" | "asking" | "failed">;
 
 export type PlanPhase = Extract<
@@ -40,7 +40,7 @@ type Position =
   | { step: "plan"; phase: PlanPhase };
 
 export const STEPS: { id: OnboardingStep; label: string }[] = [
-  { id: "site", label: "Site" },
+  { id: "site", label: "Research" },
   { id: "brand", label: "Brand" },
   { id: "plan", label: "Plan" },
   { id: "launch", label: "Launch" },

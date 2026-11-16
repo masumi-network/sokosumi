@@ -104,7 +104,7 @@ describe("pre-hire Site", () => {
     expect(html).toContain('value="acme.io"');
     expect(html).not.toContain("3 min");
     expect(html).toContain("Drafts your first month");
-    expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Site/);
+    expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Research/);
     // No organizations: nothing asks where Cuso goes.
     expect(html).not.toContain('name="organizationId"');
   });
@@ -139,7 +139,7 @@ describe("step markers", () => {
       new RegExp(
         `<li class="ob-step (\\w+)"[^>]*>(?:(?!</li>).)*${label}`,
       ).exec(html)?.[1];
-    expect(marker("Site")).toBe("done");
+    expect(marker("Research")).toBe("done");
     expect(marker("Brand")).toBe("done");
     expect(marker("Plan")).toBe("now");
     expect(marker("Launch")).toBe("next");
