@@ -643,6 +643,7 @@ describe("MenuItems prefetch", () => {
     ["schedules", "/schedules"],
     ["ads", "/ads"],
     ["seo", "/seo"],
+    ["calendar", "/calendar"],
   ])("loads the %s page content on a resting hover", (label, href) => {
     renderMenu(true, false);
 
