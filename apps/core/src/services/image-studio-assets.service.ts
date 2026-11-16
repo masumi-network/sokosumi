@@ -485,6 +485,9 @@ export interface JobView {
   kind: string;
   model: string;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /** The provider input this job asked for, so a retry can ask for the same. */
   settings: unknown;
   /** A video job's own settings. Null for an image job. */
@@ -558,6 +561,9 @@ export async function getJob(options: {
       chargedCents: true,
       transactionId: true,
       asset: { select: { id: true } },
+      templateId: true,
+      creativeDirection: true,
+      variationIndex: true,
     },
   });
   return job ? toJobView(job) : null;
@@ -594,6 +600,9 @@ export async function listJobs(
       chargedCents: true,
       transactionId: true,
       asset: { select: { id: true } },
+      templateId: true,
+      creativeDirection: true,
+      variationIndex: true,
     },
   });
   return jobs.map(toJobView);
@@ -606,6 +615,9 @@ export function toJobView(job: {
   kind: string;
   model: string;
   prompt: string;
+  templateId?: string | null;
+  creativeDirection?: string | null;
+  variationIndex?: number | null;
   settings: unknown;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
@@ -630,6 +642,13 @@ export function toJobView(job: {
     kind: job.kind,
     model: job.model,
     prompt: job.prompt,
+    ...(job.templateId ? { templateId: job.templateId } : {}),
+    ...(job.creativeDirection
+      ? { creativeDirection: job.creativeDirection }
+      : {}),
+    ...(job.variationIndex != null
+      ? { variationIndex: job.variationIndex }
+      : {}),
     ...productView(job),
     ...splitVideoSettings(
       job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",

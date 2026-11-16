@@ -314,7 +314,19 @@ describe("buildSystemBeatMessage stand-up board", () => {
               id: "mine-1",
               name: "My launch",
               status: "READY",
+              assigneeSokoBotId: null,
               assignee: null,
+              assigneeUser: null,
+              assigneeSokoBot: null,
+            },
+            {
+              id: "mine-2",
+              name: "Polar checkout",
+              status: "RUNNING",
+              assigneeSokoBotId: null,
+              assignee: { name: "CodePat" },
+              assigneeUser: null,
+              assigneeSokoBot: null,
             },
           ];
         }
@@ -372,7 +384,13 @@ describe("buildSystemBeatMessage stand-up board", () => {
       }),
     );
     expect(beat.message).toContain("## Your open Tasks");
-    expect(beat.message).toContain("My launch");
+    // An unassigned Task is the owner's own work, not the bot's to hand out.
+    expect(beat.message).toContain(
+      '- READY · "My launch" (id mine-1) · unassigned: your owner\'s own work, not yours to hand out',
+    );
+    expect(beat.message).toContain(
+      '- RUNNING · "Polar checkout" (id mine-2) · with CodePat',
+    );
     expect(beat.message).toContain("## Team activity (last 24h)");
     expect(beat.message).toContain(
       'Albina · RUNNING · "Pricing research" · with Hannah',
