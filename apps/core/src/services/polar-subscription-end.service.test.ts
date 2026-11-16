@@ -341,6 +341,15 @@ describe("retryOwedPolarRevokes", () => {
     );
   });
 
+  it("tries the least recently attempted first, so a revoke that hangs does not hold back the rest", async () => {
+    await retryOwedPolarRevokes(always);
+
+    // A failed attempt writes the row's `updatedAt`.
+    expect(m.prisma.polarSubscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { updatedAt: "asc" } }),
+    );
+  });
+
   it("stops before Polar when the run is out of time", async () => {
     await expect(retryOwedPolarRevokes(() => false)).resolves.toEqual({
       errors: 0,

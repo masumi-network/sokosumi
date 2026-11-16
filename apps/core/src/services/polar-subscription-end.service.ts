@@ -162,7 +162,9 @@ export async function retryOwedPolarRevokes(
   const owed = await prisma.polarSubscription.findMany({
     where: { revokeOwedAt: { not: null } },
     select: { id: true, polarSubscriptionId: true },
-    orderBy: { revokeOwedAt: "asc" },
+    // Least recently attempted first (a failure writes `updatedAt`): a revoke
+    // that hangs at Polar until the deadline holds back no other.
+    orderBy: { updatedAt: "asc" },
   });
   const result = { errors: 0, revoked: 0, stoppedEarly: false };
   for (const subscription of owed) {

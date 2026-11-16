@@ -682,6 +682,10 @@ describe("sync routes", () => {
     expect(retryOwedPolarRevokesMock).toHaveBeenCalledExactlyOnceWith(
       expect.any(Function),
     );
+    // Grants first: a revoke that hangs at Polar cannot take their time.
+    expect(syncPolarYearlyGrantsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retryOwedPolarRevokesMock.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {

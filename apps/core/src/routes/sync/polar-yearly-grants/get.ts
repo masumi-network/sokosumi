@@ -8,8 +8,8 @@ import { handleSyncRequest } from "../handler.js";
 const POLAR_YEARLY_GRANTS_SYNC_LOCK_KEY = "polar-yearly-grants-sync";
 
 /**
- * Revokes at Polar what an ending could not, then grants the running month
- * to each active yearly CMO subscription.
+ * Grants the running month to each active yearly CMO subscription, then
+ * revokes at Polar what an ending could not.
  */
 export default function mount(app: Hono) {
   app.get("/polar-yearly-grants", async (c) => {
@@ -17,14 +17,15 @@ export default function mount(app: Hono) {
       c,
       POLAR_YEARLY_GRANTS_SYNC_LOCK_KEY,
       async (context) => {
-        // First: an owed revoke is a customer still being charged.
+        const result = await syncPolarYearlyGrants(context.shouldContinue);
+        console.info("[sync/polar-yearly-grants] Completed sync", result);
+        // After the grants: Polar's SDK sets no timeout, so a revoke that
+        // hangs there would take their time.
         const revokes = await retryOwedPolarRevokes(context.shouldContinue);
         console.info(
           "[sync/polar-yearly-grants] Retried owed revokes",
           revokes,
         );
-        const result = await syncPolarYearlyGrants(context.shouldContinue);
-        console.info("[sync/polar-yearly-grants] Completed sync", result);
       },
     );
   });
