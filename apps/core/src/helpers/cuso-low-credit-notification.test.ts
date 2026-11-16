@@ -9,6 +9,7 @@ const {
   captureExceptionMock,
   createNotificationMock,
   creditBucketFindManyMock,
+  cmoRunnerUserIdMock,
   getCmoCatalogMock,
   polarSubscriptionFindFirstMock,
   sendCusoLowCreditsEmailMock,
@@ -17,6 +18,7 @@ const {
   captureExceptionMock: vi.fn(),
   createNotificationMock: vi.fn(),
   creditBucketFindManyMock: vi.fn(),
+  cmoRunnerUserIdMock: vi.fn(),
   getCmoCatalogMock: vi.fn(),
   polarSubscriptionFindFirstMock: vi.fn(),
   sendCusoLowCreditsEmailMock: vi.fn(),
@@ -38,6 +40,11 @@ vi.mock("@/helpers/billing-notification-email", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: (...args: unknown[]) => createNotificationMock(...args),
+}));
+
+vi.mock("@/services/cmo-cuso.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-cuso.service")>()),
+  cmoRunnerUserId: (...args: unknown[]) => cmoRunnerUserIdMock(...args),
 }));
 
 vi.mock("@/services/cmo-catalog.service", () => ({
@@ -65,10 +72,16 @@ const PROJECT_ID = "01960001-0001-7001-8001-0000000000aa";
 const NOW = new Date("2026-11-16T12:00:00.000Z");
 
 /** A Project bucket holding `left` credits, created at `createdAt`. */
-function bucket(id: string, left: number, createdAt: string) {
+function bucket(
+  id: string,
+  left: number,
+  createdAt: string,
+  expiresAt: string | null = null,
+) {
   return {
     id,
     createdAt: new Date(createdAt),
+    expiresAt: expiresAt ? new Date(expiresAt) : null,
     amount: convertCreditsToCents(left + 100),
     consumptions: [{ amount: convertCreditsToCents(100) }],
   };
@@ -81,17 +94,20 @@ const MONTHLY_PLAN = {
   currentPeriodStart: new Date("2026-11-01T00:00:00.000Z"),
   currentPeriodEnd: new Date("2026-12-01T00:00:00.000Z"),
   cancelAtPeriodEnd: false,
+  lastPaidOrderRefundedAt: null,
 };
 
 describe("notifyCusoLowCreditsAfterCharge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sokoBotFindFirstMock.mockResolvedValue({
+      id: "bot-1",
+      workspaceId: "ws-1",
       name: "Cuso",
-      createdByUserId: "hirer-1",
       workspace: { organizationId: "org-1" },
       project: { websiteUrl: "https://www.acme.com" },
     });
+    cmoRunnerUserIdMock.mockResolvedValue("hirer-1");
     polarSubscriptionFindFirstMock.mockResolvedValue(MONTHLY_PLAN);
     getCmoCatalogMock.mockResolvedValue({
       plans: [{ productId: "prod_starter_month", credits: 10_000 }],
@@ -229,20 +245,92 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
     );
   });
 
-  it("does nothing for a Project without a live Cuso or without a hirer", async () => {
+  it("does nothing for a Project without a live Cuso or without anyone to tell", async () => {
     sokoBotFindFirstMock.mockResolvedValue(null);
     await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
 
     sokoBotFindFirstMock.mockResolvedValue({
+      id: "bot-1",
+      workspaceId: "ws-1",
       name: "Cuso",
-      createdByUserId: null,
       workspace: { organizationId: "org-1" },
       project: { websiteUrl: "https://acme.com" },
     });
+    cmoRunnerUserIdMock.mockResolvedValue(null);
     await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
 
     expect(creditBucketFindManyMock).not.toHaveBeenCalled();
     expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("tells the current member who answers for Cuso when his hirer left the organization", async () => {
+    cmoRunnerUserIdMock.mockResolvedValue("owner-2");
+    creditBucketFindManyMock.mockResolvedValue([
+      bucket("month-1", 200, "2026-11-01T00:00:00.000Z"),
+    ]);
+
+    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+
+    expect(cmoRunnerUserIdMock).toHaveBeenCalledWith({
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+    });
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "owner-2" }),
+    );
+    expect(sendCusoLowCreditsEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "owner-2" }),
+    );
+  });
+
+  it("keeps the crossing's key when the newest bucket expires without new funding", async () => {
+    creditBucketFindManyMock.mockResolvedValue([
+      bucket(
+        "top-up-1",
+        200,
+        "2026-10-01T00:00:00.000Z",
+        "2027-10-01T00:00:00.000Z",
+      ),
+      // Last month's grant: expired, so it holds nothing spendable.
+      bucket(
+        "month-1",
+        5_000,
+        "2026-10-20T00:00:00.000Z",
+        "2026-11-01T00:00:00.000Z",
+      ),
+    ]);
+
+    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "cuso-low-credits:month-1",
+        messageParams: expect.objectContaining({ credits: 200 }),
+      }),
+    );
+  });
+
+  it("names the renewal, not next month, for a yearly plan whose paid order was refunded", async () => {
+    polarSubscriptionFindFirstMock.mockResolvedValue({
+      ...MONTHLY_PLAN,
+      interval: "year",
+      currentPeriodStart: new Date("2026-03-05T00:00:00.000Z"),
+      currentPeriodEnd: new Date("2027-03-05T00:00:00.000Z"),
+      lastPaidOrderRefundedAt: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    creditBucketFindManyMock.mockResolvedValue([
+      bucket("top-up-1", 10, "2026-11-05T00:00:00.000Z"),
+    ]);
+
+    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({
+          nextGrantAt: "2027-03-05T00:00:00.000Z",
+        }),
+      }),
+    );
   });
 
   it("reports a failure instead of failing the charge that committed", async () => {

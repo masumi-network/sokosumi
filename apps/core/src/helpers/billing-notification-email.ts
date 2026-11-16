@@ -66,7 +66,8 @@ export async function sendBillingNotificationEmail(
 }
 
 /**
- * A Cuso's low-credit notice (SOKD-246), mailed to the person who hired him.
+ * A Cuso's low-credit notice (SOKD-246), mailed to his hirer, or the owner
+ * or admin who answers for him once the hirer left.
  * The same BILLING_ATTENTION email cell gates it; the action opens CMO's
  * top-up and plan screen, never Sokosumi's billing page.
  */

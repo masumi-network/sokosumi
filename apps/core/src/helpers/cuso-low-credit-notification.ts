@@ -14,6 +14,7 @@ import prisma from "@/lib/db/prisma";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
   cmoBusinessNameFromUrl,
+  cmoRunnerUserId,
   LIVE_CUSO_WHERE,
 } from "@/services/cmo-cuso.service";
 import { monthOfPaidYear } from "@/services/polar-yearly-grant-sync.service";
@@ -31,11 +32,13 @@ interface CusoSubscription {
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   cancelAtPeriodEnd: boolean;
+  lastPaidOrderRefundedAt: Date | null;
 }
 
 /**
  * Tell the person who hired a Cuso that his Project credits are running low,
- * once per crossing (SOKD-246).
+ * once per crossing (SOKD-246). A hirer who left the business is not told;
+ * its owner or admin his runs act as is (`cmoRunnerUserId`).
  *
  * The Organization pool's notice (`notifyLowBalanceAfterCharge`) mirrored for
  * a Cuso: called after a charge commits, best-effort, and throttled by the
@@ -54,26 +57,31 @@ export async function notifyCusoLowCreditsAfterCharge(
     const cuso = await prisma.sokoBot.findFirst({
       where: { ...LIVE_CUSO_WHERE, projectId },
       select: {
+        id: true,
+        workspaceId: true,
         name: true,
-        createdByUserId: true,
         workspace: { select: { organizationId: true } },
         project: { select: { websiteUrl: true } },
       },
     });
-    if (!cuso?.createdByUserId) return;
+    if (!cuso) return;
+    const recipient = await cmoRunnerUserId({
+      sokoBotId: cuso.id,
+      workspaceId: cuso.workspaceId,
+    });
+    if (!recipient) return;
 
     const [buckets, subscription] = await Promise.all([
+      // Expired buckets too: the newest funding keys the crossing, and an
+      // expiry is not new funding. Only unexpired ones count to the balance.
       prisma.creditBucket.findMany({
         where: {
-          AND: [
-            { projectId },
-            { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-            creditBucketActivatesAtOrBefore(now),
-          ],
+          AND: [{ projectId }, creditBucketActivatesAtOrBefore(now)],
         },
         select: {
           id: true,
           createdAt: true,
+          expiresAt: true,
           amount: true,
           consumptions: { select: { amount: true } },
         },
@@ -87,17 +95,20 @@ export async function notifyCusoLowCreditsAfterCharge(
           currentPeriodStart: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
+          lastPaidOrderRefundedAt: true,
         },
       }),
     ]);
 
-    const balance = buckets.reduce(
-      (sum, bucket) =>
-        sum +
-        bucket.amount -
-        bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n),
-      0n,
-    );
+    const balance = buckets
+      .filter(({ expiresAt }) => expiresAt === null || expiresAt > now)
+      .reduce(
+        (sum, bucket) =>
+          sum +
+          bucket.amount -
+          bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n),
+        0n,
+      );
     if (balance >= convertCreditsToCents(await thresholdCredits(subscription)))
       return;
 
@@ -113,7 +124,7 @@ export async function notifyCusoLowCreditsAfterCharge(
     const url = `${getEnv().CMO_APP_BASE_URL.replace(/\/+$/, "")}/settings?project=${encodeURIComponent(projectId)}`;
 
     const { created } = await createNotification({
-      userId: cuso.createdByUserId,
+      userId: recipient,
       kind: NotificationKind.BILLING,
       referenceId: projectId,
       eventId: `cuso-low-credits:${newest?.id ?? "none"}`,
@@ -134,7 +145,7 @@ export async function notifyCusoLowCreditsAfterCharge(
     // A duplicate row is the throttle, as for the pool's notice.
     if (created) {
       await sendCusoLowCreditsEmail({
-        userId: cuso.createdByUserId,
+        userId: recipient,
         cusoName,
         businessName,
         credits,
@@ -168,8 +179,9 @@ async function thresholdCredits(
 
 /**
  * When his plan grants its next month: the renewal for a monthly plan, the
- * next month of the paid year for a yearly one. None for a plan that is not
- * active or ends before then.
+ * next month of the paid year for a yearly one, or its renewal once the paid
+ * order was refunded (the yearly sync grants it no more months). None for a
+ * plan that is not active or ends before then.
  */
 function nextPlanGrantAt(
   subscription: CusoSubscription | null,
@@ -177,7 +189,7 @@ function nextPlanGrantAt(
 ): Date | null {
   if (subscription?.status !== "active") return null;
   const next =
-    subscription.interval === "year"
+    subscription.interval === "year" && !subscription.lastPaidOrderRefundedAt
       ? monthOfPaidYear(subscription.currentPeriodStart, now).expiresAt
       : subscription.currentPeriodEnd;
   if (subscription.cancelAtPeriodEnd && next >= subscription.currentPeriodEnd)
