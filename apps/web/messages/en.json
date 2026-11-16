@@ -12643,8 +12643,8 @@
       },
       "improve": {
         "catalog": {
-          "title": "What the agent cannot do yet",
-          "help": "Features the SEO agent does not have yet."
+          "title": "Agent limitations",
+          "help": "What the agent checks, what is missing, and what you do yourself."
         },
         "groups": {
           "technical": "Technical",
@@ -12661,8 +12661,18 @@
         "requestText": "Feature request for the SEO agent, item {id}: {title}. What is missing: {missing}",
         "copied": "Request copied. Send it to the Sokosumi team.",
         "copyFailed": "Could not copy the request.",
+        "summary": {
+          "title": "What to expect",
+          "site": "Checks cover selected pages. A full-site crawl or migration review needs separate work.",
+          "content": "The agent suggests page edits. Full articles and site-wide content plans are not included.",
+          "research": "Detailed link research, city rankings and outreach tracking are not included.",
+          "measurement": "Business reviews, AI brand mentions, revenue and the impact of each change are not fully tracked.",
+          "publishing": "You apply changes, recheck fixes and share client reports yourself."
+        },
         "gaps": {
-          "title": "What this audit could not see",
+          "statisticsIncomplete": "Some Google statistics are missing. The agent can only assess the data available.",
+          "checksIncomplete": "Some checks did not return a result. This audit may miss issues.",
+          "title": "Missing audit data",
           "noSearchConsole": "No Search Console data: clicks, searches and Google's index state are not measured.",
           "noAnalytics": "No Google Analytics data: visits and key events are not measured.",
           "statisticsUnavailable": "The last statistics sync could not read the data.",
