@@ -85,6 +85,7 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
+import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 import { recordStudioAdEvent } from "@/services/image-studio-events.service";
@@ -740,7 +741,7 @@ async function uploadFileReference(
   });
 }
 
-async function downloadStudioFileReference(
+export async function downloadStudioFileReference(
   workspaceId: string,
   fileId: string,
   actor: FileActor,
@@ -1983,6 +1984,7 @@ async function storeMedia(
     }
   }
   // Only the settler that stored the asset gets here, so this runs once per job.
+  if (delivered.version !== null && !video) enqueueAdEval(job.id);
   await publishStudioAssetToFiles({
     assetId: delivered.assetId,
     jobId: job.id,
