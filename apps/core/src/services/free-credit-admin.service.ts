@@ -87,6 +87,8 @@ export const freeCreditAdminService = {
       credits: number;
       ttlDays: number | null;
       referenceNote: string | null;
+      /** FREE unless the grant has a type of its own (Tester credits). */
+      referenceType?: "FREE" | "CMO_TESTER_CREDITS";
       tx?: Prisma.TransactionClient;
     },
   ): Promise<FreeCreditGrant> {
@@ -131,6 +133,7 @@ export const freeCreditAdminService = {
             organizationId,
             projectId: params.projectId,
             referenceNote,
+            referenceType: params.referenceType,
             targetId: target.id,
             targetType: params.target.targetType,
             transactionUserId: target.transactionUserId,
