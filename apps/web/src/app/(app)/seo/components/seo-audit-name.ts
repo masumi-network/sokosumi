@@ -17,3 +17,13 @@ export function seoAuditName(name: string, url: string): string {
   }
   return host.replace(/^www\./, "").slice(0, SEO_AUDIT_NAME_MAX);
 }
+
+/** The name says no more than the page: it is the host of a home page, as a name left empty becomes. */
+export function seoAuditNameIsHome(name: string, url: string): boolean {
+  try {
+    const { pathname, search } = new URL(url.trim());
+    return pathname === "/" && !search && seoAuditName("", url) === name.trim();
+  } catch {
+    return false;
+  }
+}

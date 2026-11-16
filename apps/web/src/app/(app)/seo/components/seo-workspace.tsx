@@ -2,6 +2,7 @@
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
+  ArrowUpRight,
   Bot,
   ChartLine,
   ChevronDown,
@@ -54,6 +55,7 @@ import { SeoActions } from "./seo-actions";
 import { SeoAgentHome } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoAskButton } from "./seo-ask-button";
+import { seoAuditNameIsHome } from "./seo-audit-name";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImproveDialog } from "./seo-improve";
@@ -223,6 +225,11 @@ export function SeoWorkspace({
     model.data.scope.pageIds.length === 1
       ? model.data.pages.find((page) => page.id === model.data.scope.pageIds[0])
       : undefined;
+  const homeTitle = Boolean(
+    scopePage &&
+      model.data.auditName &&
+      seoAuditNameIsHome(model.data.auditName, scopePage.url),
+  );
   return (
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
     // The space under the last row keeps it clear of the floating button.
@@ -253,11 +260,30 @@ export function SeoWorkspace({
           </Link>
           {model.data.auditName ? (
             <h2 className="col-start-1 min-w-0 text-xl font-semibold break-words">
-              {model.data.auditName}
+              {/* A name that is the host of the one page links that page itself: a line with its address under
+                  it said the same thing twice. */}
+              {homeTitle && scopePage ? (
+                <Link
+                  href={scopePage.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group/title inline-flex max-w-full items-center gap-1 underline-offset-4 hover:underline"
+                >
+                  <bdi className="min-w-0 [overflow-wrap:anywhere]">
+                    {model.data.auditName}
+                  </bdi>
+                  <ArrowUpRight
+                    aria-hidden
+                    className="text-muted-foreground group-hover/title:text-foreground size-4 shrink-0"
+                  />
+                </Link>
+              ) : (
+                model.data.auditName
+              )}
             </h2>
           ) : null}
           {/* One page in view: its URL says more than a count. */}
-          <div className="col-span-2 row-start-3 min-w-0">
+          <div className="col-span-2 row-start-3 min-w-0 empty:hidden">
             {pagePicker ? (
               // Both narrow the view, so they stand on one line.
               <div className="flex flex-wrap items-center gap-x-4">
@@ -271,7 +297,7 @@ export function SeoWorkspace({
                 ) : null}
               </div>
             ) : null}
-            {scopePage ? (
+            {homeTitle ? null : scopePage ? (
               <SeoPageLink url={scopePage.url} />
             ) : pagePicker ? null : (
               <p className="text-muted-foreground text-sm">
