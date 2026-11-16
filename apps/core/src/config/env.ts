@@ -13,16 +13,27 @@ const minimumBuildSchema = z.preprocess(
 );
 
 const seoExecutorIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
-const seoAnalysisExecutorSchema = z
-  .object({
-    coworkerId: seoExecutorIdSchema,
-    workspaceId: z.uuid(),
-    ownerId: seoExecutorIdSchema,
-    organizationId: seoExecutorIdSchema.nullable(),
-    canUsePaidSearchData: z.boolean().default(false),
-    canSchedule: z.boolean().default(false),
-  })
-  .strict();
+const seoAnalysisExecutorCapabilities = {
+  coworkerId: seoExecutorIdSchema,
+  canUsePaidSearchData: z.boolean().default(false),
+  canSchedule: z.boolean().default(false),
+};
+const seoAnalysisExecutorSchema = z.union([
+  z
+    .object({
+      ...seoAnalysisExecutorCapabilities,
+      workspaceId: z.uuid(),
+      ownerId: seoExecutorIdSchema,
+      organizationId: seoExecutorIdSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      ...seoAnalysisExecutorCapabilities,
+      mode: z.literal("global"),
+    })
+    .strict(),
+]);
 const seoAnalysisExecutorEnvSchema = z.preprocess((value) => {
   if (value === "" || value === undefined) return undefined;
   if (typeof value !== "string") return value;
@@ -65,6 +76,7 @@ const baseEnvSchema = z.object({
     .transform((value) => value === "true"),
 
   // Operator assertion of a reviewed worker and exact Task context, not remote protocol proof.
+  // A shared service requires explicit global mode; Task authority and billing remain per actor.
   SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
 
   // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
