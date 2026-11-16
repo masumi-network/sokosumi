@@ -1046,7 +1046,8 @@ describe("SEO audit first run", () => {
       /^Google search on this page: 2 clicks, 35 impressions$/,
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Jan 1\W+2, 2026$/,
+      // The name also says where the figure leads.
+      /^Traffic: Jan 1\W+2, 2026$/,
     );
     // One notice above the tabs; no second line about schedules under the chat.
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();

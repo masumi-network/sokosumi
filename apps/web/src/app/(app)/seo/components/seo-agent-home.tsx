@@ -210,7 +210,7 @@ function SeoAgentPanel({
         />
       )
     ) : step.kind === "strategy" ? (
-      <SeoActionsLinkRow key="strategy" model={model} strategy>
+      <SeoActionsLinkRow key="strategy" model={model}>
         {t("agent.steps.strategy", {
           count: step.count,
           places: step.places ? "yes" : "no",
@@ -422,7 +422,8 @@ function SeoAgentPanel({
             </ul>
           </CollapsibleContent>
         </Collapsible>
-      ) : (
+      ) : analyticsStep || statisticsSync.state === "failed" ? null : (
+        // The Analytics line and a failed sync each still ask for something: "nothing is waiting" would be wrong.
         <p className="text-muted-foreground max-w-prose px-2 text-sm">
           {t("agent.nothingNext")}
         </p>

@@ -33,8 +33,12 @@ export function SeoAgentStatistics({
       : status === "connected"
         ? "connected"
         : "missing";
+  // The first known status sets the start; after that only a press moves the line. Analytics that connects
+  // while the line is open keeps it open, with the focus on its button.
   const [picked, setPicked] = useState<boolean | null>(null);
-  const open = picked ?? analytics === "missing";
+  if (picked === null && analytics !== "unknown")
+    setPicked(analytics === "missing");
+  const open = picked ?? false;
   return (
     <Collapsible
       open={open}

@@ -92,9 +92,11 @@ export function SeoDemandChart({
               >
                 <p className="flex items-baseline justify-between gap-x-2 max-sm:pt-1.5">
                   <span className="min-w-0 truncate">
+                    {/* The row truncates the name, so a ring around it would be cut: focus shows as a thick
+                        underline, which the truncation keeps. */}
                     <button
                       type="button"
-                      className="focus-visible:ring-ring hit-area max-w-full cursor-pointer truncate rounded-sm text-left underline-offset-4 outline-none hover:underline focus-visible:ring-2"
+                      className="cursor-pointer text-left underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:decoration-2"
                       onClick={() => onOpenKeyword(row.keyword)}
                     >
                       <bdi>{row.keyword}</bdi>
@@ -110,7 +112,7 @@ export function SeoDemandChart({
                       </span>
                     ) : null}
                   </span>
-                  {/* The position shows only where the check found the page: the tile above counts the rest. */}
+                  {/* The position shows only where the check found the page: the figure under the verdict counts the rest. */}
                   {position ? (
                     <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                       {position}

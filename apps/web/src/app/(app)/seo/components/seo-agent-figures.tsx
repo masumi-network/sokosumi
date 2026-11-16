@@ -29,7 +29,8 @@ function Figure({
         type="button"
         data-testid={testId}
         className={cn(
-          "focus-visible:ring-ring hit-area inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums outline-none hover:brightness-95 focus-visible:ring-2 forced-colors:border",
+          // A figure is about 28px high: the wrap gap keeps two rows of figures apart, with no hit area over the next.
+          "focus-visible:ring-ring inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums outline-none hover:brightness-95 focus-visible:ring-2 forced-colors:border",
           tint,
         )}
         onClick={onOpen}
@@ -69,7 +70,7 @@ export function SeoAgentFigures({
     <ul
       role="list"
       aria-label={t("agent.figures.label")}
-      className="flex flex-wrap gap-1.5"
+      className="flex flex-wrap gap-2"
       data-testid="seo-agent-figures"
     >
       {keywords ? (
@@ -121,7 +122,11 @@ export function SeoAgentFigures({
                 clicks: traffic.clicks,
                 impressions: traffic.impressions,
               })}
-          {/* The period is in the figure's name; it shows where it is the figure's only text. */}
+          {/* The period is in the figure's name; it shows where it is the figure's only text. There the name
+              also says where the figure leads. */}
+          {trafficLead ? (
+            <span className="sr-only">{`${t("tabs.traffic")}: `}</span>
+          ) : null}
           <span id={periodId} className={cn(!trafficLead && "sr-only")}>
             {trafficLead ? null : ", "}
             <SeoPeriod from={traffic.period.from} to={traffic.period.to} />

@@ -6296,7 +6296,10 @@ describe("SEO workspace integration", () => {
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace, "?tab=agent");
     await user.click(
-      await screen.findByRole("button", { name: /^Write a description/ }),
+      await screen.findByRole("button", { name: /^Show \d+ more steps?$/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /^Write a description/ }),
     );
     const dialog = await screen.findByRole("dialog", {
       name: "Write a description",

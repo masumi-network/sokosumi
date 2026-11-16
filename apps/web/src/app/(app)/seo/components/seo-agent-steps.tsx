@@ -204,18 +204,15 @@ export function SeoStepRow({
 }
 
 /**
- * A row that leads to the Actions tab: the rest of the fixes, or the actions of the keyword strategy.
- * The whole row is the button, with the arrow at its end. A sentence with a button of its own was the heaviest
- * row of the list for its last step.
+ * A row that counts the actions of the keyword strategy: it leads to their group on the Actions tab, with every
+ * row in view. The whole row is the button, with the arrow at its end. A sentence with a button of its own was
+ * the heaviest row of the list for its last step.
  */
 export function SeoActionsLinkRow({
   model,
-  strategy = false,
   children,
 }: {
   model: SeoWorkspaceModel;
-  /** The row counts the strategy actions: it leads to their group, with every row in view. */
-  strategy?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -226,10 +223,7 @@ export function SeoActionsLinkRow({
           SEO_ROW_BUTTON_CLASS,
           "text-muted-foreground px-4 py-2.5 text-sm",
         )}
-        onClick={() => {
-          if (strategy) model.showStrategy();
-          else void model.setFilters({ tab: "actions" });
-        }}
+        onClick={model.showStrategy}
       >
         <span className="min-w-0 flex-1">{children}</span>
         <ChevronRight className="size-4 shrink-0" />
