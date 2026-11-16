@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Button, Container, Link, Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
+import { toSingleLineSubject } from "../subject-line.js";
 import {
   DARK_CLASS,
   LIGHT_PALETTE,
@@ -178,5 +179,5 @@ export async function renderActionEmail({
 }: RenderActionEmailProps): Promise<RenderedEmail> {
   const html = await render(<ActionEmailTemplate {...props} />);
 
-  return { html, subject };
+  return { html, subject: toSingleLineSubject(subject) };
 }

@@ -690,6 +690,13 @@ export function ImageStudio({
       // references from the project the generation runs in.
       projectId: source.projectId,
       prompt: source.prompt,
+      ...(job?.templateId ? { templateId: job.templateId } : {}),
+      ...(job?.creativeDirection
+        ? { creativeDirection: job.creativeDirection }
+        : {}),
+      ...(job?.variationIndex !== undefined
+        ? { variationIndex: job.variationIndex }
+        : {}),
       modelId,
       modelLabel: source.model,
       // A re-roll is a fresh draw of the same brief: no seed, or the model
@@ -755,6 +762,7 @@ export function ImageStudio({
     );
     setTarget((current) => ({
       ...current,
+      templateId: template.id,
       placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
@@ -771,6 +779,9 @@ export function ImageStudio({
     product: StudioProduct,
     photo: StudioProductPhoto | null,
   ) {
+    if (!prompt.trim()) {
+      setTarget((current) => ({ ...current, templateId: undefined }));
+    }
     setBatchProducts([]);
     setDraftProduct({ id: product.id, name: product.name });
     const previousPhotoId = catalogPhotoRef.current;
@@ -795,6 +806,9 @@ export function ImageStudio({
   }
 
   function useProductBatch(products: StudioBatchProduct[]) {
+    if (!prompt.trim()) {
+      setTarget((current) => ({ ...current, templateId: undefined }));
+    }
     const previousDetails = productDetailsRef.current;
     productDetailsRef.current = null;
     catalogPhotoRef.current = null;
@@ -842,6 +856,7 @@ export function ImageStudio({
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      templateId: undefined,
       creativeDirection: undefined,
       placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
@@ -1142,6 +1157,7 @@ export function ImageStudio({
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
+          setTarget((current) => ({ ...current, templateId: undefined }));
         }}
         prompt={prompt}
         promptRef={promptRef}
@@ -1179,6 +1195,9 @@ export function ImageStudio({
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
+          if (!prompt.trim() || !value.trim()) {
+            setTarget((current) => ({ ...current, templateId: undefined }));
+          }
         }}
         onTargetChange={(update) => {
           setTemplateUndo(null);
@@ -1339,6 +1358,7 @@ export function ImageStudio({
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
+                        templateId: request.templateId,
                         modelIds: [request.modelId],
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
@@ -1528,6 +1548,7 @@ export function ImageStudio({
                   setPrompt("");
                   setTarget((current) => ({
                     ...current,
+                    templateId: undefined,
                     creativeDirection: undefined,
                     placementRatios: undefined,
                     settings: { ...settingsOf(asset), seed: null },

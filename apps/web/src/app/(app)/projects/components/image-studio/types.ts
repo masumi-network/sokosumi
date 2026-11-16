@@ -183,6 +183,7 @@ export function assetContentUrl(
  * statement about the work.
  */
 export interface StudioTarget {
+  templateId?: string;
   creativeDirection?: StudioCreativeDirection;
   exportHeadlines?: { projectId: string; lines: string[] };
   lettering?: StudioJob["lettering"];

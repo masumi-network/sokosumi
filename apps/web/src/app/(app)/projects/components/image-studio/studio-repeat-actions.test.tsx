@@ -44,10 +44,10 @@ vi.mock("./use-studio-state", () => ({
     initialState,
     initialSelectedAssetId,
   }: {
-    initialState: { assets: StudioAsset[] };
+    initialState: { assets: StudioAsset[]; jobs?: StudioJob[] };
     initialSelectedAssetId: string | null;
   }) => ({
-    state: { ...initialState, jobs: mocks.jobs },
+    state: { ...initialState, jobs: initialState.jobs ?? [] },
     selectedAsset:
       initialState.assets.find(
         (asset) => asset.id === initialSelectedAssetId,
@@ -96,12 +96,13 @@ function mount(
   assets: StudioAsset[] = [ASSET],
   catalog = TEST_CATALOG,
   selectedAssetId: string | null = null,
+  jobs: StudioJob[] = [],
 ) {
   return render(
     <ImageStudio
       catalog={catalog}
       initialSelectedAssetId={selectedAssetId}
-      initialState={{ assets, jobs: [], sessions: [] } as never}
+      initialState={{ assets, jobs, sessions: [] } as never}
       labels={TEST_LABELS}
       projectId="p"
     />,
@@ -117,12 +118,12 @@ describe("actions on a result", () => {
   it.each(["Revised headline", null])(
     "keeps the current overlay headline choice %s when repeating an asset",
     (text) => {
-      mocks.jobs = [
-        { id: "j", exportHeadline: "Original headline" } as StudioJob,
-      ];
-      mount([
-        { ...ASSET, lettering: "overlay", headline: { text, revision: 2 } },
-      ]);
+      mount(
+        [{ ...ASSET, lettering: "overlay", headline: { text, revision: 2 } }],
+        TEST_CATALOG,
+        null,
+        [{ id: "j", exportHeadline: "Original headline" } as StudioJob],
+      );
       fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
       expect(mocks.enqueue.mock.calls[0][0][0]).not.toHaveProperty(
         "exportHeadline",
@@ -163,6 +164,45 @@ describe("actions on a result", () => {
         referenceAssetIds: ["backdrop"],
         exportHeadline: "Made to last",
         lettering: "ideogram",
+      }),
+    ]);
+  });
+
+  it("retries an original failed job with its prompt metadata", () => {
+    const job: StudioJob = {
+      id: "failed-job",
+      projectId: "p",
+      status: "FAILED",
+      kind: "GENERATE",
+      model: "vendor/model-a",
+      prompt: "A campaign image",
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+      settings: ASSET.settings,
+      video: null,
+      referenceAssetIds: [],
+      parentAssetId: null,
+      assetId: null,
+      error: "Please try again",
+      failureReason: "provider_error",
+      createdAt: new Date("2026-09-26T12:00:00Z"),
+      submittedAt: null,
+      settledAt: new Date("2026-09-26T12:01:00Z"),
+      cancelRequestedAt: null,
+      retryMayDuplicateCharge: false,
+      credits: null,
+      refunded: false,
+    };
+    mount([], TEST_CATALOG, null, [job]);
+    fireEvent.click(screen.getByRole("button", { name: "tryAgain" }));
+
+    expect(mocks.enqueue).toHaveBeenCalledWith([
+      expect.objectContaining({
+        parentAssetId: null,
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 0,
       }),
     ]);
   });

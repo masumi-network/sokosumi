@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 import {
-  type Prisma,
+  Prisma,
   ProjectImageJobKind,
   ProjectImageJobStatus,
   ProjectImageMediaType,
@@ -73,6 +73,8 @@ import {
   loadStudioBrand,
   readStudioBrandKit,
   requireApprovedStudioHeadline,
+  STUDIO_PROMPT_ASSEMBLY_VERSION,
+  studioBrandPromptBlock,
 } from "@/lib/image-studio/studio-brand";
 import {
   findVideoModelForEndpoint,
@@ -144,6 +146,9 @@ export interface CreateImageJobInput {
   prompt: string;
   product?: StudioProductIdentity;
   batchId?: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /** Continue the same campaign ad when the request edits one source image. */
   reuseParentBatchSlot?: boolean;
   exportHeadline?: string;
@@ -501,6 +506,9 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         productId: input.product?.id ?? source?.job.productId,
         productName: input.product?.name ?? source?.job.productName,
         batchId: input.batchId,
+        templateId: input.templateId,
+        creativeDirection: input.creativeDirection,
+        variationIndex: input.variationIndex,
         batchSlotId,
         exportHeadline,
         lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
@@ -1114,6 +1122,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
   const letteringEdit =
     job.lettering === "ideogram" && job.letteringQuoteCents == null;
   let input: Record<string, unknown>;
+  let snapshot: Prisma.ProjectImagePromptSnapshotUncheckedCreateInput;
   // Which half failed, so the person is told the right thing. Set before each
   // step rather than guessed from the message afterwards.
   let preflightReason: ImageJobFailureReason = job.useProductCutout
@@ -1143,6 +1152,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     const backdropInstruction = imageUrls.length
       ? "Edit the supplied advertising backdrop according to the brief."
       : "Create an empty advertising backdrop according to the brief.";
+    const promptBrand =
+      job.exportHeadline || job.useProductCutout
+        ? { ...brand, approvedLines: undefined }
+        : brand;
     const prompt =
       letteringEdit && job.exportHeadline
         ? buildStudioLetteringPrompt(
@@ -1155,10 +1168,9 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
                   " Leave a surface in the lower center for a product cutout. Keep the central area clear. Leave products, people, promotional text, and logos out of the artwork. Use the brief for the setting, palette, and lighting only.\n\n" +
                   job.prompt
               : job.prompt,
-            job.exportHeadline || job.useProductCutout
-              ? { ...brand, approvedLines: undefined }
-              : brand,
+            promptBrand,
           );
+    let finalPrompt = prompt;
     if (isVideoKind(job.kind)) {
       const model = findVideoModelForEndpoint(job.model);
       if (!model) throw new Error("Unsupported video model endpoint.");
@@ -1197,9 +1209,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         });
         preflightReason = "request_not_supported";
       }
+      finalPrompt += productPhotoGuidance + headlineGuidance;
       input = buildFalInput(
         {
-          prompt: prompt + productPhotoGuidance + headlineGuidance,
+          prompt: finalPrompt,
           aspectRatio: settings.aspectRatio,
           resolution: settings.resolution,
           outputFormat: settings.outputFormat,
@@ -1210,6 +1223,19 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         job.model,
       );
     }
+    snapshot = {
+      jobId: job.id,
+      finalPrompt,
+      brandContextHash: crypto
+        .createHash("sha256")
+        .update(studioBrandPromptBlock(promptBrand))
+        .digest("hex"),
+      brandLook: brand.look ?? Prisma.DbNull,
+      assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
+      templateId: job.templateId ?? null,
+      creativeDirection: job.creativeDirection ?? null,
+      variationIndex: job.variationIndex ?? null,
+    };
   } catch (error) {
     console.warn("[image-studio] a generation could not be prepared", {
       jobId: job.id,
@@ -1228,6 +1254,23 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       },
     });
   }
+
+  // Track the write through response completion without holding up the paid call.
+  waitUntil(
+    (async () => {
+      const { jobId: snapshotJobId, ...data } = snapshot;
+      await prisma.projectImagePromptSnapshot.upsert({
+        where: { jobId: snapshotJobId },
+        create: snapshot,
+        update: data,
+      });
+    })().catch((error: unknown) => {
+      console.warn("[image-studio] could not save a prompt snapshot", {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }),
+  );
 
   const outcome = await submitToQueue({
     model: job.model,
