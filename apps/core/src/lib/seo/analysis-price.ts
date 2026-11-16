@@ -5,11 +5,15 @@ import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   convertCreditsToCents,
+  SEO_DEFAULT_FULL_AUDIT_USD,
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_PAGE_CEILING_CENTS,
+  seoCreditsForCents,
   seoMaxCredits,
 } from "@sokosumi/utils";
 import { z } from "zod";
 
-import { unprocessableEntity } from "@/helpers/error";
+import { conflict, unprocessableEntity } from "@/helpers/error";
 import type { RequestSeoAnalysis } from "@/schemas/project-seo.schema";
 import { getSeoAnalysisExecution } from "./analysis-executor-config";
 
@@ -19,15 +23,32 @@ export function seoAnalysisMaxCredits(
   pageCount: number,
 ): number {
   return input.kind === "audit_full"
-    ? seoMaxCredits({
-        kind: "audit_full",
-        pages: pageCount,
-        usd: input.fullAuditLimits?.usd,
-      })
+    ? (input.fullAuditCredits ??
+        seoCreditsForCents(
+          pageCount <= 1
+            ? SEO_PAGE_CEILING_CENTS
+            : Math.round(
+                (input.fullAuditLimits?.usd ?? SEO_DEFAULT_FULL_AUDIT_USD) *
+                  CENTS_PER_USD,
+              ),
+        ))
     : seoMaxCredits({
         kind: "focused",
         providerCalls: input.maxProviderCalls,
       });
+}
+
+/** A stale client must reload its quote before it creates paid work. Legacy scheduled releases bypass this new-approval gate. */
+export function requireSeoFullAuditPriceApproval(
+  input: RequestSeoAnalysis,
+): void {
+  if (
+    input.kind === "audit_full" &&
+    input.fullAuditCredits !== SEO_FULL_AUDIT_CREDITS
+  )
+    throw conflict(
+      "The full-audit price changed. Reload and approve 750 credits before starting.",
+    );
 }
 
 /**
@@ -54,14 +75,22 @@ export async function requireSeoAnalysisBalance(
   );
   if (balance < convertCreditsToCents(maxCredits))
     throw unprocessableEntity(
-      `Not enough credits. This check costs up to ${maxCredits} credits and the balance is ${Math.floor(convertCentsToCredits(balance))}.`,
+      `Not enough credits. This check requires ${maxCredits} credits and the balance is ${Math.floor(convertCentsToCredits(balance))}.`,
       { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
     );
 }
 
 // The ceiling comes from the frozen Core packet, not the worker's estimate.
+const CENTS_PER_USD = 100;
 const storedSeoPriceSchema = z.object({
   pageUrls: z.array(z.string()).min(1),
+  price: z
+    .object({
+      kind: z.literal("fixed"),
+      credits: z.literal(SEO_FULL_AUDIT_CREDITS),
+    })
+    .strict()
+    .optional(),
   budget: z
     .object({ maxProviderCalls: z.number().int().nonnegative() })
     .optional(),
@@ -123,13 +152,19 @@ export async function requireSeoTaskStartBalance(
       "The SEO check has no approved scope, price or billing owner",
     );
   const packet = parsed.data;
+  if (analysis.kind !== "audit_full" && packet.price)
+    throw unprocessableEntity("A focused check cannot use a full-audit price");
   const ceiling =
     analysis.kind === "audit_full"
-      ? seoMaxCredits({
-          kind: "audit_full",
-          pages: packet.pageUrls.length,
-          usd: packet.limits?.usd,
-        })
+      ? (packet.price?.credits ??
+        seoCreditsForCents(
+          packet.pageUrls.length <= 1
+            ? SEO_PAGE_CEILING_CENTS
+            : Math.round(
+                (packet.limits?.usd ?? SEO_DEFAULT_FULL_AUDIT_USD) *
+                  CENTS_PER_USD,
+              ),
+        ))
       : seoMaxCredits({
           kind: "focused",
           providerCalls: packet.budget!.maxProviderCalls,
