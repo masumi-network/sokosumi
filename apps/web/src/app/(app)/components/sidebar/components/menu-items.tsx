@@ -189,6 +189,7 @@ function ScopedMenuItems({
       Icon: Repeat,
       feature: AnnouncedFeature.SCHEDULES,
       group: "work",
+      prefetchContent: true,
     },
     // Every dated feature is a filter on this one page.
     {
