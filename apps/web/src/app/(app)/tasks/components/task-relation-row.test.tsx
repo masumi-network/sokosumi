@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { TASK_HOVER_DWELL_MS } from "@/app/tasks/components/task-detail-link";
 import { TaskRelationRow } from "@/app/tasks/components/task-relation-row";
 
 const prefetchMock = vi.fn();
@@ -26,7 +27,16 @@ describe("TaskRelationRow", () => {
       />,
     );
 
-    fireEvent.focus(screen.getByRole("link", { name: /Dependency cleanup/i }));
+    vi.useFakeTimers();
+    try {
+      fireEvent.pointerEnter(
+        screen.getByRole("link", { name: /Dependency cleanup/i }),
+        { pointerType: "mouse" },
+      );
+      vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+    } finally {
+      vi.useRealTimers();
+    }
 
     expect(prefetchMock).toHaveBeenCalledExactlyOnceWith("/admin/tasks/task-2");
   });

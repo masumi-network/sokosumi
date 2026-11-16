@@ -45,9 +45,8 @@ export function TaskDetailLink({
   onPointerEnter,
   onPointerLeave,
   onPointerDown,
-  onPointerUp,
-  onPointerCancel,
   onFocus,
+  onBlur,
   onTouchStart,
   prefetchContent = true,
   ...props
@@ -55,9 +54,6 @@ export function TaskDetailLink({
   const router = useRouter();
 
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Browsers focus a link on the press that starts a click or tap. That focus
-  // is the click itself, so it must not start a content render of its own.
-  const pressing = useRef(false);
   // A predicted approach and a touch load only the shared App Shell. A resting
   // hover and focus also load the page's content, a server render each.
   const prefetchTaskShell = () => {
@@ -84,6 +80,14 @@ export function TaskDetailLink({
   }
   useEffect(() => cancelHoverPrefetch, []);
 
+  function startDwellPrefetch() {
+    cancelHoverPrefetch();
+    hoverTimer.current = setTimeout(() => {
+      hoverTimer.current = null;
+      prefetchTaskDetail();
+    }, TASK_HOVER_DWELL_MS);
+  }
+
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     // The click already loads the page; a later dwell would render it twice.
     cancelHoverPrefetch();
@@ -100,11 +104,7 @@ export function TaskDetailLink({
     // A finger also enters every row it rests on while it scrolls, so only a
     // mouse or pen hover loads the content.
     if (!event.defaultPrevented && event.pointerType !== "touch") {
-      cancelHoverPrefetch();
-      hoverTimer.current = setTimeout(() => {
-        hoverTimer.current = null;
-        prefetchTaskDetail();
-      }, TASK_HOVER_DWELL_MS);
+      startDwellPrefetch();
     }
   }
 
@@ -113,27 +113,28 @@ export function TaskDetailLink({
     cancelHoverPrefetch();
   }
 
+  // A press starts a click, middle click or tap, which loads the page itself.
   function handlePointerDown(event: PointerEvent<HTMLAnchorElement>) {
     onPointerDown?.(event);
-    pressing.current = true;
     cancelHoverPrefetch();
   }
 
-  function handlePointerUp(event: PointerEvent<HTMLAnchorElement>) {
-    onPointerUp?.(event);
-    pressing.current = false;
-  }
-
-  function handlePointerCancel(event: PointerEvent<HTMLAnchorElement>) {
-    onPointerCancel?.(event);
-    pressing.current = false;
-  }
-
+  // Browsers also focus a link on a click or tap. Only keyboard focus, which
+  // matches :focus-visible, is reading intent, and it rests like a hover so
+  // tabbing through a list does not render every task it passes.
   function handleFocus(event: FocusEvent<HTMLAnchorElement>) {
     onFocus?.(event);
-    if (!event.defaultPrevented && !pressing.current) {
-      prefetchTaskDetail();
+    if (
+      !event.defaultPrevented &&
+      event.currentTarget.matches(":focus-visible")
+    ) {
+      startDwellPrefetch();
     }
+  }
+
+  function handleBlur(event: FocusEvent<HTMLAnchorElement>) {
+    onBlur?.(event);
+    cancelHoverPrefetch();
   }
 
   function handleTouchStart(event: TouchEvent<HTMLAnchorElement>) {
@@ -152,9 +153,8 @@ export function TaskDetailLink({
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
       onFocus={handleFocus}
+      onBlur={handleBlur}
       onTouchStart={handleTouchStart}
       ref={approachRef}
     />
