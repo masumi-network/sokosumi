@@ -19,6 +19,7 @@ import {
 } from "react-email";
 
 import { createEmailTranslator } from "../i18n/translate.js";
+import { toSingleLineSubject } from "../subject-line.js";
 import { FONT_STACK, LIGHT_PALETTE } from "../theme/index.js";
 
 interface NewsletterEmailProps {
@@ -355,7 +356,11 @@ export async function renderNewsletterEmail(props: NewsletterRenderProps) {
       </Body>
     </Html>,
   );
-  return { subject: issue.subject, html, text: toPlainText(html) };
+  return {
+    subject: toSingleLineSubject(issue.subject),
+    html,
+    text: toPlainText(html),
+  };
 }
 
 export async function renderNewsletterUnsubscribePage(
