@@ -147,6 +147,10 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
+    let locked = () => {};
+    const holding = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
     // The revoke holds the row while the payment arrives.
     const ending = database().$transaction(async (tx) => {
       const endedAt = new Date();
@@ -154,8 +158,10 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
         where: { id: cuso.subscriptionId },
         data: { status: "canceled", endedAt, polarEventAt: endedAt },
       });
+      locked();
       await held;
     });
+    await holding;
     const granted = grantPolarCredits(grantFor(cuso));
     release();
     await ending;
@@ -200,14 +206,20 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
+    let locked = () => {};
+    const holding = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
     const ending = serializableTransaction(async (tx) => {
       await tx.sokoBot.update({
         where: { id: cuso.botId },
         data: { archivedAt: new Date() },
       });
       await writeOffProjectCredits(cuso.projectId, tx);
+      locked();
       await held;
     }, "archive");
+    await holding;
     const granted = grantPolarCredits(grantFor(cuso));
     await new Promise((resolve) => setTimeout(resolve, 300));
     release();
@@ -330,14 +342,20 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
       const held = new Promise<void>((resolve) => {
         release = resolve;
       });
+      let locked = () => {};
+      const holding = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
       // The refund's write of the row, held while the month is due.
       const refunding = database().$transaction(async (tx) => {
         await tx.polarSubscription.update({
           where: { id: cuso.subscriptionId },
           data: { lastPaidOrderRefundedAt: new Date() },
         });
+        locked();
         await held;
       });
+      await holding;
       const granted = grantPolarCredits(monthGrant(cuso));
       release();
       await refunding;
