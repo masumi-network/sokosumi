@@ -1,0 +1,87 @@
+import { err, ok } from "neverthrow";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const connectionMock = vi.fn(async () => undefined);
+const getSessionResultMock = vi.fn();
+const getSessionMock = vi.fn();
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("next/server", () => ({ connection: () => connectionMock() }));
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSessionResult: () => getSessionResultMock(),
+  getSession: () => getSessionMock(),
+}));
+vi.mock("@/lib/services/coworker.service", () => ({
+  coworkerService: { listCoworkers: async () => [] },
+}));
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    listProjects: async () => ({ projects: [] }),
+    getProjectById: async () => null,
+  },
+}));
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: { getMine: async () => null },
+}));
+vi.mock("@/lib/services/task.service", () => ({
+  taskService: { listTasks: async () => ({ tasks: [], pagination: null }) },
+}));
+vi.mock("@/lib/services/organization-seat.service", () => ({
+  organizationSeatService: { hasAssignedSeat: async () => true },
+}));
+vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
+  listTaskAssigneeMemberOptions: async () => [],
+}));
+vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
+  listTaskAssigneeOptions: async () => [],
+}));
+vi.mock("@/app/tasks/utils/tasks-list-page", () => ({
+  getTasksListPage: async () => ({ tasks: [], nextCursor: null }),
+}));
+
+const { loadTasksPageData } = await import("./tasks-page-data");
+
+const SESSION = {
+  user: { id: "user-1" },
+  session: { activeOrganizationId: "org-1" },
+};
+
+function load() {
+  return loadTasksPageData({
+    filterParams: {},
+    viewMode: "list",
+    personalAssistantFallback: "Personal assistant",
+    createAssigneeSlug: null,
+  });
+}
+
+describe("loadTasksPageData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionResultMock.mockReset();
+    getSessionMock.mockReset();
+  });
+
+  // connection() would drop the page from every link prefetch.
+  it("reads the page without deferring to the request", async () => {
+    getSessionResultMock.mockResolvedValue(ok(SESSION));
+
+    const data = await load();
+
+    expect(data.activeOrganizationId).toBe("org-1");
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // The cached read must not keep an outage as "signed out", so the click
+  // renders fresh and the page degrades as before.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResultMock.mockResolvedValue(err({ reason: "timeout" }));
+    getSessionMock.mockResolvedValue(null);
+
+    const data = await load();
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(data.activeOrganizationId).toBeNull();
+  });
+});
