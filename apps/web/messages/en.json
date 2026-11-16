@@ -12000,8 +12000,6 @@
         "filter": {
           "label": "Filter actions",
           "all": "All",
-          "high": "High",
-          "low": "Low",
           "suggestions": "Suggestions"
         }
       },

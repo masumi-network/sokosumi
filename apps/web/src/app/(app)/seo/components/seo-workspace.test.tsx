@@ -590,14 +590,29 @@ describe("SEO workspace integration", () => {
       within(filters)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["All4", "High2", "Low1", "Suggestions1"]);
+    ).toEqual(["All4", "High impact2", "Low impact1", "Suggestions1"]);
     expect(
       within(filters).getByRole("button", { name: "All 4" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByText(/They are not errors/)).toBeNull();
-    await user.click(within(filters).getByRole("button", { name: "High 2" }));
+    // In the mixed list a suggestion says what it is in its dialog.
+    await user.click(
+      screen.getByRole("button", { name: "Write about chargers" }),
+    );
+    expect(
+      within(await screen.findByRole("dialog")).getByText(
+        /They are not errors/,
+      ),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await user.click(
+      within(filters).getByRole("button", { name: "High impact 2" }),
+    );
     expect(titles()).toEqual(["Fix one", "Fix two"]);
-    await user.click(within(filters).getByRole("button", { name: "Low 1" }));
+    await user.click(
+      within(filters).getByRole("button", { name: "Low impact 1" }),
+    );
     expect(titles()).toEqual(["Fix three"]);
     // Suggestions alone keep the line that says they are no errors.
     await user.click(
@@ -6364,8 +6379,9 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     const list = await screen.findByRole("list", { name: "Actions" });
     expect(within(list).getAllByRole("button")).toHaveLength(4);
-    // One level of impact splits nothing: no filter over the rows.
+    // One level of impact splits nothing: no filter over the rows. Fixes with no rated issue are no suggestions.
     expect(screen.queryByRole("group", { name: "Filter actions" })).toBeNull();
+    expect(screen.queryByText(/They are not errors/)).toBeNull();
     const listed = within(list).getByRole("button", {
       name: /^Write a description/,
     });

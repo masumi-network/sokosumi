@@ -106,6 +106,11 @@ export function SeoActionDetail({
             <p className="text-muted-foreground">
               {t(`severityHint.${severity}`)}
             </p>
+          ) : action.kind === "opportunity" ? (
+            // A suggestion says what it is not: no error, and no promise of traffic.
+            <p className="text-muted-foreground">
+              {t("actions.opportunitiesHelp")}
+            </p>
           ) : null}
           <p className="whitespace-pre-wrap break-words">{action.why}</p>
         </DetailPart>

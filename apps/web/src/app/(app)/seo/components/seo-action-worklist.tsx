@@ -3,7 +3,11 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
+import {
+  SEGMENTED_CONTROL_CLASS_NAME,
+  SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+} from "@/components/ui/segmented-control-classes";
 import { cn } from "@/lib/utils";
 import { useSeoActionFinding } from "./seo-action-finding";
 import { SeoActionDialog } from "./seo-agent-steps";
@@ -20,19 +24,19 @@ import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 /** The filters of the worklist: critical and high issues read as one level, as their orange mark does. */
 const FILTERS = ["all", "high", "low", "suggestions"] as const;
 type SeoActionFilter = (typeof FILTERS)[number];
+type SeoActionBucket = Exclude<SeoActionFilter, "all">;
 
-function seoActionFilter(
+/** A suggestion by its kind; a fix by its impact, and a fix whose issue has no rating counts as low. */
+function seoActionBucket(
+  action: ProjectSeoAction,
   severity: SeoIssueSeverity | null,
-): Exclude<SeoActionFilter, "all"> {
-  return severity === null
-    ? "suggestions"
-    : severity === "minor"
-      ? "low"
-      : "high";
+): SeoActionBucket {
+  if (action.kind === "opportunity") return "suggestions";
+  return severity === "critical" || severity === "major" ? "high" : "low";
 }
 
 /** The rail of a row has the color of the impact mark; a suggestion has the grey of a quiet line. */
-const RAIL: Record<Exclude<SeoActionFilter, "all">, string> = {
+const RAIL: Record<SeoActionBucket, string> = {
   high: "bg-chart-2",
   low: "bg-chart-5",
   suggestions: "bg-border",
@@ -59,39 +63,42 @@ export function SeoActionWorklist({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const list = useRef<HTMLUListElement>(null);
+  const bucket = (action: ProjectSeoAction) =>
+    seoActionBucket(action, severity(action));
   const counts = { all: actions.length, high: 0, low: 0, suggestions: 0 };
-  for (const action of actions) counts[seoActionFilter(severity(action))] += 1;
+  for (const action of actions) counts[bucket(action)] += 1;
   // A filter that shows every row or none says nothing: the line has only the filters that split the list.
   const filters = FILTERS.filter(
     (key) => key === "all" || (counts[key] > 0 && counts[key] < actions.length),
   );
-  // A filter whose rows left (a new check) falls back to all rows.
+  // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back.
+  if (!filters.includes(filter)) setFilter("all");
   const shown = filters.includes(filter) ? filter : "all";
   const rows =
     shown === "all"
       ? actions
-      : actions.filter((action) => seoActionFilter(severity(action)) === shown);
+      : actions.filter((action) => bucket(action) === shown);
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
+  // An action that left the list closes its dialog, and the dialog does not open again when it comes back.
   const opened = actions.find((action) => seoActionKey(action) === openKey);
+  if (openKey && !opened) setOpenKey(null);
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-2">
+      <div className="flex flex-wrap items-center gap-2 px-2">
         {filters.length > 1 ? (
-          <div
-            role="group"
-            aria-label={t("actions.filter.label")}
-            className="bg-muted inline-flex flex-wrap gap-0.5 rounded-lg p-0.5"
-          >
+          // One control with its parts: the app's segmented look, buttons with a pressed state.
+          <fieldset className={cn(SEGMENTED_CONTROL_CLASS_NAME, "flex-wrap")}>
+            <legend className="sr-only">{t("actions.filter.label")}</legend>
             {filters.map((key) => (
               <button
                 key={key}
                 type="button"
                 aria-pressed={shown === key}
+                data-state={shown === key ? "on" : "off"}
+                // 40 px for a finger on a phone, as the other controls of the workspace.
                 className={cn(
-                  "focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium outline-none focus-visible:ring-2",
-                  shown === key
-                    ? "bg-background text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
+                  SEGMENTED_CONTROL_ITEM_CLASS_NAME,
+                  "flex-none max-sm:h-10",
                 )}
                 onClick={() => setFilter(key)}
               >
@@ -101,20 +108,22 @@ export function SeoActionWorklist({
                     className={cn("size-1.5 rounded-full", RAIL[key])}
                   />
                 )}
-                {t(`actions.filter.${key}`)}
-                <span className="text-muted-foreground tabular-nums">
-                  {counts[key]}
-                </span>
+                {t(
+                  key === "high"
+                    ? "severity.major"
+                    : key === "low"
+                      ? "severity.minor"
+                      : `actions.filter.${key}`,
+                )}
+                <span className="tabular-nums">{counts[key]}</span>
               </button>
             ))}
-          </div>
-        ) : (
-          <span />
-        )}
-        {tools}
+          </fieldset>
+        ) : null}
+        <div className="ms-auto">{tools}</div>
       </div>
-      {/* Suggestions alone keep the line that says they are no errors. */}
-      {rows.every((action) => severity(action) === null) ? (
+      {/* Suggestions alone keep the line that says they are no errors; the dialog of each one says it too. */}
+      {rows.every((action) => action.kind === "opportunity") ? (
         <p className="text-muted-foreground px-2 text-sm">
           {t("actions.opportunitiesHelp")}
         </p>
@@ -130,6 +139,7 @@ export function SeoActionWorklist({
             key={seoActionKey(action)}
             action={action}
             severity={severity(action)}
+            rail={RAIL[bucket(action)]}
             model={model}
             onOpen={(row) => {
               opener.current = row;
@@ -160,41 +170,52 @@ export function SeoActionWorklist({
 function SeoWorklistRow({
   action,
   severity,
+  rail,
   model,
   onOpen,
 }: {
   action: ProjectSeoAction;
   severity: SeoIssueSeverity | null;
+  rail: string;
   model: SeoWorkspaceModel;
   onOpen: (row: HTMLButtonElement) => void;
 }) {
   const t = useTranslations("App.Seo");
   const finding = useSeoActionFinding(action, model);
+  const titleId = useId();
+  const factsId = useId();
+  const labelsId = useId();
   return (
     <li>
       <button
         type="button"
+        // The title names the row; the page, the finding and the labels describe it.
+        aria-labelledby={titleId}
+        aria-describedby={`${labelsId} ${factsId}`}
         className={cn(SEO_ROW_BUTTON_CLASS, "items-stretch px-3 py-2.5")}
         onClick={(event) => onOpen(event.currentTarget)}
       >
-        <span
-          aria-hidden
-          className={cn(
-            "w-1 shrink-0 rounded-full",
-            RAIL[seoActionFilter(severity)],
-          )}
-        />
+        <span aria-hidden className={cn("w-1 shrink-0 rounded-full", rail)} />
         <span className="min-w-0 flex-1 gap-3 self-center sm:flex sm:items-center">
           <span className="block min-w-0 sm:flex-1">
-            <span className="block text-sm font-medium break-words">
+            <span
+              id={titleId}
+              className="block text-sm font-medium break-words"
+            >
               {action.title}
             </span>
-            {/* The page and what the check found, in one quiet line: the dialog has all of it. */}
-            <span className="text-muted-foreground block truncate text-xs">
+            {/* The page and what the check found, in two quiet lines at most: the dialog has all of it. */}
+            <span
+              id={factsId}
+              className="text-muted-foreground line-clamp-2 block text-xs break-words"
+            >
               {seoPageLabel(model.data, action.pageUrl)} · {finding}
             </span>
           </span>
-          <span className="flex flex-wrap items-center gap-1.5 max-sm:mt-1">
+          <span
+            id={labelsId}
+            className="flex flex-wrap items-center gap-1.5 max-sm:mt-1"
+          >
             {severity ? (
               <SeoSeverity severity={severity} />
             ) : (

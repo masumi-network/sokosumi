@@ -12000,8 +12000,6 @@
         "filter": {
           "label": "Filtrar acciones",
           "all": "Todas",
-          "high": "Alto",
-          "low": "Bajo",
           "suggestions": "Sugerencias"
         }
       },
