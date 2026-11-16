@@ -9,6 +9,7 @@ import {
 } from "@/lib/seo/analysis-dispatch";
 import {
   requireSeoAnalysisBalance,
+  requireSeoFullAuditPriceApproval,
   seoAnalysisMaxCredits,
 } from "@/lib/seo/analysis-price";
 import {
@@ -79,6 +80,7 @@ export async function createProjectSeoMonitor(
     },
     select: { scheduleId: true },
   });
+  if (!made) requireSeoFullAuditPriceApproval(preparedAnalysis);
   if (!made)
     await requireSeoAnalysisBalance(
       prisma,

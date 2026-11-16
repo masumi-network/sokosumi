@@ -30,6 +30,7 @@ import { creatorFields } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import {
   isSeoMonitorDescription,
+  requireSeoMonitorPriceForWrite,
   seoMonitorDescriptionWithRule,
 } from "@/lib/seo/monitor-plan";
 import { type WorkspaceContext } from "@/middleware/workspace";
@@ -186,6 +187,7 @@ export async function createTaskSchedule(
     return toTaskScheduleView(actor, replayed);
   }
 
+  requireSeoMonitorPriceForWrite(input.description);
   requireScheduleAssignee(input.assigneeUserId);
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
@@ -315,6 +317,7 @@ export async function updateTaskSchedule(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorPriceForWrite(input.description, current.description);
     requireSeoMonitorOwner(actor, current);
     // An SEO monitor keeps its approved pages and check: an edit replaces its rule only.
     const description = isSeoMonitorDescription(current.description)
