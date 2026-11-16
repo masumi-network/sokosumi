@@ -202,7 +202,6 @@ export function useSeoAutopilot(context: StatisticsContext) {
       collected: analytics.collected,
       loading: analytics.loading,
       failed: analytics.failed,
-      needsProperty: analytics.needsProperty,
     },
     propertyProvider: search.needsProperty
       ? ("search_console" as const)

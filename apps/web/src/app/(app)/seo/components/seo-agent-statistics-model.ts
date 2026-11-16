@@ -17,6 +17,7 @@ export function seoAnalyticsState({
   status,
   sync,
   properties,
+  picked,
 }: {
   /** The status of the Google connection; undefined while it is not read. */
   status: string | undefined;
@@ -24,20 +25,37 @@ export function seoAnalyticsState({
     collected: boolean;
     loading: boolean;
     failed: boolean;
-    needsProperty: boolean;
   };
   /** The number of Analytics properties of the account; null while the list is not read. */
   properties: number | null;
+  /** A property is in use: picked, or the one property of the account. Read here, not from the sync, which
+   * does not run for a viewer who cannot sync. */
+  picked: boolean;
 }): SeoAnalyticsState {
   // Not read yet, or not offered here: the connect button speaks for itself.
   if (status === undefined || status === "unavailable") return "unknown";
   if (status !== "connected") return "missing";
   if (sync.failed) return "failed";
   if (properties === 0) return "no_property";
-  if (sync.needsProperty) return "choose";
+  if (properties !== null && !picked) return "choose";
   if (sync.collected) return "empty";
   if (sync.loading) return "loading";
   return "unknown";
+}
+
+/**
+ * The line has nothing to say: a connected account with no cause yet, or a sync that runs or failed, which the
+ * upkeep line of the verdict card says once, with its Try again.
+ */
+export function seoAnalyticsHidden(
+  state: SeoAnalyticsState,
+  connected: boolean,
+): boolean {
+  return (
+    (state === "unknown" && connected) ||
+    state === "loading" ||
+    state === "failed"
+  );
 }
 
 /** The fix the line offers for its cause; null where the cause has none. */

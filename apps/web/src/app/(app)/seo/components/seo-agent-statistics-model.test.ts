@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   seoAnalyticsAction,
+  seoAnalyticsHidden,
   seoAnalyticsState,
 } from "./seo-agent-statistics-model";
 
@@ -8,13 +9,17 @@ const idle = {
   collected: false,
   loading: false,
   failed: false,
-  needsProperty: false,
 };
 
 describe("seoAnalyticsState", () => {
   it("reads a connection that is not finished as none, so the line keeps its connect button", () => {
     expect(
-      seoAnalyticsState({ status: "pending", sync: idle, properties: null }),
+      seoAnalyticsState({
+        status: "pending",
+        sync: idle,
+        properties: null,
+        picked: false,
+      }),
     ).toBe("missing");
   });
 
@@ -22,24 +27,48 @@ describe("seoAnalyticsState", () => {
     expect(
       seoAnalyticsState({
         status: "connected",
-        sync: { ...idle, failed: true, needsProperty: true },
+        sync: { ...idle, failed: true },
         properties: 3,
+        picked: false,
       }),
     ).toBe("failed");
   });
 
-  it("keeps a property to choose while a refetch runs", () => {
+  it("keeps a property to choose while a refetch runs, and when no sync runs at all", () => {
     expect(
       seoAnalyticsState({
         status: "connected",
-        sync: { ...idle, needsProperty: true, loading: true },
+        sync: { ...idle, loading: true },
         properties: 3,
+        picked: false,
       }),
     ).toBe("choose");
+    // A viewer who cannot sync has a sync that never runs: the property list still names the cause.
+    expect(
+      seoAnalyticsState({
+        status: "connected",
+        sync: idle,
+        properties: 3,
+        picked: false,
+      }),
+    ).toBe("choose");
+    // A list not read yet names no choice.
+    expect(
+      seoAnalyticsState({
+        status: "connected",
+        sync: idle,
+        properties: null,
+        picked: false,
+      }),
+    ).toBe("unknown");
   });
 
   it("says no visits only after a collection finished, also while it refetches", () => {
-    const connected = { status: "connected", properties: 1 } as const;
+    const connected = {
+      status: "connected",
+      properties: 1,
+      picked: true,
+    } as const;
     expect(
       seoAnalyticsState({ ...connected, sync: { ...idle, loading: true } }),
     ).toBe("loading");
@@ -58,6 +87,7 @@ describe("seoAnalyticsState", () => {
         status: "unavailable",
         sync: idle,
         properties: null,
+        picked: false,
       }),
     ).toBe("unknown");
   });
@@ -67,9 +97,18 @@ describe("seoAnalyticsAction", () => {
   it("offers the fix of each cause, and a choice only where there is one", () => {
     expect(seoAnalyticsAction("missing", false, 0)).toBe("connect");
     expect(seoAnalyticsAction("unknown", false, 0)).toBe("connect");
-    expect(seoAnalyticsAction("failed", true, 3)).toBeNull();
     expect(seoAnalyticsAction("empty", true, 1)).toBe("manage");
     expect(seoAnalyticsAction("empty", true, 2)).toBe("choose");
-    expect(seoAnalyticsAction("loading", true, 2)).toBeNull();
+  });
+});
+
+describe("seoAnalyticsHidden", () => {
+  it("leaves a running or failed sync to the upkeep line, and waits for a cause", () => {
+    expect(seoAnalyticsHidden("loading", true)).toBe(true);
+    expect(seoAnalyticsHidden("failed", true)).toBe(true);
+    expect(seoAnalyticsHidden("unknown", true)).toBe(true);
+    // Not connected: the connect button speaks.
+    expect(seoAnalyticsHidden("unknown", false)).toBe(false);
+    expect(seoAnalyticsHidden("choose", true)).toBe(false);
   });
 });
