@@ -10,12 +10,12 @@ import { getEnv } from "@/config/env";
 let pool: pg.Pool | undefined;
 
 export function relayDatabase(): pg.Pool | null {
-  const url = getEnv().BUZZ_RELAY_DATABASE_URL;
+  const { BUZZ_RELAY_DATABASE_URL: url, BUZZ_RELAY_DATABASE_CA: ca } = getEnv();
   if (!url) return null;
   if (!pool) {
     // Every statement bounded, so a run never waits past its lease on one.
     pool = new pg.Pool({
-      connectionString: url,
+      ...relayConnection(url, ca),
       max: 2,
       statement_timeout: 10_000,
       connectionTimeoutMillis: 10_000,
@@ -27,6 +27,28 @@ export function relayDatabase(): pg.Pool | null {
     );
   }
   return pool;
+}
+
+/**
+ * Railway's Postgres presents a certificate for `localhost` signed by a root
+ * made for that database alone. Trusting that root (and only it) verifies the
+ * server; the name cannot match the proxy's host, so it is not compared. The
+ * URL's own `sslmode` would replace these settings, so it is dropped.
+ */
+export function relayConnection(
+  url: string,
+  ca: string | undefined,
+): pg.PoolConfig {
+  if (!ca) return { connectionString: url };
+  const parsed = new URL(url);
+  parsed.searchParams.delete("sslmode");
+  return {
+    connectionString: parsed.toString(),
+    ssl: {
+      ca: ca.replace(/\\n/g, "\n"),
+      checkServerIdentity: () => undefined,
+    },
+  };
 }
 
 /**

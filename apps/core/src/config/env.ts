@@ -400,6 +400,9 @@ const baseEnvSchema = z.object({
    *   community created on the relay. Unset, communities already exist.
    * - BUZZ_RELAY_DATABASE_URL: the relay's Postgres, for the one-time import
    *   of each room's history (the relay takes no event older than 15 minutes).
+   * - BUZZ_RELAY_DATABASE_CA: that Postgres's root certificate (PEM). Railway
+   *   signs each database's certificate with a root of its own, for host
+   *   `localhost`; with it set, the connection trusts that root alone.
    */
   BUZZ_COMMUNITY_URL_TEMPLATE: z.string().min(1).optional(),
   /**
@@ -411,6 +414,7 @@ const baseEnvSchema = z.object({
   BUZZ_AUTO_ORGANIZATIONS: z.string().min(1).optional(),
   BUZZ_OPERATOR_API_ORIGIN: z.url().optional(),
   BUZZ_RELAY_DATABASE_URL: z.string().min(1).optional(),
+  BUZZ_RELAY_DATABASE_CA: z.string().min(1).optional(),
   BUZZ_OPERATOR_SECRET_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/)
