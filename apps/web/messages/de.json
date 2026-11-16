@@ -1527,21 +1527,16 @@
         "scopeOwned": "Meine Transaktionen",
         "scopeWorkspace": "Workspace",
         "typeLabel": "Quelle",
-        "projectLabel": "Projekt",
-        "typeOptions": {
-          "job": "Agent-Job",
-          "image": "Bild",
-          "task": "Aufgabe",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "SEO-Chat",
-          "topUp": "Aufladung",
-          "unattributed": "Sonstige"
-        }
+        "projectLabel": "Projekt"
       },
       "Empty": {
         "title": "Noch keine Transaktionen",
         "description": "Jeder Job-Lauf, jede Bildgenerierung, jeder weitere Credit-Verbrauch und jede Aufladung erscheint hier."
+      },
+      "EmptyFiltered": {
+        "title": "Keine passenden Transaktionen",
+        "description": "Nichts passt zu dieser Suche oder diesen Filtern.",
+        "clear": "Filter zurücksetzen"
       },
       "List": {
         "loadMore": "Mehr laden",
@@ -1558,6 +1553,7 @@
           "task": "Aufgabe",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO-Chat",
           "topUp": "Aufladung",
           "unattributed": "Sonstige",
           "contacts": "Personen finden"

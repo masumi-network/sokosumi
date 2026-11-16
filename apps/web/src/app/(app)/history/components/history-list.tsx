@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -36,6 +37,8 @@ interface HistoryListProps {
   filterResetKey: string;
   filters: HistoryFilters;
   labels: HistoryListLabels;
+  /** Set while a search or filter narrows the list; the empty state then offers to clear it. */
+  clearFilters?: { href: string; label: string } | null;
   activeOrganizationId: string | null;
 }
 
@@ -45,6 +48,7 @@ export function HistoryList({
   filterResetKey,
   filters,
   labels,
+  clearFilters = null,
   activeOrganizationId,
 }: HistoryListProps) {
   const [items, setItems] = useState(history);
@@ -88,10 +92,7 @@ export function HistoryList({
               return (
                 <Fragment key={entryKey(entry)}>
                   {startsMonth ? (
-                    <li
-                      role="presentation"
-                      className="text-muted-foreground px-2 pt-3 text-sm font-medium first:pt-1"
-                    >
+                    <li className="text-muted-foreground px-2 pt-3 text-sm font-medium first:pt-1">
                       <h2>{month}</h2>
                     </li>
                   ) : null}
@@ -117,7 +118,7 @@ export function HistoryList({
           </ul>
         </div>
       ) : showEmptyState ? (
-        <HistoryEmptyState labels={labels.empty} />
+        <HistoryEmptyState labels={labels.empty} clearFilters={clearFilters} />
       ) : null}
 
       {cursor ? (
@@ -135,13 +136,27 @@ export function HistoryList({
   );
 }
 
-function HistoryEmptyState({ labels }: { labels: HistoryListLabels["empty"] }) {
+function HistoryEmptyState({
+  labels,
+  clearFilters,
+}: {
+  labels: HistoryListLabels["empty"];
+  clearFilters: HistoryListProps["clearFilters"];
+}) {
   return (
     <div className="bg-card-background flex min-h-[320px] flex-col justify-center rounded-xl">
       <EmptyState
         title={labels.title}
         description={labels.description}
-        action={<NewTaskButton />}
+        action={
+          clearFilters ? (
+            <Button asChild variant="outline">
+              <Link href={clearFilters.href}>{clearFilters.label}</Link>
+            </Button>
+          ) : (
+            <NewTaskButton />
+          )
+        }
       />
     </div>
   );
