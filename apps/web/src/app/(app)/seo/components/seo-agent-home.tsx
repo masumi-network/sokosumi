@@ -115,17 +115,31 @@ function SeoAgentPanel({
   // It comes from the steps before the fold, so showing more steps never moves a step into the verdict card.
   const primary = setup?.next
     ? -1
-    : steps
-        .slice(0, visibleSteps)
-        .findIndex((step) =>
-          step.kind === "competitors"
-            ? canEdit && (canRequestAnalysis || !step.available)
-            : step.kind === "strategy"
-              ? false
+    : steps.slice(0, visibleSteps).findIndex((step) =>
+        step.kind === "competitors"
+          ? canEdit && (canRequestAnalysis || !step.available)
+          : step.kind === "strategy"
+            ? false
+            : // A refresh has its retry button only after a failed sync.
+              step.kind === "refresh"
+              ? model.statisticsSync.state === "failed"
               : step.kind !== "action" || (canEdit && !step.action.taskId),
-        );
+      );
   // The lead step sits in the verdict card; the list under the pictures holds the rest.
   const lead = primary === -1 ? undefined : steps[primary];
+  // A Task for the lead action takes it out of the card, and its button with it. Focus that fell to the
+  // page moves to the verdict, where the next first step now stands.
+  const leadKey = lead
+    ? lead.kind === "action"
+      ? lead.action.id
+      : lead.kind
+    : null;
+  const leadSeen = useRef(leadKey);
+  useEffect(() => {
+    if (leadSeen.current === leadKey) return;
+    leadSeen.current = leadKey;
+    if (document.activeElement === document.body) verdict.current?.focus();
+  }, [leadKey]);
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.

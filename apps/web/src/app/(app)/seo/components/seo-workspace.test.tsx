@@ -621,19 +621,16 @@ describe("SEO workspace integration", () => {
     const firstStep = screen.getByText("Make the markup price match the page");
     expect(verdict.parentElement).not.toContainElement(tiles);
     expect(verdict.parentElement).toContainElement(firstStep);
+    const leadList = screen.getByRole("list", { name: "First step" });
     expect(
-      within(screen.getByRole("list", { name: "First step" })).getByText(
-        "Make the markup price match the page",
-      ),
+      within(leadList).getByText("Make the markup price match the page"),
     ).toBeVisible();
+    // The card is part of the verdict card: it has no frame of its own.
+    expect(within(leadList).getByRole("article")).not.toHaveClass("border");
     expect(
       firstStep.compareDocumentPosition(tiles) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    // Nothing stands between them, so no control jumps from the result to the steps.
-    expect(
-      screen.queryByRole("button", { name: "Start with the first step" }),
-    ).toBeNull();
     cleanup();
     // With an Audit one floating button leads to the agent. The page itself has no question field.
     served = { ...workspace, auditId: SEO_TEST_AUDIT };
@@ -6114,6 +6111,61 @@ describe("SEO workspace integration", () => {
         within(next!).getByRole("button", { name: "Create draft task" }),
       ).toBeVisible(),
     );
+  });
+
+  it("puts the next waiting action in the verdict card once a Task exists for the first", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const [check] = workspace.observations;
+    const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
+      observationId: check.id,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      why: "The check found it",
+      effort: "low",
+      expectedEffect: "A better search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    workspace.actions.push(
+      { ...waiting, id: "title", title: "Fix the page title" },
+      { ...waiting, id: "description", title: "Write a description" },
+    );
+    let served = workspace;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(served)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace, "?tab=agent");
+    const first = await screen.findByRole("list", { name: "First step" });
+    expect(within(first).getByText(/^Fix the page title/)).toBeVisible();
+    served = {
+      ...workspace,
+      actions: [
+        {
+          ...workspace.actions[0],
+          taskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+          status: "task_created",
+        },
+        workspace.actions[1],
+      ],
+    };
+    await user.click(
+      within(first).getByRole("button", { name: "Create draft task" }),
+    );
+    // The next action leads in the card. Focus left with the pressed button, so it goes to the verdict.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "First step" })).getByText(
+          /^Write a description/,
+        ),
+      ).toBeVisible(),
+    );
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveFocus();
   });
 
   it("says what a keyword result of zero means, with the depth the check read", async () => {
