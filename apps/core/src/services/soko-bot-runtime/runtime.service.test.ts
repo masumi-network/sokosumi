@@ -699,6 +699,7 @@ import {
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 import * as scheduleService from "@/services/soko-bot-schedule.service";
+import { expectConsole } from "@/test/console";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
@@ -10502,6 +10503,7 @@ describe("Content Studio image tools", () => {
     });
 
     it("still reports the image when the copy fails", async () => {
+      expectConsole("warn", "[soko-bot] could not copy an image into Files");
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(

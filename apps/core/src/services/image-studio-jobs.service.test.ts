@@ -157,6 +157,7 @@ import {
   recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
+import { expectConsole } from "@/test/console";
 
 /**
  * The default model's endpoints, taken from the catalog rather than written out.
@@ -323,6 +324,7 @@ describe("image studio job submission", () => {
   );
 
   it("classifies a definite provider refusal as failed and therefore retryable", async () => {
+    expectConsole("warn", "[image-studio] provider refused a submission");
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
@@ -340,6 +342,7 @@ describe("image studio job submission", () => {
   });
 
   it("classifies a lost answer as uncertain, never as failed", async () => {
+    expectConsole("warn", "[image-studio] submission outcome unknown");
     submitToQueueMock.mockResolvedValue({
       kind: "uncertain",
       message: "The operation timed out",
@@ -567,6 +570,10 @@ describe("image studio job submission", () => {
   ])(
     "blocks a recovered job without photo access ($idempotencyKey)",
     async ({ idempotencyKey, kind }) => {
+      expectConsole(
+        "warn",
+        "[image-studio] a generation could not be prepared",
+      );
       const now = new Date("2026-11-10T12:00:00Z");
       const pending = jobRow({
         createdAt: new Date("2026-11-10T11:58:00Z"),
@@ -642,6 +649,10 @@ describe("image studio job submission", () => {
   });
 
   it("refuses to generate before spending anything when there is no private store", async () => {
+    expectConsole(
+      "error",
+      "[image-studio] IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set. The studio needs its own",
+    );
     // Checked ahead of the reservation and the provider call, because the
     // alternative is paying fal for an image the studio is not allowed to
     // keep — which is exactly what happened when settlement was the only place
@@ -1053,22 +1064,21 @@ describe("image studio job submission", () => {
   });
 
   it("queues the job and logs a snapshot failure", async () => {
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warning = expectConsole(
+      "warn",
+      "[image-studio] could not save a prompt snapshot",
+    );
     snapshotUpsertMock.mockRejectedValueOnce(new Error("snapshot unavailable"));
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    try {
-      await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
-        status: "QUEUED",
-      });
-      await Promise.all(waitUntilMock.mock.calls.map(([work]) => work));
-      expect(warning).toHaveBeenCalledWith(
-        "[image-studio] could not save a prompt snapshot",
-        { jobId: "job-1", error: "snapshot unavailable" },
-      );
-    } finally {
-      warning.mockRestore();
-    }
+    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+      status: "QUEUED",
+    });
+    await Promise.all(waitUntilMock.mock.calls.map(([work]) => work));
+    expect(warning).toContainEqual([
+      "[image-studio] could not save a prompt snapshot",
+      { jobId: "job-1", error: "snapshot unavailable" },
+    ]);
   });
 
   it("does not wait for a snapshot write before submitting or returning the job", async () => {

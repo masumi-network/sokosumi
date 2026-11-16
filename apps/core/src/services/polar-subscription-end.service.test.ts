@@ -32,7 +32,7 @@ vi.mock("@/lib/db/transaction", () => ({
 
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
-
+import { expectConsole } from "@/test/console";
 import {
   retryOwedPolarRevokes,
   revokeCusoSubscription,
@@ -96,6 +96,10 @@ describe("revokeCusoSubscription", () => {
   });
 
   it("ends the row and marks its revoke owed when Polar fails, so the ending goes on", async () => {
+    expectConsole(
+      "warn",
+      "[polar-subscription-end] Revoke of sub_1 failed; owed to the sync job",
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
 
     await expect(revokeCusoSubscription(BOT_ID)).resolves.toBeUndefined();
@@ -224,6 +228,10 @@ describe("revokeSubscriptionsLeftByEnding", () => {
   });
 
   it("marks the revoke owed and does not throw when Polar fails, since the Cuso has already ended", async () => {
+    expectConsole(
+      "warn",
+      "[polar-subscription-end] Revoke of sub_1 failed; owed to the sync job",
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
 
     await expect(
@@ -237,6 +245,10 @@ describe("revokeSubscriptionsLeftByEnding", () => {
   });
 
   it("writes off the Project's credits once it revoked one, even when Polar failed", async () => {
+    expectConsole(
+      "warn",
+      "[polar-subscription-end] Revoke of sub_1 failed; owed to the sync job",
+    );
     await revokeSubscriptionsLeftByEnding(PROJECT_ID);
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
     await revokeSubscriptionsLeftByEnding(PROJECT_ID);
@@ -305,6 +317,10 @@ describe("retryOwedPolarRevokes", () => {
   });
 
   it("keeps the mark and counts the failure when Polar still fails", async () => {
+    expectConsole(
+      "error",
+      "[polar-subscription-end] Owed revoke of sub_1 failed again",
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
     m.prisma.polarSubscription.update.mockResolvedValue({ revokeFailures: 2 });
 
@@ -324,6 +340,11 @@ describe("retryOwedPolarRevokes", () => {
   });
 
   it("reports a revoke once, on the run its failures reach the limit", async () => {
+    expectConsole(
+      "error",
+      "[polar-subscription-end] Owed revoke of sub_1 failed again",
+      3,
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
     for (const revokeFailures of [5, 6, 7]) {
       m.prisma.polarSubscription.update.mockResolvedValueOnce({

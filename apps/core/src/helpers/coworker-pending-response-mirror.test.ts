@@ -18,6 +18,7 @@ vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   clearPendingResponseMirror,
   coworkerPendingResponseRedisKey,
@@ -112,6 +113,10 @@ describe("coworker-pending-response-mirror", () => {
   });
 
   it("swallows expire errors without throwing", async () => {
+    expectConsole(
+      "error",
+      "[coworker-pending-response-mirror] Failed to renew pending mirror",
+    );
     redisExpireMock.mockRejectedValueOnce(new Error("redis down"));
     await expect(
       renewPendingResponseMirror(ROOM_SCOPE),

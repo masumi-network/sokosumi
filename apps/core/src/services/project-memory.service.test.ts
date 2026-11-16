@@ -1,6 +1,7 @@
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
+import { PROJECT_LATEST_UPDATE_SYSTEM_PROMPT } from "./project-latest-update";
 import {
   projectMemoryService,
   validateProjectContextMd,
@@ -88,6 +89,11 @@ function memoryDocument({
 }
 
 const VALID_CONTEXT = memoryDocument();
+const VALID_LATEST_UPDATE = `# Weekly Activity Report
+
+## TL;DR
+
+Published the launch report.`;
 const VALID_LINE_COUNT = VALID_CONTEXT.split("\n").length;
 
 const project = {
@@ -136,7 +142,6 @@ function isFollowUpTaskIdLookup(args: {
 describe("projectMemoryService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     getEnvMock.mockReturnValue({
       AI_GATEWAY_API_KEY: "gateway_key",
       BLOB_READ_WRITE_TOKEN: "blob_key",
@@ -149,10 +154,12 @@ describe("projectMemoryService", () => {
         isFollowUpTaskIdLookup(args) ? null : completedTask,
     );
     taskFindManyMock.mockResolvedValue([]);
-    generateTextMock.mockResolvedValue({
-      text: VALID_CONTEXT,
-      finishReason: "stop",
-    });
+    // One model writes both documents: the memory, then the weekly report.
+    generateTextMock.mockImplementation(async (options: { system?: string }) =>
+      options.system === PROJECT_LATEST_UPDATE_SYSTEM_PROMPT
+        ? { text: VALID_LATEST_UPDATE, finishReason: "stop" }
+        : { text: VALID_CONTEXT, finishReason: "stop" },
+    );
     ensureProjectFilesTokenMock.mockResolvedValue("project_files_token");
     uploadProjectContextMdFileMock.mockResolvedValue(
       "https://blob.example/projects/project_1/CONTEXT.md",
@@ -286,6 +293,10 @@ describe("projectMemoryService", () => {
   });
 
   it("keeps the previous URL when the winner cannot upload the blob", async () => {
+    const warnCalls = expectConsole(
+      "warn",
+      "Project memory updated without replacing its CONTEXT.md blob",
+    );
     uploadProjectContextMdFileMock.mockResolvedValueOnce(null);
 
     await expect(
@@ -304,10 +315,10 @@ describe("projectMemoryService", () => {
         data: expect.objectContaining({ contextMdUrl: expect.anything() }),
       }),
     );
-    expect(console.warn).toHaveBeenCalledWith(
+    expect(warnCalls).toContainEqual([
       "Project memory updated without replacing its CONTEXT.md blob",
       { projectId: PROJECT_ID, version: 4 },
-    );
+    ]);
   });
 
   it("is a no-op without Blob storage configuration", async () => {
@@ -470,6 +481,10 @@ describe("projectMemoryService", () => {
   });
 
   it("keeps old memory when model output is empty and releases the lock", async () => {
+    expectConsole(
+      "warn",
+      "Project memory refresh skipped: invalid model output",
+    );
     generateTextMock.mockResolvedValueOnce({
       text: "  \n ",
       finishReason: "stop",
@@ -596,6 +611,10 @@ Shipped the launch report.`,
   });
 
   it("keeps memory and leaves the previous report when TL;DR is missing", async () => {
+    expectConsole(
+      "warn",
+      "Project latest update skipped: missing TL;DR or empty output",
+    );
     generateTextMock
       .mockResolvedValueOnce({ text: VALID_CONTEXT, finishReason: "stop" })
       .mockResolvedValueOnce({ text: "# Weekly Activity Report\n\nNo tldr" });
@@ -690,6 +709,10 @@ Shipped the launch report.`,
   ])(
     "retains all prior memory state on %s",
     async (_label, text, finishReason, reason) => {
+      expectConsole(
+        "warn",
+        "Project memory refresh skipped: invalid model output",
+      );
       generateTextMock.mockResolvedValueOnce({ text, finishReason });
       expect(
         await projectMemoryService.refreshAfterTaskCompleted({
@@ -715,6 +738,10 @@ Shipped the launch report.`,
   ])(
     "retains even oversized prior memory when compaction is %s",
     async (_label, text, finishReason, reason) => {
+      expectConsole(
+        "warn",
+        "Project memory refresh skipped: invalid model output",
+      );
       projectFindUniqueMock.mockResolvedValue({
         ...project,
         contextMd: "legacy ".repeat(2000),

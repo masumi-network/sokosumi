@@ -3,7 +3,7 @@ import { PricingType } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-
+import { expectConsole } from "@/test/console";
 import mountGetAgents from "./get";
 
 const {
@@ -416,6 +416,10 @@ describe("GET /agents", () => {
   });
 
   it("advances pagination from the consumed raw row when its summary is skipped", async () => {
+    expectConsole(
+      "warn",
+      "[agents] Skipping agent agent_unreadable during transient pricing rewrite",
+    );
     agentFindManyMock.mockResolvedValue([
       {
         id: "agent_unreadable",
@@ -506,20 +510,14 @@ describe("GET /agents", () => {
   });
 
   it("propagates unexpected pricing failures", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Error: unexpected pricing failure");
     getAgentCostMock.mockImplementation(() => {
       throw new Error("unexpected pricing failure");
     });
 
-    try {
-      const app = createApp();
-      const response = await app.request("http://localhost/");
+    const app = createApp();
+    const response = await app.request("http://localhost/");
 
-      expect(response.status).toBe(500);
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    expect(response.status).toBe(500);
   });
 });
