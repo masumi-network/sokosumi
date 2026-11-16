@@ -75,7 +75,8 @@ export function TaskPlanTree({
                   : null;
           return (
             <li key={`${item.depth}-${item.task.id}-${item.relation}`}>
-              <div className="flex min-w-0 items-center gap-1">
+              {/* gap-3: the row's link bleeds 8px left (-mx-2) for its hover fill; 12px keeps that fill off the icon. */}
+              <div className="flex min-w-0 items-center gap-3">
                 <Icon
                   role="img"
                   aria-label={relationLabel}
@@ -94,7 +95,7 @@ export function TaskPlanTree({
                 </div>
               </div>
               {note ? (
-                <p className="text-muted-foreground ms-5 text-xs">{note}</p>
+                <p className="text-muted-foreground ms-7 text-xs">{note}</p>
               ) : null}
               {children.length > 0 ? renderNodes(children, false) : null}
             </li>
