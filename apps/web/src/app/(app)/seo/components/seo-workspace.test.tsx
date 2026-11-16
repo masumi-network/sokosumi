@@ -4432,12 +4432,22 @@ describe("SEO workspace integration", () => {
     );
     await openCheckOptions(user);
     expect(checkType()).toHaveTextContent("Full audit");
+    expect(
+      screen.getByText(
+        "Includes relevant pages from the same site, up to 10 pages total.",
+      ),
+    ).toBeVisible();
     // A full audit takes one keyword, so the form does not open on a list it would refuse.
     const keywords = () => screen.getByLabelText("Keywords, one per line");
     expect(keywords()).toHaveValue("stablecoins");
     // Another check type takes the whole saved list again.
     await user.click(checkType());
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
+    expect(
+      screen.queryByText(
+        "Includes relevant pages from the same site, up to 10 pages total.",
+      ),
+    ).toBeNull();
     expect(keywords()).toHaveValue("stablecoins\nstablecoin wallet");
     await user.click(checkType());
     await user.click(screen.getByRole("option", { name: "Full audit" }));

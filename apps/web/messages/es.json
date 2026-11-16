@@ -12082,6 +12082,7 @@
         "failed": "Fallida",
         "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
         "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
+        "relatedPages": "Incluye páginas relevantes del mismo sitio, hasta {count} páginas en total.",
         "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
         "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
         "returnToAudit": "Volver a la auditoría",
