@@ -11854,7 +11854,12 @@
           "source": "Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO.",
           "zoomIn": "Vergrößern",
           "zoomOut": "Verkleinern",
-          "zoomReset": "Ganze Karte zeigen"
+          "zoomReset": "Ganze Karte zeigen",
+          "yours": "Dein Keyword",
+          "gainShort": "Top-3-Klicks",
+          "contentTask": "Content-Aufgabe erstellen",
+          "ask": "SEO-Agent fragen",
+          "brief": "Schreibe Webinhalte für {site}, die bei Google für die Suche „{keyword}“ ranken können. Sie hat {volume, number} Suchen pro Monat in {market}, die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}"
         },
         "historyShow": "Verlauf",
         "historyPaidTitle": "Positionen in bezahlten Prüfungen",

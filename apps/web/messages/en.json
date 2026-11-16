@@ -11854,7 +11854,12 @@
           "source": "Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO.",
           "zoomIn": "Zoom in",
           "zoomOut": "Zoom out",
-          "zoomReset": "Show the whole map"
+          "zoomReset": "Show the whole map",
+          "yours": "Your keyword",
+          "gainShort": "Top 3 clicks",
+          "contentTask": "Create content task",
+          "ask": "Ask the SEO agent",
+          "brief": "Write web content that can rank on Google for the search \"{keyword}\" on {site}. It has {volume, number} searches a month in {market}, and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { Lead with this product feature: {feature}.}}"
         },
         "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",

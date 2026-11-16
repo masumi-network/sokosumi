@@ -2,14 +2,32 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { SeoKeywordMap } from "./seo-keyword-map";
 import { keywordGroups } from "./seo-keyword-rows-model";
+import { seoTestWorkspace } from "./seo-test-fixture";
+import type { SeoWorkspaceModel } from "./use-seo-workspace";
+
+const wizard = vi.hoisted(() => ({ openNewTaskWizard: vi.fn() }));
+// The New Task wizard is another feature's dialog: the map only hands it a prompt.
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => wizard,
+}));
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+const model = {
+  data: seoTestWorkspace(),
+  pending: false,
+  openChat: vi.fn(),
+  toggleKeyword: vi.fn(),
+} as unknown as SeoWorkspaceModel;
 
 let next = 0;
 function row(patch: Partial<Keyword>): Keyword {
@@ -44,7 +62,7 @@ function row(patch: Partial<Keyword>): Keyword {
 function renderMap(rows: Keyword[]) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <SeoKeywordMap groups={keywordGroups(rows)} />
+      <SeoKeywordMap groups={keywordGroups(rows)} model={model} />
     </NextIntlClientProvider>,
   );
 }
@@ -97,6 +115,66 @@ describe("SEO keyword map", () => {
       "battery health · Idea5,00070301",
       "battery app1,0001253",
     ]);
+  });
+
+  it("opens a keyword with a content Task, a question to the agent, and Track for an idea", async () => {
+    const user = userEvent.setup();
+    renderMap([
+      row({
+        keyword: "battery app",
+        volume: 1000,
+        difficulty: 12.4,
+        saved: true,
+        version: 1,
+        // The feature comes with the estimate of the check.
+        conversion: "high",
+        feature: "Cycle count",
+      }),
+      row({
+        keyword: "battery health",
+        source: "gap",
+        volume: 5000,
+        difficulty: 70,
+      }),
+    ]);
+    const map = screen.getByRole("group", { name: "Keyword opportunities" });
+    map.focus();
+    await user.keyboard("{ArrowRight}{Enter}");
+    const popover = await screen.findByTestId("seo-keyword-popover");
+    expect(popover).toHaveTextContent("battery app");
+    expect(popover).toHaveTextContent("Your keyword");
+    expect(popover).toHaveTextContent("Easy");
+    // The hover card gives way to the open keyword.
+    expect(screen.queryByTestId("seo-keyword-card")).toBeNull();
+    // A tracked keyword has nothing to track.
+    expect(within(popover).queryByRole("button", { name: "Track" })).toBeNull();
+    await user.click(
+      within(popover).getByRole("button", { name: "Create content task" }),
+    );
+    const brief =
+      'Write web content that can rank on Google for the search "battery app" on example.com. It has 1,000 searches a month in United States · English, and its difficulty is Easy (12 of 100). Lead with this product feature: Cycle count.';
+    expect(wizard.openNewTaskWizard).toHaveBeenCalledWith({
+      prompt: brief,
+      projectId: model.data.projectId,
+    });
+    await user.click(
+      within(popover).getByRole("button", { name: "Ask the SEO agent" }),
+    );
+    expect(model.openChat).toHaveBeenCalledWith(brief);
+    // Closing gives the focus back to the map; the next keyword, an idea, can be tracked.
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
+    expect(map).toHaveFocus();
+    await user.keyboard("{ArrowRight}{Enter}");
+    await user.click(
+      within(await screen.findByTestId("seo-keyword-popover")).getByRole(
+        "button",
+        { name: "Track" },
+      ),
+    );
+    expect(model.toggleKeyword).toHaveBeenCalledWith(
+      expect.objectContaining({ keyword: "battery health" }),
+    );
   });
 
   it("zooms in with the button or the + key, and the reset shows the whole map again", async () => {
