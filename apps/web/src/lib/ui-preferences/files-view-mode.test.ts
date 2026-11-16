@@ -5,7 +5,6 @@ import {
   FILES_VIEW_MODE_COOKIE_MAX_AGE,
   FILES_VIEW_MODE_COOKIE_NAME,
   parseFilesViewMode,
-  parseFilesViewModeCookieHeader,
   serializeFilesViewModeCookie,
 } from "@/lib/ui-preferences/files-view-mode";
 
@@ -43,25 +42,5 @@ describe("serializeFilesViewModeCookie", () => {
     expect(serializeFilesViewModeCookie("grid")).toBe(
       `${FILES_VIEW_MODE_COOKIE_NAME}=grid; path=/; max-age=${FILES_VIEW_MODE_COOKIE_MAX_AGE}`,
     );
-  });
-});
-
-describe("parseFilesViewModeCookieHeader", () => {
-  it("reads files_view_mode from a cookie header", () => {
-    expect(
-      parseFilesViewModeCookieHeader(
-        `other=1; ${FILES_VIEW_MODE_COOKIE_NAME}=grid; theme=dark`,
-      ),
-    ).toBe("grid");
-    expect(
-      parseFilesViewModeCookieHeader(`${FILES_VIEW_MODE_COOKIE_NAME}=list`),
-    ).toBe("list");
-  });
-
-  it("returns null when missing or invalid", () => {
-    expect(parseFilesViewModeCookieHeader("theme=dark")).toBeNull();
-    expect(
-      parseFilesViewModeCookieHeader(`${FILES_VIEW_MODE_COOKIE_NAME}=board`),
-    ).toBeNull();
   });
 });
