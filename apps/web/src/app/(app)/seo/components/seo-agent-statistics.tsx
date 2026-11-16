@@ -28,15 +28,13 @@ export function SeoAgentStatistics({
 }) {
   const t = useTranslations("App.Seo");
   const status = useSeoConnectionStatus(step.provider).status.data?.status;
-  // A connection that is starting has no state yet; one that expired is as good as none.
+  // A connection that is starting has no state yet: the line waits for it before it picks its start.
   const analytics =
     status === "connected"
       ? "connected"
-      : status === "not_connected" || status === "needs_reconnect"
-        ? "missing"
-        : status === "unavailable"
-          ? "other"
-          : "unknown";
+      : status === undefined || status === "pending"
+        ? "unknown"
+        : "missing";
   // The first known status sets the start; after that only a press moves the line. Analytics that connects
   // while the line is open keeps it open, with the focus on its button.
   const [picked, setPicked] = useState<boolean | null>(null);

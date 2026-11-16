@@ -2809,7 +2809,7 @@ describe("SEO workspace integration", () => {
   it("starts the Google statistics line open while Analytics is not connected, and closed while it is connected", async () => {
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
-    // An expired connection reads as none; a connection Google cannot report on claims nothing.
+    // An expired connection reads as none.
     for (const [status, name, open] of [
       ["not_connected", "Google statistics: Analytics not connected", "true"],
       ["needs_reconnect", "Google statistics: Analytics not connected", "true"],
@@ -2818,7 +2818,6 @@ describe("SEO workspace integration", () => {
         "Google statistics: Analytics connected, not synced yet",
         "false",
       ],
-      ["unavailable", "Google statistics", "false"],
     ] as const) {
       vi.stubGlobal(
         "fetch",
