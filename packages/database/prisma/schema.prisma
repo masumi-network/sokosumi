@@ -1701,6 +1701,13 @@ model PolarSubscription {
   /// Set while a plan change is at Polar, so a second one waits for its
   /// tier instead of counting an upgrade from the old one.
   planChangeClaimedAt     DateTime?
+  /// Set when a Cuso's ending could not revoke the subscription at Polar.
+  /// Core counts it ended already; the Polar sync job revokes it, then
+  /// clears this. Polar's events leave the row alone meanwhile.
+  revokeOwedAt            DateTime?
+  /// Failed revokes since `revokeOwedAt`; reported once when it reaches
+  /// the job's limit.
+  revokeFailures          Int       @default(0)
 
   @@unique([polarSubscriptionId])
   @@unique([projectId], map: "polar_subscription_project_live_key", where: { endedAt: null })

@@ -84307,7 +84307,7 @@ export type StartCmoOverForProjectErrors = {
         };
     };
     /**
-     * His subscription could not be ended at Polar; nothing was changed
+     * Polar is not configured; nothing was changed
      */
     503: {
         error: string;
