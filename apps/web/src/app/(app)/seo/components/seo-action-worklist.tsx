@@ -20,6 +20,7 @@ import {
   seoActionWorklist,
 } from "./seo-overview-model";
 import {
+  SEO_ROW_ARROW_CLASS,
   SEO_ROW_BUTTON_CLASS,
   SEO_ROW_LIST_CLASS,
   SEO_SEVERITY_MARK_CLASS,
@@ -143,10 +144,12 @@ export function SeoActionWorklist({
         </p>
       ) : null}
       <ul
+        // A new filter brings its rows in one after the other, as the first paint does.
+        key={shown}
         ref={list}
         role="list"
         aria-label={t("actions.title")}
-        className={SEO_ROW_LIST_CLASS}
+        className={cn(SEO_ROW_LIST_CLASS, "stagger [--stagger-step:30ms]")}
       >
         {rows.map((action) => (
           <SeoWorklistRow
@@ -252,7 +255,7 @@ function SeoWorklistRow({
             </SeoState>
           </span>
         </span>
-        <ChevronRight className="text-muted-foreground size-4 shrink-0 self-center" />
+        <ChevronRight className={cn(SEO_ROW_ARROW_CLASS, "self-center")} />
       </button>
     </li>
   );

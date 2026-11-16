@@ -3,6 +3,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SEO_FIGURE_ICON } from "./seo-agent-figures";
 import { SeoDemandChart } from "./seo-demand-chart";
 import { latestSeoMeasurements, seoChartMarkers } from "./seo-statistics-model";
 import { seoKeywordDemand } from "./seo-summary-model";
@@ -68,9 +69,11 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
         >
           {/* The keyword searches lead: they show what the site can win, also before it gets clicks. */}
           <ToggleGroupItem value="keywords" className={CHART_SWITCH_ITEM_CLASS}>
+            <SEO_FIGURE_ICON.searches aria-hidden className="text-chart-4" />
             {t("agent.chartKeywords")}
           </ToggleGroupItem>
           <ToggleGroupItem value="clicks" className={CHART_SWITCH_ITEM_CLASS}>
+            <SEO_FIGURE_ICON.clicks aria-hidden className="text-chart-5" />
             {t("metrics.clicks")}
           </ToggleGroupItem>
         </ToggleGroup>
@@ -80,27 +83,30 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
           {t("metrics.clicks")}
         </p>
       ) : null}
-      {clicks && shown === "clicks" ? (
-        <SeoTrendChart
-          key={clicks.id}
-          series={clicks}
-          label={t("metrics.clicks")}
-          points={clicks.points}
-          unit={clicks.unit}
-          unavailable={t("none")}
-          formatValue={(value) => format.number(value)}
-          markers={seoChartMarkers(model.data, clicks.timeZone)}
-        />
-      ) : (
-        <SeoDemandChart
-          demand={demand}
-          onOpenKeyword={(keyword) => {
-            // The Rankings tab opens filtered to the keyword.
-            model.setKeywordSearch(keyword);
-            void model.setFilters({ tab: "rankings" });
-          }}
-        />
-      )}
+      {/* The new picture fades in where the old one was. */}
+      <div key={shown} className="content-in min-w-0">
+        {clicks && shown === "clicks" ? (
+          <SeoTrendChart
+            key={clicks.id}
+            series={clicks}
+            label={t("metrics.clicks")}
+            points={clicks.points}
+            unit={clicks.unit}
+            unavailable={t("none")}
+            formatValue={(value) => format.number(value)}
+            markers={seoChartMarkers(model.data, clicks.timeZone)}
+          />
+        ) : (
+          <SeoDemandChart
+            demand={demand}
+            onOpenKeyword={(keyword) => {
+              // The Rankings tab opens filtered to the keyword.
+              model.setKeywordSearch(keyword);
+              void model.setFilters({ tab: "rankings" });
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

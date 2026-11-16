@@ -24,7 +24,12 @@ import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoIssueSeverity } from "./seo-overview-model";
-import { SEO_ROW_BUTTON_CLASS, SeoActionName, SeoSeverity } from "./seo-shared";
+import {
+  SEO_ROW_ARROW_CLASS,
+  SEO_ROW_BUTTON_CLASS,
+  SeoActionName,
+  SeoSeverity,
+} from "./seo-shared";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
@@ -218,7 +223,7 @@ export function SeoActionsLinkRow({
         onClick={model.showStrategy}
       >
         <span className="min-w-0 flex-1">{children}</span>
-        <ChevronRight className="size-4 shrink-0" />
+        <ChevronRight className={SEO_ROW_ARROW_CLASS} />
       </button>
     </li>
   );
@@ -283,7 +288,7 @@ export function SeoActionStepRow({
             </span>
           ) : null}
         </span>
-        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+        <ChevronRight className={SEO_ROW_ARROW_CLASS} />
       </button>
       {/* The lead opens its action on the Actions tab, among the others: its dialog holds the Task button with
           the reasons, so a Task is drafted once its reasons were in view. */}
@@ -292,10 +297,12 @@ export function SeoActionStepRow({
           <Button
             size="sm"
             variant="secondary"
+            className="group/open"
             onClick={() => model.showAction(seoActionKey(action))}
           >
             {t("agent.openAction")}
-            <ArrowRight />
+            {/* The arrow leans toward the Actions tab it leads to. */}
+            <ArrowRight className="motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out motion-safe:group-hover/open:translate-x-0.5" />
           </Button>
         </div>
       ) : null}
