@@ -11656,7 +11656,7 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
-      "manageStatistics": "Google-Statistiken verwalten",
+      "manageStatistics": "Google-Verbindungen",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
@@ -11679,13 +11679,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Nur du kannst dieses Ergebnis sehen.",
+        "relatedFindingPage": "Zugehörige Seite",
         "measurements": "Zugriffe",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Probleme noch ohne Lösung",
+        "findings": "Audit-Ergebnisse",
+        "suggestedFix": "Vorgeschlagene Korrektur",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -11754,10 +11757,10 @@
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
         "changeMarker": "Erfasste Änderung am {day}: {changes}",
         "points": "{value} Pp.",
-        "googleUpdate": "Google: {name}, {from} bis {to}",
-        "googleUpdateOpen": "Google: {name}, {from} bis {to}, wird noch ausgerollt",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google-Updates bekannt bis {day}"
+        "googleUpdate": "{name}: {from} bis {to}",
+        "googleUpdateOpen": "{name}: seit {from}, läuft noch",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Stand der Google-Updates: {day}"
       },
       "keywords": {
         "title": "Keywords",
@@ -12080,6 +12083,7 @@
         "failed": "Fehlgeschlagen",
         "invalid": "Prüfe Seiten, Keywords, Markt und Geräte. Vollständige Audits erlauben ein Keyword und beide Geräte.",
         "keywordsHelp": "Gib bis zu 20 Keywords mit jeweils bis zu 80 Zeichen ein.",
+        "relatedPages": "Prüft auch die Indexierung relevanter Seiten dieser Website, insgesamt bis zu {count} Seiten. Vollständige Audits prüfen nur ausgewählte Seiten.",
         "fullHelp": "Vollständige Audits erlauben ein Keyword und beide Geräte. Alle ausgewählten Seiten verwenden denselben Markt.",
         "serviceUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Kehre zum Audit zurück.",
         "returnToAudit": "Zurück zum Audit",
@@ -12093,8 +12097,8 @@
         "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten."
       },
       "statistics": {
-        "title": "Google-Statistiken",
-        "description": "Statistiken werden für die ausgewählten Seiten automatisch geladen. Wähle nur bei Bedarf eine Property.",
+        "title": "Google-Verbindungen",
+        "description": "Verbinde deine Google-Quellen. Statistiken für die ausgewählten Seiten werden automatisch geladen.",
         "provider": "Quelle",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12108,17 +12112,20 @@
         "propertiesLoading": "Autorisierte Properties werden geladen",
         "propertiesFailed": "Properties konnten nicht geladen werden. Versuche es erneut.",
         "noProperties": "Keine autorisierten Properties verfügbar.",
-        "ownerOnly": "Statistiken verwenden dein verbundenes Konto und dessen Zugriffsrechte.",
+        "ownerOnly": "Sokosumi liest Statistiken nur mit deinem Google-Zugriff.",
         "shared": "Gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt. Dein Google-Konto bleibt unter deiner Kontrolle.",
         "synced": "Statistiken synchronisiert",
         "readsSearch": "Liest die letzten {days} Tage der Google-Suchdaten.",
         "readsOrganic": "Liest die letzten {days} Tage des Traffics aus der organischen Suche.",
         "readsAll": "Liest die letzten {days} Tage des gesamten Website-Traffics.",
         "channelAny": "Alle gemessenen Segmente",
-        "connectTitle": "Statistiken einrichten",
-        "connectFirst": "Verbinde {provider}. Statistiken der letzten 90 Tage werden automatisch geladen.",
         "channelAiAssistant": "KI-Assistenten (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot."
+        "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot.",
+        "measures": {
+          "search_console": "Suchanfragen, Klicks und Positionen in der Google-Suche",
+          "ga4": "Besuche und Seitenaufrufe auf deiner Website"
+        },
+        "propertyNotMatching": "Diese Property deckt die ausgewählten Seiten nicht ab, daher werden keine Statistiken daraus geladen."
       },
       "metrics": {
         "page_views": "Seitenaufrufe",
@@ -12333,7 +12340,14 @@
         "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit.",
         "connectGoogle": "Google verbinden",
         "analyticsNext": "Google fragt zweimal nach deiner Zustimmung: zuerst für Search Console, dann für Google Analytics.",
-        "analyticsOff": "Google Analytics ist nicht verbunden. Besuche und Seitenaufrufe bleiben leer."
+        "connectShort": "Verbinden",
+        "connectedShort": "Verbunden",
+        "googleAccount": "Google-Konto",
+        "noneConnected": "Noch keine Quelle verbunden",
+        "options": "Optionen für das Google-Konto",
+        "settings": "Statistik-Einstellungen",
+        "switchFor": "Konto wechseln: {provider}",
+        "notConnected": "Nicht verbunden"
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
@@ -12491,6 +12505,20 @@
           "device": "Google nennt ein Gerät nur für {listed, number} von {total, number} Impressionen.",
           "both": "Google nennt Land und Gerät nur für {listed, number} von {total, number} Impressionen."
         }
+      },
+      "indexReview": {
+        "title": "Hinweise zur Indexierung",
+        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
+        "checked": "Geprüft",
+        "state": {
+          "review": "Prüfung erforderlich",
+          "expected_exclusion": "Erwarteter Ausschluss",
+          "unavailable": "Nicht geprüft"
+        },
+        "suggestedFix": "Vorgeschlagener nächster Schritt",
+        "evidence": "Nachweise ansehen",
+        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
+        "sources": "Quellen: Google Search Console und dieses Audit."
       },
       "index": {
         "title": "Google-Index",
@@ -12726,6 +12754,7 @@
           "publishing": "Du setzt Änderungen selbst um, prüfst Korrekturen nach und teilst Berichte mit Kunden."
         },
         "gaps": {
+          "noSearchTraffic": "Suchstatistiken sind noch nicht verfügbar. Ergebnisse zur Indexierung findest du in diesem Audit.",
           "statisticsIncomplete": "Einige Google-Statistiken fehlen. Der Agent kann nur die verfügbaren Daten bewerten.",
           "checksIncomplete": "Einige Prüfungen lieferten kein Ergebnis. Dieses Audit kann Probleme übersehen.",
           "title": "Fehlende Audit-Daten",
@@ -12760,7 +12789,7 @@
         "fix": {
           "connect_search_console": "Statistiken einrichten",
           "connect_ga4": "Statistiken einrichten",
-          "sync": "Google-Statistiken verwalten",
+          "sync": "Google-Verbindungen",
           "run_check": "Prüfung starten"
         },
         "items": {

@@ -18,7 +18,7 @@ export async function openStatisticsSetup(user: {
 }) {
   await user.click(screen.getByRole("button", { name: "Manage SEO" }));
   await user.click(
-    await screen.findByRole("menuitem", { name: "Set up statistics" }),
+    await screen.findByRole("menuitem", { name: "Google connections" }),
   );
 }
 

@@ -71,6 +71,9 @@ export function SeoTrendChart({
       dateStyle: "medium",
       timeZone: "UTC",
     });
+  // A range that crosses years needs both years; same-year dates stay compact.
+  const updateDay = (date: string, other: string) =>
+    date.slice(0, 4) === other.slice(0, 4) ? day(date) : fullDay(date);
   // A day carries the recorded changes and the Google updates that run on it.
   const changeOn = (date: string) => {
     const labels = [
@@ -349,21 +352,20 @@ export function SeoTrendChart({
                 className="bg-quinary border-border mt-0.5 size-3 shrink-0 rounded-xs border"
               />
               <span>
-                {update.open && update.last
+                {update.open
                   ? t("googleUpdateOpen", {
                       name: update.name,
-                      from: fullDay(update.first),
-                      to: fullDay(update.last),
+                      from: day(update.first),
                     })
                   : update.last && update.last !== update.first
                     ? t("googleUpdate", {
                         name: update.name,
-                        from: fullDay(update.first),
-                        to: fullDay(update.last),
+                        from: updateDay(update.first, update.last),
+                        to: updateDay(update.last, update.first),
                       })
                     : t("googleUpdateDay", {
                         name: update.name,
-                        day: fullDay(update.first),
+                        day: day(update.first),
                       })}
               </span>
             </li>

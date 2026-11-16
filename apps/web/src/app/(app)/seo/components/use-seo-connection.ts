@@ -20,6 +20,16 @@ import {
 import { seoViewerHeaders } from "@/lib/seo/owner";
 
 export type SeoConnectionProvider = SeoConnectionStatus["provider"];
+
+/** The Google account behind a connected source, when Core could read it. */
+export type SeoGoogleAccount = NonNullable<SeoConnectionStatus["account"]>;
+
+/** The account of a connected source. Another state has none to show. */
+export function seoConnectionAccount(
+  status: SeoConnectionStatus | undefined,
+): SeoGoogleAccount | null {
+  return status?.status === "connected" ? (status.account ?? null) : null;
+}
 export type SeoConnectionAction = "connect" | "resume" | "disconnect";
 
 /** The saved state of one Google connection. Every reader of a provider shares one request. */

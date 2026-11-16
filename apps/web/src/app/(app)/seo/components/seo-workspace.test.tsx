@@ -401,9 +401,8 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
     );
-    // No account yet: the dialog is the connect step.
     expect(
-      await screen.findByRole("dialog", { name: "Set up statistics" }),
+      await screen.findByRole("dialog", { name: "Google connections" }),
     ).toBeVisible();
   });
 
@@ -2639,6 +2638,101 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
+  it("includes Search Console indexing issues and their suggested fixes in the audit findings", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const pageUrl = workspace.pages[0].url;
+    const relatedPageUrl = `${pageUrl}related`;
+    const checkedAt = new Date("2026-11-16T08:00:00Z");
+    const reason =
+      "Google could not fetch this page, and the audit found a server error.";
+    const suggestedFix =
+      "Repair the server error, then check the page again before requesting a recrawl.";
+    workspace.findings = [
+      {
+        id: "gsc-indexing-issue",
+        relatedPageUrl,
+        observationId: workspace.observations[0].id,
+        pageUrl,
+        device: null,
+        rowId: "AC-20",
+        title: "Google Search Console indexing",
+        severity: "major",
+        evidence: [reason, "Google says: Server error (5xx)."],
+        suggestedFix,
+        visibility: "PRIVATE",
+        sourceRef: "seo-indexing:receipt",
+        observedAt: checkedAt,
+      },
+      {
+        id: "public-page-issue",
+        observationId: workspace.observations[0].id,
+        pageUrl,
+        device: "mobile",
+        rowId: "O-01",
+        title: "Public page issue",
+        severity: "minor",
+        evidence: ["The public page is missing a description."],
+        sourceRef: "public-page:receipt",
+        observedAt: checkedAt,
+      },
+    ];
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt,
+          pageUrl,
+          status: "issue",
+          report: true,
+          reason,
+          suggestedFix,
+          evidence: ["Google says: Server error (5xx)."],
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    const findings = screen
+      .getByRole("heading", { name: "Audit findings" })
+      .closest("section");
+    if (!findings) throw new Error("Audit findings section missing");
+    const summary = within(findings)
+      .getByText("Google Search Console indexing")
+      .closest("summary");
+    if (!summary) throw new Error("Indexing finding summary missing");
+    expect(
+      screen.queryByRole("heading", { name: "Indexing review notes" }),
+    ).toBeNull();
+    await user.click(summary);
+    expect(within(findings).getByText(reason)).toBeVisible();
+    expect(
+      within(findings).getByRole("link", { name: relatedPageUrl }),
+    ).toHaveAttribute("href", relatedPageUrl);
+    expect(workspace.pages).toHaveLength(1);
+    expect(
+      within(findings).getByText("Google says: Server error (5xx)."),
+    ).toBeVisible();
+    expect(within(findings).getByText("Suggested fix")).toBeVisible();
+    expect(within(findings).getByText(suggestedFix)).toBeVisible();
+    expect(
+      within(findings).getByText("Only you can see this finding."),
+    ).toBeVisible();
+    const publicDetails = within(findings)
+      .getByText("Public page issue")
+      .closest("details");
+    if (!publicDetails) throw new Error("Public finding details missing");
+    expect(
+      within(publicDetails).queryByText("Only you can see this finding."),
+    ).toBeNull();
+    expect(
+      within(findings).queryByRole("button", { name: /create task/i }),
+    ).toBeNull();
+  });
+
   it("lists search totals by country and device, folding countries past ten", () => {
     const workspace = seoTestWorkspace();
     const row = (key: string, clicks: number) => ({
@@ -3145,6 +3239,13 @@ describe("SEO workspace integration", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string) => {
+        if (String(input).includes("/api/seo/connections/search_console"))
+          return Response.json({
+            provider: "search_console",
+            name: "Search Console",
+            status: "connected",
+            source: "native",
+          });
         if (String(input).includes("statistics/properties"))
           return Response.json({
             provider: "search_console",
@@ -3162,17 +3263,17 @@ describe("SEO workspace integration", () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
-      expect(
-        within(dialog).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console");
+      const search = within(dialog).getByRole("region", {
+        name: "Search Console",
+      });
       await waitFor(() =>
         expect(
-          within(dialog).getByRole("combobox", { name: "Property" }),
+          within(search).getByRole("combobox", { name: "Property" }),
         ).toHaveTextContent("Example website"),
       );
       // The saved period is not offered again: every sync reads the same rolling days.
       expect(
-        within(dialog).getByTestId("seo-statistics-reads"),
+        within(search).getByTestId("seo-statistics-reads-search_console"),
       ).toHaveTextContent("Reads the last 90 days of Google search data.");
       await user.click(
         within(dialog).getAllByRole("button", { name: "Close" })[0],
@@ -4000,7 +4101,8 @@ describe("SEO workspace integration", () => {
             ? {
                 provider: "ga4",
                 name: "Google Analytics",
-                status: "connected",
+                // Only Google Analytics has an account, so only its section reads properties.
+                status: url.endsWith("/ga4") ? "connected" : "not_connected",
                 source: "native",
               }
             : url.includes("/statistics/properties")
@@ -4019,13 +4121,19 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
     expect(await screen.findByText("Current Google account")).toBeVisible();
-    // The account is one line; its two actions are in the line's menu.
+    // The accounts are one card; its one menu holds the rare account actions per source.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Google Analytics connected" }),
+      await screen.findByRole("button", { name: "Google account options" }),
     );
+    // Only the connected source has actions.
+    expect(
+      screen.queryByRole("menuitem", { name: "Disconnect Search Console" }),
+    ).toBeNull();
     // The question opens above the statistics dialog; Escape closes the question only.
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "Disconnect" }),
+      await screen.findByRole("menuitem", {
+        name: "Disconnect Google Analytics",
+      }),
     );
     expect(await screen.findByRole("alertdialog")).toBeVisible();
     await userEvent.keyboard("{Escape}");
@@ -4343,12 +4451,22 @@ describe("SEO workspace integration", () => {
     );
     await openCheckOptions(user);
     expect(checkType()).toHaveTextContent("Full audit");
+    expect(
+      screen.getByText(
+        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
+      ),
+    ).toBeVisible();
     // A full audit takes one keyword, so the form does not open on a list it would refuse.
     const keywords = () => screen.getByLabelText("Keywords, one per line");
     expect(keywords()).toHaveValue("stablecoins");
     // Another check type takes the whole saved list again.
     await user.click(checkType());
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
+    expect(
+      screen.queryByText(
+        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
+      ),
+    ).toBeNull();
     expect(keywords()).toHaveValue("stablecoins\nstablecoin wallet");
     await user.click(checkType());
     await user.click(screen.getByRole("option", { name: "Full audit" }));
@@ -5058,17 +5176,15 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
-    // No account yet: the dialog asks for the account. The sync fields and the sync button follow the approval.
+    // No account yet: each source asks for its account. The property fields follow the approval.
     const dialog = await screen.findByRole("dialog", {
-      name: "Set up statistics",
+      name: "Google connections",
     });
-    expect(
-      within(dialog).getByText(
-        // No account at all: Search Console is the first one to connect.
-        "Connect Search Console. Statistics for the last 90 days will load automatically.",
-      ),
-    ).toBeVisible();
-    expect(within(dialog).queryByTestId("seo-statistics-reads")).toBeNull();
+    for (const name of ["Connect Search Console", "Connect Google Analytics"])
+      expect(await within(dialog).findByRole("button", { name })).toBeVisible();
+    expect(within(dialog).queryAllByTestId(/^seo-statistics-reads-/)).toEqual(
+      [],
+    );
     expect(
       within(dialog).queryByRole("button", { name: "Sync statistics" }),
     ).toBeNull();
@@ -6069,9 +6185,17 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
-    expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
-      "2 issues to fix: 1 high impact and 1 low impact",
-    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "2 issues to fix: 1 high impact and 1 low impact",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getAllByText("2 issues to fix: 1 high impact and 1 low impact"),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole("heading", { name: "The agent proposes" }),
+    ).toBeNull();
     expect(screen.queryByTestId("seo-summary-issues")).toBeNull();
     expect(screen.queryByTestId("seo-summary-tests")).toBeNull();
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
