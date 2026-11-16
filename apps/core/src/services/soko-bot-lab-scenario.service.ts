@@ -141,6 +141,7 @@ export async function loadLabScenarioTurn(turnId: string) {
       durationMs: true,
       costUsdMicros: true,
       errorKind: true,
+      errorDetail: true,
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: { capability: true, status: true, input: true, result: true },
