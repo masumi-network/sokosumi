@@ -8,12 +8,12 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { SeoActionWorklist } from "./seo-action-worklist";
 import type { SeoIssueSeverity } from "./seo-overview-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
-import type { SeoWorkspaceModel } from "./use-seo-workspace";
+import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 afterEach(cleanup);
 
@@ -118,18 +118,31 @@ describe("SEO action worklist", () => {
     ).toHaveFocus();
   });
 
-  it("gives the focus back to the row of the closed dialog, also when the list changed meanwhile", async () => {
+  it("opens the action the Agent tab sent, and gives the focus to its row when its dialog closes", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(view([high, low]));
-    await user.click(screen.getByRole("button", { name: "Fix the redirect" }));
-    await screen.findByRole("dialog", { name: "Fix the redirect" });
-    // A new check puts a row before it: the row is a new element by then.
-    const idea = {
-      ...action("idea", "Write a guide"),
-      kind: "opportunity",
-    } as const;
-    rerender(view([idea, high, low]));
+    const setShownAction = vi.fn();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <SeoActionWorklist
+          actions={[high, low]}
+          severity={severity}
+          model={
+            {
+              ...model,
+              shownAction: seoActionKey(low),
+              setShownAction,
+            } as unknown as SeoWorkspaceModel
+          }
+          tools={null}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "Fix the redirect" }),
+    ).toBeVisible();
+    expect(setShownAction).toHaveBeenCalledWith(null);
     await user.keyboard("{Escape}");
+    // Its row, not the first row: no row was pressed to open it.
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Fix the redirect" }),

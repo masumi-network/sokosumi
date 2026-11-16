@@ -80,17 +80,15 @@ export function SeoActionWorklist({
     )?.focus();
   });
   const rows = rowsFor(shown);
-  // The lead of the Agent tab sent the reader here for one action: it opens among all rows. One that left the
-  // list in the meantime opens nothing.
+  // The lead of the Agent tab sent the reader here for one action: the tab mounts the list with all rows, and
+  // the action opens in its dialog. One that left the list in the meantime closes at once, below.
   const { shownAction, setShownAction } = model;
   useEffect(() => {
     if (!shownAction) return;
     setShownAction(null);
-    if (!actions.some((action) => seoActionKey(action) === shownAction)) return;
-    setFilter("all");
     focusKey.current = shownAction;
     setOpenKey(shownAction);
-  }, [shownAction, setShownAction, actions]);
+  }, [shownAction, setShownAction]);
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
   // An action that left the list closes its dialog, and the dialog does not open again when it comes back.
   const opened = actions.find((action) => seoActionKey(action) === openKey);
