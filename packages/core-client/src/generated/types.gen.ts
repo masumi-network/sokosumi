@@ -14166,6 +14166,37 @@ export type TaskLinkDeleted = {
     deleted: true;
 };
 
+export type TaskPlan = {
+    /**
+     * Depth-first rows, blockers before sub-tasks.
+     */
+    items: Array<TaskPlanItem>;
+    /**
+     * Row or link limit reached; the plan shows only part.
+     */
+    truncated: boolean;
+};
+
+export type TaskPlanItem = {
+    /**
+     * Links between the opened Task and this one (1 is direct).
+     */
+    depth: number;
+    /**
+     * Relation from the Task one level up: blocked_by (this Task blocks it) or parent (this Task is its sub-task).
+     */
+    relation: 'blocked_by' | 'parent';
+    task: TaskLinkPeerTask;
+    /**
+     * loops_back: an ancestor on this path. shown_above: already an earlier row. Repeats are not expanded.
+     */
+    repeat: 'loops_back' | 'shown_above' | null;
+    /**
+     * At the depth limit and has visible links beyond it.
+     */
+    hasMore: boolean;
+};
+
 export type TaskParticipants = {
     participants: Array<TaskParticipant>;
 };
@@ -96297,6 +96328,66 @@ export type PatchTasksByIdLinksByLinkIdResponses = {
 };
 
 export type PatchTasksByIdLinksByLinkIdResponse = PatchTasksByIdLinksByLinkIdResponses[keyof PatchTasksByIdLinksByLinkIdResponses];
+
+export type GetTasksByIdPlanData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/plan';
+};
+
+export type GetTasksByIdPlanErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdPlanError = GetTasksByIdPlanErrors[keyof GetTasksByIdPlanErrors];
+
+export type GetTasksByIdPlanResponses = {
+    /**
+     * Task plan
+     */
+    200: {
+        data: TaskPlan;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdPlanResponse = GetTasksByIdPlanResponses[keyof GetTasksByIdPlanResponses];
 
 export type PostTasksByIdParticipantsData = {
     body?: never;

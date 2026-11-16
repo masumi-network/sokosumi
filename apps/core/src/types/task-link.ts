@@ -46,7 +46,7 @@ export const taskLinksInclude = {
   },
 } as const;
 
-function buildVisiblePeerTaskWhere(
+export function buildVisiblePeerTaskWhere(
   authContext: AuthenticationContext,
   workspaceId?: string | null,
 ): Prisma.TaskWhereInput {

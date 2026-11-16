@@ -55519,6 +55519,77 @@ export const TaskLinkDeletedSchema = {
     ]
 } as const;
 
+export const TaskPlanSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskPlanItem'
+            },
+            description: 'Depth-first rows, blockers before sub-tasks.'
+        },
+        truncated: {
+            type: 'boolean',
+            example: false,
+            description: 'Row or link limit reached; the plan shows only part.'
+        }
+    },
+    required: [
+        'items',
+        'truncated'
+    ]
+} as const;
+
+export const TaskPlanItemSchema = {
+    type: 'object',
+    properties: {
+        depth: {
+            type: 'integer',
+            minimum: 1,
+            example: 1,
+            description: 'Links between the opened Task and this one (1 is direct).'
+        },
+        relation: {
+            type: 'string',
+            enum: [
+                'blocked_by',
+                'parent'
+            ],
+            example: 'blocked_by',
+            description: 'Relation from the Task one level up: blocked_by (this Task blocks it) or parent (this Task is its sub-task).'
+        },
+        task: {
+            $ref: '#/components/schemas/TaskLinkPeerTask'
+        },
+        repeat: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'loops_back',
+                'shown_above',
+                null
+            ],
+            example: null,
+            description: 'loops_back: an ancestor on this path. shown_above: already an earlier row. Repeats are not expanded.'
+        },
+        hasMore: {
+            type: 'boolean',
+            example: false,
+            description: 'At the depth limit and has visible links beyond it.'
+        }
+    },
+    required: [
+        'depth',
+        'relation',
+        'task',
+        'repeat',
+        'hasMore'
+    ]
+} as const;
+
 export const TaskParticipantsSchema = {
     type: 'object',
     properties: {

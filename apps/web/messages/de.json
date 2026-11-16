@@ -2135,7 +2135,15 @@
         "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut.",
         "credits": "In diesem Workspace verbrauchte Credits",
         "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
-        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht"
+        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht",
+        "plan": {
+          "title": "Plan rund um diese Aufgabe",
+          "hint": "Blocker und Unteraufgaben bis zu 3 Verknüpfungen entfernt.",
+          "loopsBack": "Führt zurück zu einer früheren Aufgabe",
+          "shownAbove": "Weiter oben gezeigt",
+          "more": "Weiteres außerhalb dieser Ansicht",
+          "truncated": "Nur ein Teil des Plans wird gezeigt."
+        }
       },
       "NewTask": {
         "ContextAttachments": {

@@ -378,6 +378,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdEvents as coreGetTasksByIdEvents,
   getTasksByIdLinks as coreGetTasksByIdLinks,
+  getTasksByIdPlan as coreGetTasksByIdPlan,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getTasksSchedules as coreGetTasksSchedules,
   getTasksSchedulesById as coreGetTasksSchedulesById,
@@ -5873,6 +5874,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getTaskPlan(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdPlan({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch task plan",
+    );
+  }
+
   async function createTaskLink(
     id: string,
     body: NonNullable<PostTasksByIdLinksData["body"]>,
@@ -7418,6 +7432,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTaskById,
     getTaskEvents,
     getTaskLinks,
+    getTaskPlan,
     getTaskWorkspace,
     getTasks,
     getTasksSummary,

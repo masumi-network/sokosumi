@@ -23,6 +23,7 @@ import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskPlanSection } from "@/app/tasks/components/task-plan";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
@@ -136,6 +137,7 @@ export async function TaskDetailView({
     translationsPromise,
     getTranslations("App.Tasks.Filters.statusOptions"),
   ]);
+  const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
 
   return (
     <div className="min-h-full w-full">
@@ -248,9 +250,17 @@ export async function TaskDetailView({
                   child: t("actions.relations.parent"),
                   duplicate: t("actions.relations.duplicate"),
                 }}
-                statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
+                statusLabels={statusLabels}
                 hrefBasePath={relatedTaskHrefBasePath}
               />
+              {forceReadOnly ? null : (
+                <Suspense fallback={null}>
+                  <TaskPlanSection
+                    taskId={taskId}
+                    statusLabels={statusLabels}
+                  />
+                </Suspense>
+              )}
             </div>
           </aside>
 

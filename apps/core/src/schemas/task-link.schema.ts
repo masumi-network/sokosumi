@@ -32,7 +32,7 @@ const patchTaskLinkRequestExample = {
   note: "Moved under the onboarding epic",
 } as const;
 
-const taskLinkPeerTaskSchema = z
+export const taskLinkPeerTaskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_b" }),
     name: z.string().openapi({ example: "Review onboarding copy" }),
@@ -112,3 +112,39 @@ export const patchTaskLinkRequestSchema = z
     path: ["relation", "note"],
   })
   .openapi({ example: patchTaskLinkRequestExample });
+
+const taskPlanItemSchema = z
+  .object({
+    depth: z.number().int().min(1).openapi({
+      example: 1,
+      description: "Links between the opened Task and this one (1 is direct).",
+    }),
+    relation: z.enum(["blocked_by", "parent"]).openapi({
+      example: "blocked_by",
+      description:
+        "Relation from the Task one level up: blocked_by (this Task blocks it) or parent (this Task is its sub-task).",
+    }),
+    task: taskLinkPeerTaskSchema,
+    repeat: z.enum(["loops_back", "shown_above"]).nullable().openapi({
+      example: null,
+      description:
+        "loops_back: an ancestor on this path. shown_above: already an earlier row. Repeats are not expanded.",
+    }),
+    hasMore: z.boolean().openapi({
+      example: false,
+      description: "At the depth limit and has visible links beyond it.",
+    }),
+  })
+  .openapi("TaskPlanItem");
+
+export const taskPlanSchema = z
+  .object({
+    items: z.array(taskPlanItemSchema).openapi({
+      description: "Depth-first rows, blockers before sub-tasks.",
+    }),
+    truncated: z.boolean().openapi({
+      example: false,
+      description: "Row or link limit reached; the plan shows only part.",
+    }),
+  })
+  .openapi("TaskPlan");

@@ -2135,7 +2135,15 @@
         "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo.",
         "credits": "Créditos usados en este espacio de trabajo",
         "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
-        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo",
+        "plan": {
+          "title": "Plan en torno a esta tarea",
+          "hint": "Bloqueos y subtareas hasta a 3 enlaces de distancia.",
+          "loopsBack": "Vuelve a una tarea anterior",
+          "shownAbove": "Mostrada arriba",
+          "more": "Hay más fuera de esta vista",
+          "truncated": "Solo se muestra una parte del plan."
+        }
       },
       "NewTask": {
         "ContextAttachments": {

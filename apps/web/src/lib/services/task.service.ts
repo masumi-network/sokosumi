@@ -11,6 +11,7 @@ import type {
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
+  TaskPlan,
   TaskPriority,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
@@ -367,6 +368,17 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /** Blockers and sub-tasks around a Task, a few links deep. Null on failure. */
+  async function getTaskPlan(taskId: string): Promise<TaskPlan | null> {
+    try {
+      const result = await coreClient.getTaskPlan(taskId);
+      return result.data ?? null;
+    } catch (error) {
+      console.warn("Task plan failed", { taskId, error });
+      return null;
+    }
+  }
+
   async function listTaskLinks(taskId: string): Promise<TaskLink[]> {
     const result = await coreClient.getTaskLinks(taskId);
     return result.data;
@@ -461,6 +473,7 @@ export const taskService = (() => {
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getTaskPlan,
     getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,

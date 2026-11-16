@@ -38,7 +38,7 @@ function mapTaskLinkRelation(
   }
 }
 
-function mapTaskLinkPeerTask(peerTask: TaskLinkRow["toTask"]) {
+export function mapTaskLinkPeerTask(peerTask: TaskLinkRow["toTask"]) {
   if (!peerTask) {
     return null;
   }

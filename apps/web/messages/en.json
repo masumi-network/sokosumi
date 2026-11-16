@@ -2135,7 +2135,15 @@
         "removeParticipantError": "Couldn’t remove participant. Try again.",
         "credits": "Credits used in this workspace",
         "creditsUsed": "{credits, plural, one {# credit used in this workspace} other {# credits used in this workspace}}",
-        "noCreditsUsed": "No credits used in this workspace"
+        "noCreditsUsed": "No credits used in this workspace",
+        "plan": {
+          "title": "Plan around this Task",
+          "hint": "Blockers and sub-tasks up to 3 links away.",
+          "loopsBack": "Loops back to an earlier Task",
+          "shownAbove": "Shown above",
+          "more": "More beyond this view",
+          "truncated": "Only part of the plan is shown."
+        }
       },
       "NewTask": {
         "ContextAttachments": {
