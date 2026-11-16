@@ -1,4 +1,7 @@
-import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_SYSTEM_SCHEDULES,
+  sokoBotSystemSchedulePrompt,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -472,8 +475,9 @@ describe("SokoBotSchedulesSyncService", () => {
       const standup = SOKO_BOT_SYSTEM_SCHEDULES.find(
         (schedule) => schedule.key === "standup",
       );
+      if (!standup) throw new Error("no stand-up rhythm");
       expect(vi.mocked(buildSystemBeatMessage).mock.calls[0]?.[0].prompt).toBe(
-        shared ? standup?.promptShared : standup?.prompt,
+        sokoBotSystemSchedulePrompt(standup, shared),
       );
     },
   );
