@@ -240,6 +240,7 @@ function ScopedMenuItems({
       Icon: Megaphone,
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",
+      prefetchContent: true,
     },
     ...(newsletterEnabled
       ? [
