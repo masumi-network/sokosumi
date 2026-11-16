@@ -167,7 +167,7 @@ export function SeoActionDetail({
           workspace={model.data}
         />
       </div>
-      <div className="bg-muted/40 flex flex-wrap justify-end gap-2 border-t px-6 py-4">
+      <div className="bg-senary flex flex-wrap justify-end gap-2 border-t px-6 py-4">
         <SeoCopyButton
           text={instructions}
           label={t("actions.copyInstructions")}
