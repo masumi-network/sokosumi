@@ -297,6 +297,7 @@ async function loadSeoWorkspaceObservations(
   actor: SeoActor,
   pageIds: string[],
   privateMetricsAllowed: boolean,
+  includePrivateIndexing: boolean,
 ) {
   // Settings rows cover no page, so the page filter keeps them out.
   const where = { ...seoOwnerWhere(actor), pageIds: { hasSome: pageIds } };
@@ -321,8 +322,31 @@ async function loadSeoWorkspaceObservations(
         })
       : [],
   ]);
+  const taskIds = evidence.flatMap((row) =>
+    row.kind === "audit_full" && row.sourceTaskId ? [row.sourceTaskId] : [],
+  );
+  // One newest private assessment per loaded audit. Unrelated syncs cannot evict its Console findings.
+  const indexing =
+    privateMetricsAllowed && includePrivateIndexing && taskIds.length
+      ? await prisma.projectSeoObservation.findMany({
+          where: {
+            ...where,
+            kind: "index_triage",
+            ownerId: actor.userId,
+            visibility: "PRIVATE",
+            sourceTaskId: { in: taskIds },
+          },
+          orderBy: [
+            { observedAt: "desc" },
+            { createdAt: "desc" },
+            { id: "desc" },
+          ],
+          distinct: ["sourceTaskId"],
+          take: SEO_WORKSPACE_EVIDENCE_LIMIT,
+        })
+      : [];
   return {
-    observations: [...evidence, ...metrics].sort(
+    observations: [...evidence, ...metrics, ...indexing].sort(
       (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
     ),
     historyLimited:
@@ -335,6 +359,7 @@ async function loadSeoWorkspaceObservations(
 export async function getProjectSeoWorkspace(
   actor: SeoActor,
   query: SeoWorkspaceQuery = {},
+  options: { includePrivateIndexing?: boolean } = {},
 ) {
   await requireSeoOwner(actor);
   const scope = await resolveSeoScope(actor, query);
@@ -360,7 +385,12 @@ export async function getProjectSeoWorkspace(
       where: seoOwnerWhere(actor),
       orderBy: { createdAt: "asc" },
     }),
-    loadSeoWorkspaceObservations(actor, scope.pageIds, privateMetricsAllowed),
+    loadSeoWorkspaceObservations(
+      actor,
+      scope.pageIds,
+      privateMetricsAllowed,
+      options.includePrivateIndexing !== false,
+    ),
     prisma.projectSeoKeyword.findMany({
       where: seoOwnerWhere(actor),
       orderBy: { keyword: "asc" },

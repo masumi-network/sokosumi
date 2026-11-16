@@ -73,8 +73,9 @@ export async function requireSeoConnectionOwner(
 async function personalConnection(
   owner: SeoConnectionOwner,
   provider: SeoConnectionProvider,
+  tx: Prisma.TransactionClient = prisma,
 ) {
-  const rows = await prisma.sokoBotIntegration.findMany({
+  const rows = await tx.sokoBotIntegration.findMany({
     where: {
       provider: SEO_CONNECTION_PROVIDERS[provider].toolkit,
       status: "ACTIVE",
@@ -106,9 +107,10 @@ async function personalConnection(
 export async function resolveSeoStatisticsIntegration(
   owner: SeoConnectionOwner,
   provider: SeoConnectionProvider,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SeoStatisticsIntegration | null> {
-  await requireSeoConnectionOwner(owner);
-  const selected = await prisma.seoConnection.findUnique({
+  await requireSeoConnectionOwner(owner, tx);
+  const selected = await tx.seoConnection.findUnique({
     where: { workspaceId_userId_provider: seoConnectionKey(owner, provider) },
   });
   const account =
@@ -121,7 +123,7 @@ export async function resolveSeoStatisticsIntegration(
           connectionRevision: `native:${selected.id}:${selected.revision}`,
         }
       : !selected || selected.status === "INHERIT"
-        ? await personalConnection(owner, provider)
+        ? await personalConnection(owner, provider, tx)
         : null;
   return account
     ? {

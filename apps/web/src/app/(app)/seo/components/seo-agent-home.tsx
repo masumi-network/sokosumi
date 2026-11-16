@@ -93,9 +93,9 @@ function SeoAgentPanel({
   if (checkRunning && !checkSeen) setCheckSeen(true);
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
-  const verdict = useRef<HTMLParagraphElement>(null);
+  const verdict = useRef<HTMLHeadingElement>(null);
   // On a phone the steps start more than one screen under the headline: a line of the result card leads there.
-  const stepList = useRef<HTMLHeadingElement>(null);
+  const stepList = useRef<HTMLUListElement>(null);
   useEffect(() => {
     if (checkSeen && !checkRunning && document.activeElement === document.body)
       verdict.current?.focus();
@@ -267,7 +267,7 @@ function SeoAgentPanel({
         <SeoSetupCard model={model} setup={setup} />
       ) : (
         <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
-          <p
+          <h3
             ref={verdict}
             tabIndex={-1}
             className="focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2"
@@ -295,7 +295,7 @@ function SeoAgentPanel({
                         : trafficLead
                           ? trafficLine
                           : t("agent.verdict.noCheckOff")}
-          </p>
+          </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (
             <p className="text-muted-foreground text-sm">
@@ -393,15 +393,22 @@ function SeoAgentPanel({
       )}
       {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
-          <h3
-            ref={stepList}
-            tabIndex={-1}
-            className="focus-visible:outline-ring scroll-mt-20 rounded-sm px-2 text-sm font-semibold focus-visible:outline-2"
-          >
-            {t("agent.nextTitle")}
-          </h3>
+          {brief.issues ? null : (
+            <h3 className="px-2 text-sm font-semibold">
+              {t("agent.nextTitle")}
+            </h3>
+          )}
           {steps.length ? (
-            <ul role="list" className={SEO_ROW_LIST_CLASS}>
+            <ul
+              ref={stepList}
+              tabIndex={-1}
+              role="list"
+              aria-label={t("agent.nextTitle")}
+              className={cn(
+                SEO_ROW_LIST_CLASS,
+                "focus-visible:outline-ring scroll-mt-20 rounded-sm focus-visible:outline-2",
+              )}
+            >
               {shown.slice(0, split).map(stepItem)}
               {moreActions ? (
                 // The Agent tab shows the first actions only: the rest must not look absent.
