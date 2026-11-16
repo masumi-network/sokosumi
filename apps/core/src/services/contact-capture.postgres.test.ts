@@ -1064,6 +1064,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
             data: [
               person("700", "Lena Fox", "lenafox", "Writes about cities"),
               person("950", "Zoe Park", "zoepark", "Runs a bakery"),
+              person("960", "Acme Labs", "acmelabs", "Tools for builders"),
+              person("970", "Northwind", "northwind", "Shoes", {
+                verified_type: "business",
+              }),
             ],
           };
         default:
@@ -1190,9 +1194,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         where: { workspaceId: xWorkspaceId, name: "X following" },
         include: { members: { include: { contact: true } } },
       });
+      // Brand accounts never become contacts.
       expect(following.members.map((member) => member.contact.name)).toEqual([
         "Zoe Park",
       ]);
+      expect(run.capture.skipped.brand_account).toBe(2);
       const ruthContact = contacts.find((c) => c.name === "Ruth Weber");
       expect(
         ruthContact?.channels.map(({ type, value, source }) => ({

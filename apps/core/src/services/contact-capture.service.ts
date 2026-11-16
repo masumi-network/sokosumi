@@ -51,6 +51,7 @@ import {
   contactNameKeys,
   followerNameKey,
   isLikelyBot,
+  isLikelyBrand,
   type MatchContact,
   matchFollower,
   ownHost,
@@ -1648,17 +1649,24 @@ export class ContactCaptureService {
         .filter((channel) => channel.createdAt < walkFrom)
         .map((channel) => channel.value),
     );
+    // Bots and brand accounts never become contacts.
+    const skipOf = (follower: XFollower) =>
+      isLikelyBot(follower)
+        ? ("bot_user" as const)
+        : isLikelyBrand(follower)
+          ? ("brand_account" as const)
+          : null;
     const people = followers.filter(
-      (follower) => linked.has(handleOf(follower)) || !isLikelyBot(follower),
+      (follower) => linked.has(handleOf(follower)) || !skipOf(follower),
     );
     const settled =
       people.length > 0 &&
       people.every((follower) => before.has(handleOf(follower)));
     const open = followers.filter((follower) => {
       if (linked.has(handleOf(follower))) return false;
-      if (!isLikelyBot(follower)) return true;
-      context.stats.skipped.bot_user =
-        (context.stats.skipped.bot_user ?? 0) + 1;
+      const skip = skipOf(follower);
+      if (!skip) return true;
+      context.stats.skipped[skip] = (context.stats.skipped[skip] ?? 0) + 1;
       return false;
     });
     if (open.length === 0) return finish(true);

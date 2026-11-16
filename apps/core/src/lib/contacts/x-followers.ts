@@ -7,6 +7,7 @@
  */
 import { normalizeContactChannelValue } from "@sokosumi/utils";
 import { companyDomain } from "./capture-filters";
+import { isNonPersonName } from "./classify";
 import { normalizePersonName } from "./merge-rules";
 
 export interface XFollower {
@@ -20,6 +21,8 @@ export interface XFollower {
   avatarUrl: string | null;
   defaultAvatar: boolean;
   protected: boolean;
+  /** X's check: "business" and "government" are organizations. */
+  verifiedType: string | null;
   followers: number | null;
   following: number | null;
   posts: number | null;
@@ -36,6 +39,7 @@ export const X_FOLLOWER_FIELDS = [
   "profile_image_url",
   "protected",
   "public_metrics",
+  "verified_type",
 ];
 
 function field(value: unknown, key: string): unknown {
@@ -79,6 +83,7 @@ export function parseXFollower(raw: unknown): XFollower | null {
     avatarUrl: image ? image.replace("_normal.", "_400x400.") : null,
     defaultAvatar: !image || image.includes("default_profile"),
     protected: field(raw, "protected") === true,
+    verifiedType: text(field(raw, "verified_type")) || null,
     followers: count(metrics, "followers_count"),
     following: count(metrics, "following_count"),
     posts: count(metrics, "tweet_count"),
@@ -97,6 +102,66 @@ export function isLikelyBot(follower: XFollower): boolean {
     following > 1_000 &&
     followers * 20 < following
   );
+}
+
+/** Words that name a project, company or outlet rather than a person. */
+const BRAND_WORDS = new Set([
+  "agency",
+  "app",
+  "capital",
+  "chain",
+  "coin",
+  "collective",
+  "community",
+  "conference",
+  "dao",
+  "exchange",
+  "finance",
+  "foundation",
+  "fund",
+  "hq",
+  "institute",
+  "labs",
+  "magazine",
+  "markets",
+  "media",
+  "network",
+  "news",
+  "official",
+  "podcast",
+  "protocol",
+  "studios",
+  "summit",
+  "swap",
+  "token",
+  "university",
+  "ventures",
+  "wallet",
+]);
+
+/**
+ * Accounts of a company, project or outlet, never worth a person's row:
+ * X verified them as a business or government, the name is a company's
+ * ("Acme Labs", "Northwind GmbH"), or the bio speaks as one ("The official
+ * account of…", "We build…"). Only the name before a separator counts, so
+ * "Nina Keller | Acme Labs" stays a person.
+ */
+export function isLikelyBrand(follower: XFollower): boolean {
+  if (
+    follower.verifiedType === "business" ||
+    follower.verifiedType === "government"
+  )
+    return true;
+  const name = (follower.name ?? "").split(/\s[|·•–—]\s|[|@(,]/)[0] ?? "";
+  if (isNonPersonName(name)) return true;
+  if (
+    normalizePersonName(name)
+      .split(" ")
+      .some((word) => BRAND_WORDS.has(word))
+  )
+    return true;
+  const bio = follower.description.trim();
+  return /\bofficial\b/i.test(bio) || /^(we|we're|we are|our)\b/i.test(bio);
 }
 
 /** Link hosts that say nothing about who someone is. */
