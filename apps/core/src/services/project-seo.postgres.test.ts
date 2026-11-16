@@ -674,6 +674,7 @@ describe.skipIf(!enabled)(
         analysis: requestSeoAnalysisSchema.parse({
           ...analysis,
           kind: "audit_full",
+          fullAuditCredits: 750,
           devices: ["mobile", "desktop"],
           idempotencyKey: "monitor-full-audit",
         }),

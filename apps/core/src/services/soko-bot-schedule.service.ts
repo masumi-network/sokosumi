@@ -136,6 +136,8 @@ export interface UpdateSokoBotScheduleInput {
   timezone?: string;
   cronExpression?: string;
   prompt?: string;
+  /** Replaces the run's tools, when a person rewrote the schedule. */
+  capabilityNames?: readonly string[];
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
 }
@@ -443,6 +445,9 @@ export async function updateSokoBotSchedule(
     // A new cron makes a one-time schedule recurring.
     runOnce: input.cronExpression ? false : undefined,
     prompt: input.prompt?.trim(),
+    capabilityNames: input.capabilityNames
+      ? [...input.capabilityNames]
+      : undefined,
     nextRunAt:
       timingChanged || reactivated ? (restartAt ?? nextRunAt) : undefined,
     // New timing: moved or skipped runs of the old one no longer apply.

@@ -285,10 +285,10 @@ describe("SEO form intent", () => {
 describe("seoAnalysisMaxCredits", () => {
   it("shows the ceiling Core checks, and none while a limit field is not a valid value", () => {
     expect(seoAnalysisMaxCredits({ kind: "free" })).toBe(0);
-    expect(seoAnalysisMaxCredits({ kind: "standard" })).toBe(50);
+    expect(seoAnalysisMaxCredits({ kind: "standard" })).toBe(750);
     expect(
       seoAnalysisMaxCredits({ kind: "full", usd: 0.33, seconds: 900 }),
-    ).toBe(50);
+    ).toBe(750);
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 20 })).toBe(150);
     // A half-typed field must not throw while the person types.
     expect(

@@ -17,7 +17,6 @@ import {
 } from "@/lib/auth/auth.utils";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { cn } from "@/lib/utils";
-import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import AuthBackground from "./components/auth-background";
 import { CmoWordmark } from "./components/cmo-wordmark";
@@ -71,7 +70,7 @@ export default async function AuthLayout({
     // getSession when no session cookie is present).
     const session = await getSession();
     if (session) {
-      redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
+      redirect("/");
     }
   }
 

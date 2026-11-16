@@ -157,7 +157,8 @@ export function seoSetup(
   googleReady = false,
 ) {
   const { canEdit } = workspace.availableActions;
-  if (workspace.observations.length || !canEdit) return null;
+  if (workspace.observations.length || workspace.runs?.length || !canEdit)
+    return null;
   // A narrowed read can leave out pages and checks.
   if (
     filters?.from ||

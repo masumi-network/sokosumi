@@ -19,6 +19,26 @@ export function seoCapabilityGroups(
   })).filter((group) => group.items.length > 0);
 }
 
+/** Related roadmap entries become one customer-facing limit, rather than a feature backlog. */
+const CUSTOMER_LIMITATIONS = [
+  { message: "site", groups: ["technical"] },
+  { message: "content", groups: ["content"] },
+  { message: "research", groups: ["keywords", "links"] },
+  { message: "measurement", groups: ["local", "measurement", "ai"] },
+  { message: "publishing", groups: ["workflow"] },
+] as const;
+
+export function seoCustomerLimitations(
+  catalog: readonly SeoCapability[] = SEO_CAPABILITIES,
+) {
+  const openGroups = new Set(
+    seoCapabilityGroups(catalog).map(({ group }) => group),
+  );
+  return CUSTOMER_LIMITATIONS.filter((limit) =>
+    limit.groups.some((group) => openGroups.has(group)),
+  ).map((limit) => limit.message);
+}
+
 /** The step that fills a gap, where the reader may take it. */
 export type SeoAuditGapFix =
   | "connect_search_console"
@@ -166,7 +186,8 @@ export function seoAuditGaps(
       (data.history.evidenceLimited ?? data.history.limited),
   );
   if (!newest) {
-    if (!partView) gaps.push({ message: "noCheck", fix: check });
+    if (!partView && !data.runs?.length)
+      gaps.push({ message: "noCheck", fix: check });
   } else {
     const { skipped, failed, modules } = newest.coverage;
     if (skipped > 0)
@@ -194,4 +215,55 @@ export function seoAuditGaps(
       fix: null,
     });
   return gaps;
+}
+
+type CustomerAuditGap = {
+  message:
+    | "noSearchConsole"
+    | "noAnalytics"
+    | "statisticsIncomplete"
+    | "checksIncomplete"
+    | "noCheck"
+    | "paidOff"
+    | "historyLimited";
+  count?: number;
+  fix: SeoAuditGapFix | null;
+};
+
+/** Deduplicate technical collection details and never display stored provider errors or module names. */
+export function seoCustomerAuditGaps(
+  data: ProjectSeoWorkspace,
+  narrowed = false,
+): CustomerAuditGap[] {
+  const summarized = new Map<CustomerAuditGap["message"], CustomerAuditGap>();
+  for (const gap of seoAuditGaps(data, narrowed)) {
+    switch (gap.message) {
+      case "noSearchConsole":
+      case "noAnalytics":
+      case "noCheck":
+      case "paidOff":
+      case "historyLimited":
+        summarized.set(gap.message, {
+          message: gap.message,
+          fix: gap.fix,
+          ...(gap.count === undefined ? {} : { count: gap.count }),
+        });
+        break;
+      case "notChecked":
+      case "failed":
+      case "modulesNotRequested":
+      case "modulesFailed":
+        summarized.set("checksIncomplete", {
+          message: "checksIncomplete",
+          fix: gap.fix,
+        });
+        break;
+      default:
+        summarized.set("statisticsIncomplete", {
+          message: "statisticsIncomplete",
+          fix: gap.fix ?? summarized.get("statisticsIncomplete")?.fix ?? null,
+        });
+    }
+  }
+  return [...summarized.values()];
 }

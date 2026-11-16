@@ -6,12 +6,18 @@
  * (seo-bot `agent/lib/run-cost.ts`). Core refuses a check the payer's balance
  * cannot cover, and the analysis dialog shows the same figure as "up to", so
  * both run this one formula. A failed check charges nothing.
+ * Newly approved full audits instead charge SEO_FULL_AUDIT_CREDITS on success.
+ * The provider-cost formula remains for focused and previously approved checks.
  *
  * 1 credit = 1 cent. Keep the constants in step with seo-bot's run-cost.ts.
  */
 
 /** The owner's price for paid data: its cost plus 50%. */
 export const SEO_MARKUP_PERCENT = 150;
+/** Fixed customer price for each newly approved full audit. */
+export const SEO_FULL_AUDIT_CREDITS = 750;
+/** Provider spending bound for a newly priced full audit. */
+export const SEO_FULL_AUDIT_MAX_PROVIDER_USD = 5;
 /** A one-page full audit has no USD limit; the worker's page reserve bounds it. */
 export const SEO_PAGE_CEILING_CENTS = 33;
 /** The ceiling of one paid call of a focused check (live SERP is about 0.6, a backlinks summary about 2.4). */
@@ -42,8 +48,5 @@ export function seoCreditsForCents(cents: number): number {
 export function seoMaxCredits(input: SeoCreditCeilingInput): number {
   if (input.kind === "focused")
     return seoCreditsForCents(input.providerCalls * SEO_MAX_CALL_CENTS);
-  if (input.pages <= 1) return seoCreditsForCents(SEO_PAGE_CEILING_CENTS);
-  return seoCreditsForCents(
-    Math.round((input.usd ?? SEO_DEFAULT_FULL_AUDIT_USD) * CENTS_PER_USD),
-  );
+  return SEO_FULL_AUDIT_CREDITS;
 }

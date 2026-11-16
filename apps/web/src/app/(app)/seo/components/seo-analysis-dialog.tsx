@@ -347,9 +347,13 @@ export function SeoAnalysisDialog({
             >
               {maxCredits
                 ? t(
-                    monitor
-                      ? "analysis.maxCreditsPerRun"
-                      : "analysis.maxCredits",
+                    full
+                      ? monitor
+                        ? "analysis.fixedCreditsPerRun"
+                        : "analysis.fixedCredits"
+                      : monitor
+                        ? "analysis.maxCreditsPerRun"
+                        : "analysis.maxCredits",
                     { credits: maxCredits },
                   )
                 : null}

@@ -1568,6 +1568,7 @@ model Transaction {
   refundedTaskX402Payment  TaskX402Payment?  @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?    @relation("TransactionCoworkerUsage")
   sokoBotUsage             SokoBotUsage?     @relation("TransactionSokoBotUsage")
+  seoChatTurn              SeoAuditChatTurn? @relation("TransactionSeoChatTurn")
 
   projectImageJob         ProjectImageJob? @relation("TransactionProjectImageJob")
   refundedProjectImageJob ProjectImageJob? @relation("RefundedTransactionProjectImageJob")
@@ -3200,8 +3201,10 @@ model SokoBotSchedule {
   legacyScheduleId    String?   @unique
   /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
   systemKey           String?
-  /// Tools of the turn that wrote it; a run gets them back instead of being
-  /// classified again. Empty for schedules the owner set in the console.
+  /// Tools of the turn or person that wrote it; a run gets them back instead
+  /// of being classified again. A person writing one in the console gives it
+  /// their chat tools. Empty for built-ins and console schedules written
+  /// before 2026-11-16, which Jev classifies on every run.
   capabilityNames     String[]  @default([])
   nextRunAt           DateTime
   lastRunAt           DateTime?
