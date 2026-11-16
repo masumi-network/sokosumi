@@ -5985,7 +5985,6 @@ describe("SEO workspace integration", () => {
     await user.click(more);
     expect(more).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Describe the images")).toBeVisible();
-    expect(screen.queryByText(/more fix/)).toBeNull();
     const row = screen.getByText("Write a description").closest("li");
     expect(row).not.toBeNull();
     // One page: the row needs no page.

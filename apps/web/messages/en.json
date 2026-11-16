@@ -12414,7 +12414,7 @@
         "figures": {
           "label": "Key figures",
           "rankings": "{depth, select, same {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {max} results read per keyword} range {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {min} to {max} results read per keyword} other {{found} of {read} {count, plural, one {keyword} other {keywords}} found}}",
-          "searches": "{partial, select, yes {{total} searches a month for {keywords} of {of} keywords} other {{total} searches a month}}",
+          "searches": "{partial, select, yes {{total, plural, one {# search} other {# searches}} a month for {keywords, number} of {of, number} keywords} other {{total, plural, one {# search} other {# searches}} a month}}",
           "traffic": "{clicks, plural, one {# click} other {# clicks}} · {impressions, plural, one {# impression} other {# impressions}}"
         },
         "nothingNext": "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",

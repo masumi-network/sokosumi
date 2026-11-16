@@ -105,7 +105,8 @@ export function SeoAgentFigures({
           onOpen={open("rankings")}
         >
           {t("agent.figures.searches", {
-            total: format.number(searches.total),
+            // The message formats the numbers itself, so its plural reads the number.
+            total: searches.total,
             // Not every checked keyword has a number of searches: the figure says for how many.
             partial: searches.keywords === searches.of ? "no" : "yes",
             keywords: searches.keywords,
