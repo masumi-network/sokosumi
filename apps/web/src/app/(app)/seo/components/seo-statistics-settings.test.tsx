@@ -73,7 +73,7 @@ function renderWithClient(content: ReactNode) {
         formats={createFormats()}
         messages={messages}
       >
-        <NuqsTestingAdapter>{content}</NuqsTestingAdapter>
+        <NuqsTestingAdapter hasMemory>{content}</NuqsTestingAdapter>
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -101,6 +101,10 @@ it("asks for the ambiguous connected provider before collecting its statistics",
   const workspace = seoTestWorkspace();
   settingsNetwork(workspace);
   renderWithClient(<SeoWorkspace workspace={workspace} />);
+  expect(
+    screen.queryByRole("button", { name: "Choose a property" }),
+  ).toBeNull();
+  await user.click(screen.getByRole("tab", { name: "Traffic" }));
   await user.click(
     await screen.findByRole("button", { name: "Choose a property" }),
   );

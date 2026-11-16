@@ -73,6 +73,37 @@ describe("SEO worker request compatibility before Task dispatch", () => {
       ),
     ).toThrow("Full audits cannot use focused analysis options");
   });
+  it("freezes the fixed full-audit price without changing focused pricing", () => {
+    const base = request();
+    const full = seoTaskPacket(
+      { ...base, kind: "audit_full", fullAuditCredits: 750 },
+      [page],
+      "01951111-1111-7111-8111-111111111111",
+    );
+    expect(full.price).toEqual({ kind: "fixed", credits: 750 });
+    expect(
+      seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111").price,
+    ).toBeUndefined();
+  });
+  it("rejects a provider budget above the fixed audit allowance but retains legacy limits", () => {
+    const base = {
+      ...request(),
+      kind: "audit_full" as const,
+      analyses: undefined,
+      keywords: [],
+      devices: ["mobile", "desktop"] as ("mobile" | "desktop")[],
+      fullAuditLimits: { usd: 5.01, seconds: 900 },
+    };
+    expect(() =>
+      validateSeoAnalysis({ ...base, fullAuditCredits: 750 }, [
+        page,
+        `${page}/next`,
+      ]),
+    ).toThrow("fixed-price allowance");
+    expect(() =>
+      validateSeoAnalysis(base, [page, `${page}/next`]),
+    ).not.toThrow();
+  });
   it("refuses a Task packet the worker would refuse for its length, before dispatch", () => {
     const longUrl = (n: number) =>
       `https://example.test/${n}/${"a".repeat(4000)}`;

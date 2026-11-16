@@ -16,6 +16,10 @@ model SeoAuditChatTurn {
   status         String    @default("running")
   model          String
   costUsd        Float     @default(0)
+  usage          Json?
+  /// Null for historical, failed and in-progress turns. Only usable replies are charged.
+  transactionId  String?      @unique
+  transaction    Transaction? @relation("TransactionSeoChatTurn", fields: [transactionId], references: [id], onDelete: SetNull)
   leaseExpiresAt DateTime
   createdAt      DateTime  @default(now())
   completedAt    DateTime?

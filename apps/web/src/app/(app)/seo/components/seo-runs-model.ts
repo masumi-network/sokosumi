@@ -113,9 +113,9 @@ export function seoNextScheduledCheck(
   return next[0] ?? null;
 }
 
-/** The row of runs shows with two entries at least: one run, with none in flight, is no choice. */
+/** The audit timeline stays visible for its first completed check or a check currently running. */
 export function seoRunsRow(days: SeoRunDay[], running: boolean) {
-  return days.length + (running ? 1 : 0) >= 2;
+  return days.length > 0 || running;
 }
 
 /**
