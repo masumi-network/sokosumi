@@ -1,4 +1,9 @@
-import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile-search.client";
+import { Suspense } from "react";
+
+import {
+  HeaderMobileSearchControl,
+  HeaderMobileSearchTrigger,
+} from "@/app/components/header/header-mobile-search.client";
 import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
 
 /**
@@ -12,7 +17,10 @@ export function HeaderTrailingTools() {
       data-testid="header-trailing-tools"
     >
       <HeaderNotificationBell />
-      <HeaderMobileSearchControl />
+      {/* Search reads the URL, so it streams without holding the header. */}
+      <Suspense fallback={<HeaderMobileSearchTrigger />}>
+        <HeaderMobileSearchControl />
+      </Suspense>
     </div>
   );
 }
