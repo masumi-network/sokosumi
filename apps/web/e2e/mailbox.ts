@@ -36,7 +36,7 @@ export interface Mailbox {
   nextCode(timeoutMs?: number): Promise<string>;
 }
 
-export async function createMailbox(label: string): Promise<Mailbox> {
+export async function createMailbox(): Promise<Mailbox> {
   const domains = await call<{
     "hydra:member": { domain: string; isActive: boolean; isPrivate: boolean }[];
   }>("/domains");
@@ -45,7 +45,9 @@ export async function createMailbox(label: string): Promise<Mailbox> {
   )?.domain;
   if (!domain) throw new Error("mail.tm has no active public domain");
 
-  const address = `soko-e2e-${label}-${randomBytes(4).toString("hex")}@${domain}`;
+  // mail.tm refuses some words in a username ("phone", "desktop"), so the
+  // name carries no label, only random hex.
+  const address = `soko-e2e-${randomBytes(6).toString("hex")}@${domain}`;
   const password = randomBytes(18).toString("base64url");
   const body = JSON.stringify({ address, password });
   await call("/accounts", { method: "POST", body });

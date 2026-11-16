@@ -38,7 +38,7 @@ async function expectStep(page: Page, path: RegExp, heading: string) {
 for (const { name, ...viewport } of PROJECTS) {
   describe(name, () => {
     test("a new visitor signs up and meets their Soko Bot", async () => {
-      const mailbox = await createMailbox(name);
+      const mailbox = await createMailbox();
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
       page.setDefaultTimeout(60_000);
