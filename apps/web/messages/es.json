@@ -289,6 +289,18 @@
         "resendSuccess": "Invitación reenviada correctamente",
         "resendError": "No se pudo reenviar la invitación",
         "open": "Acciones de la invitación"
+      },
+      "Export": {
+        "button": "Descargar CSV",
+        "name": "Nombre",
+        "email": "Email",
+        "role": "Rol",
+        "status": "Estado",
+        "joined": "Se unió",
+        "lastSeen": "Última conexión",
+        "invited": "Invitado",
+        "expires": "La invitación vence",
+        "active": "Activo"
       }
     },
     "Jobs": {

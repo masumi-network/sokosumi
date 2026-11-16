@@ -289,6 +289,18 @@
         "resendSuccess": "Invitation resent successfully",
         "resendError": "Failed to resend invitation",
         "open": "Invitation actions"
+      },
+      "Export": {
+        "button": "Download CSV",
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "joined": "Joined",
+        "lastSeen": "Last seen",
+        "invited": "Invited",
+        "expires": "Invitation expires",
+        "active": "Active"
       }
     },
     "OrganizationCombobox": {

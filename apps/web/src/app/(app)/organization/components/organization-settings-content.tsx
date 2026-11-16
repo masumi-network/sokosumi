@@ -21,6 +21,7 @@ import { OrganizationSeatSummaryCard } from "@/app/organizations/[organizationSl
 import { OrganizationVendorGrants } from "@/app/organizations/[organizationSlug]/components/organization-vendor-grants";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
+import { MembersCsvButton } from "@/components/members-table/members-csv-button";
 import MembersTable from "@/components/members-table/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
@@ -61,6 +62,8 @@ export async function OrganizationSettingsContent({
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: PendingInvitation[] = [];
+  // A download without the invitations would pass for the whole list.
+  let pendingInvitationsLoaded = false;
   let inviteLinks: OrganizationInviteLink[] = [];
   let inviteLinksLoadError: ReactNode | undefined;
 
@@ -78,6 +81,7 @@ export async function OrganizationSettingsContent({
 
     if (pendingResult.isOk()) {
       pendingInvitations = pendingResult.value;
+      pendingInvitationsLoaded = true;
     } else {
       console.error("Failed to get pending invitations", pendingResult.error);
     }
@@ -197,11 +201,19 @@ export async function OrganizationSettingsContent({
         ) : null}
         <div className="space-y-4">
           {isOwnerOrAdmin ? (
-            <div className="flex items-center justify-end gap-1.5">
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
               <OrganizationInviteButton
                 organizationId={organization.id}
                 className="h-7 px-2.5 text-xs"
               />
+              {pendingInvitationsLoaded ? (
+                <MembersCsvButton
+                  organizationSlug={organization.slug}
+                  members={members}
+                  pendingInvitations={pendingInvitations}
+                  className="h-7 px-2.5 text-xs"
+                />
+              ) : null}
             </div>
           ) : null}
           <MembersTable

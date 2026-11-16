@@ -289,6 +289,18 @@
         "resendSuccess": "Einladung erfolgreich erneut gesendet",
         "resendError": "Einladung konnte nicht erneut gesendet werden",
         "open": "Aktionen für Einladung"
+      },
+      "Export": {
+        "button": "CSV herunterladen",
+        "name": "Name",
+        "email": "E-Mail",
+        "role": "Rolle",
+        "status": "Status",
+        "joined": "Beigetreten",
+        "lastSeen": "Zuletzt gesehen",
+        "invited": "Eingeladen",
+        "expires": "Einladung läuft ab",
+        "active": "Aktiv"
       }
     },
     "Jobs": {

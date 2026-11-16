@@ -1,20 +1,20 @@
 "use client";
 
 import type { PendingInvitation } from "@sokosumi/core-client";
-import { InvitationStatus, MemberRole } from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import DataTable from "@/components/data-table/data-table";
-import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
+import { combineMembersAndPendingInvitations } from "./member-rows";
 import { getMembersTableColumnList } from "./members-table-columns";
 import { SeatManagementContextProvider } from "./seat-management-context";
-import type { MemberRowData, OrganizationMember } from "./types";
+import type { OrganizationMember } from "./types";
 
 interface MembersTableProps {
   me: OrganizationMembershipSelf;
@@ -77,62 +77,3 @@ export default function MembersTable({
     </SeatManagementContextProvider>
   );
 }
-
-function combineMembersAndPendingInvitations(
-  members: OrganizationMember[],
-  pendingInvitations: PendingInvitation[],
-): MemberRowData[] {
-  const sortedMembers = [...members].sort((a, b) => {
-    const roleScoreDiff =
-      (RoleScoreMap[a.role] ?? 0) - (RoleScoreMap[b.role] ?? 0);
-    const nameDiff = a.user.name.localeCompare(b.user.name);
-    return roleScoreDiff !== 0 ? roleScoreDiff : nameDiff;
-  });
-
-  const memberEmails = new Set(
-    sortedMembers.map((member) => member.user.email.toLowerCase()),
-  );
-
-  const filteredInvitations = pendingInvitations.filter(
-    (invitation) => !memberEmails.has(invitation.email.toLowerCase()),
-  );
-
-  const memberRows = sortedMembers.map(convertMemberWithUserToMemberRowData);
-
-  const invitationRows = filteredInvitations.map(
-    convertInvitationToMemberRowData,
-  );
-
-  return memberRows.concat(invitationRows);
-}
-
-function convertMemberWithUserToMemberRowData(
-  member: OrganizationMember,
-): MemberRowData {
-  return {
-    email: member.user.email,
-    name: member.user.name,
-    role: member.role,
-    lastSeenAt: member.lastSeenAt,
-    member,
-  };
-}
-
-function convertInvitationToMemberRowData(
-  invitation: PendingInvitation,
-): MemberRowData {
-  return {
-    email: invitation.email,
-    role:
-      invitation.expiresAt > new Date()
-        ? InvitationStatus.PENDING
-        : InvitationDisplayStatus.EXPIRED,
-    invitation,
-  };
-}
-
-const RoleScoreMap: Record<string, number> = {
-  [MemberRole.OWNER]: 1,
-  [MemberRole.ADMIN]: 2,
-  [MemberRole.MEMBER]: 3,
-};
