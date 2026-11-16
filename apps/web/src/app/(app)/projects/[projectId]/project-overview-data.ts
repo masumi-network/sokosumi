@@ -11,38 +11,53 @@ import { userService } from "@/lib/services/user.service";
 
 // Thrown, never returned, inside the cache: a missing project must not be
 // kept as a 404 for the stale window. Nothing on a 404 page refreshes it.
-class ProjectNotAvailable extends Error {}
+class ProjectNotAvailable extends Error {
+  override name = "ProjectNotAvailable";
+
+  constructor() {
+    super("Project not available; reading it again fresh");
+  }
+}
 
 async function readProjectOverviewData(projectId: string) {
   const project = await projectService.getProjectById(projectId);
   if (!project) return null;
 
-  const [closeStatus, stats, sharedBots, organizationId] = await Promise.all([
-    project.closingAt || project.closedAt
-      ? projectService.getProjectCloseStatus(project.id)
-      : Promise.resolve(null),
-    // Without counts the strip is left out rather than showing zeros.
-    projectService
-      .getProjectsStats([project.id])
-      .then(([entry]) => entry ?? null)
-      .catch((error: unknown) => {
+  const [closeStatus, stats, sharedBots, organizationId, isHidden] =
+    await Promise.all([
+      project.closingAt || project.closedAt
+        ? projectService.getProjectCloseStatus(project.id)
+        : Promise.resolve(null),
+      // Without counts the strip is left out rather than showing zeros.
+      projectService
+        .getProjectsStats([project.id])
+        .then(([entry]) => entry ?? null)
+        .catch((error: unknown) => {
+          unstable_rethrow(error);
+          console.warn("Project Overview task counts failed", { error });
+          return null;
+        }),
+      // The Bots tab: Core sends shared bots to a member, and shared bots
+      // exist only in an organization.
+      sokoBotService.listShared().catch((error: unknown) => {
         unstable_rethrow(error);
-        console.warn("Project Overview task counts failed", { error });
         return null;
       }),
-    // The Bots tab: Core sends shared bots to a member, and shared bots
-    // exist only in an organization.
-    sokoBotService.listShared().catch((error: unknown) => {
-      unstable_rethrow(error);
-      return null;
-    }),
-    userService.getActiveOrganizationId(),
-  ]);
+      userService.getActiveOrganizationId(),
+      // Read here for the header's menu, which would read it outside this
+      // cache. A failed read offers Hide, which Core treats as a no-op if it
+      // is Hidden.
+      projectService.isProjectHidden(project.id).catch((error: unknown) => {
+        unstable_rethrow(error);
+        return false;
+      }),
+    ]);
   return {
     project,
     closeStatus,
     stats,
     showBots: Boolean(sharedBots && organizationId),
+    isHidden,
   };
 }
 

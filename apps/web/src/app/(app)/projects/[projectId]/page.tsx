@@ -18,7 +18,7 @@ import {
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import {
-  panelFeed,
+  requestPanelFeed,
   WorkspaceColumn,
 } from "@/app/projects/components/workspace-column";
 import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
@@ -39,14 +39,15 @@ export default async function ProjectDetailPage({
   if (!data) {
     notFound();
   }
-  const { project, closeStatus, stats, showBots } = data;
+  const { project, closeStatus, stats, showBots, isHidden } = data;
 
   // Started before the page's own awaits, awaited inside their panels'
-  // boundaries, so a slow feed holds up nothing above it.
-  const needsYou = panelFeed(
+  // boundaries, so a slow feed holds up nothing above it. Each waits for the
+  // request, so a link prefetch leaves the panels as holes.
+  const needsYou = requestPanelFeed(() =>
     notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS, project.id),
   );
-  const activity = panelFeed(
+  const activity = requestPanelFeed(() =>
     projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS, project.id),
   );
 
@@ -63,6 +64,7 @@ export default async function ProjectDetailPage({
           cmo={project.cmo}
           closedAt={project.closedAt}
           closingAt={project.closingAt}
+          isHidden={isHidden}
           projectId={project.id}
           projectRevision={project.projectRevision}
           scheduledSocialPostCount={project.scheduledSocialPostCount}
@@ -90,6 +92,9 @@ export default async function ProjectDetailPage({
         />
       }
     >
+      {/* Outside the keyed brand provider, so a new design file does not
+          remount it and refresh the page a second time. */}
+      <RefreshPrefetchedPage />
       {/*
         One column of sections with the quiet heading a task section uses;
         the close status stays a card because it is an alert. It fills the
@@ -99,13 +104,15 @@ export default async function ProjectDetailPage({
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
         // CMO writes a CMO Project's brand; never start one from here.
+        // The design file can be up to the prefetch's stale window old, so a
+        // start can read a brand that just finished. Accepted: the refresh on
+        // mount brings the current file, and the key then remounts this.
         autoStart={!project.cmo}
         projectId={project.id}
         initialDesignMd={project.designMd}
         websiteUrl={project.websiteUrl}
       >
         <div className="min-w-0 space-y-8">
-          <RefreshPrefetchedPage />
           {closeStatus ? <ProjectCloseStatusCard status={closeStatus} /> : null}
 
           {stats ? (

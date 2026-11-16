@@ -14,6 +14,7 @@ const {
     getProjectCloseStatus: vi.fn(),
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
+    isProjectHidden: vi.fn(async () => false),
     listRecentActivity: vi.fn(),
   },
   notificationServiceMock: { listNeedsYou: vi.fn() },
@@ -59,6 +60,11 @@ vi.mock("@/app/projects/components/workspace-column", async () => ({
       typeof import("@/app/projects/components/workspace-column")
     >("@/app/projects/components/workspace-column")
   ).panelFeed,
+  requestPanelFeed: (
+    await vi.importActual<
+      typeof import("@/app/projects/components/workspace-column")
+    >("@/app/projects/components/workspace-column")
+  ).requestPanelFeed,
   WorkspaceColumn: (props: Record<string, unknown>) => {
     workspaceColumnMock(props);
     return <div data-testid="workspace-column" />;
@@ -82,8 +88,18 @@ vi.mock("@/lib/services/user.service", () => ({
 // Stubbed: the pin reads the reader's Pin list through react-query, and this
 // file is about the page, not about Pin state.
 vi.mock("@/app/projects/components/project-header-actions", () => ({
-  ProjectHeaderActions: ({ cmo }: { cmo?: boolean }) => (
-    <div data-testid="project-header-actions" data-cmo={String(Boolean(cmo))}>
+  ProjectHeaderActions: ({
+    cmo,
+    isHidden,
+  }: {
+    cmo?: boolean;
+    isHidden?: boolean;
+  }) => (
+    <div
+      data-testid="project-header-actions"
+      data-cmo={String(Boolean(cmo))}
+      data-hidden={String(isHidden)}
+    >
       <div>Pin project</div>
       <div>Project actions</div>
     </div>
@@ -197,20 +213,28 @@ describe("ProjectDetailPage", () => {
     expect(projectServiceMock.getProjectById).toHaveBeenCalledTimes(2);
   });
 
-  // connection() on the success path would drop the Overview from a link
-  // prefetch. This proves only that the page does not call it.
-  it("calls no connection() on the success path", async () => {
+  // A connection() the page awaits would drop the Overview from a link
+  // prefetch. This proves only that the page renders without it, and that
+  // the uncached panel reads wait for it.
+  it("renders the Overview while the request has not come, and reads the panels only after it", async () => {
+    connectionMock.mockReturnValue(new Promise(() => {}));
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
 
     const { default: ProjectDetailPage } = await import("./page");
-    render(
-      await ProjectDetailPage({
-        params: Promise.resolve({ projectId: "project-1" }),
-      }),
-    );
+    try {
+      render(
+        await ProjectDetailPage({
+          params: Promise.resolve({ projectId: "project-1" }),
+        }),
+      );
 
-    expect(screen.getByText("Launch plan")).toBeInTheDocument();
-    expect(connectionMock).not.toHaveBeenCalled();
+      expect(screen.getByText("Launch plan")).toBeInTheDocument();
+      expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
+      expect(projectServiceMock.listRecentActivity).not.toHaveBeenCalled();
+    } finally {
+      connectionMock.mockReset();
+      connectionMock.mockImplementation(async () => undefined);
+    }
   });
 
   // A prefetch must not keep a failed read as the page the click opens.
@@ -226,7 +250,8 @@ describe("ProjectDetailPage", () => {
       }),
     );
 
-    expect(connectionMock).toHaveBeenCalledOnce();
+    // The panels' feeds call connection() too, so count the fresh read.
+    expect(projectServiceMock.getProjectById).toHaveBeenCalledTimes(2);
     expect(screen.getByText("Launch plan")).toBeInTheDocument();
   });
 
@@ -385,6 +410,25 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.overview" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+
+  // Read inside the prefetch cache: the header would read it outside, and an
+  // uncached Core read while a prefetch renders cuts that prefetch short.
+  it("hands the header the cached Hidden state", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.isProjectHidden.mockResolvedValueOnce(true);
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("project-header-actions")).toHaveAttribute(
+      "data-hidden",
+      "true",
+    );
   });
 
   it("adds the Bots tab in an organization with shared bots", async () => {

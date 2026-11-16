@@ -9,6 +9,8 @@ interface ProjectHeaderActionsProps {
   cmo?: boolean;
   closedAt?: Date | string | null;
   closingAt?: Date | string | null;
+  /** Already read, such as inside a prefetch cache. Read here when left out. */
+  isHidden?: boolean;
   projectId: string;
   projectRevision?: number;
   scheduledSocialPostCount?: number;
@@ -22,6 +24,7 @@ export async function ProjectHeaderActions({
   cmo = false,
   closedAt,
   closingAt,
+  isHidden: knownHidden,
   projectId,
   projectRevision,
   scheduledSocialPostCount = 0,
@@ -29,8 +32,9 @@ export async function ProjectHeaderActions({
   const [t, tList, isHidden] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     getTranslations("App.Projects.list"),
-    // A failed read offers Hide, which Core treats as a no-op if it is Hidden.
-    projectService.isProjectHidden(projectId).catch(() => false),
+    knownHidden ??
+      // A failed read offers Hide, which Core treats as a no-op if it is Hidden.
+      projectService.isProjectHidden(projectId).catch(() => false),
   ]);
   const isClosingOrClosed = Boolean(closingAt || closedAt);
 
