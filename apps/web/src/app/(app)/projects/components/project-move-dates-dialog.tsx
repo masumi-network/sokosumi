@@ -110,7 +110,12 @@ export function ProjectMoveDatesDialog({
         if (!isMoving) onOpenChange(next);
       }}
     >
-      <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
+      {/* One shrinkable column, so a long Task name truncates instead of
+          widening the dialog past a phone screen. */}
+      <DialogContent
+        className="grid-cols-[minmax(0,1fr)]"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>
