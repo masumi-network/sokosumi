@@ -89,7 +89,7 @@ describe("ProjectMoveDatesDialog", () => {
     renderDialog();
     await screen.findByText("Draft launch post");
 
-    await user.click(screen.getByLabelText("earlier"));
+    await user.click(screen.getByRole("radio", { name: "earlier" }));
 
     expect(await screen.findByText("2026-11-13")).toBeInTheDocument();
     expect(shiftProjectDueDatesAction).toHaveBeenLastCalledWith({

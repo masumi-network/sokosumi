@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /** Core moves at most this many Tasks at once and flags a bigger project. */
 const MAX_TASKS = 100;
@@ -150,27 +150,21 @@ export function ProjectMoveDatesDialog({
                 disabled={isMoving}
               />
             </div>
-            <RadioGroup
+            <ToggleGroup
               aria-label={t("directionLabel")}
-              className="flex gap-4 pb-2"
+              type="single"
               value={direction}
-              onValueChange={(value) =>
-                setDirection(value === "earlier" ? "earlier" : "later")
-              }
+              onValueChange={(value) => {
+                // Clicking the chosen direction again would clear it; keep it.
+                if (value === "later" || value === "earlier") {
+                  setDirection(value);
+                }
+              }}
               disabled={isMoving}
             >
-              {(["later", "earlier"] as const).map((value) => (
-                <div key={value} className="flex items-center gap-2">
-                  <RadioGroupItem
-                    value={value}
-                    id={`project-move-${value}-${projectId}`}
-                  />
-                  <Label htmlFor={`project-move-${value}-${projectId}`}>
-                    {t(value)}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              <ToggleGroupItem value="later">{t("later")}</ToggleGroupItem>
+              <ToggleGroupItem value="earlier">{t("earlier")}</ToggleGroupItem>
+            </ToggleGroup>
           </div>
           {days === null ? (
             <p
