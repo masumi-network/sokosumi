@@ -3,10 +3,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { SeoDemandChart } from "./seo-demand-chart";
-import {
-  latestSeoMeasurements,
-  seoChangeMarkers,
-} from "./seo-statistics-model";
+import { latestSeoMeasurements, seoChartMarkers } from "./seo-statistics-model";
 import { seoKeywordDemand } from "./seo-summary-model";
 import { SeoTrendChart } from "./seo-trend-chart";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -56,7 +53,7 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
             unit={clicks.unit}
             unavailable={t("none")}
             formatValue={(value) => format.number(value)}
-            markers={seoChangeMarkers(model.data.timeline, clicks.timeZone)}
+            markers={seoChartMarkers(model.data, clicks.timeZone)}
           />
         </div>
       ) : null}

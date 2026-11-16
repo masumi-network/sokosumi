@@ -24,7 +24,7 @@ import {
 } from "./seo-shared";
 import {
   latestSeoMeasurements,
-  seoChangeMarkers,
+  seoChartMarkers,
   seoCoverageIsNews,
   seoDefaultMetric,
   seoMeasuredPeriod,
@@ -399,10 +399,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   unit={active.unit}
                   unavailable={t("none")}
                   formatValue={(point) => measuredValue(point, active.unit)}
-                  markers={seoChangeMarkers(
-                    workspace.timeline,
-                    active.timeZone,
-                  )}
+                  markers={seoChartMarkers(workspace, active.timeZone)}
                 />
               ) : (
                 <p className="text-muted-foreground py-6 text-sm">

@@ -11716,8 +11716,6 @@
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
-        "dailyValues": "Tageswerte",
-        "day": "Tag",
         "synced": "Zuletzt synchronisiert",
         "windowDays": "Letzte 7 Tage: {current}. Vorherige 7 Tage: {previous}. Beide enden am neuesten Tag, den Google gemeldet hat.",
         "noComparison": "Zu wenige Tage für einen Vergleich",
@@ -11755,12 +11753,13 @@
         "periodBetter": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt besser",
         "periodWorse": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt schlechter",
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
-        "changeMarker": "Erfasste Änderung am {day}: {changes}",
         "points": "{value} Pp.",
         "googleUpdate": "{name}: {from} bis {to}",
-        "googleUpdateOpen": "{name}: seit {from}, läuft noch",
+        "googleUpdateOpen": "{name}: seit {from}",
         "googleUpdateDay": "{name}: {day}",
-        "googleUpdatesAsOf": "Stand der Google-Updates: {day}"
+        "googleUpdatesAsOf": "Google-Updates bekannt bis {day}",
+        "markerKind": "{kind, select, change {Seitenänderung} audit {Audit} task {Aufgabe erledigt} verified {Korrektur bestätigt} other {Ereignis}}",
+        "markerEvent": "{kind}: {label}"
       },
       "keywords": {
         "title": "Keywords",

@@ -2529,7 +2529,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(/week before: 3\.8, (better|worse)$/)).toBeNull();
   });
 
-  it("marks a recorded page change on the traffic chart and names it", () => {
+  it("marks a page change and a confirmed fix on the traffic chart and keys them", () => {
     const workspace = seoTestWorkspace();
     const days = Array.from({ length: 14 }, (_, day) =>
       new Date(Date.UTC(2026, 9, day + 1)).toISOString().slice(0, 10),
@@ -2566,15 +2566,36 @@ describe("SEO workspace integration", () => {
         detail: "",
       },
     ];
+    workspace.actions = [
+      {
+        id: "fix-title",
+        observationId: "check-1",
+        pageUrl: workspace.pages[0].url,
+        findingIds: [],
+        title: "Shorten the title",
+        why: "",
+        effort: "low",
+        expectedEffect: "",
+        edit: null,
+        taskId: "task-1",
+        status: "verified",
+        completedAt: new Date("2026-10-07T09:00:00Z"),
+        verifiedAt: new Date("2026-10-09T09:00:00Z"),
+        kind: "fix",
+        evidence: [],
+      },
+    ];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=traffic");
-    expect(screen.getAllByTestId("seo-trend-change")).toHaveLength(1);
-    expect(
-      screen.getByText("Recorded change on Oct 5: New title"),
-    ).toBeVisible();
+    // The change, the Task's completion and the confirming check each mark their own day.
+    expect(screen.getAllByTestId("seo-trend-change")).toHaveLength(3);
+    expect(screen.getAllByTestId("seo-trend-marker")).toHaveLength(3);
+    for (const kind of ["Page change", "Task done", "Fix confirmed"])
+      expect(screen.getByText(kind)).toBeVisible();
+    expect(screen.queryByText("Daily values")).toBeNull();
   });
 
   it("says whether Google indexes the page in view and names another canonical", () => {
@@ -3209,7 +3230,6 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-metric-engagement_rate")).toHaveTextContent(
       "25%",
     );
-    expect(screen.getByRole("row", { name: "Jan 1 25%" })).toBeInTheDocument();
     const trend = screen.getByRole("group", { name: "Engagement rate" });
     act(() => trend.focus());
     expect(within(trend).getByRole("status")).toHaveTextContent("Jan 1 · 25%");

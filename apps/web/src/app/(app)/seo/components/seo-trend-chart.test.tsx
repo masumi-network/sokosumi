@@ -30,10 +30,10 @@ describe("SEO trend chart Google updates", () => {
       </NextIntlClientProvider>,
     );
     expect(
-      screen.getByText("November 2026 core update: from Nov 10, ongoing"),
+      screen.getByText("November 2026 core update: since Nov 10"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Google updates as of Nov 13, 2026"),
+      screen.getByText("Google updates known until Nov 13, 2026"),
     ).toBeInTheDocument();
     expect(screen.queryByText(/to Nov 13/)).toBeNull();
   });

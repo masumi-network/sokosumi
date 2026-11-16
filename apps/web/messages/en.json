@@ -11716,8 +11716,6 @@
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
-        "dailyValues": "Daily values",
-        "day": "Day",
         "synced": "Last synced",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
         "noComparison": "Not enough days to compare",
@@ -11755,12 +11753,13 @@
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
-        "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
         "googleUpdate": "{name}: {from} to {to}",
-        "googleUpdateOpen": "{name}: from {from}, ongoing",
+        "googleUpdateOpen": "{name}: since {from}",
         "googleUpdateDay": "{name}: {day}",
-        "googleUpdatesAsOf": "Google updates as of {day}"
+        "googleUpdatesAsOf": "Google updates known until {day}",
+        "markerKind": "{kind, select, change {Page change} audit {Audit} task {Task done} verified {Fix confirmed} other {Event}}",
+        "markerEvent": "{kind}: {label}"
       },
       "keywords": {
         "title": "Keywords",

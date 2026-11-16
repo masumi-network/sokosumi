@@ -11716,8 +11716,6 @@
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
         "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
-        "dailyValues": "Valores diarios",
-        "day": "Día",
         "synced": "Última sincronización",
         "windowDays": "Últimos 7 días: {current}. 7 días anteriores: {previous}. Ambos terminan en el día más reciente que informó Google.",
         "noComparison": "No hay días suficientes para comparar",
@@ -11755,12 +11753,13 @@
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
         "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
-        "changeMarker": "Cambio registrado el {day}: {changes}",
         "points": "{value} p. p.",
         "googleUpdate": "{name}: del {from} al {to}",
-        "googleUpdateOpen": "{name}: desde el {from}, en curso",
+        "googleUpdateOpen": "{name}: desde el {from}",
         "googleUpdateDay": "{name}: {day}",
-        "googleUpdatesAsOf": "Actualizaciones de Google a fecha del {day}"
+        "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}",
+        "markerKind": "{kind, select, change {Cambio de página} audit {Auditoría} task {Tarea hecha} verified {Corrección confirmada} other {Evento}}",
+        "markerEvent": "{kind}: {label}"
       },
       "keywords": {
         "title": "Palabras clave",
