@@ -1408,7 +1408,9 @@ describe("stored SEO workspace projections", () => {
     expect(projectSeoProjection(input).actions).toMatchObject([
       { status: "verified", taskId: task.id },
     ]);
-    // An open Task has no completion day to mark.
+    // An open Task has no completion day to mark, also when it completed once and was reopened.
+    expect(projectSeoProjection(input).actions[0].completedAt).toBeUndefined();
+    input.tasks = [{ ...task, status: "RUNNING" }];
     expect(projectSeoProjection(input).actions[0].completedAt).toBeUndefined();
     // A Task that was cancelled, failed or is gone does no work: its action leaves the list like one without a Task.
     for (const tasks of [

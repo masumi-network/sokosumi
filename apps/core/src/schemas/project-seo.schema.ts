@@ -409,7 +409,7 @@ export const seoActionSchema = z
     status: z.enum(["recommended", "task_created", "implemented", "verified"]),
     /** When the linked Task last completed. Set on an implemented or verified action. */
     completedAt: dateTimeSchema.optional(),
-    /** When the last check that confirms the fix ran. Set on a verified fix. */
+    /** When the last check that shows every finding of the fix gone ran; it can come before completedAt. Set on a verified fix. */
     verifiedAt: dateTimeSchema.optional(),
     /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
     kind: z.enum(["fix", "opportunity"]),

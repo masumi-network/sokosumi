@@ -561,13 +561,11 @@ export function projectSeoProjection(
     taskStatuses,
   );
   actions.push(...search.actions);
-  // The day each Task behind a done action completed, so a chart can mark it.
+  // The day each Task behind an action completed, so a chart can mark it. A reopened Task is not done.
   for (const action of actions) {
-    const completedAt =
-      action.status !== "recommended" && action.status !== "task_created"
-        ? input.tasks.find((task) => task.id === action.taskId)?.completedAt
-        : null;
-    if (completedAt) action.completedAt = completedAt.toISOString();
+    const task = input.tasks.find((item) => item.id === action.taskId);
+    if (task?.status === "COMPLETED" && task.completedAt)
+      action.completedAt = task.completedAt.toISOString();
   }
   for (const link of input.actionTasks) {
     const observation =

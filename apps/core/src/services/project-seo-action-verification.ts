@@ -11,8 +11,9 @@ export function latestDate(dates: Date[]): Date {
 }
 
 /**
- * The check that confirms a completed Task fixed its action: for each finding, the newest check after the
- * Task completed that read the same row on the same device, under the same rulebook. Every one must pass;
+ * The check that confirms a completed Task fixed its action: for each finding, the first check in
+ * `observations` order (newest first) after the Task completed that read the same row on the same
+ * device, under the same rulebook. Every one must pass;
  * the day is the last of those checks. Null while any finding has no such pass.
  */
 export function actionVerifiedAt(
