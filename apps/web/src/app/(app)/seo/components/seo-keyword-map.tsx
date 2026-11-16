@@ -88,7 +88,11 @@ export function SeoKeywordMap({
     if (openId) setOpenId(null);
   }
   const map = seoKeywordMap(groups);
-  if (!map) return null;
+  if (!map) {
+    // Too few keywords for a map: an open keyword closes, and does not open again when the map is back.
+    if (openId) setOpenId(null);
+    return null;
+  }
   const { points, ticks, minorTicks } = map;
   const { k, x: panX, y: panY } = transform;
   const measured = size.width > 0 && size.height > 0;
@@ -498,6 +502,14 @@ export function SeoKeywordMap({
             model={model}
             onInteractOutside={() => {
               outside.current = true;
+            }}
+            // An action opens another dialog: the popover closes first and leaves the focus on the map, so the
+            // dialog gives it back there.
+            onLeave={() => {
+              outside.current = true;
+              setActiveId((current) => current ?? openId);
+              setOpenId(null);
+              group.current?.focus();
             }}
             // Closing gives the focus back to the map, on the keyword it opened. A press outside keeps the focus
             // where it went: a field the reader clicked keeps the keys.

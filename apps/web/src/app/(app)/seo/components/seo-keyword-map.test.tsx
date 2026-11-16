@@ -150,6 +150,8 @@ describe("SEO keyword map", () => {
     map.focus();
     await user.keyboard("{ArrowRight}{Enter}");
     const popover = await screen.findByTestId("seo-keyword-popover");
+    // The popover takes the focus itself, not its first button.
+    expect(popover).toHaveFocus();
     expect(popover).toHaveTextContent("battery app");
     expect(popover).toHaveTextContent("Your keyword");
     expect(popover).toHaveTextContent("Easy");
@@ -161,16 +163,26 @@ describe("SEO keyword map", () => {
       within(popover).getByRole("button", { name: "Create content task" }),
     );
     const brief =
-      'Write web content that can rank on Google for the search "battery app" on example.com. It has 1,000 searches a month in United States · English, and its difficulty is Easy (12 of 100). Lead with this product feature: Cycle count.';
+      'Write web content that can rank on Google for the search "battery app" on example.com. It has 1,000 searches a month in United States · English, and its difficulty is easy (12 of 100). Lead with this product feature: Cycle count.';
     expect(wizard.openNewTaskWizard).toHaveBeenCalledWith({
       prompt: brief,
       projectId: model.data.projectId,
     });
+    // The wizard is a dialog of its own: the popover closes first and the map keeps the focus to get back.
+    expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
+    expect(map).toHaveFocus();
+    await user.keyboard("{Enter}");
     await user.click(
-      within(popover).getByRole("button", { name: "Ask the SEO agent" }),
+      within(await screen.findByTestId("seo-keyword-popover")).getByRole(
+        "button",
+        { name: "Ask the SEO agent" },
+      ),
     );
     expect(model.openChat).toHaveBeenCalledWith(brief);
-    // Closing gives the focus back to the map; the next keyword, an idea, can be tracked.
+    expect(map).toHaveFocus();
+    // Escape gives the focus back to the map too; the next keyword, an idea, can be tracked.
+    await user.keyboard("{Enter}");
+    await screen.findByTestId("seo-keyword-popover");
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
     expect(map).toHaveFocus();
@@ -274,6 +286,13 @@ describe("SEO keyword map", () => {
       ]),
     );
     expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
+    rerender(view(rows));
+    expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
+    // The same when too few keywords are left for a map at all.
+    screen.getByRole("group", { name: "Keyword opportunities" }).focus();
+    await user.keyboard("{ArrowRight}{Enter}");
+    await screen.findByTestId("seo-keyword-popover");
+    rerender(view([rows[0]]));
     rerender(view(rows));
     expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
   });

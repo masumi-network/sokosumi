@@ -1,3 +1,5 @@
+import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoAuditName } from "./seo-audit-name";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 
 /** Below this many keywords with both numbers, a map shows no pattern: the list says it all. */
@@ -97,4 +99,19 @@ export function seoNearestPoint(
       nearest = { index, distance };
   });
   return (nearest as { index: number } | null)?.index ?? null;
+}
+
+/**
+ * The site a content brief names: the keyword's own page, else the first page in view. "none" where the
+ * workspace has no page, so the brief leaves the site out.
+ */
+export function seoKeywordBriefSite(
+  pageUrl: string | null,
+  workspace: Pick<ProjectSeoWorkspace, "pages" | "scope">,
+): string {
+  const url =
+    pageUrl ??
+    workspace.pages.find((page) => workspace.scope.pageIds.includes(page.id))
+      ?.url;
+  return (url && seoAuditName("", url)) || "none";
 }
