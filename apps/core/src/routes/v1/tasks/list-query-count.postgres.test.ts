@@ -59,7 +59,11 @@ async function list(query: string) {
   recordedSql().length = 0;
   const response = await createApp().request(`http://localhost/?${query}`);
   const body = (await response.json()) as {
-    data: Array<{ name: string; owner: { name: string } }>;
+    data: Array<{
+      name: string;
+      owner: { name: string };
+      assignee: { type: string; user: { name: string } } | null;
+    }>;
     error?: string;
   };
   expect(response.status, JSON.stringify(body)).toBe(200);
@@ -162,6 +166,10 @@ describe.skipIf(!enabled)("GET /tasks query count", () => {
     expect(one.body.data.map((task) => task.owner.name)).toEqual([
       "List owner",
     ]);
+    expect(one.body.data[0]?.assignee).toMatchObject({
+      type: "user",
+      user: { name: "Assignee 0" },
+    });
     expect(many.body.data).toHaveLength(4);
     expect(
       many.body.data.every((task) => task.owner.name === "List owner"),

@@ -11,23 +11,42 @@ import {
   taskLinksInclude,
 } from "@/types/task-link";
 
+const userSummarySelect = {
+  select: { id: true, name: true, image: true },
+} as const;
+
+const sokoBotSummarySelect = {
+  id: true,
+  name: true,
+  avatarSeed: true,
+  avatarImageUrl: true,
+  userId: true,
+} as const;
+
 export const taskEventApiInclude = {
-  user: { select: { id: true, name: true, image: true } },
+  user: userSummarySelect,
   coworker: {
     select: { id: true, name: true, image: true, slug: true, vendorId: true },
   },
   sokoBot: {
     select: {
-      id: true,
-      name: true,
-      avatarSeed: true,
-      avatarImageUrl: true,
-      userId: true,
-      user: { select: { id: true, name: true, image: true } },
+      ...sokoBotSummarySelect,
+      user: userSummarySelect,
     },
   },
 
   transaction: { select: { amount: true } },
+} as const;
+
+/**
+ * Event list read without the nested user selects. Callers load every user id
+ * in one findMany; Prisma otherwise issues the same user summary select once
+ * per relation.
+ */
+export const taskEventListInclude = {
+  coworker: taskEventApiInclude.coworker,
+  sokoBot: { select: sokoBotSummarySelect },
+  transaction: taskEventApiInclude.transaction,
 } as const;
 
 const taskParticipantsInclude = {
@@ -90,9 +109,7 @@ const taskBaseInclude = {
   },
 } as const;
 
-export const taskListInclude = {
-  ...workspaceRelationInclude,
-  ...taskOwnerAssigneeCreatorInclude,
+const taskListCountAndStatus = {
   _count: {
     select: {
       events: {
@@ -106,10 +123,39 @@ export const taskListInclude = {
   // The latest status change, for how long the Task has been in its status.
   events: {
     where: { status: { not: null } },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "desc" as const },
     take: 1,
     select: { createdAt: true },
   },
+} as const;
+
+export const taskListInclude = {
+  ...workspaceRelationInclude,
+  ...taskOwnerAssigneeCreatorInclude,
+  ...taskListCountAndStatus,
+} as const;
+
+/**
+ * Task list read without user relations. The list route batches those ids into
+ * one user findMany. Leaving them on the include makes Prisma repeat the same
+ * user summary select for owner, assignee, participant, creator and each bot.
+ */
+export const taskListReadInclude = {
+  ...workspaceRelationInclude,
+  creatorCoworker: workCreatorInclude.creatorCoworker,
+  creatorSokoBot: { select: sokoBotSummarySelect },
+  organization: { select: { id: true, name: true, slug: true } },
+  project: {
+    select: { id: true, name: true, identifier: true, logo: true },
+  },
+  assignee: taskEventApiInclude.coworker,
+  assigneeSokoBot: { select: sokoBotSummarySelect },
+  participants: {
+    orderBy: {
+      id: "asc" as const,
+    },
+  },
+  ...taskListCountAndStatus,
 } as const;
 
 export const taskInclude = {

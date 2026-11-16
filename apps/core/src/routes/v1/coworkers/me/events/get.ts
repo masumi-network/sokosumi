@@ -12,12 +12,17 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import { mapTaskEvent } from "@/helpers/task";
+import {
+  attachTaskEventUsers,
+  findUserSummariesById,
+  taskEventUserIds,
+} from "@/helpers/task-user-summaries";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
-import { taskEventApiInclude } from "@/types/task";
+import { taskEventListInclude } from "@/types/task";
 
 const route = createRoute({
   method: "get",
@@ -88,13 +93,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        include: taskEventApiInclude,
+        include: taskEventListInclude,
       }),
       prisma.taskEvent.count({ where }),
     ]);
 
     const hasMore = events.length === takePlusOne;
     const pagedEvents = events.slice(0, take);
+    const users = await findUserSummariesById(
+      pagedEvents.flatMap(taskEventUserIds),
+    );
     const paginationMeta = createPaginationMeta(
       pagedEvents,
       count,
@@ -105,11 +113,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      z
-        .array(taskEventSchema)
-        .parse(
-          pagedEvents.map((e) => mapTaskEvent(e, { onBehalfOfOwner: true })),
+      z.array(taskEventSchema).parse(
+        pagedEvents.map((event) =>
+          mapTaskEvent(attachTaskEventUsers(event, users), {
+            onBehalfOfOwner: true,
+          }),
         ),
+      ),
       paginationMeta,
     );
   });

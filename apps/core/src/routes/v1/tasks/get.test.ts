@@ -20,11 +20,13 @@ const {
   requireCoworkerCapabilityMock,
   taskCountMock,
   taskFindManyMock,
+  userFindManyMock,
   vendorGrantFindUniqueMock,
 } = vi.hoisted(() => ({
   requireCoworkerCapabilityMock: vi.fn(),
   taskCountMock: vi.fn(),
   taskFindManyMock: vi.fn(),
+  userFindManyMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
 }));
 
@@ -37,6 +39,9 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       count: taskCountMock,
       findMany: taskFindManyMock,
+    },
+    user: {
+      findMany: userFindManyMock,
     },
     vendorGrant: {
       findUnique: vendorGrantFindUniqueMock,
@@ -179,6 +184,7 @@ function createTask() {
       jobs: 0,
     },
     events: [] as Array<{ createdAt: Date }>,
+    participants: [] as Array<{ userId: string; createdAt: Date }>,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -197,6 +203,14 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
+    userFindManyMock.mockImplementation(
+      async (args: { where: { id: { in: string[] } } }) =>
+        args.where.id.in.map((id) => ({
+          id,
+          name: "Task Owner",
+          image: null,
+        })),
+    );
     vendorGrantFindUniqueMock.mockResolvedValue(null);
   });
 

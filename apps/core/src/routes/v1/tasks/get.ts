@@ -27,6 +27,11 @@ import {
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
 import {
+  attachTaskListUsers,
+  findUserSummariesById,
+  taskListUserIds,
+} from "@/helpers/task-user-summaries";
+import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
@@ -48,7 +53,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
-import { taskListInclude } from "@/types/task";
+import { taskListReadInclude } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -442,15 +447,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [...orderBy],
-        include: taskListInclude,
+        include: taskListReadInclude,
       }),
       prisma.task.count({ where }),
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const mappedTasks = tasks
-      .slice(0, take)
-      .map((task) => mapTaskListItem(task));
+    const page = tasks.slice(0, take);
+    const users = await findUserSummariesById(page.flatMap(taskListUserIds));
+    const mappedTasks = page.map((task) =>
+      mapTaskListItem(attachTaskListUsers(task, users)),
+    );
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,
