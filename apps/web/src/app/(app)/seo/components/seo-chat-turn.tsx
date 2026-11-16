@@ -275,6 +275,11 @@ export function SeoChatTurn({
             ) : (
               <>
                 <SeoChatReply text={turn.response ?? ""} />
+                {turn.creditsCharged != null ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("chat.creditsCharged", { credits: turn.creditsCharged })}
+                  </p>
+                ) : null}
                 <ChatActions turn={turn} model={model} />
               </>
             )}

@@ -43,6 +43,7 @@ const filterLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
+    seoChat: "SEO chat",
     contacts: "Find people",
     topUp: "Top up",
     unattributed: "Other",

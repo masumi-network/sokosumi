@@ -40,6 +40,7 @@ describe("history-filters", () => {
       "task",
       "coworker",
       "sokoBot",
+      "seoChat",
       "contacts",
       "topUp",
       "unattributed",
