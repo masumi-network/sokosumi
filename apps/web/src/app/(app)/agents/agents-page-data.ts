@@ -33,7 +33,10 @@ export function loadAgentsCoworkers() {
   return readPrivateCachedCoworkers().catch(async (error: unknown) => {
     unstable_rethrow(error);
     await connection();
-    return readCoworkers().catch(() => []);
+    return readCoworkers().catch((cause: unknown) => {
+      unstable_rethrow(cause);
+      return [];
+    });
   });
 }
 
@@ -60,11 +63,13 @@ export function loadAgentsCatalog() {
     unstable_rethrow(error);
     await connection();
     return Promise.all([
-      getAllCoreAgents().catch((cause) => {
+      getAllCoreAgents().catch((cause: unknown) => {
+        unstable_rethrow(cause);
         logAgentsCatalogFetchFailure("agent catalog", cause);
         return [];
       }),
-      getCoreCategories().catch((cause) => {
+      getCoreCategories().catch((cause: unknown) => {
+        unstable_rethrow(cause);
         logAgentsCatalogFetchFailure("categories", cause);
         return [];
       }),

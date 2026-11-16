@@ -78,7 +78,7 @@ async function CoworkersTier() {
  * Catalog loaders are cookie-free (`'use cache'`) and share across users at
  * runtime. They load through a browser-only cache, so a link prefetch carries
  * the catalog and a build with Core unreachable bakes nothing in.
- * Translations also need request locale via cookies/headers.
+ * Translations read the request locale, so they stay outside that cache.
  */
 async function AllAgentsTier() {
   const [[listItems, categories], t] = await Promise.all([

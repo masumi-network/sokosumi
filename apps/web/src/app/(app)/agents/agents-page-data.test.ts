@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const connectionMock = vi.fn(async () => undefined);
 const listCoworkersMock = vi.fn();
@@ -22,12 +22,18 @@ const { loadAgentsCatalog, loadAgentsCoworkers } = await import(
 );
 
 describe("agents page data", () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     listCoworkersMock.mockReset();
     getAllCoreAgentsMock.mockReset();
     getCoreCategoriesMock.mockReset();
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
   // connection() would drop the gallery from every link prefetch.
@@ -67,6 +73,17 @@ describe("agents page data", () => {
   });
 
   // A Core 401 redirects to sign-in; the prefetch must carry it.
+  // A redirect on the click's own read must reach the page as well, instead
+  // of turning into an empty gallery.
+  it("keeps a sign-in redirect from the fresh read", async () => {
+    listCoworkersMock
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockImplementation(async () => redirect("/signin"));
+
+    await expect(loadAgentsCoworkers()).rejects.toThrow("NEXT_REDIRECT");
+    expect(connectionMock).toHaveBeenCalledOnce();
+  });
+
   it("keeps a sign-in redirect from the cached read", async () => {
     listCoworkersMock.mockImplementation(async () => redirect("/signin"));
 
