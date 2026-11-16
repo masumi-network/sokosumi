@@ -1,4 +1,6 @@
-import { FileSourceKind } from "@sokosumi/database";
+import { createHash } from "node:crypto";
+
+import { FileSourceKind, Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -25,6 +27,8 @@ const {
   driveHeadMock,
   driveReadUrlMock,
   loadLiveResourcesMock,
+  snapshotUpsertMock,
+  waitUntilMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -49,7 +53,11 @@ const {
   driveHeadMock: vi.fn(),
   driveReadUrlMock: vi.fn(),
   loadLiveResourcesMock: vi.fn(),
+  snapshotUpsertMock: vi.fn(),
+  waitUntilMock: vi.fn(),
 }));
+
+vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
 vi.mock("@/lib/drive-blob", () => ({
   driveHead: driveHeadMock,
@@ -93,6 +101,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: vi.fn(),
     },
     project: { findUnique: projectFindUniqueMock },
+    projectImagePromptSnapshot: { upsert: snapshotUpsertMock },
     transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -138,6 +147,7 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
 }));
 
 import { imageModel } from "@/lib/image-studio/catalog";
+import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
   createImageJob,
   readProviderSize,
@@ -225,6 +235,7 @@ describe("image studio job submission", () => {
     );
     // One caller wins the lease.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    snapshotUpsertMock.mockReset().mockResolvedValue({});
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl: null,
       contextMd: null,
@@ -350,6 +361,7 @@ describe("image studio job submission", () => {
     expect(job.status).toBe("QUEUED");
     expect(jobCreateMock).not.toHaveBeenCalled();
     expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(snapshotUpsertMock).not.toHaveBeenCalled();
   });
 
   it("persists the selected product and batch independently of provider settings", async () => {
@@ -372,9 +384,15 @@ describe("image studio job submission", () => {
     expect(assetFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("inherits the product from a parent image in the same project", async () => {
+  it("inherits the product without copying prompt context from a parent image", async () => {
     assetFindFirstMock.mockResolvedValueOnce({
-      job: { productId: "product-a", productName: "Clay mug" },
+      job: {
+        productId: "product-a",
+        productName: "Clay mug",
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 2,
+      },
     });
     jobUpdateManyMock.mockResolvedValueOnce({ count: 0 });
 
@@ -396,6 +414,9 @@ describe("image studio job submission", () => {
       data: expect.objectContaining({
         productId: "product-a",
         productName: "Clay mug",
+        templateId: undefined,
+        creativeDirection: undefined,
+        variationIndex: undefined,
       }),
     });
   });
@@ -816,6 +837,9 @@ describe("image studio job submission", () => {
     );
     expect(driveReadUrlMock).toHaveBeenCalledWith("drive/w/leggings.jpg");
     expect(fetchMock).toHaveBeenCalledWith(signedUrl, expect.any(Object));
+    expect(snapshotUpsertMock.mock.calls[0]![0].create.finalPrompt).toBe(
+      submitToQueueMock.mock.calls[0]![0].input.prompt,
+    );
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: DEFAULT_IMAGE_ENDPOINT_EDIT,
@@ -916,6 +940,109 @@ describe("image studio job submission", () => {
         "Brief:\na calm product shot",
       ].join("\n\n"),
     );
+    const snapshot = snapshotUpsertMock.mock.calls[0]![0];
+    expect(snapshot).toEqual({
+      where: { jobId: "job-1" },
+      create: {
+        jobId: "job-1",
+        ...snapshot.update,
+      },
+      update: {
+        finalPrompt: submitToQueueMock.mock.calls[0]![0].input.prompt,
+        brandContextHash: createHash("sha256")
+          .update(
+            [
+              "Follow this project's brand.",
+              "Design:\n# Brand\nUse crimson.",
+              "Memory:\nWe never use serif.",
+            ].join("\n\n"),
+          )
+          .digest("hex"),
+        brandLook: Prisma.DbNull,
+        assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
+        templateId: null,
+        creativeDirection: null,
+        variationIndex: null,
+      },
+    });
+  });
+
+  it("persists the generation context and brand look with the exact headline guidance", async () => {
+    const context = {
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+    };
+    const look = { colors: ["#123456"], fonts: ["Inter"] };
+    const stored = jobRow({ ...context, exportHeadline: "Approved headline" });
+    projectFindUniqueMock.mockResolvedValue({ studioBrandLook: look });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await createImageJob({ ...BASE_INPUT, ...context });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining(context),
+    });
+    const finalPrompt = submitToQueueMock.mock.calls[0]![0].input.prompt;
+    expect(finalPrompt).toContain(
+      "Studio adds the approved headline after generation.",
+    );
+    expect(snapshotUpsertMock).toHaveBeenCalledWith({
+      where: { jobId: "job-1" },
+      create: expect.objectContaining({
+        ...context,
+        finalPrompt,
+        brandLook: look,
+        brandContextHash: createHash("sha256")
+          .update(
+            [
+              "Follow this project's brand.",
+              "Use these Studio choices for the ad's palette and fonts. They take precedence over any palette or typefaces in the other brand context.",
+              "Palette: #123456",
+              "Fonts: Inter",
+            ].join("\n\n"),
+          )
+          .digest("hex"),
+      }),
+      update: expect.objectContaining({
+        ...context,
+        finalPrompt,
+        brandLook: look,
+      }),
+    });
+  });
+
+  it("queues the job and logs a snapshot failure", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    snapshotUpsertMock.mockRejectedValueOnce(new Error("snapshot unavailable"));
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    try {
+      await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+        status: "QUEUED",
+      });
+      await Promise.all(waitUntilMock.mock.calls.map(([work]) => work));
+      expect(warning).toHaveBeenCalledWith(
+        "[image-studio] could not save a prompt snapshot",
+        { jobId: "job-1", error: "snapshot unavailable" },
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("does not wait for a snapshot write before submitting or returning the job", async () => {
+    snapshotUpsertMock.mockReturnValueOnce(new Promise(() => {}));
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+      status: "QUEUED",
+    });
+    expect(snapshotUpsertMock).toHaveBeenCalledOnce();
+    expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+    expect(submitToQueueMock).toHaveBeenCalledOnce();
   });
 
   it("still sends the brief when Design cannot be read", async () => {

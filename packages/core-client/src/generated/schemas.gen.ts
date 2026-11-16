@@ -22043,6 +22043,17 @@ export const ProjectImageJobSchema = {
         prompt: {
             type: 'string'
         },
+        templateId: {
+            type: 'string'
+        },
+        creativeDirection: {
+            type: 'string'
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -40029,6 +40040,21 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 4000
+        },
+        templateId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        creativeDirection: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
