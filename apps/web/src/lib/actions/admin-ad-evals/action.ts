@@ -22,6 +22,9 @@ export const exportAdminAdEvals = withSession<
 >(async ({ session }) => {
   try {
     assertAdminSession(session);
+    if (!(await adminAdEvalsService.hasAccess())) {
+      return toActionResult(err({ code: CommonErrorCode.UNAUTHORIZED }));
+    }
     return toActionResult(ok(await adminAdEvalsService.exportJsonl()));
   } catch (error) {
     if (isAdminAccessRequiredError(error)) {

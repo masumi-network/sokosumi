@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { EnvConfig } from "@/config/env";
 import { serviceUnavailable } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -20,8 +21,29 @@ const mocks = vi.hoisted(() => ({
   exportAdminAdEvals: vi.fn(),
   auditAdEvalsExport: vi.fn(),
   auditAdEvalsExportFailure: vi.fn(),
+  findMember: vi.fn(),
+  findActiveOrganizationMember: vi.fn(),
+  env: {} as Pick<
+    EnvConfig,
+    "AD_EVALS_ADMIN_ORGANIZATION_SLUG" | "AD_EVALS_ADMIN_ORGANIZATION_ID"
+  >,
 }));
 
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), ...mocks.env }),
+  };
+});
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    member: {
+      findFirst: mocks.findMember,
+      findUnique: mocks.findActiveOrganizationMember,
+    },
+  },
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: async (
@@ -47,15 +69,17 @@ vi.mock("@/lib/ad-evals-audit", () => ({
 
 const { default: router } = await import("./index");
 
-function app() {
+function app(withParentAdminGate = true) {
   const instance = new OpenAPIHonoWithAuth();
-  instance.use(
-    "*",
-    createMiddleware(async (c, next) => {
-      requireAdminAuthContext(c.var.authContext);
-      await next();
-    }),
-  );
+  if (withParentAdminGate) {
+    instance.use(
+      "*",
+      createMiddleware(async (c, next) => {
+        requireAdminAuthContext(c.var.authContext);
+        await next();
+      }),
+    );
+  }
   instance.onError(errorHandler);
   instance.route("/admin/ad-evals", router);
   return instance;
@@ -78,6 +102,14 @@ beforeEach(() => {
     organizationId: null,
     role: "admin",
   };
+  mocks.env = {
+    AD_EVALS_ADMIN_ORGANIZATION_SLUG: "internal-workspace",
+    AD_EVALS_ADMIN_ORGANIZATION_ID: undefined,
+  };
+  mocks.findMember.mockResolvedValue({ id: "member-a" });
+  mocks.findActiveOrganizationMember.mockResolvedValue({
+    id: "active-member-a",
+  });
   mocks.getAdminAdEvalsDashboard.mockResolvedValue({
     leaderboard: [],
     agreement: [],
@@ -99,16 +131,98 @@ describe("admin ad-evals routes", () => {
     });
   });
 
-  it("denies dashboard and exports to ordinary users", async () => {
+  it("checks access without loading the dashboard or export", async () => {
+    const response = await app().request("/admin/ad-evals/access");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { hasAccess: true },
+      meta: { requestId: "request-a" },
+    });
+    expect(mocks.getAdminAdEvalsDashboard).not.toHaveBeenCalled();
+    expect(mocks.exportAdminAdEvals).not.toHaveBeenCalled();
+  });
+
+  it("allows members even while another workspace is active", async () => {
     mocks.auth.current = {
       actor: "user",
-      userId: "member-a",
-      organizationId: null,
-      role: "user",
+      userId: "admin-a",
+      organizationId: "other-workspace",
+      role: "admin",
     };
-    for (const path of ["/admin/ad-evals", "/admin/ad-evals/export"]) {
+
+    expect((await app().request("/admin/ad-evals")).status).toBe(200);
+    expect(mocks.findActiveOrganizationMember).toHaveBeenCalledWith({
+      where: {
+        userId_organizationId: {
+          userId: "admin-a",
+          organizationId: "other-workspace",
+        },
+      },
+      select: { id: true },
+    });
+    expect(mocks.findMember).toHaveBeenCalledWith({
+      where: {
+        userId: "admin-a",
+        organization: { slug: "internal-workspace" },
+      },
+      select: { id: true },
+    });
+  });
+
+  it.each([true, false])(
+    "denies ordinary users with parent admin gate=%s",
+    async (withParentAdminGate) => {
+      mocks.auth.current = {
+        actor: "user",
+        userId: "member-a",
+        organizationId: null,
+        role: "user",
+      };
+      for (const path of [
+        "/admin/ad-evals",
+        "/admin/ad-evals/export",
+        "/admin/ad-evals/access",
+      ]) {
+        expect((await app(withParentAdminGate).request(path)).status).toBe(403);
+      }
+      expect(mocks.getAdminAdEvalsDashboard).not.toHaveBeenCalled();
+      expect(mocks.exportAdminAdEvals).not.toHaveBeenCalled();
+      expect(mocks.findMember).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([true, false])(
+    "denies non-member admins with parent admin gate=%s",
+    async (withParentAdminGate) => {
+      mocks.findMember.mockResolvedValue(null);
+
+      for (const path of [
+        "/admin/ad-evals",
+        "/admin/ad-evals/export",
+        "/admin/ad-evals/access",
+      ]) {
+        expect((await app(withParentAdminGate).request(path)).status).toBe(403);
+      }
+      expect(mocks.getAdminAdEvalsDashboard).not.toHaveBeenCalled();
+      expect(mocks.exportAdminAdEvals).not.toHaveBeenCalled();
+    },
+  );
+
+  it("denies admins when the organization is not configured", async () => {
+    mocks.env = {
+      AD_EVALS_ADMIN_ORGANIZATION_SLUG: undefined,
+      AD_EVALS_ADMIN_ORGANIZATION_ID: undefined,
+    };
+
+    for (const path of [
+      "/admin/ad-evals",
+      "/admin/ad-evals/export",
+      "/admin/ad-evals/access",
+    ]) {
       expect((await app().request(path)).status).toBe(403);
     }
+    expect(mocks.findMember).not.toHaveBeenCalled();
     expect(mocks.getAdminAdEvalsDashboard).not.toHaveBeenCalled();
     expect(mocks.exportAdminAdEvals).not.toHaveBeenCalled();
   });
@@ -161,6 +275,9 @@ describe("admin ad-evals routes", () => {
     });
     expect(document.paths?.["/admin/ad-evals"]?.get?.operationId).toBe(
       "getAdminAdEvals",
+    );
+    expect(document.paths?.["/admin/ad-evals/access"]?.get?.operationId).toBe(
+      "getAdminAdEvalsAccess",
     );
     expect(document.paths?.["/admin/ad-evals/export"]?.get?.operationId).toBe(
       "getAdminAdEvalsExport",

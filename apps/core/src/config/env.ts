@@ -102,6 +102,9 @@ const baseEnvSchema = z.object({
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
+  AD_EVALS_ADMIN_ORGANIZATION_SLUG: z.string().trim().min(1).optional(),
+  AD_EVALS_ADMIN_ORGANIZATION_ID: z.string().trim().min(1).optional(),
+
   // Vercel (optional; Better Auth base URL on Preview)
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z

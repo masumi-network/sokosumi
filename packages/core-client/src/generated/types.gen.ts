@@ -20593,6 +20593,66 @@ export type TickAdminEvalRunsResponses = {
 
 export type TickAdminEvalRunsResponse = TickAdminEvalRunsResponses[keyof TickAdminEvalRunsResponses];
 
+export type GetAdminAdEvalsAccessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals/access';
+};
+
+export type GetAdminAdEvalsAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsAccessError = GetAdminAdEvalsAccessErrors[keyof GetAdminAdEvalsAccessErrors];
+
+export type GetAdminAdEvalsAccessResponses = {
+    /**
+     * Ad evals admin access allowed
+     */
+    200: {
+        data: {
+            hasAccess: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAdEvalsAccessResponse = GetAdminAdEvalsAccessResponses[keyof GetAdminAdEvalsAccessResponses];
+
 export type GetAdminAdEvalsData = {
     body?: never;
     path?: never;
@@ -102170,7 +102230,6 @@ export type PutWorkspaceAdDataConsentResponses = {
 };
 
 export type PutWorkspaceAdDataConsentResponse = PutWorkspaceAdDataConsentResponses[keyof PutWorkspaceAdDataConsentResponses];
-
 
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;

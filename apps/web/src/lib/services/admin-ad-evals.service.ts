@@ -1,10 +1,33 @@
 import "server-only";
 
-import { getAdminAdEvals, getAdminAdEvalsExport } from "@sokosumi/core-client";
+import {
+  getAdminAdEvals,
+  getAdminAdEvalsAccess,
+  getAdminAdEvalsExport,
+} from "@sokosumi/core-client";
 import { createCoreGeneratedClient } from "@/lib/clients/core.client";
-import { executeCoreOperation } from "@/lib/clients/core.request";
+import {
+  CoreApiRequestError,
+  executeCoreOperation,
+} from "@/lib/clients/core.request";
 
 export const adminAdEvalsService = {
+  async hasAccess(): Promise<boolean> {
+    try {
+      const response = await executeCoreOperation(
+        createCoreGeneratedClient,
+        (client) => getAdminAdEvalsAccess({ client, cache: "no-store" }),
+        "Failed to check ad evals access",
+      );
+      return response.data.hasAccess;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 403) {
+        return false;
+      }
+      throw error;
+    }
+  },
+
   async getDashboard() {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,

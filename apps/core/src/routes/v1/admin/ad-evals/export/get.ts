@@ -1,10 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireAdEvalsAdminAccess } from "@/helpers/ad-evals-admin-access";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import {
   auditAdEvalsExport,
   auditAdEvalsExportFailure,
 } from "@/lib/ad-evals-audit";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { exportAdminAdEvals } from "@/services/ad-evals-export.service";
@@ -32,6 +34,8 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const admin = requireAdminAuthContext(c.var.authContext);
+    await requireAdEvalsAdminAccess(admin.userId, prisma);
+
     try {
       const { jsonl, manifest } = await exportAdminAdEvals();
       auditAdEvalsExport(admin.userId, manifest);
