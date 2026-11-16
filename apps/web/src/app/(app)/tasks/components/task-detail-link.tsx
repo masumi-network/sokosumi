@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type {
-  ComponentProps,
-  FocusEvent,
-  MouseEvent,
-  PointerEvent,
-  TouchEvent,
+import {
+  type ComponentProps,
+  type FocusEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type TouchEvent,
+  useEffect,
+  useRef,
 } from "react";
 
 import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
@@ -20,6 +22,13 @@ import { storeTasksReturnPath } from "./task-navigation";
  */
 const TASK_APPROACH_REPEAT_MS = 60_000;
 
+/**
+ * How long the pointer must rest on a link before it loads the page's content.
+ * A pointer that only crosses a list on its way elsewhere never starts a
+ * server render.
+ */
+export const TASK_HOVER_DWELL_MS = 100;
+
 interface TaskDetailLinkProps
   extends Omit<ComponentProps<typeof Link>, "href" | "ref"> {
   href: string;
@@ -29,14 +38,16 @@ export function TaskDetailLink({
   href,
   onClick,
   onPointerEnter,
+  onPointerLeave,
   onFocus,
   onTouchStart,
   ...props
 }: TaskDetailLinkProps) {
   const router = useRouter();
 
-  // A predicted approach loads only the shared App Shell. Hover, focus and
-  // touch also load the page's content, which costs a server render each.
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A predicted approach and a touch load only the shared App Shell. A resting
+  // hover and focus also load the page's content, a server render each.
   const prefetchTaskShell = () => {
     router.prefetch(href);
   };
@@ -48,6 +59,14 @@ export function TaskDetailLink({
   const approachRef = useIntentPrefetch<HTMLAnchorElement>(prefetchTaskShell, {
     reactivateAfter: TASK_APPROACH_REPEAT_MS,
   });
+
+  function cancelHoverPrefetch() {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+  }
+  useEffect(() => cancelHoverPrefetch, []);
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
@@ -61,8 +80,17 @@ export function TaskDetailLink({
   function handlePointerEnter(event: PointerEvent<HTMLAnchorElement>) {
     onPointerEnter?.(event);
     if (!event.defaultPrevented) {
-      prefetchTaskDetail();
+      cancelHoverPrefetch();
+      hoverTimer.current = setTimeout(() => {
+        hoverTimer.current = null;
+        prefetchTaskDetail();
+      }, TASK_HOVER_DWELL_MS);
     }
+  }
+
+  function handlePointerLeave(event: PointerEvent<HTMLAnchorElement>) {
+    onPointerLeave?.(event);
+    cancelHoverPrefetch();
   }
 
   function handleFocus(event: FocusEvent<HTMLAnchorElement>) {
@@ -75,7 +103,7 @@ export function TaskDetailLink({
   function handleTouchStart(event: TouchEvent<HTMLAnchorElement>) {
     onTouchStart?.(event);
     if (!event.defaultPrevented) {
-      prefetchTaskDetail();
+      prefetchTaskShell();
     }
   }
 
@@ -86,6 +114,7 @@ export function TaskDetailLink({
       prefetch={false}
       onClick={handleClick}
       onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onFocus={handleFocus}
       onTouchStart={handleTouchStart}
       ref={approachRef}
