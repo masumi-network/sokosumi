@@ -112,17 +112,20 @@ function SeoAgentPanel({
   // The first proposal with its own button is the lead step: an action shows as a card. It carries the one
   // brand fill of the tab (owner, after pass 59); the run keeps the secondary look.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
+  // It comes from the steps before the fold, so showing more steps never moves a step into the verdict card.
   const primary = setup?.next
     ? -1
-    : shown.findIndex((step) =>
-        step.kind === "competitors"
-          ? canEdit && (canRequestAnalysis || !step.available)
-          : step.kind === "strategy"
-            ? false
-            : step.kind !== "action" || (canEdit && !step.action.taskId),
-      );
+    : steps
+        .slice(0, visibleSteps)
+        .findIndex((step) =>
+          step.kind === "competitors"
+            ? canEdit && (canRequestAnalysis || !step.available)
+            : step.kind === "strategy"
+              ? false
+              : step.kind !== "action" || (canEdit && !step.action.taskId),
+        );
   // The lead step sits in the verdict card; the list under the pictures holds the rest.
-  const lead = primary === -1 ? undefined : shown[primary];
+  const lead = primary === -1 ? undefined : steps[primary];
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
@@ -207,6 +210,7 @@ function SeoAgentPanel({
         step={step}
         model={model}
         first={index === primary}
+        flush={index === primary}
       />
     );
   const trafficLine = traffic

@@ -37,8 +37,10 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   // Both pictures share one card. It opens on the one with something to show: the daily clicks once the
   // site gets clicks, otherwise the searches for the checked keywords.
   const [picked, setPicked] = useState<SeoAgentChart | null>(null);
+  const both = Boolean(clicks && demand.rows.length);
+  // A choice holds only while the switch shows: with one picture left, that picture shows.
   const shown: SeoAgentChart =
-    picked ??
+    (both ? picked : null) ??
     (clicks && (hasClicks || !demand.rows.length) ? "clicks" : "keywords");
   if (!clicks && !demand.rows.length) return null;
   return (
@@ -46,7 +48,7 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
       className="bg-background min-w-0 space-y-3 rounded-lg border p-3"
       data-testid="seo-agent-graphics"
     >
-      {clicks && demand.rows.length ? (
+      {both ? (
         <ToggleGroup
           type="single"
           aria-label={t("agent.chart")}

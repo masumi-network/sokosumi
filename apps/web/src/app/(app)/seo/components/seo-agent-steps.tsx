@@ -39,6 +39,7 @@ export function SeoStepRow({
   model,
   first,
   banner,
+  flush = false,
 }: {
   /** The step stands alone as a banner with this title, not as a row of the step list. */
   banner?: string;
@@ -46,6 +47,8 @@ export function SeoStepRow({
   model: SeoWorkspaceModel;
   /** The agent's top proposal carries the one primary button. */
   first: boolean;
+  /** The row sits inside another card: no surface of its own. */
+  flush?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -139,7 +142,7 @@ export function SeoStepRow({
   return (
     <Shell
       className={cn(
-        HOLDER_ITEM_CLASS,
+        !flush && HOLDER_ITEM_CLASS,
         "content-rise flex items-start gap-3 p-4",
         // The one coloured surface of the tab: statistics are missing, and one button sets them up.
         banner && "bg-chart-3-quinary",

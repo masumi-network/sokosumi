@@ -5973,9 +5973,10 @@ describe("SEO workspace integration", () => {
     // Without an action the one step sits in the verdict card: no list follows the pictures.
     workspace.actions = [];
     renderWorkspace(workspace, "?tab=agent");
-    expect(
-      await screen.findByRole("list", { name: "First step" }),
-    ).toBeVisible();
+    const firstStep = await screen.findByRole("list", { name: "First step" });
+    expect(firstStep).toBeVisible();
+    // Inside the card the step has no frame of its own.
+    expect(within(firstStep).getByRole("listitem")).not.toHaveClass("border");
     expect(
       screen.queryByRole("heading", { name: "The agent proposes" }),
     ).not.toBeInTheDocument();
