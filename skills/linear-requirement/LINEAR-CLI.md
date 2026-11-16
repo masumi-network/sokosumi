@@ -12,7 +12,7 @@ Creates or updates **one** Linear issue with `## Requirement`. No child issues.
 
 Only touch the fields documented here — no other Linear side effects.
 
-Use `linear` when it is on PATH. CLI recipes and flags: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/). This file is Sokosumi requirement publish rules (team, project, approval, defaults). Pass `--no-interactive` on create. Prefer `--description-file` for markdown. Never print `LINEAR_API_KEY`. If `command -v linear` fails, stop using this file and follow `LINEAR-MCP.md`.
+Use `linear` when it is on PATH. This repo does not install a linear-cli skill; flags come from `linear skill show` (or `linear COMMAND --help`). This file is Sokosumi requirement publish rules (team, project, approval, defaults). Pass `--no-interactive` on create. Prefer `--description-file` for markdown. Never print `LINEAR_API_KEY`. If `command -v linear` fails, stop using this file and follow `LINEAR-MCP.md`.
 
 ## Defaults
 
