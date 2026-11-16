@@ -11859,7 +11859,8 @@
           "gainShort": "Top-3-Klicks",
           "contentTask": "Content-Aufgabe erstellen",
           "ask": "SEO-Agent fragen",
-          "brief": "Schreibe Webinhalte für {site}, die bei Google für die Suche „{keyword}“ ranken können. Sie hat {volume, number} Suchen pro Monat in {market}, die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}"
+          "brief": "Schreibe Webinhalte für {site}, die bei Google für die Suche „{keyword}“ ranken können. Sie hat {volume, number} Suchen pro Monat in {market}, die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
+          "noGain": "Unbekannt"
         },
         "historyShow": "Verlauf",
         "historyPaidTitle": "Positionen in bezahlten Prüfungen",

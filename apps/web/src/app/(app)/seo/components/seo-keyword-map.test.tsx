@@ -1,10 +1,18 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { SeoKeywordMap } from "./seo-keyword-map";
+import { seoKeywordMap } from "./seo-keyword-map-model";
 import { keywordGroups } from "./seo-keyword-rows-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -20,6 +28,7 @@ type Keyword = ProjectSeoWorkspace["keywords"][number];
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 const model = {
@@ -59,10 +68,10 @@ function row(patch: Partial<Keyword>): Keyword {
   };
 }
 
-function renderMap(rows: Keyword[]) {
+function renderMap(rows: Keyword[], viewer = model) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <SeoKeywordMap groups={keywordGroups(rows)} model={model} />
+      <SeoKeywordMap groups={keywordGroups(rows)} model={viewer} />
     </NextIntlClientProvider>,
   );
 }
@@ -175,6 +184,132 @@ describe("SEO keyword map", () => {
     expect(model.toggleKeyword).toHaveBeenCalledWith(
       expect.objectContaining({ keyword: "battery health" }),
     );
+  });
+
+  it("opens the dot a press picks, not after a drag, and a press on another dot opens that one", async () => {
+    // A frame of 400 by 300 px: a press finds its dot by the place on the frame.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 400, height: 300 }),
+    );
+    const rows = [
+      row({ keyword: "battery app", volume: 1000, difficulty: 12 }),
+      row({ keyword: "battery health", volume: 5000, difficulty: 70 }),
+    ];
+    renderMap(rows);
+    const { points } = seoKeywordMap(keywordGroups(rows))!;
+    const frame = screen.getByTestId("seo-keyword-map");
+    const press = (keyword: string, moved = 0) => {
+      const point = points.find((item) => item.group.lead.keyword === keyword)!;
+      // The frame's padding is 12 px on each side.
+      const at = {
+        clientX: 12 + (point.x / 100) * 376,
+        clientY: 12 + (point.y / 100) * 276,
+      };
+      fireEvent.pointerDown(frame, { ...at, pointerType: "mouse" });
+      fireEvent.click(frame, { ...at, clientX: at.clientX + moved });
+    };
+    const popover = () => screen.queryByTestId("seo-keyword-popover");
+    // A drag pans the map: it opens nothing.
+    press("battery health", 10);
+    expect(popover()).toBeNull();
+    press("battery app");
+    await waitFor(() => expect(popover()).toHaveTextContent("battery app"));
+    // The press outside the open popover closes it and opens the dot it picked.
+    await new Promise((done) => setTimeout(done, 0));
+    press("battery health");
+    await waitFor(() => expect(popover()).toHaveTextContent("battery health"));
+    // Closed, the map keeps the keyword it showed last: its card is back.
+    fireEvent.keyDown(screen.getByTestId("seo-keyword-popover"), {
+      key: "Escape",
+    });
+    await waitFor(() => expect(popover()).toBeNull());
+    expect(screen.getByTestId("seo-keyword-card")).toHaveTextContent(
+      "battery health",
+    );
+  });
+
+  it("leaves the focus on a field the reader clicked, and does not open a keyword again that left the map", async () => {
+    const user = userEvent.setup();
+    const rows = [
+      row({
+        keyword: "battery app",
+        volume: 1000,
+        difficulty: 12,
+        saved: true,
+        version: 1,
+      }),
+      row({
+        keyword: "battery health",
+        source: "gap",
+        volume: 5000,
+        difficulty: 70,
+      }),
+    ];
+    const view = (shown: Keyword[]) => (
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <input aria-label="Filter keywords" />
+        <SeoKeywordMap groups={keywordGroups(shown)} model={model} />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(view(rows));
+    const map = screen.getByRole("group", { name: "Keyword opportunities" });
+    map.focus();
+    await user.keyboard("{ArrowRight}{Enter}");
+    await screen.findByTestId("seo-keyword-popover");
+    const field = screen.getByLabelText("Filter keywords");
+    await user.click(field);
+    await waitFor(() =>
+      expect(screen.queryByTestId("seo-keyword-popover")).toBeNull(),
+    );
+    await new Promise((done) => setTimeout(done, 10));
+    expect(field).toHaveFocus();
+    // Open again, then the keyword leaves the map (a filter, or Track) and comes back: it stays closed.
+    map.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByTestId("seo-keyword-popover");
+    rerender(
+      view([
+        rows[1],
+        row({ keyword: "battery saver", volume: 300, difficulty: 30 }),
+      ]),
+    );
+    expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
+    rerender(view(rows));
+    expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
+  });
+
+  it("has no Track for a viewer who cannot edit", async () => {
+    const user = userEvent.setup();
+    const viewer = {
+      ...model,
+      data: {
+        ...model.data,
+        availableActions: { ...model.data.availableActions, canEdit: false },
+      },
+    } as SeoWorkspaceModel;
+    renderMap(
+      [
+        row({
+          keyword: "battery app",
+          volume: 1000,
+          difficulty: 12,
+          saved: true,
+          version: 1,
+        }),
+        row({
+          keyword: "battery health",
+          source: "gap",
+          volume: 5000,
+          difficulty: 70,
+        }),
+      ],
+      viewer,
+    );
+    screen.getByRole("group", { name: "Keyword opportunities" }).focus();
+    await user.keyboard("{ArrowRight}{ArrowRight}{Enter}");
+    const popover = await screen.findByTestId("seo-keyword-popover");
+    expect(popover).toHaveTextContent("Idea");
+    expect(within(popover).queryByRole("button", { name: "Track" })).toBeNull();
   });
 
   it("zooms in with the button or the + key, and the reset shows the whole map again", async () => {

@@ -11859,7 +11859,8 @@
           "gainShort": "Clics en el top 3",
           "contentTask": "Crear tarea de contenido",
           "ask": "Preguntar al agente SEO",
-          "brief": "Escribe contenido web para {site} que pueda posicionarse en Google para la búsqueda «{keyword}». Tiene {volume, number} búsquedas al mes en {market} y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { Destaca esta función del producto: {feature}.}}"
+          "brief": "Escribe contenido web para {site} que pueda posicionarse en Google para la búsqueda «{keyword}». Tiene {volume, number} búsquedas al mes en {market} y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
+          "noGain": "Desconocido"
         },
         "historyShow": "Historial",
         "historyPaidTitle": "Posiciones en comprobaciones de pago",

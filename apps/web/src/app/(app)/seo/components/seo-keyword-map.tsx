@@ -78,6 +78,15 @@ export function SeoKeywordMap({
   const [openId, setOpenId] = useState<string | null>(null);
   const pressAt = useRef<{ x: number; y: number } | null>(null);
   const group = useRef<HTMLDivElement>(null);
+  // The popover closed by a press outside it: the focus stays where the press put it.
+  const outside = useRef(false);
+  // A zoom or a pan can take the dot out of the frame: the popover at it closes.
+  const view = `${transform.k}:${transform.x}:${transform.y}`;
+  const [openView, setOpenView] = useState(view);
+  if (view !== openView) {
+    setOpenView(view);
+    if (openId) setOpenId(null);
+  }
   const map = seoKeywordMap(groups);
   if (!map) return null;
   const { points, ticks, minorTicks } = map;
@@ -150,6 +159,8 @@ export function SeoKeywordMap({
       : []),
   ];
   const opened = points.find((point) => point.group.lead.id === openId);
+  // A keyword that left the map (tracked, or filtered out) closes: it does not open again when it comes back.
+  if (openId && !opened) setOpenId(null);
   // The card of the picked dot gives way to the open keyword.
   const focus = opened || active === null ? null : points[active];
   function pick(event: PointerEvent<HTMLDivElement>) {
@@ -204,9 +215,12 @@ export function SeoKeywordMap({
       open={Boolean(opened)}
       onOpenChange={(open) => {
         if (open) return;
-        // The map picks the keyword it opened again: the arrow keys go on from there.
-        setActiveId(openId);
-        setOpenId(null);
+        // The map picks the keyword it opened again, so the arrow keys go on from there. A press on another dot
+        // closes the popover too: that dot stays picked. On touch the close comes after the press opened the
+        // other dot, so the close clears only the keyword it closed.
+        const closed = openId;
+        setActiveId((current) => current ?? closed);
+        setOpenId((current) => (current === closed ? null : current));
       }}
     >
       <figure className="bg-card-background min-w-0 space-y-4 rounded-xl p-4 sm:p-5">
@@ -411,15 +425,16 @@ export function SeoKeywordMap({
                 );
               })}
               {opened ? (
+                // The anchor covers the dot: a popover that flips to the other side leaves the dot in view.
                 <PopoverAnchor asChild>
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute size-0"
+                    className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
                     style={{
-                      left: measured
-                        ? toX(opened.x) + SEO_MAP_RADIUS
-                        : `${opened.x}%`,
+                      left: measured ? toX(opened.x) : `${opened.x}%`,
                       top: measured ? toY(opened.y) : `${opened.y}%`,
+                      width: SEO_MAP_RADIUS * 2,
+                      height: SEO_MAP_RADIUS * 2,
                     }}
                   />
                 </PopoverAnchor>
@@ -481,10 +496,15 @@ export function SeoKeywordMap({
           <SeoKeywordMapPopover
             point={opened}
             model={model}
-            // Closing gives the focus back to the map, on the keyword it opened.
+            onInteractOutside={() => {
+              outside.current = true;
+            }}
+            // Closing gives the focus back to the map, on the keyword it opened. A press outside keeps the focus
+            // where it went: a field the reader clicked keeps the keys.
             onCloseAutoFocus={(event) => {
               event.preventDefault();
-              group.current?.focus();
+              if (!outside.current) group.current?.focus();
+              outside.current = false;
             }}
           />
         ) : null}
