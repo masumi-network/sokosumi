@@ -11987,7 +11987,7 @@
         },
         "problem": "{check}. Found: {found}",
         "impactLine": "{level}: {hint}",
-        "copyFix": "Copy",
+        "copyFix": "Copy change",
         "copyInstructions": "Copy as instructions",
         "copyPage": "Page",
         "copied": "Copied to the clipboard",

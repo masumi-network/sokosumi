@@ -11987,7 +11987,7 @@
         },
         "problem": "{check}. Hallazgo: {found}",
         "impactLine": "{level}: {hint}",
-        "copyFix": "Copiar",
+        "copyFix": "Copiar cambio",
         "copyInstructions": "Copiar como instrucciones",
         "copyPage": "Página",
         "copied": "Copiado al portapapeles",

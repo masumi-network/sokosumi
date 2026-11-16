@@ -5766,7 +5766,9 @@ describe("SEO workspace integration", () => {
       within(dialog).getByText("A descriptive search result"),
     ).toBeVisible();
     const write = vi.spyOn(navigator.clipboard, "writeText");
-    await user.click(within(dialog).getByRole("button", { name: "Copy" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Copy change" }),
+    );
     expect(write).toHaveBeenLastCalledWith("<title>Battery Sensei</title>");
     await user.click(
       within(dialog).getByRole("button", { name: "Copy as instructions" }),
