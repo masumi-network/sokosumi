@@ -38,7 +38,12 @@ export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
  * Core read started while a prefetch renders would cut that prefetch short.
  */
 export function requestPanelFeed<T>(read: () => Promise<T[]>): PanelFeed<T> {
-  return panelFeed(connection().then(read));
+  // A prefetch ends with `connection()` rejected. That is no failed feed, so
+  // it logs nothing.
+  return connection().then(
+    () => panelFeed(read()),
+    () => null,
+  );
 }
 
 interface WorkspaceColumnProps {

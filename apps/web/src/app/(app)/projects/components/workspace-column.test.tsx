@@ -9,6 +9,7 @@ import {
   NeedsYouPanel,
   panelFeed,
   RecentActivityPanel,
+  requestPanelFeed,
 } from "./workspace-column";
 
 const {
@@ -402,6 +403,22 @@ describe("panelFeed", () => {
       null,
     );
     await expect(panelFeed(Promise.resolve([1]))).resolves.toEqual([1]);
+  });
+});
+
+describe("requestPanelFeed", () => {
+  // A prefetch ends by rejecting `connection()`. Logging that as a failed
+  // feed would fill the logs with one false warning per hover.
+  it("reads nothing and logs nothing when a prefetch ends", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const read = vi.fn(async () => [1]);
+    connectionMock.mockRejectedValueOnce(new Error("prerender aborted"));
+
+    await expect(requestPanelFeed(read)).resolves.toBe(null);
+
+    expect(read).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 
