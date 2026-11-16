@@ -642,4 +642,26 @@ describe("MenuItems prefetch", () => {
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/agents");
   });
+
+  // The page on screen would render on the server again for nothing.
+  it("loads only the shell for the Tasks page already on screen", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
+  // Back to the list from a task is the common way to reach it.
+  it("loads the Tasks page content from a task detail page", () => {
+    pathnameRef.current = "/tasks/task-1";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
+  });
 });

@@ -21,6 +21,7 @@ type TaskDetailLinkProps = Omit<
 export function TaskDetailLink({
   href,
   onClick,
+  prefetchContent = true,
   ...props
 }: TaskDetailLinkProps) {
   const router = useRouter();
@@ -46,6 +47,7 @@ export function TaskDetailLink({
   return (
     <RestingIntentLink
       {...props}
+      prefetchContent={prefetchContent}
       href={href}
       prefetch={false}
       onClick={handleClick}

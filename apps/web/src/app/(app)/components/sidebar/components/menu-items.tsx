@@ -283,7 +283,9 @@ function ScopedMenuItems({
           <SheetClose asChild>
             <RestingIntentLink
               href={hrefFor(href)}
-              prefetchContent={prefetchContent === true}
+              // The list on screen needs no prefetch of its own content. A
+              // task detail page still marks Tasks active, so match exactly.
+              prefetchContent={prefetchContent === true && pathname !== href}
               onClick={() => feature && markFeatureSeen(feature)}
               aria-current={isActive ? "page" : undefined}
               className={cn(

@@ -1,4 +1,5 @@
 import { err, ok } from "neverthrow";
+import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const connectionMock = vi.fn(async () => undefined);
@@ -83,5 +84,15 @@ describe("loadTasksPageData", () => {
 
     expect(connectionMock).toHaveBeenCalledOnce();
     expect(data.activeOrganizationId).toBeNull();
+  });
+
+  // Any redirect thrown inside the cached read, such as a Core 401 from a
+  // service, must reach the prefetch instead of the fresh fallback.
+  it("keeps a sign-in redirect from the cached read", async () => {
+    getSessionResultMock.mockImplementation(async () => redirect("/signin"));
+
+    await expect(load()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 });

@@ -23,10 +23,10 @@ export async function OrganizationProductLayout({
   const locked = await isPrivateCachedProductLocked().catch(
     async (error: unknown) => {
       unstable_rethrow(error);
-      // A Core outage must not be kept in a prefetch as the error page, so
-      // the click renders the layout fresh.
+      // A Core outage must not be kept in a prefetch as the error page. The
+      // click then fails once, as before, without a second Core call.
       await connection();
-      return isOrganizationProductLocked();
+      throw error;
     },
   );
   if (locked) {

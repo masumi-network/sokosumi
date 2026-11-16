@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const connectionMock = vi.fn(async () => undefined);
@@ -14,9 +15,6 @@ vi.mock("@/components/billing/organization-product-seat-required", () => ({
 
 const { OrganizationProductLayout } = await import(
   "./organization-product-layout"
-);
-const { OrganizationProductSeatRequired } = await import(
-  "@/components/billing/organization-product-seat-required"
 );
 
 describe("OrganizationProductLayout", () => {
@@ -36,14 +34,25 @@ describe("OrganizationProductLayout", () => {
   });
 
   // A prefetch would keep the outage as the error page the click opens.
-  it("renders a failed lock check fresh on the click", async () => {
-    isLockedMock
-      .mockRejectedValueOnce(new Error("Core answered 503"))
-      .mockResolvedValueOnce(true);
+  it("keeps a failed lock check out of the prefetch", async () => {
+    isLockedMock.mockRejectedValue(new Error("Core answered 503"));
 
-    const result = await OrganizationProductLayout({ children: "page" });
+    await expect(
+      OrganizationProductLayout({ children: "page" }),
+    ).rejects.toThrow("Core answered 503");
 
     expect(connectionMock).toHaveBeenCalledOnce();
-    expect(result).toMatchObject({ type: OrganizationProductSeatRequired });
+    expect(isLockedMock).toHaveBeenCalledOnce();
+  });
+
+  // A signed-out prefetch must still carry the sign-in redirect.
+  it("keeps a sign-in redirect from the lock check", async () => {
+    isLockedMock.mockImplementation(async () => redirect("/signin"));
+
+    await expect(
+      OrganizationProductLayout({ children: "page" }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 });

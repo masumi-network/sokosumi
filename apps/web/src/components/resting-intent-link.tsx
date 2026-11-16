@@ -28,8 +28,9 @@ interface RestingIntentLinkProps
   extends Omit<ComponentProps<typeof Link>, "href"> {
   href: string;
   /**
-   * False for a route whose page reads are not cached: its prefetch would be
-   * a full server render that still carries only the loading skeleton.
+   * True only for a route whose page reads are private-cached. Otherwise the
+   * prefetch is a full server render that still carries only the loading
+   * skeleton.
    */
   prefetchContent?: boolean;
 }
@@ -47,7 +48,7 @@ export function RestingIntentLink({
   onFocus,
   onBlur,
   onTouchStart,
-  prefetchContent = true,
+  prefetchContent = false,
   ...props
 }: RestingIntentLinkProps) {
   const router = useRouter();
