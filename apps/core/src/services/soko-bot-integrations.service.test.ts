@@ -5,7 +5,7 @@ import {
   ComposioToolkitNotFoundError,
   ComposioToolNotFoundError,
 } from "@composio/core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   bot: vi.fn(),
@@ -22,6 +22,16 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   toolkitGet: vi.fn(),
   getRawComposioTools: vi.fn(),
+  followUpConnectedApp: vi.fn(),
+  pending: [] as Promise<unknown>[],
+}));
+// The follow-up runs after the response; each test awaits it so its import
+// cannot finish in the next file, without this file's mocks.
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (work: Promise<unknown>) => mocks.pending.push(work),
+}));
+vi.mock("@/services/soko-bot-watches.service", () => ({
+  followUpConnectedApp: mocks.followUpConnectedApp,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -99,6 +109,11 @@ const existing = {
   status: "ACTIVE",
   cursor: { since: "old" },
 };
+
+afterEach(async () => {
+  await Promise.all(mocks.pending);
+  mocks.pending.length = 0;
+});
 
 beforeEach(() => {
   vi.resetAllMocks();

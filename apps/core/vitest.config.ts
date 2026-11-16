@@ -118,6 +118,12 @@ export function cliSelectsOptInDbFile(
   });
 }
 
+/**
+ * The opt-in PostgreSQL and integration runs keep per-file isolation and
+ * the default file order; only the unit suite shares workers and shuffles.
+ */
+const unitSuite = !cliSelectsOptInDbFile(process.argv);
+
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
@@ -135,9 +141,18 @@ export default defineConfig({
       // Unconditional: a CLI filter naming this file must not resurrect
       // it, because it throws rather than skipping. See above.
       ...unprovisionedDbFiles,
-      ...(cliSelectsOptInDbFile(process.argv) ? [] : optInDbExclude),
+      ...(unitSuite ? optInDbExclude : []),
     ],
-    setupFiles: ["src/test/setup.ts"],
+    // Reuses workers across files, so each file must clean up after itself:
+    // `src/test/reset-per-file.ts`. Files run in random order so a file that
+    // leans on another's leftovers fails; the log prints the seed, and
+    // `--sequence.seed=<seed>` replays the order.
+    isolate: !unitSuite,
+    sequence: { shuffle: { files: unitSuite, tests: false } },
+    setupFiles: [
+      ...(unitSuite ? ["src/test/reset-per-file.ts"] : []),
+      "src/test/setup.ts",
+    ],
     // One database per worker for the parallel PostgreSQL run in CI. See
     // `src/test/postgres-worker-databases.ts`.
     globalSetup:

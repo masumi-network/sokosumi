@@ -304,6 +304,14 @@ Place `foo.test.ts` next to `foo.ts` (route handlers: `post.test.ts` beside `pos
 
 Environment variables required by Vitest (or by code under test) must be set in **`src/test/setup.ts`**. Add new keys to the `envDefaults` object there so tests run with predictable values and without relying on `.env`. Do not add test-only env vars to `.env.example`; keep them in the test setup.
 
+The unit suite runs with `isolate: false` and files in random order (`vitest.config.ts`). A worker runs many files in one process: `src/test/reset-per-file.ts` re-evaluates Core's modules and mock factories for each file, restores real timers and unstubs globals and env at the end of each file, and Vitest restores `vi.spyOn` mocks. What it cannot undo is yours to clean up:
+
+- **Await background work.** Code that hands a promise to `waitUntil` or starts it without `await` keeps running after the test. If it imports a module, that import can finish inside the next file, without that file's mocks, and a random later file fails. Mock `waitUntil` to collect the promises and await them in `afterEach` (`src/services/soko-bot-integration-connection.service.test.ts`), or mock the background service.
+- **Restore process-wide state yourself** when a later test in the same file depends on it: `process.env` written directly, `globalThis` properties set without `vi.stubGlobal`, listeners on `process`, fake timers.
+- **No state in an external package.** Packages under `node_modules` load once per worker and keep their state across files (`initLogger` in `evlog`, a client cached by an SDK). Reset what you configure.
+
+A failure that comes and goes with the order: the log prints `Running tests with seed "<seed>"`. Replay it with `pnpm --filter core test --sequence.seed=<seed>`; add `--maxWorkers=1` to make the whole order deterministic. `--detectAsyncLeaks` names files that leave work running. The opt-in PostgreSQL and integration runs keep per-file isolation and their file order.
+
 ## Core API Gotchas
 
 ### Authentication
