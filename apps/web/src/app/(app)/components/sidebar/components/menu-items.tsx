@@ -16,7 +16,6 @@ import {
   Share2,
   Users,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -33,6 +32,7 @@ import {
 } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
+import { RestingIntentLink } from "@/components/resting-intent-link";
 import { Collapsible } from "@/components/ui/collapsible";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -72,6 +72,11 @@ interface MenuItemConfig {
   feature?: AnnouncedFeature;
   /** Current only on `href` itself, not on the pages under it. */
   exact?: true | undefined;
+  /**
+   * A resting hover loads the page's content, not only its shell. Only for a
+   * page whose reads are private-cached, or the prefetch renders for nothing.
+   */
+  prefetchContent?: true | undefined;
 }
 
 /** The headings the nav's destinations sit under, in the order they show. */
@@ -174,6 +179,7 @@ function ScopedMenuItems({
       Icon: ListTodo,
       feature: AnnouncedFeature.TASKS,
       group: "work",
+      prefetchContent: true,
     },
     {
       key: "schedules",
@@ -267,6 +273,7 @@ function ScopedMenuItems({
     tile,
     feature,
     exact,
+    prefetchContent,
   }: MenuItemConfig) {
     const isActive = exact ? pathname === href : isPathActive(pathname, href);
 
@@ -274,8 +281,11 @@ function ScopedMenuItems({
       <SidebarMenuItem key={key}>
         <SidebarMenuButton asChild isActive={isActive}>
           <SheetClose asChild>
-            <Link
+            <RestingIntentLink
               href={hrefFor(href)}
+              // The list on screen needs no prefetch of its own content. A
+              // task detail page still marks Tasks active, so match exactly.
+              prefetchContent={prefetchContent === true && pathname !== href}
               onClick={() => feature && markFeatureSeen(feature)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
@@ -299,7 +309,7 @@ function ScopedMenuItems({
                   <span className="min-w-0 truncate">{label}</span>
                 )}
               </span>
-            </Link>
+            </RestingIntentLink>
           </SheetClose>
         </SidebarMenuButton>
       </SidebarMenuItem>

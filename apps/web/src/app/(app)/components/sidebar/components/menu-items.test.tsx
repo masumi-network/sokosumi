@@ -5,14 +5,16 @@ vi.mock("@/lib/auth/auth.client", () => ({
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pathnameRef, searchRef } = vi.hoisted(() => ({
+const { pathnameRef, searchRef, routerPrefetchMock } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   searchRef: { current: "" },
+  routerPrefetchMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameRef.current,
   useSearchParams: () => new URLSearchParams(searchRef.current),
+  useRouter: () => ({ prefetch: routerPrefetchMock }),
 }));
 
 // Core's answer for the scoped project, without a fetch. "gone" is a project
@@ -87,6 +89,7 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
+import { INTENT_DWELL_MS } from "@/components/resting-intent-link";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -599,5 +602,66 @@ describe("MenuItems project scope", () => {
       "href",
       "/tasks?projectId=p-1",
     );
+  });
+});
+
+describe("MenuItems prefetch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+    searchRef.current = "";
+    vi.useFakeTimers();
+    return () => {
+      vi.useRealTimers();
+    };
+  });
+
+  function restOn(name: RegExp) {
+    fireEvent.pointerEnter(screen.getByRole("link", { name }), {
+      pointerType: "mouse",
+    });
+    vi.advanceTimersByTime(INTENT_DWELL_MS);
+  }
+
+  // Tasks reads are private-cached, so its prefetch carries the page.
+  it("loads the Tasks page content on a resting hover", () => {
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
+  });
+
+  // A page whose reads are not cached would render on the server for nothing.
+  it("loads only the shell for a page without cached reads", () => {
+    renderMenu(true, false);
+
+    restOn(/exploreAgents/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/agents");
+  });
+
+  // The page on screen would render on the server again for nothing.
+  it("loads only the shell for the Tasks page already on screen", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
+  // Back to the list from a task is the common way to reach it.
+  it("loads the Tasks page content from a task detail page", () => {
+    pathnameRef.current = "/tasks/task-1";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
   });
 });
