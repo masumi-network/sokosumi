@@ -16,10 +16,11 @@ const m = vi.hoisted(() => ({
   put: vi.fn(),
   sharp: vi.fn(),
   toBuffer: vi.fn(),
+  token: "token" as string | undefined,
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "token" }),
+  getEnv: () => ({ BLOB_READ_WRITE_TOKEN: m.token }),
 }));
 vi.mock("@vercel/blob", () => ({ put: m.put }));
 vi.mock("sharp", () => ({ default: m.sharp }));
@@ -46,6 +47,7 @@ const URL = "https://blob.example/code.webp";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  m.token = "token";
   m.findFirst.mockResolvedValue(null);
   m.update.mockResolvedValue({ id: "bot" });
   m.updateMany.mockResolvedValue({ count: 0 });
@@ -148,6 +150,13 @@ describe("giveNewSokoBotAvatar", () => {
     const saved = await giveNewSokoBotAvatar("bot", CODE);
     expect(saved?.avatarCode).not.toBe(CODE);
     expect(parseAvatarCode(saved?.avatarCode ?? "")).not.toBeNull();
+  });
+
+  it("skips the look quietly where Blob is not configured (tests, local)", async () => {
+    m.token = undefined;
+    await expect(giveNewSokoBotAvatar("bot", CODE)).resolves.toBeNull();
+    expect(m.put).not.toHaveBeenCalled();
+    expect(m.update).not.toHaveBeenCalled();
   });
 
   it("leaves the bot faceless instead of failing the create", async () => {

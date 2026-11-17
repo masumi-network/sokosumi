@@ -146,6 +146,9 @@ export async function giveNewSokoBotAvatar(
   sokoBotId: string,
   code?: string | null,
 ) {
+  // Nowhere to keep the still: environments without Blob (tests, local)
+  // create bots without a look, as before avatar codes.
+  if (!getEnv().BLOB_READ_WRITE_TOKEN) return null;
   try {
     if (code) {
       try {
