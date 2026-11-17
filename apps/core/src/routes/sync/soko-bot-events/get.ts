@@ -5,6 +5,7 @@ import { adoptCoworkerSubtasks } from "@/services/soko-bot-subtask-adoption.serv
 import { sokoBotTaskboardSyncService } from "@/services/soko-bot-taskboard-sync.service";
 
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
+import { syncTaskInterest } from "@/services/task-interest-delivery.service";
 import { handleSyncRequest } from "../handler.js";
 
 const SOKO_BOT_EVENTS_SYNC_LOCK_KEY = "soko-bot-events-sync";
@@ -25,6 +26,12 @@ export default function mount(app: Hono) {
         });
         if (watches.checked)
           console.info("[sync/soko-bot-events] Checked waits", watches);
+        if (!context.shouldContinue()) return;
+        const interest = await syncTaskInterest({
+          shouldContinue: context.shouldContinue,
+        });
+        if (interest.moments)
+          console.info("[sync/soko-bot-events] Task interest", interest);
         if (!context.shouldContinue()) return;
         const result = await sokoBotEventsSyncService.syncDelegatedWork({
           abortSignal: context.abortSignal,

@@ -14,6 +14,23 @@ export const followingSokoBotWhere = {
   adminPausedAt: null,
 } satisfies Prisma.SokoBotWhereInput;
 
+/** The same rule as `followingSokoBotWhere`, for a bot already loaded. */
+export function isFollowingSokoBot(bot: {
+  projectId: string | null;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
+  proactivePaused: boolean;
+  adminPausedAt: Date | null;
+}): boolean {
+  return (
+    bot.projectId === null &&
+    bot.archivedAt === null &&
+    bot.deletedAt === null &&
+    !bot.proactivePaused &&
+    bot.adminPausedAt === null
+  );
+}
+
 /** Participant row include for every response that lists participants. */
 export const taskParticipantRowInclude = {
   user: {

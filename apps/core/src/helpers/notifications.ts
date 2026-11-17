@@ -50,6 +50,12 @@ export interface CreateNotificationInput {
    * Room messages use the same channel complement.
    */
   suppressMentionDelivery?: boolean;
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 export interface CreateNotificationResult {
@@ -98,6 +104,7 @@ export async function resolveDelivery(
       category: toNotificationCategory(input.kind, input.messageKey),
       preferences: user.notificationPreferences,
       pushOptIn: user.pushOptIn,
+      osBannerDefaultOn: input.osBannerDefaultOn,
     });
     if (!input.suppressMentionDelivery) return delivery;
     return deliveryOutsideMention(

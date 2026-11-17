@@ -71,6 +71,12 @@ export interface FanOutChatNotificationsParams {
    * silences the chatter and being addressed by name is not chatter.
    */
   parentMessageId?: string | null;
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 /** Readers who muted the Thread this message replies in. */
@@ -269,6 +275,7 @@ export async function fanOutChatNotifications(
       referenceId: params.roomId,
       eventId: params.messageId,
       messageKey: params.messageKey,
+      ...(params.osBannerDefaultOn ? { osBannerDefaultOn: true } : {}),
       ...(workspaceId &&
       membershipsByUserId.get(userId)?.access === "member" &&
       hostOrganizationMemberIds.has(userId)
