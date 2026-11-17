@@ -54513,13 +54513,45 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        id: {
+            type: 'string'
+        },
+        userId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
         'status',
         'activeTurnId',
         'lastTurnAt',
-        'lastActivityAt'
+        'lastActivityAt',
+        'id',
+        'userId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'avatarCode'
     ]
 } as const;
 
