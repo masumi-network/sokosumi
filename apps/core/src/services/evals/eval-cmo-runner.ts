@@ -4,6 +4,7 @@ import {
   type ScenarioCheck,
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
+import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
@@ -164,6 +165,10 @@ async function pointCusoAt(
   });
   await prisma.marketingStrategy.deleteMany({ where: { projectId } });
   await prisma.brandBrain.deleteMany({ where: { projectId } });
+  // Cuso reads his last reports: an earlier case's "done" is not this one's.
+  await prisma.chatRoomMessage.deleteMany({
+    where: cmoReportMessageWhere(lane.cusoBotId),
+  });
   if (brandBrain)
     await prisma.brandBrain.create({
       data: { projectId, body: brandBrain as object, updatedAt: new Date() },

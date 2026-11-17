@@ -55,6 +55,7 @@ describe("CMO version", () => {
     expect(v2).toMatch(/changes that channel's entries only/);
     expect(v2).toMatch(/Leave every other piece as it was/);
     expect(v2).toMatch(/never by changing a piece the owner did not name/);
+    expect(v2).toMatch(/Never change the mix, the pillars/);
     expect(v1).not.toMatch(
       /still hold every piece|that channel's entries only/,
     );

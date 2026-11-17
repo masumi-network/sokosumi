@@ -13,6 +13,7 @@ const prisma = vi.hoisted(() => {
         .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
     },
     brandBrain: { deleteMany: ok(), create: ok() },
+    chatRoomMessage: { deleteMany: ok() },
     socialComment: {
       deleteMany: ok(),
       create: vi.fn().mockResolvedValue({ id: "comment-1" }),
@@ -240,6 +241,11 @@ describe("a Cuso chat case's lane", () => {
     };
     expect(data.plan.calendar.length).toBeGreaterThan(0);
     expect(data.approvedAt).toBeUndefined();
+    // Yesterday's "LinkedIn is now once a week" is not today's plan: a
+    // change request once read it and changed nothing.
+    expect(prisma.chatRoomMessage.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ senderSokoBotId: "cuso-bot-1" }),
+    });
   });
 
   it("holds nothing for a client Cuso has not learned", async () => {
