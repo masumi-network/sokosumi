@@ -1,7 +1,10 @@
 import type {
   ProjectSeoAction,
   ProjectSeoSearchQueries,
+  TableColumn,
 } from "@sokosumi/core-client";
+import { createDataTableSchema } from "@sokosumi/utils";
+import { tableImportBatches } from "@/app/drive/tables/table-import";
 import type { SeoCsvCell } from "./seo-csv";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 import type { SeoTopPage } from "./seo-search-model";
@@ -145,4 +148,56 @@ export function seoActionsExport(
       action.edit?.after ?? null,
     ]),
   };
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const WEB = /^https?:\/\//;
+/** Not URL.canParse: Next still supports Safari 16.4, which lacks it. */
+function isWebAddress(value: string) {
+  if (!WEB.test(value)) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A column's type from its filled cells: a Table rejects a value its column type does not take. */
+function columnType(cells: SeoCsvCell[]): TableColumn["type"] {
+  const filled = cells.filter((value) => value !== null);
+  if (!filled.length) return "text";
+  if (filled.every((value) => typeof value === "number")) return "number";
+  const text = filled.map(String);
+  if (text.every((value) => DAY.test(value))) return "date";
+  if (text.every(isWebAddress)) return "url";
+  return "text";
+}
+
+/**
+ * One exported table as a new Files Table: the create request and every row in batches of at most 100,
+ * keyed by `key`, so a retry with the same plan creates and inserts nothing twice. An empty cell stays empty.
+ */
+export function seoTablePlan(
+  { header, rows }: SeoExport,
+  source: { title: string; description: string; projectId: string | null },
+  key: string,
+) {
+  const columns = header.map((name, i) => ({
+    id: crypto.randomUUID(),
+    name,
+    type: columnType(rows.map((row) => row[i] ?? null)),
+  }));
+  const table = createDataTableSchema.parse({ key, ...source, columns });
+  const insert = rows.map((row) => ({
+    values: Object.fromEntries(
+      columns.flatMap(({ id }, i) => {
+        const value = row[i] ?? null;
+        if (value === null) return [];
+        return [[id, columns[i].type === "number" ? value : String(value)]];
+      }),
+    ),
+    evidence: {},
+  }));
+  return { table, batches: tableImportBatches(key, insert) };
 }

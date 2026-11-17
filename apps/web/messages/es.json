@@ -12790,7 +12790,14 @@
         "action": "Acción",
         "kind": "Tipo",
         "status": "Estado",
-        "csvLabel": "Descargar CSV: {table}"
+        "csvLabel": "Descargar CSV: {table}",
+        "table": "Copiar a una tabla",
+        "tableLabel": "Copiar a una tabla: {table}",
+        "tableTitle": "{table} · {site} · {date}",
+        "tableDescription": "Copiado de SEO el {date}. Una instantánea: no cambia cuando SEO vuelve a comprobar.",
+        "tableCopied": "{count, plural, one {# palabra clave copiada a una tabla nueva.} other {# palabras clave copiadas a una tabla nueva.}}",
+        "openTable": "Abrir tabla",
+        "tableFailed": "La tabla aún no está completa. Pulsa de nuevo «Copiar a una tabla» para terminarla."
       },
       "datePresets": {
         "label": "Periodos rápidos",

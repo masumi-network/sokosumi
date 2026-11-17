@@ -53,6 +53,11 @@ const { mutate, viewer } = vi.hoisted(() => ({
   viewer: { userId: "owner" as string | null },
 }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+// The Table export opens its Table from a toast.
+vi.mock("next/navigation", async (actual) => ({
+  ...(await actual<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     // A null viewer is a session the client has not read yet.
@@ -1725,5 +1730,18 @@ describe("Search Console queries", () => {
       errors.mock.calls.filter((call) => String(call[0]).includes("same key")),
     ).toEqual([]);
     errors.mockRestore();
+  });
+});
+
+describe("Keyword exports", () => {
+  it("offers a keyword tracked by hand, never checked, as a CSV and as a Table", async () => {
+    const { workspace } = savedKeywordWorkspace();
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", { name: "Download CSV: Keywords" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy to a table: Keywords" }),
+    ).toBeInTheDocument();
   });
 });

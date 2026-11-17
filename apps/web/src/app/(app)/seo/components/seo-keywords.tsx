@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { seoAuditName } from "./seo-audit-name";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
 import { seoKeywordsExport } from "./seo-export-model";
@@ -69,6 +70,7 @@ import {
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
+import { SeoTableButton } from "./seo-table-button";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
@@ -672,12 +674,21 @@ export function SeoKeywords({
               onToggle={() => setExpanded((open) => !open)}
             />
           ) : null}
-          {/* Under the keyword list itself, before the strategy: the export holds the checked keywords only. */}
+          {/* Under the keyword list itself, before the strategy: the exports hold the checked keywords only. */}
           {checked.length ? (
-            <div className="px-2">
+            <div className="flex flex-wrap gap-x-2 px-2">
               <SeoCsvButton
                 name="keywords"
                 title={t("keywords.title")}
+                table={() => seoKeywordsExport(checked, t)}
+              />
+              <SeoTableButton
+                title={t("keywords.title")}
+                site={seoAuditName(
+                  model.data.auditName ?? "",
+                  model.data.websiteUrl ?? "",
+                )}
+                projectId={model.data.projectId}
                 table={() => seoKeywordsExport(checked, t)}
               />
             </div>

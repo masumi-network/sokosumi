@@ -1,7 +1,13 @@
 import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
-import { seoTopPagesExport } from "./seo-export-model";
+import {
+  seoKeywordsExport,
+  seoTablePlan,
+  seoTopPagesExport,
+} from "./seo-export-model";
+import { keywordGroups } from "./seo-keyword-rows-model";
+import { seoTestKeyword } from "./seo-test-fixture";
 import { seoKeyEvents } from "./seo-traffic-model";
 
 // The test translator has the same keys; only its value types are wider than the hook's.
@@ -52,5 +58,82 @@ describe("seoTopPagesExport", () => {
       "Key events (organic)",
     );
     expect(seoTopPagesExport(rows, t).header).toHaveLength(7);
+  });
+});
+
+describe("seoTablePlan", () => {
+  const source = {
+    title: "Keywords · example.com · 2026-11-17",
+    description: "Copied from SEO",
+    projectId: null,
+  };
+  const exported = seoKeywordsExport(
+    keywordGroups([
+      seoTestKeyword({ volume: 1200 }),
+      // Tracked by hand, never read: no volume, no position, no date.
+      seoTestKeyword({
+        id: "keyword-2",
+        keyword: "charge timer",
+        source: "saved",
+        version: 1,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    ]).checked,
+    t,
+  );
+
+  it("types each column from its values and keeps a blank blank, never 0", () => {
+    const plan = seoTablePlan(exported, source, "key-1");
+    const type = (name: string) =>
+      plan.table.columns.find((column) => column.name === name)?.type;
+    expect(type("Keyword")).toBe("text");
+    expect(type("Page")).toBe("url");
+    expect(type("Searches a month")).toBe("number");
+    expect(type("Position")).toBe("number");
+    expect(type("Last checked")).toBe("date");
+    const id = (name: string) =>
+      plan.table.columns.find((column) => column.name === name)?.id ?? "";
+    const rows = plan.batches.flatMap((batch) => batch.insert);
+    // The list's order: the reader's own choice first.
+    expect(rows.map((row) => row.values[id("Keyword")])).toEqual([
+      "charge timer",
+      "battery app",
+    ]);
+    const [tracked, read] = rows;
+    expect(read.values[id("Searches a month")]).toBe(1200);
+    expect(read.values[id("Last checked")]).toBe("2026-10-08");
+    expect(id("Position") in tracked.values).toBe(false);
+    expect(id("Searches a month") in tracked.values).toBe(false);
+  });
+
+  it("puts every row in batches of at most 100 under the same key, never cutting any", () => {
+    const many = {
+      header: ["Keyword"],
+      rows: Array.from({ length: 250 }, (_, i) => [`keyword ${i}`]),
+    };
+    const plan = seoTablePlan(many, source, "key-2");
+    expect(plan.table.key).toBe("key-2");
+    expect(plan.table.rows).toEqual([]);
+    expect(plan.batches.map((batch) => batch.insert.length)).toEqual([
+      100, 100, 50,
+    ]);
+    expect(plan.batches.map((batch) => batch.key)).toEqual([
+      "key-2:0",
+      "key-2:100",
+      "key-2:200",
+    ]);
+  });
+
+  it("keeps a page that is not a web address as text", () => {
+    const plan = seoTablePlan(
+      { header: ["Page"], rows: [["https://example.com/"], ["/pricing"]] },
+      source,
+      "key-3",
+    );
+    expect(plan.table.columns[0].type).toBe("text");
   });
 });
