@@ -31,6 +31,20 @@ $S/local-stack down      # stops only what `up` started; evidence stays
 - To verify a PR: `git worktree add ../sokosumi-wt-pr-<n> origin/<branch>`, `pnpm install`, then the same five commands there. One stack at a time.
 - Ad-hoc exploration: Codex and Claude Code have the `chrome-devtools` MCP (isolated headless Chrome). Use it to look around, then turn a repeatable path into a `drive.mjs` journey.
 
+### Random exploration (Bombadil)
+
+[Bombadil](https://github.com/antithesishq/bombadil) clicks, types, scrolls and navigates at random from a start page, signed in as alice, and stops at the first broken property: an uncaught exception, an unhandled rejection, a console error or a page load of 400 or more. The spec is `bombadil/sokosumi.spec.ts`; its `DEV_NOISE` list drops what the local stack logs on every page. Add to that list only what a user never meets.
+
+```bash
+node $S/explore.mjs --path /studio --time 3m   # needs the stack up and `bombadil` on PATH
+bombadil browser inspect <evidence dir>        # timeline of states, screenshots and the violation
+node $S/explore.mjs --path /studio --reproduce <evidence dir>
+```
+
+- Install (macOS arm64): `curl -L -o ~/.local/bin/bombadil https://github.com/antithesishq/bombadil/releases/download/v0.7.10/bombadil-aarch64-darwin && chmod +x ~/.local/bin/bombadil`.
+- Evidence: `.cursor/verify-sokosumi-artifacts/explore/<timestamp>/` with `trace.jsonl`, `screenshots/` and `log.txt` (session cookies stripped). The trace keeps each state's URL and action, not the console; open the reported page to read the full error.
+- `--keep-going` collects every violation in the time limit instead of stopping at the first. A violation is a lead: report it with the steps from the trace, then fix it in its own Task.
+
 ## Launch
 
 Prefer **portless named HTTPS URLs** from `verify-sokosumi doctor` (`web_url=` / `core_url=`). Do not guess `:3000` / `:8787` — print with `pnpm portless:url web`. Linked git worktrees get a branch prefix; Grok copies get a directory basename. Classic `pnpm web:dev` still binds `:3000`.
@@ -175,8 +189,8 @@ Proof standards:
 
 Proof in a PR (required for a UI change, see [delivery rules](../../../docs/agents/delivery.md)):
 
-- Copy the screenshots that show the change from the run's evidence dir to `apps/web/docs/images/<topic>/` and commit them on the PR's own branch. For a flow, add the run's `video.webm`.
-- Embed each image in the PR body as `https://raw.githubusercontent.com/masumi-network/sokosumi/<sha>/apps/web/docs/images/<topic>/<file>.png`, link the video the same way, and list the console errors and 5xx from `summary.json`.
+- Copy the screenshots that show the change from the run's evidence dir to `apps/web/docs/images/<topic>/` and commit them on the PR's own branch. For a flow, add a GIF of the run: `bin/to-gif <run>/video.webm apps/web/docs/images/<topic>/<journey>.gif` (a committed `.webm` does not play in a PR body).
+- Embed each image and GIF in the PR body as `https://raw.githubusercontent.com/masumi-network/sokosumi/<sha>/apps/web/docs/images/<topic>/<file>`, and list the console errors and 5xx from `summary.json`.
 - Never push a separate branch to host images.
 
 ## Cleanup
