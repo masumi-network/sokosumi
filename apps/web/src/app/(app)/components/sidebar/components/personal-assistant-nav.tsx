@@ -23,6 +23,7 @@ const loadYourBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
     return {
       id: member.bot.id,
       imageUrl: member.bot.avatarImageUrl,
+      avatarCode: member.bot.avatarCode ?? null,
       seed: botFaceSeed(member.bot, member.userId),
       name: member.bot.name,
       status: member.bot.status,

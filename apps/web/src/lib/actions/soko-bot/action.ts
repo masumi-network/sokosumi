@@ -17,8 +17,9 @@ import {
   type SokoBotSkillSearchResult,
   type StartSokoBotTurnResponse,
 } from "@sokosumi/core-client";
+import { avatarCodeSchema } from "@sokosumi/soko-bot";
 import { err, ok } from "neverthrow";
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import * as z from "zod";
 import {
   type ActionResultDto,
@@ -47,6 +48,8 @@ import {
 const createSokoBotSchema = z.object({
   name: z.string().trim().min(1).max(80),
   avatarId: z.string().uuid().nullable().optional(),
+  /** The look picked in the avatar studio; Core draws a random one if it is taken. */
+  avatarCode: avatarCodeSchema.nullable().optional(),
   /** The creator's browser timezone; Core sets it on a new bot only. */
   timezone: z.string().min(1).max(64).optional(),
 });
@@ -801,6 +804,35 @@ export const claimSokoBotAvatarAction = withSession<
     const bot = await sokoBotService.claimAvatar(parsed.data);
     revalidate();
     return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface SetAvatarCodeParams extends AuthenticatedRequest {
+  code: unknown;
+  botId?: unknown;
+}
+
+/**
+ * Save a bot's avatar look. Core answers 409 `avatar_code_taken` when another bot has it and
+ * 422 `avatar_code_invalid` for a code it cannot read; both reach the caller as `error.kind`.
+ */
+export const setSokoBotAvatarCodeAction = withSession<
+  SetAvatarCodeParams,
+  ActionResultDto<{ avatarCode: string; avatarImageUrl: string }, ActionError>
+>(async ({ code, botId }) => {
+  const parsed = avatarCodeSchema.safeParse(code);
+  const bot = botIdSchema.safeParse(botId ?? undefined);
+  if (!parsed.success || !bot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const saved = await sokoBotService.setAvatarCode(parsed.data, bot.data);
+    revalidate(bot.data);
+    // The sidebar's face is read in the app layout, outside the console path:
+    // refresh the whole route in this action's own response (apps/web/AGENTS.md).
+    refresh();
+    return toActionResult(ok(saved));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

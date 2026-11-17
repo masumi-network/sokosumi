@@ -10253,7 +10253,7 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}"
+        "pictureTitle": "Wähle einen Look für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -10597,9 +10597,9 @@
         "title": "Bild",
         "description": "Ein einzigartiges Bild aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
         "save": "Dieses Bild verwenden",
-        "edit": "Bild ändern",
-        "saved": "Bild aktualisiert.",
-        "saveError": "Das Bild konnte nicht aktualisiert werden.",
+        "edit": "Aussehen ändern",
+        "saved": "Aussehen gespeichert.",
+        "saveError": "Das Aussehen konnte nicht gespeichert werden.",
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
@@ -10609,6 +10609,98 @@
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
+      },
+      "AvatarStudio": {
+        "title": "Look gestalten",
+        "description": "Wähle ein Tier, Farben und Details. Keine zwei Assistenten haben denselben Look.",
+        "previewAlt": "Vorschau des Avatars",
+        "stateLabel": "Vorschau-Zustand",
+        "states": {
+          "idle": "Ruhig",
+          "thinking": "Denkt nach",
+          "working": "Arbeitet",
+          "needs_you": "Braucht dich",
+          "done": "Fertig",
+          "error": "Fehler",
+          "sleeping": "Schläft"
+        },
+        "shuffle": "Zufall",
+        "animal": "Tier",
+        "background": "Hintergrund",
+        "body": "Tierfarbe",
+        "mark": "Zweite Farbe",
+        "corner": "Ecke",
+        "cornerLeft": "Unten links",
+        "cornerRight": "Unten rechts",
+        "size": "Größe",
+        "sizes": {
+          "S": "Klein",
+          "M": "Mittel",
+          "L": "Groß"
+        },
+        "eyes": "Augen",
+        "eyesOptions": {
+          "original": "Original",
+          "sparkle": "Funkeln",
+          "happy": "Fröhlich",
+          "sleepy": "Schläfrig",
+          "dots": "Punkte"
+        },
+        "mouth": "Mund",
+        "mouths": {
+          "original": "Original",
+          "smile": "Lächeln",
+          "open": "Offen",
+          "tongue": "Zunge"
+        },
+        "cheeks": "Wangen",
+        "cheekOptions": {
+          "none": "Keine",
+          "blush": "Rouge"
+        },
+        "hat": "Kopfbedeckung",
+        "hats": {
+          "none": "Keine",
+          "party": "Partyhut",
+          "crown": "Krone",
+          "beanie": "Mütze",
+          "cap": "Kappe",
+          "star": "Stern"
+        },
+        "cancel": "Abbrechen",
+        "save": "Look speichern",
+        "taken": "Diesen Look gibt es schon. Ändere eine Kleinigkeit oder wähle Zufall.",
+        "animals": {
+          "axolotl": "Axolotl",
+          "bear": "Bär",
+          "cat": "Katze",
+          "duckling": "Entenküken",
+          "elephant": "Elefant",
+          "fox": "Fuchs",
+          "frog": "Frosch",
+          "hedgehog": "Igel",
+          "koala": "Koala",
+          "otter": "Otter",
+          "owl": "Eule",
+          "penguin": "Pinguin",
+          "rabbit": "Hase",
+          "robot": "Roboter",
+          "sloth": "Faultier",
+          "whale": "Wal"
+        },
+        "colours": {
+          "crimson": "Karmesin",
+          "iris": "Iris",
+          "electric": "Knallpink",
+          "sakura": "Sakura",
+          "peach": "Pfirsich",
+          "sand": "Sand",
+          "persimmon": "Kaki",
+          "scarlet": "Scharlach",
+          "golden": "Gold",
+          "white": "Weiß",
+          "ink": "Tinte"
+        }
       },
       "Skills": {
         "builtIn": "Enthalten",
