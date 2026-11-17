@@ -137,13 +137,15 @@ describe("Studio ad wall layout", () => {
     expect(STUDIO_EMPTY_ADS).toEqual(
       expect.arrayContaining(
         AD_TEMPLATES.map(([name, templateIndex]) => ({
-          src: `/studio/empty-ads/${name}.webp`,
+          src: `/images/studio/empty-ads/${name}.webp`,
           templateIndex,
         })),
       ),
     );
     for (const { src } of STUDIO_EMPTY_ADS) {
-      expect(src).toMatch(/^\/studio\/empty-ads\/[^/]+\.webp$/);
+      // Under /images so the proxy's sign-in redirect skips them; next/image
+      // fetches them without the session cookie.
+      expect(src).toMatch(/^\/images\/studio\/empty-ads\/[^/]+\.webp$/);
       expect(existsSync(join(publicRoot, src.slice(1))), src).toBe(true);
     }
   });
@@ -281,7 +283,7 @@ describe("Studio template canvas", () => {
     (name, templateIndex) => {
       const { canvas, onApplyTemplate } = mount();
       const image = canvas.querySelector(
-        `img[src="/studio/empty-ads/${name}.webp"]`,
+        `img[src="/images/studio/empty-ads/${name}.webp"]`,
       );
       expect(image).not.toBeNull();
       fireEvent.pointerDown(image!, { pointerId: 1, clientX: 10, clientY: 10 });
