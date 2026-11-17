@@ -10187,6 +10187,7 @@
         "successHint": "Un paso más…",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
+        "nameRequired": "Escribe un nombre.",
         "submit": "Crear {name}",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",

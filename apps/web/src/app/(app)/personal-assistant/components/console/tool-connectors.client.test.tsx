@@ -63,6 +63,7 @@ function renderConnectors(
   integrations: SokoBotIntegration[],
   focusProvider: string | null = null,
   readOnly = false,
+  onError?: (error: Error) => void,
 ) {
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -71,6 +72,7 @@ function renderConnectors(
         timeZone="UTC"
         messages={messages}
         formats={createFormats("h12")}
+        onError={onError}
       >
         <ToolConnectors
           integrations={{ configured: true, integrations }}
@@ -102,6 +104,27 @@ describe("ToolConnectors", () => {
     expect(
       screen.getByText("Connected · read when a briefing or meeting needs it"),
     ).toBeTruthy();
+  });
+
+  it("says when a connection last checked without a next-intl fallback", () => {
+    const onError = vi.fn();
+    renderConnectors(
+      [
+        integration({
+          provider: "gmail",
+          name: "Gmail",
+          kinds: ["email"],
+          status: "ACTIVE",
+          lastIngestAt: new Date(Date.now() - 60 * 60_000),
+        }),
+      ],
+      null,
+      false,
+      onError,
+    );
+
+    expect(screen.getByText("Connected · checked 1 hour ago")).toBeTruthy();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("asks for a reconnect when a connection broke", () => {

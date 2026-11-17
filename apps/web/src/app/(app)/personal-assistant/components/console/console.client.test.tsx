@@ -1,4 +1,8 @@
 import {
+  createEmptySokoBotMemory,
+  renderSokoBotMemory,
+} from "@sokosumi/soko-bot";
+import {
   act,
   cleanup,
   fireEvent,
@@ -379,13 +383,27 @@ describe("SokoBotConsole", () => {
   it("lets the keyboard reach and scroll the memory", () => {
     const state = chatState(true);
     state.bot.memory = {
-      markdown: "# Soko Bot memory",
+      markdown: renderSokoBotMemory({
+        ...createEmptySokoBotMemory(),
+        preferences: ["Short replies"],
+      }),
       createdAt: "2026-10-29T12:00:00Z",
     } as NonNullable<SokoBotChatState["bot"]["memory"]>;
     renderConsole({ initialState: state });
     expect(
       screen.getByRole("region", { name: "Memory.title" }),
     ).toHaveAttribute("tabindex", "0");
+  });
+
+  it("says a new bot's memory is empty instead of listing None five times", () => {
+    const state = chatState(true);
+    state.bot.memory = {
+      markdown: renderSokoBotMemory(createEmptySokoBotMemory()),
+      createdAt: "2026-10-29T12:00:00Z",
+    } as NonNullable<SokoBotChatState["bot"]["memory"]>;
+    renderConsole({ initialState: state });
+    expect(screen.getByText("Memory.empty")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Memory.title" })).toBeNull();
   });
 
   it("hides skills and avatar on a shared bot, and reads it by id", () => {

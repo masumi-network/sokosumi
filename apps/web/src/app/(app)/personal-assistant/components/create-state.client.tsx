@@ -54,6 +54,8 @@ export function CreateState({
   const router = useRouter();
   const nameId = useId();
   const [name, setName] = useState("");
+  // Spaces pass the native `required` check, so say what is missing here.
+  const [blank, setBlank] = useState(false);
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   // The picker mounts loading its first set; Create waits for it, so the bot
   // does not go without the picture the set would have offered.
@@ -87,6 +89,10 @@ export function CreateState({
   function handleContinue(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (name.trim()) goToStep("picture");
+    else {
+      setBlank(true);
+      nameInputRef.current?.focus();
+    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -171,13 +177,23 @@ export function CreateState({
             ref={nameInputRef}
             id={nameId}
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              setBlank(false);
+            }}
             maxLength={80}
             placeholder={t("namePlaceholder")}
             required
             autoComplete="off"
             autoFocus
+            aria-invalid={blank || undefined}
+            aria-describedby={blank ? `${nameId}-error` : undefined}
           />
+          {blank ? (
+            <p id={`${nameId}-error`} className="text-destructive text-xs">
+              {t("nameRequired")}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Button type="submit" variant="primary" className="w-full">

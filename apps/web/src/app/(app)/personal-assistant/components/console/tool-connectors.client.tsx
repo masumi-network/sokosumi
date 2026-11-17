@@ -6,7 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,7 @@ export function ToolConnectors({
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const { busy, connect, disconnect } = useIntegrationActions();
   const [query, setQuery] = useState(focusProvider ?? "");
   const catalog = useCatalog(query, !readOnly);
@@ -116,7 +117,7 @@ export function ToolConnectors({
       name: integration?.name ?? entry.name,
       logoUrl: integration?.logoUrl ?? entry.logoUrl,
       caption: integration
-        ? describeIntegration(integration, t, format)
+        ? describeIntegration(integration, t, format, now)
         : (entry.description ?? t("kindsGeneric")),
       integration,
       hiddenOnPhone: !searching && index >= POPULAR_SHOWN_ON_PHONE,
@@ -129,7 +130,7 @@ export function ToolConnectors({
           provider: integration.provider,
           name: integration.name,
           logoUrl: integration.logoUrl,
-          caption: describeIntegration(integration, t, format),
+          caption: describeIntegration(integration, t, format, now),
           integration,
           hiddenOnPhone: false,
         })),

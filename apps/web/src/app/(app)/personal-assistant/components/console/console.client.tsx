@@ -260,6 +260,15 @@ export interface SokoBotConsoleProps {
  * on a schedule, what it remembers, and how much it may do alone. Talking to
  * it happens in chat (its direct room), not here.
  */
+/**
+ * Core renders a section with nothing in it as "- None" (`renderSokoBotMemory`
+ * in @sokosumi/soko-bot), so a new bot's memory is five headings over "None".
+ * Any other list entry is something it actually keeps in mind.
+ */
+function hasMemoryEntries(markdown: string): boolean {
+  return /^- (?!None$)/m.test(markdown);
+}
+
 export function SokoBotConsole({
   initialState,
   userName,
@@ -541,7 +550,7 @@ export function SokoBotConsole({
                   aside={canManage ? <ResetMemoryButton /> : null}
                 >
                   <HolderPanel>
-                    {bot.memory ? (
+                    {bot.memory && hasMemoryEntries(bot.memory.markdown) ? (
                       <div className="space-y-3">
                         <p className="text-muted-foreground text-xs">
                           {t("Memory.updated")}{" "}
