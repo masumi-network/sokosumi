@@ -37,6 +37,8 @@ export class SokoBotIntegrationError extends Error {
       | "NOT_FOUND"
       | "UNKNOWN_PROVIDER"
       | "UPSTREAM" = "UPSTREAM",
+    /** The Composio call and its HTTP status, for logs that must not carry the message. */
+    readonly details: { operation?: string; status?: number } = {},
   ) {
     super(message);
   }
@@ -75,9 +77,14 @@ export async function withComposio<T>(
         // Not JSON after all; keep the raw text.
       }
     }
+    const status = (error as { status?: unknown } | null)?.status;
     throw new SokoBotIntegrationError(
       `Composio (${what}): ${message}`,
       isComposioMissingResource(error) ? "NOT_FOUND" : "UPSTREAM",
+      {
+        operation: what,
+        ...(typeof status === "number" ? { status } : {}),
+      },
     );
   }
 }
@@ -209,6 +216,7 @@ async function executeViaRest(
   successful: boolean;
   error: string | null;
   data: Record<string, unknown>;
+  status: number;
 }> {
   const env = getEnv();
   const base = (
@@ -249,7 +257,11 @@ async function executeViaRest(
       typeof body.error === "string"
         ? body.error
         : (body.error?.message ?? `HTTP ${response.status}`);
-    throw new SokoBotIntegrationError(`Composio (${slug}): ${message}`);
+    throw new SokoBotIntegrationError(
+      `Composio (${slug}): ${message}`,
+      "UPSTREAM",
+      { operation: slug, status: response.status },
+    );
   }
   return {
     successful: body.successful ?? false,
@@ -258,6 +270,7 @@ async function executeViaRest(
         ? body.error
         : (body.error?.message ?? null),
     data: body.data ?? {},
+    status: response.status,
   };
 }
 
@@ -347,6 +360,8 @@ export async function executeIntegrationTool(
   if (!result.successful) {
     throw new SokoBotIntegrationError(
       `${integration.provider.name}: ${result.error ?? "request failed"}`,
+      "UPSTREAM",
+      { operation: slug, status: result.status },
     );
   }
   if (mode === "record") {

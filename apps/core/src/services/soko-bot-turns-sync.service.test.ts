@@ -38,13 +38,13 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   SOKO_BOT_TURN_STARTING_ABANDON_MS,
   SOKO_BOT_TURN_STARTING_GRACE_MS,
   sokoBotTurnsSyncService,
 } from "@/services/soko-bot-turns-sync.service";
+import { expectCoreLog } from "@/test/core-log";
 
 function continueFor(maxChecks: number) {
   let checks = 0;
@@ -353,7 +353,10 @@ describe("SokoBotTurnsSyncService", () => {
   });
 
   it("records an interrupted resume without terminally settling the turn", async () => {
-    expectConsole("warn", "Soko Bot watchdog reconciliation interrupted");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not resume a stalled Soko Bot turn",
+    );
     turnFindManyMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -361,7 +364,20 @@ describe("SokoBotTurnsSyncService", () => {
       .mockResolvedValueOnce([
         { id: "turn_3", reconcilerHeartbeatAt: staleHeartbeat },
       ]);
-    reconcileTurnMock.mockRejectedValue(new Error("stream disconnected"));
+    reconcileTurnMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          'stream disconnected while echoing "Subject: Confidential merger" sk_live_abc123',
+        ),
+        {
+          name: "Confidential merger with Acme",
+          // An upper-case secret in the code: not a known machine code.
+          code: "AKIAIOSFODNN7EXAMPLE",
+          status: 502,
+          details: { operation: "sk_live_abc123" },
+        },
+      ),
+    );
 
     const result = await sokoBotTurnsSyncService.syncActiveTurns({
       abortSignal: new AbortController().signal,
@@ -371,6 +387,15 @@ describe("SokoBotTurnsSyncService", () => {
     expect(result.interrupted).toBe(1);
     expect(result.reconciled).toBe(0);
     expect(expireTurnMock).not.toHaveBeenCalled();
+    expect(warnings[0]).toMatchObject({ why: "Turn reconciliation threw" });
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error", status: 502 },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+    expect(drained).not.toContain("AKIAIOSFODNN7EXAMPLE");
+    expect(warnings[0]?.event).toMatchObject({ turn: { id: "turn_3" } });
   });
 
   it("stops claiming further stale turns when shouldContinue flips", async () => {

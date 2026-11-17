@@ -10,14 +10,19 @@ import {
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
+import { recordCoreError } from "@/lib/evlog";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
-import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
+import {
+  deliverSokoBotTurnOutbox,
+  enqueueSokoBotDelivery,
+} from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
+import { expectCoreLog } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import { jevRoute } from "@/test/jev-routes";
 
 const assignCodeMock = vi.hoisted(() => vi.fn());
@@ -691,6 +696,56 @@ describe("SokoBotControlPlane lifecycle", () => {
       );
     },
   );
+
+  it("logs a failure in the settled turn's outbox as its own event while the request is still open", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not delete old published Calendar invalidations",
+    );
+    let outbox: Promise<void> | undefined;
+    // A TASK_EVENT effect reaches the Calendar invalidation prune, which
+    // logs on the live request event unless the work is marked background.
+    vi.mocked(deliverSokoBotTurnOutbox).mockImplementationOnce(() => {
+      outbox = (async () =>
+        recordCoreError(
+          { operation: "calendar_invalidation_prune" },
+          {
+            message: "Could not delete old published Calendar invalidations",
+            why: "The database delete failed",
+            cause: new Error("db down"),
+          },
+        ))();
+      return outbox;
+    });
+    turnFindUniqueMock.mockResolvedValueOnce({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      finalAnswer: "Done.",
+      route: "DIRECT_RESPONSE",
+      capabilityNames: [],
+      leaseToken: null,
+      cancellationRequestedAt: null,
+      scheduleRun: null,
+    });
+
+    await inRequest(async () => {
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status: "COMPLETED",
+      });
+      await vi.waitFor(() => expect(outbox).toBeDefined());
+      await outbox;
+    });
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "calendar_invalidation_prune",
+    });
+    expect(errors[0]?.event.method).toBeUndefined();
+  });
 
   it.each([
     {
@@ -5350,7 +5405,10 @@ describe("SET_VERSION and fleet migration", () => {
       ...data,
     }));
     postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
-    expectConsole("warn", "Soko Bot version notice failed");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not tell a Soko Bot's owner about its version move",
+    );
 
     const result = await new SokoBotControlPlane().migrateVersions({
       operatorId: "admin_1",
@@ -5360,6 +5418,50 @@ describe("SET_VERSION and fleet migration", () => {
     });
 
     expect(result).toMatchObject({ moved: 1, notified: 0, failed: 0 });
+    expect(warnings[0]).toMatchObject({
+      why: "Posting the version notice in the owner's chat failed",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "soko_bot_turn",
+      versionNoticeFailures: [
+        { sokoBotId: expect.any(String), errorName: "Error" },
+      ],
+    });
+  });
+
+  it("names every bot whose notice could not be posted", async () => {
+    botFindManyMock.mockResolvedValue([
+      { id: "bot-a", versionId: "v16" },
+      { id: "bot-b", versionId: "v16" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not tell a Soko Bot's owner about its version move",
+      2,
+    );
+    // Both warnings sit on one event, the admin's migrate request.
+    await inRequest(() =>
+      new SokoBotControlPlane().migrateVersions({
+        operatorId: "admin_1",
+        toVersionId: "v19",
+        reason: "Move the fleet to Luna",
+        notifyOwners: true,
+      }),
+    );
+
+    expect(warnings[0]?.event).toBe(warnings[1]?.event);
+    expect(warnings[0]?.event.versionNoticeFailures).toEqual([
+      { sokoBotId: "bot-a", errorName: "Error" },
+      { sokoBotId: "bot-b", errorName: "Error" },
+    ]);
   });
 
   it("posts nothing unless asked to", async () => {

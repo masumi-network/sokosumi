@@ -74,11 +74,12 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ COMPOSIO_API_KEY: "ak_test" }),
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { composioLogger } from "@/lib/evlog-library-logs";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   listIntegrationTools,
   runIntegrationTool,
+  SokoBotIntegrationError,
 } from "@/services/composio-integration-tools.service";
 import {
   activeIntegrationsForBot,
@@ -93,7 +94,8 @@ import {
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
 import { restoreComposioSdkLoggerAfterFile } from "@/test/composio-sdk-logger";
-import { coreLogEvents } from "@/test/core-log";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
@@ -563,6 +565,65 @@ describe("Soko Bot OAuth replacement", () => {
     expect(bytes.toString()).toBe("hello?");
   });
 
+  it("keeps the HTTP status of a tool call Composio answers 200 but failed", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          successful: false,
+          error: 'Gmail refused "Subject: Confidential merger" sk_live_abc123',
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const failure = await fetchInboxAttachment(integration, {
+      messageId: "m1",
+      attachmentId: "att-1",
+      filename: "a.txt",
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(SokoBotIntegrationError);
+    expect(messageSafeErrorFields(failure)).toEqual({
+      errorName: "Error",
+      operation: "GMAIL_GET_ATTACHMENT",
+      status: 200,
+    });
+  });
+
+  it("logs an unreadable attachment without the result's keys, which can quote a mail", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "A mailbox returned an attachment Sokosumi cannot read",
+    );
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: { "Confidential merger with Acme": { sk_live_abc123: 1 } },
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    await expect(
+      fetchInboxAttachment(integration, {
+        messageId: "m1",
+        attachmentId: "att-1",
+        filename: "a.txt",
+      }),
+    ).rejects.toThrow("cannot read");
+    expect(warnings[0]?.event).toMatchObject({
+      integration: { provider: "gmail", operation: "GMAIL_GET_ATTACHMENT" },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+  });
+
   it("searches Outlook without $filter or $orderby and applies since itself", async () => {
     mocks.findMany.mockResolvedValue([{ ...existing, provider: "outlook" }]);
     const fetchMock = vi.fn().mockResolvedValue({
@@ -623,7 +684,11 @@ it("attempts both account revocations and reports a provider once on partial fai
     { ...existing, pendingComposioAccountId: "replacement" },
   ]);
   mocks.remove.mockRejectedValue(new Error("upstream unavailable"));
-  expectConsole("error", "Soko Bot integration revoke failed", 2);
+  // One event per revoke, listing every account Composio kept.
+  const errors = expectCoreLog(
+    "error",
+    "Could not revoke a Soko Bot's integration accounts at Composio",
+  );
   expect(
     await revokeSokoBotIntegrationAccounts("bot", [
       { ...existing, pendingComposioAccountId: "replacement" },
@@ -633,6 +698,63 @@ it("attempts both account revocations and reports a provider once on partial fai
     failed: ["gmail"],
   });
   expect(mocks.remove.mock.calls).toEqual([["selected"], ["replacement"]]);
+  expect(errors[0]).toMatchObject({ why: "Composio refused the delete" });
+  expect(errors[0]?.event.error).toMatchObject({
+    cause: { message: "upstream unavailable" },
+  });
+  expect(errors[0]?.event).toMatchObject({
+    integrationRevoke: {
+      failures: [
+        {
+          sokoBotId: "bot",
+          provider: "gmail",
+          accountId: "selected",
+          cause: { message: "upstream unavailable" },
+        },
+        {
+          sokoBotId: "bot",
+          provider: "gmail",
+          accountId: "replacement",
+          cause: { message: "upstream unavailable" },
+        },
+      ],
+    },
+  });
+});
+
+it("keeps every bot's failed accounts when one request revokes for several bots", async () => {
+  // A member removal revokes per shared bot on the same request event.
+  const errors = expectCoreLog(
+    "error",
+    "Could not revoke a Soko Bot's integration accounts at Composio",
+  );
+  mocks.remove.mockImplementation(async (accountId: string) => {
+    throw new Error(`refused ${accountId}`);
+  });
+  await inRequest(async () => {
+    await revokeSokoBotIntegrationAccounts("bot-a", [
+      { ...existing, composioAccountId: "account-a" },
+    ]);
+    await revokeSokoBotIntegrationAccounts("bot-b", [
+      { ...existing, composioAccountId: "account-b" },
+    ]);
+  });
+  expect(errors[0]?.event).toMatchObject({
+    integrationRevoke: {
+      failures: [
+        {
+          sokoBotId: "bot-a",
+          accountId: "account-a",
+          cause: { message: "refused account-a" },
+        },
+        {
+          sokoBotId: "bot-b",
+          accountId: "account-b",
+          cause: { message: "refused account-b" },
+        },
+      ],
+    },
+  });
 });
 
 describe("OAuth retries and failures", () => {
