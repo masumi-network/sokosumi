@@ -11202,13 +11202,15 @@
       "presets": {
         "all": "Alle Kontakte",
         "mine": "Meine Kontakte",
-        "recent": "Neu hinzugefügt"
+        "recent": "Neu hinzugefügt",
+        "archived": "Archivierte Kontakte"
       },
       "emptyViews": {
         "all": "Noch keine Kontakte.",
         "mine": "Noch niemand, mit dem du gesprochen hast. Alle, denen du schreibst oder die du triffst, erscheinen hier.",
         "recent": "In den letzten zwei Wochen kam niemand dazu.",
-        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
+        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu.",
+        "archived": "Keine archivierten Kontakte. Wen du archivierst, findest du hier und kannst ihn wiederherstellen."
       },
       "views": {
         "label": "Kontaktansichten",
@@ -11226,7 +11228,8 @@
         "clearCompany": "Alle Firmen zeigen",
         "companyLists": "Firmenlisten",
         "newCompanyList": "Neue Firmenliste",
-        "noCompanyLists": "Noch keine Firmenlisten."
+        "noCompanyLists": "Noch keine Firmenlisten.",
+        "backToContacts": "Zurück zu den Kontakten"
       },
       "columns": {
         "name": "Name",
@@ -11569,7 +11572,12 @@
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
         "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
         "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
-        "connectedVia": "Verbunden über"
+        "connectedVia": "Verbunden über",
+        "restore": "Wiederherstellen",
+        "restoreName": "{name} wiederherstellen",
+        "restored": "{name} wiederhergestellt",
+        "restoreFailed": "{name} konnte nicht wiederhergestellt werden. Der Kontakt bleibt archiviert.",
+        "archivedOn": "Archiviert am {date}. Archivierte Kontakte erscheinen nicht in Listen und Suchen, bis du sie wiederherstellst."
       },
       "stageGroups": {
         "general": "Allgemein",

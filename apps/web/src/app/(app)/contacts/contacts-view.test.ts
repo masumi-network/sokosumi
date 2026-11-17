@@ -60,6 +60,16 @@ describe("contactQuery", () => {
     });
   });
 
+  it("asks Core for archived contacts only in the Archived view", () => {
+    expect(contactQuery({ ...base, view: "archived", search: "ada" })).toEqual({
+      archived: "true",
+      search: "ada",
+      sort: "updatedAt",
+      direction: "desc",
+    });
+    expect(contactQuery(base)).not.toHaveProperty("archived");
+  });
+
   it("treats any other view as a list id", () => {
     const listId = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f";
     expect(contactQuery({ ...base, view: listId }).listId).toBe(listId);
@@ -329,6 +339,12 @@ describe("smartFilterOf", () => {
     expect(smartFilterOf({ ...base, view: listId }, "manual")).toBeNull();
     expect(
       smartFilterOf({ ...base, view: listId, kind: "PERSON" }, "smart"),
+    ).toBeNull();
+  });
+
+  it("offers no smart list from the Archived view, whose filter lists cannot keep", () => {
+    expect(
+      smartFilterOf({ ...base, view: "archived", search: "ada" }),
     ).toBeNull();
   });
 });
