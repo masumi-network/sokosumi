@@ -3,6 +3,18 @@ import { describe, expect, it, vi } from "vitest";
 import Header from "@/app/agents/[agentId]/jobs/components/header";
 import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
 
+vi.mock("@/components/back-link", () => ({
+  BackLink: ({
+    children,
+    href,
+    ...props
+  }: React.ComponentProps<"a"> & { href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values?.price

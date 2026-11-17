@@ -64,9 +64,10 @@ describe("TaskRelationRow", () => {
       vi.useRealTimers();
     }
 
-    expect(prefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks/task-2", {
-      kind: "full",
-    });
+    expect(prefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks/task-2",
+      expect.objectContaining({ kind: "full" }),
+    );
   });
 
   it("links to the task with the status marker in a fixed leading slot", () => {

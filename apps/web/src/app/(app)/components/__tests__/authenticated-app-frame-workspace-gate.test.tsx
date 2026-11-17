@@ -156,6 +156,9 @@ vi.mock("@/components/emergency-dialog/emergency-dialog", () => ({
   EmergencyDialog: () => null,
 }));
 
+vi.mock("@/components/warm-likely-pages.client", () => ({
+  WarmLikelyPages: () => null,
+}));
 vi.mock("@/components/impersonation/impersonation-banner", () => ({
   ImpersonationBanner: () => null,
 }));
