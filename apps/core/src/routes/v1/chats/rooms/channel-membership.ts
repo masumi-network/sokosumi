@@ -8,6 +8,8 @@ import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/cha
 import { badRequest, forbidden } from "@/helpers/error";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { publishChatMembershipRevokedToUsers } from "@/lib/ably/publish";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { type ChatRoomWithMembers, requireChatRoomUserAccess } from "./helpers";
 import type {
@@ -134,12 +136,47 @@ export async function publishChannelMembershipEffects(args: {
     ),
     publishChatRoomMentionStatuses(args.mentionMessageIds ?? []),
   ]);
-  for (const result of results) {
-    if (result.status === "rejected") {
-      console.error(
-        "Failed to publish channel membership change",
-        result.reason,
-      );
-    }
-  }
+  recordMembershipPublishFailures(
+    { operation: "chat_channel_membership_change", roomId: args.roomId },
+    [
+      ["status_messages", results[0]],
+      ["membership_revoked", results[1]],
+      ["mention_statuses", results[2]],
+    ],
+  );
+}
+
+/** A realtime publish that follows a saved membership change. */
+export type MembershipPublishEffect =
+  | "status_messages"
+  | "membership_revoked"
+  | "mention_statuses";
+
+/**
+ * One error for the publishes of a saved membership change that failed, each
+ * named by its effect. Status messages carry chat text a publish error can
+ * quote, so every failure keeps only content-free fields.
+ */
+export function recordMembershipPublishFailures(
+  context: { operation: string; roomId: string },
+  effects: readonly (readonly [
+    MembershipPublishEffect,
+    PromiseSettledResult<unknown>,
+  ])[],
+): void {
+  const failures = effects.flatMap(([effect, result]) =>
+    result.status === "rejected"
+      ? [{ effect, failure: messageSafeErrorFields(result.reason) }]
+      : [],
+  );
+  if (failures.length === 0) return;
+  recordCoreError(
+    context,
+    {
+      message: "Could not publish every effect of a channel membership change",
+      why: "A realtime publish failed after the membership change was saved",
+      fix: "Open clients catch up on their next refresh. If it repeats, check Ably's status; failures names each effect that failed.",
+    },
+    { failures },
+  );
 }

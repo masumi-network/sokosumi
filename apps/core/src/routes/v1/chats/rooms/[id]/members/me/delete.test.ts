@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import mountLeaveChatRoom from "./delete";
 
@@ -369,6 +370,27 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       roomId: ROOM_ID,
       reason: "left",
     });
+  });
+
+  it("still leaves when the status publish fails, without the status text", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish every effect of a channel membership change",
+      ["A realtime publish failed after the membership change was saved"],
+    );
+    roomFindFirstMock.mockResolvedValue(room());
+    publishChatRoomMembershipStatusMessagesBestEffortMock.mockRejectedValueOnce(
+      new Error('Payload "user_self left" rejected'),
+    );
+
+    const response = await leave();
+
+    expect(response.status).toBe(200);
+    expect(errors[0]?.event.failures).toEqual([
+      { effect: "status_messages", failure: { errorName: "Error" } },
+    ]);
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("user_self left");
   });
 
   it("does not emit membership status when refusing a direct leave", async () => {

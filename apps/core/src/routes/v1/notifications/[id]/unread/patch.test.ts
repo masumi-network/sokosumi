@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notificationFeedWhere } from "@/helpers/notification-feed";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountMarkNotificationUnread from "./patch";
 
@@ -72,8 +77,12 @@ function readRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
+function createApp(
+  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -124,6 +133,20 @@ describe("PATCH /notifications/{id}/unread", () => {
     expect(notificationFindFirstMock).toHaveBeenCalledWith({
       where: { id: "notif_123", ...notificationFeedWhere() },
     });
+  });
+
+  it("publishes the row as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("publishNotificationRow");
+    publishNotificationRowMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishNotificationRow"),
+    );
+
+    const response = await createApp(USER_AUTH_CONTEXT, {
+      evlog: true,
+    }).request("http://localhost/notif_123/unread", { method: "PATCH" });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
   });
 
   it("tells the reader's other tabs, without raising a banner", async () => {

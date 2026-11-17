@@ -12,8 +12,19 @@ import { LIMITS } from "@/config/constants";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import {
+  causeMessage,
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountPostTaskEvents from "./post";
 
@@ -110,6 +121,14 @@ vi.mock("@/helpers/notifications", () => ({
 }));
 
 const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
+
+const notifyTaskStatusEventMock = vi.hoisted(() => vi.fn());
+vi.mock("@/helpers/task-notifications", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/task-notifications")>();
+  notifyTaskStatusEventMock.mockImplementation(actual.notifyTaskStatusEvent);
+  return { ...actual, notifyTaskStatusEvent: notifyTaskStatusEventMock };
+});
 
 vi.mock("@/helpers/billing-notifications", () => ({
   notifyLowBalanceAfterCharge: (...args: unknown[]) =>
@@ -332,8 +351,12 @@ function createTaskEvent(
   };
 }
 
-function createApp(authContext: AuthenticationContext) {
+function createApp(
+  authContext: AuthenticationContext,
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_task_events_test");
@@ -2766,9 +2789,10 @@ describe("POST /{id}/events", () => {
     };
     mockTransaction(tx);
     createTaskEventTransactionMock.mockResolvedValue("txn_retry");
-    const warnings = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[tasks] masumi task payment: retry scheduled",
+      "Scheduled a retry of a Masumi task purchase",
+      ["The payment node did not accept the purchase yet"],
     );
     const app = createApp({
       actor: "coworker",
@@ -2785,13 +2809,167 @@ describe("POST /{id}/events", () => {
     });
     expect(response.status).toBe(201);
     await Promise.all(waitUntilCapturedPromises);
-    const logged = warnings.find(
-      (call) => call[0] === "[tasks] masumi task payment: retry scheduled",
-    );
-    expect(logged).toBeDefined();
-    const payload = logged?.[1] as { reason: string };
-    expect(payload.reason.length).toBeLessThanOrEqual(2_000);
-    expect(payload.reason).toContain("[truncated]");
+    const reason = causeMessage(warnings[0]?.cause) ?? "";
+    expect(reason.length).toBeLessThanOrEqual(2_000);
+    expect(reason).toContain("[truncated]");
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "task_masumi_purchase",
+      taskId: TASK_ID,
+      claimId: "claim-task-1",
+    });
+  });
+
+  describe("events and background work", () => {
+    const coworker: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    };
+
+    function chargedCompletion() {
+      mockTransaction({
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              id: "evt_paid",
+              status: TaskStatus.COMPLETED,
+              transactionId: "txn_paid",
+            }),
+          ),
+        },
+        task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      });
+      createTaskEventTransactionMock.mockResolvedValue("txn_paid");
+      return createApp(coworker, { evlog: true }).request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: TaskStatus.COMPLETED,
+            masumiPayment: validMasumiPaymentBody,
+          }),
+        },
+      );
+    }
+
+    it("runs the purchase, the notices and the balance check as background work, off the request's event", async () => {
+      // The real purchase, notices and balance check reach shared code
+      // whose `recordCore*` would otherwise find this request still live.
+      expectBackgroundProbe("processTaskPaymentClaim");
+      expectBackgroundProbe("notifyTaskStatusEvent");
+      expectBackgroundProbe("notifyLowBalanceAfterCharge");
+      processTaskPaymentClaimMock.mockImplementationOnce(async () => {
+        probeBackgroundFailure("processTaskPaymentClaim");
+        return { status: "purchased", purchaseId: "pur_paid" };
+      });
+      notifyTaskStatusEventMock.mockImplementationOnce(async () => {
+        probeBackgroundFailure("notifyTaskStatusEvent");
+      });
+      notifyLowBalanceAfterChargeMock.mockImplementationOnce(async () => {
+        probeBackgroundFailure("notifyLowBalanceAfterCharge");
+      });
+
+      const response = await chargedCompletion();
+      await Promise.all(waitUntilCapturedPromises);
+
+      expect(response.status).toBe(201);
+      // The purchase is its own info event; the request's names it scheduled.
+      expect(
+        coreLogEvents().find((event) => event.purchaseId === "pur_paid"),
+      ).toMatchObject({
+        operation: "task_masumi_purchase",
+        taskEventId: "evt_paid",
+      });
+      expect(
+        coreLogEvents().find((event) => event.taskPurchase !== undefined),
+      ).toMatchObject({
+        method: "POST",
+        taskPurchase: { scheduled: true, taskEventId: "evt_paid" },
+      });
+    });
+
+    it("logs a purchase processor failure on its own event without the provider's text", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "A Masumi task purchase failed before it finished",
+        ["Processing the payment claim threw"],
+      );
+      // Scheduling the retry writes the payment node's reason; Prisma's
+      // validation error quotes the arguments it rejected.
+      const validation = new Error(
+        "Invalid `prisma.taskPaymentClaim.update()` invocation:\n\n" +
+          '{ data: { failureReason: "Wallet of jane@acme.test refused: Quarterly secrets sk_live_51PrivateKeyValue" } }',
+      );
+      validation.name = "PrismaClientValidationError";
+      processTaskPaymentClaimMock.mockRejectedValueOnce(validation);
+
+      const response = await chargedCompletion();
+      await Promise.all(waitUntilCapturedPromises);
+
+      expect(response.status).toBe(201);
+      expect(errors[0]?.event).toMatchObject({
+        operation: "task_masumi_purchase",
+        claimId: "claim-task-1",
+        failure: { errorName: "PrismaClientValidationError" },
+      });
+      expect(errors[0]?.event.method).toBeUndefined();
+      expect(errors[0]?.cause).toBeUndefined();
+      const drained = JSON.stringify(errors[0]?.event);
+      expect(drained).not.toContain("Quarterly");
+      expect(drained).not.toContain("sk_live");
+      expect(drained).not.toContain("refused");
+    });
+
+    it("logs a failed project memory refresh without the task's text", async () => {
+      const errors = expectCoreLog(
+        "error",
+        "Could not refresh a project's memory after a task",
+      );
+      mockTransaction({
+        taskEvent: {
+          create: vi.fn().mockResolvedValue(
+            createTaskEvent({
+              status: TaskStatus.COMPLETED,
+              cents: null,
+              transactionId: null,
+            }),
+          ),
+        },
+        task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      });
+      requireTaskCollaborationMock.mockResolvedValue(
+        createTask({ projectId: "proj_123" }),
+      );
+      // The memory is written from the task's text, which a database error
+      // can quote.
+      projectMemoryRefreshMock.mockRejectedValueOnce(
+        new Error('Invalid value for "summary": "Acquire Initech quietly"'),
+      );
+
+      const response = await createApp(coworker).request(
+        `http://localhost/${TASK_ID}/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: TaskStatus.COMPLETED }),
+        },
+      );
+      await Promise.all(waitUntilCapturedPromises);
+
+      expect(response.status).toBe(201);
+      expect(errors[0]?.why).toBe(
+        "Refreshing the memory from the completed task failed",
+      );
+      expect(errors[0]?.cause).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        operation: "project_memory_refresh",
+        projectId: "proj_123",
+        taskId: TASK_ID,
+        failure: { errorName: "Error" },
+      });
+      expect(JSON.stringify(errors[0]?.event)).not.toContain("Initech");
+    });
   });
 
   it("returns 201 and publishes when durable processor refunds a permanent failure", async () => {

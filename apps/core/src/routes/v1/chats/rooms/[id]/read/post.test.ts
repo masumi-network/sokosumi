@@ -2,8 +2,13 @@ import { MemberRole, NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 import { expectBackgroundRejection } from "@/test/wait-until";
 import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
@@ -117,8 +122,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_mark_chat_room_read");
@@ -424,6 +433,28 @@ describe("POST /chats/rooms/{id}/read", () => {
       unreadMentionCount: 0,
       markedUnread: false,
     });
+  });
+
+  it("publishes the read, takes back its mail and tells the room as background work, so a failure inside any is not put on the request's event", async () => {
+    expectBackgroundProbe("publishClearedNotifications");
+    expectBackgroundProbe("cancelNotificationEmails");
+    expectBackgroundProbe("publishChatRoomReadRealtime");
+    publishClearedNotificationsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishClearedNotifications"),
+    );
+    cancelNotificationEmailsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("cancelNotificationEmails"),
+    );
+    publishChatRoomReadRealtimeMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishChatRoomReadRealtime"),
+    );
+
+    const response = await createApp(userAuthContext, { evlog: true }).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it("tells the room who read it and when", async () => {

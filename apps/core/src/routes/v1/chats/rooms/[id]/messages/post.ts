@@ -163,16 +163,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (mentionedUserIds.length > 0) {
         waitUntil(
-          emitChatHumanMentionNotifications({
-            messageId: message.id,
-            mentionedUserIds,
-          }),
+          runAsBackgroundWork(() =>
+            emitChatHumanMentionNotifications({
+              messageId: message.id,
+              mentionedUserIds,
+            }),
+          ),
         );
       }
 
       await publishChatRoomMessageRealtime(message, "create");
 
-      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+      waitUntil(
+        runAsBackgroundWork(() => scheduleChatRoomMessageUnfurls(message.id)),
+      );
 
       // Only a direct room needs the roster here, to count the humans in it.
       // A channel leaves the read to the emitter, which runs after the
@@ -205,38 +209,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const recipientUserIds = memberUserIds;
         if (recipientUserIds.length > 0) {
           waitUntil(
-            emitChatDirectMessageNotifications({
-              roomId: room.id,
-              roomName: room.name,
-              organizationId: room.organizationId,
-              messageId: message.id,
-              parentMessageId: message.parentMessageId,
-              content: message.content,
-              authorUserId: null,
-              authorName,
-              recipientUserIds,
-              mentionedUserIds,
-            }),
+            runAsBackgroundWork(() =>
+              emitChatDirectMessageNotifications({
+                roomId: room.id,
+                roomName: room.name,
+                organizationId: room.organizationId,
+                messageId: message.id,
+                parentMessageId: message.parentMessageId,
+                content: message.content,
+                authorUserId: null,
+                authorName,
+                recipientUserIds,
+                mentionedUserIds,
+              }),
+            ),
           );
         }
       }
 
       waitUntil(
-        emitChatRoomMessageCreatedEffects({
-          roomId: room.id,
-          roomName: room.name,
-          roomKind: room.kind,
-          organizationId: room.organizationId,
-          messageId: message.id,
-          parentMessageId: message.parentMessageId,
-          content: message.content,
-          authorUserId: null,
-          authorName,
-          // Already read for the direct-message decision, so the emitter is
-          // not asked to read the same roster again.
-          memberUserIds,
-          mentionedUserIds,
-        }),
+        runAsBackgroundWork(() =>
+          emitChatRoomMessageCreatedEffects({
+            roomId: room.id,
+            roomName: room.name,
+            roomKind: room.kind,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            parentMessageId: message.parentMessageId,
+            content: message.content,
+            authorUserId: null,
+            authorName,
+            // Already read for the direct-message decision, so the emitter is
+            // not asked to read the same roster again.
+            memberUserIds,
+            mentionedUserIds,
+          }),
+        ),
       );
 
       return created(
@@ -511,21 +519,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (mentionedUserIds.length > 0) {
         waitUntil(
-          emitChatMentionNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            roomShape: chatMentionRoomShape({
-              kind: room.kind,
-              memberUserIds: room.memberUserIds,
-              nonHumanMemberCount: room.nonHumanMemberCount,
+          runAsBackgroundWork(() =>
+            emitChatMentionNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              roomShape: chatMentionRoomShape({
+                kind: room.kind,
+                memberUserIds: room.memberUserIds,
+                nonHumanMemberCount: room.nonHumanMemberCount,
+              }),
+              organizationId: room.organizationId,
+              messageId: message.id,
+              content: message.content,
+              authorUserId: userContext.userId,
+              authorName: message.senderUser?.name ?? "Someone",
+              mentionedUserIds,
             }),
-            organizationId: room.organizationId,
-            messageId: message.id,
-            content: message.content,
-            authorUserId: userContext.userId,
-            authorName: message.senderUser?.name ?? "Someone",
-            mentionedUserIds,
-          }),
+          ),
         );
       }
 
