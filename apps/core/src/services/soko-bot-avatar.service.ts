@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
+import { createError, type RequestLogger } from "evlog";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
@@ -21,6 +22,11 @@ import {
   CONCURRENCY_CONFLICT_KIND,
   serializableTransaction,
 } from "@/lib/db/transaction";
+import {
+  createCoreLogger,
+  logCoreWarning,
+  tryUseLiveLogger,
+} from "@/lib/evlog";
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   buildFalInput,
@@ -462,8 +468,17 @@ async function fillReservation(reservation: AvatarReservation): Promise<void> {
   });
 }
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : "unknown";
+/**
+ * Avatar draws and restyles run inside the picker's top-up or the admin
+ * restyle request, so their warnings and errors go on that request's event.
+ * A call outside a request (a script) gets its own event.
+ */
+function withAvatarLog(write: (log: RequestLogger) => void): void {
+  const requestLog = tryUseLiveLogger();
+  const log =
+    requestLog ?? createCoreLogger({ operation: "soko_bot_avatar_draw" });
+  write(log);
+  if (!requestLog) log.emit();
 }
 
 /**
@@ -487,10 +502,17 @@ async function releaseReservations(
     // the same blip that broke the run can break the delete, so letting it
     // throw would turn a degraded read into a 500. The next top-up's sweep is
     // the backstop: these rows carry `reservedAt` and age out on their own.
-    console.warn("Soko Bot avatar reservations could not be released", {
-      count: reservations.length,
-      error: errorText(error),
-    });
+    withAvatarLog((log) =>
+      logCoreWarning(
+        log,
+        {
+          message: "Could not hand back unused Soko Bot avatar reservations",
+          why: "Deleting the reservations failed",
+          fix: "Nothing to do: the next top-up's sweep removes them once they age out.",
+        },
+        { avatarReservationsKept: reservations.length, cause: error },
+      ),
+    );
   }
 }
 
@@ -567,10 +589,18 @@ async function drawAvatars(
   try {
     await fillReservation(probe);
   } catch (error) {
-    console.error("Soko Bot avatar generation failed; skipping this run", {
-      attempted: reservations.length,
-      error: errorText(error),
-    });
+    withAvatarLog((log) =>
+      log.error(
+        createError({
+          message:
+            "Stopped drawing Soko Bot avatars after the first image failed",
+          why: "Generating or storing the image failed",
+          fix: "Check the image model and the Blob token; until they work, every top-up buys one image and adds nothing.",
+          cause: error instanceof Error ? error : undefined,
+        }),
+        { avatarDraw: { attempted: reservations.length } },
+      ),
+    );
     // The probe may have been billed, so its row stays and counts. The rest
     // were never attempted, so hand their draws and their allowance back.
     await releaseReservations(rest);
@@ -584,9 +614,18 @@ async function drawAvatars(
       drawnIds.push(rest[index].id);
       return;
     }
-    console.warn("Soko Bot avatar generation failed", {
-      error: errorText(result.reason),
-    });
+    withAvatarLog((log) =>
+      logCoreWarning(
+        log,
+        {
+          message: "Could not draw one Soko Bot avatar",
+          why: "Generating or storing the image failed",
+          fix: "The pool fills with the rest; the next top-up draws again. If many fail, check the image model and the Blob token.",
+        },
+        // An array: several draws can fail on one top-up's event.
+        { avatarDrawFailures: [{ cause: result.reason }] },
+      ),
+    );
   });
   return { reserved, drawnIds };
 }
@@ -906,9 +945,18 @@ export async function restyleAvatars(
         restyled += 1;
         continue;
       }
-      console.warn("Soko Bot avatar restyle failed", {
-        error: errorText(result.reason),
-      });
+      withAvatarLog((log) =>
+        logCoreWarning(
+          log,
+          {
+            message: "Could not restyle a Soko Bot's avatar",
+            why: "Generating or claiming the new avatar failed",
+            fix: "The bot keeps its old avatar; run the restyle again to retry it.",
+          },
+          // An array: several restyles can fail on one admin request.
+          { avatarRestyleFailures: [{ cause: result.reason }] },
+        ),
+      );
     }
   }
   return {

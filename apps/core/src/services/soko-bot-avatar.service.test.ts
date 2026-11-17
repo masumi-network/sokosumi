@@ -41,7 +41,6 @@ vi.mock("@/lib/db/prisma", async () => {
   return { default: store.client };
 });
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { LIMITS } from "@/config/constants";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
@@ -52,6 +51,7 @@ import {
   restyleAvatars,
   topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
+import { expectCoreLog } from "@/test/core-log";
 
 const imageBytes = () =>
   sharp({
@@ -136,9 +136,9 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("buys one image, not six, when storing them is broken", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "Soko Bot avatar generation failed; skipping this run",
+      "Stopped drawing Soko Bot avatars after the first image failed",
     );
     // The image model bills for an image whether or not we store it. With a
     // broken blob token the pool never fills, so an ungated run would buy six
@@ -148,12 +148,19 @@ describe("Soko Bot avatar pool", () => {
     await expect(generateAvatars(6, "user-1")).resolves.toBe(0);
 
     expect(billed()).toBe(1);
+    expect(errors[0]).toMatchObject({
+      why: "Generating or storing the image failed",
+    });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "blob token rejected" },
+    });
+    expect(errors[0]?.event).toMatchObject({ avatarDraw: { attempted: 6 } });
   });
 
   it("hands back the slots it never spent on, and keeps the one it may have paid for", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "Soko Bot avatar generation failed; skipping this run",
+      "Stopped drawing Soko Bot avatars after the first image failed",
     );
     drawMock.mockRejectedValue(new Error("fal is down"));
 
@@ -164,24 +171,49 @@ describe("Soko Bot avatar pool", () => {
     expect(store.avatars).toHaveLength(1);
     expect(store.avatars[0]?.reservedAt).toBeInstanceOf(Date);
     await expect(listAvailableAvatars(6)).resolves.toEqual([]);
+    expect(errors[0]).toMatchObject({
+      why: "Generating or storing the image failed",
+    });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "fal is down" },
+    });
   });
 
   it("survives a release that fails instead of raising a 500", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "Soko Bot avatar generation failed; skipping this run",
+      "Stopped drawing Soko Bot avatars after the first image failed",
     );
-    expectConsole("warn", "Soko Bot avatar reservations could not be released");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not hand back unused Soko Bot avatar reservations",
+    );
     vi.spyOn(store.client.sokoBotAvatar, "deleteMany").mockRejectedValue(
       new Error("pool exhausted"),
     );
     drawMock.mockRejectedValue(new Error("fal is down"));
 
     await expect(generateAvatars(2, "user-1")).resolves.toBe(0);
+    expect(errors[0]).toMatchObject({
+      why: "Generating or storing the image failed",
+    });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "fal is down" },
+    });
+    expect(warnings[0]).toMatchObject({
+      why: "Deleting the reservations failed",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      cause: { message: "pool exhausted" },
+    });
+    expect(warnings[0]?.event).toMatchObject({ avatarReservationsKept: 1 });
   });
 
   it("reports how many images it actually added", async () => {
-    expectConsole("warn", "Soko Bot avatar generation failed");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not draw one Soko Bot avatar",
+    );
     // Probe succeeds, then one of the two remaining fills fails.
     putMock
       .mockImplementationOnce(async (pathname: string) => ({
@@ -191,6 +223,12 @@ describe("Soko Bot avatar pool", () => {
 
     await expect(generateAvatars(3, "user-1")).resolves.toBe(2);
     await expect(listAvailableAvatars(6)).resolves.toHaveLength(2);
+    expect(warnings[0]).toMatchObject({
+      why: "Generating or storing the image failed",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      avatarDrawFailures: [{ cause: { message: "blob rejected" } }],
+    });
   });
 
   it("holds the draw before it buys the image, and never buys inside the transaction", async () => {
@@ -426,7 +464,10 @@ describe("restyling avatars from before the brand palette", () => {
   });
 
   it("leaves a bot on its old avatar when its draw fails", async () => {
-    expectConsole("warn", "Soko Bot avatar restyle failed");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not restyle a Soko Bot's avatar",
+    );
     const old = seedOld("bot-1", "fox");
     drawMock.mockRejectedValueOnce(new Error("model down"));
 
@@ -438,6 +479,12 @@ describe("restyling avatars from before the brand palette", () => {
     expect(store.bots.get("bot-1")?.avatarImageUrl).toBe(
       "https://blob.test/old.png",
     );
+    expect(warnings[0]).toMatchObject({
+      why: "Generating or claiming the new avatar failed",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      avatarRestyleFailures: [{ cause: { message: "model down" } }],
+    });
   });
 
   it("buys nothing without a fal key or blob store", async () => {

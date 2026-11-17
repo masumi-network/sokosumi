@@ -10,6 +10,7 @@ import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
 import {
@@ -224,10 +225,18 @@ export async function createSharedSokoBot(
     "@/services/soko-bot-proactive.service"
   );
   await ensureSystemSchedules(created).catch((error) => {
-    console.error("Soko Bot system schedules failed", {
-      sokoBotId: created.id,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Awaited inside the create request (Web, CMO onboarding); an eval lane
+    // creates outside one and gets its own event.
+    recordCoreError(
+      { operation: "soko_bot_shared_create" },
+      {
+        message: "Created a shared Soko Bot without its built-in rhythms",
+        why: "Creating the system schedules failed",
+        fix: "The bot works without them. A member can add the rhythms on the bot's Schedules page, or rerun the create once the database is healthy.",
+        cause: error,
+      },
+      { sokoBot: { id: created.id } },
+    );
   });
   return created;
 }

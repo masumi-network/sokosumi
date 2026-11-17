@@ -19,7 +19,7 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   revokeSokoBotIntegrationAccounts: mocks.revoke,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { expectCoreLog } from "@/test/core-log";
 import {
   disconnectLeaverSokoBotIntegrations,
   disconnectLeaverSokoBotIntegrationsBestEffort,
@@ -106,14 +106,21 @@ describe("disconnectLeaverSokoBotIntegrations", () => {
 describe("disconnectLeaverSokoBotIntegrationsBestEffort", () => {
   it("never fails the member removal", async () => {
     mocks.memberFindFirst.mockRejectedValue(new Error("db down"));
-    const log = expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "Soko Bot leaver integration disconnect failed",
+      "Could not disconnect a leaving member's Soko Bot integrations",
     );
     await expect(
       disconnectLeaverSokoBotIntegrationsBestEffort("leaver", "org"),
     ).resolves.toBeUndefined();
-    expect(log).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ why: "The disconnect failed" });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "db down" },
+    });
+    expect(errors[0]?.event).toMatchObject({
+      leaver: { userId: "leaver", organizationId: "org" },
+    });
   });
 });
 
