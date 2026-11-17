@@ -190,7 +190,11 @@ export function CreateState({
             aria-describedby={blank ? `${nameId}-error` : undefined}
           />
           {blank ? (
-            <p id={`${nameId}-error`} className="text-destructive text-xs">
+            <p
+              id={`${nameId}-error`}
+              role="alert"
+              className="text-destructive text-xs"
+            >
               {t("nameRequired")}
             </p>
           ) : null}
