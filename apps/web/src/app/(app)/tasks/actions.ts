@@ -33,9 +33,7 @@ import {
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
-interface LoadMoreTasksColumnParams {
-  columnId: KanbanColumnId;
-  cursor: string | null;
+interface TasksLoadMoreFilters {
   scope: TasksScope | null;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
@@ -46,16 +44,13 @@ interface LoadMoreTasksColumnParams {
   stuck?: boolean;
 }
 
-interface LoadMoreTasksListParams {
+interface LoadMoreTasksColumnParams extends TasksLoadMoreFilters {
+  columnId: KanbanColumnId;
   cursor: string | null;
-  scope: TasksScope | null;
-  assigneeId: string | null;
-  assigneeSokoBotId: string | null;
-  assigneeUserId: string | null;
-  status: Task["status"] | null;
-  projectId: string | null;
-  visibility: Task["visibility"] | null;
-  stuck?: boolean;
+}
+
+interface LoadMoreTasksListParams extends TasksLoadMoreFilters {
+  cursor: string | null;
 }
 
 async function sanitizeAssigneeUserId(
@@ -70,9 +65,7 @@ async function sanitizeAssigneeUserId(
     : null;
 }
 
-export async function loadMoreTasksColumn({
-  columnId,
-  cursor,
+async function loadSanitizedTasksPageFilters({
   scope,
   assigneeId,
   assigneeSokoBotId,
@@ -81,7 +74,7 @@ export async function loadMoreTasksColumn({
   projectId,
   visibility,
   stuck,
-}: LoadMoreTasksColumnParams) {
+}: TasksLoadMoreFilters) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers("tasks").catch(() => []),
@@ -90,44 +83,48 @@ export async function loadMoreTasksColumn({
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
-
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const ownerSokoBotId = ownerBot?.id ?? null;
-  const sanitizedAssigneeId =
-    assigneeId && coworkersById.has(assigneeId) && assigneeId !== ownerSokoBotId
-      ? assigneeId
-      : null;
-  const sanitizedAssigneeSokoBotId =
-    assigneeSokoBotId && ownerSokoBotId && assigneeSokoBotId === ownerSokoBotId
-      ? assigneeSokoBotId
-      : null;
-  const sanitizedAssigneeUserId = await sanitizeAssigneeUserId(
-    assigneeUserId,
-    activeOrganizationId,
-  );
-  const sanitizedStatus = sanitizeTasksStatusInput(status);
-  const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
-  const sanitizedVisibility = sanitizeTasksVisibilityInput(
-    visibility,
-    activeOrganizationId,
-  );
+
+  return {
+    scope: sanitizeTasksScopeInput(scope, activeOrganizationId),
+    assigneeId:
+      assigneeId &&
+      coworkersById.has(assigneeId) &&
+      assigneeId !== ownerSokoBotId
+        ? assigneeId
+        : null,
+    assigneeSokoBotId:
+      assigneeSokoBotId &&
+      ownerSokoBotId &&
+      assigneeSokoBotId === ownerSokoBotId
+        ? assigneeSokoBotId
+        : null,
+    assigneeUserId: await sanitizeAssigneeUserId(
+      assigneeUserId,
+      activeOrganizationId,
+    ),
+    status: sanitizeTasksStatusInput(status),
+    projectId: sanitizeProjectIdFilterInput(projectId),
+    visibility: sanitizeTasksVisibilityInput(visibility, activeOrganizationId),
+    stuck: sanitizeTasksStuckInput(stuck),
+    coworkersById,
+    personalAssistantFallback: t("personalAssistant"),
+  };
+}
+
+export async function loadMoreTasksColumn({
+  columnId,
+  cursor,
+  ...filters
+}: LoadMoreTasksColumnParams) {
   const page = await getTasksColumnPage({
     columnId,
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
-    scope: sanitizedScope,
-    assigneeId: sanitizedAssigneeId,
-    assigneeSokoBotId: sanitizedAssigneeSokoBotId,
-    assigneeUserId: sanitizedAssigneeUserId,
-    status: sanitizedStatus,
-    projectId: sanitizedProjectId,
-    visibility: sanitizedVisibility,
-    stuck: sanitizeTasksStuckInput(stuck),
-    coworkersById,
-    personalAssistantFallback: t("personalAssistant"),
+    ...(await loadSanitizedTasksPageFilters(filters)),
   });
 
   return {
@@ -138,60 +135,12 @@ export async function loadMoreTasksColumn({
 
 export async function loadMoreTasksList({
   cursor,
-  scope,
-  assigneeId,
-  assigneeSokoBotId,
-  assigneeUserId,
-  status,
-  projectId,
-  visibility,
-  stuck,
+  ...filters
 }: LoadMoreTasksListParams) {
-  const [session, coworkers, ownerBot, t] = await Promise.all([
-    getSession(),
-    coworkerService.listCoworkers("tasks").catch(() => []),
-    sokoBotService.getMine().catch(() => null),
-    getTranslations("App.Tasks"),
-  ]);
-
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
-
-  const coworkersById = new Map(
-    coworkers.map((coworker) => [coworker.id, coworker]),
-  );
-  const ownerSokoBotId = ownerBot?.id ?? null;
-  const sanitizedAssigneeId =
-    assigneeId && coworkersById.has(assigneeId) && assigneeId !== ownerSokoBotId
-      ? assigneeId
-      : null;
-  const sanitizedAssigneeSokoBotId =
-    assigneeSokoBotId && ownerSokoBotId && assigneeSokoBotId === ownerSokoBotId
-      ? assigneeSokoBotId
-      : null;
-  const sanitizedAssigneeUserId = await sanitizeAssigneeUserId(
-    assigneeUserId,
-    activeOrganizationId,
-  );
-  const sanitizedStatus = sanitizeTasksStatusInput(status);
-  const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
-  const sanitizedVisibility = sanitizeTasksVisibilityInput(
-    visibility,
-    activeOrganizationId,
-  );
   const page = await getTasksListPage({
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
-    scope: sanitizedScope,
-    assigneeId: sanitizedAssigneeId,
-    assigneeSokoBotId: sanitizedAssigneeSokoBotId,
-    assigneeUserId: sanitizedAssigneeUserId,
-    status: sanitizedStatus,
-    projectId: sanitizedProjectId,
-    visibility: sanitizedVisibility,
-    stuck: sanitizeTasksStuckInput(stuck),
-    coworkersById,
-    personalAssistantFallback: t("personalAssistant"),
+    ...(await loadSanitizedTasksPageFilters(filters)),
   });
 
   return {

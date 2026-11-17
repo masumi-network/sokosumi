@@ -146,13 +146,13 @@ export function StudioImage({
         </span>
         {outcome === "unreadable" ? (
           <Button
-            onClick={(event) => {
-              // The gallery wraps this whole tile in a button that opens the
-              // lightbox, so without this a press of Try again also threw the
-              // reader into the full-screen viewer — recovering a thumbnail is
-              // not a request to look at it.
-              event.stopPropagation();
-              event.preventDefault();
+            // The gallery once wrapped this whole tile in a button that opens
+            // the lightbox, so a press of Try again also threw the reader into
+            // the full-screen viewer — recovering a thumbnail is not a request
+            // to look at it. Now the gallery's open-details button is a sibling
+            // laid over the tile, and `relative` lifts Try again above it.
+            className="relative"
+            onClick={() => {
               setState({
                 assetId: asset.id,
                 attempt: 0,
