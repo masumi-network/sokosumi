@@ -736,7 +736,10 @@ export async function failSandboxTurn(
   // A runner that died after its answer reached Core changes nothing: the
   // outcome already recorded stands, and only its settling is finished here.
   const failure = runtimeEvent("turn.failed", { ...error });
-  const outcomes = ["turn.completed", "turn.failed", "turn.cancelled"];
+  // Not turn.cancelled: deadline cleanup appends it too, without the owner
+  // asking, and an expired turn keeps its failure. An owner's cancellation
+  // always commits the row first, so the row below decides it.
+  const outcomes = ["turn.completed", "turn.failed"];
   // Authorization passed before the lock, so a cancellation can commit in
   // between. Writing the row waits for a cancellation in flight; one that
   // committed first leaves the turn to settle CANCELLED.

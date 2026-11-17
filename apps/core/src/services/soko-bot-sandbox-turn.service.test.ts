@@ -1121,6 +1121,22 @@ describe("sandbox turn service", () => {
           expect(stopSandboxMock).toHaveBeenCalled();
         });
 
+        it("fails a turn that deadline cleanup cancelled, since its owner did not", async () => {
+          // The watchdog's runtime cancel appends turn.cancelled and leaves the
+          // row alone.
+          recorded("turn.started", "turn.cancelled");
+          if (diagnostic)
+            expectCoreLog(
+              "error",
+              "A Soko Bot turn could not start in its sandbox",
+              1,
+            );
+
+          await failSandboxTurn(claims, died, diagnostic);
+
+          expect(types()).toEqual(["turn.failed", "session.waiting"]);
+        });
+
         it("fails a live turn", async () => {
           recorded("turn.started");
           if (diagnostic)
@@ -1293,6 +1309,9 @@ describe("sandbox turn service", () => {
         recorded("turn.started", outcome);
         await failSandboxTurn(claims, died);
         expect(types()).toEqual(["session.waiting"]);
+        // The recorded outcome decides before the row is read.
+        expect(turnUpdateManyMock).not.toHaveBeenCalled();
+        expect(stopSandboxMock).toHaveBeenCalled();
       },
     );
   });
