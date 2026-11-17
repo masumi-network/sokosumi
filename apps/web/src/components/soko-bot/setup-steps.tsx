@@ -62,6 +62,7 @@ export function SokoBotSetupHeader({
   imageUrl = null,
   seed,
   loading = false,
+  faceless = false,
   title,
   hint,
   headingRef,
@@ -71,6 +72,8 @@ export function SokoBotSetupHeader({
   seed?: string;
   /** Pulses the empty disc while pictures load. */
   loading?: boolean;
+  /** No face at all, for a step that shows the bot itself below. */
+  faceless?: boolean;
   title: string;
   hint: string;
   /** Steps that start at their heading focus it through this. */
@@ -78,7 +81,7 @@ export function SokoBotSetupHeader({
 }) {
   return (
     <header className="flex flex-col items-center gap-4 text-center">
-      {imageUrl || seed ? (
+      {faceless ? null : imageUrl || seed ? (
         <BotFace
           imageUrl={imageUrl}
           seed={seed ?? ""}

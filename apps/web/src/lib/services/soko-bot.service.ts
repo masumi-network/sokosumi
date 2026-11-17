@@ -339,6 +339,11 @@ export const sokoBotService = {
     return response.data;
   },
 
+  async setAvatarCode(code: string, botId?: string) {
+    const response = await coreClient.setSokoBotAvatarCode(code, botId);
+    return response.data;
+  },
+
   /** Bot + recent turns as the JSON-safe chat projection; `null` without a bot. */
   async getChatState(botId?: string): Promise<SokoBotChatState | null> {
     // Both reads are independent; running them in series added a whole Core

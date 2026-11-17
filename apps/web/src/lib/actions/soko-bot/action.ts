@@ -17,6 +17,7 @@ import {
   type SokoBotSkillSearchResult,
   type StartSokoBotTurnResponse,
 } from "@sokosumi/core-client";
+import { avatarCodeSchema } from "@sokosumi/soko-bot";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
@@ -801,6 +802,32 @@ export const claimSokoBotAvatarAction = withSession<
     const bot = await sokoBotService.claimAvatar(parsed.data);
     revalidate();
     return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface SetAvatarCodeParams extends AuthenticatedRequest {
+  code: unknown;
+  botId?: unknown;
+}
+
+/**
+ * Save a bot's avatar look. Core answers 409 `avatar_code_taken` when another bot has it and
+ * 422 `avatar_code_invalid` for a code it cannot read; both reach the caller as `error.kind`.
+ */
+export const setSokoBotAvatarCodeAction = withSession<
+  SetAvatarCodeParams,
+  ActionResultDto<{ avatarCode: string; avatarImageUrl: string }, ActionError>
+>(async ({ code, botId }) => {
+  const parsed = avatarCodeSchema.safeParse(code);
+  const bot = botIdSchema.safeParse(botId ?? undefined);
+  if (!parsed.success || !bot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const saved = await sokoBotService.setAvatarCode(parsed.data, bot.data);
+    revalidate(bot.data);
+    return toActionResult(ok(saved));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
