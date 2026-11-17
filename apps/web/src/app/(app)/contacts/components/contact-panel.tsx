@@ -146,14 +146,22 @@ export function ContactPanel({
         onCloseAutoFocus={onCloseAutoFocus}
       >
         {detail.data ? (
-          <PanelBody
-            contact={detail.data}
-            lists={lists}
-            teammates={teammates}
-            onClose={onClose}
-            onOpenContact={onOpenContact}
-            onMerge={onMerge}
-          />
+          <>
+            {detail.data.archivedAt ? (
+              <ArchivedNotice contact={detail.data} />
+            ) : null}
+            <PanelBody
+              contact={detail.data}
+              lists={lists}
+              teammates={teammates}
+              onClose={onClose}
+              onOpenContact={onOpenContact}
+              onMerge={onMerge}
+            />
+            {/* Outside the body, so an archived contact's history still pages. */}
+            <TimelineSection contact={detail.data} />
+            <ActivitySection contact={detail.data} />
+          </>
         ) : detail.error ? (
           <div className="grid gap-3 p-6">
             <SheetTitle>{t("notFoundTitle")}</SheetTitle>
@@ -308,17 +316,6 @@ function PanelBody({
   }
 
   const archive = useContactArchive();
-  const restore = useContactArchive({ restore: true });
-  const [restoring, setRestoring] = useState(false);
-  async function handleRestore() {
-    setRestoring(true);
-    try {
-      // The panel stays open on the contact, now live again.
-      await restore(contact, () => {});
-    } finally {
-      setRestoring(false);
-    }
-  }
 
   const subtitle = [contact.role, contact.organization]
     .filter(Boolean)
@@ -331,7 +328,8 @@ function PanelBody({
   );
 
   return (
-    <div className="flex flex-col">
+    // An archived contact is read-only until restored; Restore sits above.
+    <fieldset disabled={!!contact.archivedAt} className="flex min-w-0 flex-col">
       <header className="flex items-start gap-4 px-6 pt-6 pb-5 pe-14">
         <ContactAvatar
           name={contact.name}
@@ -426,7 +424,7 @@ function PanelBody({
                 })}
           </p>
         </div>
-        {contact.kind === "PERSON" ? (
+        {contact.kind === "PERSON" && !contact.archivedAt ? (
           <Button
             size="sm"
             variant="outline"
@@ -480,52 +478,19 @@ function PanelBody({
                 ? t("panel.markOrganization")
                 : t("panel.markPerson")}
             </DropdownMenuItem>
-            {contact.archivedAt ? null : (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => void archive(contact, onClose)}
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                  {t("panel.archive")}
-                </DropdownMenuItem>
-              </>
-            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => void archive(contact, onClose)}
+            >
+              <Trash2 aria-hidden className="size-4" />
+              {t("panel.archive")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
 
-      {contact.archivedAt ? (
-        <div className="px-6 pb-5">
-          <Alert className="border-border bg-muted">
-            <Archive aria-hidden className="size-4" />
-            <AlertDescription className="grid gap-2">
-              <p className="text-foreground text-sm">
-                {t("panel.archivedOn", {
-                  date: format.dateTime(new Date(contact.archivedAt), {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  }),
-                })}
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-fit"
-                loading={restoring}
-                onClick={() => void handleRestore()}
-              >
-                <ArchiveRestore aria-hidden className="size-4" />
-                {t("panel.restore")}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : null}
-
-      {contact.mergeSuggestions.length ? (
+      {contact.mergeSuggestions.length && !contact.archivedAt ? (
         <MergeBanner
           contact={contact}
           onOpenContact={onOpenContact}
@@ -802,9 +767,51 @@ function PanelBody({
           </div>
         </div>
       </Section>
+    </fieldset>
+  );
+}
 
-      <TimelineSection contact={contact} />
-      <ActivitySection contact={contact} />
+/** When an archived contact was archived, and the one thing to do: Restore. */
+function ArchivedNotice({ contact }: { contact: ContactDetail }) {
+  const t = useTranslations("App.Contacts");
+  const format = useFormatter();
+  const restore = useContactArchive({ restore: true });
+  const [restoring, setRestoring] = useState(false);
+  async function handleRestore() {
+    setRestoring(true);
+    try {
+      // The panel stays open on the contact, now live again.
+      await restore(contact, () => {});
+    } finally {
+      setRestoring(false);
+    }
+  }
+  return (
+    <div className="px-6 pt-6 pe-14">
+      <Alert className="border-border bg-muted">
+        <Archive aria-hidden className="size-4" />
+        <AlertDescription className="grid gap-2">
+          <p className="text-foreground text-sm">
+            {t("panel.archivedOn", {
+              date: format.dateTime(new Date(contact.archivedAt ?? 0), {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+            })}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-fit"
+            loading={restoring}
+            onClick={() => void handleRestore()}
+          >
+            <ArchiveRestore aria-hidden className="size-4" />
+            {t("panel.restore")}
+          </Button>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }

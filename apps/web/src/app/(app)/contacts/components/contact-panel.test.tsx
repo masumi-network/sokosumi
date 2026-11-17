@@ -199,24 +199,58 @@ describe("ContactPanel lists menu", () => {
 });
 
 describe("ContactPanel archived contact", () => {
+  const ARCHIVED = {
+    ...LENA,
+    archivedAt: "2026-11-10T07:00:00.000Z",
+  } as unknown as ContactDetail;
+
   beforeEach(() => {
     shown.current = LENA;
     unarchive.mockReset();
   });
 
-  it("says the contact is archived and restores it in place", async () => {
-    shown.current = {
-      ...LENA,
-      archivedAt: "2026-11-10T07:00:00.000Z",
-    } as unknown as ContactDetail;
-    await renderPanel();
+  it("is read-only apart from Restore: no Enrich, menu and edits disabled", async () => {
+    shown.current = ARCHIVED;
+    const lists = await renderPanel();
     expect(screen.getByText("panel.archivedOn")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "panel.restore" }));
-    expect(unarchive).toHaveBeenCalledExactlyOnceWith("c-1");
+    expect(
+      screen.queryByRole("button", { name: "panel.enrichHint" }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "panel.menu" })).toBeDisabled();
+    expect(lists).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "panel.changeStage" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "panel.name: Lena Fischer" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "panel.restore" })).toBeEnabled();
   });
 
-  it("shows no archived notice for a live contact", async () => {
+  it("restores in place: the notice goes and editing comes back", async () => {
+    shown.current = ARCHIVED;
+    await renderPanel();
+    shown.current = LENA;
+    fireEvent.click(screen.getByRole("button", { name: "panel.restore" }));
+    expect(unarchive).toHaveBeenCalledExactlyOnceWith("c-1");
+    await waitFor(() =>
+      expect(screen.queryByText("panel.archivedOn")).toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "panel.menu" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "panel.changeLists" }),
+    ).toBeEnabled();
+  });
+
+  it("shows no archived notice for a live contact, and offers Archive", async () => {
     await renderPanel();
     expect(screen.queryByText("panel.archivedOn")).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "panel.menu" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(
+      await screen.findByRole("menuitem", { name: "panel.archive" }),
+    ).toBeInTheDocument();
   });
 });
