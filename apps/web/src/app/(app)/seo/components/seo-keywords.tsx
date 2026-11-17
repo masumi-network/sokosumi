@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { seoAuditName } from "./seo-audit-name";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
@@ -222,21 +223,32 @@ export function SeoKeywords({
       : 0;
   // One search box filters keywords and ideas: while it holds text, both lists show their matches.
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
-  // The Table copy holds both lists, so it shows under whichever list shows.
-  const copy = (className?: string) => (
-    <SeoTableButton
-      title={t("keywords.title")}
-      site={seoAuditName(
-        model.data.auditName ?? "",
-        model.data.websiteUrl ?? "",
-      )}
-      projectId={model.data.projectId}
-      table={() => seoKeywordsTableExport(checked, ideas, t)}
-      className={className}
-    />
-  );
   return (
     <div className="space-y-5">
+      {/* One copy over both lists: it holds keywords and ideas, and it stays mounted while the list switches or a
+          search narrows it, so a copy in flight stays busy and a failed one finishes in the same Table. */}
+      {all.checked.length || all.ideas.length ? (
+        <div
+          className={cn(
+            "px-2",
+            seoSectionClass(
+              section !== "competitors" &&
+                Boolean(checked.length || ideas.length),
+            ),
+          )}
+        >
+          <SeoTableButton
+            title={t("keywords.title")}
+            site={seoAuditName(
+              model.data.auditName ?? "",
+              model.data.websiteUrl ?? "",
+            )}
+            projectId={model.data.projectId}
+            table={() => seoKeywordsTableExport(checked, ideas, t)}
+            className="-ms-2.5"
+          />
+        </div>
+      ) : null}
       <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
           // The switch above names the list, so the title is its result: one sentence.
@@ -687,18 +699,14 @@ export function SeoKeywords({
               onToggle={() => setExpanded((open) => !open)}
             />
           ) : null}
-          {/* Under the keyword list itself, before the strategy. The CSV holds the checked keywords; the Table
-          copy also the ideas, with a column that names each row's list. */}
-          {checked.length || ideas.length ? (
-            <div className="flex flex-wrap gap-x-2 px-2">
-              {checked.length ? (
-                <SeoCsvButton
-                  name="keywords"
-                  title={t("keywords.title")}
-                  table={() => seoKeywordsExport(checked, t)}
-                />
-              ) : null}
-              {copy(checked.length ? undefined : "-ms-2.5")}
+          {/* Under the keyword list itself, before the strategy: the export holds the checked keywords only. */}
+          {checked.length ? (
+            <div className="px-2">
+              <SeoCsvButton
+                name="keywords"
+                title={t("keywords.title")}
+                table={() => seoKeywordsExport(checked, t)}
+              />
             </div>
           ) : null}
           <SeoStrategyFold
@@ -722,10 +730,6 @@ export function SeoKeywords({
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>
         <SeoKeywordIdeas model={model} ideas={ideas} />
-        {/* Alone, the Ideas list shows the same copy: the Keywords list, and its copy, are hidden then. */}
-        {!bothLists && ideas.length ? (
-          <div className="mt-2 px-2">{copy("-ms-2.5")}</div>
-        ) : null}
       </div>
     </div>
   );

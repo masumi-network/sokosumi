@@ -1791,3 +1791,69 @@ describe("Keyword exports", () => {
     expect(Object.values(batch.insert[0].values)).toContain("battery saver");
   });
 });
+
+describe("One keyword copy across the Keywords and Ideas lists", () => {
+  function bothListsWorkspace() {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.keywords.push(
+      seoTestKeyword({
+        keyword: "battery saver",
+        source: "gap",
+        saved: false,
+        volume: 300,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    );
+    return workspace;
+  }
+  // happy-dom applies no Tailwind: a control switched away has a `hidden` ancestor.
+  const shownCopies = () =>
+    screen
+      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+      .filter((button) => !button.closest(".hidden"));
+
+  it("keeps a copy in flight busy when the list switches, so it cannot start twice", async () => {
+    let finish: (table: { id: string }) => void = () => {};
+    tables.create.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    await user.click(shownCopies()[0]);
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    expect(shownCopies()).toHaveLength(1);
+    expect(shownCopies()[0]).toHaveAttribute("aria-busy", "true");
+    await user.click(shownCopies()[0]);
+    act(() => finish({ id: "table-1" }));
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    expect(tables.create).toHaveBeenCalledOnce();
+  });
+
+  it("finishes a failed copy from the other list, in the same table under the same key", async () => {
+    tables.batch.mockRejectedValueOnce(new Error("down"));
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    await user.click(shownCopies()[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    await waitFor(() =>
+      expect(shownCopies()[0]).not.toHaveAttribute("aria-busy"),
+    );
+    expect(shownCopies()).toHaveLength(1);
+    await user.click(shownCopies()[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledTimes(2));
+    expect(tables.create).toHaveBeenCalledOnce();
+    const [first, retry] = tables.batch.mock.calls as unknown as [
+      string,
+      { key: string },
+    ][];
+    expect(retry[0]).toBe("table-1");
+    expect(retry[1].key).toBe(first[1].key);
+  });
+});
