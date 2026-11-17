@@ -169,6 +169,7 @@ describe("messageSender", () => {
       messageSender(sokoBotMessage("m4", "2026-07-01T12:00:00.000Z")),
     ).toEqual({
       kind: "sokoBot",
+      avatarCode: null,
       id: "soko-1",
       name: "Personal assistant",
       caption: null,

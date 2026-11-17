@@ -1,6 +1,7 @@
 "use client";
 
 import { AnnouncedFeature, SokoBotStatus } from "@sokosumi/core-client";
+import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -47,6 +48,7 @@ import { useLiveSokoBot } from "./use-live-soko-bot";
 export interface SidebarSokoBotAvatar {
   id: string;
   imageUrl: string | null;
+  avatarCode?: string | null;
   seed: string;
 }
 
@@ -259,6 +261,10 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
         imageUrl={bot.imageUrl}
         seed={bot.seed}
         orbSize={40}
+        avatarCode={bot.avatarCode}
+        // The poll knows the bot's status, not its turn: running reads as working.
+        avatarState={avatarStateOf({ status: bot.status })}
+        avatarSize={20}
         className="size-5"
       />
       <span

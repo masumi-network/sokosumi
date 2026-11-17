@@ -162,6 +162,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
             name: sokoBot.name,
             avatarSeed: sokoBot.avatarSeed,
             avatarImageUrl: sokoBot.avatarImageUrl ?? null,
+            avatarCode: sokoBot.avatarCode ?? null,
+            status: sokoBot.status,
           }}
           ownerId={userId}
           roomId={roomId}

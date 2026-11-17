@@ -89,6 +89,8 @@ export type ChatParticipantHoverProfile =
       caption: string | null;
       image: string | null;
       avatarSeed: string | null;
+      /** The live SVG avatar's code; absent until the bot has one. */
+      avatarCode?: string | null;
       presence: ChatRoomPresence;
     };
 
@@ -431,6 +433,7 @@ export function senderProfile(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarCode: sokoBot.avatarCode ?? null,
       presence: sokoBot.presence,
     };
   }
@@ -738,6 +741,7 @@ export function getRoomParticipantPreviews(
         caption: sokoBot.caption,
         image: sokoBot.image,
         avatarSeed: sokoBot.avatarSeed,
+        avatarCode: sokoBot.avatarCode ?? null,
         presence: sokoBot.presence,
       }),
     )
@@ -843,6 +847,7 @@ export function chatParticipantProfileForDirectTarget(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarCode: sokoBot.avatarCode ?? null,
       presence: sokoBot.presence,
     };
   }
