@@ -1,6 +1,7 @@
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { CMO_BRAND_SECTIONS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
+import { cmoStrategyV3 } from "./cmo-strategy-v3.js";
 import type { SokoBotSkill } from "./skills.js";
 
 /** How Cuso writes everything the owner reads: plans, Brand Brain, posts. */
@@ -33,7 +34,7 @@ const CHANNEL_MENU = Object.entries(CMO_CHANNELS)
   .join("\n");
 
 /** Skills only CMO (Cuso) versions include. */
-export const CMO_SKILLS: readonly SokoBotSkill[] = [
+const CMO_V1_SKILLS: readonly SokoBotSkill[] = [
   {
     id: "cmo-brand-brain",
     name: "Brand Brain",
@@ -356,4 +357,12 @@ upload_file with workspacePath "video/out/final.mp4" and a clear filename, then 
 
 Make one, get the owner's yes on the style, and only then make more in the same style.`,
   },
+];
+
+const strategy = CMO_V1_SKILLS.find((skill) => skill.id === "cmo-strategy");
+if (!strategy) throw new Error("cmo-strategy is missing");
+
+export const CMO_SKILLS: readonly SokoBotSkill[] = [
+  ...CMO_V1_SKILLS,
+  cmoStrategyV3(strategy),
 ];

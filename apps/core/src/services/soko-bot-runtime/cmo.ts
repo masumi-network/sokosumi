@@ -399,7 +399,7 @@ export async function saveCmoRecord(
             ...(review && review.problems.length > 0
               ? {
                   problems: review.problems,
-                  next: "Fix these and save again: part plan for the strategy, part calendar for the calendar.",
+                  next: "Fix these and save again: part plan for the strategy, part calendar for the calendar, part pieces to add or change entries.",
                 }
               : draftProblems.length > 0
                 ? {

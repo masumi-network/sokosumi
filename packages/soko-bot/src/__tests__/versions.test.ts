@@ -361,3 +361,19 @@ describe("versions", () => {
     ).toEqual(["create_task"]);
   });
 });
+
+describe("cmo-v3", () => {
+  it("is cmo-v1 with the fuller strategy skill", () => {
+    const v1 = getSokoBotVersion("cmo-v1");
+    const v3 = getSokoBotVersion("cmo-v3");
+    expect(v3.id).toBe("cmo-v3");
+    expect(v3.capabilities).toEqual(v1.capabilities);
+    expect(v3.skills).toContain("cmo-strategy-v3");
+    expect(v3.skills).not.toContain("cmo-strategy");
+    const skill = getSokoBotSkill("cmo-strategy-v3")?.content ?? "";
+    expect(skill).toMatch(/all_in: three a day on X/);
+    expect(skill).toMatch(/Do you want to try Google Ads/);
+    expect(skill).toMatch(/part pieces \(only that week's entries/);
+    expect(skill).not.toMatch(/all_in: 15 or more a week/);
+  });
+});

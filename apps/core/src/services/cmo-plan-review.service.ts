@@ -102,7 +102,21 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
-  if (pieces.length > 0) {
+  // A long month is saved week by week: until the calendar reaches its
+  // fourth week, the month's counts wait and only the next week is asked for.
+  const weeks = calendarWeeks(pieces);
+  if (pieces.length > 0 && weeks < 4) {
+    problems.push(
+      `calendar covers ${weeks} of four weeks; add each later week with part pieces (new ids). The month's counts are checked once all four are in.`,
+    );
+    // The pace still holds week by week, so a thin week is caught early.
+    const perWeek = Math.round(pieces.length / weeks);
+    if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
+      problems.push(
+        `the saved weeks hold about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Fill each week to it with part pieces before the next.`,
+      );
+  }
+  if (pieces.length > 0 && weeks >= 4) {
     if (pieces.length < MIN_PIECES)
       problems.push(
         `calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
@@ -114,21 +128,8 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       problems.push(
         `calendar uses ${formats.size} formats; use at least ${MIN_FORMATS}.`,
       );
-    if (pieces.some((entry) => entry.draft))
-      problems.push(
-        "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
-      );
     problems.push(...mixProblems(strategy.mix, pieces));
     problems.push(...pillarProblems(strategy.pillars, pieces));
-    const hedged = pieces.filter((entry) =>
-      /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
-        entry.title,
-      ),
-    );
-    if (hedged.length > 0)
-      problems.push(
-        `${hedged.length} calendar titles only tell people to check details ("${hedged[0]?.title}"); make each title say the point itself.`,
-      );
     // Four weeks of pieces; a calendar far below its own pace undersells it.
     const perWeek = Math.round(pieces.length / 4);
     if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
@@ -136,8 +137,7 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
     problems.push(...cadenceProblems(strategy.channels, pieces));
-    problems.push(...storyProblems(pieces));
-    problems.push(...repeatedTitles(pieces));
+    problems.push(...crowdedNetworks(pieces));
     const articles = pieces.filter(
       (entry) => entry.channel === "seo" && entry.format === "article",
     );
@@ -148,6 +148,23 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       problems.push(
         `none of the ${articles.length} seo articles is a comparison page; make one "X vs Y" or "X alternative", with a competitor's name in the title.`,
       );
+  }
+  if (pieces.length > 0) {
+    if (pieces.some((entry) => entry.draft))
+      problems.push(
+        "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
+      );
+    const hedged = pieces.filter((entry) =>
+      /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
+        entry.title,
+      ),
+    );
+    if (hedged.length > 0)
+      problems.push(
+        `${hedged.length} calendar titles only tell people to check details ("${hedged[0]?.title}"); make each title say the point itself.`,
+      );
+    problems.push(...storyProblems(pieces));
+    problems.push(...repeatedTitles(pieces));
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
@@ -175,7 +192,21 @@ export function cmoPlanProblemsSince(
       ? problem.replace(/\d+/g, "#")
       : problem;
   const had = new Set(cmoPlanProblems(before).map(rule));
-  return problems.filter((problem) => !had.has(rule(problem)));
+  // A month still missing weeks asks for them on every save.
+  return problems.filter(
+    (problem) =>
+      problem.startsWith("calendar covers ") || !had.has(rule(problem)),
+  );
+}
+
+/** Whole or started weeks from the calendar's first piece to its last. */
+function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
+  const days = pieces
+    .map((entry) => Date.parse(entry.date))
+    .filter(Number.isFinite);
+  if (days.length === 0) return 0;
+  const span = (Math.max(...days) - Math.min(...days)) / 86_400_000;
+  return Math.min(4, Math.floor(span / 7) + 1);
 }
 
 const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
@@ -196,19 +227,20 @@ function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   ];
 }
 
-/** "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
+/** "2 a day", "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
 function cadenceRange(cadence: string): [number, number] | null {
   const match = cadence
     .trim()
     .toLowerCase()
     .match(
-      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(week|month)|(week|month)ly)$/,
+      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(day|week|month)|(dai|week|month)ly)$/,
     );
   if (!match) return null;
   const low = Number(match[1]);
   const high = Number(match[2] ?? match[1]);
-  const weeks = (match[3] ?? match[4]) === "week" ? 4 : 1;
-  return [low * weeks, high * weeks];
+  const unit = match[3] ?? match[4];
+  const times = unit === "day" || unit === "dai" ? 28 : unit === "week" ? 4 : 1;
+  return [low * times, high * times];
 }
 
 /**
@@ -230,6 +262,30 @@ function cadenceProblems(
       return [];
     return [
       `${channel.channel} has ${count} calendar pieces, but its cadence "${channel.cadence}" means about ${low === high ? low : `${low} to ${high}`} over four weeks. Save part calendar so they match.`,
+    ];
+  });
+}
+
+/** The most a social network takes a day: X's feed moves fastest. */
+const MAX_PER_DAY: Record<string, number> = { x: 3 };
+const MAX_PER_DAY_OTHER = 2;
+
+/**
+ * A pace is kept on every network, not reached by piling one: a plan once
+ * met its all_in count with 99 Instagram posts and 7 on LinkedIn.
+ */
+function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const counts = new Map<string, number>();
+  for (const entry of pieces)
+    counts.set(entry.channel, (counts.get(entry.channel) ?? 0) + 1);
+  return [...counts].flatMap(([channel, count]) => {
+    const social =
+      (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
+      "connect";
+    const most = (MAX_PER_DAY[channel] ?? MAX_PER_DAY_OTHER) * 28;
+    if (!social || count <= Math.ceil(most * 1.1)) return [];
+    return [
+      `${channel} has ${count} pieces, more than ${most / 28} a day; spread the pace over every network in the plan instead.`,
     ];
   });
 }

@@ -409,9 +409,33 @@ describe("saving versions", () => {
     expect(plan(draft)).toEqual(revised);
   });
 
-  it("refuses pieces while no version is approved, writing nothing", async () => {
+  it("adds a week of pieces to the plan being written, keeping what it saved", async () => {
     cusoFind.mockResolvedValue(HIRE);
-    const draft = seedStrategy(strategy);
+    seedStrategy(strategy, { authorTurnId: "turn-2" });
+    const later = {
+      ...strategy.calendar[0]!,
+      id: "week-2",
+      date: "2026-11-09",
+      title: "Week two",
+    };
+    const renamed = { ...strategy.calendar[0]!, title: "Renamed" };
+
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [renamed, later] },
+      { turnId: "turn-2", pieces: true },
+    );
+
+    expect(strategyRows).toHaveLength(1);
+    expect(plan(saved).calendar.map((entry) => entry.title)).toEqual(
+      expect.arrayContaining(["Renamed", "Week two"]),
+    );
+    expect(plan(saved).calendar).toHaveLength(strategy.calendar.length + 1);
+    expect(postCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses pieces with no plan to add them to, writing nothing", async () => {
+    cusoFind.mockResolvedValue(HIRE);
 
     await expect(
       saveCmoStrategy(
@@ -419,10 +443,9 @@ describe("saving versions", () => {
         { calendar: [{ ...strategy.calendar[0]!, draft: "Written." }] },
         { turnId: "turn-2", pieces: true },
       ),
-    ).rejects.toThrow(/approved/i);
+    ).rejects.toThrow(/save part plan/i);
 
-    expect(strategyRows).toHaveLength(1);
-    expect(plan(draft)).toEqual(strategy);
+    expect(strategyRows).toHaveLength(0);
     expect(postCreateMany).not.toHaveBeenCalled();
   });
 

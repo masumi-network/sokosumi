@@ -194,7 +194,7 @@ async function requestStrategyForCuso(
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-              "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece) whose approach shares match the mix and whose pillar shares match the pillars. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
+              "This is the plan, not the posts. Save it in short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece) whose approach shares match the mix and whose pillar shares match the pillars: part calendar with all of it, or, when the month is long, part calendar with week one and part pieces with each later week (pieces add to the calendar and keep what is saved). Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
             ],
       )
       .concat([
@@ -252,7 +252,8 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = 120;
+/** All-in on three networks with seo is about 200 pieces a month. */
+const CMO_CALENDAR_LIMIT = 240;
 
 export function calendarBounds(
   now: Date,
@@ -430,9 +431,27 @@ export async function saveCmoStrategy(
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
   const cuso = await requireCuso(where, db);
-  if (options.pieces) {
+  const own = options.turnId
+    ? await db.marketingStrategy.findFirst({
+        where: {
+          projectId: cuso.projectId,
+          authorTurnId: options.turnId,
+          approvedAt: null,
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : null;
+  const approved = options.pieces
+    ? await approvedMarketingStrategy(cuso.projectId, db)
+    : null;
+  // While a plan is written, pieces add a long month week by week to its
+  // calendar (replacing by id) and keep every other entry.
+  const adding =
+    options.pieces === true &&
+    !options.executing &&
+    (own !== null || approved === null);
+  if (options.pieces && !adding) {
     // Pieces write the approved version's Social posts and never a plan.
-    const approved = await approvedMarketingStrategy(cuso.projectId, db);
     if (!approved) {
       throw new CmoConflictError(
         "Pieces fill in the approved strategy; no version is approved yet",
@@ -453,16 +472,6 @@ export async function saveCmoStrategy(
       (strategy.calendar ?? []) as CmoCalendarEntry[],
     );
   }
-  const own = options.turnId
-    ? await db.marketingStrategy.findFirst({
-        where: {
-          projectId: cuso.projectId,
-          authorTurnId: options.turnId,
-          approvedAt: null,
-        },
-        orderBy: { createdAt: "desc" },
-      })
-    : null;
   const base =
     own ??
     (await cmoWorkingStrategy(cuso.projectId, options.executing ?? false, db));
@@ -471,6 +480,14 @@ export async function saveCmoStrategy(
   // for what it is not changing: that keeps the stored value too. Changing
   // one channel's cadence once emptied the mix, campaigns and improvements.
   const before = parseMarketingPlan(base?.plan);
+  if (adding && !before) {
+    throw new CmoConflictError(
+      "Pieces add to a saved plan; save part plan and part calendar first",
+    );
+  }
+  const sent: CmoStrategySave = adding
+    ? { calendar: addedCalendar(before?.calendar ?? [], strategy.calendar) }
+    : strategy;
   const left = (value: unknown, key?: string) =>
     value === undefined ||
     (options.turnId !== undefined &&
@@ -480,18 +497,17 @@ export async function saveCmoStrategy(
           !(key && options.clear?.includes(key)))));
   // A save of the calendar alone replaces it, so an empty one removes every
   // piece. `changes` is empty on purpose when the save is not a revision.
-  const calendarOnly = Object.keys(strategy).every((key) => key === "calendar");
+  const calendarOnly = Object.keys(sent).every((key) => key === "calendar");
   const whole = marketingStrategyPlanSchema.parse({
     ...before,
     ...Object.fromEntries(
-      Object.entries(strategy).filter(
+      Object.entries(sent).filter(
         ([key, value]) => key === "changes" || !left(value, key),
       ),
     ),
     calendar:
-      strategy.calendar !== undefined &&
-      (calendarOnly || !left(strategy.calendar))
-        ? strategy.calendar
+      sent.calendar !== undefined && (calendarOnly || !left(sent.calendar))
+        ? sent.calendar
         : (before?.calendar ?? []),
   });
   // A channel the plan now runs is no longer a proposal.
@@ -546,6 +562,16 @@ export async function saveCmoStrategy(
         : { authorUserId: where.userId }),
     },
   });
+}
+
+/** The draft's calendar with the pieces sent added, a sent id replacing its entry. */
+function addedCalendar(
+  calendar: MarketingStrategyPlan["calendar"],
+  sent: CmoStrategySave["calendar"],
+): MarketingStrategyPlan["calendar"] {
+  const added = (sent ?? []) as MarketingStrategyPlan["calendar"];
+  const ids = new Set(added.map((entry) => entry.id));
+  return [...calendar.filter((entry) => !ids.has(entry.id)), ...added];
 }
 
 /**

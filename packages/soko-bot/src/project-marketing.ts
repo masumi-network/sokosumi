@@ -850,7 +850,7 @@ export const marketingStrategyPlanSchema = z.object({
     )
     .max(10),
   ...strategyPlanShape,
-  calendar: z.array(cmoCalendarEntrySchema).max(120),
+  calendar: z.array(cmoCalendarEntrySchema).max(240),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */

@@ -27,9 +27,12 @@ import {
   pillarProblems,
 } from "./cmo-plan-review.service";
 
+// Every other piece on the month's last Sunday, so a calendar of two or more
+// spans its four weeks (a shorter one is a month still being saved).
+let made = 0;
 const entry = (id: string, channel: string, format: string) => ({
   id,
-  date: "2026-11-02",
+  date: made++ % 2 === 0 ? "2026-11-02" : "2026-11-29",
   channel,
   format,
   title: "A piece",
@@ -127,15 +130,70 @@ describe("cmoPlanProblems", () => {
         ],
         calendar: [
           { ...entry("a", "linkedin", "post"), draft: "Written already" },
+          entry("b", "linkedin", "post"),
         ],
       }),
     );
     expect(problems.join("\n")).toMatch(/mix is empty/);
     expect(problems.join("\n")).toMatch(/funnel has 1 stages/);
     expect(problems.join("\n")).toMatch(/objective's metric, "Intro calls"/);
-    expect(problems.join("\n")).toMatch(/calendar has 1 pieces/);
+    expect(problems.join("\n")).toMatch(/calendar has 2 pieces/);
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
     expect(problems.join("\n")).toMatch(/holds drafts/);
+  });
+
+  it("asks for the next weeks of a month saved week by week, and counts nothing yet", () => {
+    const week = (id: string) => ({
+      ...entry(id, "x", "post"),
+      date: "2026-11-03",
+    });
+    const problems = cmoPlanProblems(
+      plan({ calendar: [week("w1"), { ...week("w2"), date: "2026-11-10" }] }),
+    ).join("\n");
+    expect(problems).toMatch(
+      /calendar covers 2 of four weeks; add each later week with part pieces/,
+    );
+    expect(problems).not.toMatch(/calendar has \d+ pieces|formats/);
+  });
+
+  it("holds each saved week to the pace before the month is in", () => {
+    const thin = Array.from({ length: 7 }, (_, at) => ({
+      ...entry(`w${at}`, "x", "post"),
+      date: `2026-11-0${at + 2}`,
+    }));
+    const problems = cmoPlanProblems(
+      plan({
+        calendar: thin,
+        pace: { level: "all_in", why: "Grow fast", perWeek: 31 },
+      }),
+    ).join("\n");
+    expect(problems).toMatch(
+      /the saved weeks hold about 7 pieces a week; the all_in pace says 31/,
+    );
+  });
+
+  it("keeps the pace on every network instead of piling one", () => {
+    const month = (channel: string, count: number) =>
+      Array.from({ length: count }, (_, at) => ({
+        ...entry(`${channel}${at}`, channel, "post"),
+        date: `2026-11-${String(2 + (at % 28)).padStart(2, "0")}`,
+        title: `${channel} piece ${at}`,
+      }));
+    const problems = cmoPlanProblems(
+      plan({
+        channels: [
+          { channel: "instagram", cadence: "2 a day" },
+          { channel: "linkedin", cadence: "2 a day" },
+        ],
+        calendar: [...month("instagram", 99), ...month("linkedin", 7)],
+      }),
+    ).join("\n");
+    expect(problems).toMatch(
+      /instagram has 99 pieces, more than 2 a day; spread the pace/,
+    );
+    expect(problems).toMatch(
+      /linkedin has 7 calendar pieces, but its cadence "2 a day" means about 56/,
+    );
   });
 
   it("asks for a story on every LinkedIn piece", () => {
