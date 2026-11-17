@@ -2,6 +2,8 @@ import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { storedChatSignalTags } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
+import { logCoreWarning, tryUseLogger } from "@/lib/evlog";
+import { describeErrorWithoutContent } from "@/lib/external-service-errors";
 import { queryWords } from "@/lib/soko-bot/agent-search";
 import { askJev } from "@/lib/soko-bot/jev";
 import { requireChatRoomUserMembership } from "@/routes/v1/chats/rooms/helpers";
@@ -109,9 +111,18 @@ export async function suggestCoworkersForChatMessage(input: {
       timeoutMs: TIMEOUT_MS,
     });
   } catch (error) {
-    console.warn("Chat routing fit rating failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only the error's shape: Jev's message can quote the request it rated.
+    const log = tryUseLogger();
+    if (log)
+      logCoreWarning(
+        log,
+        {
+          message: "Could not rate which Coworkers fit a chat request",
+          why: "Jev did not rate the Coworkers",
+          fix: "The reader sees no suggestions for this message. If this repeats, check Jev and the AI Gateway.",
+        },
+        { failure: describeErrorWithoutContent(error) },
+      );
     return [];
   }
   return rated

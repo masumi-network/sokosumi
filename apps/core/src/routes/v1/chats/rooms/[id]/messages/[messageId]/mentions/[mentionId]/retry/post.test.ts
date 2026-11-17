@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { coreEvlogMiddleware, recordCoreError } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { expectCoreLog } from "@/test/core-log";
 
 import mountRetryChatRoomMention from "./post";
 
@@ -92,8 +94,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -234,6 +240,29 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
 
     expect(response.status).toBe(200);
     expect(turnUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("runs the redispatch as background work, so a failure inside it is not put on the retry request's event", async () => {
+    const errors = expectCoreLog("error", "Probe failure inside the dispatch");
+    // Real dispatch reaches shared code (the calendar prune) whose
+    // `recordCoreError` would otherwise find this request still live.
+    vi.mocked(dispatchChatRoomMention).mockImplementationOnce(async () => {
+      recordCoreError(
+        { operation: "chat_room_mention_dispatch" },
+        { message: "Probe failure inside the dispatch", why: "A probe" },
+      );
+    });
+
+    const response = await createApp(userAuthContext, { evlog: true }).request(
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/mentions/${MENTION_ID}/retry`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(errors[0]?.event).toMatchObject({
+      operation: "chat_room_mention_dispatch",
+    });
+    expect(errors[0]?.event.method).toBeUndefined();
   });
 
   it("resets a failed mention to pending, publishes status, and redispatches", async () => {

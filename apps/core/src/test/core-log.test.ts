@@ -9,7 +9,11 @@ import {
   bindCoreRequestContext,
   coreEvlogMiddleware,
   createCoreLogger,
+  emitCoreError,
+  emitCoreWarning,
   logCoreWarning,
+  recordCoreWarning,
+  runAsBackgroundWork,
   tryUseLogger,
 } from "@/lib/evlog";
 import {
@@ -17,7 +21,12 @@ import {
   REDACTED_SECRET,
   REDACTED_TOO_DEEP,
 } from "@/lib/secret-redaction";
-import { coreLogEvents, expectCoreLog, takeCoreLogFailures } from "./core-log";
+import {
+  causeMessage,
+  coreLogEvents,
+  expectCoreLog,
+  takeCoreLogFailures,
+} from "./core-log";
 
 function createApp() {
   const app = new Hono<{ Variables: RequestIdVariables }>();
@@ -138,6 +147,95 @@ describe("where Core logs go", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.event.operation).toBe("startup");
   });
+
+  it("emitCoreWarning and emitCoreError each emit one standalone event with their context", () => {
+    const warnings = expectCoreLog("warn", "Skipped a malformed row");
+    const errors = expectCoreLog("error", "Could not save a row");
+
+    emitCoreWarning(
+      { operation: "example_sync", row: { id: "row-1" } },
+      { message: "Skipped a malformed row", why: "Its date is empty" },
+    );
+    emitCoreError(
+      { operation: "example_sync", row: { id: "row-2" } },
+      {
+        message: "Could not save a row",
+        why: "The database timed out",
+        fix: "The next sync retries it",
+        cause: "a rejected string, not an Error",
+      },
+    );
+
+    expect(coreLogEvents()).toHaveLength(2);
+    expect(warnings[0]).toMatchObject({ why: "Its date is empty" });
+    expect(warnings[0]?.event).toMatchObject({ row: { id: "row-1" } });
+    expect(errors[0]).toMatchObject({
+      why: "The database timed out",
+      fix: "The next sync retries it",
+    });
+    expect(errors[0]?.event).toMatchObject({ row: { id: "row-2" } });
+  });
+});
+
+describe("recordCoreWarning", () => {
+  it("lands on the request's event while it is live, and on its own event once the request has emitted", async () => {
+    const warnings = expectCoreLog("warn", "Skipped a stale row", 2);
+    const app = createApp();
+    const responded = Promise.withResolvers<void>();
+    let afterResponse: Promise<void> | undefined;
+    app.get("/rows", (c) => {
+      recordCoreWarning(
+        { operation: "row_cleanup", row: { id: "row-1" } },
+        { message: "Skipped a stale row", why: "Before the response" },
+      );
+      // Continues in this request's async context, after its event emitted.
+      afterResponse = responded.promise.then(() =>
+        recordCoreWarning(
+          { operation: "row_cleanup", row: { id: "row-2" } },
+          { message: "Skipped a stale row", why: "After the response" },
+        ),
+      );
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/rows");
+    responded.resolve();
+    await afterResponse;
+
+    expect(warnings.map((warning) => warning.why)).toEqual([
+      "Before the response",
+      "After the response",
+    ]);
+    expect(warnings[0]?.event).toMatchObject({
+      path: "/rows",
+      row: { id: "row-1" },
+    });
+    expect(warnings[0]?.event.operation).toBeUndefined();
+    expect(warnings[1]?.event).toMatchObject({
+      operation: "row_cleanup",
+      row: { id: "row-2" },
+    });
+    expect(warnings[1]?.event.path).toBeUndefined();
+  });
+
+  it("emits its own event for known background work, even while the request is live", async () => {
+    const warnings = expectCoreLog("warn", "Skipped a stale row");
+    const app = createApp();
+    app.get("/sync/rows", (c) => {
+      runAsBackgroundWork(() =>
+        recordCoreWarning(
+          { operation: "row_cleanup" },
+          { message: "Skipped a stale row" },
+        ),
+      );
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/sync/rows");
+
+    expect(warnings[0]?.event).toMatchObject({ operation: "row_cleanup" });
+    expect(warnings[0]?.event.path).toBeUndefined();
+  });
 });
 
 describe("redaction before the drain", () => {
@@ -164,6 +262,37 @@ describe("redaction before the drain", () => {
     expect(drained).not.toContain("opaque-access-token-value");
     expect(drained).not.toContain("person@example.com");
     expect(errors[0]?.why).toContain(REDACTED_SECRET);
+  });
+
+  it("redacts the provider text that a warning or error keeps under cause", () => {
+    const secret = process.env.OPENROUTER_CHAT_API_KEY ?? "";
+    const warnings = expectCoreLog("warn", "Skipped a provider step");
+    const errors = expectCoreLog("error", "Could not reach the provider");
+    const providerText = `The provider echoed ${secret} for person@example.com`;
+
+    emitCoreWarning(
+      { operation: "redaction_test" },
+      {
+        message: "Skipped a provider step",
+        why: "The provider refused the step",
+        cause: new Error(providerText),
+      },
+    );
+    emitCoreError(
+      { operation: "redaction_test" },
+      {
+        message: "Could not reach the provider",
+        why: "The provider did not answer",
+        cause: providerText,
+      },
+    );
+
+    for (const entry of [warnings[0], errors[0]]) {
+      expect(causeMessage(entry?.cause)).toContain(REDACTED_SECRET);
+      const drained = JSON.stringify(entry?.event);
+      expect(drained).not.toContain(secret);
+      expect(drained).not.toContain("person@example.com");
+    }
   });
 });
 

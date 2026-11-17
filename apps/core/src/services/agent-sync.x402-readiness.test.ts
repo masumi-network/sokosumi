@@ -71,7 +71,11 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import {
+  causeMessage,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import {
   availableNetwork,
   cappedWith,
@@ -88,6 +92,9 @@ import {
   isX402ReadinessPreviewDeploy,
   syncX402BuySideReadiness,
 } from "./agent-sync.x402-readiness";
+
+const X402_CHECK_WHY =
+  "The payment node did not answer one or more x402 readiness reads";
 
 describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
@@ -109,15 +116,8 @@ describe("syncX402BuySideReadiness", () => {
     // End to end through the sync: the wallet is listed and funded, so only
     // the key's spend cap can stop this pair. A capped key at zero cannot pay,
     // and listed must mean payable.
-    expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-    expectConsole(
-      "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-    );
+    expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+    expectCoreLog("warn", "An x402 pair has no");
     getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(0n)));
 
     await syncX402BuySideReadiness();
@@ -187,15 +187,8 @@ describe("syncX402BuySideReadiness", () => {
   ])(
     "does not cache an admin wallet with no %s balance",
     async (_label, overrides) => {
-      expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-      expectConsole(
-        "warn",
-        "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-      );
-      expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+      expectCoreLog("warn", "An x402 pair has no");
       getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
       getX402WalletBalancesMock.mockResolvedValue(
         ok(fundedWalletBalances(overrides)),
@@ -212,9 +205,9 @@ describe("syncX402BuySideReadiness", () => {
   );
 
   it("keeps cached readiness when a required balance lookup fails", async () => {
-    expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: balance down",
+      "The x402 buy-side readiness check failed",
     );
     getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
     getX402WalletBalancesMock.mockResolvedValue(err("balance down"));
@@ -223,6 +216,7 @@ describe("syncX402BuySideReadiness", () => {
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(syncMetadataCreateManyMock).toHaveBeenCalledTimes(1);
+    expect(causeMessage(warnings[0]?.cause)).toBe("balance down");
   });
 
   it("never balance-fetches a chain compose would refuse (untrusted default asset)", async () => {
@@ -232,16 +226,8 @@ describe("syncX402BuySideReadiness", () => {
     // any error from those fetches would fail the whole check — keeping a
     // STALE previously-ready pair being served exactly when the current
     // node state would delist it.
-    expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-    expectConsole(
-      "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 chain eip155:84532 is enabled and priced",
-      2,
-    );
+    expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+    expectCoreLog("warn", "An enabled, priced x402 chain is not payable", 2);
     getX402AvailableNetworksMock.mockResolvedValue(
       ok([
         availableNetwork({
@@ -320,15 +306,8 @@ describe("syncX402BuySideReadiness", () => {
     // listed them and paged about the missing ceiling. The node now refuses
     // every payment the key makes, so listing the pair would advertise agents
     // that cannot be hired.
-    expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-    expectConsole(
-      "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-    );
+    expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+    expectCoreLog("warn", "An x402 pair has no");
     getX402KeySpendCapsMock.mockResolvedValue(
       ok(keySpendCaps({ usageLimited: true })),
     );
@@ -363,19 +342,10 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("caches an empty list and pages on the transition to nothing ready", async () => {
-    expectConsole(
+    expectCoreLog("warn", "An x402 pair has no", 2);
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-      2,
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      2,
-    );
-    const warnings = expectConsole(
-      "warn",
-      "[sync/agents] Empty x402 readiness inputs",
+      "No x402 network and asset pair is buy-side ready",
       2,
     );
     getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
@@ -393,25 +363,22 @@ describe("syncX402BuySideReadiness", () => {
       }),
     );
     expect(captureMessageMock).toHaveBeenCalledTimes(1);
-    expect(warnings).toContainEqual([
-      "[sync/agents] Empty x402 readiness inputs:",
-      {
-        networkCount: 1,
-        networks: [
-          {
-            caip2Id: "eip155:84532",
-            isEnabled: true,
-            defaultAsset: USDC_BASE_SEPOLIA,
-            defaultAssetDecimals: 6,
-          },
-        ],
-        usageLimited: false,
-        creditUnits: [],
-        purchasingWalletCount: 0,
-        purchasingWalletNetworks: [],
-        truncated: false,
-      },
-    ]);
+    expect(warnings[0]?.event.x402ReadinessInputs).toEqual({
+      networkCount: 1,
+      networks: [
+        {
+          caip2Id: "eip155:84532",
+          isEnabled: true,
+          defaultAsset: USDC_BASE_SEPOLIA,
+          defaultAssetDecimals: 6,
+        },
+      ],
+      usageLimited: false,
+      creditUnits: [],
+      purchasingWalletCount: 0,
+      purchasingWalletNetworks: [],
+      truncated: false,
+    });
 
     // A lasting nothing-ready state must not page again.
     syncMetadataFindUniqueMock.mockResolvedValue({
@@ -426,15 +393,8 @@ describe("syncX402BuySideReadiness", () => {
     // A preview cron runs a deliberately non-admin key (SOK-860), so zero
     // ready pairs is the EXPECTED result there. Paging on it floods CORE-39.
     // The warn and the cache write stay, so fail-closed listing is unchanged.
-    expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-    expectConsole(
-      "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-    );
+    expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+    expectCoreLog("warn", "An x402 pair has no");
     envState.VERCEL_ENV = "preview";
     getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
     syncMetadataFindUniqueMock.mockResolvedValue({
@@ -457,15 +417,8 @@ describe("syncX402BuySideReadiness", () => {
     // The reason the host is checked at all: CORE-37 kept paging from
     // sokosumi-core-mainnet-*.preview.sokosumi.com on a release that already
     // gated on VERCEL_ENV alone.
-    expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-    expectConsole(
-      "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-    );
+    expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+    expectCoreLog("warn", "An x402 pair has no");
     envState.VERCEL_ENV = "production";
     envState.VERCEL_URL =
       "https://sokosumi-core-mainnet-e99rlf2xt.preview.sokosumi.com";
@@ -482,15 +435,8 @@ describe("syncX402BuySideReadiness", () => {
 
   it("still pages for zero ready pairs on a real production host", async () => {
     // The guard above must not swallow the alert it exists to deliver.
-    expectConsole("warn", "[sync/agents] Empty x402 readiness inputs");
-    expectConsole(
-      "warn",
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-    );
+    expectCoreLog("warn", "No x402 network and asset pair is buy-side ready");
+    expectCoreLog("warn", "An x402 pair has no");
     envState.VERCEL_ENV = "production";
     envState.VERCEL_URL = "https://core.sokosumi.com";
     getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
@@ -505,17 +451,10 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("keeps the last cached value when either node check fails", async () => {
-    expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: networks down",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 buy-side readiness check failed: spend caps down",
-    );
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 buy-side readiness check failed: wallets down",
+      "The x402 buy-side readiness check failed",
+      3,
     );
 
     for (const [networks, caps, wallets] of [
@@ -543,13 +482,15 @@ describe("syncX402BuySideReadiness", () => {
         skipDuplicates: true,
       });
     }
+    expect(warnings.map((warning) => causeMessage(warning.cause))).toEqual([
+      "networks down",
+      "spend caps down",
+      "wallets down",
+    ]);
   });
 
   it("keeps cached readiness when wallet discovery fails", async () => {
-    expectConsole(
-      "warn",
-      "[sync/agents] x402 buy-side readiness check failed: wallets down",
-    );
+    expectCoreLog("warn", "The x402 buy-side readiness check failed");
     getX402PurchasingWalletsMock.mockResolvedValue(err("wallets down"));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
@@ -559,10 +500,13 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("reports a readiness failure to Sentry once per failure streak", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: node unavailable",
-      2,
+      "The x402 buy-side readiness check failed",
+      Array(2)
+        .fill("node unavailable")
+        .map(() => X402_CHECK_WHY),
+      Array(2).fill("node unavailable"),
     );
 
     // Warm: readiness HAS been recorded — one page per streak.
@@ -589,7 +533,7 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("bounds far-side error text before paging so one fat body cannot crowd out later errors", async () => {
-    expectConsole("warn", "[sync/agents] x402 buy-side readiness check failed");
+    expectCoreLog("warn", "The x402 buy-side readiness check failed");
 
     syncMetadataFindUniqueMock.mockResolvedValue({
       key: X402_BUY_SIDE_READINESS_KEY,
@@ -654,10 +598,13 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("keeps paging while readiness has never been recorded (cold start)", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: node unavailable",
-      2,
+      "The x402 buy-side readiness check failed",
+      Array(2)
+        .fill("node unavailable")
+        .map(() => X402_CHECK_WHY),
+      Array(2).fill("node unavailable"),
     );
 
     // Cold: no readiness row has ever been written, so getX402ReadySources
@@ -692,9 +639,9 @@ describe("syncX402BuySideReadiness", () => {
     // non-admin PAYMENT_API_KEY and were paging CORE-37 as a fake prod
     // outage. Gate only captureException — warn + failure marker +
     // fail-closed (no readiness row) stay.
-    const warnings = expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: api-key-status 401: Unauthorized",
+      "The x402 buy-side readiness check failed",
     );
 
     envState.VERCEL_ENV = "preview";
@@ -717,17 +664,17 @@ describe("syncX402BuySideReadiness", () => {
       ],
       skipDuplicates: true,
     });
-    expect(warnings).toContainEqual([
-      "[sync/agents] x402 buy-side readiness check failed:",
-      expect.stringContaining("api-key-status 401"),
-    ]);
+    expect(causeMessage(warnings[0]?.cause)).toContain("api-key-status 401");
   });
 
   it("re-arms the Sentry report after a successful check", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: node unavailable",
-      3,
+      "The x402 buy-side readiness check failed",
+      Array(3)
+        .fill("node unavailable")
+        .map(() => X402_CHECK_WHY),
+      Array(3).fill("node unavailable"),
     );
 
     // Warm from the start: a readiness row exists, so every failure below
@@ -772,13 +719,10 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("does not crash the sync loop when the failure marker cannot be stored", async () => {
-    expectConsole(
+    expectCoreLog("warn", "The x402 buy-side readiness check failed");
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] x402 buy-side readiness check failed: node unavailable",
-    );
-    const warnings = expectConsole(
-      "warn",
-      "[sync/agents] Failed to persist x402 readiness failure marker",
+      "Could not record the x402 readiness failure marker",
     );
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
     syncMetadataCreateManyMock.mockRejectedValue(new Error("database down"));
@@ -786,68 +730,61 @@ describe("syncX402BuySideReadiness", () => {
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(warnings).toContainEqual([
-      "[sync/agents] Failed to persist x402 readiness failure marker:",
-      expect.any(Error),
-    ]);
+    expect(warnings[0]).toMatchObject({
+      cause: { message: "database down" },
+    });
   });
 
   it("does not crash the sync loop when the readiness cache cannot be read", async () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] Failed to persist x402 buy-side readiness",
+      "Could not save the x402 buy-side readiness",
     );
     syncMetadataFindUniqueMock.mockRejectedValue(new Error("database down"));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
-    expect(warnings).toContainEqual([
-      "[sync/agents] Failed to persist x402 buy-side readiness:",
-      expect.any(Error),
-    ]);
+    expect(warnings[0]).toMatchObject({
+      cause: { message: "database down" },
+    });
   });
 
   it("does not crash the sync loop when the readiness cache cannot be written", async () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] Failed to persist x402 buy-side readiness",
+      "Could not save the x402 buy-side readiness",
     );
     syncMetadataUpsertMock.mockRejectedValue(new Error("database down"));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
 
     expect(syncMetadataDeleteManyMock).not.toHaveBeenCalled();
-    expect(warnings).toContainEqual([
-      "[sync/agents] Failed to persist x402 buy-side readiness:",
-      expect.any(Error),
-    ]);
+    expect(warnings[0]).toMatchObject({
+      cause: { message: "database down" },
+    });
   });
 
   it("keeps a readiness change when failure-marker cleanup fails", async () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] Failed to clear x402 readiness failure marker",
+      "Could not clear the x402 readiness failure marker",
     );
     syncMetadataDeleteManyMock.mockRejectedValue(new Error("database down"));
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
-    expect(warnings).toContainEqual([
-      "[sync/agents] Failed to clear x402 readiness failure marker:",
-      expect.any(Error),
-    ]);
+    expect(warnings[0]).toMatchObject({
+      cause: { message: "database down" },
+    });
   });
 
   it("pages when failure-marker cleanup fails (the alert latch is disarming)", async () => {
     // While a stale marker survives, the createMany latch reports count=0 for
     // every NEW failure streak — the next real outage would page nobody. A
     // cleanup failure must therefore be loud, not only a log line.
-    expectConsole(
-      "warn",
-      "[sync/agents] Failed to clear x402 readiness failure marker",
-    );
+    expectCoreLog("warn", "Could not clear the x402 readiness failure marker");
     const cleanupError = new Error("database down");
     syncMetadataDeleteManyMock.mockRejectedValue(cleanupError);
 

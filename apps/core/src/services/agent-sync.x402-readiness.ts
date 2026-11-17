@@ -12,6 +12,7 @@ import {
   X402_BUY_SIDE_READINESS_KEY,
 } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning } from "@/lib/evlog";
 import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
 import {
@@ -31,6 +32,8 @@ import {
  */
 const MAX_CHECK_ERROR_ITEM_LENGTH = 200;
 const MAX_CHECK_ERROR_TOTAL_LENGTH = 2_000;
+
+const OPERATION = "agent_x402_readiness";
 
 /**
  * Vercel's Preview Deployment Suffix for this team (`apps/core/AGENTS.md`,
@@ -236,9 +239,15 @@ export async function syncX402BuySideReadiness(
   ];
   if (checkErrors.length > 0) {
     const checkError = boundCheckErrorForLogging(checkErrors);
-    console.warn(
-      "[sync/agents] x402 buy-side readiness check failed:",
-      checkError,
+    emitCoreWarning(
+      { operation: OPERATION },
+      {
+        message:
+          "The x402 buy-side readiness check failed, so the last recorded readiness stays served",
+        why: "The payment node did not answer one or more x402 readiness reads",
+        cause: checkError,
+        fix: "Check that the payment node is reachable and that Soko's PAYMENT_API_KEY can read its x402 networks, api-key status and wallets. The next agents sync checks again.",
+      },
     );
     try {
       // Has readiness EVER been recorded? The two cases degrade completely
@@ -297,9 +306,13 @@ export async function syncX402BuySideReadiness(
       }
     } catch (markerError) {
       // Readiness is advisory and must never crash the sync loop.
-      console.warn(
-        "[sync/agents] Failed to persist x402 readiness failure marker:",
-        markerError,
+      emitCoreWarning(
+        { operation: OPERATION },
+        {
+          message: "Could not record the x402 readiness failure marker",
+          why: "The database write of the failure marker failed",
+          cause: markerError,
+        },
       );
     }
     return false;
@@ -336,9 +349,14 @@ export async function syncX402BuySideReadiness(
   } catch (cacheError) {
     // Readiness is advisory and must never crash the sync loop. A failed
     // write leaves the old cache intact, so retry on the next cycle.
-    console.warn(
-      "[sync/agents] Failed to persist x402 buy-side readiness:",
-      cacheError,
+    emitCoreWarning(
+      { operation: OPERATION },
+      {
+        message:
+          "Could not save the x402 buy-side readiness, so the last recorded readiness stays served",
+        why: "The database read or write of the readiness failed",
+        cause: cacheError,
+      },
     );
     return false;
   }
@@ -354,9 +372,15 @@ export async function syncX402BuySideReadiness(
     // reports count=0 for every NEW failure streak, so the next real outage
     // would page nobody. A cleanup failure is the alert channel silently
     // disarming itself.
-    console.warn(
-      "[sync/agents] Failed to clear x402 readiness failure marker:",
-      cleanupError,
+    emitCoreWarning(
+      { operation: OPERATION },
+      {
+        message:
+          "Could not clear the x402 readiness failure marker, so the next failure streak will not page",
+        why: "The database delete of the failure marker failed",
+        cause: cleanupError,
+        fix: `If the next agents sync does not clear it, delete the syncMetadata row "${X402_BUY_SIDE_READINESS_FAILURE_KEY}" by hand.`,
+      },
     );
     Sentry.captureException(cleanupError, {
       tags: { x402_readiness: "marker_cleanup_failed" },
@@ -364,16 +388,21 @@ export async function syncX402BuySideReadiness(
   }
 
   if (readySources.length === 0) {
-    console.warn(
-      "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
-    );
-    console.warn(
-      "[sync/agents] Empty x402 readiness inputs:",
-      summarizeEmptyX402Readiness(
-        availableNetworks,
-        keySpendCaps,
-        purchasingWallets,
-      ),
+    emitCoreWarning(
+      { operation: OPERATION },
+      {
+        message:
+          "No x402 network and asset pair is buy-side ready, so fixed-price x402 agents stay unlisted and dynamic agents are non-payable previews",
+        why: "The payment node's networks, spend caps and Purchasing wallets compose to no payable pair; the inputs are under x402ReadinessInputs",
+        fix: "Check that each enabled chain on the node has a confirmed defaultAssetDecimals, then read the x402 pair and chain warnings from the same sync: each names the chain and what it lacks (a trusted domain, usage credits, or a funded Purchasing wallet).",
+      },
+      {
+        x402ReadinessInputs: summarizeEmptyX402Readiness(
+          availableNetworks,
+          keySpendCaps,
+          purchasingWallets,
+        ),
+      },
     );
     // A successful check reporting ZERO ready pairs hides every payable x402
     // entry just as effectively as a failed check, so it must page too.

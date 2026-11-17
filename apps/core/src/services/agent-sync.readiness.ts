@@ -7,6 +7,7 @@ import {
   getCardanoV2ReadySources,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 
 /**
  * The retry budget: what one attempt gets, how long the loop waits between
@@ -154,8 +155,9 @@ const READINESS_FAILURE_ESCALATION_MS = 30 * 60 * 1000;
  * to a ready source also lifts the ingestion rollback fence in
  * syncRegistryAgents, that replay is what first writes the V2 rows.
  */
-export async function syncCardanoV2RailReadiness(
-  options: SyncCardanoV2RailReadinessOptions = {},
+async function refreshCardanoV2RailReadiness(
+  options: SyncCardanoV2RailReadinessOptions,
+  log: CoreLogger,
 ): Promise<boolean> {
   const { attemptTimeoutMs, totalTimeoutMs, backoffMs } =
     options.budget ?? READINESS_BUDGET;
@@ -172,10 +174,12 @@ export async function syncCardanoV2RailReadiness(
     !deadline.aborted;
     attempt += 1
   ) {
-    console.warn(
-      `[sync/agents] Cardano V2 rail readiness attempt ${attempt - 1} failed; retrying:`,
-      readinessResult.error,
-    );
+    logCoreWarning(log, {
+      message:
+        "A Cardano V2 rail readiness check attempt failed, so it is retried",
+      why: `Attempt ${attempt - 1} got no answer from the payment node`,
+      cause: readinessResult.error,
+    });
     await sleep(backoffMs[attempt - 2] ?? backoffMs.at(-1) ?? 0);
     // The wait is where a short budget usually runs out.
     if (deadline.aborted) {
@@ -187,10 +191,13 @@ export async function syncCardanoV2RailReadiness(
   }
 
   if (readinessResult.isErr()) {
-    console.warn(
-      "[sync/agents] Cardano V2 rail readiness check failed:",
-      readinessResult.error,
-    );
+    logCoreWarning(log, {
+      message:
+        "The Cardano V2 rail readiness check failed, so the last recorded readiness stays in use",
+      why: "The payment node did not answer the rail-readiness check",
+      cause: readinessResult.error,
+      fix: "Check that the payment node answers its rail-readiness endpoint. Sentry pages when the V2 catalogue is hidden or the failure outlasts 30 minutes.",
+    });
     try {
       // HOW BAD is it? Is a usable fallback actually being served? The two
       // cases degrade completely differently and must not share one alert.
@@ -305,10 +312,13 @@ export async function syncCardanoV2RailReadiness(
       }
     } catch (markerError) {
       // Readiness is advisory and must never crash the registry sync loop.
-      console.warn(
-        "[sync/agents] Failed to persist Cardano V2 readiness failure marker:",
-        markerError,
-      );
+      logCoreWarning(log, {
+        message:
+          "Could not record the Cardano V2 readiness failure, so its Sentry alert may not fire",
+        why: "The database write of the failure marker failed",
+        cause: markerError,
+        fix: "The next agents sync tries again; if this repeats, fix the database error.",
+      });
     }
     return false;
   }
@@ -346,10 +356,13 @@ export async function syncCardanoV2RailReadiness(
   } catch (cacheError) {
     // Readiness is advisory and must never crash the registry sync loop. A
     // failed write leaves the old cache intact, so retry on the next cycle.
-    console.warn(
-      "[sync/agents] Failed to persist Cardano V2 rail readiness:",
-      cacheError,
-    );
+    logCoreWarning(log, {
+      message:
+        "Could not save the Cardano V2 rail readiness, so the previous value stays in use",
+      why: "The database write of the readiness failed",
+      cause: cacheError,
+      fix: "The next agents sync tries again; if this repeats, fix the database error.",
+    });
     return false;
   }
 
@@ -360,16 +373,21 @@ export async function syncCardanoV2RailReadiness(
   } catch (cleanupError) {
     // Cache persistence already succeeded. Keep readinessChanged so source
     // changes still trigger a registry replay; retry marker cleanup next time.
-    console.warn(
-      "[sync/agents] Failed to clear Cardano V2 readiness failure marker:",
-      cleanupError,
-    );
+    logCoreWarning(log, {
+      message: "Could not clear the Cardano V2 readiness failure marker",
+      why: "The database delete of the failure marker failed",
+      cause: cleanupError,
+      fix: "The next successful check tries again; until then a new failure streak does not page on its first tick.",
+    });
   }
 
   if (readySources.length === 0) {
-    console.warn(
-      "[sync/agents] No Cardano V2 source is purchase-ready; V2 agents stay unavailable",
-    );
+    logCoreWarning(log, {
+      message:
+        "No Cardano V2 payment source is purchase-ready, so V2 agents stay unavailable",
+      why: "The payment node reported no purchase-ready Cardano V2 source",
+      fix: "Check the payment node's Cardano V2 sources and why none is purchase-ready.",
+    });
     // A successful check reporting ZERO ready sources hides the entire V2
     // catalog just as effectively as a failed check, so it must page too —
     // only report on the transition, so a lasting outage does not spam.
@@ -381,4 +399,23 @@ export async function syncCardanoV2RailReadiness(
     }
   }
   return readinessChanged;
+}
+
+type CoreLogger = ReturnType<typeof createCoreLogger>;
+
+/**
+ * Runs after the agents cron response, so the whole readiness check is one
+ * standalone event: its failed attempts and warnings, and whether it changed.
+ */
+export async function syncCardanoV2RailReadiness(
+  options: SyncCardanoV2RailReadinessOptions = {},
+): Promise<boolean> {
+  const log = createCoreLogger({ operation: "agent_cardano_v2_readiness" });
+  try {
+    const changed = await refreshCardanoV2RailReadiness(options, log);
+    log.set({ cardanoV2Readiness: { changed } });
+    return changed;
+  } finally {
+    log.emit();
+  }
 }

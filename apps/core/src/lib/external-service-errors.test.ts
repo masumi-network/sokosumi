@@ -2,6 +2,7 @@ import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   captureExternalServiceError,
+  describeErrorWithoutContent,
   isSchemaDriftPrismaError,
   isTransientFetchError,
   isTransientPrismaError,
@@ -384,5 +385,23 @@ describe("captureExternalServiceError", () => {
         notificationType: "job-final-status",
       },
     ]);
+  });
+});
+
+describe("describeErrorWithoutContent", () => {
+  it("keeps the name, status and code, never the message", () => {
+    const error = Object.assign(
+      new Error("Gmail said: Re: the quarterly numbers you asked for"),
+      { name: "APICallError", statusCode: 403, code: "P2025" },
+    );
+
+    expect(describeErrorWithoutContent(error)).toEqual({
+      name: "APICallError",
+      statusCode: 403,
+      code: "P2025",
+    });
+    expect(describeErrorWithoutContent("raw provider text")).toEqual({
+      name: "string",
+    });
   });
 });

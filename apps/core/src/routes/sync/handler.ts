@@ -2,6 +2,7 @@ import { waitUntil } from "@vercel/functions";
 import type { Context } from "hono";
 
 import { getEnv } from "@/config/env";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 
@@ -165,7 +166,11 @@ export async function handleSyncRequest(
     });
   }
 
-  const backgroundPromise = runBackgroundSync(acquiredLock, syncOperation);
+  // Known background work: its events stay standalone even while this
+  // request's event is still live (`recordCoreError` in shared code).
+  const backgroundPromise = runAsBackgroundWork(() =>
+    runBackgroundSync(acquiredLock, syncOperation),
+  );
   waitUntil(backgroundPromise);
 
   return new Response(JSON.stringify({ message: "Syncing started" }), {

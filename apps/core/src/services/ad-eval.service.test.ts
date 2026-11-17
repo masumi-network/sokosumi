@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,7 +36,9 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   downloadStudioFileReference: mocks.reference,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import { expectCoreLog } from "@/test/core-log";
+
 import { enqueueAdEval } from "./ad-eval.service";
 
 const ENV = {
@@ -310,18 +313,28 @@ describe("background ad evaluations", () => {
   it.each(["reserve", "readBytes", "judge", "update"] as const)(
     "contains %s failures without rejecting background work",
     async (failingStep) => {
-      expectConsole("warn", "[ad-evals] background evaluation failed");
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not evaluate a delivered ad",
+      );
       mocks[failingStep].mockRejectedValue(new Error("test failure"));
       expect(() => enqueueAdEval("job-1")).not.toThrow();
       await expect(finishBackground()).resolves.toBeUndefined();
+      expect(warnings[0]).toMatchObject({ why: "An evaluation step threw" });
+      // The ad's prompt can reach the judge's error text: only its shape is logged.
+      expect(JSON.stringify(warnings[0]?.event)).not.toContain("test failure");
+      expect(warnings[0]?.event).toMatchObject({
+        operation: "ad_eval",
+        job: { id: "job-1" },
+      });
       vi.restoreAllMocks();
     },
   );
 
   it("contains a background registration failure", async () => {
-    const warning = expectConsole(
+    const warning = expectCoreLog(
       "warn",
-      "[ad-evals] could not register background evaluation",
+      "Could not start the evaluation of a delivered ad",
     );
     mocks.reserve.mockResolvedValue(null);
     mocks.waitUntil.mockImplementation(() => {
@@ -330,6 +343,36 @@ describe("background ad evaluations", () => {
     expect(() => enqueueAdEval("job-1")).not.toThrow();
     await finishBackground();
     expect(warning).toHaveLength(1);
+    expect(warning[0]).toMatchObject({
+      why: "Registering the background work threw",
+    });
+    expect(warning[0]?.event).toMatchObject({ failure: { name: "Error" } });
+    vi.restoreAllMocks();
+  });
+
+  it("records a registration failure on the request's event when a request settles the ad", async () => {
+    const warning = expectCoreLog(
+      "warn",
+      "Could not start the evaluation of a delivered ad",
+    );
+    mocks.waitUntil.mockImplementation(() => {
+      throw new Error("registration unavailable");
+    });
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/webhooks/fal", (c) => {
+      enqueueAdEval("job-1");
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/webhooks/fal", { method: "POST" });
+
+    expect(warning).toHaveLength(1);
+    expect(warning[0]?.event).toMatchObject({
+      method: "POST",
+      path: "/webhooks/fal",
+      job: { id: "job-1" },
+    });
     vi.restoreAllMocks();
   });
 });
