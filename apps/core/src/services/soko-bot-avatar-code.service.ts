@@ -11,6 +11,8 @@ import { getEnv } from "@/config/env";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
  * A Soko Bot's face is a feature code (`v1.<animal>.<bg>…`) drawn as SVG. The
@@ -116,10 +118,20 @@ export async function giveNewSokoBotAvatar(
     }
     return await assignRandomAvatarCode(sokoBotId);
   } catch (error) {
-    console.error("Soko Bot avatar code failed", {
-      sokoBotId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Vercel Blob copies its response's text into the error: only its shape is logged.
+    // A warning: the create goes on, and the request's error stays free for a later failure.
+    recordCoreWarning(
+      { operation: "soko_bot_avatar" },
+      {
+        message: "Could not give a new Soko Bot its avatar",
+        why: "Rendering or saving the avatar look failed",
+        fix: "The bot shows the orb until its owner picks a look in the studio. If it repeats, check that Vercel Blob is up and BLOB_READ_WRITE_TOKEN is valid for the store.",
+        details: {
+          sokoBot: { id: sokoBotId },
+          failure: messageSafeErrorFields(error),
+        },
+      },
+    );
     return null;
   }
 }

@@ -146,6 +146,7 @@ serve(
   },
   (info) => {
     const host = getEnv().HOST || "localhost";
+    // biome-ignore lint/suspicious/noConsole: the local development banner, printed once at startup before any request; evlog is for request and background events.
     console.log(`Server is running on http://${host}:${info.port}`);
   },
 );
