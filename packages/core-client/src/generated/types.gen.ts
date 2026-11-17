@@ -2017,6 +2017,14 @@ export type TaskParticipant = {
      * When this person joined the Task (via @ mention or self-subscribe).
      */
     addedAt: Date;
+    /**
+     * When this person subscribed to the Task's moments. Null for a participant added by @.
+     */
+    subscribedAt: Date | null;
+    /**
+     * True when the person is subscribed and their personal Soko Bot in the Task's workspace receives the moments.
+     */
+    followsWithSokoBot: boolean;
 };
 
 export type WorkCreatorUser = {
@@ -96788,6 +96796,81 @@ export type DeleteTasksByIdParticipantsByUserIdResponses = {
 };
 
 export type DeleteTasksByIdParticipantsByUserIdResponse = DeleteTasksByIdParticipantsByUserIdResponses[keyof DeleteTasksByIdParticipantsByUserIdResponses];
+
+export type DeleteTasksByIdSubscriptionData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/subscription';
+};
+
+export type DeleteTasksByIdSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdSubscriptionError = DeleteTasksByIdSubscriptionErrors[keyof DeleteTasksByIdSubscriptionErrors];
+
+export type DeleteTasksByIdSubscriptionResponses = {
+    /**
+     * Task participants
+     */
+    200: {
+        data: TaskParticipants;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdSubscriptionResponse = DeleteTasksByIdSubscriptionResponses[keyof DeleteTasksByIdSubscriptionResponses];
 
 export type DeleteTasksByIdData = {
     body?: never;

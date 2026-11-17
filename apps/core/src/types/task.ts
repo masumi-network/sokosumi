@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 
+import { taskParticipantRowInclude } from "@/helpers/task-participant-rows";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   buildVisibleTaskLinksInclude,
@@ -36,9 +37,7 @@ const taskParticipantsInclude = {
     orderBy: {
       id: "asc" as const,
     },
-    include: {
-      user: taskEventApiInclude.user,
-    },
+    include: taskParticipantRowInclude,
   },
 } as const;
 

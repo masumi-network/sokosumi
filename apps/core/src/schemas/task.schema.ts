@@ -102,6 +102,15 @@ export const taskParticipantSchema = z
         "When this person joined the Task (via @ mention or self-subscribe).",
       example: "2026-09-24T12:00:00.000Z",
     }),
+    subscribedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When this person subscribed to the Task's moments. Null for a participant added by @.",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+    followsWithSokoBot: z.boolean().openapi({
+      description:
+        "True when the person is subscribed and their personal Soko Bot in the Task's workspace receives the moments.",
+    }),
   })
   .openapi("TaskParticipant");
 

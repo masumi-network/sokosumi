@@ -28,6 +28,7 @@ import {
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
+import { mapTaskParticipantRows } from "./task-participant-rows";
 import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
 
@@ -445,22 +446,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     dueOn: task.dueOn ? task.dueOn.toISOString().slice(0, 10) : null,
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
-    participants: mapTaskParticipants(task),
+    participants: mapTaskParticipantRows(task, task.participants ?? []),
   };
-}
-
-function mapTaskParticipants(
-  task: TaskListItemWithIncludes | TaskWithIncludes,
-) {
-  const rows = task.participants ?? [];
-  return rows.map((row) => ({
-    user: userSummaryFromLoadedRelation(
-      `Task ${task.id} participant`,
-      row.userId,
-      row.user,
-    ),
-    addedAt: row.createdAt,
-  }));
 }
 
 function mapTaskBase(

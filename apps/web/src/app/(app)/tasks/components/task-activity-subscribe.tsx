@@ -88,6 +88,9 @@ export function TaskActivitySubscribeControl({
               image: viewerImage,
             },
             addedAt: new Date(),
+            subscribedAt: new Date(),
+            // The server decides the bot mark; the response replaces this row.
+            followsWithSokoBot: false,
           },
         ];
     setVisibleParticipants(next);

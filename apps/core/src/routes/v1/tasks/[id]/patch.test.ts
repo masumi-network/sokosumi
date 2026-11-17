@@ -803,6 +803,8 @@ describe("PATCH /tasks/{id}", () => {
         {
           user: { id: "user_bob", name: "Bob", image: null },
           addedAt: "2026-04-02T08:00:00.000Z",
+          subscribedAt: null,
+          followsWithSokoBot: false,
         },
       ];
       taskUpdateMock.mockResolvedValue({

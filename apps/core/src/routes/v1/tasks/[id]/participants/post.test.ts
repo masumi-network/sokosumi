@@ -13,34 +13,19 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  requireTaskCommentAccessMock,
-  addSelfAsTaskParticipantMock,
-  findManyMock,
-  notifyTaskParticipantsAddedMock,
-  waitUntilMock,
-} = vi.hoisted(() => ({
-  requireTaskCommentAccessMock: vi.fn(),
-  addSelfAsTaskParticipantMock: vi.fn(),
-  findManyMock: vi.fn(),
-  notifyTaskParticipantsAddedMock: vi.fn(),
-  waitUntilMock: vi.fn((promise: Promise<unknown>) => promise),
-}));
-
-vi.mock("@vercel/functions", () => ({
-  waitUntil: waitUntilMock,
-}));
+const { requireTaskCommentAccessMock, subscribeSelfToTaskMock, findManyMock } =
+  vi.hoisted(() => ({
+    requireTaskCommentAccessMock: vi.fn(),
+    subscribeSelfToTaskMock: vi.fn(),
+    findManyMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCommentAccess: requireTaskCommentAccessMock,
 }));
 
 vi.mock("@/helpers/task-participants", () => ({
-  addSelfAsTaskParticipant: addSelfAsTaskParticipantMock,
-}));
-
-vi.mock("@/helpers/task-notifications", () => ({
-  notifyTaskParticipantsAdded: notifyTaskParticipantsAddedMock,
+  subscribeSelfToTask: subscribeSelfToTaskMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -77,7 +62,25 @@ const remaining = [
     id: "tp_1",
     createdAt: new Date("2026-09-24T12:00:00.000Z"),
     userId: "user_alice",
-    user: { id: "user_alice", name: "Alice", image: null },
+    subscribedAt: new Date("2026-09-25T08:00:00.000Z"),
+    user: {
+      id: "user_alice",
+      name: "Alice",
+      image: null,
+      sokoBots: [{ workspaceId: "ws_1" }],
+    },
+  },
+  {
+    id: "tp_2",
+    createdAt: new Date("2026-09-24T13:00:00.000Z"),
+    userId: "user_bob",
+    subscribedAt: new Date("2026-09-25T09:00:00.000Z"),
+    user: {
+      id: "user_bob",
+      name: "Bob",
+      image: null,
+      sokoBots: [{ workspaceId: "ws_other" }],
+    },
   },
 ];
 
@@ -90,12 +93,11 @@ describe("POST /{id}/participants", () => {
       visibility: "PUBLIC",
       ownerId: "user_owner",
     });
-    addSelfAsTaskParticipantMock.mockResolvedValue({ added: true });
+    subscribeSelfToTaskMock.mockResolvedValue({ subscribed: true });
     findManyMock.mockResolvedValue(remaining);
-    notifyTaskParticipantsAddedMock.mockResolvedValue(undefined);
   });
 
-  it("adds only the authenticated viewer and notifies once", async () => {
+  it("subscribes only the authenticated viewer and marks a bot only in the Task's workspace", async () => {
     const app = mountApp();
 
     const response = await app.request(
@@ -110,45 +112,27 @@ describe("POST /{id}/participants", () => {
           {
             user: { id: "user_alice", name: "Alice", image: null },
             addedAt: "2026-09-24T12:00:00.000Z",
+            subscribedAt: "2026-09-25T08:00:00.000Z",
+            followsWithSokoBot: true,
+          },
+          {
+            user: { id: "user_bob" },
+            followsWithSokoBot: false,
           },
         ],
       },
     });
-    expect(addSelfAsTaskParticipantMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        taskId: "tsk_123",
-        workspaceId: "ws_1",
-        visibility: "PUBLIC",
-        ownerId: "user_owner",
-        userId: "user_alice",
-      },
-    );
-    expect(waitUntilMock).toHaveBeenCalled();
-    expect(notifyTaskParticipantsAddedMock).toHaveBeenCalledWith(
-      "tsk_123",
-      expect.any(String),
-      ["user_alice"],
-    );
+    expect(subscribeSelfToTaskMock).toHaveBeenCalledWith(expect.anything(), {
+      taskId: "tsk_123",
+      workspaceId: "ws_1",
+      visibility: "PUBLIC",
+      ownerId: "user_owner",
+      userId: "user_alice",
+    });
   });
 
-  it("is a no-op when the viewer is already a participant", async () => {
-    addSelfAsTaskParticipantMock.mockResolvedValue({ added: false });
-    const app = mountApp();
-
-    const response = await app.request(
-      "http://localhost/tsk_123/participants",
-      { method: "POST" },
-    );
-
-    expect(response.status).toBe(200);
-    expect(notifyTaskParticipantsAddedMock).not.toHaveBeenCalled();
-    expect(waitUntilMock).not.toHaveBeenCalled();
-  });
-
-  it("forbids when join eligibility fails and the viewer is not a participant", async () => {
-    addSelfAsTaskParticipantMock.mockResolvedValue({ added: false });
-    findManyMock.mockResolvedValue([]);
+  it("forbids when join eligibility fails", async () => {
+    subscribeSelfToTaskMock.mockResolvedValue({ subscribed: false });
     const app = mountApp();
 
     const response = await app.request(
@@ -157,7 +141,6 @@ describe("POST /{id}/participants", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(notifyTaskParticipantsAddedMock).not.toHaveBeenCalled();
   });
 
   it("forbids a viewer who cannot comment", async () => {
@@ -173,7 +156,7 @@ describe("POST /{id}/participants", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(addSelfAsTaskParticipantMock).not.toHaveBeenCalled();
+    expect(subscribeSelfToTaskMock).not.toHaveBeenCalled();
   });
 
   it("forbids coworker auth even with X-Context-User-Id", async () => {
@@ -196,6 +179,6 @@ describe("POST /{id}/participants", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(addSelfAsTaskParticipantMock).not.toHaveBeenCalled();
+    expect(subscribeSelfToTaskMock).not.toHaveBeenCalled();
   });
 });

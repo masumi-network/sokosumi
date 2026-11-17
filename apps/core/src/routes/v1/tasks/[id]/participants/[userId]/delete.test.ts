@@ -90,7 +90,8 @@ describe("DELETE /{id}/participants/{userId}", () => {
         id: "tp_1",
         createdAt: new Date("2026-09-24T12:00:00.000Z"),
         userId: "user_bob",
-        user: { id: "user_bob", name: "Bob", image: null },
+        subscribedAt: null,
+        user: { id: "user_bob", name: "Bob", image: null, sokoBots: [] },
       },
     ]);
   });

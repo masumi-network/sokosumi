@@ -7951,11 +7951,26 @@ export const TaskParticipantSchema = {
             format: 'date-time',
             example: '2026-09-24T12:00:00.000Z',
             description: 'When this person joined the Task (via @ mention or self-subscribe).'
+        },
+        subscribedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-09-24T12:00:00.000Z',
+            description: 'When this person subscribed to the Task\'s moments. Null for a participant added by @.'
+        },
+        followsWithSokoBot: {
+            type: 'boolean',
+            description: 'True when the person is subscribed and their personal Soko Bot in the Task\'s workspace receives the moments.'
         }
     },
     required: [
         'user',
-        'addedAt'
+        'addedAt',
+        'subscribedAt',
+        'followsWithSokoBot'
     ]
 } as const;
 

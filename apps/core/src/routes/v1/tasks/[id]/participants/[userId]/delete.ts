@@ -2,10 +2,13 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
-import { userSummaryFromLoadedRelation } from "@/helpers/loaded-relation-summaries";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { markTaskParticipantRemovedRead } from "@/helpers/task-notifications";
+import {
+  mapTaskParticipantRows,
+  taskParticipantRowInclude,
+} from "@/helpers/task-participant-rows";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -54,19 +57,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("Only a participant may remove themselves");
     }
 
-    const participants = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, id, tx);
+    const { task, participants } = await prisma.$transaction(async (tx) => {
+      const task = await requireTaskReadForRouteVars(c.var, id, tx);
 
       await tx.taskParticipant.deleteMany({
         where: { taskId: id, userId },
       });
-      return tx.taskParticipant.findMany({
+      const participants = await tx.taskParticipant.findMany({
         where: { taskId: id },
         orderBy: { id: "asc" },
-        include: {
-          user: { select: { id: true, name: true, image: true } },
-        },
+        include: taskParticipantRowInclude,
       });
+      return { task, participants };
     });
 
     await markTaskParticipantRemovedRead(userId, id);
@@ -74,14 +76,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       removedSchema.parse({
-        participants: participants.map((row) => ({
-          user: userSummaryFromLoadedRelation(
-            `Task ${id} participant`,
-            row.userId,
-            row.user,
-          ),
-          addedAt: row.createdAt,
-        })),
+        participants: mapTaskParticipantRows(
+          { id, workspaceId: task.workspaceId },
+          participants,
+        ),
       }),
     );
   });

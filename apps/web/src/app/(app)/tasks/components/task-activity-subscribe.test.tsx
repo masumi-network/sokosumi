@@ -43,6 +43,8 @@ function participant(id: string, name: string): TaskParticipant {
   return {
     user: { id, name, image: null },
     addedAt: new Date("2026-01-01T00:00:00.000Z"),
+    subscribedAt: null,
+    followsWithSokoBot: false,
   };
 }
 
