@@ -1,8 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { publishChatMembershipRevoked } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { recordChannelMembershipStatus } from "@/routes/v1/chats/rooms/membership-status";
 import { CHAT_ROOM_INVITATION_STATUS } from "@/schemas/chat-room-invitation.schema";
 
@@ -204,13 +205,34 @@ export async function publishOrganizationExitChatRevocation(
     ),
   ]);
 
-  for (const outcome of outcomes) {
-    if (outcome.status === "rejected") {
-      console.error(
-        "Failed to publish organization-exit chat side effect",
-        outcome.reason,
-      );
-    }
+  // Status messages are chat text an error can quote.
+  const effects = [
+    ...statusMessages.map((message) => ({
+      effect: "status_message",
+      roomId: message.roomId,
+      messageId: message.id,
+    })),
+    ...revokedRoomIds.map((roomId) => ({
+      effect: "membership_revoked",
+      roomId,
+    })),
+  ];
+  const failures = outcomes.flatMap((outcome, index) =>
+    outcome.status === "rejected"
+      ? [{ ...effects[index], failure: messageSafeErrorFields(outcome.reason) }]
+      : [],
+  );
+  if (failures.length > 0) {
+    recordCoreError(
+      { operation: "organization_exit_chat_publish", userId },
+      {
+        message:
+          "Could not publish every chat effect of leaving an organization",
+        why: "A realtime publish failed after the member's room access was revoked",
+        fix: "Open clients catch up on their next refresh; failures names each effect.",
+      },
+      { failures },
+    );
   }
 }
 

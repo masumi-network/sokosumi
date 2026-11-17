@@ -133,6 +133,9 @@ export async function TaskDetailView({
                   : undefined
               }
               backLabel={t("back")}
+              // Admin and developer views have their own list; the reader's
+              // own board is not the likely next page there.
+              loadBoardOnMount={!forceReadOnly}
               calendarBackLabel={t("backToCalendar")}
               parentLink={
                 <>
