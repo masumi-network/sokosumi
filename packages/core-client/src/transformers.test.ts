@@ -226,6 +226,7 @@ it.each([null, { observedAt: meta.timestamp, rows: [] }])(
       keywords: [],
       competitors: [],
       findings: [],
+      actions: [],
       metrics: [],
       timeline: [],
       analyses: [],

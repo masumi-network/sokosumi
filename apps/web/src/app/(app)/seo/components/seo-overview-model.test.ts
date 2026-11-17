@@ -8,6 +8,8 @@ import {
   pageDetailGuidanceRows,
   pageDetailReferences,
   pageDetailRuleCodes,
+  seoActionBucket,
+  seoActionWorklist,
   seoOverviewModel,
   seoPageSummaries,
   toolRangeFit,
@@ -639,5 +641,42 @@ describe("measures outside tool ranges", () => {
         findingIds: ["desktop", "mobile"],
       },
     ]);
+  });
+});
+
+describe("seoActionBucket", () => {
+  it("groups a suggestion by its kind and a fix by its impact, an unrated fix as low", () => {
+    expect(seoActionBucket({ kind: "opportunity" }, null)).toBe("suggestions");
+    expect(seoActionBucket({ kind: "fix" }, "critical")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "major")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "minor")).toBe("low");
+    expect(seoActionBucket({ kind: "fix" }, null)).toBe("low");
+  });
+});
+
+describe("seoActionWorklist", () => {
+  it("offers only the filters that split the list, and counts each group", () => {
+    const actions = [
+      { kind: "fix", id: "a" },
+      { kind: "fix", id: "b" },
+      { kind: "opportunity", id: "c" },
+    ];
+    const worklist = seoActionWorklist(actions, (action) =>
+      action.kind === "opportunity" ? "suggestions" : "high",
+    );
+    expect(worklist.counts).toEqual({
+      all: 3,
+      high: 2,
+      low: 0,
+      suggestions: 1,
+    });
+    expect(worklist.filters).toEqual(["all", "high", "suggestions"]);
+    expect(worklist.rows("suggestions").map((action) => action.id)).toEqual([
+      "c",
+    ]);
+    // One group alone splits nothing.
+    expect(
+      seoActionWorklist(actions.slice(0, 2), () => "high").filters,
+    ).toEqual(["all"]);
   });
 });

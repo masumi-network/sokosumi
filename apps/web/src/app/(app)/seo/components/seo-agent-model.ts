@@ -8,7 +8,6 @@ import { lastRuleCheck } from "./seo-summary-model";
 export const SEO_SEARCH_STALE_MS = 24 * 60 * 60 * 1000;
 /** A sync whose query read failed keeps its totals; wait this long before trying the rows again. */
 export const SEO_QUERY_RETRY_MS = 60 * 60 * 1000;
-export const SEO_AGENT_ACTION_LIMIT = 3;
 
 type Action = ProjectSeoWorkspace["actions"][number];
 export type SeoAgentStep =
@@ -45,9 +44,11 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
     canSync && searchSaved
       ? { propertyId: searchSaved.propertyId, channel: searchSaved.channel }
       : null;
-  const steps: SeoAgentStep[] = [...fixes, ...opportunities]
-    .slice(0, SEO_AGENT_ACTION_LIMIT)
-    .map((action) => ({ kind: "action", action }));
+  // Every fix is a step: the Agent tab folds the ones after the first.
+  const steps: SeoAgentStep[] = [...fixes, ...opportunities].map((action) => ({
+    kind: "action",
+    action,
+  }));
   // The audit's strategy actions are one step that opens their list. It has no end,
   // so it comes after the work that has one.
   // One row per place: the list it opens has that many rows.

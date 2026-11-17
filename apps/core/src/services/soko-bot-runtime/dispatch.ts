@@ -93,6 +93,7 @@ export async function executeAuthorizedTool(
     case "list_social_comments":
     case "handle_social_comment":
     case "read_writing_skill":
+    case "find_style_references":
     case "read_social_profile":
       return dispatchSocialTools(runtime, input, authorized);
     case "wait_for":
