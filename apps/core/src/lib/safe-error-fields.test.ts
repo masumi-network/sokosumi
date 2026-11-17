@@ -197,6 +197,57 @@ describe("messageSafeErrorFields", () => {
     });
   });
 
+  it("keeps a ComposioToolError's validated providerStatus, never its text", async () => {
+    const { ComposioToolError } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    const error = new ComposioToolError({
+      message: `X refused ${SUBJECT}`,
+      providerMessage: `Duplicate: ${SUBJECT} ${KEY}`,
+      providerStatus: 403,
+    });
+    expect(messageSafeErrorFields(error)).toEqual({
+      errorName: "ComposioToolError",
+      status: 403,
+    });
+    // A plain Error that only claims the name is not that class.
+    expect(
+      messageSafeErrorFields(
+        Object.assign(new Error("body"), {
+          name: "ComposioToolError",
+          providerStatus: 401,
+        }),
+      ),
+    ).toEqual({ errorName: "ComposioToolError" });
+    // Only that class carries it, and only as an HTTP status integer.
+    for (const providerStatus of [403.5, 99, 600, "403"])
+      expect(
+        messageSafeErrorFields(
+          new ComposioToolError({
+            message: "body",
+            providerStatus: providerStatus as number,
+          }),
+        ),
+      ).toEqual({ errorName: "ComposioToolError" });
+    expect(
+      messageSafeErrorFields(
+        Object.assign(new Error("body"), { providerStatus: 403 }),
+      ),
+    ).toEqual({ errorName: "Error" });
+    const throwing = Object.defineProperty(
+      new ComposioToolError({ message: "body", providerStatus: 403 }),
+      "providerStatus",
+      {
+        get() {
+          throw new Error("getter threw");
+        },
+      },
+    );
+    expect(messageSafeErrorFields(throwing)).toEqual({
+      errorName: "ComposioToolError",
+    });
+  });
+
   it("names anything that is not an Error by a fixed category", () => {
     expect(messageSafeErrorFields(`${SUBJECT} ${KEY}`)).toEqual({
       errorName: "Error",

@@ -1,5 +1,6 @@
 import { waitUntil } from "@vercel/functions";
 
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type FileIndexSyncResult,
   processFileIndexJobs,
@@ -126,7 +127,7 @@ export interface IndexingNudgeResult {
  * arbitrary, and the next path added will be read against this list.
  */
 export function nudgeFileIndexing(): void {
-  waitUntil(runIndexingNudge());
+  waitUntil(runAsBackgroundWork(runIndexingNudge));
 }
 
 /**
@@ -152,7 +153,7 @@ export function nudgeFileIndexing(): void {
  * path and, in production, to the cron.
  */
 export function nudgeFileExtraction(): void {
-  waitUntil(runExtractionNudge());
+  waitUntil(runAsBackgroundWork(runExtractionNudge));
 }
 
 const NO_TABLES: TableSyncResult = { scanned: 0, indexed: 0, failed: 0 };
