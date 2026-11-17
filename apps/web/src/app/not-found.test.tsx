@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { withoutElement } from "@/test/without-element";
 import NotFound, { NotFoundImpersonationBanner } from "./not-found";
 
 vi.mock("next-intl", () => ({
@@ -46,7 +46,8 @@ describe("NotFound", () => {
   });
 
   it("renders the card", () => {
-    render(<NotFound />);
+    // The async banner cannot render in happy-dom; it is tested below.
+    render(withoutElement(NotFound(), NotFoundImpersonationBanner));
 
     expect(screen.getByText("title")).toBeInTheDocument();
     expect(screen.getByText("message")).toBeInTheDocument();

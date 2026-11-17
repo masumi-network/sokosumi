@@ -128,13 +128,13 @@ vi.mock("@/lib/db/transaction", () => ({
     run((await import("@/lib/db/prisma")).default),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   getImageCatalog,
   imageModel,
   setResolvedImageCatalog,
 } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
-import { expectConsole } from "@/test/console";
 import { pngBytes } from "@/test/image-bytes";
 import {
   createImageJob,

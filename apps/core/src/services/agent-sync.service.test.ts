@@ -4,12 +4,11 @@ import {
   PaymentType,
   PricingType,
 } from "@sokosumi/database";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { CARDANO_V2_RAIL_READINESS_KEY } from "@/helpers/agent";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
-import { expectConsole } from "@/test/console";
 import { READINESS_BUDGET } from "./agent-sync.readiness.js";
 
 const {

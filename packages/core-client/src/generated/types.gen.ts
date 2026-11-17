@@ -1722,6 +1722,47 @@ export type EvalTick = {
     busy: boolean;
 };
 
+export type AdminAdEvalsDashboard = {
+    leaderboard: Array<AdEvalsLeaderboardRow>;
+    agreement: Array<AdEvalsAgreementRow>;
+    minimumWorkspaces: number;
+};
+
+export type AdEvalsLeaderboardRow = {
+    model: string;
+    template: string | null;
+    aspect: string | null;
+    workspaceCount: number;
+    suppressed: boolean;
+    n: number;
+    thumbN: number;
+    pairwiseN: number;
+    judgeN: number;
+    thumbRate: number | null;
+    pairwiseWinRate: number | null;
+    judgeMean: number | null;
+    thumbRateCi: {
+        lower: number;
+        upper: number;
+    } | null;
+    pairwiseWinRateCi: {
+        lower: number;
+        upper: number;
+    } | null;
+    judgeMeanCi: {
+        lower: number;
+        upper: number;
+    } | null;
+};
+
+export type AdEvalsAgreementRow = {
+    criterion: string;
+    signal: 'thumb' | 'pairwise';
+    rho: number | null;
+    n: number;
+    lowAgreement: boolean;
+};
+
 export type AdminTaskListItem = {
     id: string;
     name: string;
@@ -8325,7 +8366,7 @@ export type QuestionAnswerRequest = {
     questionId: string;
     answer: 'yes' | 'no' | 'unsure';
     /**
-     * After a no: what is true instead, in the member's words.
+     * The member's own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.
      */
     note?: string;
 };
@@ -8365,6 +8406,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8556,6 +8599,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -8607,6 +8652,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 socialPostId?: string;
                 visual?: string;
                 visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
                 slides?: Array<string>;
                 story?: string;
                 imageFileId?: string;
@@ -8659,6 +8706,8 @@ export type MarketingStrategyRequest = {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8850,6 +8899,8 @@ export type MarketingStrategyRequest = {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -8901,6 +8952,8 @@ export type MarketingStrategyRequest = {
                 socialPostId?: string;
                 visual?: string;
                 visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
                 slides?: Array<string>;
                 story?: string;
                 imageFileId?: string;
@@ -10567,6 +10620,8 @@ export type SocialPost = {
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
         story?: string;
     } | null;
@@ -12430,9 +12485,9 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'checkout' | 'done';
+    onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -13017,6 +13072,8 @@ export type CmoPlan = {
         channel: string;
         cadence: string;
         why?: string;
+        role?: 'main' | 'side';
+        buyer?: string;
     }>;
     idea?: {
         who: string;
@@ -13208,6 +13265,8 @@ export type CmoPlan = {
         socialPostId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
         story?: string;
         imageFileId?: string;
@@ -13259,6 +13318,8 @@ export type CmoPlan = {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -15431,6 +15492,19 @@ export type CreateVendorLogoUploadRequest = {
      * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
      */
     maxSizeBytes?: number;
+};
+
+export type WorkspaceAdDataConsent = {
+    workspaceId: string;
+    shareForImprovement: boolean;
+    allowTraining: boolean;
+    decidedAt: Date | null;
+    policyVersion: string;
+};
+
+export type WorkspaceAdDataConsentWrite = {
+    shareForImprovement: boolean;
+    allowTraining: boolean;
 };
 
 export type AdHocDesignMd = {
@@ -21091,6 +21165,190 @@ export type TickAdminEvalRunsResponses = {
 };
 
 export type TickAdminEvalRunsResponse = TickAdminEvalRunsResponses[keyof TickAdminEvalRunsResponses];
+
+export type GetAdminAdEvalsAccessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals/access';
+};
+
+export type GetAdminAdEvalsAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsAccessError = GetAdminAdEvalsAccessErrors[keyof GetAdminAdEvalsAccessErrors];
+
+export type GetAdminAdEvalsAccessResponses = {
+    /**
+     * Ad evals admin access allowed
+     */
+    200: {
+        data: {
+            hasAccess: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAdEvalsAccessResponse = GetAdminAdEvalsAccessResponses[keyof GetAdminAdEvalsAccessResponses];
+
+export type GetAdminAdEvalsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals';
+};
+
+export type GetAdminAdEvalsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsError = GetAdminAdEvalsErrors[keyof GetAdminAdEvalsErrors];
+
+export type GetAdminAdEvalsResponses = {
+    /**
+     * Ad leaderboard and judge agreement for consenting workspaces
+     */
+    200: {
+        data: AdminAdEvalsDashboard;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAdEvalsResponse = GetAdminAdEvalsResponses[keyof GetAdminAdEvalsResponses];
+
+export type GetAdminAdEvalsExportData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals/export';
+};
+
+export type GetAdminAdEvalsExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsExportError = GetAdminAdEvalsExportErrors[keyof GetAdminAdEvalsExportErrors];
+
+export type GetAdminAdEvalsExportResponses = {
+    /**
+     * Scrubbed human and implicit preference JSONL from training-consenting workspaces; image links expire in ten minutes
+     */
+    200: string;
+};
+
+export type GetAdminAdEvalsExportResponse = GetAdminAdEvalsExportResponses[keyof GetAdminAdEvalsExportResponses];
 
 export type ListAdminTasksData = {
     body?: never;
@@ -103475,6 +103733,186 @@ export type PostWebhooksPolarResponses = {
 };
 
 export type PostWebhooksPolarResponse = PostWebhooksPolarResponses[keyof PostWebhooksPolarResponses];
+
+export type GetWorkspaceAdDataConsentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/ad-data-consent';
+};
+
+export type GetWorkspaceAdDataConsentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspaceAdDataConsentError = GetWorkspaceAdDataConsentErrors[keyof GetWorkspaceAdDataConsentErrors];
+
+export type GetWorkspaceAdDataConsentResponses = {
+    /**
+     * Workspace ad data consent
+     */
+    200: {
+        data: WorkspaceAdDataConsent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspaceAdDataConsentResponse = GetWorkspaceAdDataConsentResponses[keyof GetWorkspaceAdDataConsentResponses];
+
+export type PutWorkspaceAdDataConsentData = {
+    body: WorkspaceAdDataConsentWrite;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/ad-data-consent';
+};
+
+export type PutWorkspaceAdDataConsentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - Workspace owner or admin required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutWorkspaceAdDataConsentError = PutWorkspaceAdDataConsentErrors[keyof PutWorkspaceAdDataConsentErrors];
+
+export type PutWorkspaceAdDataConsentResponses = {
+    /**
+     * Workspace ad data consent
+     */
+    200: {
+        data: WorkspaceAdDataConsent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutWorkspaceAdDataConsentResponse = PutWorkspaceAdDataConsentResponses[keyof PutWorkspaceAdDataConsentResponses];
 
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;

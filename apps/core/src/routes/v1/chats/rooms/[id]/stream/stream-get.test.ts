@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-import { expectConsole } from "@/test/console";
 import mountStreamGetRoomStream from "./stream-get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {

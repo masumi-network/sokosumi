@@ -2,8 +2,8 @@ import { inspect } from "node:util";
 
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 interface AuthorizeReferenceConfig {
   subscription: {

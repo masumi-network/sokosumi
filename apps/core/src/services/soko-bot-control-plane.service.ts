@@ -3020,6 +3020,35 @@ export class SokoBotControlPlane {
     expectedLeaseToken?: string,
   ): Promise<void> {
     const turn = await prisma.sokoBotTurn.findUnique({ where: { id: turnId } });
+    // A duplicate start hands out the lease the first caller holds. When that
+    // caller has settled the turn and cleared the lease, nothing is left.
+    if (
+      expectedLeaseToken &&
+      turn &&
+      !turn.leaseToken &&
+      (turn.status === "COMPLETED" ||
+        turn.status === "CANCELLED" ||
+        turn.status === "FAILED")
+    ) {
+      return;
+    }
+    // The duplicate can also read the turn before the first caller's runtime
+    // acknowledged it. That caller reconciles once it has a session. Only the
+    // first start, under its live lease: a recovery claim sets the heartbeat
+    // and errorKind, and a stalled first start (null heartbeat) stays with the
+    // watchdog's abandoned-start recovery.
+    if (
+      expectedLeaseToken &&
+      turn?.status === "STARTING" &&
+      !turn.eveSessionId &&
+      turn.leaseToken === expectedLeaseToken &&
+      turn.errorKind === null &&
+      turn.reconcilerHeartbeatAt === null &&
+      turn.leaseExpiresAt !== null &&
+      turn.leaseExpiresAt.getTime() > Date.now()
+    ) {
+      return;
+    }
     if (!turn?.eveSessionId || !turn.leaseToken) {
       throw new SokoBotNotFoundError("Runtime turn not found");
     }

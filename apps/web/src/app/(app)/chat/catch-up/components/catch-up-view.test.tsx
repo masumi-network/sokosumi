@@ -753,13 +753,10 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       setLoopMock.mockResolvedValue({ ok: true, value: {} });
 
       renderCatchUp();
-      await act(async () =>
-        (
-          await screen.findByRole("button", {
-            name: "App.Channels.Signals.Briefing.reply",
-          })
-        ).click(),
-      );
+      const reply = await screen.findByRole("button", {
+        name: "App.Channels.Signals.Briefing.reply",
+      });
+      await act(async () => reply.click());
       fireEvent.change(screen.getByRole("textbox"), {
         target: { value: "Yes, go ahead" },
       });

@@ -20,7 +20,9 @@ import {
   PLANNING_PHASES,
   useElapsed,
   workChecklist,
+  workNow,
 } from "./checklist";
+import { CusoScene } from "./cuso-scene";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -221,15 +223,20 @@ function Planning({
     starting || (work?.kind === "strategy" && work.status === "running");
   const noCredits = !running && overview.billing.availableCredits <= 0;
   const elapsed = useElapsed(work?.startedAt, running);
-  const rows = planningRows(
-    work?.kind === "strategy" ? work.steps : [],
-    overview.strategy ?? null,
-    running,
-  );
+  const steps = work?.kind === "strategy" ? work.steps : [];
+  const rows = planningRows(steps, overview.strategy ?? null, running);
+  const checklist = workChecklist(steps, PLANNING_PHASES, running);
   return (
     <section className="ob-wait">
       <div className="ob-lead">
-        <CusoAvatar pose={running ? "thinking" : "needs-you"} size={176} />
+        {running ? (
+          <CusoScene
+            scene="planning"
+            now={workNow(steps, checklist) ?? "Getting started"}
+          />
+        ) : (
+          <CusoAvatar pose="needs-you" size={176} />
+        )}
         <h1 className="ob-h1">
           {running ? "Writing your plan" : "Planning stopped"}
         </h1>
@@ -248,13 +255,7 @@ function Planning({
           </p>
         )}
         {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
-        <Checklist
-          items={workChecklist(
-            work?.kind === "strategy" ? work.steps : [],
-            PLANNING_PHASES,
-            running,
-          )}
-        />
+        <Checklist items={checklist} />
         <div className="ob-feed" aria-label="What Cuso is writing">
           <p className="ob-feed-title">
             <span className={running ? "ob-live on" : "ob-live"} />
@@ -330,7 +331,7 @@ function WriteNeeded({
   return (
     <section className="ob-wait">
       <div className="ob-lead">
-        <CusoAvatar pose="reporting" size={176} />
+        <CusoScene scene="planning" />
         <h1 className="ob-h1">Ready to write your plan</h1>
         <p className="muted">
           I build it from your Brand Brain and your answers.
@@ -520,7 +521,18 @@ export function PlanReview({
     <section className="ob-plan">
       <div className="ob-lead">
         {/* Cuso leads the hiring step; the app's Strategy page has its own head. */}
-        {readOnly ? null : <CusoAvatar pose="reporting" size={176} />}
+        {readOnly ? null : (
+          <CusoScene
+            scene="planning"
+            now={
+              writing
+                ? asked
+                  ? "Changing your plan"
+                  : "Finishing your plan"
+                : null
+            }
+          />
+        )}
         <p className="muted">{line}</p>
       </div>
 
@@ -772,7 +784,11 @@ export function PlanReview({
                     }
                   />
                 ) : tab === "month" ? (
-                  <MonthPanel strategy={strategy} onOpen={setOpen} />
+                  <MonthPanel
+                    strategy={strategy}
+                    onOpen={setOpen}
+                    pending={!approved}
+                  />
                 ) : (
                   <ResultsPanel
                     overview={overview}

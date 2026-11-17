@@ -17,7 +17,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeOwnerDriveFile,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   googleSpreadsheetId,
   readGoogleSheet,

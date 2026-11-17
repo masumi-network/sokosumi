@@ -6897,6 +6897,210 @@ export const EvalTickSchema = {
     ]
 } as const;
 
+export const AdminAdEvalsDashboardSchema = {
+    type: 'object',
+    properties: {
+        leaderboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdEvalsLeaderboardRow'
+            }
+        },
+        agreement: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdEvalsAgreementRow'
+            }
+        },
+        minimumWorkspaces: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'leaderboard',
+        'agreement',
+        'minimumWorkspaces'
+    ]
+} as const;
+
+export const AdEvalsLeaderboardRowSchema = {
+    type: 'object',
+    properties: {
+        model: {
+            type: 'string'
+        },
+        template: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspect: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        workspaceCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        suppressed: {
+            type: 'boolean'
+        },
+        n: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbN: {
+            type: 'integer',
+            minimum: 0
+        },
+        pairwiseN: {
+            type: 'integer',
+            minimum: 0
+        },
+        judgeN: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbRate: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 1
+        },
+        pairwiseWinRate: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 1
+        },
+        judgeMean: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 5
+        },
+        thumbRateCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        },
+        pairwiseWinRateCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        },
+        judgeMeanCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        }
+    },
+    required: [
+        'model',
+        'template',
+        'aspect',
+        'workspaceCount',
+        'suppressed',
+        'n',
+        'thumbN',
+        'pairwiseN',
+        'judgeN',
+        'thumbRate',
+        'pairwiseWinRate',
+        'judgeMean',
+        'thumbRateCi',
+        'pairwiseWinRateCi',
+        'judgeMeanCi'
+    ]
+} as const;
+
+export const AdEvalsAgreementRowSchema = {
+    type: 'object',
+    properties: {
+        criterion: {
+            type: 'string'
+        },
+        signal: {
+            type: 'string',
+            enum: [
+                'thumb',
+                'pairwise'
+            ]
+        },
+        rho: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: -1,
+            maximum: 1
+        },
+        n: {
+            type: 'integer',
+            minimum: 0
+        },
+        lowAgreement: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'criterion',
+        'signal',
+        'rho',
+        'n',
+        'lowAgreement'
+    ]
+} as const;
+
 export const AdminTaskListItemSchema = {
     type: 'object',
     properties: {
@@ -30279,7 +30483,7 @@ export const QuestionAnswerRequestSchema = {
         note: {
             type: 'string',
             maxLength: 400,
-            description: 'After a no: what is true instead, in the member\'s words.'
+            description: 'The member\'s own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.'
         }
     },
     required: [
@@ -30457,6 +30661,18 @@ export const MarketingStrategySchema = {
                                         maxLength: 400
                                     },
                                     why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    role: {
+                                        type: 'string',
+                                        enum: [
+                                            'main',
+                                            'side'
+                                        ]
+                                    },
+                                    buyer: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -31568,6 +31784,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 3
                                     },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
                                     slides: {
                                         type: 'array',
                                         items: {
@@ -31742,7 +31967,7 @@ export const MarketingStrategySchema = {
                                     'status'
                                 ]
                             },
-                            maxItems: 120
+                            maxItems: 240
                         },
                         previews: {
                             type: 'array',
@@ -31884,6 +32109,15 @@ export const MarketingStrategySchema = {
                                                     maxLength: 100
                                                 },
                                                 maxItems: 3
+                                            },
+                                            styleReferenceId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            headline: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 60
                                             },
                                             slides: {
                                                 type: 'array',
@@ -32176,6 +32410,18 @@ export const MarketingStrategyRequestSchema = {
                                 maxLength: 400
                             },
                             why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            role: {
+                                type: 'string',
+                                enum: [
+                                    'main',
+                                    'side'
+                                ]
+                            },
+                            buyer: {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
@@ -33287,6 +33533,15 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 3
                             },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
+                            },
                             slides: {
                                 type: 'array',
                                 items: {
@@ -33461,7 +33716,7 @@ export const MarketingStrategyRequestSchema = {
                             'status'
                         ]
                     },
-                    maxItems: 120
+                    maxItems: 240
                 },
                 previews: {
                     type: 'array',
@@ -33603,6 +33858,15 @@ export const MarketingStrategyRequestSchema = {
                                             maxLength: 100
                                         },
                                         maxItems: 3
+                                    },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
                                     },
                                     slides: {
                                         type: 'array',
@@ -39811,6 +40075,15 @@ export const SocialPostSchema = {
                         maxLength: 100
                     },
                     maxItems: 3
+                },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
                 },
                 slides: {
                     type: 'array',
@@ -48332,11 +48605,11 @@ export const CmoOverviewSchema = {
             enum: [
                 'brandBrain',
                 'strategy',
-                'accounts',
                 'checkout',
+                'accounts',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
@@ -51380,6 +51653,18 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    role: {
+                        type: 'string',
+                        enum: [
+                            'main',
+                            'side'
+                        ]
+                    },
+                    buyer: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
                     }
                 },
                 required: [
@@ -52488,6 +52773,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 3
                     },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
+                    },
                     slides: {
                         type: 'array',
                         items: {
@@ -52662,7 +52956,7 @@ export const CmoPlanSchema = {
                     'status'
                 ]
             },
-            maxItems: 120
+            maxItems: 240
         },
         previews: {
             type: 'array',
@@ -52804,6 +53098,15 @@ export const CmoPlanSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
                             },
                             slides: {
                                 type: 'array',
@@ -60091,6 +60394,56 @@ export const CreateVendorLogoUploadRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const WorkspaceAdDataConsentSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        shareForImprovement: {
+            type: 'boolean'
+        },
+        allowTraining: {
+            type: 'boolean'
+        },
+        decidedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        policyVersion: {
+            type: 'string'
+        }
+    },
+    required: [
+        'workspaceId',
+        'shareForImprovement',
+        'allowTraining',
+        'decidedAt',
+        'policyVersion'
+    ]
+} as const;
+
+export const WorkspaceAdDataConsentWriteSchema = {
+    type: 'object',
+    properties: {
+        shareForImprovement: {
+            type: 'boolean'
+        },
+        allowTraining: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'shareForImprovement',
+        'allowTraining'
     ]
 } as const;
 

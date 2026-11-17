@@ -1,9 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { PricingType } from "@sokosumi/database";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import { expectConsole } from "@/test/console";
 import mountGetAgents from "./get";
 
 const {

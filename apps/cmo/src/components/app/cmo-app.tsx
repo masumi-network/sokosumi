@@ -3,15 +3,8 @@
 import "../onboarding/onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
+import { ArrowUp, CalendarDays } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -44,26 +37,8 @@ import { cmoPause, PausedBanner } from "./paused";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
-import { UpNext } from "./up-next";
 
 const POLL_MS = 4_000;
-
-/** Below this width Up next is a drawer with its own open state. */
-const DRAWER_QUERY = "(max-width: 860px)";
-
-function subscribeToDrawerQuery(onChange: () => void): () => void {
-  const query = window.matchMedia(DRAWER_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function useDrawerLayout(): boolean {
-  return useSyncExternalStore(
-    subscribeToDrawerQuery,
-    () => window.matchMedia(DRAWER_QUERY).matches,
-    () => false,
-  );
-}
 
 export interface CmoAppActions extends AdActions {
   loadState: () => Promise<{
@@ -119,6 +94,8 @@ interface CmoAppProps {
   connectFailed?: boolean;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
+  /** The person has another Cuso, for the sidebar's "Your Cusos". */
+  manyCusos?: boolean;
   actions: CmoAppActions;
 }
 
@@ -202,6 +179,7 @@ export function CmoApp({
   initialView = "chat",
   connectFailed = false,
   plans = [],
+  manyCusos = false,
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
@@ -220,14 +198,6 @@ export function CmoApp({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  // An empty Up next would take a quarter of the screen to say so.
-  const [upNextOpen, setUpNextOpen] = useState(
-    initialOverview.upNext.length > 0 ||
-      initialOverview.production.state === "running" ||
-      initialOverview.production.state === "starting",
-  );
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const drawerLayout = useDrawerLayout();
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
   const [highlight, setHighlight] = useState<string | null>(null);
@@ -271,7 +241,6 @@ export function CmoApp({
   const compose = useCallback(
     (text: string) => {
       go("chat");
-      setDrawerOpen(false);
       setDraft(text);
       window.setTimeout(() => input.current?.focus(), 0);
     },
@@ -336,23 +305,16 @@ export function CmoApp({
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const status = cusoStatus(overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const pause = strategyApproved(overview) ? cmoPause(overview) : null;
-  const upNextCount = overview.upNext.length;
 
   return (
-    <div
-      className={[
-        "app",
-        upNextOpen ? "" : "upnext-closed",
-        drawerOpen ? "upnext-open" : "",
-      ].join(" ")}
-    >
+    <div className="app">
       <Sidebar
         overview={overview}
+        manyCusos={manyCusos}
         view={view}
         onSelect={go}
         name={name}
@@ -389,32 +351,6 @@ export function CmoApp({
             <ApproveDraft
               approve={async () => setOverview(await actions.approveStrategy())}
             />
-          ) : null}
-          {view === "strategy" || view === "brain" ? (
-            <button
-              type="button"
-              className="button button-secondary button-small"
-              onClick={() => compose("")}
-            >
-              Change with {AGENT_NAME}
-            </button>
-          ) : null}
-          {view === "chat" ? (
-            <button
-              type="button"
-              className="button button-secondary button-small"
-              aria-pressed={drawerLayout ? drawerOpen : upNextOpen}
-              onClick={() => {
-                if (drawerLayout) {
-                  setDrawerOpen((open) => !open);
-                } else {
-                  setUpNextOpen((open) => !open);
-                }
-              }}
-            >
-              <PanelRight size={16} aria-hidden="true" />
-              Up next <span className="count num">{upNextCount}</span>
-            </button>
           ) : null}
         </div>
 
@@ -504,20 +440,35 @@ export function CmoApp({
           <div className="scroll">
             <div
               className={
-                view === "strategy" || view === "brain" ? undefined : "panel"
+                view === "strategy" || view === "brain" ? undefined : "page"
               }
             >
+              {PAGE_LEADS[view] ? (
+                <PageLead
+                  title={PAGE_LEADS[view].title}
+                  line={PAGE_LEADS[view].line}
+                />
+              ) : null}
               {view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
-                    <SearchAdControl
-                      entry={entry}
-                      overview={overview}
-                      actions={actions}
-                      onChange={setOverview}
-                    />
+                    <>
+                      <SearchAdControl
+                        entry={entry}
+                        overview={overview}
+                        actions={actions}
+                        onChange={setOverview}
+                      />
+                      {entry.status === "published" ? null : (
+                        <PauseButton
+                          pause={async () =>
+                            setOverview(await actions.pauseEntry(entry.id))
+                          }
+                        />
+                      )}
+                    </>
                   )}
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
@@ -587,27 +538,51 @@ export function CmoApp({
           </div>
         )}
       </main>
-
-      <UpNext
-        overview={overview}
-        today={today}
-        compose={compose}
-        pause={async (id) => setOverview(await actions.pauseEntry(id))}
-        close={() => {
-          setUpNextOpen(false);
-          setDrawerOpen(false);
-        }}
-        topUp={topUp}
-      />
-      {drawerOpen ? (
-        <button
-          type="button"
-          className="scrim"
-          aria-label="Close Up next"
-          onClick={() => setDrawerOpen(false)}
-        />
-      ) : null}
     </div>
+  );
+}
+
+/** The head of a page, as onboarding's steps lead: what it is, in one line. */
+const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
+  calendar: {
+    title: "Your month",
+    line: `Every piece ${AGENT_NAME} makes. Each one opens once it is made.`,
+  },
+  results: {
+    title: "How it's going",
+    line: "Real numbers from your accounts, checked every Monday.",
+  },
+  channels: {
+    title: "Where I post",
+    line: "Connect a network and I post there on your plan's schedule.",
+  },
+  settings: {
+    title: "Settings",
+    line: `Your plan, your credits and when ${AGENT_NAME} works.`,
+  },
+};
+
+function PageLead({ title, line }: { title: string; line: string }) {
+  return (
+    <header className="page-lead">
+      <h1 className="ob-h1">{title}</h1>
+      <p className="muted">{line}</p>
+    </header>
+  );
+}
+
+/** Takes a piece out of the plan and cancels its post. */
+function PauseButton({ pause }: { pause: () => Promise<void> }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      className="button button-ghost button-small"
+      disabled={pending}
+      onClick={() => startTransition(pause)}
+    >
+      {pending ? "Pausing…" : "Pause this piece"}
+    </button>
   );
 }
 

@@ -80,6 +80,8 @@ describe("AdminSokoBotActions", () => {
           ok: false,
           error: { code: "X", message: "boom" },
         })
+        .mockResolvedValueOnce({ ok: true, value: {} })
+        // The fresh action after the success.
         .mockResolvedValueOnce({ ok: true, value: {} });
       render(
         <AdminSokoBotActions

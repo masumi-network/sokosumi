@@ -42,7 +42,7 @@ vi.mock("./fal-video-catalog-fetch", async () => ({
   normaliseFalVideoCatalog: normaliseVideoMock,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getImageCatalog } from "./catalog";
 import {
   ensureImageCatalogFresh,

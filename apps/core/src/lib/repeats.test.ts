@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it, vi } from "vitest";
 import type { EmbedTexts } from "@/lib/embeddings";
 import { findRepeats } from "@/lib/repeats";
-import { expectConsole } from "@/test/console";
 
 /** One dimension per topic a text names, plus a little of everything. */
 function fakeEmbed(topics: readonly RegExp[]): EmbedTexts & {

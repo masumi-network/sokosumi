@@ -32,6 +32,9 @@ const {
   pickState: { file: null as null | Record<string, unknown> },
 }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => toastErrorMock(...args),

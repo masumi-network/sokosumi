@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 
 vi.mock("server-only", () => ({}));
@@ -33,7 +33,6 @@ const session = {
 describe("assignOrganizationSeat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   it("returns the assigned seat", async () => {
@@ -54,6 +53,7 @@ describe("assignOrganizationSeat", () => {
   });
 
   it("keeps the retry message when the seat write hits a CONFLICT", async () => {
+    expectConsole("error", "Failed to assign organization seat");
     assignSeatMock.mockRejectedValue(
       new APIError("CONFLICT", {
         message: "Another seat change was in progress. Try again.",
@@ -76,6 +76,7 @@ describe("assignOrganizationSeat", () => {
   });
 
   it("keeps the kind so the UI can link to billing when seats run out", async () => {
+    expectConsole("error", "Failed to assign organization seat");
     assignSeatMock.mockRejectedValue(
       new APIError("BAD_REQUEST", {
         kind: "seat_capacity_exceeded",
@@ -99,6 +100,7 @@ describe("assignOrganizationSeat", () => {
   });
 
   it("maps a FORBIDDEN to UNAUTHORIZED", async () => {
+    expectConsole("error", "Failed to assign organization seat");
     assignSeatMock.mockRejectedValue(
       new APIError("FORBIDDEN", { message: "Not an owner or admin" }),
     );
@@ -119,6 +121,7 @@ describe("assignOrganizationSeat", () => {
   });
 
   it("maps an unknown failure to INTERNAL_SERVER_ERROR", async () => {
+    expectConsole("error", "Failed to assign organization seat");
     assignSeatMock.mockRejectedValue(new Error("boom"));
 
     const { assignOrganizationSeat } = await import("./seat-action");

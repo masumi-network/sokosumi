@@ -1,11 +1,10 @@
 import type { CreditCost } from "@sokosumi/database";
 import type { X402AvailableNetwork, X402KeySpendCaps } from "@sokosumi/masumi";
 import { convertCreditsToCents } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it } from "vitest";
-
 import { LIMITS } from "@/config/constants";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
-import { expectConsole } from "@/test/console";
 import {
   availableNetwork,
   BASE_MAINNET_USDC,

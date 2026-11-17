@@ -4,10 +4,9 @@ import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 import {
   type CreateNotificationInput,
   createNotification,

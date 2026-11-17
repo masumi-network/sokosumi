@@ -351,6 +351,39 @@ describe("Brand Brain questions", () => {
     expect(brain.profile.marketing.findings).toHaveLength(1);
   });
 
+  it("keeps the details on a yes and a not sure in the section", async () => {
+    brainFindUnique.mockResolvedValue(stored());
+
+    await answerBrandBrainQuestion(PROJECT_ID, {
+      questionId: question.id,
+      answer: "yes",
+      note: " Mostly in Europe ",
+    });
+    let brain = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(brain.questions[0]).toMatchObject({
+      answer: "yes",
+      note: "Mostly in Europe",
+    });
+    expect(brain.profile.marketing.findings[0].point).toBe(
+      `${question.statement} (Mostly in Europe)`,
+    );
+
+    brainFindUnique.mockResolvedValue(
+      stored({ questions: [brain.questions[0]], profile: brain.profile }),
+    );
+    await answerBrandBrainQuestion(PROJECT_ID, {
+      questionId: question.id,
+      answer: "unsure",
+      note: "Depends on the season",
+    });
+    brain = brainUpdate.mock.lastCall?.[0].data.body;
+    const points = brain.profile.marketing.findings.map(
+      (f: { point: string }) => f.point,
+    );
+    expect(points[0]).toBe("Depends on the season");
+    expect(points).not.toContain(`${question.statement} (Mostly in Europe)`);
+  });
+
   it("refuses an answer to a question that is not there", async () => {
     brainFindUnique.mockResolvedValue(stored());
 

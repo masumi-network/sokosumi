@@ -79,6 +79,10 @@ export default defineConfig({
         replacement: resolvePath("../../packages/masumi/src/$1"),
       },
       {
+        find: /^@sokosumi\/utils\/test-console$/,
+        replacement: resolvePath("../../packages/utils/src/test-console.ts"),
+      },
+      {
         find: /^@sokosumi\/utils$/,
         replacement: resolvePath("../../packages/utils/src/index.ts"),
       },

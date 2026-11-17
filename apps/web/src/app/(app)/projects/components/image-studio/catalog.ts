@@ -19,6 +19,8 @@ import type {
  * catalog does not list is not offered. That is the whole point of the shared
  * capability catalog — the UI must not be a second, unverified source of what
  * the provider supports.
+ * Auto now prefers the curated image/video ids below, only when present in
+ * that catalog; every capability and provider endpoint still comes from Core.
  */
 
 /** What a finished image says about how it was made. */
@@ -68,6 +70,16 @@ export function videoModelsFor(
   input: StudioVideoModel["input"],
 ): StudioVideoModel[] {
   return catalog.videoModels.filter((model) => model.input === input);
+}
+
+/** The same curated family for prompt video and animation. */
+export function defaultVideoModel(
+  catalog: StudioCatalog,
+  input: StudioVideoModel["input"],
+): StudioVideoModel | null {
+  const models = videoModelsFor(catalog, input);
+  const preferred = input === "image" ? "h3-max-animate" : "h3-max";
+  return models.find((model) => model.id === preferred) ?? models[0] ?? null;
 }
 
 /**
@@ -150,10 +162,14 @@ export function supportsVariation(
  * `defaultModelId` is what Core would pick anyway, so honouring it keeps the
  * composer's preview and the job that is actually created in agreement. The
  * first listed model is the fallback for a catalog whose default was withdrawn.
+ * Auto supersedes that ordering by preferring Gemini Pro when it is available.
  */
 export function defaultModel(catalog: StudioCatalog): StudioModel | null {
   return (
-    modelById(catalog, catalog.defaultModelId) ?? catalog.models[0] ?? null
+    modelById(catalog, "gemini-pro") ??
+    modelById(catalog, catalog.defaultModelId) ??
+    catalog.models[0] ??
+    null
   );
 }
 

@@ -1,5 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { redirect } from "next/navigation";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const connectionMock = vi.fn(async () => undefined);
 const listCoworkersMock = vi.fn();
@@ -22,18 +23,11 @@ const { loadAgentsCatalog, loadAgentsCoworkers } = await import(
 );
 
 describe("agents page data", () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
     listCoworkersMock.mockReset();
     getAllCoreAgentsMock.mockReset();
     getCoreCategoriesMock.mockReset();
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    warnSpy.mockRestore();
   });
 
   // connection() would drop the gallery from every link prefetch.
@@ -55,6 +49,7 @@ describe("agents page data", () => {
   // A failed read must not be kept in the prefetch, and a second failure on
   // the click must still render the page instead of its error boundary.
   it("renders a failed catalog read fresh, and empty when it fails again", async () => {
+    expectConsole("warn", "[agents] agent catalog fetch failed");
     getAllCoreAgentsMock.mockRejectedValue(new Error("Core answered 503"));
     getCoreCategoriesMock.mockResolvedValue([{ id: "category-1" }]);
 

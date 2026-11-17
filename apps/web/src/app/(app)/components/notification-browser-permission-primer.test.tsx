@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -313,9 +314,10 @@ describe("NotificationBrowserPermissionPrimer", () => {
   it("holds the button until the outcome is recorded, and frees it on failure", async () => {
     setNotificationPermission("granted");
     repairOutcome = "quiet";
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = expectConsole(
+      "error",
+      "Failed to record the push repair outcome",
+    );
     recordPushRepairOutcomeMock.mockRejectedValue(
       new Error("storage is blocked"),
     );
@@ -324,11 +326,10 @@ describe("NotificationBrowserPermissionPrimer", () => {
     const restore = screen.getByRole("button", { name: "pushQuietRestore" });
     await userEvent.click(restore);
 
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
     expect(
       screen.getByRole("button", { name: "pushQuietRestore" }),
     ).toBeEnabled();
-    consoleError.mockRestore();
   });
 
   /**
@@ -338,6 +339,8 @@ describe("NotificationBrowserPermissionPrimer", () => {
    * and take the card away as though the press had worked.
    */
   it("carries the registration past a press that fails", async () => {
+    expectConsole("error", "Failed to record the push repair outcome");
+    expectConsole("error", "Failed to restore the push subscription");
     setNotificationPermission("granted");
     repairOutcome = "quiet";
     activatePushMock.mockRejectedValue(

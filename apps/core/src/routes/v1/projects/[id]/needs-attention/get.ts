@@ -10,7 +10,7 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { projectNeedsAttentionSchema } from "@/schemas/project.schema";
-import { resolveProjectReaderVisibility } from "@/types/project";
+import { resolveProjectReaderAccess } from "@/types/project";
 
 const paramsSchema = z.object({
   id: z
@@ -50,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const visibility = await resolveProjectReaderVisibility(
+    const { prismaWhere: visibility } = await resolveProjectReaderAccess(
       c.var.authContext,
       workspaceContext.workspaceId,
     );

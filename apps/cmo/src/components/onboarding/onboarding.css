@@ -258,12 +258,69 @@ body:has(.ob) .site-header {
   margin-bottom: 12px;
 }
 
+/* A step's scene, framed like the hire hero. */
 .ob-scene {
-  width: 176px;
+  position: relative;
+  width: 220px;
+  height: 280px;
+}
+
+/* What he is doing now, over the panel's lower edge. */
+.ob-scene-now {
+  bottom: 32px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.ob-scene-now .ob-box-dot {
+  flex: none;
+}
+
+/* The sidebar's scene: as wide as its column, shorter, a smaller label. */
+.ob-scene-compact {
+  width: auto;
   height: 176px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  object-fit: cover;
+}
+
+.ob-scene-compact .ob-scene-now {
+  bottom: 24px;
+  max-width: calc(100% - 16px);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+/* He needs the owner: the label calls out on Iris. */
+.ob-scene-call {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* The wait: a short ink run along a card track, over and over. */
+.ob-scene-bar {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  left: 16px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-mark);
+  background: var(--card);
+}
+
+.ob-scene-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--foreground);
 }
 
 .ob-lead .ob-checklist {
@@ -273,11 +330,44 @@ body:has(.ob) .site-header {
 
 @media (prefers-reduced-motion: no-preference) {
   /* He pops in, then keeps breathing, so the screen never sits still. */
-  .ob-lead .cuso-avatar,
-  .ob-scene {
+  .ob-lead .cuso-avatar {
     animation:
       ob-cuso-in 600ms var(--ob-pop) backwards,
       ob-cuso-idle 3.2s ease-in-out 600ms infinite alternate;
+  }
+
+  /* The scene's clip moves on its own; the panel only pops in. */
+  .ob-scene {
+    animation: ob-cuso-in 600ms var(--ob-pop) backwards;
+  }
+
+  .ob-scene-now {
+    animation: ob-now-in 400ms var(--ob-pop) backwards;
+  }
+
+  .ob-scene-now .ob-box-dot {
+    animation: ob-working 1.2s ease-in-out infinite alternate;
+  }
+
+  .ob-scene-bar::after {
+    animation: ob-scene-run 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes ob-now-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px) rotate(-2deg) scale(0.6);
+  }
+}
+
+@keyframes ob-scene-run {
+  from {
+    translate: -100% 0;
+  }
+
+  to {
+    translate: 250% 0;
   }
 }
 
@@ -637,35 +727,6 @@ body:has(.ob) .site-header {
 
 .ob-skeleton span:last-child {
   width: 60%;
-}
-
-.ob-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 24px;
-  margin: 0;
-  padding: 0;
-}
-
-.ob-stats > div {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.ob-stats dt {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-}
-
-.ob-stats dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1rem;
 }
 
 /* The goal: an ink block that inverts again in dark. */
@@ -1124,8 +1185,26 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-.ob-skip {
-  align-self: flex-start;
+.ob-question-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob-question-details {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.ob-question-details:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 /* ── Step 1: Site ── */
@@ -1139,8 +1218,7 @@ body:has(.ob) .site-header {
 }
 
 .ob-hire .field,
-.ob-hire .ob-where,
-.ob-hire .ob-stats {
+.ob-hire .ob-where {
   width: 100%;
   max-width: var(--ob-col, 640px);
   text-align: left;
@@ -1695,6 +1773,56 @@ body:has(.ob) .site-header {
   font-variant-numeric: tabular-nums;
 }
 
+/* Before approval a piece is a topic: a dashed outline until it is made. */
+.ob-entry.pending {
+  border-style: dashed;
+}
+
+.ob-entry-media {
+  margin-left: auto;
+  color: var(--foreground);
+}
+
+.ob-entry-pillar {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: var(--radius-mark);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-month-pending {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: start;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.ob-month-pending p {
+  margin: 0;
+}
+
+.ob-month-pending svg {
+  margin-top: 2px;
+}
+
+.ob-month-counts {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .ob-entry-title {
   display: -webkit-box;
   overflow: hidden;
@@ -1727,32 +1855,83 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-rhythm {
+/* How it works: four steps on one line, joined by a hairline. */
+.ob-how {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
-.ob-rhythm-card {
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+.ob-rhythm {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-rhythm li {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+/* The line from each step's icon to the next. */
+.ob-rhythm li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: -16px;
+  left: 44px;
+  height: 1px;
+  background: var(--border);
+}
+
+.ob-rhythm-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.ob-rhythm li:first-child .ob-rhythm-icon {
+  background: var(--primary);
 }
 
 .ob-rhythm-when {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-.ob-rhythm-card ul {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
+@media (max-width: 720px) {
+  .ob-rhythm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob-rhythm li {
+    padding-left: 52px;
+  }
+
+  .ob-rhythm-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .ob-rhythm li:not(:last-child)::after {
+    top: 44px;
+    right: auto;
+    bottom: -16px;
+    left: 18px;
+    width: 1px;
+    height: auto;
+  }
 }
 
 .ob-rules {
@@ -1774,19 +1953,89 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-/* ── Step 5: Subscribe (the CMO plan checkout) ── */
+/* ── Step 4: Subscribe (the CMO plan checkout) ── */
 .ob-checkout {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: 16px;
 }
 
-.ob-checkout .panel {
+.ob-checkout > .ob-plan-options,
+.ob-checkout > .ob-gets,
+.ob-checkout > .ob-wide {
   width: 100%;
 }
 
-.ob-checkout > .ob-small {
-  justify-self: center;
+/* The plans side by side, so their prices compare at a glance. */
+.ob-checkout > .ob-plan-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+/* What the month holds, so the price reads against it. */
+.ob-gets {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+}
+
+.ob-gets li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.ob-gets svg {
+  margin-top: 4px;
+}
+
+/* Sits on the card's top edge, so the plans' names stay in line. */
+.ob-checkout .ob-plan-option {
+  position: relative;
+  overflow: visible;
+}
+
+.ob-plan-fit {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-mark);
+  background: var(--primary);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* What lowers the risk of paying, in one quiet row. */
+.ob-trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.ob-trust li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ob-trust li::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted);
 }
 
 .ob-plan-options {
@@ -1829,7 +2078,7 @@ body:has(.ob) .site-header {
   gap: 8px;
 }
 
-/* ── Step 4: Launch ── */
+/* ── Step 5: Launch ── */
 .ob-launch {
   justify-items: center;
 }
@@ -2136,11 +2385,146 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-brandmark {
+.ob-promise > .business-mark {
+  justify-self: start;
+}
+
+/* Your look: the DESIGN.md colours with their codes, fonts, the file. */
+.ob-look {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.ob-look-colors {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-look-colors li {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.ob-look-colors span {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.ob-look-fonts {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* The market map: Cuso's two axes, the business as the Iris dot. */
+.ob-map {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.ob-map-plot {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.ob-map-plot::before,
+.ob-map-plot::after {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.ob-map-plot::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.ob-map-plot::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.ob-map-axis {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.ob-map-axis.top {
+  top: 8px;
+}
+
+.ob-map-axis.bottom {
+  bottom: 8px;
+}
+
+.ob-map-x {
+  display: flex;
   justify-content: space-between;
   gap: 12px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+}
+
+.ob-map-dot {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  translate: -6px 50%;
+  color: var(--foreground);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ob-map-dot i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.ob-map-dot.you {
+  z-index: 2;
+  font-weight: 600;
+  translate: -9px 50%;
+}
+
+.ob-map-dot.you i {
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+}
+
+/* Near the right edge the label sits left of its dot. */
+.ob-map-dot.flip {
+  flex-direction: row-reverse;
+  translate: calc(-100% + 6px) 50%;
+}
+
+.ob-map-dot.you.flip {
+  translate: calc(-100% + 9px) 50%;
 }
 
 .ob-swatches {

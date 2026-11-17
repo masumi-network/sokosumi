@@ -1,6 +1,6 @@
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import { PROJECT_LATEST_UPDATE_SYSTEM_PROMPT } from "./project-latest-update";
 import {
   projectMemoryService,

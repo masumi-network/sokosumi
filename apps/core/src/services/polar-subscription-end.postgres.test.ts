@@ -13,6 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   afterAll,
   beforeAll,
@@ -22,7 +23,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { expectConsole } from "@/test/console";
 import { handlePolarSubscriptionEvent } from "./polar-subscription.service";
 import {
   retryOwedPolarRevokes,

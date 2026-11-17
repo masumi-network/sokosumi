@@ -1,6 +1,6 @@
 import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import {
   isExplicitPreprod,
   resolveWebRelatedProjectFallbackHost,
@@ -521,6 +521,36 @@ describe("Redis environment", () => {
     const config = validateEnv();
     expect(config.REDIS_URL).toBeUndefined();
     expect(config.KV_URL).toBeUndefined();
+  });
+});
+
+describe("ad evals admin organization environment", () => {
+  it("keeps the organization slug and id optional", () => {
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_SLUG", undefined);
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_ID", undefined);
+
+    const env = validateEnv();
+
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_SLUG).toBeUndefined();
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_ID).toBeUndefined();
+  });
+
+  it("trims configured organization values", () => {
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_SLUG", " internal-workspace ");
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_ID", " org-a ");
+
+    const env = validateEnv();
+
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_SLUG).toBe("internal-workspace");
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_ID).toBe("org-a");
+  });
+
+  it.each([
+    "AD_EVALS_ADMIN_ORGANIZATION_SLUG",
+    "AD_EVALS_ADMIN_ORGANIZATION_ID",
+  ])("rejects an empty %s", (key) => {
+    vi.stubEnv(key, " ");
+    expectInvalidEnvironment(key);
   });
 });
 

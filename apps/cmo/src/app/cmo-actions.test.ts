@@ -460,8 +460,8 @@ describe("skipped hiring steps", () => {
 
   it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    // Past the accounts the checkout is owed (ADR 0068).
-    expect((await loadOverview("project-1"))?.onboardingStep).toBe("checkout");
+    // Core reaches the accounts only after the checkout (ADR 0068): done.
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("done");
     // Another Cuso's choices do not count.
     cookieJar.clear();
     cookieJar.set("cmo-skipped-project-2", "accounts");

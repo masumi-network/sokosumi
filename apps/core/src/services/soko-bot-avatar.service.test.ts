@@ -41,8 +41,8 @@ vi.mock("@/lib/db/prisma", async () => {
   return { default: store.client };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
-
 import { LIMITS } from "@/config/constants";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
@@ -52,7 +52,6 @@ import {
   restyleAvatars,
   topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
-import { expectConsole } from "@/test/console";
 
 const imageBytes = () =>
   sharp({

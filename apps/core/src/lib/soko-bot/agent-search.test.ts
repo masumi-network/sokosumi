@@ -6,7 +6,7 @@ vi.mock("ai", () => ({
   gateway: { evaluationModel: vi.fn() },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   type AgentSearchCandidate,
   agentWordScore,

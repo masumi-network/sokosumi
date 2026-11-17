@@ -1,13 +1,11 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { createMiddleware } from "hono/factory";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
-
 import { ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS } from "@/schemas/admin.schema";
-import { expectConsole } from "@/test/console";
 import mountAddAdminMatchedChannelParticipantsFromOrganization from "./post";
 
 const {

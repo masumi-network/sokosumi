@@ -80,7 +80,7 @@ vi.mock("@vercel/blob", () => ({
   head: async (pathname: string) => ({ url: `https://blob/${pathname}` }),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   advanceCmoMedia,
   type CmoMediaJob,

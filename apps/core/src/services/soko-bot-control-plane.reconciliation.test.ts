@@ -567,3 +567,90 @@ describe("SokoBotControlPlane reconciliation", () => {
     );
   });
 });
+
+describe("reconciling a turn another reconciler already settled", () => {
+  // Two callers start the same clientTurnId: the duplicate gets the lease
+  // the first one holds, and the first settles the turn and clears it.
+  it("returns without touching the runtime", async () => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(
+      activeTurn({ status: "COMPLETED", leaseToken: null }),
+    );
+    const runtime = runtimeFor([]);
+
+    await new SokoBotControlPlane(runtime, undefined, undefined).reconcileTurn(
+      TURN_ID,
+      undefined,
+      LEASE_TOKEN,
+    );
+
+    expect(runtime.streamEvents).not.toHaveBeenCalled();
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("reconciling a turn whose first caller is still starting it", () => {
+  // The duplicate reads the turn before the first caller's runtime has
+  // acknowledged it: STARTING, lease held, no session yet.
+  function firstStart(overrides: Record<string, unknown> = {}) {
+    return activeTurn({
+      status: "STARTING",
+      eveSessionId: null,
+      eveTurnId: null,
+      reconcilerHeartbeatAt: null,
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      ...overrides,
+    });
+  }
+
+  it("returns without touching the runtime", async () => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(firstStart());
+    const runtime = runtimeFor([]);
+
+    await new SokoBotControlPlane(runtime, undefined, undefined).reconcileTurn(
+      TURN_ID,
+      undefined,
+      LEASE_TOKEN,
+    );
+
+    expect(runtime.streamEvents).not.toHaveBeenCalled();
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  // Nobody reconciles these after the duplicate returns, so it must say so.
+  it.each([
+    [
+      "a recovery worker claimed",
+      {
+        reconcilerHeartbeatAt: new Date(),
+        errorKind: "runtime_start_ambiguous",
+      },
+    ],
+    ["whose lease expired", { leaseExpiresAt: new Date(Date.now() - 1_000) }],
+  ])("still throws for a start %s", async (_label, overrides) => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(firstStart(overrides));
+
+    await expect(
+      new SokoBotControlPlane(
+        runtimeFor([]),
+        undefined,
+        undefined,
+      ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN),
+    ).rejects.toThrow("Runtime turn not found");
+  });
+
+  it("still throws for a running turn that lost its session", async () => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(activeTurn({ eveSessionId: null }));
+
+    await expect(
+      new SokoBotControlPlane(
+        runtimeFor([]),
+        undefined,
+        undefined,
+      ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN),
+    ).rejects.toThrow("Runtime turn not found");
+  });
+});

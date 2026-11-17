@@ -33,7 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { coworker: { findUnique: coworkerFindUniqueMock } },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   LATE_RESPONSE_GRACE_MS,
   LATE_RESPONSE_MAX_AGE_MS,

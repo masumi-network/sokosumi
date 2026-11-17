@@ -45,8 +45,8 @@ vi.mock("@/schemas/chat-room.schema", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-import { expectConsole } from "@/test/console";
 import {
   publishChatRoomMembershipStatusMessagesBestEffort,
   publishChatRoomMessageRealtime,

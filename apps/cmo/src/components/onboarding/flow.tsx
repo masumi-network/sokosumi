@@ -50,7 +50,7 @@ interface OnboardingFlowProps {
 
 /**
  * CMO's first run: five full-screen steps from Cuso reading the site to
- * launching and paying for him. The chat becomes home once the founder
+ * paying for and launching him. The chat becomes home once the founder
  * starts.
  */
 export function OnboardingFlow({
@@ -67,10 +67,6 @@ export function OnboardingFlow({
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
   const [confirming, setConfirming] = useState(returnedFromCheckout);
-  // Hiring ends with a checkout (ADR 0068), unless he has Tester credits.
-  const owesCheckout =
-    initialOverview.onboardingStep !== "done" &&
-    !initialOverview.billing.hasTesterCredits;
   // A finished step opened again from the markers; Results after a connection.
   const [viewing, setViewing] = useState<OnboardingStep | null>(
     initialStep === "results" ? "plan" : null,
@@ -94,17 +90,22 @@ export function OnboardingFlow({
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
     if (!state?.overview) return;
-    // Paid: hiring is over, so the page loads again as the app, on the chat.
-    // The step on screen stays until it does.
-    if (owesCheckout && state.overview.onboardingStep === "done") {
-      window.location.assign(
-        `/?project=${encodeURIComponent(state.overview.projectId)}`,
-      );
-      return;
+    if (confirming && state.overview.onboardingStep !== "checkout") {
+      // Paid with an account already connected (the old order): hiring is
+      // over, so the page loads again as the app, on the chat.
+      if (state.overview.onboardingStep === "done") {
+        window.location.assign(
+          `/?project=${encodeURIComponent(state.overview.projectId)}`,
+        );
+        return;
+      }
+      // Paid: on to the accounts and Launch, without Polar's return address.
+      setConfirming(false);
+      window.history.replaceState(null, "", "/");
     }
     setOverview(state.overview);
     setMessages(state.messages);
-  }, [actions, owesCheckout]);
+  }, [actions, confirming]);
 
   useEffect(() => {
     let last = Date.now();
@@ -328,7 +329,7 @@ export function OnboardingFlow({
             onUpdate={async () => settle(await actions.applyPlanAnswers())}
             onApprove={async () => {
               setOverview(await actions.approveStrategy());
-              // Approving opens Launch.
+              // Approving opens Subscribe, or Launch with Tester credits.
               setViewing(null);
             }}
             onConnectMeasurement={(provider) =>
@@ -342,14 +343,11 @@ export function OnboardingFlow({
           <CheckoutStep
             plans={plans}
             phase={position.step === "checkout" ? position.phase : "choosing"}
+            strategy={overview.approvedStrategy ?? overview.strategy}
             onCheckout={actions.startPlanCheckout}
             skip={skip}
             onShowPlans={() => {
               setConfirming(false);
-              // The person pressed Launch to get to Polar on some device.
-              setSkipped((current) => [
-                ...new Set([...current, "accounts" as const]),
-              ]);
               window.history.replaceState(null, "", "/");
             }}
           />
@@ -359,15 +357,13 @@ export function OnboardingFlow({
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
             notice={returnNotice}
-            // Launch needs a connected network, and Core moves on at the
-            // first connection, so the celebration is client-only. Recording
-            // the finish sets a cookie, and a cookie written in a server
-            // action re-renders the page: into the checkout right away when
-            // one is owed, else into the app on Go to Today.
-            onLaunch={
-              owesCheckout ? () => actions.finishAccounts() : async () => {}
-            }
-            onGoToday={() => void actions.finishAccounts()}
+            // Core is done at the first connection, so the celebration is
+            // client-only. Go to Today records the finish in a cookie, and a
+            // cookie written in a server action re-renders the page into the
+            // app; its redirect is no failure to show.
+            onGoToday={() => {
+              actions.finishAccounts().catch(() => {});
+            }}
           />
         )}
       </main>

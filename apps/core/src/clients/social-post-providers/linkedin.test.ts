@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getConnectedSocialIdentity } from "@/clients/composio.client";
 import {
@@ -6,7 +7,6 @@ import {
   publishLinkedInPost,
 } from "@/clients/social-post-providers/linkedin";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import { expectConsole } from "@/test/console";
 
 const {
   getEnvMock,

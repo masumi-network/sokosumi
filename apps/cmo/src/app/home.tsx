@@ -284,16 +284,18 @@ export async function Home({ searchParams, view }: HomeProps) {
     }
     return (
       <OnboardingFlow
-        // Launch sets the cookie and re-renders this page into the checkout:
-        // start the flow fresh, or it keeps the overview and cookie it was
-        // first given.
+        // Go to Today sets the cookie and re-renders this page: start the
+        // flow fresh, or it keeps the overview and cookie it was first given.
         key={skipped.includes("accounts") ? "launched" : "hiring"}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
+        // Approving the plan opens Subscribe in place, so the plans load
+        // while the strategy waits for approval too.
         plans={
-          overview.onboardingStep === "checkout"
+          overview.onboardingStep === "checkout" ||
+          overview.onboardingStep === "strategy"
             ? await loadPlans().catch(() => [])
             : []
         }
@@ -325,15 +327,23 @@ export async function Home({ searchParams, view }: HomeProps) {
       />
     );
   }
+  // "Your Cusos" leads somewhere only when there is another Cuso to open.
+  const [messages, manyCusos] = await Promise.all([
+    loadMessages(projectId).catch(() => []),
+    loadCusos()
+      .then(({ cusos }) => cusos.length > 1)
+      .catch(() => false),
+  ]);
   return (
     <CmoApp
       overview={overview}
+      manyCusos={manyCusos}
       plans={
         overview.billing.viewerCanManage && overview.billing.tier
           ? await loadPlans().catch(() => [])
           : []
       }
-      messages={await loadMessages(projectId).catch(() => [])}
+      messages={messages}
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}

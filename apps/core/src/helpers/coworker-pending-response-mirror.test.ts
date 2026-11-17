@@ -18,7 +18,7 @@ vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   clearPendingResponseMirror,
   coworkerPendingResponseRedisKey,

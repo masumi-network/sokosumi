@@ -44,8 +44,8 @@ vi.mock("@/lib/image-studio/fal-webhook", async () => ({
   verifyFalWebhook: verifyMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { mountFalImageJobsWebhook } from "@/routes/webhooks/fal/image-jobs";
-import { expectConsole } from "@/test/console";
 
 const app = new Hono();
 mountFalImageJobsWebhook(app);

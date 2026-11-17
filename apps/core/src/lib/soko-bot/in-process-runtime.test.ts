@@ -91,8 +91,8 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
 import {

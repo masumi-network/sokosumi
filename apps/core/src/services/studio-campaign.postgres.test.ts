@@ -58,6 +58,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeStudioDriveFile: vi.fn(),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
@@ -80,7 +81,6 @@ import {
   studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
 import { settleWithMedia } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&

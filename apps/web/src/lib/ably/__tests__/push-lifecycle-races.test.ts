@@ -13,6 +13,8 @@ vi.mock("@/lib/services/push-devices.service", () => ({
     replaceDevice: false,
   }),
   subscribePushDevice: (...args: unknown[]) => subscribeDevice(...args),
+  // Activation records which browser the device is; the record lands.
+  updatePushDeviceBrowser: async () => undefined,
 }));
 
 vi.mock("../push-client.client", () => ({

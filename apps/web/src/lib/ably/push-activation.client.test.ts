@@ -126,6 +126,7 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
   hasWebPushSubscription: () => hasWebPushSubscriptionMock(),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { activatePush, deactivatePush } from "./push-activation.client";
 import {
   hasPushDeviceIdentity,
@@ -236,6 +237,7 @@ describe("deactivatePush", () => {
    * not what this pins; the test below it does that.
    */
   it("drops the browser subscription even when ably fails", async () => {
+    expectConsole("error", "A push teardown step failed");
     unsubscribeDeviceMock.mockRejectedValue(new Error("ably said no"));
 
     await expect(deactivatePush("user_1")).rejects.toThrow("ably said no");
@@ -249,6 +251,7 @@ describe("deactivatePush", () => {
    * same way again.
    */
   it("deactivates the device even when the channel unsubscribe fails", async () => {
+    expectConsole("error", "A push teardown step failed");
     unsubscribeDeviceMock.mockRejectedValue(new Error("ably said no"));
 
     await expect(deactivatePush("user_1")).rejects.toThrow("ably said no");
@@ -262,6 +265,7 @@ describe("deactivatePush", () => {
    * would find push back on. Saying it locally cannot fail on the network.
    */
   it("forgets the registration even when the deactivation fails", async () => {
+    expectConsole("error", "A push teardown step failed");
     localStorage.setItem(
       "ably.push.deviceIdentityToken",
       JSON.stringify({ value: JSON.stringify("tok_1") }),
@@ -314,6 +318,7 @@ describe("deactivatePush", () => {
    * The note outlives the page, so the repair can tell the two apart.
    */
   it("leaves a note behind for a teardown that was not seen through", async () => {
+    expectConsole("error", "A push teardown step failed");
     unsubscribeMock.mockRejectedValue(new Error("push service said no"));
 
     await expect(deactivatePush("user_1")).rejects.toThrow(
@@ -337,6 +342,7 @@ describe("deactivatePush", () => {
    * reads the subscription too, so it leaves such a browser alone anyway.
    */
   it("keeps the registration when the browser subscription survived", async () => {
+    expectConsole("error", "A push teardown step failed");
     localStorage.setItem(
       "ably.push.deviceIdentityToken",
       JSON.stringify({ value: JSON.stringify("tok_1") }),
@@ -357,6 +363,7 @@ describe("deactivatePush", () => {
    * reader keeps receiving.
    */
   it("still tears Ably down when the browser unsubscribe fails", async () => {
+    expectConsole("error", "A push teardown step failed");
     unsubscribeMock.mockRejectedValue(new Error("push service said no"));
 
     await expect(deactivatePush("user_1")).rejects.toThrow(
@@ -401,6 +408,7 @@ describe("deactivatePush", () => {
    * that stops delivery, which is the whole reason that step leads.
    */
   it("drops the browser endpoint even when the Ably client cannot be built", async () => {
+    expectConsole("error", "A push teardown step failed");
     clientConstructionError = new Error("no realtime client");
 
     await expect(deactivatePush("user_1")).rejects.toThrow(
@@ -415,6 +423,8 @@ describe("deactivatePush", () => {
    * own, which is the failure the caller can do least about.
    */
   it("reports the browser failure when the client also cannot be built", async () => {
+    expectConsole("error", "A push teardown step failed");
+    expectConsole("error", "A push teardown step failed");
     unsubscribeMock.mockRejectedValue(new Error("push service said no"));
     clientConstructionError = new Error("no realtime client");
 
@@ -429,14 +439,14 @@ describe("deactivatePush", () => {
    * again and triage read two failures where there was one.
    */
   it("logs a failed Ably step once", async () => {
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = expectConsole("error", "A push teardown step failed");
     const reason = new Error("ably said no");
     deactivateMock.mockRejectedValue(reason);
 
     await expect(deactivatePush("user_1")).rejects.toThrow("ably said no");
 
-    expect(logged).toHaveBeenCalledTimes(1);
-    expect(logged).toHaveBeenCalledWith("A push teardown step failed", reason);
+    expect(logged).toHaveLength(1);
+    expect(logged).toContainEqual(["A push teardown step failed", reason]);
   });
 
   /**
@@ -445,6 +455,7 @@ describe("deactivatePush", () => {
    * browser endpoint live let the previous reader's banners carry on.
    */
   it("has already dropped the browser subscription when Ably refuses", async () => {
+    expectConsole("error", "A push teardown step failed");
     deactivateMock.mockRejectedValue(new Error("offline"));
 
     await expect(deactivatePush("user_1")).rejects.toThrow("offline");
@@ -781,7 +792,7 @@ describe("activatePush", () => {
   });
 
   it("records browser metadata after subscribing and keeps push active if recording fails", async () => {
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Could not record push device browser details");
     recordBrowserMock.mockRejectedValueOnce(new Error("metadata unavailable"));
     expect(await activatePush("user_1")).toBe(true);
     expect(recordBrowserMock).toHaveBeenCalledWith(
@@ -792,7 +803,6 @@ describe("activatePush", () => {
     expect(recordBrowserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       subscribeDeviceMock.mock.invocationCallOrder[0],
     );
-    warning.mockRestore();
   });
 
   it("captures a fresh registration date only after activation succeeds", async () => {
@@ -922,20 +932,22 @@ describe("activatePush", () => {
         if (key === "sokosumi.push.deviceOwner") throw failure;
         setItem(key, value);
       });
-    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reported = expectConsole(
+      "error",
+      "Failed to drop the push subscription",
+    );
 
     try {
       // The caller logs what it catches, and the storage failure is the one
       // that says why the run stopped. A drop that fails on the way out is a
       // second fact, not a replacement for the first.
       await expect(activatePush("user_1")).rejects.toBe(failure);
-      expect(reported).toHaveBeenCalledWith(
+      expect(reported).toContainEqual([
         "Failed to drop the push subscription",
         unsubscribeFailure,
-      );
+      ]);
     } finally {
       storage.mockRestore();
-      reported.mockRestore();
     }
   });
 
@@ -1518,7 +1530,7 @@ describe("activatePush", () => {
   });
 
   it("keeps successful activation when the health observer throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to record push repair");
     recordOutcomeMock.mockRejectedValueOnce(new Error("listener failed"));
     expect(await activatePush("user_1")).toBe(true);
     expect(subscribeDeviceMock).toHaveBeenCalled();
@@ -1544,7 +1556,7 @@ describe("activatePush", () => {
   });
 
   it("keeps foreground activation usable when renewal storage fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to store push renewal");
     rememberRenewalMock.mockRejectedValueOnce(new Error("storage unavailable"));
     expect(await activatePush("user_1")).toBe(true);
   });

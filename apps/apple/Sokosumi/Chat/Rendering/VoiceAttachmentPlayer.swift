@@ -103,10 +103,6 @@ struct VoiceAttachmentPlayer: View {
   }
 
   private func togglePlay() {
-    #if os(iOS)
-      // Voice plays with the silent switch on, like other media apps.
-      try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-    #endif
     let player = player ?? AVPlayer(url: attachment.url)
     self.player = player
     if playing {

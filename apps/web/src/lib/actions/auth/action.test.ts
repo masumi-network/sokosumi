@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const setPasswordViaCoreMock = vi.fn();
@@ -37,7 +38,6 @@ vi.mock("@/lib/services/utm.service", () => ({
 describe("createCredentialAccount", () => {
   beforeEach(() => {
     setPasswordViaCoreMock.mockReset();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   it("sets the password through Core auth", async () => {
@@ -70,6 +70,7 @@ describe("createCredentialAccount", () => {
   });
 
   it("maps Core auth errors to action errors", async () => {
+    expectConsole("error", "Failed to set password");
     const error = new Error("password already set") as Error & {
       code: string;
     };
@@ -97,7 +98,6 @@ describe("resetPasswordWithToken", () => {
   beforeEach(() => {
     resetPasswordViaCoreMock.mockReset();
     getResetPasswordTokenMock.mockReset();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   // Clearing it would re-render the page, which leaves for "request a new
@@ -134,6 +134,7 @@ describe("resetPasswordWithToken", () => {
   });
 
   it("keeps the cookie after a Core request failure so the user can retry", async () => {
+    expectConsole("error", "Failed to reset password");
     getResetPasswordTokenMock.mockResolvedValue("reset_token_1");
     resetPasswordViaCoreMock.mockRejectedValue(new Error("Core unavailable"));
 
@@ -150,7 +151,6 @@ describe("resetPasswordWithToken", () => {
 describe("handleUtmConversion", () => {
   beforeEach(() => {
     handleUTMConversionMock.mockReset();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   it("records UTM attribution via utmService", async () => {
@@ -164,15 +164,19 @@ describe("handleUtmConversion", () => {
   });
 
   it("swallows utmService failures without throwing", async () => {
+    const errorCalls = expectConsole(
+      "error",
+      "Failed to create utm attribution",
+    );
     handleUTMConversionMock.mockRejectedValue(new Error("utm failed"));
 
     const { handleUtmConversion } = await import("./action");
 
     await expect(handleUtmConversion()).resolves.toBeUndefined();
-    expect(console.error).toHaveBeenCalledWith(
+    expect(errorCalls).toContainEqual([
       "Failed to create utm attribution",
       expect.any(Error),
-    );
+    ]);
   });
 });
 
@@ -181,7 +185,6 @@ describe("claimSignUpConversion", () => {
     handleUTMConversionMock.mockReset();
     handleUTMConversionMock.mockResolvedValue(undefined);
     claimMySignUpConversionMock.mockReset();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   it("returns the provider and records UTM attribution for a new social account", async () => {
@@ -203,6 +206,7 @@ describe("claimSignUpConversion", () => {
   });
 
   it("counts nothing when Core cannot answer", async () => {
+    expectConsole("error", "Failed to claim social sign-up");
     claimMySignUpConversionMock.mockRejectedValue(new Error("core down"));
 
     const { claimSignUpConversion } = await import("./action");

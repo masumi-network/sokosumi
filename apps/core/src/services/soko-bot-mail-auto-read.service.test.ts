@@ -9,8 +9,8 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   modifyInboxMessages: mocks.modify,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import type { TriagedMail } from "@/lib/soko-bot/mail-triage";
-import { expectConsole } from "@/test/console";
 import { autoReadBulkMail } from "./soko-bot-mail-auto-read.service";
 
 const gmail = {

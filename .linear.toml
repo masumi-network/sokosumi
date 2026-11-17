@@ -1,9 +1,0 @@
-# linear cli
-# https://github.com/schpet/linear-cli
-
-workspace = "masumi"
-team_id = "SOK"
-issue_sort = "priority"
-vcs = "git"
-
-project_id = "sokosumi-6357694ddd23"
