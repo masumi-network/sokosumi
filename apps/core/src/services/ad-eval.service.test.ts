@@ -410,6 +410,9 @@ describe("background ad evaluations", () => {
       "warn",
       "Could not start the evaluation of a delivered ad",
     );
+    // The evaluation starts before waitUntil throws and nothing awaits it:
+    // it must end at once, not log into a later file.
+    mocks.reserve.mockResolvedValue(null);
     mocks.waitUntil.mockImplementation(() => {
       throw new Error("registration unavailable");
     });

@@ -1,5 +1,6 @@
 import { SOKO_BOT_SCENARIOS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const boundary = vi.hoisted(() => ({ load: vi.fn(), judge: vi.fn() }));
 vi.mock("@/services/soko-bot-lab-scenario.service", async (importOriginal) => ({
@@ -143,5 +144,34 @@ describe("evaluation execution failures", () => {
       outcome: { status: "FAILED" },
     });
     expect(boundary.judge).toHaveBeenCalledOnce();
+  });
+
+  it("scores a turn by its checks when the judge fails, without the judge's error text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not judge an eval turn, so it is scored by its checks alone",
+      ["Judging the turn threw"],
+    );
+    boundary.load.mockResolvedValue({ ...base, errorKind: "validation" });
+    // The judge reads the turn's messages, and its error can quote them.
+    boundary.judge.mockRejectedValue(
+      new Error('turn "Confidential merger with Acme" sk_live_abc123'),
+    );
+
+    const result = await pollEvalCase(
+      definition,
+      lane,
+      { turnId: "turn-judge", state: {} },
+      context,
+    );
+
+    expect(result).toMatchObject({ kind: "done" });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "eval_tick",
+      evalJudgeFailures: [{ turnId: "turn-judge", errorName: "Error" }],
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
   });
 });

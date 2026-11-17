@@ -4,6 +4,7 @@ import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import { grantPolarCredits } from "@/services/polar-credit-grant.service";
 
@@ -11,8 +12,6 @@ import { grantPolarCredits } from "@/services/polar-credit-grant.service";
  * A yearly CMO plan is paid once a year and granted month by month (ADR 0068).
  * The paid order grants month 0; this job grants months 1 to 11.
  */
-
-const LOG_PREFIX = "[sync/polar-yearly-grants]";
 
 /** The last month a yearly order pays for. */
 const LAST_MONTH_INDEX = 11;
@@ -195,9 +194,25 @@ export async function syncPolarYearlyGrants(
       if (granted === "granted") result.granted += 1;
     } catch (error) {
       result.errors += 1;
-      console.error(
-        `${LOG_PREFIX} Failed to grant ${grant.referenceId} to CMO subscription ${grant.id}:`,
-        error,
+      // The polar-yearly-grants cron, after its response.
+      emitCoreError(
+        {
+          operation: "polar_yearly_grant_sync",
+          polarSubscription: { subscriptionRowId: grant.id },
+          creditGrant: {
+            referenceId: grant.referenceId,
+            paidOrderId: grant.paidOrderId,
+            projectId: grant.projectId,
+            credits: plan.credits,
+          },
+        },
+        {
+          message:
+            "Could not grant a CMO yearly subscription its month of credits",
+          why: "Writing the month's credit bucket failed",
+          fix: "The next polar-yearly-grants sync grants the month again; a subscriber loses no paid month.",
+          cause: error,
+        },
       );
     }
   }
