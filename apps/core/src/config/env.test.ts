@@ -524,6 +524,36 @@ describe("Redis environment", () => {
   });
 });
 
+describe("ad evals admin organization environment", () => {
+  it("keeps the organization slug and id optional", () => {
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_SLUG", undefined);
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_ID", undefined);
+
+    const env = validateEnv();
+
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_SLUG).toBeUndefined();
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_ID).toBeUndefined();
+  });
+
+  it("trims configured organization values", () => {
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_SLUG", " internal-workspace ");
+    vi.stubEnv("AD_EVALS_ADMIN_ORGANIZATION_ID", " org-a ");
+
+    const env = validateEnv();
+
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_SLUG).toBe("internal-workspace");
+    expect(env.AD_EVALS_ADMIN_ORGANIZATION_ID).toBe("org-a");
+  });
+
+  it.each([
+    "AD_EVALS_ADMIN_ORGANIZATION_SLUG",
+    "AD_EVALS_ADMIN_ORGANIZATION_ID",
+  ])("rejects an empty %s", (key) => {
+    vi.stubEnv(key, " ");
+    expectInvalidEnvironment(key);
+  });
+});
+
 // Core hands both values to the OAuth proxy, which steps aside only when they
 // match. If they drift apart, production proxies its own sign-ins.
 describe("Better Auth production URL", () => {

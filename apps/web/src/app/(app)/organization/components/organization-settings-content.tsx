@@ -19,6 +19,7 @@ import OrganizationInviteButton from "@/app/organizations/[organizationSlug]/com
 import { OrganizationInviteLinks } from "@/app/organizations/[organizationSlug]/components/organization-invite-links";
 import { OrganizationSeatSummaryCard } from "@/app/organizations/[organizationSlug]/components/organization-seat-summary";
 import { OrganizationVendorGrants } from "@/app/organizations/[organizationSlug]/components/organization-vendor-grants";
+import { AdDataConsentSettings } from "@/components/ad-data-consent/ad-data-consent-settings";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import MembersTable from "@/components/members-table/members-table";
@@ -166,6 +167,7 @@ export async function OrganizationSettingsContent({
           deletionPreflightFailed={deletionPreflightFailed}
           deletionPreflightLoadError={deletionPreflightLoadError}
         />
+        <AdDataConsentSettings organizationId={organization.id} />
         {isOwnerOrAdmin ? (
           <OrganizationBillingDetails
             billingDetails={billingDetails}
