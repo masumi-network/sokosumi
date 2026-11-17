@@ -23,7 +23,6 @@ import {
   randomAvatarLook,
 } from "@sokosumi/soko-bot";
 import { Shuffle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -342,7 +341,6 @@ export function AvatarStudioDialog({
   onSaved: () => void | Promise<void>;
 }) {
   const t = useTranslations("App.SokoBot");
-  const router = useRouter();
   const [code, setCode] = useState(initialCode);
   const [taken, setTaken] = useState(false);
   const [isSaving, startSaving] = useTransition();
@@ -363,8 +361,6 @@ export function AvatarStudioDialog({
       }
       toast.success(t("Avatar.saved"));
       onOpenChange(false);
-      // The sidebar's face comes from the app layout, which only a router refresh redraws.
-      router.refresh();
       await onSaved();
     });
   }

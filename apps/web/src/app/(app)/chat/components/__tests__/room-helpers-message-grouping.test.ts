@@ -1,8 +1,10 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
+import { withTranscriptRowNeighbors } from "../../utils/room-transcript-ranges";
 import {
   isMessageContinuation,
+  liveSokoBotFaces,
   MESSAGE_GROUP_GAP_MS,
   messageSender,
   messageSenderKey,
@@ -280,5 +282,44 @@ describe("isMessageContinuation", () => {
     expect(isMessageContinuation(previous, current, { gapMs: 180_000 })).toBe(
       true,
     );
+  });
+});
+
+describe("liveSokoBotFaces", () => {
+  const rows = (messages: ChatRoomMessage[]) =>
+    withTranscriptRowNeighbors(
+      messages.map((message) => ({ kind: "message" as const, message })),
+    );
+
+  it("puts each bot's live face on the header of its newest group, not on a continuation", () => {
+    const header = sokoBotMessage("b1", "2026-11-17T10:00:00Z");
+    const continuation = sokoBotMessage("b2", "2026-11-17T10:00:20Z");
+    const faces = liveSokoBotFaces(
+      rows([userMessage("u1", "2026-11-17T09:59:00Z"), header, continuation]),
+      true,
+    );
+    expect([...faces.keys()]).toEqual(["b1"]);
+    expect(faces.get("b1")).toBe(false);
+  });
+
+  it("carries the newest reply's streaming state to that header", () => {
+    const header = sokoBotMessage("b1", "2026-11-17T10:00:00Z");
+    const streaming = {
+      ...sokoBotMessage("stream:b2", "2026-11-17T10:00:20Z"),
+    };
+    const faces = liveSokoBotFaces(rows([header, streaming]), true);
+    expect(faces.get("b1")).toBe(true);
+  });
+
+  it("gives every bot its own live face", () => {
+    const faces = liveSokoBotFaces(
+      rows([
+        sokoBotMessage("a1", "2026-11-17T10:00:00Z", "bot-a"),
+        sokoBotMessage("b1", "2026-11-17T10:01:00Z", "bot-b"),
+        sokoBotMessage("a2", "2026-11-17T10:30:00Z", "bot-a"),
+      ]),
+      true,
+    );
+    expect([...faces.keys()].sort()).toEqual(["a2", "b1"]);
   });
 });

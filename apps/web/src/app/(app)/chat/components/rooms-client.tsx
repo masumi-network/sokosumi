@@ -209,11 +209,11 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   isMessageContinuation,
+  liveSokoBotFaces,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
   messageDayKey,
-  messageSenderKey,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
@@ -3058,22 +3058,8 @@ function RoomView({
       (messagesPending && displayMessages.length === 0) || openingAtUnread;
     // Seen by rides the newest message only; scrollback stays quiet.
     const newestMessageId = displayMessages.at(-1)?.id ?? null;
-    // Only each bot's newest message wears its live face (one WebGL draw per
-    // bot, not per message); older ones keep the still picture.
-    const liveFaceMessageIds = new Set<string>();
-    const botsSeen = new Set<string>();
-    for (
-      let i = displayMessages.length - 1;
-      i >= Math.max(0, displayMessages.length - 200);
-      i--
-    ) {
-      const candidate = displayMessages[i];
-      const key = candidate ? messageSenderKey(candidate) : null;
-      if (candidate && key?.startsWith("sokoBot:") && !botsSeen.has(key)) {
-        botsSeen.add(key);
-        liveFaceMessageIds.add(candidate.id);
-      }
-    }
+    // One live face per bot, on the header of its newest message group.
+    const liveFaces = liveSokoBotFaces(transcriptRows, localCalendarReady);
     // Narrowed once here: the row renderer is a nested function, which
     // TypeScript does not narrow through.
     const room = selectedRoom;
@@ -3233,7 +3219,8 @@ function RoomView({
               isSaving={savingMessageIds.has(message.id)}
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
-              liveFace={liveFaceMessageIds.has(message.id)}
+              liveFace={liveFaces.has(message.id)}
+              liveFaceStreaming={liveFaces.get(message.id) ?? false}
               isContinuation={
                 localCalendarReady &&
                 !showDaySeparator &&

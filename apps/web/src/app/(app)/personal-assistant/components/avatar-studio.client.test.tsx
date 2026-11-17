@@ -23,10 +23,6 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   setSokoBotAvatarCodeAction: (...args: unknown[]) => saveMock(...args),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-const routerRefresh = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: routerRefresh }),
-}));
 // The live preview needs WebGL; the studio's job is the look it builds.
 vi.mock("@/components/soko-bot/live-bot-avatar.client", () => ({
   default: ({ code }: { code: string }) => (
@@ -183,7 +179,7 @@ describe("AvatarStudioDialog", () => {
     await waitFor(() => expect(refreshed).toHaveBeenCalled());
   });
 
-  it("closes at once on save and refreshes the page around it, so the sidebar shows the new look", async () => {
+  it("closes at once on save, without waiting on the console's own refresh", async () => {
     saveMock.mockResolvedValue({
       ok: true,
       value: { avatarCode: "x", avatarImageUrl: "y" },
@@ -208,7 +204,6 @@ describe("AvatarStudioDialog", () => {
     await user.click(screen.getByRole("button", { name: "Shuffle" }));
     await user.click(screen.getByRole("button", { name: "Save look" }));
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
-    expect(routerRefresh).toHaveBeenCalled();
     expect(slowRefresh).toHaveBeenCalled();
     await act(async () => finish());
   });

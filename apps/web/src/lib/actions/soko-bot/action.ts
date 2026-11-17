@@ -19,7 +19,7 @@ import {
 } from "@sokosumi/core-client";
 import { avatarCodeSchema } from "@sokosumi/soko-bot";
 import { err, ok } from "neverthrow";
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import * as z from "zod";
 import {
   type ActionResultDto,
@@ -829,6 +829,9 @@ export const setSokoBotAvatarCodeAction = withSession<
   try {
     const saved = await sokoBotService.setAvatarCode(parsed.data, bot.data);
     revalidate(bot.data);
+    // The sidebar's face is read in the app layout, outside the console path:
+    // refresh the whole route in this action's own response (apps/web/AGENTS.md).
+    refresh();
     return toActionResult(ok(saved));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));

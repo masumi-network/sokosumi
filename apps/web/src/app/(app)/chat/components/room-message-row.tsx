@@ -60,7 +60,6 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
-  isPersistedMentionThoughtShell,
   readFailedMentionShellTarget,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
@@ -2434,6 +2433,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isContinuation = false,
   isFirstOfDay = false,
   liveFace = false,
+  liveFaceStreaming = false,
   newestEndsInAttachment = false,
   seenBy,
 }: {
@@ -2497,8 +2497,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
    * re-renders only the row that loses it.
    */
   newestEndsInAttachment?: boolean;
-  /** The sender's avatar is live: this is the newest message of that Soko Bot. */
+  /** The sender's avatar is live: this row heads that Soko Bot's newest group. */
   liveFace?: boolean;
+  /** That group's newest reply is still being written (it may be a later row). */
+  liveFaceStreaming?: boolean;
   /**
    * Seen by faces, pinned to the bottom-right of the message column. Newest
    * message only.
@@ -2822,10 +2824,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               className="size-8"
               fallbackClassName="text-xs"
               live={liveFace}
-              streaming={
-                message.id.startsWith("stream:") ||
-                isPersistedMentionThoughtShell(message.metadata)
-              }
+              streaming={liveFaceStreaming}
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
