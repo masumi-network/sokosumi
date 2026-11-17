@@ -364,6 +364,74 @@ catches it too, so a dead session renders the degraded page instead. Call
 `unstable_rethrow(error)` from `next/navigation` first (as `tasks-page-data.ts`
 does), or read through `coreClientNoRedirect` and handle the 401 yourself.
 
+### Navigation opens a loaded page, not its skeleton
+
+A click, a predicted approach, or a back press must open a page whose content
+is already loaded. Next's default `<Link>` prefetch loads only the App Shell,
+so the click still shows `loading.tsx`. Sokosumi loads the page's content
+ahead of the click: a **content prefetch**. Apply this when you add or change
+a list page, a detail page, a Core read that such a page uses, or any link to
+one of them (nav row, list row, back link).
+
+1. **Make the page content-prefetchable.**
+   - Read the page's data through `"use cache: private"` loaders. The pattern
+     is `loadTasksPageData` in `src/app/(app)/tasks/utils/tasks-page-data.ts`:
+     one private-cached loader, and an outage falls back to `connection()` and
+     a fresh read.
+   - On the content's path, the page and its layouts call no `connection()`
+     and make no uncached Core read. A read that must stay fresh (a banner)
+     goes in its own `<Suspense>` and streams in after the click.
+   - Render `<RefreshPrefetchedPage />` in the page. It refreshes only when
+     the page may show an old copy: after back or forward, on a return to a
+     page first visited, since its last refresh, more than 30 s ago (Next
+     reuses that visit's copy), and when the shared layouts are older than
+     `LAYOUT_REFRESH_MS` (2 min). Otherwise
+     a click opens page data at most about a minute old and does not refresh.
+     It refreshes through a Server Action that calls `refresh()`
+     (`refreshPage`), which keeps every page prefetched for the next click;
+     `router.refresh()` drops them all. It waits while a link to another page
+     or a button has the pointer or keyboard focus (up to 3 s): a navigation
+     during the refresh makes Next run a `router.refresh()` after it, and a
+     button's Server Action would queue behind it. This one-render action is
+     the exception to the background-action rule in "Server actions vs Route
+     Handlers": only an action can refresh the page and keep the loaded ones.
+     Pass `everyVisit` only for a page whose cached copy must not linger (the
+     Ads lost-project state).
+   - Add the path to `CONTENT_PREFETCH_PATHS`
+     (`src/lib/navigation/content-prefetch-routes.ts`) and set
+     `prefetchContent` on its sidebar row in
+     `src/app/(app)/components/sidebar/components/menu-items.tsx`.
+2. **Link to it with an intent link.**
+   - Nav and list rows: `RestingIntentLink` with `prefetchContent`
+     (`src/components/resting-intent-link.tsx`). It loads the content on a
+     predicted pointer approach (ForesightJS), a resting hover, or resting
+     keyboard focus.
+   - Back links to a parent page: `BackLink` (`src/components/back-link.tsx`).
+     It loads the parent as soon as it shows, which also covers a phone tap,
+     and decides from `canPrefetchRouteContent(href)` whether the parent
+     supports it.
+   - A page that is not content-prefetchable keeps a plain `<Link>`.
+   - With no intent at all, `WarmLikelyPages`
+     (`src/components/warm-likely-pages.client.tsx`, in the app frame) keeps
+     the reader's 3 most visited content pages loaded while the tab is
+     visible and in use. A new content page joins it once it is in
+     `CONTENT_PREFETCH_PATHS`.
+3. **Start content loads only through `prefetchRouteContent(router, href,
+   { keepLoaded })`** (`src/lib/navigation/prefetch-route-content.ts`).
+   - Each call is one server render of the page. Trigger it on reading
+     intent, never for every link in view.
+   - Pass `keepLoaded`. Each `router.refresh()` (a polling page, a live
+     update, the `RefreshPrefetchedPage` fallback) and each Server Action
+     that calls `revalidatePath` or `updateTag` or writes a cookie drops
+     every prefetched page, and Next loads only the shell again.
+     `keepLoaded` returns true while the reader still wants that page (the
+     pointer still rests, the back link still shows), and the page then
+     loads again, up to `MAX_CONTENT_RELOADS` times.
+
+**Done when** a production build opens the page with its content, not its
+skeleton, after a hover, after a predicted approach, and on back. `next dev`
+does not prefetch, so check this on the preview (`/deploy all`), not locally.
+
 ### After a mutation: refresh only what changed
 
 `router.refresh()` makes a new server request and re-renders every Server

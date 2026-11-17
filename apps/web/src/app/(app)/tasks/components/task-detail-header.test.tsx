@@ -45,7 +45,7 @@ describe("TaskDetailHeader", () => {
     expect(row?.className).toContain("justify-end");
     expect(row?.className).toContain("md:justify-between");
 
-    const back = screen.getByRole("button", { name: "Back" });
+    const back = screen.getByRole("link", { name: "Back" });
     expect(back.className).toContain("hidden");
     expect(back.className).toContain("md:inline-flex");
   });

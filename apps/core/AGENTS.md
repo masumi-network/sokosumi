@@ -289,6 +289,8 @@ For internal async-ack sync routes (immediate `200` response + background execut
 
 Before adding, changing, or removing a `/v1` route (new route files, OpenAPI definitions, `/{id}` to `/me` migration, operation removal, cursor pagination, job files and links), read [Core route patterns](../../docs/agents/core-route-patterns.md).
 
+**Page reads load ahead of the click.** Web loads a list or detail page's content before the user clicks: on a hover, on a predicted approach, and from back links. For that, web wraps the page's Core reads in `"use cache: private"`. So when you design a `GET` that a Web page renders, make it a pure read: no writes or side effects, and a result that depends only on the caller's session and the request. Keep the reads for the page's first view few, so one cached Web loader covers them (the tasks page's loader is `loadTasksPageData` in `apps/web/src/app/(app)/tasks/utils/tasks-page-data.ts`). The Web half of this rule is "Navigation opens a loaded page, not its skeleton" in [`apps/web/AGENTS.md`](../web/AGENTS.md).
+
 **Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
 **Shared Packages**:

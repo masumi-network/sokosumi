@@ -1050,6 +1050,109 @@ describe("sandbox turn service", () => {
         },
       );
     const types = () => events().map((event) => event.type);
+    // The turn's row as Postgres keeps it; a conditional update writes it
+    // only when its filter holds.
+    let row: {
+      status: string;
+      cancellationRequestedAt: Date | null;
+      runnerDiagnosticAt: Date | null;
+    };
+    beforeEach(() => {
+      row = {
+        status: "RUNNING",
+        cancellationRequestedAt: null,
+        runnerDiagnosticAt: null,
+      };
+      turnUpdateManyMock.mockImplementation(
+        async ({
+          where,
+          data,
+        }: {
+          where: Record<string, unknown> & { status?: { in: string[] } };
+          data: Partial<typeof row>;
+        }) => {
+          const holds =
+            (!where.status || where.status.in.includes(row.status)) &&
+            (!("cancellationRequestedAt" in where) ||
+              row.cancellationRequestedAt === null) &&
+            (!("runnerDiagnosticAt" in where) ||
+              row.runnerDiagnosticAt === null);
+          if (!holds) return { count: 0 };
+          Object.assign(row, data);
+          return { count: 1 };
+        },
+      );
+    });
+    const cancelled = () => {
+      row.status = "CANCEL_REQUESTED";
+      row.cancellationRequestedAt = new Date();
+    };
+    const failureDiagnostic = {
+      event: "start_failed" as const,
+      coreResponse: { status: 503 },
+      errorName: "Error" as const,
+    };
+
+    describe.each([
+      ["without", undefined],
+      ["with", failureDiagnostic],
+    ])(
+      "%s a diagnostic, after a cancellation passed authorization",
+      (_, diagnostic) => {
+        it("leaves the turn to the cancellation once its row is cancelled", async () => {
+          recorded("turn.started");
+          cancelled();
+
+          await failSandboxTurn(claims, died, diagnostic);
+
+          expect(types()).not.toContain("turn.failed");
+          expect(row.runnerDiagnosticAt).toBeNull();
+          expect(stopSandboxMock).toHaveBeenCalled();
+        });
+
+        it("leaves the turn to the cancellation once turn.cancelled is recorded", async () => {
+          recorded("turn.started", "turn.cancelled");
+          cancelled();
+
+          await failSandboxTurn(claims, died, diagnostic);
+
+          expect(types()).not.toContain("turn.failed");
+          expect(row.runnerDiagnosticAt).toBeNull();
+          expect(stopSandboxMock).toHaveBeenCalled();
+        });
+
+        it("fails a turn that deadline cleanup cancelled, since its owner did not", async () => {
+          // The watchdog's runtime cancel appends turn.cancelled and leaves the
+          // row alone.
+          recorded("turn.started", "turn.cancelled");
+          if (diagnostic)
+            expectCoreLog(
+              "error",
+              "A Soko Bot turn could not start in its sandbox",
+              1,
+            );
+
+          await failSandboxTurn(claims, died, diagnostic);
+
+          expect(types()).toEqual(["turn.failed", "session.waiting"]);
+        });
+
+        it("fails a live turn", async () => {
+          recorded("turn.started");
+          if (diagnostic)
+            expectCoreLog(
+              "error",
+              "A Soko Bot turn could not start in its sandbox",
+              1,
+            );
+
+          await failSandboxTurn(claims, died, diagnostic);
+
+          expect(types()).toEqual(["turn.failed", "session.waiting"]);
+          expect(stopSandboxMock).toHaveBeenCalled();
+        });
+      },
+    );
 
     it("announces a turn that never started, so the failure settles it", async () => {
       recorded();
@@ -1070,15 +1173,7 @@ describe("sandbox turn service", () => {
     });
 
     describe("with the runner's diagnostic", () => {
-      const diagnostic = {
-        event: "start_failed" as const,
-        coreResponse: { status: 503 },
-        errorName: "Error" as const,
-      };
-      const claimed = (...counts: number[]) => {
-        for (const count of counts)
-          turnUpdateManyMock.mockResolvedValueOnce({ count });
-      };
+      const diagnostic = failureDiagnostic;
       const logged = (times: number) =>
         expectCoreLog(
           "error",
@@ -1088,20 +1183,28 @@ describe("sandbox turn service", () => {
 
       it("logs it once, claimed on the live turn's row", async () => {
         recorded("turn.started");
-        claimed(1);
         const entries = logged(1);
 
         await failSandboxTurn(claims, died, diagnostic);
 
-        expect(turnUpdateManyMock).toHaveBeenCalledExactlyOnceWith({
-          where: {
-            id: claims.turnId,
-            runnerDiagnosticAt: null,
-            status: { in: ["QUEUED", "STARTING", "RUNNING"] },
-            cancellationRequestedAt: null,
-          },
-          data: { runnerDiagnosticAt: expect.any(Date) },
-        });
+        expect(turnUpdateManyMock.mock.calls).toEqual([
+          [
+            {
+              where: {
+                id: claims.turnId,
+                status: { in: ["STARTING", "RUNNING"] },
+                cancellationRequestedAt: null,
+              },
+              data: { updatedAt: expect.any(Date) },
+            },
+          ],
+          [
+            {
+              where: { id: claims.turnId, runnerDiagnosticAt: null },
+              data: { runnerDiagnosticAt: expect.any(Date) },
+            },
+          ],
+        ]);
         expect(entries[0]?.event).toMatchObject({
           turnId: claims.turnId,
           sessionId: claims.sessionId,
@@ -1112,7 +1215,6 @@ describe("sandbox turn service", () => {
 
       it("logs once for two reports that both passed authorization", async () => {
         recorded("turn.started");
-        claimed(1, 0);
         logged(1);
 
         await Promise.all([
@@ -1122,18 +1224,7 @@ describe("sandbox turn service", () => {
       });
 
       it("logs the report that failed the turn, though a duplicate settles it right after", async () => {
-        // The row as Postgres keeps it: settling marks it FAILED, and the
-        // claim holds only on a live, unclaimed turn.
-        const row = {
-          status: "RUNNING",
-          runnerDiagnosticAt: null as Date | null,
-        };
-        turnUpdateManyMock.mockImplementation(async () => {
-          if (row.status !== "RUNNING" || row.runnerDiagnosticAt)
-            return { count: 0 };
-          row.runnerDiagnosticAt = new Date();
-          return { count: 1 };
-        });
+        // Settling marks the row FAILED.
         reconcileTurnMock.mockImplementation(async () => {
           row.status = "FAILED";
         });
@@ -1165,14 +1256,20 @@ describe("sandbox turn service", () => {
 
       it("still fails the turn when the claim breaks its write, and logs nothing", async () => {
         recorded("turn.started");
-        turnUpdateManyMock.mockRejectedValueOnce(new Error("claim failed"));
+        const onRow = turnUpdateManyMock.getMockImplementation();
+        turnUpdateManyMock.mockImplementation(async (args) => {
+          if ("runnerDiagnosticAt" in args.where)
+            throw new Error("claim failed");
+          return onRow?.(args);
+        });
         logged(0);
 
         await failSandboxTurn(claims, died, diagnostic);
 
-        // The first write rolled back; the plain retry recorded the failure.
+        // The claim broke before the insert; the plain retry recorded the
+        // failure.
         expect(types().filter((type) => type === "turn.failed")).toHaveLength(
-          2,
+          1,
         );
         expect(stopSandboxMock).toHaveBeenCalled();
       });
@@ -1180,15 +1277,8 @@ describe("sandbox turn service", () => {
       it("logs nothing for a late report after the next turn cleared the events", async () => {
         // The runtime events are gone; the turn row still holds the claim.
         recorded();
-        claimed(0);
-        logged(0);
-
-        await failSandboxTurn(claims, died, diagnostic);
-      });
-
-      it("logs nothing once a cancellation won, though authorization passed", async () => {
-        recorded("turn.started");
-        claimed(0);
+        row.status = "FAILED";
+        row.runnerDiagnosticAt = new Date();
         logged(0);
 
         await failSandboxTurn(claims, died, diagnostic);
@@ -1196,7 +1286,6 @@ describe("sandbox turn service", () => {
 
       it("logs it before the sandbox stops, so a stop that never ends cannot lose it", async () => {
         recorded("turn.started");
-        claimed(1);
         const entries = logged(1);
         let stopped!: () => void;
         stopSandboxMock.mockReturnValueOnce(
@@ -1220,6 +1309,9 @@ describe("sandbox turn service", () => {
         recorded("turn.started", outcome);
         await failSandboxTurn(claims, died);
         expect(types()).toEqual(["session.waiting"]);
+        // The recorded outcome decides before the row is read.
+        expect(turnUpdateManyMock).not.toHaveBeenCalled();
+        expect(stopSandboxMock).toHaveBeenCalled();
       },
     );
   });

@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { FileDetailView } from "@/app/drive/components/file-detail-view";
+import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -32,9 +32,9 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
           size="icon"
           aria-label={t("backToFiles")}
         >
-          <Link href="/drive?view=workspace">
+          <BackLink href="/drive?view=workspace">
             <ArrowLeft className="size-4" />
-          </Link>
+          </BackLink>
         </Button>
       }
     />
