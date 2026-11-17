@@ -886,6 +886,9 @@ export const cmoPreviewSchema = z.object({
 });
 export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
 
+/** The most entries a month's calendar holds (cmo-v3's All-in pace). */
+export const CMO_CALENDAR_MAX_ENTRIES = 240;
+
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
@@ -917,7 +920,7 @@ export const marketingStrategyPlanSchema = z.object({
     )
     .max(10),
   ...strategyPlanShape,
-  calendar: z.array(cmoCalendarEntrySchema).max(240),
+  calendar: z.array(cmoCalendarEntrySchema).max(CMO_CALENDAR_MAX_ENTRIES),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */
@@ -934,7 +937,9 @@ export const marketingStrategyPlanSchema = z.object({
         was: cmoCalendarEntrySchema.nullable(),
       }),
     )
-    .max(120)
+    // Every entry a turn's patches touched or added: a cmo-v3 month adds
+    // weeks two to four by patch, so it can be nearly the whole calendar.
+    .max(CMO_CALENDAR_MAX_ENTRIES)
     .default([]),
 });
 export type MarketingStrategyPlan = z.infer<typeof marketingStrategyPlanSchema>;

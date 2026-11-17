@@ -265,6 +265,29 @@ describe("CMO strategy and rhythms", () => {
     expect(strategy.previews).toEqual([]);
   });
 
+  it("keeps a patch record for every entry the calendar holds", () => {
+    // cmo-v3 adds weeks two to four with part patch: 153 of 204 pieces.
+    const entry = (index: number) => ({
+      id: `p${index}`,
+      date: "2026-10-05",
+      channel: "linkedin",
+      title: `Piece ${index}`,
+      format: "post",
+      status: "idea",
+    });
+    const calendar = Array.from({ length: 204 }, (_, index) => entry(index));
+    const strategy = marketingStrategyPlanSchema.parse({
+      month: "2026-10",
+      summary: "Grow LinkedIn reach with founder-led posts.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [],
+      calendar,
+      patched: calendar.slice(51).map(({ id }) => ({ id, was: null })),
+    });
+    expect(strategy.patched).toHaveLength(153);
+  });
+
   it("gives the pillars of an older plan equal shares", () => {
     const pillars = (value: unknown) =>
       marketingStrategyPlanSchema.shape.pillars.parse(value);
