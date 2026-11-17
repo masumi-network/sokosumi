@@ -1,11 +1,13 @@
 import {
   type ChatCatchUpItem,
   type ChatRoom,
+  type ChatRoomMessage,
   type SokoBotSchedule,
   type SokoBotState,
   SokoBotStatus,
   type TaskListItem,
 } from "@sokosumi/core-client";
+import { buildChatMessagePreview } from "@sokosumi/utils";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -164,4 +166,45 @@ export function toImportantChats(
     from: item.senderName,
     at: item.createdAt,
   }));
+}
+
+/**
+ * Adds the reader's latest question to their Soko Bot as one row, read or
+ * not, so a first chat shows on Home. `messages` is the bot's Direct, oldest
+ * first. The row takes the time of the room's last message, so it sits among
+ * the day by the bot's answer. Nothing when the room went quiet over a day
+ * ago, when the reader never asked, or when an unread row from that room is
+ * already listed: that one points at what is new.
+ */
+export function withSokoBotChat(
+  chats: SokoBotHomeChat[],
+  botRoom: { roomId: string; messages: readonly ChatRoomMessage[] } | null,
+  reader: { userId: string; botName: string; untitled: string },
+  now: Date,
+): SokoBotHomeChat[] {
+  if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
+    return chats;
+  }
+  const timeline = botRoom.messages.filter(
+    (message) => !message.parentMessageId && !message.deletedAt,
+  );
+  const last = timeline.at(-1);
+  const question = timeline.findLast(
+    (message) =>
+      message.sender.type === "user" &&
+      message.sender.user.id === reader.userId,
+  );
+  if (!last || !question || now.getTime() - last.createdAt.getTime() > DAY_MS) {
+    return chats;
+  }
+  return [
+    ...chats,
+    {
+      roomId: botRoom.roomId,
+      messageId: question.id,
+      title: buildChatMessagePreview(question.content) || reader.untitled,
+      from: reader.botName,
+      at: last.createdAt,
+    },
+  ];
 }

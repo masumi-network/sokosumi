@@ -18,7 +18,10 @@ export default async function FlowsLayout({
   const pathname = (await headers()).get("x-pathname") ?? "";
   const isWorkspaceGate =
     pathname === "/setup" || pathname.startsWith("/setup/");
-  const brand = <ThemedLogo LogoComponent={SokosumiLogo} priority />;
+  // Sign-up's size, so the logo does not jump between sign-up and setup.
+  const brand = (
+    <ThemedLogo LogoComponent={SokosumiLogo} priority width={100} height={13} />
+  );
 
   // Impersonated sessions land here (workspace gate, invite flows) outside
   // the app chrome. Mount the banner so the impersonation state — and Exit —
@@ -44,9 +47,16 @@ export default async function FlowsLayout({
             content (a long Soko Bot name on a button) and widen the phone page. */}
         <div className="flex h-full min-w-0 flex-1 flex-col gap-6">
           {isWorkspaceGate ? (
-            <div data-workspace-gate-brand>{brand}</div>
+            <div
+              data-workspace-gate-brand
+              className="inline-flex min-h-6 items-center"
+            >
+              {brand}
+            </div>
           ) : (
-            <Link href="/">{brand}</Link>
+            <Link href="/" className="inline-flex min-h-6 items-center">
+              {brand}
+            </Link>
           )}
           <main className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
             {children}

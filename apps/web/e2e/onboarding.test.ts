@@ -51,6 +51,17 @@ async function expectLegalLinks(page: Page) {
   }
 }
 
+/** The header logo's place and size, to hold setup's against sign-up's. */
+async function logoBox(page: Page) {
+  const box = await page
+    .getByRole("img", { name: "Sokosumi Logo", exact: true })
+    .filter({ visible: true })
+    .first()
+    .boundingBox();
+  assert.ok(box, `${page.url()} shows the logo`);
+  return box;
+}
+
 for (const { name, ...viewport } of PROJECTS) {
   describe(name, () => {
     test("a new visitor signs up and meets their Soko Bot", async () => {
@@ -68,6 +79,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.goto(`${BASE_URL}/`);
       await page.getByRole("link", { name: "Register" }).click();
       await expectStep(page, /\/signup/, "Create your account");
+      const signupLogo = await logoBox(page);
       await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);
       await page.getByRole("button", { name: "Continue with email" }).click();
 
@@ -89,6 +101,8 @@ for (const { name, ...viewport } of PROJECTS) {
 
       await expectStep(page, /\/setup$/, "How do you want to work?");
       await expectLegalLinks(page);
+      // The logo stays put from sign-up to setup.
+      assert.deepEqual(await logoBox(page), signupLogo);
       await shot("2-workspace");
       await page.getByRole("button", { name: "Continue" }).click();
 

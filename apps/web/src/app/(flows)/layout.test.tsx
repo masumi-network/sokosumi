@@ -98,6 +98,25 @@ describe("FlowsLayout impersonation banner", () => {
     }
   });
 
+  it("draws the setup logo like sign-up's, without a way out of setup", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    // Sign-up's header: a 100x13 logo, centred in a 24px row.
+    const logos = screen.getAllByAltText("Sokosumi Logo");
+    for (const logo of logos) {
+      expect(logo).toHaveAttribute("width", "100");
+      expect(logo).toHaveAttribute("height", "13");
+      expect(logo.closest("a")).toBeNull();
+    }
+    expect(logos[0]?.parentElement).toHaveClass(
+      "inline-flex",
+      "min-h-6",
+      "items-center",
+    );
+  });
+
   it("mounts the banner with the target identity while impersonating", async () => {
     readRouteSessionMock.mockResolvedValue({
       status: "authenticated",
