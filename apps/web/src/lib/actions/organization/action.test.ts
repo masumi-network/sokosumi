@@ -1,5 +1,6 @@
 import { MemberRole } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 vi.mock("server-only", () => ({}));
 
@@ -128,9 +129,7 @@ describe("organization actions", () => {
   });
 
   it("returns sent and failed statuses for a partial batch", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to invite organization member");
     inviteOrganizationMemberViaCoreMock
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("invite failed"));
@@ -151,8 +150,6 @@ describe("organization actions", () => {
         ],
       },
     });
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("rejects users who are not members of the organization", async () => {
@@ -247,9 +244,10 @@ describe("organization actions", () => {
   });
 
   it("maps membership lookup failures to INTERNAL_SERVER_ERROR", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole(
+      "error",
+      "Failed to bulk invite organization members MockCoreApiRequestError: Internal Server Error",
+    );
     getMyMemberInOrganizationMock.mockRejectedValue(
       new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
     );
@@ -268,8 +266,6 @@ describe("organization actions", () => {
       },
     });
     expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
   });
 });
 
@@ -527,9 +523,7 @@ describe("createOrganizationWorkspaceAction", () => {
   );
 
   it("maps other failures to INTERNAL_SERVER_ERROR", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Failed to create organization");
     createMyWorkspaceMock.mockRejectedValue(new Error("fetch failed"));
     const { createOrganizationWorkspaceAction } = await import("./action");
 
@@ -544,7 +538,6 @@ describe("createOrganizationWorkspaceAction", () => {
         error: { code: "INTERNAL_SERVER_ERROR" },
       });
     } finally {
-      consoleError.mockRestore();
     }
   });
 });

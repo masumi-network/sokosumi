@@ -80,6 +80,7 @@ vi.mock("@/lib/utils/dom-context", () => ({
   setupDomContext: vi.fn(async () => () => {}),
 }));
 
+import { expectConsole } from "@/test/console";
 import { POST } from "./route";
 
 describe("POST /api/export/docx", () => {
@@ -148,11 +149,10 @@ describe("POST /api/export/docx", () => {
     withDocxExportFetchGuardMock.mockRejectedValue(
       new Error("conversion failed"),
     );
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "DOCX generation error");
     try {
       expect((await POST(request())).status).toBe(500);
     } finally {
-      log.mockRestore();
     }
   });
 

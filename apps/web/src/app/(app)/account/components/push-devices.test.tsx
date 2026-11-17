@@ -13,6 +13,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { createFormats } from "@/i18n/time-format";
+import { expectConsole } from "@/test/console";
 import { PushDevices } from "./push-devices";
 
 const { listPushDevices, revokePushDevice, handleRevokedPushDevice } =
@@ -364,7 +365,10 @@ describe("push devices in notification settings", () => {
   });
 
   it("turns this browser off after server removal and does not retry a successful revoke when local cleanup fails", async () => {
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warning = expectConsole(
+      "warn",
+      "Unable to clean up the removed push device in this browser",
+    );
     localStorage.setItem(
       "ably.push.deviceId",
       JSON.stringify({ value: "device-1" }),
@@ -384,9 +388,9 @@ describe("push devices in notification settings", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(handleRevokedPushDevice).toHaveBeenCalledWith("user-1");
     expect(revokePushDevice).toHaveBeenCalledTimes(1);
-    expect(warning).toHaveBeenCalledExactlyOnceWith(
-      "Unable to clean up the removed push device in this browser",
-    );
+    expect(warning).toEqual([
+      ["Unable to clean up the removed push device in this browser"],
+    ]);
     expect(screen.queryByRole("listitem")).toBeNull();
     expect(
       screen.queryByText(

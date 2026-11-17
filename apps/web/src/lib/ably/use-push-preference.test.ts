@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { usePushDevices } from "@/app/account/components/use-push-devices";
+import { expectConsole } from "@/test/console";
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
@@ -407,9 +408,7 @@ describe("usePushPreference", () => {
     );
     await recordPushRepairOutcome();
     expect(getPushRepairOutcome()).toBe("quiet");
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = expectConsole("error", "Failed to record push repair");
     const unsubscribe = subscribePushRepairOutcome(() => {
       throw new Error("a listener gave up");
     });
@@ -426,8 +425,7 @@ describe("usePushPreference", () => {
     });
 
     expect(result.current.isDeviceEnabled).toBe(true);
-    expect(consoleError).toHaveBeenCalled();
-    consoleError.mockRestore();
+    expect(consoleError).not.toHaveLength(0);
   });
 
   it("reports cancelled device activation as unsuccessful", async () => {

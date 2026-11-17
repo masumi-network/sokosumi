@@ -33,6 +33,7 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
+import { expectConsole } from "@/test/console";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 import { mapVisibleTaskLinks } from "./task-detail-api-types";
 
@@ -1026,6 +1027,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("shows the task again on the board when the archive fails", async () => {
+    expectConsole("error", "Failed to archive task");
     const user = userEvent.setup();
     archiveMock.mockRejectedValueOnce(new Error("nope"));
     renderActions({ organizations: undefined });
@@ -1665,6 +1667,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("closes the picker and lists the linked task before the link answer", async () => {
+    expectConsole("error", "Failed to create task link");
     const user = userEvent.setup();
     const deferred = createDeferred<{
       taskId: string;
@@ -1724,6 +1727,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("shows a new parent in place of the old one before the link answer", async () => {
+    expectConsole("error", "Failed to create task link");
     const user = userEvent.setup();
     const deferred = createDeferred<never>();
     browserCoreClientMock.getTasks.mockResolvedValue({
@@ -1756,6 +1760,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("keeps the parent when the picked task already has a link", async () => {
+    expectConsole("error", "Failed to create task link");
     const user = userEvent.setup();
     const deferred = createDeferred<never>();
     browserCoreClientMock.getTasks.mockResolvedValue({
@@ -1785,6 +1790,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("takes a removed link off the list before the answer and puts it back on failure", async () => {
+    expectConsole("error", "Failed to remove related task link");
     const user = userEvent.setup();
     const deferred = createDeferred<never>();
     vi.mocked(deleteTaskLink).mockReturnValueOnce(deferred.promise);
@@ -1808,6 +1814,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("takes the parent line away before the remove parent answer", async () => {
+    expectConsole("error", "Failed to remove parent task link");
     const user = userEvent.setup();
     const deferred = createDeferred<never>();
     vi.mocked(deleteTaskLink).mockReturnValueOnce(deferred.promise);
@@ -2215,6 +2222,7 @@ describe("TaskDetailActions", () => {
   });
 
   it("shows an error toast when removing a related link fails", async () => {
+    expectConsole("error", "Failed to remove related task link");
     const user = userEvent.setup();
     const deleteTaskLinkMock = vi.mocked(deleteTaskLink);
     deleteTaskLinkMock.mockRejectedValue(new Error("remove failed"));

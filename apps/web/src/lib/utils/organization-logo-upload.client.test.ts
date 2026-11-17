@@ -25,6 +25,7 @@ import {
   UserFileUploadError,
   uploadOrganizationLogoDirect,
 } from "@/lib/utils/organization-logo-upload.client";
+import { expectConsole } from "@/test/console";
 
 interface MockXhrHandlers {
   onload: (() => void) | null;
@@ -161,9 +162,10 @@ describe("organization-logo-upload.client", () => {
 
   it("soft-fails cleanup errors", async () => {
     cleanupOrganizationLogoMock.mockRejectedValue(new Error("boom"));
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Failed to cleanup previous organization logo",
+    );
 
     await expect(
       cleanupOrganizationLogoBestEffort(
@@ -175,8 +177,7 @@ describe("organization-logo-upload.client", () => {
     expect(cleanupOrganizationLogoMock).toHaveBeenCalledWith("org_123", {
       url: "https://blob.example/organizations/org_123/logos/old.png",
     });
-    expect(consoleError).toHaveBeenCalled();
-    consoleError.mockRestore();
+    expect(consoleError).not.toHaveLength(0);
   });
 
   it("skips cleanup when url or organizationId is empty", async () => {

@@ -29,6 +29,7 @@ vi.mock("next-intl", () => ({
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
+import { expectConsole } from "@/test/console";
 import { PurchaseSuccessCoworkerRow } from "./purchase-success-coworker-row";
 
 function createCoworker(
@@ -50,12 +51,16 @@ function createCoworker(
 }
 
 describe("PurchaseSuccessCoworkerRow", () => {
-  it("shows a loading skeleton while the coworkers promise is pending", () => {
+  it("shows a loading skeleton while the coworkers promise is pending", async () => {
     const coworkersPromise = new Promise<CoworkerOption[]>(() => {});
 
-    const { container } = render(
-      <PurchaseSuccessCoworkerRow coworkersPromise={coworkersPromise} />,
-    );
+    // The row suspends on the promise: render inside an awaited act.
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <PurchaseSuccessCoworkerRow coworkersPromise={coworkersPromise} />,
+      ));
+    });
 
     expect(container.querySelectorAll("[aria-hidden]").length).toBeGreaterThan(
       0,
@@ -160,9 +165,8 @@ describe("PurchaseSuccessCoworkerRow", () => {
   });
 
   it("degrades to the 'go to tasks' fallback instead of crashing when the coworkers promise rejects", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "[default-error-boundary]");
+    expectConsole("error", "Error: boom");
 
     await act(async () => {
       render(
@@ -176,14 +180,11 @@ describe("PurchaseSuccessCoworkerRow", () => {
       "href",
       "/tasks",
     );
-
-    consoleError.mockRestore();
   });
 
   it("calls onNavigate from the error-boundary 'go to tasks' fallback", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "[default-error-boundary]");
+    expectConsole("error", "Error: boom");
     const onNavigate = vi.fn();
 
     await act(async () => {
@@ -198,7 +199,5 @@ describe("PurchaseSuccessCoworkerRow", () => {
     screen.getByText("goToTasks").closest("a")?.click();
 
     expect(onNavigate).toHaveBeenCalled();
-
-    consoleError.mockRestore();
   });
 });

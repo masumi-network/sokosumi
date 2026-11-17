@@ -1,5 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -117,7 +118,6 @@ function buildCloseStatus() {
 describe("project actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => {});
     toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
       message:
         error instanceof Error
@@ -210,6 +210,7 @@ describe("project actions", () => {
   });
 
   it("does not treat a bare 409 as identifier_taken", async () => {
+    expectConsole("error", "Failed to create project");
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     toCoreApiActionErrorMock.mockReturnValue({
       message: "Something else conflicted",
@@ -302,6 +303,10 @@ describe("project actions", () => {
   });
 
   it("returns a Core error when saving posting instructions fails", async () => {
+    expectConsole(
+      "error",
+      "Failed to update project posting instructions CoreApiRequestError: forbidden",
+    );
     const { updateProjectPostingInstructions } = await import("./action");
     projectServiceMock.patchProject.mockRejectedValueOnce(
       new CoreApiRequestError("forbidden", { status: 403 }),
@@ -538,6 +543,7 @@ describe("project actions", () => {
   });
 
   it("maps Core errors from mutations", async () => {
+    expectConsole("error", "Failed to update project");
     projectServiceMock.patchProject.mockRejectedValue(new Error("Core failed"));
     toCoreApiActionErrorMock.mockReturnValue({
       message: "Project name is already in use",

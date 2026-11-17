@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 const readRouteSessionMock = vi.fn();
 const redirectMock = vi.fn();
@@ -151,7 +152,12 @@ describe("SetupAssistantPage", () => {
       "Soko Bot is off or failing",
       () => getMineMock.mockRejectedValue(new Error("404")),
     ],
-  ])("goes straight on when %s", async (_label, arrange) => {
+  ])("goes straight on when %s", async (label, arrange) => {
+    // Only a failing Soko Bot read is an error worth logging; the other
+    // cases are the step not applying.
+    if (label === "Soko Bot is off or failing") {
+      expectConsole("error", "Skipping the setup assistant step");
+    }
     arrange();
 
     await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT");

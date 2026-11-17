@@ -47,6 +47,7 @@ vi.mock("ably/react", () => ({
 }));
 
 import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
+import { expectConsole } from "@/test/console";
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);
@@ -231,9 +232,8 @@ describe("useOrgPresencePublisher", () => {
   });
 
   it("retries a failed active org on the next local tick instead of treating a failed enter as done", async () => {
-    const errorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Ably presence enter/update failed");
+    expectConsole("error", "Ably presence enter/update failed");
     const failedOrg = channelFor("presence:org_org_1");
     failedOrg.presence.update.mockRejectedValue(new Error("channel denied"));
     failedOrg.presence.enter.mockRejectedValue(new Error("channel denied"));
@@ -249,7 +249,6 @@ describe("useOrgPresencePublisher", () => {
       });
       expect(failedOrg.presence.update).toHaveBeenCalledTimes(2);
     } finally {
-      errorSpy.mockRestore();
     }
   });
 

@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
@@ -145,6 +146,13 @@ vi.mock("@sokosumi/core-client", () => ({
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
   postDriveFolders: (...args: unknown[]) => postDriveFoldersMock(...args),
+  // A project or task named in the URL but not yet listed: its name is read.
+  getProjectsById: async ({ path }: { path: { id: string } }) => ({
+    data: { data: { id: path.id, name: `Project ${path.id}` } },
+  }),
+  getTasksById: async ({ path }: { path: { id: string } }) => ({
+    data: { data: { id: path.id, name: `Task ${path.id}` } },
+  }),
 }));
 
 vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
@@ -1362,6 +1370,8 @@ describe("DrivePage files sort", () => {
     replaceMock.mockReset();
     pushMock.mockReset();
     useSessionMock.mockReset();
+    // The Tables view lists none unless a test says otherwise.
+    listDataTablesMock.mockResolvedValue({ items: [], nextCursor: null });
     listDriveItemsMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
@@ -2243,9 +2253,7 @@ describe("one catalog, not two", () => {
     it("reports a failed single file without the skip-reasons note", async () => {
       uploadDriveFileMock.mockReset();
       uploadDriveFileMock.mockRejectedValueOnce(new Error("network"));
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      expectConsole("error", "Failed to upload file");
       renderDrive();
       const list = await screen.findByTestId("drive-all-files");
 
@@ -2254,7 +2262,6 @@ describe("one catalog, not two", () => {
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith("uploadError", undefined);
       });
-      consoleError.mockRestore();
     });
   });
 });

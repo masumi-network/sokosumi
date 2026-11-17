@@ -5,6 +5,7 @@ import {
   TaskStatus,
 } from "@sokosumi/core-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -333,6 +334,7 @@ describe("task link actions", () => {
   });
 
   it("rejects non-adhoc or non-https custom brand URLs", async () => {
+    expectConsole("error", "Failed to create task", 4);
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("./action");
@@ -415,6 +417,10 @@ describe("task link actions", () => {
   });
 
   it("rethrows Core 404 Project not found from createTask (SOKOSUMI-QA)", async () => {
+    expectConsole(
+      "error",
+      "Failed to create task CoreApiRequestError: Project not found",
+    );
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     const { createTask } = await import("./action");
 
@@ -440,6 +446,7 @@ describe("task link actions", () => {
   });
 
   it("keeps the existing parent when creating the new link fails", async () => {
+    expectConsole("error", "Failed to create task link");
     taskServiceMock.listTaskLinks.mockResolvedValue([buildTaskLink()]);
     taskServiceMock.createTaskLink.mockRejectedValue(new Error("link failed"));
 
@@ -457,6 +464,7 @@ describe("task link actions", () => {
   });
 
   it("rolls back the new parent link and restores deleted parents when cleanup fails", async () => {
+    expectConsole("error", "Failed to create task link");
     taskServiceMock.listTaskLinks.mockResolvedValue([
       buildTaskLink({
         id: "link-old-1",
@@ -534,6 +542,8 @@ describe("task link actions", () => {
   });
 
   it("throws when parent replacement rollback fails after cleanup errors", async () => {
+    expectConsole("error", "Failed to create task link");
+    expectConsole("error", "Failed to rollback created parent link");
     taskServiceMock.listTaskLinks.mockResolvedValue([buildTaskLink()]);
     taskServiceMock.createTaskLink.mockResolvedValue({
       id: "link-new",
@@ -561,6 +571,7 @@ describe("task link actions", () => {
   });
 
   it("archives the created task when creating the link fails after task creation", async () => {
+    expectConsole("error", "Failed to create and link task");
     taskServiceMock.createTask.mockResolvedValue(buildTask());
     taskServiceMock.listTaskLinks.mockResolvedValue([]);
     taskServiceMock.createTaskLink.mockRejectedValue(new Error("link failed"));
@@ -595,6 +606,7 @@ describe("task link actions", () => {
   });
 
   it("archives the created task after rolling back a failed parent cleanup", async () => {
+    expectConsole("error", "Failed to create and link task");
     taskServiceMock.createTask.mockResolvedValue(buildTask());
     taskServiceMock.listTaskLinks.mockResolvedValue([
       buildTaskLink({
@@ -994,6 +1006,7 @@ describe("setTaskStatusFromDrag", () => {
   });
 
   it("rejects reopening completed to ready without a comment", async () => {
+    expectConsole("error", "Failed to update task status");
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
         id: "task-1",
@@ -1284,6 +1297,7 @@ describe("setTaskPriority", () => {
   });
 
   it("surfaces a Core failure instead of swallowing it", async () => {
+    expectConsole("error", "Failed to update task priority");
     taskServiceMock.patchTask.mockRejectedValue(new Error("Core down"));
     const { setTaskPriority } = await import("./action");
 

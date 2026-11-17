@@ -212,6 +212,20 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - **Mocks, timers and module state.** `src/test/setup.ts` resets the module registry before each file, so `vi.mock` applies even when an earlier file imported the real module. After each file it calls `vi.useRealTimers()` and `vi.restoreAllMocks()`. A module's own state can still outlive it through a dependency that stays loaded: tie it to the module, not to the dependency (`src/hooks/use-intent-prefetch.ts` guards its listeners with its own flag, not with `ForesightManager.isInitiated`).
 - **Pending React transitions.** react-dom joins every async transition to any that is still pending. A transition that awaits a promise that never settles keeps every later file's transitions pending. Do not leave such a promise behind: use `Promise.withResolvers()` and settle it in `act` before the test ends, and run out the timers a transition awaits. `src/test/setup.dom.ts` fails a file that leaves one: "left a React async transition pending".
 
+### No unexpected console output
+
+`src/test/setup.ts` fails a test that writes a `console.error` or `console.warn` it did not declare, and a test that replaces either (`vi.spyOn(console, "warn").mockImplementation(…)`, `console.warn = fn`, a bare `vi.fn()`), even one restored before the test ends. `console.log` stays allowed. Such output means the test ran something other than production. Fix the cause:
+
+- a mock missing an export, or one that answers `undefined` where the real one answers data (`Query data cannot be undefined`);
+- a fixture production would not send (two items with one key, a notification without its workspace);
+- a hand-written `next-intl` setup without the app's `createFormats()` or with a stale message subset;
+- a server action or service running inside a DOM test;
+- a render that suspends without an awaited `act`.
+
+`next/image` cannot measure a `fill` parent in happy-dom; mock it with `vi.mock("next/image", () => import("@/test/next-image"))`.
+
+Only a test whose subject is that error path declares it, with `expectConsole(method, start, times = 1)` from `@/test/console`: the message must start with `start` and come exactly `times` times, and the return value holds the matched calls' arguments, so assert the reason or error on them.
+
 **Reproduce an order.** The log's first line prints `Running tests with seed "<seed>"`. Rerun that order with `pnpm --filter web exec vitest run --sequence.seed=<seed>`. Adding `--maxWorkers=1` puts every file in one worker, which brings out leaks a 4-worker run only hits now and then. A failure that only shows up under one seed is a leak: find the earlier file that causes it and fix it there. Never retry it, skip it or give it a wider timeout.
 
 ## App-Specific Gotchas

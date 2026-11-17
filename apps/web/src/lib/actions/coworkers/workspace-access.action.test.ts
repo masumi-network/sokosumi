@@ -34,6 +34,7 @@ import {
   grantDeveloperCoworkerEarlyAccessAction,
   revokeDeveloperCoworkerEarlyAccessAction,
 } from "@/lib/actions/coworkers/workspace-access.action";
+import { expectConsole } from "@/test/console";
 
 const COWORKER_ID = "11111111-1111-4111-8111-111111111111";
 const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
@@ -106,9 +107,10 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
   });
 
   it("maps service failures through toCoreApiActionError", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to grant developer coworker early access CoreApiRequestError: Core backend timeout",
+    );
     createForCoworkerMock.mockRejectedValue(
       new CoreApiRequestError("Core backend timeout", { status: 503 }),
     );
@@ -128,7 +130,6 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
         });
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 });

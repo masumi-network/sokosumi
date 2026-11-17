@@ -74,6 +74,7 @@ vi.mock(
   }),
 );
 
+import { expectConsole } from "@/test/console";
 import { IdentityOnboardingForm } from "../identity-onboarding-form.client";
 
 const messages = {
@@ -92,6 +93,9 @@ const messages = {
         LastName: {
           required: "Last name is required",
           max: "Last name is too long",
+        },
+        FullName: {
+          max: "First and last name together must be at most 128 characters, including the space.",
         },
       },
     },
@@ -150,7 +154,7 @@ describe("IdentityOnboardingForm", () => {
       ...window.location,
       replace: locationReplaceMock,
     });
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, "error");
     storedName = "";
     updateUserMock.mockImplementation(async (body: { name?: string }) => {
       if (body.name !== undefined) storedName = body.name;
@@ -379,6 +383,8 @@ describe("IdentityOnboardingForm", () => {
   });
 
   it("keeps the first display name when onboarding is retried", async () => {
+    expectConsole("error", "Identity onboarding personal create failed");
+    expectConsole("error", "Identity onboarding personal create failed");
     const user = userEvent.setup();
     renderForm({
       initialName: "",
@@ -638,6 +644,10 @@ describe("IdentityOnboardingForm", () => {
   });
 
   it("retries organization activation once before leaving the gate", async () => {
+    expectConsole(
+      "error",
+      "Identity onboarding organization activation failed",
+    );
     const user = userEvent.setup();
     activateOrganizationWorkspaceMock
       .mockRejectedValueOnce(new Error("setActive failed"))
@@ -656,6 +666,14 @@ describe("IdentityOnboardingForm", () => {
   });
 
   it("toasts and still leaves the gate when organization activation fails twice", async () => {
+    expectConsole(
+      "error",
+      "Identity onboarding organization activation retry failed",
+    );
+    expectConsole(
+      "error",
+      "Identity onboarding organization activation failed",
+    );
     const user = userEvent.setup();
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),
@@ -695,6 +713,7 @@ describe("IdentityOnboardingForm", () => {
   });
 
   it("toasts i18n copy for non-409 create errors instead of raw Core text", async () => {
+    expectConsole("error", "Identity onboarding personal create failed");
     const user = userEvent.setup();
     createPersonalWorkspaceActionMock.mockResolvedValue({
       ok: false,
@@ -741,6 +760,7 @@ describe("IdentityOnboardingForm", () => {
   });
 
   it("still leaves the gate when activation fails after create", async () => {
+    expectConsole("error", "Identity onboarding personal activation failed");
     const user = userEvent.setup();
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),

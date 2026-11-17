@@ -14,6 +14,7 @@ import {
   SHOWS_NOTIFICATIONS_QUERY,
   subscribeNotificationClicks,
 } from "@/lib/utils/notification-service-worker";
+import { expectConsole } from "@/test/console";
 
 const envMock = vi.hoisted(() => ({
   NEXT_PUBLIC_VERCEL_ENV: undefined as
@@ -241,6 +242,7 @@ describe("showNotification", () => {
    * A failed lookup prefers an extra alert over a silent replacement.
    */
   it("re-alerts when the existing banner cannot be checked", async () => {
+    expectConsole("error", "Failed to read the displayed notifications");
     const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
     stubServiceWorker({
       register: vi.fn().mockResolvedValue({
@@ -362,10 +364,13 @@ describe("showNotification", () => {
   });
 
   it("shows nothing when the worker cannot be registered", async () => {
+    expectConsole(
+      "error",
+      "Failed to register the notification service worker",
+    );
     stubServiceWorker({
       register: vi.fn().mockRejectedValue(new Error("blocked")),
     });
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const module = await importFresh();
     await expect(
@@ -402,7 +407,11 @@ describe("subscribeNotificationClicks", () => {
     // The worker's own query reaches this listener too, so silence is the
     // right answer to it. A click whose target will not parse is the case
     // worth reporting, and the two are told apart below.
-    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reported = expectConsole(
+      "error",
+      "Ignored a notification click target",
+      2,
+    );
     const unsubscribe = subscribeNotificationClicks(onClick);
     const emit = (data: unknown) => {
       for (const listener of listeners) {
@@ -412,7 +421,7 @@ describe("subscribeNotificationClicks", () => {
 
     emit({ type: "something-else", target: TARGET });
     emit({ type: SHOWS_NOTIFICATIONS_QUERY });
-    expect(reported).not.toHaveBeenCalled();
+    expect(reported).toHaveLength(0);
 
     emit({ type: NOTIFICATION_CLICK_MESSAGE });
     emit({ type: NOTIFICATION_CLICK_MESSAGE, target: { id: "" } });
@@ -422,7 +431,7 @@ describe("subscribeNotificationClicks", () => {
     expect(onClick).toHaveBeenCalledWith(TARGET);
     // A banner the worker rendered but this build cannot route leaves the
     // reader with a focused tab and nothing else, so it must not be silent.
-    expect(reported).toHaveBeenCalledTimes(2);
+    expect(reported).toHaveLength(2);
 
     unsubscribe();
     expect(listeners.size).toBe(0);
@@ -487,12 +496,15 @@ describe("getNotificationServiceWorker", () => {
    * moment, so the next call tries again.
    */
   it("retries after a failed registration", async () => {
+    expectConsole(
+      "error",
+      "Failed to register the notification service worker",
+    );
     const register = vi
       .fn()
       .mockRejectedValueOnce(new Error("blocked"))
       .mockResolvedValue({ active: {} });
     stubServiceWorker({ register });
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const module = await importFresh();
     await expect(module.getNotificationServiceWorker()).resolves.toBeNull();
@@ -507,6 +519,10 @@ describe("getNotificationServiceWorker", () => {
    * the tab would throw instead of reporting that it showed nothing.
    */
   it("retries after the worker never becomes active", async () => {
+    expectConsole(
+      "error",
+      "Failed to register the notification service worker",
+    );
     const register = vi.fn().mockResolvedValue({ active: null });
     stubServiceWorker({
       register,
@@ -516,7 +532,6 @@ describe("getNotificationServiceWorker", () => {
           : Promise.reject(new Error("never activated"));
       },
     });
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const module = await importFresh();
     await expect(module.getNotificationServiceWorker()).resolves.toBeNull();
@@ -792,7 +807,7 @@ describe("closeNotificationGroup", () => {
   });
 
   it("survives a browser that cannot list its banners", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to close the notification group");
     stubServiceWorker({
       register: vi.fn(),
       getRegistration: vi.fn().mockResolvedValue({

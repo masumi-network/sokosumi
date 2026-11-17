@@ -9,8 +9,8 @@ import {
 import { NextIntlClientProvider } from "next-intl";
 import { StrictMode, useRef, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import messages from "@/../messages/en.json";
+import { createFormats } from "@/i18n/time-format";
 
 import { canCompareStudioAsset } from "./studio-batch";
 import { StudioCompare } from "./studio-compare";
@@ -72,7 +72,12 @@ function mount(strict = false) {
   const onClose = vi.fn();
   const content = (
     <QueryClientProvider client={client}>
-      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <NextIntlClientProvider
+        locale="en"
+        messages={messages}
+        timeZone="UTC"
+        formats={createFormats()}
+      >
         <StudioCompare
           batchId="batch"
           catalog={TEST_CATALOG}
@@ -246,6 +251,7 @@ describe("batch comparisons", () => {
             locale="en"
             messages={messages}
             timeZone="UTC"
+            formats={createFormats()}
           >
             <Harness />
           </NextIntlClientProvider>
@@ -269,7 +275,12 @@ describe("compare entry", () => {
     const onCompare = vi.fn();
     render(
       <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <NextIntlClientProvider
+          locale="en"
+          messages={messages}
+          timeZone="UTC"
+          formats={createFormats()}
+        >
           <StudioLightbox
             assets={[A]}
             catalog={TEST_CATALOG}
@@ -347,7 +358,12 @@ describe("compare entry", () => {
   it("opens the compatible batch from a gallery tile", () => {
     const onCompare = vi.fn();
     render(
-      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <NextIntlClientProvider
+        locale="en"
+        messages={messages}
+        timeZone="UTC"
+        formats={createFormats()}
+      >
         <StudioGallery
           activeJobs={[]}
           assets={[A, B]}

@@ -6,6 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "../room-composer";
 import { ThreadPanel } from "../thread-panel";
 
+// The thread's mute button loads the thread through a server action; a DOM
+// test has no server to run it on (`thread-mute-button.test.tsx` covers it).
+vi.mock("@/app/chat/actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/chat/actions")>()),
+  getRoomThreadAction: async () => ({
+    ok: true as const,
+    value: { mutedAt: null },
+  }),
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => {
     if (key === "Thread.replyCount" && values) {

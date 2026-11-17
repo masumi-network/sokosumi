@@ -62,7 +62,7 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
 }));
 
 import type { ChatRoom } from "@sokosumi/core-client";
-
+import { expectConsole } from "@/test/console";
 import { ChatRoomPageContent, generateStaticParams } from "./page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -638,9 +638,7 @@ describe("ChatRoomPage channel settings role", () => {
   });
 
   it("opens the room without settings when the membership read fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Failed to load organization membership");
     getMyMemberInOrganizationMock.mockRejectedValue(new Error("core down"));
 
     const element = (await ChatRoomPageContent({
@@ -650,7 +648,6 @@ describe("ChatRoomPage channel settings role", () => {
     const props = roomsClientProps(element);
     expect(props.selectedRoomId).toBe(ROOM_ID);
     expect(props.isOrgOwnerOrAdmin).toBe(false);
-    consoleError.mockRestore();
   });
 
   it.each([
@@ -693,9 +690,8 @@ describe("ChatRoomPage channel settings role", () => {
   });
 
   it("opens a Room visit without settings when the membership read fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Failed to load organization membership");
+    expectConsole("error", "Failed to load organization membership");
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_B,
       name: "Org B",
@@ -711,7 +707,6 @@ describe("ChatRoomPage channel settings role", () => {
     const props = roomsClientProps(element);
     expect(props.selectedRoomId).toBe(ROOM_ID);
     expect(props.isOrgOwnerOrAdmin).toBe(false);
-    consoleError.mockRestore();
   });
 
   it("does not read a membership in the personal workspace", async () => {
