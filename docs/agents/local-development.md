@@ -22,7 +22,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 4. Bootstrap database: `pnpm prisma:migrate:dev`, or with a Neon key `pnpm db:up` for a branch of production per worktree ([`agent-database.md`](./agent-database.md))
 5. Generate Prisma clients: `pnpm prisma:generate`
 
-A fresh git worktree has no `node_modules`. Until steps 1 and 5 have run there, Core tests fail with `Failed to resolve entry for package "@sokosumi/database"` and the husky hook exits 127; both read like a broken package, not a missing setup step. Web tests alias the source and need neither.
+A fresh git worktree has no `node_modules`. Until steps 1 and 5 have run there, Core tests fail with `Failed to resolve entry for package "@sokosumi/database"` and the husky hook exits 127; both read like a broken package, not a missing setup step. Web tests need the install but not Prisma generation, because they alias the source.
 
 ## Commands
 
