@@ -56,8 +56,8 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { error: mocks.toast, success: vi.fn() } }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { setupAssistantPath } from "@/lib/workspace-gate";
-import { expectConsole } from "@/test/console";
 import { IdentityOnboardingForm } from "./identity-onboarding-form.client";
 
 function deferred<T>() {

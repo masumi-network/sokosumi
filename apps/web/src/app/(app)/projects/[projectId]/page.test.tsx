@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TASK_DETAIL_SHELL_CLASS } from "@/app/tasks/constants";
-import { expectConsole } from "@/test/console";
 
 const {
   connectionMock,

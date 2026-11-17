@@ -1,6 +1,6 @@
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it, vi } from "vitest";
-
 import {
   type ClassifierContextSummary,
   JevTurnClassifier,
@@ -9,7 +9,6 @@ import {
   SOKO_BOT_ROUTE_MODEL,
   unwrapTitleTags,
 } from "@/lib/soko-bot/classifier";
-import { expectConsole } from "@/test/console";
 import { jevRoute } from "@/test/jev-routes";
 
 describe("unwrapTitleTags", () => {

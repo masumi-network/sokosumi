@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
@@ -8,7 +9,6 @@ import { jwt } from "better-auth/plugins";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isProductionEnvironment } from "@/config/env";
-import { expectConsole } from "@/test/console";
 import { emailCodeSignIn } from "./auth-email-code-sign-in";
 import { afterNewSession } from "./auth-new-session";
 import {

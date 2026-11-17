@@ -1,11 +1,10 @@
 import { isSocialProviderEnabled } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
-import { expectConsole } from "@/test/console";
 
 const {
   deleteSocialAccountAvatarIfOwnedMock,

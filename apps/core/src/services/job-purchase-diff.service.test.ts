@@ -45,8 +45,8 @@ vi.mock("@sokosumi/database/helpers", () => ({
   mapJobWithStatus: (job: unknown) => job,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { ok } from "neverthrow";
-import { expectConsole } from "@/test/console";
 import {
   PURCHASE_DIFF_INITIAL_LOOKBACK_MS,
   PURCHASE_DIFF_PAGE_SIZE,

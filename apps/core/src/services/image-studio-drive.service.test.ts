@@ -42,13 +42,13 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   ensureStudioAssetDriveFile,
   moveLegacyStudioFolderTasks,
   publishStudioAssetToFiles,
   studioAssetFileName,
 } from "@/services/image-studio-drive.service";
-import { expectConsole } from "@/test/console";
 
 const INPUT = {
   projectId: "project-1",

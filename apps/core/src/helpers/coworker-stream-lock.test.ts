@@ -16,7 +16,7 @@ vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   acquireStreamLock,
   COWORKER_STREAM_LOCK_HEARTBEAT_MS,

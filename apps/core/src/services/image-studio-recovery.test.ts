@@ -103,6 +103,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   reconcileJob,
@@ -110,7 +111,6 @@ import {
   requestCancel,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
 
 /** The default model's generate endpoint, from the catalog. */
 const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;

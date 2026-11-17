@@ -75,9 +75,8 @@ vi.mock("@sentry/node", () => ({
 }));
 
 import * as Sentry from "@sentry/node";
-
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-import { expectConsole } from "@/test/console";
 import {
   emitChatRoomMessageCreatedEffects,
   invalidateChatRoomMessageReaders,

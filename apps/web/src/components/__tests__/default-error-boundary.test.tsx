@@ -11,8 +11,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { expectConsole } from "@/test/console";
 
 function Boom({ message }: { message: string }): ReactNode {
   throw new Error(message);

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   afterAll,
   beforeAll,
@@ -9,7 +9,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { expectConsole } from "@/test/console";
 
 /**
  * Retry and stale reclaim of a Soko Bot mention, against a real database.

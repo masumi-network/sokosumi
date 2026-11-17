@@ -11,7 +11,7 @@
 
 ## Layout
 
-The live tree is `src/`. One main export in `package.json` (`@sokosumi/utils`). `prepare` compiles `src/` to `dist/`.
+The live tree is `src/`. One main export in `package.json` (`@sokosumi/utils`), plus the test-only `@sokosumi/utils/test-console`: the console guard Core's and Web's Vitest setup files install. It imports Vitest, so nothing outside tests imports it. `prepare` compiles `src/` to `dist/`.
 
 ## Entry Points
 

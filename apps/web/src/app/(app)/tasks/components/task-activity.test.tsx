@@ -1,11 +1,11 @@
 import type { TaskEvent } from "@sokosumi/core-client";
 import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import { expectConsole } from "@/test/console";
 
 const HAPPY_DOM_SUBMITTER_ERROR =
   "DOMException [NotFoundError]: The specified element is not owned by this form element";

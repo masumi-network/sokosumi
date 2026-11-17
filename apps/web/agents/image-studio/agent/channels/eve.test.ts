@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { SessionNotActiveError } from "eve/sessions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 /**
  * The studio channel's authorization and first-message policy.

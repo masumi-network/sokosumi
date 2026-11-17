@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { askJevMock } = vi.hoisted(() => ({ askJevMock: vi.fn() }));
 vi.mock("./jev", () => ({ askJev: askJevMock }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { unattendedChaseRefusal } from "./unattended-comment";
 
 const event = { source: "EVENT", chainDepth: 0 };

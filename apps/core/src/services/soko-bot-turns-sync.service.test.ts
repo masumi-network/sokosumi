@@ -38,13 +38,13 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   SOKO_BOT_TURN_STARTING_ABANDON_MS,
   SOKO_BOT_TURN_STARTING_GRACE_MS,
   sokoBotTurnsSyncService,
 } from "@/services/soko-bot-turns-sync.service";
-import { expectConsole } from "@/test/console";
 
 function continueFor(maxChecks: number) {
   let checks = 0;

@@ -62,7 +62,7 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
 }));
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { ChatRoomPageContent, generateStaticParams } from "./page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";

@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 
 /**
  * Backfill has to *record* that it finished, or it never finishes.

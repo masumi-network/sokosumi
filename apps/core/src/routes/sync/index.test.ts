@@ -1,8 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { Hono } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 
 const {
   acquireLockMock,

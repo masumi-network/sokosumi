@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it } from "vitest";
-import { expectConsole } from "@/test/console";
 import { transformPurchaseToJobUpdate } from "./purchase";
 
 type PurchaseInput = Parameters<typeof transformPurchaseToJobUpdate>[0];

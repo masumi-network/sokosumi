@@ -71,7 +71,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   availableNetwork,
   cappedWith,

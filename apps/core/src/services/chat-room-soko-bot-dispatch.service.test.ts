@@ -88,7 +88,7 @@ vi.mock("./chat-room-mention-context", async (importOriginal) => ({
   loadRoomContextMessages,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   acceptOnceIdle,
   runSokoBotMentionDispatch,

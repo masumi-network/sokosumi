@@ -1,11 +1,10 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
-import { expectConsole } from "@/test/console";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountGetProjectContextMd from "./context-md/get.js";
 import mountDeleteProject from "./delete.js";

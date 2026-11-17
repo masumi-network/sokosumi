@@ -74,6 +74,7 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ COMPOSIO_API_KEY: "ak_test" }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   listIntegrationTools,
   runIntegrationTool,
@@ -90,7 +91,6 @@ import {
   searchSokoBotIntegrationCatalog,
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
-import { expectConsole } from "@/test/console";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,

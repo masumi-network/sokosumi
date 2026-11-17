@@ -10,8 +10,8 @@ vi.mock("@/clients/webhook.client", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { webhookService } from "@/services/webhook.service";
-import { expectConsole } from "@/test/console";
 
 const validUser = {
   id: "user_1",

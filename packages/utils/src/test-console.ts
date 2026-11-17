@@ -1,6 +1,6 @@
 import { format, stripVTControlCharacters } from "node:util";
 
-import { afterAll, beforeEach, expect, vi } from "vitest";
+import { afterAll, beforeEach, vi } from "vitest";
 
 /**
  * A test fails when it writes a `console.error` or `console.warn` it did
@@ -187,7 +187,7 @@ export function expectConsole(
 
 function unexpectedError(messages: string[], where: string): Error {
   return new Error(
-    `Unexpected console output ${where}. Fix its cause, or, when it is the test's subject, declare it with expectConsole() from "@/test/console":\n${messages.join("\n---\n")}`,
+    `Unexpected console output ${where}. Fix its cause, or, when it is the test's subject, declare it with expectConsole() from "@sokosumi/utils/test-console":\n${messages.join("\n---\n")}`,
   );
 }
 
@@ -216,7 +216,31 @@ export function checkConsoleUntouched(where: string): void {
     state.expected.length = 0;
     state.unexpected.length = 0;
     throw new Error(
-      `${[...new Set(muted)].join(", ")} replaced console output this guard checks ${where}. Declare the expected message with expectConsole() from "@/test/console" instead.`,
+      `${[...new Set(muted)].join(", ")} replaced console output this guard checks ${where}. Declare the expected message with expectConsole() from "@sokosumi/utils/test-console" instead.`,
+    );
+  }
+}
+
+/** Fails on output or replacements since the last check, then clears them. */
+function checkOutput(where: string): void {
+  const state = guardState();
+  checkConsoleUntouched(where);
+  const unexpected = state.unexpected.splice(0);
+  if (unexpected.length > 0) throw unexpectedError(unexpected, where);
+}
+
+/** Fails on declared output that came another number of times. */
+function checkCounts(): void {
+  const wrongCount = guardState()
+    .expected.splice(0)
+    .filter((entry) => entry.calls.length !== entry.times)
+    .map(
+      (entry) =>
+        `console.${entry.method}: ${String(entry.start)} (expected ${entry.times}, got ${entry.calls.length})`,
+    );
+  if (wrongCount.length > 0) {
+    throw new Error(
+      `Expected console output came another number of times:\n${wrongCount.join("\n")}`,
     );
   }
 }
@@ -225,39 +249,72 @@ export function checkConsoleUntouched(where: string): void {
 export function installConsoleGuard(): void {
   const state = guardState();
   state.expected.length = 0;
+  let lastTest: string | undefined;
+  // Errors not reported yet: Vitest drops a skipped test's errors, so they
+  // wait for the next test that runs, or for this file's end.
+  const pending: unknown[] = [];
+  const hold = (check: () => void) => {
+    try {
+      check();
+    } catch (error) {
+      pending.push(error);
+    }
+  };
+  const report = () => {
+    const errors = pending.splice(0);
+    if (errors.length === 1) throw errors[0];
+    if (errors.length > 1) {
+      throw new AggregateError(
+        errors,
+        "The console guard found more than one problem.",
+      );
+    }
+  };
 
-  // Vitest runs onTestFinished hooks last, after afterEach, beforeEach
-  // cleanups and fixture teardown, and in reverse: this one, registered
-  // first, runs after a test's own. Output and replacements from any of them
-  // count against the test that ran them.
-  beforeEach(({ onTestFinished }) => {
-    const where = `in "${expect.getState().currentTestName}"`;
+  // Vitest runs onTestFinished hooks after afterEach, beforeEach cleanups and
+  // the teardown of the test's fixtures, automatic ones included, and in
+  // reverse: this one, registered first, runs after a test's own. Output and
+  // replacements from any of them count against the test that ran them.
+  //
+  // The limit: Vitest 5.1.0 runs aroundEach teardown, and then the teardown
+  // of the fixtures an aroundEach uses, after onTestFinished, and nothing
+  // after them that can fail the test. What happens there, or in a
+  // beforeAll/afterAll between tests, is caught when the next test's
+  // beforeEach starts: the console is put back, and that test fails naming
+  // the test before it. Its aroundEach setup has already run by then.
+  beforeEach(({ task, onTestFinished }) => {
+    const name = task.fullTestName;
+    hold(() =>
+      checkOutput(
+        lastTest === undefined
+          ? `before "${name}", outside a test in this file`
+          : `after "${lastTest}" finished, before "${name}" (in an aroundEach teardown, a fixture's, or a hook between tests)`,
+      ),
+    );
+    lastTest = name;
     onTestFinished(() => {
-      checkConsoleUntouched(where);
-      const unexpected = state.unexpected.splice(0);
-      const wrongCount = state.expected
-        .splice(0)
-        .filter((entry) => entry.calls.length !== entry.times)
-        .map(
-          (entry) =>
-            `console.${entry.method}: ${String(entry.start)} (expected ${entry.times}, got ${entry.calls.length})`,
-        );
-      if (unexpected.length > 0) throw unexpectedError(unexpected, where);
-      if (wrongCount.length > 0) {
-        throw new Error(
-          `Expected console output came another number of times:\n${wrongCount.join("\n")}`,
-        );
+      hold(() => checkOutput(`in "${name}"`));
+      if (task.result?.state === "skip") {
+        // A declaration the skip cut short is not a failure.
+        state.expected.length = 0;
+        return;
       }
+      hold(checkCounts);
+      report();
     });
   });
 
   // Output between tests: collection, `beforeAll`/`afterAll`, or work a
   // test left running (in a shared worker, possibly an earlier file's).
   afterAll(() => {
-    checkConsoleUntouched("outside a test in this file");
-    const unexpected = state.unexpected.splice(0);
-    if (unexpected.length > 0) {
-      throw unexpectedError(unexpected, "outside a test in this file");
-    }
+    hold(() =>
+      checkOutput(
+        lastTest === undefined
+          ? "outside a test in this file"
+          : `after "${lastTest}" finished, outside a test in this file`,
+      ),
+    );
+    hold(checkCounts);
+    report();
   });
 }

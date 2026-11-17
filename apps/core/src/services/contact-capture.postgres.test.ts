@@ -68,8 +68,8 @@ vi.mock("ai", async (importOriginal) => ({
   generateText: mocks.generateText,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 import {
   ContactCaptureService,
   scheduleContactCapture,

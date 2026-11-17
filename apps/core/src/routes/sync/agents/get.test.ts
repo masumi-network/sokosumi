@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import mountSyncAgents from "./get";
 
 const {

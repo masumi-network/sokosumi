@@ -50,7 +50,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
 import { useRoomTyping } from "./use-room-typing";

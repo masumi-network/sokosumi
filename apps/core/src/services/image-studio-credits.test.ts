@@ -131,7 +131,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
-
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { unprocessableEntity } from "@/helpers/error";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
@@ -140,7 +140,6 @@ import {
   failImageJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
 import { pngBytes } from "@/test/image-bytes";
 
 const BASE_INPUT = {

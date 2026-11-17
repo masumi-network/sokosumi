@@ -1,6 +1,6 @@
 import { MemberRole } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 vi.mock("server-only", () => ({}));
 

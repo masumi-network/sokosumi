@@ -25,8 +25,8 @@ vi.mock("./ably-client-instance-id", () => ({
   getOrCreateAblyClientInstanceId: () => "inst_test01",
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
-import { expectConsole } from "@/test/console";
 import {
   getAblyConnectionHealthy,
   reportAblyConnectionConnected,

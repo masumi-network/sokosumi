@@ -126,7 +126,7 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
   hasWebPushSubscription: () => hasWebPushSubscriptionMock(),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { activatePush, deactivatePush } from "./push-activation.client";
 import {
   hasPushDeviceIdentity,

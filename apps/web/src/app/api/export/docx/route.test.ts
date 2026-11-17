@@ -80,7 +80,7 @@ vi.mock("@/lib/utils/dom-context", () => ({
   setupDomContext: vi.fn(async () => () => {}),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { POST } from "./route";
 
 describe("POST /api/export/docx", () => {

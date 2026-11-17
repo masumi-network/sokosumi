@@ -153,9 +153,9 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
   emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-import { expectConsole } from "@/test/console";
 import { dispatchChatRoomMention } from "./chat-room-coworker-dispatch.service";
 import {
   ROOM_COWORKER_STREAM_TIMEOUT,

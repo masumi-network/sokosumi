@@ -24,7 +24,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getServerCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { utmService } from "./utm.service";
 
 const CAPTURED_AT = "2026-02-20T08:00:00.000Z";

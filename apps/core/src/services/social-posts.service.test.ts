@@ -3,6 +3,7 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   afterEach,
   beforeAll,
@@ -12,10 +13,8 @@ import {
   it,
   vi,
 } from "vitest";
-
 import * as socialProviders from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 
 const {
   projectFindFirstMock,

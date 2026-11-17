@@ -43,7 +43,7 @@ vi.mock("ably/react", () => ({
   }),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { useNotificationFrontPresence } from "./use-notification-front-presence";
 
 /**

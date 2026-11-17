@@ -8,15 +8,14 @@ vi.mock("@sokosumi/net", () => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import type { HTTPRequest, Page } from "puppeteer-core";
-
 import {
   installPdfExportRequestGuard,
   isAllowedLocalBrowserUrl,
   MAX_PDF_RESOURCE_BYTES,
   redactUrlForLog,
 } from "@/lib/utils/pdf-export-ssrf";
-import { expectConsole } from "@/test/console";
 
 beforeEach(() => {
   vi.clearAllMocks();

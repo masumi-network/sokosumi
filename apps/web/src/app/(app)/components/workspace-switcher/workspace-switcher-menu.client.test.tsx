@@ -1,5 +1,6 @@
 import { MemberRole, type UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -7,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
-import { expectConsole } from "@/test/console";
 import { WorkspaceSwitcherProvider } from "./workspace-switcher.client";
 import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 

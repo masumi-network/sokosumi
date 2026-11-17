@@ -1,9 +1,9 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { usePushDevices } from "@/app/account/components/use-push-devices";
-import { expectConsole } from "@/test/console";
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,

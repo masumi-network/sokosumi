@@ -675,6 +675,7 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { buildSokoBotAudienceTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   MAX_CHAT_CHAIN_DEPTH,
@@ -699,7 +700,6 @@ import {
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 import * as scheduleService from "@/services/soko-bot-schedule.service";
-import { expectConsole } from "@/test/console";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {

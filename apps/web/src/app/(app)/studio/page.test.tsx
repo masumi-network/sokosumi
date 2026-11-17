@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
   afterAll,
@@ -8,9 +9,7 @@ import {
   it,
   vi,
 } from "vitest";
-
 import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
-import { expectConsole } from "@/test/console";
 
 const {
   connectionMock,

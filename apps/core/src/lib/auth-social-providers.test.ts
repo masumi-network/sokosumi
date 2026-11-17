@@ -1,10 +1,10 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { signJWT, symmetricDecrypt } from "better-auth/crypto";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
-import { expectConsole } from "@/test/console";
 import { auth } from "./auth";
 import {
   accountOptions,

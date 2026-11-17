@@ -1,9 +1,9 @@
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
-import { expectConsole } from "@/test/console";
 
 const CORE = "https://auth.example.com";
 const WEB = "https://app.example.com";

@@ -1,6 +1,5 @@
+import { installConsoleGuard } from "@sokosumi/utils/test-console";
 import { vi } from "vitest";
-
-import { installConsoleGuard } from "./console";
 import { workerDatabaseUrl } from "./worker-database-url";
 
 const envDefaults: Record<string, string> = {

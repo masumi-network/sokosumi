@@ -149,6 +149,7 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
@@ -157,7 +158,6 @@ import {
   recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
 
 /**
  * The default model's endpoints, taken from the catalog rather than written out.

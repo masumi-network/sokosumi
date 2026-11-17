@@ -1,9 +1,9 @@
 import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { pendingEmailChange } from "./auth-pending-email-change.js";
 
