@@ -8,12 +8,8 @@ interface MascotProps {
 /** Cuso, large, on his light circle beside a page's lead. */
 export function Mascot({ className, art = "walking" }: MascotProps) {
   return (
-    <img
-      className={["mascot", className].filter(Boolean).join(" ")}
-      src={cusoArt(art)}
-      alt=""
-      width={640}
-      height={640}
-    />
+    <span className={["mascot", className].filter(Boolean).join(" ")}>
+      <img src={cusoArt(art)} alt="" width={640} height={640} />
+    </span>
   );
 }

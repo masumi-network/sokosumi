@@ -308,6 +308,15 @@ body:has(.ob) .site-header {
   font-size: 0.75rem;
 }
 
+/* A label on the stage: he stands above it, so it never covers him. */
+.ob-scene:has(.ob-scene-now) .ob-stage-art {
+  padding-bottom: 72px;
+}
+
+.ob-scene-compact:has(.ob-scene-now) .ob-stage-art {
+  padding-bottom: 56px;
+}
+
 /* He needs the owner: the label calls out on Iris. */
 .ob-scene-call {
   background: var(--primary);
