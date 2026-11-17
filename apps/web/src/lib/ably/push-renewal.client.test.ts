@@ -5,7 +5,7 @@ import { createContext, runInContext } from "node:vm";
 import Ably from "ably";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import {
   rememberPushRenewal,
   revokePushRenewal,
@@ -161,7 +161,6 @@ function failStorage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(console, "error").mockImplementation(() => {});
   databaseFactory = new IDBFactory();
   vi.stubGlobal("indexedDB", databaseFactory);
   subscription = makeSubscription(oldEndpoint);
@@ -229,27 +228,35 @@ describe("worker renewal consent", () => {
     expect(subscription.unsubscribe).not.toHaveBeenCalled();
   });
   it("unregisters even when the unsubscribe fails", async () => {
+    const errorCalls = expectConsole(
+      "error",
+      "Failed to stop browser push delivery",
+    );
     failStorage();
     subscription.unsubscribe.mockRejectedValueOnce(new Error("gone"));
     await revokePushRenewal();
     expect(unregister).toHaveBeenCalledOnce();
-    expect(console.error).toHaveBeenCalledWith(
+    expect(errorCalls).toContainEqual([
       "Failed to stop browser push delivery",
       expect.objectContaining({
         message: "Could not stop browser push delivery",
       }),
-    );
+    ]);
   });
   it("reports rather than throws when delivery cannot be stopped", async () => {
+    const errorCalls = expectConsole(
+      "error",
+      "Failed to stop browser push delivery",
+    );
     failStorage();
     unregister.mockResolvedValueOnce(false);
     await expect(revokePushRenewal()).resolves.toBeUndefined();
-    expect(console.error).toHaveBeenCalledWith(
+    expect(errorCalls).toContainEqual([
       "Failed to stop browser push delivery",
       expect.objectContaining({
         message: "Could not stop browser push delivery",
       }),
-    );
+    ]);
   });
 });
 

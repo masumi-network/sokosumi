@@ -14,6 +14,7 @@ import {
 import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { expectConsole } from "@/test/console";
 
 const replaceMock = vi.fn();
 const refreshMock = vi.fn();
@@ -214,9 +215,7 @@ describe("workspace switcher", () => {
 
     // The room's own page says so if the room is really gone.
     it("keeps the room open when it cannot be read after the switch", async () => {
-      const warn = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => undefined);
+      expectConsole("warn", "Failed to read the open room after a switch");
       vi.mocked(coreClient.getChatRoom).mockRejectedValueOnce(
         new Error("gone"),
       );
@@ -224,7 +223,6 @@ describe("workspace switcher", () => {
       await switchToOrgOne();
 
       expect(replaceMock).not.toHaveBeenCalled();
-      warn.mockRestore();
     });
   });
 
@@ -652,9 +650,10 @@ describe("workspace switcher", () => {
       },
     });
 
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleErrorSpy = expectConsole(
+      "error",
+      "Failed to persist preferred organization",
+    );
 
     const user = userEvent.setup();
     render(<WorkspaceSwitcherTestComponent />);
@@ -672,14 +671,12 @@ describe("workspace switcher", () => {
       expect(replaceMock).not.toHaveBeenCalled();
     });
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(consoleErrorSpy).toContainEqual([
       "Failed to persist preferred organization:",
       {
         code: "UNAUTHORIZED",
       },
-    );
-
-    consoleErrorSpy.mockRestore();
+    ]);
   });
 
   it("completes a personal switch when Better Auth rejects a stale organization", async () => {
@@ -722,9 +719,6 @@ describe("workspace switcher", () => {
       event.preventDefault();
     }
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     const user = userEvent.setup();
     render(<MembershipMissSwitcherTestComponent />);
@@ -749,7 +743,6 @@ describe("workspace switcher", () => {
     expect(toast.success).not.toHaveBeenCalled();
 
     window.removeEventListener("unhandledrejection", handleUnhandledRejection);
-    consoleErrorSpy.mockRestore();
   });
 
   it("still rejects setActive errors that are not a membership miss", async () => {

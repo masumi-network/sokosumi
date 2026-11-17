@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
-
+import { expectConsole } from "@/test/console";
 import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 
 const deletePersonalWorkspaceActionMock = vi.fn();
@@ -93,6 +93,10 @@ describe("DeletePersonalWorkspaceForm", () => {
   });
 
   it("toasts success when fallback org activation succeeds on retry", async () => {
+    expectConsole(
+      "error",
+      "Failed to activate remaining organization after personal delete",
+    );
     activateOrganizationWorkspaceMock
       .mockRejectedValueOnce(new Error("setActive failed"))
       .mockResolvedValueOnce(undefined);
@@ -116,6 +120,14 @@ describe("DeletePersonalWorkspaceForm", () => {
   });
 
   it("does not toast success when fallback org activation fails", async () => {
+    expectConsole(
+      "error",
+      "Failed to activate remaining organization after personal delete retry",
+    );
+    expectConsole(
+      "error",
+      "Failed to activate remaining organization after personal delete",
+    );
     activateOrganizationWorkspaceMock.mockRejectedValue(
       new Error("setActive failed"),
     );

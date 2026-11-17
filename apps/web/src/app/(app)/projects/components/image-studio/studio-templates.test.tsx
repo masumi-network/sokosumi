@@ -24,6 +24,9 @@ import type { StudioAsset } from "./types";
  * only that the list exists.
  */
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/studio",

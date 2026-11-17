@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditIndex } from "./seo-audit-index";
@@ -21,7 +22,12 @@ const AUDIT = {
 };
 function show(audits: (typeof AUDIT)[], addOpen: boolean) {
   render(
-    <NextIntlClientProvider locale="en" timeZone="UTC" messages={messages}>
+    <NextIntlClientProvider
+      locale="en"
+      timeZone="UTC"
+      messages={messages}
+      formats={createFormats()}
+    >
       <SeoAuditIndex
         audits={audits as never}
         nextCursor={null}

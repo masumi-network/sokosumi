@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMyPreferencesQueryKey } from "@/queries/preferences";
+import { expectConsole } from "@/test/console";
 import { CELL_TRACK, CELL_TRACK_SPAN } from "./notification-cells";
 import { NotificationKinds } from "./notification-kinds";
 
@@ -393,6 +394,8 @@ describe("NotificationKinds", () => {
     // own, a promise that never settles and a rejection, and either of them
     // stood for every test that ran after it.
     getMyPreferences.mockReset();
+    // A refetch of the seeded read answers with what Core holds.
+    getMyPreferences.mockImplementation(async () => response());
     isAccountEnabled = true;
     isDeviceEnabled = true;
     isDeviceKnown = true;
@@ -2267,7 +2270,8 @@ describe("NotificationKinds", () => {
    * the console: a refused prompt and a failed Core write look identical here.
    */
   it("logs why the push failed, since the reader is told one thing", async () => {
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to activate push from a delivery control");
+    const logged = vi.spyOn(console, "error");
     isAccountEnabled = false;
     setAccountEnabled.mockRejectedValue(new Error("refused"));
     renderKinds();
@@ -2489,6 +2493,7 @@ describe("NotificationKinds", () => {
   });
 
   it("puts the group back on its answer when a group write fails", async () => {
+    expectConsole("error", "Failed to update the notification preference");
     patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
     renderKinds();
 
@@ -2507,6 +2512,7 @@ describe("NotificationKinds", () => {
    * the sentence to nothing, and a region that goes empty says nothing at all.
    */
   it("never speaks the channels a failed write did not store", async () => {
+    expectConsole("error", "Failed to update the notification preference");
     patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
     renderKinds();
 
@@ -2543,6 +2549,7 @@ describe("NotificationKinds", () => {
   });
 
   it("puts the row back when the write fails", async () => {
+    expectConsole("error", "Failed to update the notification preference");
     patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
     renderKinds();
 

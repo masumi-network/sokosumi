@@ -16,6 +16,7 @@ vi.mock("./push-repair-outcome.client", () => ({
   recordPushRepairOutcome: recordOutcome,
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   handleRevokedPushDevice,
   stopRevokedPushDevice,
@@ -89,19 +90,20 @@ describe("push revocation cleanup", () => {
   });
 
   it("still cleans up if notifying browser state readers fails", async () => {
+    expectConsole("error", "Failed to report push revocation");
+    expectConsole("error", "Failed to report push revocation");
     const error = new Error("Listener failed");
     recordOutcome.mockRejectedValue(error);
-    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    const report = expectConsole("error", "Failed to report push revocation");
     try {
       await handleRevokedPushDevice("user-1");
       expect(dropSubscription).toHaveBeenCalledOnce();
       expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
-      expect(report).toHaveBeenCalledWith(
+      expect(report).toContainEqual([
         "Failed to report push revocation",
         error,
-      );
+      ]);
     } finally {
-      report.mockRestore();
     }
   });
 

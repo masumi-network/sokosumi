@@ -135,6 +135,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
+import { expectConsole } from "@/test/console";
 import WelcomePage, { generateMetadata } from "./page";
 
 async function renderPage() {
@@ -287,6 +288,7 @@ describe("WelcomePage", () => {
   });
 
   it("leaves the requests count out when Needs you fails to load", async () => {
+    expectConsole("warn", "Workspace column feed failed");
     getActiveOrganizationId.mockResolvedValueOnce("org-1");
     readNeedsYou.mockRejectedValueOnce(new Error("core down"));
     getMine.mockResolvedValue({

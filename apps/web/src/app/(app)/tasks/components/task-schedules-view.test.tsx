@@ -1,5 +1,5 @@
 import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -452,9 +452,7 @@ describe("TaskSchedulesView", () => {
     const user = userEvent.setup();
     const initial = [schedule({})];
     const view = renderView(initial, { nextCursor: "old-cursor" });
-    await act(async () => {
-      await user.click(screen.getByRole("button", { name: "pause" }));
-    });
+    await user.click(screen.getByRole("button", { name: "pause" }));
     view.rerender(
       <TaskSchedulesView
         schedules={initial}

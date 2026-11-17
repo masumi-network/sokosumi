@@ -25,6 +25,7 @@ vi.mock("./my-day-list.client", () => ({
   ),
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   countOverdue,
   loadMyDay,
@@ -105,7 +106,7 @@ describe("loadMyDay", () => {
   });
 
   it("gives null instead of failing Home when Core fails", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "My day feed failed");
     listTasks.mockRejectedValue(new Error("down"));
 
     await expect(loadMyDay("2026-11-10")).resolves.toBeNull();
@@ -135,7 +136,7 @@ describe("countOverdue", () => {
   });
 
   it("hides the move when Core fails", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Overdue count failed");
     listTasks.mockRejectedValue(new Error("down"));
     await expect(countOverdue("2026-11-10")).resolves.toBe(0);
   });
