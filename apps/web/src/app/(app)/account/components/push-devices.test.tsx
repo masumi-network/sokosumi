@@ -1,4 +1,5 @@
 import type { PushDevice } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -13,7 +14,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { createFormats } from "@/i18n/time-format";
-import { expectConsole } from "@/test/console";
 import { PushDevices } from "./push-devices";
 
 const { listPushDevices, revokePushDevice, handleRevokedPushDevice } =

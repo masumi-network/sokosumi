@@ -7,6 +7,7 @@ import { ok } from "@/helpers/response";
 import { publishChatMembershipRevoked } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { recordMembershipPublishFailures } from "@/routes/v1/chats/rooms/channel-membership";
 import {
   adminMatchedChannelParticipantParamsSchema,
   adminRemoveMatchedChannelParticipantSchema,
@@ -54,18 +55,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         reason: "removed",
       }),
     ]);
-    if (statusResults.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership status after matched remove",
-        statusResults.reason,
-      );
-    }
-    if (revokeResult.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership revoke after matched remove",
-        revokeResult.reason,
-      );
-    }
+    recordMembershipPublishFailures(
+      { operation: "admin_matched_channel_remove", roomId: result.roomId },
+      [
+        ["status_messages", statusResults],
+        ["membership_revoked", revokeResult],
+      ],
+    );
 
     return ok(
       c,

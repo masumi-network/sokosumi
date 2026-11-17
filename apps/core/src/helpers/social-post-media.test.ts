@@ -1,13 +1,12 @@
 import { SsrfError } from "@sokosumi/net";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   downloadSocialPostMedia,
   parseSocialPostMedia,
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const { ssrfSafeFetchMock } = vi.hoisted(() => ({
   ssrfSafeFetchMock: vi.fn(),
@@ -157,7 +156,17 @@ describe("parseSocialPostMedia", () => {
   });
 
   it("ignores malformed media instead of throwing", () => {
-    expectConsole("warn", "[social-post] Ignoring malformed media refs", 2);
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A social post's media list was ignored",
+      [
+        "The post's media column does not match the media list schema",
+        "The post's media column does not match the media list schema",
+      ],
+    );
+    onTestFinished(() => {
+      expect(warnings[0]?.event).toMatchObject({ postId: "post_1" });
+    });
     expect(parseSocialPostMedia([{ pathname: 1 }], "post_1")).toEqual([]);
     expect(parseSocialPostMedia("not-json", "post_1")).toEqual([]);
   });
@@ -165,7 +174,11 @@ describe("parseSocialPostMedia", () => {
 
 describe("requireSocialPostMedia", () => {
   it("fails permanently when the stored media cannot be read", () => {
-    expectConsole("warn", "[social-post] Unreadable media refs");
+    expectCoreLogWhys(
+      "warn",
+      "A social post's media could not be read for publishing",
+      ["The post's media column does not match the media list schema"],
+    );
     expect(() => requireSocialPostMedia([{ pathname: 1 }], "post_1")).toThrow(
       SocialPostMediaError,
     );

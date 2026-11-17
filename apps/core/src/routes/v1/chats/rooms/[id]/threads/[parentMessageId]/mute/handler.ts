@@ -6,6 +6,7 @@ import { notFound } from "@/helpers/error";
 import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { ChatRoomThread } from "@/schemas/chat-room.schema";
 import { chatRoomThreadSchema } from "@/schemas/chat-room.schema";
 
@@ -65,8 +66,12 @@ export async function setThreadMuteAndReadBack(params: {
     params.userId,
     prisma,
   );
-  waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
-  waitUntil(cancelNotificationEmails(clearedRows));
+  waitUntil(
+    runAsBackgroundWork(() =>
+      publishClearedNotifications(clearedRows.map((row) => row.id)),
+    ),
+  );
+  waitUntil(runAsBackgroundWork(() => cancelNotificationEmails(clearedRows)));
 
   const thread = await getChatRoomThread(
     room.id,

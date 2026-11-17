@@ -1,4 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { inRequest } from "@/test/in-request";
 
 const { getEnvMock, getRedisClientMock, redisEvalMock, redisSetMock } =
   vi.hoisted(() => ({
@@ -16,7 +29,7 @@ vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
 }));
 
-import { expectConsole } from "@/test/console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   acquireStreamLock,
   COWORKER_STREAM_LOCK_HEARTBEAT_MS,
@@ -49,10 +62,9 @@ describe("coworker-stream-lock", () => {
   });
 
   it("returns unavailable when redis is not configured", async () => {
-    expectConsole(
-      "warn",
-      "[coworker-stream-lock] Redis not configured; skipping coworker stream lock.",
-    );
+    expectCoreLogWhys("warn", "A coworker stream ran without its lock", [
+      "Redis is not configured, so the stream lock is skipped",
+    ]);
     getRedisClientMock.mockReturnValue(null);
 
     await expect(acquireStreamLock("conv-1")).resolves.toEqual({
@@ -87,11 +99,23 @@ describe("coworker-stream-lock", () => {
   });
 
   it("returns error when redis is configured but acquisition fails", async () => {
-    expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "[coworker-stream-lock] Redis error acquiring coworker stream lock",
+      "Could not acquire a coworker stream lock",
+      ["Redis failed the lock request"],
     );
-    redisSetMock.mockRejectedValue(new Error("redis down"));
+    onTestFinished(() => {
+      expect(errors[0]?.cause).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        conversationId: "conv-1",
+        failure: { errorName: "Error" },
+      });
+      // ioredis quotes the server's or a proxy's reply.
+      expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
+    });
+    redisSetMock.mockRejectedValue(
+      new Error("ERR proxy reply: 'Ada private note'"),
+    );
 
     await expect(acquireStreamLock("conv-1")).resolves.toEqual({
       status: "error",
@@ -130,6 +154,18 @@ describe("coworker-stream-lock", () => {
 
     expect(redisEvalMock).toHaveBeenCalled();
     stop();
+  });
+
+  it("renews as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("onRenew");
+    vi.useFakeTimers();
+    await inRequest(async () => {
+      const stop = startStreamLockHeartbeat("conv-1", "instance-test:token-1", {
+        onRenew: () => probeBackgroundFailure("onRenew"),
+      });
+      await vi.advanceTimersByTimeAsync(COWORKER_STREAM_LOCK_HEARTBEAT_MS);
+      stop();
+    });
   });
 
   it("heartbeat invokes onRenew after lock renew", async () => {

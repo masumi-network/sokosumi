@@ -6,6 +6,7 @@ import { ok } from "@/helpers/response";
 import { publishChatMembershipRevokedToUsers } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { recordMembershipPublishFailures } from "@/routes/v1/chats/rooms/channel-membership";
 import {
   adminArchivedMatchedChannelSchema,
   adminMatchedChannelRoomParamsSchema,
@@ -83,18 +84,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (archived.memberIds.length > 0) {
-      try {
-        await publishChatMembershipRevokedToUsers(
+      const [revokeResult] = await Promise.allSettled([
+        publishChatMembershipRevokedToUsers(
           archived.id,
           archived.memberIds,
           "removed",
-        );
-      } catch (error) {
-        console.error(
-          "Failed to publish chat membership revoke after matched archive",
-          error,
-        );
-      }
+        ),
+      ]);
+      recordMembershipPublishFailures(
+        { operation: "admin_matched_channel_archive", roomId: archived.id },
+        [["membership_revoked", revokeResult]],
+      );
     }
 
     return ok(

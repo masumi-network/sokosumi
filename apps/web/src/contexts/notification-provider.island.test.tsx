@@ -1,14 +1,13 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render as renderComponent, screen } from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   NotificationProvider,
   useNotifications,
 } from "@/contexts/notification-provider";
 import { NOTIFICATION_PAGE_SIZE } from "@/contexts/notification-state";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import { expectConsole } from "@/test/console";
 import { TestQueryProvider } from "@/test/query-provider";
 
 function render(ui: ReactNode) {

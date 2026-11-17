@@ -1,4 +1,5 @@
 import type { NotificationItem } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -17,7 +18,6 @@ import { NotificationsPageContent } from "@/app/notifications/page-content";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { NOTIFICATION_VIEW_STORAGE_KEY } from "@/contexts/notification-view-storage";
 import type { NotificationEventData } from "@/lib/ably/schema";
-import { expectConsole } from "@/test/console";
 import { TestQueryProvider } from "@/test/query-provider";
 
 /**

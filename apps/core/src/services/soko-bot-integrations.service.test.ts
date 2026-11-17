@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 // The follow-up runs after the response; each test awaits it so its import
 // cannot finish in the next file, without this file's mocks.
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => mocks.pending.push(work),
+  waitUntil: vi.fn((work: Promise<unknown>) => mocks.pending.push(work)),
 }));
 vi.mock("@/services/soko-bot-watches.service", () => ({
   followUpConnectedApp: mocks.followUpConnectedApp,
@@ -74,9 +74,13 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ COMPOSIO_API_KEY: "ak_test" }),
 }));
 
+import { composioLogger } from "@/lib/evlog-library-logs";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
+  integrationToolSearchResult,
   listIntegrationTools,
   runIntegrationTool,
+  SokoBotIntegrationError,
 } from "@/services/composio-integration-tools.service";
 import {
   activeIntegrationsForBot,
@@ -90,7 +94,9 @@ import {
   searchSokoBotIntegrationCatalog,
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
-import { expectConsole } from "@/test/console";
+import { restoreComposioSdkLoggerAfterFile } from "@/test/composio-sdk-logger";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
@@ -117,6 +123,8 @@ afterEach(async () => {
   await Promise.all(mocks.pending);
   mocks.pending.length = 0;
 });
+
+restoreComposioSdkLoggerAfterFile();
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -558,6 +566,65 @@ describe("Soko Bot OAuth replacement", () => {
     expect(bytes.toString()).toBe("hello?");
   });
 
+  it("keeps the HTTP status of a tool call Composio answers 200 but failed", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          successful: false,
+          error: 'Gmail refused "Subject: Confidential merger" sk_live_abc123',
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const failure = await fetchInboxAttachment(integration, {
+      messageId: "m1",
+      attachmentId: "att-1",
+      filename: "a.txt",
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(SokoBotIntegrationError);
+    expect(messageSafeErrorFields(failure)).toEqual({
+      errorName: "Error",
+      operation: "GMAIL_GET_ATTACHMENT",
+      status: 200,
+    });
+  });
+
+  it("logs an unreadable attachment without the result's keys, which can quote a mail", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "A mailbox returned an attachment Sokosumi cannot read",
+    );
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: { "Confidential merger with Acme": { sk_live_abc123: 1 } },
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    await expect(
+      fetchInboxAttachment(integration, {
+        messageId: "m1",
+        attachmentId: "att-1",
+        filename: "a.txt",
+      }),
+    ).rejects.toThrow("cannot read");
+    expect(warnings[0]?.event).toMatchObject({
+      integration: { provider: "gmail", operation: "GMAIL_GET_ATTACHMENT" },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+  });
+
   it("searches Outlook without $filter or $orderby and applies since itself", async () => {
     mocks.findMany.mockResolvedValue([{ ...existing, provider: "outlook" }]);
     const fetchMock = vi.fn().mockResolvedValue({
@@ -618,7 +685,11 @@ it("attempts both account revocations and reports a provider once on partial fai
     { ...existing, pendingComposioAccountId: "replacement" },
   ]);
   mocks.remove.mockRejectedValue(new Error("upstream unavailable"));
-  expectConsole("error", "Soko Bot integration revoke failed", 2);
+  // One event per revoke, listing every account Composio kept.
+  const errors = expectCoreLog(
+    "error",
+    "Could not revoke a Soko Bot's integration accounts at Composio",
+  );
   expect(
     await revokeSokoBotIntegrationAccounts("bot", [
       { ...existing, pendingComposioAccountId: "replacement" },
@@ -628,6 +699,63 @@ it("attempts both account revocations and reports a provider once on partial fai
     failed: ["gmail"],
   });
   expect(mocks.remove.mock.calls).toEqual([["selected"], ["replacement"]]);
+  expect(errors[0]).toMatchObject({ why: "Composio refused the delete" });
+  expect(errors[0]?.event.error).toMatchObject({
+    cause: { message: "upstream unavailable" },
+  });
+  expect(errors[0]?.event).toMatchObject({
+    integrationRevoke: {
+      failures: [
+        {
+          sokoBotId: "bot",
+          provider: "gmail",
+          accountId: "selected",
+          cause: { message: "upstream unavailable" },
+        },
+        {
+          sokoBotId: "bot",
+          provider: "gmail",
+          accountId: "replacement",
+          cause: { message: "upstream unavailable" },
+        },
+      ],
+    },
+  });
+});
+
+it("keeps every bot's failed accounts when one request revokes for several bots", async () => {
+  // A member removal revokes per shared bot on the same request event.
+  const errors = expectCoreLog(
+    "error",
+    "Could not revoke a Soko Bot's integration accounts at Composio",
+  );
+  mocks.remove.mockImplementation(async (accountId: string) => {
+    throw new Error(`refused ${accountId}`);
+  });
+  await inRequest(async () => {
+    await revokeSokoBotIntegrationAccounts("bot-a", [
+      { ...existing, composioAccountId: "account-a" },
+    ]);
+    await revokeSokoBotIntegrationAccounts("bot-b", [
+      { ...existing, composioAccountId: "account-b" },
+    ]);
+  });
+  expect(errors[0]?.event).toMatchObject({
+    integrationRevoke: {
+      failures: [
+        {
+          sokoBotId: "bot-a",
+          accountId: "account-a",
+          cause: { message: "refused account-a" },
+        },
+        {
+          sokoBotId: "bot-b",
+          accountId: "account-b",
+          cause: { message: "refused account-b" },
+        },
+      ],
+    },
+  });
 });
 
 describe("OAuth retries and failures", () => {
@@ -798,6 +926,7 @@ describe("installed Composio link contract", () => {
         baseURL: "https://composio.example",
         allowTracking: false,
         disableVersionCheck: true,
+        logger: composioLogger,
       });
       const list = vi.spyOn(sdk.connectedAccounts, "list").mockResolvedValue({
         items: statuses
@@ -827,20 +956,33 @@ describe("installed Composio link contract", () => {
         ).rejects.toThrow("Multiple connected accounts found");
         expect(transport).not.toHaveBeenCalled();
       }
-      // Core links with allowMultiple: true, and the SDK warns on that branch
-      // whenever an active account exists (pending: patch the SDK or ticket 10).
-      if (statuses.includes("ACTIVE")) {
-        expectConsole(
-          "warn",
-          /^\S+ - \[Warn:AllowMultiple\] Multiple connected accounts found/,
-        );
-      }
       mocks.link.mockImplementation(
         sdk.connectedAccounts.link.bind(sdk.connectedAccounts),
       );
       await expect(connectSokoBotIntegration(input)).resolves.toEqual({
         redirectUrl: "https://connect.example/oauth",
       });
+      // Core links with allowMultiple: true, and the SDK warns on that branch
+      // whenever an active account exists; Core logs that warning as info
+      // (pending: the upstream Composio report drafted in the core-logging
+      // notes, after which the mapping goes).
+      expect(
+        coreLogEvents().flatMap((event) =>
+          Array.isArray(event.libraryLogs) ? event.libraryLogs : [],
+        ),
+      ).toEqual(
+        statuses.includes("ACTIVE")
+          ? [
+              expect.objectContaining({
+                source: "composio",
+                level: "info",
+                message: expect.stringMatching(
+                  /^\[Warn:AllowMultiple\] Multiple connected accounts found/,
+                ),
+              }),
+            ]
+          : [],
+      );
       expect(list).toHaveBeenCalledWith(
         {
           userIds: ["sokobot:bot"],
@@ -1063,6 +1205,132 @@ describe("Composio 401/5xx vs not-found", () => {
     await expect(
       listIntegrationTools(githubIntegration, { limit: 10 }),
     ).rejects.toMatchObject({ kind: "NOT_FOUND" });
+  });
+});
+
+describe("GitHub pull request reads", () => {
+  const tool = (slug: string, readOnly = true) => ({
+    slug,
+    name: slug,
+    description: null,
+    inputParameters: {},
+    tags: readOnly ? ["readOnlyHint"] : [],
+  });
+  const pullRequestTools = [
+    "GITHUB_LIST_PULL_REQUESTS",
+    "GITHUB_FIND_PULL_REQUESTS",
+    "GITHUB_GET_A_PULL_REQUEST",
+  ];
+  // Composio returns a tool only when it has every word of the search.
+  const composioSearch = (query: { tools?: string[]; search?: string }) =>
+    Promise.resolve(
+      query.tools
+        ? query.tools.map((slug) => tool(slug))
+        : query.search?.includes("merged")
+          ? []
+          : [
+              tool("GITHUB_GENERATE_RELEASE_NOTES"),
+              tool("GITHUB_LIST_PULL_REQUESTS"),
+            ],
+    );
+
+  it("lists the pull request read tools when the search matches nothing", async () => {
+    mocks.getRawComposioTools.mockImplementation(composioSearch);
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "pull request merged list repository",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual(pullRequestTools);
+    expect(tools.every((entry) => entry.readOnly)).toBe(true);
+  });
+
+  it("lists them first, once, ahead of what the search found", async () => {
+    mocks.getRawComposioTools.mockImplementation(composioSearch);
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "list PRs",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual([
+      ...pullRequestTools,
+      "GITHUB_GENERATE_RELEASE_NOTES",
+    ]);
+  });
+
+  it("leaves out a pinned tool Composio no longer marks read-only", async () => {
+    mocks.getRawComposioTools.mockImplementation(
+      (query: { tools?: string[] }) =>
+        Promise.resolve(
+          (query.tools ?? []).map((slug) =>
+            tool(slug, slug !== "GITHUB_FIND_PULL_REQUESTS"),
+          ),
+        ),
+    );
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "merged pull requests",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual([
+      "GITHUB_LIST_PULL_REQUESTS",
+      "GITHUB_GET_A_PULL_REQUEST",
+    ]);
+  });
+
+  it("keeps the search when Composio cannot fetch the pinned tools", async () => {
+    mocks.getRawComposioTools.mockImplementation(
+      (query: { tools?: string[] }) =>
+        query.tools
+          ? Promise.reject(new ComposioToolNotFoundError("Tool not found"))
+          : Promise.resolve([tool("GITHUB_LIST_PULL_REQUESTS")]),
+    );
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "pull requests",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual([
+      "GITHUB_LIST_PULL_REQUESTS",
+    ]);
+  });
+
+  it("asks Composio only for the search when the query is about something else", async () => {
+    mocks.getRawComposioTools.mockResolvedValue([]);
+    await listIntegrationTools(githubIntegration, {
+      query: "create issue",
+      limit: 20,
+    });
+    await listIntegrationTools(
+      {
+        ...githubIntegration,
+        provider: { ...githubIntegration.provider, id: "slack" },
+      },
+      { query: "pull request", limit: 20 },
+    );
+    expect(
+      mocks.getRawComposioTools.mock.calls.map(([query]) => query),
+    ).toEqual([
+      { toolkits: ["github"], search: "create issue", limit: 20 },
+      { toolkits: ["slack"], search: "pull request", limit: 20 },
+    ]);
+  });
+
+  it("says an empty search is not a missing tool", () => {
+    expect(
+      integrationToolSearchResult([], "recent commits by me").note,
+    ).toMatch(/search again with one or two words/);
+    expect(integrationToolSearchResult([], undefined)).toEqual({ tools: [] });
+    expect(
+      integrationToolSearchResult(
+        [
+          {
+            slug: "GITHUB_LIST_COMMITS",
+            name: "List commits",
+            description: null,
+            inputSchema: {},
+            readOnly: true,
+          },
+        ],
+        "commits",
+      ).note,
+    ).toBeUndefined();
   });
 });
 

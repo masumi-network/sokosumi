@@ -42,7 +42,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { useOrgPresenceMap } from "./use-org-presence-map";
 
 function channelFor(name: string) {

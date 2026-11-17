@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { SessionNotActiveError } from "eve/sessions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 /**
  * The studio channel's authorization and first-message policy.
@@ -380,6 +380,59 @@ describe("what may be carried into a creation", () => {
     // eve renders `clientContext` into the turn's context messages.
     // eve renders `clientContext` into the turn's own context messages.
     expect(JSON.stringify(sent[0]?.options)).toContain("asset-1");
+  });
+
+  it("carries Advanced selection in turn auth and clears it when Auto is selected", async () => {
+    const { ctx, sent } = creationContext("wrun_models");
+    const studioSettings = {
+      aspectRatio: "16:9",
+      resolution: "2K",
+      outputFormat: "jpeg",
+      seed: 17,
+    };
+    const response = await create(
+      {
+        message: "make a campaign image",
+        clientContext: {
+          studioModelId: "flux-2-pro",
+          studioSettings,
+          sokosumiUserId: "another-user",
+        },
+      },
+      ctx,
+    );
+    expect(response.status).toBeLessThan(300);
+    expect(sent[0]?.options.auth).toMatchObject({
+      attributes: {
+        sokosumiUserId: "user-a",
+        sokosumiProjectId: "project-a",
+        sokosumiStudioSelection: JSON.stringify({
+          studioModelId: "flux-2-pro",
+          studioSettings,
+        }),
+      },
+    });
+
+    const next = await route("/eve/v1/session/:sessionId", "POST").handler(
+      new Request("http://local/eve/v1/session/wrun_models", {
+        method: "POST",
+        headers: {
+          authorization: browserBearer(),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "make a poster",
+          clientContext: { studioModelId: null },
+        }),
+      }),
+      { ...ctx, params: { sessionId: "wrun_models" } },
+    );
+    expect(next.status).toBeLessThan(300);
+    expect(sent[1]?.options.auth).toMatchObject({
+      attributes: {
+        sokosumiStudioSelection: JSON.stringify({ studioModelId: null }),
+      },
+    });
   });
 
   it("still checks live access before refusing a payload", async () => {

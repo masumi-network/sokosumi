@@ -1,7 +1,7 @@
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
-import { expectConsole } from "@/test/console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   PURCHASE_REGISTRATION_ATTEMPTS,
   registerJobPurchase,
@@ -76,6 +76,10 @@ beforeEach(() => {
  * and caches the result. A variable set inside a test body would arrive after
  * the first redacted log had already populated that cache.
  */
+const PURCHASE_NOT_REGISTERED =
+  "A job's purchase was not registered with the payment node";
+const PRICE_DRIFT_WHY =
+  "The payment node rejected the purchase, most likely because on-chain pricing drifted from the synced pricing";
 const ENV_SECRET = "sok1011-purchase-secret-value";
 process.env.SOK_1011_PAYMENT_API_KEY = ENV_SECRET;
 
@@ -121,63 +125,47 @@ describe("registerJobPurchase", () => {
     expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("masks an env secret the node echoed back in its failure message", async () => {
-    // A gateway answering for the payment node can echo the request headers,
-    // and `extractNodeErrorMessage` dumps that body into `message`.
+  it("keeps the node's answer, which can echo the request, out of the log", async () => {
+    // A gateway answering for the payment node can echo the request headers
+    // and its metadata (the job's input), and `extractNodeErrorMessage` dumps
+    // that body into `message`.
     createPurchaseMock.mockResolvedValue(
       err({
         kind: "permanent",
-        message: `400 {"sent":{"token":"${ENV_SECRET}"}}`,
+        message: `400 {"sent":{"token":"${ENV_SECRET}","metadata":"Ada private brief"}}`,
         status: 400,
       }),
     );
-    const warnings = expectConsole(
-      "warn",
-      "[registerJobPurchase] purchase registration failed",
-    );
+    const warnings = expectCoreLogWhys("warn", PURCHASE_NOT_REGISTERED, [
+      PRICE_DRIFT_WHY,
+    ]);
 
     await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
 
-    const logged = warnings.find(
-      (call) =>
-        call[0] === "[registerJobPurchase] purchase registration failed",
-    );
-    expect(logged).toBeDefined();
-    const payload = logged?.[1] as { error: string };
-    expect(payload.error).not.toContain(ENV_SECRET);
-    expect(payload.error).toContain(REDACTED_SECRET);
+    expect(warnings[0]?.cause).toBeUndefined();
+    const drained = JSON.stringify(coreLogEvents());
+    expect(drained).not.toContain(ENV_SECRET);
+    expect(drained).not.toContain(REDACTED_SECRET);
+    expect(drained).not.toContain("Ada private brief");
   });
 
-  it("caps the redacted failure message written to stdout", async () => {
+  it("logs the failure's kind, status and attempts", async () => {
     createPurchaseMock.mockResolvedValue(
-      err({
-        kind: "permanent",
-        message: `${ENV_SECRET} ${"x".repeat(20_000)}`,
-        status: 400,
-      }),
+      err({ kind: "permanent", message: "x".repeat(20_000), status: 400 }),
     );
-    const warnings = expectConsole(
-      "warn",
-      "[registerJobPurchase] purchase registration failed",
-    );
+    const warnings = expectCoreLogWhys("warn", PURCHASE_NOT_REGISTERED, [
+      PRICE_DRIFT_WHY,
+    ]);
     await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
-    const logged = warnings.find(
-      (call) =>
-        call[0] === "[registerJobPurchase] purchase registration failed",
-    );
-    expect(logged).toBeDefined();
-    expect(logged?.[1]).toEqual(
-      expect.objectContaining({
-        error: expect.stringContaining(REDACTED_SECRET),
-      }),
-    );
-    const payload = logged?.[1] as { error: string };
-    expect(payload.error.length).toBeLessThanOrEqual(2_000);
-    expect(payload.error).not.toContain(ENV_SECRET);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "job_purchase_registration",
+      purchaseRegistration: { attempts: 1, kind: "permanent", status: 400 },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("xxxx");
   });
 
   it("does not retry a permanent rejection", async () => {
-    expectConsole("warn", "[registerJobPurchase] purchase registration failed");
+    expectCoreLogWhys("warn", PURCHASE_NOT_REGISTERED, [PRICE_DRIFT_WHY]);
     // A permanent rejection is the node refusing this exact payload, so every
     // retry would be refused identically.
     createPurchaseMock.mockResolvedValue(
@@ -197,7 +185,9 @@ describe("registerJobPurchase", () => {
   });
 
   it("pages once the whole retry budget is spent", async () => {
-    expectConsole("warn", "[registerJobPurchase] purchase registration failed");
+    expectCoreLogWhys("warn", PURCHASE_NOT_REGISTERED, [
+      "Every attempt to register the purchase failed",
+    ]);
     // Nothing downstream posts this purchase later: job sync can adopt a
     // purchase the node already holds, but it never creates one. An exhausted
     // budget is an outage, not a blip, so it has to be visible.

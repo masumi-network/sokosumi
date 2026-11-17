@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 const getSessionResultMock = vi.fn();
 const openPersonalBillingPortalServerMock = vi.fn();

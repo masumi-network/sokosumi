@@ -4,11 +4,13 @@ import {
   type CreditTopUpLookupKey,
   STANDARD_CREDIT_TOPUP_TIERS,
 } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { resolveZeroMarginTopUpLookupKey } from "@/lib/zero-margin-top-up";
 import type { CreditTopUpPricing } from "@/schemas/billing.schema";
 import {
@@ -467,14 +469,67 @@ export const stripeBillingService = {
       // between the check above and this create. Re-fetch and reuse it; if
       // there is still none, the create genuinely failed — surface the
       // original error rather than masking it with a generic message.
-      console.error("Error claiming coupon:", error);
-      const fallbackPromotionCode = await stripeClient.getPromotionCode(
-        stripeCustomerId,
-        params.couponId,
-      );
+      const context = { operation: "coupon_claim" };
+      const claim = {
+        coupon: { id: params.couponId },
+        stripeCustomer: { id: stripeCustomerId },
+      };
+      let fallbackPromotionCode: Awaited<
+        ReturnType<typeof stripeClient.getPromotionCode>
+      >;
+      try {
+        fallbackPromotionCode = await stripeClient.getPromotionCode(
+          stripeCustomerId,
+          params.couponId,
+        );
+      } catch (lookupError) {
+        // A warning: the request's error handler records the lookup error,
+        // and one event holds one error.
+        recordCoreWarning(
+          context,
+          {
+            message: "Could not create a coupon's promotion code at Stripe",
+            why: "Creating the promotion code failed, and looking up an existing one failed too",
+            cause: error,
+          },
+          claim,
+        );
+        throw lookupError;
+      }
       if (!fallbackPromotionCode) {
+        // Our own 400 is an expected client error the handler does not
+        // record; any other error it records as the request's error.
+        if (error instanceof HTTPException) {
+          recordCoreError(
+            context,
+            {
+              message:
+                "Could not claim a coupon, because Stripe created no promotion code",
+              why: "Stripe answered the create without a promotion code, and none exists for this customer",
+              fix: "The user can claim again. If it repeats, check the coupon in the Stripe dashboard.",
+            },
+            claim,
+          );
+        }
         throw error;
       }
+      recordCoreWarning(
+        context,
+        {
+          message:
+            "Reused an existing promotion code after creating one at Stripe failed",
+          why: "Creating the promotion code at Stripe failed",
+          fix: "Most often a concurrent claim created the code first. If it repeats, the cause says why Stripe refused.",
+          cause: error,
+        },
+        {
+          ...claim,
+          promotionCode: {
+            id: fallbackPromotionCode.id,
+            active: fallbackPromotionCode.active,
+          },
+        },
+      );
 
       return {
         promotionCodeId: fallbackPromotionCode.id,

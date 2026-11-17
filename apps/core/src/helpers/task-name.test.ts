@@ -8,7 +8,7 @@ vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: { generateTaskName: generateTaskNameMock },
 }));
 
-import { expectConsole } from "@/test/console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { resolveTaskName } from "./task-name";
 
 describe("resolveTaskName", () => {
@@ -101,11 +101,27 @@ describe("resolveTaskName", () => {
 
   it("falls back when generation throws trailing bytes", async () => {
     generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
-    expectConsole("error", "Task name generation failed");
+    expectCoreLogWhys("error", "Task name generation failed", [
+      "Generating a task name from its description threw",
+    ]);
 
     expect(await resolveTaskName({ description: "First line\nsecond" })).toBe(
       "First line",
     );
+  });
+
+  it("keeps a generation error's text, which can quote the description, out of the log", async () => {
+    generateTaskNameMock.mockRejectedValue(
+      new Error("could not parse 'Ada private launch plan'"),
+    );
+    const errors = expectCoreLogWhys("error", "Task name generation failed", [
+      "Generating a task name from its description threw",
+    ]);
+
+    await resolveTaskName({ description: "Ada private launch plan" });
+
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain("private launch");
   });
 
   it("cleans a heading first line when generation is missing", async () => {

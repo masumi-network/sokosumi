@@ -13,7 +13,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getServerCoreApiBaseUrl: () => "https://owned-core.example.test/v1",
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { utmService } from "./utm.service";
 
 describe("social conversion through the generated Core client", () => {

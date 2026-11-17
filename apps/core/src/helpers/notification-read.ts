@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-
 import {
   TASK_ATTENTION_MESSAGE_KEYS,
   TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
@@ -14,6 +13,7 @@ import {
 } from "@/helpers/notification-email-dispatch";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 
 /**
  * Mark a reader's unread notification-center rows as read.
@@ -50,7 +50,7 @@ export async function markNotificationsRead(
     select: { ...EMAILED_NOTIFICATION_COLUMNS, kind: true, messageKey: true },
   });
 
-  waitUntil(cancelNotificationEmails(clearedRows));
+  waitUntil(runAsBackgroundWork(() => cancelNotificationEmails(clearedRows)));
 
   return {
     count: clearedRows.length,
@@ -180,7 +180,7 @@ export async function markAttentionRead(
       select: EMAILED_NOTIFICATION_COLUMNS,
     });
 
-    waitUntil(cancelNotificationEmails(cleared));
+    waitUntil(runAsBackgroundWork(() => cancelNotificationEmails(cleared)));
 
     return cleared.length;
   } catch (error) {

@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import { type Prisma } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning } from "@/lib/evlog";
 
 /**
  * Prefix stamped onto a duplicate Agent row's identifiers when it is parked,
@@ -152,9 +153,19 @@ export async function retargetDuplicateAgentNotifications(
         END
       )`;
   } catch (error) {
-    console.warn(
-      `[sync/agents] Failed to retarget notifications from ${duplicateAgentId} to ${canonicalAgentId}:`,
-      error,
+    emitCoreWarning(
+      {
+        operation: "agent_registry_sync",
+        agent: { id: duplicateAgentId },
+        canonicalAgent: { id: canonicalAgentId },
+      },
+      {
+        message:
+          "Could not point notifications of a parked duplicate agent at its canonical agent",
+        why: "The database update of the notifications failed",
+        fix: "Their links keep opening the parked duplicate until the update is run again; Sentry has the database error.",
+        cause: error,
+      },
     );
     Sentry.captureException(error);
   }

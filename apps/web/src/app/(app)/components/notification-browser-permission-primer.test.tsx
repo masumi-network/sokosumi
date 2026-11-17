@@ -1,8 +1,8 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOTIFICATION_PREFERENCES_HREF } from "@/app/account/constants";
-import { expectConsole } from "@/test/console";
 import { NotificationBrowserPermissionPrimer } from "./notification-browser-permission-primer";
 
 vi.mock("next-intl", () => ({

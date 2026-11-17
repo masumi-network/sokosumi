@@ -15,7 +15,7 @@ vi.mock("@/lib/gtm-events", () => ({
   },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   PurchaseTracker,
   resetFiredPurchaseSessionIdsForTests,

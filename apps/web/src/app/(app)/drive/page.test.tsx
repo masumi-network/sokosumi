@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -11,7 +12,6 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();

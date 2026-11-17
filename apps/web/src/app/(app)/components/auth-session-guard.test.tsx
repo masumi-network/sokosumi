@@ -1,4 +1,5 @@
 import type { Session } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, waitFor } from "@testing-library/react";
 import type Ably from "ably";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +11,6 @@ import {
   subscribeToAblyRealtimeClient,
 } from "@/lib/ably/realtime-singleton.client";
 import { authClient } from "@/lib/auth/auth.client";
-import { expectConsole } from "@/test/console";
 
 const replaceMock = vi.fn();
 const { RealtimeMock } = vi.hoisted(() => ({

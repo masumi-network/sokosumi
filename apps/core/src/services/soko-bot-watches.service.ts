@@ -5,8 +5,15 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
+import { createError } from "evlog";
 import type { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import {
+  createCoreLogger,
+  logCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
@@ -316,6 +323,9 @@ export interface SokoBotWatchesSyncResult {
  * next tick. `sokoBotId` checks one bot's waits now, as when an app connects.
  * An app nobody connected in time just ends: there is nothing to follow up.
  */
+/** Runs in the events cron or after a response, so its events stand alone. */
+const OPERATION = "soko_bot_watches_sync";
+
 export async function syncSokoBotWatches(input: {
   shouldContinue: () => boolean;
   sokoBotId?: string;
@@ -440,18 +450,33 @@ export async function syncSokoBotWatches(input: {
         (started.status === "STARTING" || started.status === "RUNNING")
       )
         waitUntil(
-          sokoBotControlPlane
-            .reconcileTurn(
-              started.turnId,
-              undefined,
-              started.reconciliationLeaseToken,
-            )
-            .catch((error: unknown) => {
-              console.warn("Soko Bot follow-up reconciliation stopped", {
-                turnId: started.turnId,
-                error: error instanceof Error ? error.message : "unknown",
-              });
-            }),
+          runAsBackgroundWork(() =>
+            sokoBotControlPlane
+              .reconcileTurn(
+                started.turnId,
+                undefined,
+                started.reconciliationLeaseToken,
+              )
+              .catch((error: unknown) => {
+                const log = createCoreLogger({
+                  operation: OPERATION,
+                  watch: { id: watch.id },
+                  turn: { id: started.turnId },
+                });
+                logCoreWarning(
+                  log,
+                  {
+                    message:
+                      "A Soko Bot follow-up stopped draining before it finished",
+                    why: "Turn reconciliation threw",
+                    fix: "The soko-bot-turns sync resumes the turn. If it stays stuck, read the turn's events.",
+                  },
+                  // The raw error is redacted detail, never the why.
+                  { failure: messageSafeErrorFields(error) },
+                );
+                log.emit();
+              }),
+          ),
         );
     } catch (error) {
       if (error instanceof SokoBotBusyError) {
@@ -473,10 +498,21 @@ export async function syncSokoBotWatches(input: {
         },
       });
       result.failed += 1;
-      console.error("Soko Bot follow-up failed to start", {
-        watchId: watch.id,
-        error: error instanceof Error ? error.message : "unknown",
+      const log = createCoreLogger({
+        operation: OPERATION,
+        watch: { id: watch.id },
+        sokoBot: { id: watch.sokoBotId },
       });
+      log.error(
+        createError({
+          message: "Could not start a Soko Bot follow-up",
+          why: "Starting the turn failed",
+          fix: "The wait is marked FAILED with the reason, so the owner sees it. If many fail, check failure.errorName and failure.status.",
+        }),
+        // Only safe fields: turn work can echo its prompt.
+        { failure: messageSafeErrorFields(error) },
+      );
+      log.emit();
     }
   }
   return result;

@@ -1,4 +1,5 @@
 import { TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   act,
   fireEvent,
@@ -13,7 +14,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
-import { expectConsole } from "@/test/console";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {

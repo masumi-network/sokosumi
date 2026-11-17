@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { TaskStatus } from "@sokosumi/core-client";
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 
 const coreClientMock = {
   createTaskLink: vi.fn(),

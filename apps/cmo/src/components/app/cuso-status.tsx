@@ -12,12 +12,12 @@ function cusoLine(overview: CmoOverview): string {
     : cusoStatus(overview);
 }
 
-/** The scene each state plays: he calls out through the megaphone when needed. */
+/** The scene each state shows: he points at the owner when needed. */
 const SCENES: Record<CusoPose, Scene> = {
   reading: "research",
   thinking: "planning",
-  reporting: "brand",
-  done: "launch",
+  reporting: "launch",
+  done: "subscribe",
   "needs-you": "hero",
 };
 
@@ -30,8 +30,8 @@ interface CusoStatusProps {
 }
 
 /**
- * Cuso at the bottom of the sidebar, always in view: his scene loops on the
- * pink stage, with what he is doing now. When he needs the owner it is a
+ * Cuso at the bottom of the sidebar, always in view: his pose stands on the
+ * Iris stage, with what he is doing now. When he needs the owner it is a
  * button that opens what he is waiting on.
  */
 export function CusoStatus({

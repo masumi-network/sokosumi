@@ -1,4 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -14,7 +15,6 @@ import {
 import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import { expectConsole } from "@/test/console";
 
 const replaceMock = vi.fn();
 const refreshMock = vi.fn();

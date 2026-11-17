@@ -25,7 +25,7 @@ vi.mock("./my-day-list.client", () => ({
   ),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   countOverdue,
   loadMyDay,

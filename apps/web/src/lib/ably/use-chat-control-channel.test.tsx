@@ -30,7 +30,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyState.client,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { useChatControlChannel } from "./use-chat-control-channel";
 
 function handlerFor(eventName: string) {

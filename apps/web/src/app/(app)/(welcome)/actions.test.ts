@@ -11,7 +11,7 @@ vi.mock("@/lib/services/task.service", () => ({
 }));
 vi.mock("./components/my-day", () => ({ loadMyDay: vi.fn() }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { moveOverdueTasks, undoMoveOverdueTasks } from "./actions";
 
 const moved = [

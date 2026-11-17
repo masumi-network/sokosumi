@@ -4,10 +4,12 @@ import { waitUntil } from "@vercel/functions";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   createDataRoomRequestSchema,
   dataRoomSchema,
@@ -69,13 +71,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // yet are adopted now.
     const deadline = Date.now() + MOVE_AFTER_RESPONSE_MS;
     waitUntil(
-      Promise.all([
-        backfillDriveStore(store),
-        moveDataRoomFiles({ shouldContinue: () => Date.now() < deadline }),
-      ]).catch((error: unknown) =>
-        console.warn("[data-rooms] work after create failed", {
-          error: error instanceof Error ? error.message : "unknown",
-        }),
+      runAsBackgroundWork(() =>
+        Promise.all([
+          backfillDriveStore(store),
+          moveDataRoomFiles({ shouldContinue: () => Date.now() < deadline }),
+        ]),
+      ).catch((error: unknown) =>
+        // Adopting files writes their names, which a database error can quote:
+        // content-free fields only.
+        emitCoreError(
+          { operation: "data_room_create", dataRoomId: room.id },
+          {
+            message: "Could not finish preparing a new data room",
+            why: "Adopting or moving its files failed after the room was created",
+            fix: "The drive cron adopts and moves the rest. If the room stays moving_in, look up the error name and code under failure.",
+          },
+          { failure: messageSafeErrorFields(error) },
+        ),
       ),
     );
     return created(c, dataRoomSchema.parse(toDataRoomDto(room)));

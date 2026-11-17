@@ -3,7 +3,9 @@ import { buildWebhookFailureContext, postWebhook } from "@sokosumi/net";
 
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { recordCoreWarning } from "@/lib/evlog";
 import { isTransientFetchError } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export type WebhookType = "userCreated" | "userUpdated" | "accountCreated";
 
@@ -27,22 +29,31 @@ export const webhookClient = (() => {
     if (result.status === "ok") return;
 
     if (result.status === "backpressure") {
-      console.warn(
-        `Webhook ${webhookType} receiver reported queue backpressure; skipping Sentry report.`,
+      recordCoreWarning(
+        { operation: "webhook_call" },
         {
-          responseStatus: result.httpStatus,
-          responseStatusText: result.statusText,
+          message:
+            "A webhook receiver's queue was full; the call is not reported to Sentry",
+          why: "The receiver answered that its queue is full",
+          fix: "Nothing, unless it repeats: then check the receiver's queue.",
         },
+        { webhookType, status: result.httpStatus },
       );
       return;
     }
 
     if (isTransientFetchError(result.error)) {
-      console.warn(
-        `Webhook ${webhookType} call failed transiently; skipping Sentry report.`,
+      // The payload carries the user's email, and the URL can carry the
+      // receiver's secret: content-free fields only.
+      recordCoreWarning(
+        { operation: "webhook_call" },
         {
-          error: result.error.message,
+          message:
+            "A webhook call failed transiently; it is not reported to Sentry",
+          why: "The call timed out or lost its connection",
+          fix: "Nothing, unless it repeats: then check that the receiver is up.",
         },
+        { webhookType, failure: messageSafeErrorFields(result.error) },
       );
       return;
     }

@@ -8,6 +8,7 @@ export const chatRoomSokoBotSelect = {
   id: true,
   name: true,
   avatarImageUrl: true,
+  avatarCode: true,
   avatarSeed: true,
   userId: true,
   projectId: true,
@@ -20,6 +21,7 @@ export interface ChatRoomSokoBotRow {
   id: string;
   name: string | null;
   avatarImageUrl: string | null;
+  avatarCode: string | null;
   avatarSeed: string | null;
   userId: string | null;
   projectId: string | null;
@@ -63,6 +65,7 @@ export function mapChatRoomSokoBotParticipant(
     name: sokoBotDisplayName(bot),
     caption: sokoBotCaption(bot),
     image: bot.avatarImageUrl ?? null,
+    avatarCode: bot.avatarCode,
     avatarSeed: sokoBotAvatarSeedFor(bot),
     ownerUserId: owner.kind === "personal" ? owner.userId : null,
     scope: owner.kind === "personal" ? "personal" : owner.scope,

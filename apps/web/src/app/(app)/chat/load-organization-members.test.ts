@@ -11,8 +11,8 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import { expectConsole } from "@/test/console";
 import { loadOrganizationMembers } from "./load-organization-members";
 
 describe("loadOrganizationMembers", () => {

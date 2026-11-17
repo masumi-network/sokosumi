@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type RefObject, useId } from "react";
+import { type RefObject, useId, useState } from "react";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   RoomMessageComposer,
@@ -16,7 +16,7 @@ import {
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { creditsForVideo, videoModelsFor } from "./catalog";
+import { creditsForVideo, defaultVideoModel, videoModelsFor } from "./catalog";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
@@ -39,6 +39,7 @@ export interface StudioVideoSettings {
 
 export interface StudioVideoDraft {
   modelId: string;
+  modelSelection?: "auto";
   settings: StudioVideoSettings;
 }
 
@@ -131,9 +132,15 @@ export function StudioVideoComposer({
 }) {
   const t = useTranslations("App.Studio");
   const promptHelpId = useId();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const autoModel = draft.modelSelection === "auto";
   const models = videoModelsFor(catalog, source ? "image" : "text");
+  const automaticModel = defaultVideoModel(catalog, source ? "image" : "text");
   const model =
-    models.find((candidate) => candidate.id === draft.modelId) ?? models[0];
+    (autoModel
+      ? automaticModel
+      : models.find((candidate) => candidate.id === draft.modelId)) ??
+    models[0];
   const { settings } = draft;
   const credits = model ? creditsForVideo(model, settings) : null;
   const promptTooLong = prompt.length > MAX_PROMPT_LENGTH;
@@ -147,7 +154,11 @@ export function StudioVideoComposer({
 
   function update(next: Partial<StudioVideoSettings>) {
     if (!model) return;
-    onDraftChange({ modelId: model.id, settings: { ...settings, ...next } });
+    onDraftChange({
+      ...draft,
+      modelId: model.id,
+      settings: { ...settings, ...next },
+    });
   }
 
   function submit() {
@@ -224,16 +235,16 @@ export function StudioVideoComposer({
         toolbarStart={
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {modeSwitch}
-            <Popover>
+            <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
+                  aria-expanded={advancedOpen}
                   className={TRIGGER_CLASS}
                   size="sm"
                   variant="ghost"
                 >
-                  <span className="sr-only">{labels.model}</span>
-                  <span className="min-w-0 truncate">{model?.label}</span>
+                  <span className="min-w-0 truncate">{t("advanced")}</span>
                   <ChevronDown
                     aria-hidden
                     className="text-muted-foreground size-3.5"
@@ -244,9 +255,32 @@ export function StudioVideoComposer({
                 align="start"
                 className="w-80 max-w-[calc(100vw-2rem)] p-2"
               >
+                <Button
+                  aria-pressed={autoModel}
+                  className="mb-2 w-full justify-start"
+                  disabled={!automaticModel}
+                  onClick={() => {
+                    if (!automaticModel) return;
+                    onDraftChange({
+                      modelId: automaticModel.id,
+                      modelSelection: "auto",
+                      settings: carryVideoSettings(automaticModel, settings),
+                    });
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <span className="flex size-4 items-center justify-center">
+                    {autoModel ? (
+                      <Check aria-hidden className="size-4" />
+                    ) : null}
+                  </span>
+                  {t("autoModel")}
+                </Button>
                 <div aria-label={labels.model} role="radiogroup">
                   {models.map((candidate) => {
-                    const checked = candidate.id === model?.id;
+                    const checked = !autoModel && candidate.id === model?.id;
                     const next = carryVideoSettings(candidate, settings);
                     const price = creditsForVideo(candidate, next);
                     return (

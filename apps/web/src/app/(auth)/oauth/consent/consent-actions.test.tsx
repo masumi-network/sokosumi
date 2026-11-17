@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import { ConsentActions } from "./consent-actions";
 
 const mockConsent = vi.hoisted(() => vi.fn());

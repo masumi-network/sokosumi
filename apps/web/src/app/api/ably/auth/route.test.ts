@@ -13,7 +13,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "http://core.test/v1",
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { POST } from "./route";
 
 function createRequest() {

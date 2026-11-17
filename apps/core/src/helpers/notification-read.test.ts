@@ -4,9 +4,13 @@ import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { inRequest } from "@/test/in-request";
 
 import {
   markNotificationsRead,
@@ -47,7 +51,7 @@ vi.mock("@/helpers/notification-email-dispatch", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: vi.fn((promise: Promise<unknown>) => promise),
 }));
 
 describe("markNotificationsRead", () => {
@@ -145,6 +149,47 @@ describe("markNotificationsRead", () => {
 
     expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
   });
+});
+
+it("takes the emails back as background work, so a failure inside it is not put on the request's event", async () => {
+  expectBackgroundProbe("cancelNotificationEmails");
+  cancelNotificationEmailsMock.mockImplementationOnce(async () =>
+    probeBackgroundFailure("cancelNotificationEmails"),
+  );
+  notificationUpdateManyAndReturnMock.mockResolvedValue([
+    {
+      id: "notif_task",
+      kind: NotificationKind.TASK,
+      messageKey: "Notifications.Task.inputRequired",
+      emailId: "email_task",
+      emailScheduledAt: new Date("2026-09-19T10:10:00.000Z"),
+    },
+  ]);
+
+  await inRequest(() => markNotificationsRead("user_123"));
+});
+
+it("takes a settled row's email back as background work, so a failure inside it is not put on the request's event", async () => {
+  expectBackgroundProbe("cancelNotificationEmails");
+  cancelNotificationEmailsMock.mockImplementationOnce(async () =>
+    probeBackgroundFailure("cancelNotificationEmails"),
+  );
+  notificationUpdateManyAndReturnMock.mockResolvedValue([
+    {
+      id: "notif_hidden",
+      emailId: "email_hidden",
+      emailScheduledAt: new Date("2026-09-19T10:10:00.000Z"),
+    },
+  ]);
+
+  await inRequest(() =>
+    markSettledAttentionRead(
+      "user_123",
+      NotificationKind.TASK,
+      "task_123",
+      "Notifications.Task.canceled",
+    ),
+  );
 });
 
 describe("markSettledAttentionRead", () => {

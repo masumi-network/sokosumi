@@ -18,13 +18,13 @@ vi.mock("@/lib/clients/core.browser.client", async () => {
   };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { CoreApiRequestError } from "@/lib/clients/core.browser.client";
 import {
   cleanupVendorLogoBestEffort,
   UserFileUploadError,
   uploadVendorLogoDirect,
 } from "@/lib/utils/vendor-logo-upload.client";
-import { expectConsole } from "@/test/console";
 
 interface MockXhrHandlers {
   onload: (() => void) | null;

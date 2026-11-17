@@ -42,7 +42,7 @@ vi.mock("./push-activation.client", () => ({
   activatePush: (...args: unknown[]) => activatePushMock(...args),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { healPushSubscription } from "./push-self-heal.client";
 
 const USER_ID = "user_alice";

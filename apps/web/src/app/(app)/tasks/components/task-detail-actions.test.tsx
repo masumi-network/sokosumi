@@ -1,5 +1,6 @@
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -33,7 +34,6 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import { expectConsole } from "@/test/console";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 import { mapVisibleTaskLinks } from "./task-detail-api-types";
 

@@ -20,8 +20,9 @@ export default function mount(app: Hono) {
         const refreshed = await refreshSkillCatalog({
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/skill-catalog] Completed sync", refreshed);
+        context.log.set({ result: refreshed });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

@@ -74,7 +74,7 @@ vi.mock(
   }),
 );
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { IdentityOnboardingForm } from "../identity-onboarding-form.client";
 
 const messages = {

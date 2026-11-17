@@ -2,9 +2,9 @@ import type {
   NotificationItem,
   ProjectActivityItem,
 } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import {
   NeedsYouPanel,
   panelFeed,

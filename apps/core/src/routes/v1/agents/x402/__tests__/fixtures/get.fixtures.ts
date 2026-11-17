@@ -15,6 +15,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { X402_BUY_SIDE_READINESS_KEY } from "@/helpers/x402-readiness";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 
 import mountGetAgents from "../../../get";
 
@@ -33,7 +34,8 @@ export const EVM_WALLET_ADDRESS = "0x3333333333333333333333333333333333333333";
  * across a module boundary the importer sees the declared union and the added
  * property is an excess property against `UserAuthenticationContext`.
  */
-export function createApp() {
+/** `evlog` mounts the request logger, for tests that read the wide event. */
+export function createApp(options: { evlog?: boolean } = {}) {
   const app = new OpenAPIHono({
     defaultHook: (result) => {
       if (!result.success && result.error) {
@@ -42,6 +44,7 @@ export function createApp() {
     },
   });
 
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
     c.set("requestId", "test-req-id");
     return await next();

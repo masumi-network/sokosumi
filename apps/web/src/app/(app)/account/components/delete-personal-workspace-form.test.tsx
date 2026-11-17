@@ -1,10 +1,9 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
-import { expectConsole } from "@/test/console";
 import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 
 const deletePersonalWorkspaceActionMock = vi.fn();

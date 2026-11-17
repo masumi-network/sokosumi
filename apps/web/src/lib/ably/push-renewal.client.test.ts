@@ -1,11 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createContext, runInContext } from "node:vm";
-
+import { expectConsole } from "@sokosumi/utils/test-console";
 import Ably from "ably";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import {
   rememberPushRenewal,
   revokePushRenewal,

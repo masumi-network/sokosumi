@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -29,7 +30,9 @@ export function useCreateSeoAudit(
     setPending(true);
     setError(null);
     try {
-      const url = String(form.get("url") ?? "").trim();
+      const typed = String(form.get("url") ?? "").trim();
+      // "example.com" means https://example.com/; Core checks the rest.
+      const url = normalizeWebsiteUrl(typed) ?? typed;
       const result = await createSeoAuditAction({
         body: {
           name: seoAuditName(String(form.get("name") ?? ""), url),

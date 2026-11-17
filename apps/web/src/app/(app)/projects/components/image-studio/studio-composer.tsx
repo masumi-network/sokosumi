@@ -31,6 +31,7 @@ import {
   clampToModel,
   creditsForBatch,
   creditsForImage,
+  defaultModel,
   modelVariants,
   priceUnitLabelKey,
 } from "./catalog";
@@ -220,6 +221,8 @@ export function StudioComposer({
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
   const [modelQuery, setModelQuery] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const autoModel = target.modelSelection === "auto";
   const [loadingHeadlines, startLoadingHeadlines] = useTransition();
   const [headlineStatus, setHeadlineStatus] = useState<{
     projectId: string;
@@ -354,8 +357,11 @@ export function StudioComposer({
     [catalog.models, referenceCount, useIdeogram, directLetteringEdit],
   );
   const selectedModels = useMemo(() => {
+    const automatic = autoModel ? defaultModel(catalog) : null;
     const selected = availableModels.filter((model) =>
-      selectedModelIds.includes(model.id),
+      automatic
+        ? model.id === automatic.id
+        : selectedModelIds.includes(model.id),
     );
     // Headlined ads letter with Gemini Pro, even if another model was selected
     // before the headline was turned on.
@@ -368,7 +374,14 @@ export function StudioComposer({
       return [geminiModel];
     }
     return selected;
-  }, [availableModels, geminiModel, selectedModelIds, twoStepLettering]);
+  }, [
+    autoModel,
+    availableModels,
+    catalog,
+    geminiModel,
+    selectedModelIds,
+    twoStepLettering,
+  ]);
 
   // Over the whole catalog, so a reference filter cannot hide the twin that
   // made a label ambiguous and take its line away.
@@ -404,6 +417,7 @@ export function StudioComposer({
       ).length;
       return {
         ...current,
+        modelSelection: undefined,
         modelIds: on
           ? [
               ...current.modelIds,
@@ -662,6 +676,7 @@ export function StudioComposer({
       return {
         ...current,
         modelIds: next,
+        modelSelection: undefined,
         // Only when adding, which is the only direction that can need it: a
         // newly selected model may not offer what is currently chosen, while
         // removing one can only widen the intersection. Clamping on the way out
@@ -715,11 +730,6 @@ export function StudioComposer({
     // project picked yet, the brief stays put while the person chooses one.
     onGenerate(requests);
   }
-
-  const modelSummary =
-    selectedModels.length === 1
-      ? modelName(selectedModels[0])
-      : t("modelCount", { count: selectedModels.length });
 
   const hasSharedFormat = shared.outputFormats.length > 0;
 
@@ -942,17 +952,16 @@ export function StudioComposer({
                 onApplyTemplate={onApplyTemplate}
               />
             ) : null}
-            <Popover>
+            <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
+                  aria-expanded={advancedOpen}
                   className={TRIGGER_CLASS}
                   size="sm"
                   variant="ghost"
                 >
-                  <TriggerLabel label={labels.model}>
-                    {modelSummary}
-                  </TriggerLabel>
+                  <TriggerLabel label="">{t("advanced")}</TriggerLabel>
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -963,6 +972,27 @@ export function StudioComposer({
                   searchRef.current?.focus();
                 }}
               >
+                <Button
+                  aria-pressed={autoModel}
+                  className="mb-2 w-full justify-start"
+                  onClick={() =>
+                    onTargetChange((current) => ({
+                      ...current,
+                      modelIds: [],
+                      modelSelection: "auto",
+                    }))
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <span className="flex size-4 items-center justify-center">
+                    {autoModel ? (
+                      <Check aria-hidden className="size-4" />
+                    ) : null}
+                  </span>
+                  {t("autoModel")}
+                </Button>
                 <div className="flex items-center justify-between gap-2 pb-2">
                   {/* One brief on every model is the thing this composer is for,
                   so it is one click rather than one click per model. Both

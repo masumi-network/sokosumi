@@ -7,6 +7,8 @@ export const SOCIAL_WRITING_SKILLS: readonly WritingSkill[] = [
     name: "X",
     description:
       "Read before any X post: one sharp thought, short, the link in the reply.",
+    audience:
+      "People who follow a field's news and opinions as it happens: founders, developers, investors, tech and crypto communities, journalists. A main channel when the business's buyers talk shop in public there (software, developer tools, crypto, media). For a restaurant, shop or local service it is a side channel at most, serving the trade and the press: launches, numbers, opinions.",
     channels: ["x"],
     content: `# X
 
@@ -72,6 +74,8 @@ The guide we use with every client is in the reply.
     name: "LinkedIn",
     description:
       "Read before any LinkedIn post: a hook before 'see more', short paragraphs, a lesson from experience.",
+    audience:
+      "People at work: buyers inside companies, job candidates, partners, investors and the press. A main channel for a business that sells to companies (B2B software, agencies, consulting, services for teams). For a restaurant, shop or consumer brand it is a side channel that serves its business buyers and its team: catering, group and corporate events, partnerships, hiring and company milestones, never the dishes or products sold to individuals.",
     channels: ["linkedin"],
     content: `# LinkedIn
 
@@ -172,6 +176,8 @@ What would you stop making if you looked at your numbers?
     name: "Instagram",
     description:
       "Read before any Instagram post: the picture leads, the caption's first line stops the scroll, people save and share.",
+    audience:
+      "Consumers who follow what they want to see: food, places, products, style, events and creators. A main channel for restaurants, shops, consumer brands, venues and anything visual. For B2B software it is a side channel that serves the people behind the brand: the team, its culture and product moments that look good.",
     channels: ["instagram"],
     content: `# Instagram
 
@@ -250,6 +256,8 @@ Save this for the next bunch you buy.
     name: "Facebook",
     description:
       "Read before any Facebook post: short and neighbourly, something people answer in a comment.",
+    audience:
+      "Local communities, groups, event-goers and consumers over 35. A main channel for local businesses, events and consumer brands whose buyers are older. For a business that sells to companies it is a side channel for community and events at most.",
     channels: ["facebook"],
     content: `# Facebook
 
@@ -310,6 +318,8 @@ What should we teach next: brakes or gears?
     name: "YouTube Shorts",
     description:
       "Read before any YouTube Short: a title that names the viewer's question, a short searchable description.",
+    audience:
+      "People searching how to do something, or settling in to watch a longer story. A main channel when the business teaches or demonstrates (software tutorials, recipes, courses, product reviews). Otherwise a side channel: a few videos that answer its buyers' searches or tell the brand's story.",
     channels: ["youtube"],
     content: `# YouTube Shorts
 
@@ -366,6 +376,8 @@ No bowl? A spray bottle with soapy water works too.
     name: "TikTok",
     description:
       "Read before any TikTok caption: one or two lines with the words people search for.",
+    audience:
+      "Younger consumers discovering products, places and trends. A main channel for consumer brands, food, fashion and venues that reach people under 35. Rarely right for a business that sells to companies.",
     channels: ["tiktok"],
     content: `# TikTok
 

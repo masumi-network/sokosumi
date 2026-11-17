@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen } from "@testing-library/react";
 import { Component, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 const mockAblyProvider = vi.fn(
   ({ children }: { children: React.ReactNode }) => (

@@ -23,9 +23,9 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/workspace-approval";
-import { expectConsole } from "@/test/console";
 
 function createNotification(
   overrides: Partial<NotificationItem> = {},

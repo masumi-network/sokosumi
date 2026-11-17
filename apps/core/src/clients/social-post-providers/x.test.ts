@@ -10,7 +10,7 @@ import {
   ComposioToolError,
 } from "@/clients/social-post-providers/tools";
 import { publishXPost } from "@/clients/social-post-providers/x";
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const X_IMAGE_MAX_BYTES = socialPostMaxBytesForKind("x", "image");
 
@@ -26,7 +26,11 @@ const {
   downloadSocialPostMediaMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
@@ -235,13 +239,17 @@ describe("publishXPost", () => {
         throw new Error(`unexpected ${path}`);
       }),
     );
-    const warn = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[composio] delete Project X publish session failed",
+      "Composio could not delete a tool session",
+      ["The Composio tool session delete request failed"],
     );
 
     await expect(publishXPost(publishInput)).resolves.toEqual(xResult("1907"));
-    expect(warn).not.toHaveLength(0);
+    expect(warnings[0]?.event).toMatchObject({
+      composioOperation: "delete Project X publish session",
+      failure: { errorName: "ComposioApiError" },
+    });
   });
 
   it("parses a flat tool result", async () => {

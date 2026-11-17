@@ -33,6 +33,7 @@ const forProject = Object.fromEntries(
     "finalizeCmoAdsForProject",
     "finalizeCmoMeasurementForProject",
     "finalizeCmoSocialConnectionForProject",
+    "fixCmoBrandSectionForProject",
     "getCmoCalendarEntryTextForProject",
     "initiateCmoSocialConnectionForProject",
     "launchCmoSearchAdForProject",
@@ -123,6 +124,7 @@ const {
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
+  fixBrandSection,
   loadCusos,
   loadOverview,
   onboard,
@@ -410,6 +412,30 @@ describe("addMailingList", () => {
       overview: null,
       error: "No email addresses found in that text",
     });
+  });
+});
+
+describe("brand fixes", () => {
+  it("sends a fix to its section", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: undefined,
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBeNull();
+    expect(forProject.fixCmoBrandSectionForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { section: "offer", note: "From $19" },
+      }),
+    );
+  });
+
+  it("passes Core's refusal on", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: { message: "You're out of credits." },
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBe(
+      "You're out of credits.",
+    );
   });
 });
 
