@@ -53,6 +53,8 @@ const envDefaults: Record<string, string> = {
   OPENROUTER_CHAT_API_KEY:
     "sk-or-v1-test-0000000000000000000000000000000000000000",
   PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
+  // A numeric env secret, for the log redaction of bigint values.
+  CORE_LOG_TEST_NUMERIC_SECRET: "73914826503917482650",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {
