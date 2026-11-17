@@ -4,9 +4,10 @@ import {
   type ChatRoomPinnedMessageAction,
   makeChatRoomChannelName,
 } from "@sokosumi/utils";
-
 import { getRestClient } from "@/lib/ably/client";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export interface PublishChatRoomPinnedMessageRealtimeInput {
   action: ChatRoomPinnedMessageAction;
@@ -30,7 +31,20 @@ export async function publishChatRoomPinnedMessageRealtime(
       pinnedMessageCount: input.pinnedMessageCount,
     });
   } catch (error) {
-    console.error("Failed to publish pinned-message event over Ably:", error);
+    // Ably's answer is untrusted text: content-free fields only.
+    recordCoreError(
+      {
+        operation: "ably_publish_chat_room_pinned_message",
+        roomId: input.roomId,
+        messageId: input.messageId,
+      },
+      {
+        message: "A pinned message event was not published over Ably",
+        why: "The Ably publish of the pinned message event failed",
+        fix: "Open clients catch up on their next refresh. If it repeats, check Ably's status; Sentry has the error.",
+      },
+      { action: input.action, failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       extra: {
         roomId: input.roomId,

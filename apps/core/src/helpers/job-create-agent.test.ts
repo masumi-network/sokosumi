@@ -2,11 +2,11 @@ import { PaymentType, PricingType } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { createAgentJobForUser } from "./job";
 
 const {
@@ -924,10 +924,20 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("hires a legacy agent that returns V2-shaped payment fields", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[createAgentJobForUser] legacy agent returned V2 payment fields; ignoring",
+      "A legacy agent's seller returned V2 payment fields",
+      [
+        "The seller of a V1 agent echoed V2 payment fields, as an upgraded seller SDK does",
+      ],
     );
+    onTestFinished(() => {
+      expect(warnings[0]?.event).toMatchObject({
+        agentId: "agent_1",
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 0,
+      });
+    });
     // A V1 seller upgrading its SDK may echo V2 fields. main ignored them;
     // rejecting would break those agents mid-rollout, and only after
     // start_job already created a job on the seller side.
@@ -1116,9 +1126,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the seller echoes another agent", async () => {
-    const errors = expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller returned a",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned a different agent identifier"],
     );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
@@ -1132,16 +1143,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid agent job returned a different agent identifier",
     );
 
-    expect(errors).toContainEqual([
-      expect.stringContaining(
-        "Seller-side job orphaned after start_job: seller returned a different agent identifier",
-      ),
-      expect.objectContaining({
-        agentId: "agent_1",
-        expectedAgentIdentifier: "agent-chain",
-        receivedAgentIdentifier: "different-agent-chain",
-      }),
-    ]);
+    expect(errors[0]?.event).toMatchObject({
+      agentId: "agent_1",
+      expectedAgentIdentifier: "agent-chain",
+      receivedAgentIdentifier: "different-agent-chain",
+    });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
       message: expect.stringContaining("Seller-side job orphaned"),
@@ -1150,9 +1156,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the seller echoes a different purchaser identifier", async () => {
-    const errors = expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller returned a",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned a different purchaser identifier"],
     );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
@@ -1168,16 +1175,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid agent job returned a different purchaser identifier",
     );
 
-    expect(errors).toContainEqual([
-      expect.stringContaining(
-        "Seller-side job orphaned after start_job: seller returned a different purchaser identifier",
-      ),
-      expect.objectContaining({
-        agentId: "agent_1",
-        agentJobId: "agent_job_1",
-        receivedIdentifierFromPurchaser: "not-ours",
-      }),
-    ]);
+    expect(errors[0]?.event).toMatchObject({
+      agentId: "agent_1",
+      agentJobId: "agent_job_1",
+      receivedIdentifierFromPurchaser: "not-ours",
+    });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
       message: expect.stringContaining("Seller-side job orphaned"),
@@ -1187,9 +1189,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports a stranded seller job when start_job answers 2xx with an off-contract body", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller accepted",
+      "A seller started a job that Sokosumi will not track",
+      [
+        "The seller accepted start_job but returned a response that does not match the MIP-003 contract",
+      ],
     );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
@@ -1217,7 +1222,18 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("stays silent when start_job transport fails after dispatch", async () => {
-    expectConsole("warn", "[createAgentJobForUser] start_job failed");
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A seller's start_job call failed",
+      ["The seller's start_job call timed out or failed after it was sent"],
+    );
+    onTestFinished(() => {
+      expect(warnings[0]?.event).toMatchObject({
+        startJob: { kind: "ambiguous" },
+      });
+      // The seller's text can echo the job's input.
+      expect(JSON.stringify(coreLogEvents())).not.toContain("connection reset");
+    });
     // A timeout or 5xx after dispatch is indistinguishable from ordinary
     // seller flakiness and is the most common way a hire fails. No credits
     // have been charged at this point, so the user simply sees a failed hire.
@@ -1241,9 +1257,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("pages when the seller accepted the job but returned an unusable body", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller accepted",
+      "A seller started a job that Sokosumi will not track",
+      [
+        "The seller accepted start_job but returned a response that does not match the MIP-003 contract",
+      ],
     );
     // 2xx means the seller took the job and started work. We cannot record
     // it and MIP-003 has no cancel, so this one is a definite strand.
@@ -1269,7 +1288,9 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("stays silent when the seller never accepted the job", async () => {
-    expectConsole("warn", "[createAgentJobForUser] start_job failed");
+    expectCoreLogWhys("warn", "A seller's start_job call failed", [
+      "The seller could not be reached or refused the job",
+    ]);
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       // Explicit non-2xx: nothing was accepted, so an ordinary failed hire
@@ -1349,9 +1370,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the response selects an unknown payment source", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller returned an",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned an unexpected payment source"],
     );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
@@ -1407,9 +1429,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("still requires the index when a V2 agent has several sources", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller returned an",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned an unexpected payment source"],
     );
     // Two registered sources: only the seller knows which it will settle
     // through, and guessing would bill from the wrong price.
@@ -1458,9 +1481,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the seller selects a non-ready source", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[createAgentJobForUser] Seller-side job orphaned after start_job: seller selected a",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller selected a payment source that is not purchase-ready"],
     );
     // One ready source, one not. Seller echoes the non-ready index after
     // start_job — refuse payment and page the orphan.

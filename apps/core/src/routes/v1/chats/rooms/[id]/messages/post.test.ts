@@ -6,6 +6,7 @@ import {
   expectBackgroundProbe,
   probeBackgroundFailure,
 } from "@/test/background-probe";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import mountPostRoomMessage from "./post";
 
@@ -581,7 +582,13 @@ describe("POST /chats/rooms/{id}/messages", () => {
   );
 
   it("keeps invalidation independent of failed notification discovery", async () => {
-    expectConsole("error", "Failed to emit chat room message effects");
+    expectCoreLogWhys(
+      "error",
+      "A chat message's notifications or reader refresh failed",
+      [
+        "Notifying the room's members of a new message failed after it was saved",
+      ],
+    );
     const publishing = Promise.withResolvers<void>();
     publishChatRoomsChangedMock.mockReturnValueOnce(publishing.promise);
     userFindManyMock.mockRejectedValueOnce(

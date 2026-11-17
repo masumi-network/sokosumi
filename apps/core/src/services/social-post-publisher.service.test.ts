@@ -4,7 +4,6 @@ import {
   SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostProvider,
 } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import {
@@ -14,7 +13,12 @@ import {
 import { forbidden } from "@/helpers/error";
 import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
-import { causeMessage, coreLogEvents, expectCoreLog } from "@/test/core-log";
+import {
+  causeMessage,
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 
 const {
   publishingAccessMock,
@@ -2737,7 +2741,11 @@ describe("social post publisher service", () => {
 
     it("fails permanently when the stored media cannot be read", async () => {
       expectCoreLog("warn", "A Social post publish attempt failed");
-      expectConsole("warn", "[social-post] Unreadable media refs");
+      expectCoreLogWhys(
+        "warn",
+        "A social post's media could not be read for publishing",
+        ["The post's media column does not match the media list schema"],
+      );
       claimWithMedia([{ pathname: 1 }]);
       const { publishDueSocialPosts } = await loadService();
 

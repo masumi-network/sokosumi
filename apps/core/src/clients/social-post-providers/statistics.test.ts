@@ -8,7 +8,11 @@ import {
 
 const { getEnvMock } = vi.hoisted(() => ({ getEnvMock: vi.fn() }));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => null }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => null,
+}));
 
 const input: SocialPostStatisticsContext = {
   provider: "x",

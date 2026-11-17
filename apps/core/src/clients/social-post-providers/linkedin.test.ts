@@ -1,4 +1,3 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getConnectedSocialIdentity } from "@/clients/composio.client";
 import {
@@ -7,6 +6,7 @@ import {
   publishLinkedInPost,
 } from "@/clients/social-post-providers/linkedin";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
   getEnvMock,
@@ -20,7 +20,11 @@ const {
   downloadSocialPostMediaMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
@@ -358,9 +362,10 @@ describe("publishLinkedInPost", () => {
   });
 
   it("treats a confirmed post without an id as published without a link", async () => {
-    const warn = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[linkedin] Published post returned no post id",
+      "LinkedIn published a post but returned no post id",
+      ["The LinkedIn create post response held no post URN Core recognizes"],
     );
     stubSession(() =>
       toolResponse({
@@ -375,20 +380,31 @@ describe("publishLinkedInPost", () => {
       publishedUrl: null,
       toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
     });
-    expect(warn).toContainEqual([
-      "[linkedin] Published post returned no post id",
-      {
-        toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
-        keyPaths: [
-          "status_code",
-          "id",
-          "response_data",
-          "response_data.message",
-          "response_data.secret",
-        ],
-      },
-    ]);
-    expect(JSON.stringify(warn)).not.toContain("tok_should_not_log");
+    expect(warnings[0]?.event).toMatchObject({
+      provider: "linkedin",
+      toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
+      keyPaths: ["status_code", "id", "response_data", "response_data.message"],
+      otherKeys: 1,
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("tok_should_not_log");
+  });
+
+  it("counts a response key it does not know instead of naming it", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "LinkedIn published a post but returned no post id",
+      ["The LinkedIn create post response held no post URN Core recognizes"],
+    );
+    stubSession(() =>
+      toolResponse({
+        status_code: 201,
+        response_data: { "Ada private launch plan": true },
+      }),
+    );
+
+    await publishLinkedInPost(context);
+
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
   });
 
   it("only accepts LinkedIn post URNs as the post id", () => {

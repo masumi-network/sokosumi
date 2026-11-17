@@ -5,6 +5,11 @@ import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { inRequest } from "@/test/in-request";
 
 const { schedulePublishMock } = vi.hoisted(() => ({
   schedulePublishMock: vi.fn(),
@@ -962,6 +967,20 @@ describe("fanOutChatNotifications, counting per room", () => {
     );
   });
 
+  it("resends the counted row's email as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("resendRoomMessageEmail");
+    resendRoomMessageEmailMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("resendRoomMessageEmail"),
+    );
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ authorName: "Ada", roomName: "general" }),
+    );
+
+    await inRequest(() =>
+      fanOutChatNotifications(params({ countPerRoom: true })),
+    );
+  });
+
   /** A write that lost the race changed nothing, so there is nothing to resend. */
   it("leaves the email alone when the counting write lost", async () => {
     notificationFindFirstMock.mockResolvedValue(
@@ -1207,6 +1226,22 @@ describe("rewriteChatNotificationPreviews", () => {
       authorName: "Ada",
       roomName: "general",
     });
+  });
+
+  it("resends a rewritten row's email as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("resendRoomMessageEmail");
+    resendRoomMessageEmailMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("resendRoomMessageEmail"),
+    );
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    messageSays("");
+
+    await inRequest(() =>
+      rewriteChatNotificationPreviews({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+      }),
+    );
   });
 
   it("leaves the rest of the row's params alone", async () => {
