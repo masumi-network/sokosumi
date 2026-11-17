@@ -6,7 +6,6 @@ import {
   VendorGrantStatus,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden, notFound } from "@/helpers/error";
@@ -1564,7 +1563,9 @@ describe("POST /tasks", () => {
   it("creates the task when name generation throws trailing bytes", async () => {
     generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
     const app = createApp();
-    expectConsole("error", "Task name generation failed");
+    expectCoreLogWhys("error", "Task name generation failed", [
+      "Generating a task name from its description threw",
+    ]);
 
     const response = await app.request("http://localhost/", {
       method: "POST",

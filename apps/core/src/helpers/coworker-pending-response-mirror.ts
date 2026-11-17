@@ -1,4 +1,6 @@
+import { recordCoreError } from "@/lib/evlog";
 import { getRedisClient } from "@/lib/redis";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { COWORKER_STREAM_LOCK_TTL_SECONDS } from "./coworker-stream-lock";
 
@@ -34,8 +36,9 @@ export async function setPendingResponseMirror(
       COWORKER_STREAM_LOCK_TTL_SECONDS,
     );
   } catch (error) {
-    console.error(
-      "[coworker-pending-response-mirror] Failed to set pending mirror:",
+    recordPendingMirrorFailure(
+      "set",
+      "Writing the pending response mirror in Redis failed",
       error,
     );
   }
@@ -55,8 +58,9 @@ export async function getPendingResponseMirror(
       ? value.trim()
       : null;
   } catch (error) {
-    console.error(
-      "[coworker-pending-response-mirror] Failed to read pending mirror:",
+    recordPendingMirrorFailure(
+      "read",
+      "Reading the pending response mirror in Redis failed",
       error,
     );
     return null;
@@ -74,8 +78,9 @@ export async function clearPendingResponseMirror(
   try {
     await redis.del(coworkerPendingResponseRedisKey(scope));
   } catch (error) {
-    console.error(
-      "[coworker-pending-response-mirror] Failed to clear pending mirror:",
+    recordPendingMirrorFailure(
+      "clear",
+      "Deleting the pending response mirror in Redis failed",
       error,
     );
   }
@@ -99,9 +104,27 @@ export async function renewPendingResponseMirror(
       COWORKER_STREAM_LOCK_TTL_SECONDS,
     );
   } catch (error) {
-    console.error(
-      "[coworker-pending-response-mirror] Failed to renew pending mirror:",
+    recordPendingMirrorFailure(
+      "renew",
+      "Refreshing the expiry of the pending response mirror in Redis failed",
       error,
     );
   }
+}
+
+/** ioredis quotes the server's or a proxy's reply: content-free fields only. */
+function recordPendingMirrorFailure(
+  action: "set" | "read" | "clear" | "renew",
+  why: string,
+  error: unknown,
+): void {
+  recordCoreError(
+    { operation: "coworker_pending_response_mirror" },
+    {
+      message: "A coworker's pending response mirror could not be updated",
+      why,
+      fix: "A reconnecting client may not find the running reply. Check Redis; failure has its name and code.",
+    },
+    { mirror: { action }, failure: messageSafeErrorFields(error) },
+  );
 }

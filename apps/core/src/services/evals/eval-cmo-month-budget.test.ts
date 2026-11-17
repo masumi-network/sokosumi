@@ -4,7 +4,7 @@ import { requestId } from "hono/request-id";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { coreEvlogMiddleware, runAsBackgroundWork } from "@/lib/evlog";
-import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { inRequest } from "@/test/in-request";
 
 const boundary = vi.hoisted(() => ({
@@ -450,7 +450,11 @@ describe("monthly eval hard-budget guard", () => {
       ["A lane's step threw"],
     );
     // The admin tick's request error, recorded by the real error handler.
-    const requestErrors = expectCoreLog("error", "count failed");
+    const requestErrors = expectCoreLogWhys(
+      "error",
+      "A request failed with an unexpected error",
+      ["The route threw an error it did not handle"],
+    );
     boundary.lane.mockRejectedValue(new Error("lane down"));
     boundary.resultCount.mockRejectedValue(new Error("count failed"));
     const app = new Hono();
@@ -470,6 +474,10 @@ describe("monthly eval hard-budget guard", () => {
       evalLaneFailures: [{ lane: 1, errorName: "Error" }],
     });
     expect(warnings[0]?.fix).toContain("evalLaneFailures");
+    // The handler keeps the error's text out: Sentry has it.
+    expect(JSON.stringify(requestErrors[0]?.event)).not.toContain(
+      "count failed",
+    );
   });
 
   it.each(["expiry", "post cleanup"] as const)(
