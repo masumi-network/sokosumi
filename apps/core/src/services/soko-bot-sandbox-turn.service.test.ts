@@ -7,6 +7,7 @@ import {
   ModelStreamStalledError,
   streamModelCall,
 } from "@/lib/soko-bot/stream-model-call";
+import { expectCoreLog } from "@/test/core-log";
 
 const envState = vi.hoisted(() => ({
   value: {} as Record<string, string>,
@@ -23,8 +24,17 @@ const {
   toolCallUpsertMock,
   toolCallUpdateManyMock,
   turnFindUniqueMock,
+  turnUpdateManyMock,
+  stopSandboxMock,
+  reconcileTurnMock,
+  afterCommit,
 } = vi.hoisted(() => ({
+  reconcileTurnMock: vi.fn(),
+  /** Runs once after the next locked append commits: who waited on its lock. */
+  afterCommit: { next: null as null | (() => Promise<void>) },
   turnFindUniqueMock: vi.fn(),
+  turnUpdateManyMock: vi.fn(),
+  stopSandboxMock: vi.fn(),
   toolCallUpsertMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
@@ -50,6 +60,7 @@ vi.mock("@/lib/db/prisma", () => {
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
       findUniqueOrThrow: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+      updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
       upsert: toolCallUpsertMock,
@@ -60,8 +71,13 @@ vi.mock("@/lib/db/prisma", () => {
     default: {
       ...client,
       // The event log's locked append: the same models, plus the lock.
-      $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
-        operation({ ...client, $executeRaw: vi.fn() }),
+      $transaction: async (operation: (tx: unknown) => Promise<unknown>) => {
+        const result = await operation({ ...client, $executeRaw: vi.fn() });
+        const waiting = afterCommit.next;
+        afterCommit.next = null;
+        await waiting?.();
+        return result;
+      },
     },
   };
 });
@@ -80,10 +96,10 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   }),
 }));
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
-  stopTurnSandbox: vi.fn(),
+  stopTurnSandbox: stopSandboxMock,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { reconcileTurn: vi.fn() },
+  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));
 
 import {
@@ -1051,6 +1067,151 @@ describe("sandbox turn service", () => {
       recorded("turn.started");
       await failSandboxTurn(claims, died);
       expect(types()).toEqual(["turn.failed", "session.waiting"]);
+    });
+
+    describe("with the runner's diagnostic", () => {
+      const diagnostic = {
+        event: "start_failed" as const,
+        coreResponse: { status: 503 },
+        errorName: "Error" as const,
+      };
+      const claimed = (...counts: number[]) => {
+        for (const count of counts)
+          turnUpdateManyMock.mockResolvedValueOnce({ count });
+      };
+      const logged = (times: number) =>
+        expectCoreLog(
+          "error",
+          "A Soko Bot turn could not start in its sandbox",
+          times,
+        );
+
+      it("logs it once, claimed on the live turn's row", async () => {
+        recorded("turn.started");
+        claimed(1);
+        const entries = logged(1);
+
+        await failSandboxTurn(claims, died, diagnostic);
+
+        expect(turnUpdateManyMock).toHaveBeenCalledExactlyOnceWith({
+          where: {
+            id: claims.turnId,
+            runnerDiagnosticAt: null,
+            status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+            cancellationRequestedAt: null,
+          },
+          data: { runnerDiagnosticAt: expect.any(Date) },
+        });
+        expect(entries[0]?.event).toMatchObject({
+          turnId: claims.turnId,
+          sessionId: claims.sessionId,
+          source: "soko-bot-runner",
+          coreResponse: { status: 503 },
+        });
+      });
+
+      it("logs once for two reports that both passed authorization", async () => {
+        recorded("turn.started");
+        claimed(1, 0);
+        logged(1);
+
+        await Promise.all([
+          failSandboxTurn(claims, died, diagnostic),
+          failSandboxTurn(claims, died, diagnostic),
+        ]);
+      });
+
+      it("logs the report that failed the turn, though a duplicate settles it right after", async () => {
+        // The row as Postgres keeps it: settling marks it FAILED, and the
+        // claim holds only on a live, unclaimed turn.
+        const row = {
+          status: "RUNNING",
+          runnerDiagnosticAt: null as Date | null,
+        };
+        turnUpdateManyMock.mockImplementation(async () => {
+          if (row.status !== "RUNNING" || row.runnerDiagnosticAt)
+            return { count: 0 };
+          row.runnerDiagnosticAt = new Date();
+          return { count: 1 };
+        });
+        reconcileTurnMock.mockImplementation(async () => {
+          row.status = "FAILED";
+        });
+        findFirstEventMock.mockImplementation(
+          async ({
+            where,
+          }: {
+            where: { type?: string | { in: string[] } };
+          }) => {
+            const asked =
+              typeof where.type === "string"
+                ? [where.type]
+                : (where.type?.in ?? []);
+            const held = ["turn.started", ...types()];
+            return asked.some((type) => held.includes(type))
+              ? { id: "event" }
+              : null;
+          },
+        );
+        // The duplicate waits on the append's lock, then sees the failure
+        // and settles the turn.
+        afterCommit.next = () => failSandboxTurn(claims, died, diagnostic);
+        logged(1);
+
+        await failSandboxTurn(claims, died, diagnostic);
+
+        expect(row.status).toBe("FAILED");
+      });
+
+      it("still fails the turn when the claim breaks its write, and logs nothing", async () => {
+        recorded("turn.started");
+        turnUpdateManyMock.mockRejectedValueOnce(new Error("claim failed"));
+        logged(0);
+
+        await failSandboxTurn(claims, died, diagnostic);
+
+        // The first write rolled back; the plain retry recorded the failure.
+        expect(types().filter((type) => type === "turn.failed")).toHaveLength(
+          2,
+        );
+        expect(stopSandboxMock).toHaveBeenCalled();
+      });
+
+      it("logs nothing for a late report after the next turn cleared the events", async () => {
+        // The runtime events are gone; the turn row still holds the claim.
+        recorded();
+        claimed(0);
+        logged(0);
+
+        await failSandboxTurn(claims, died, diagnostic);
+      });
+
+      it("logs nothing once a cancellation won, though authorization passed", async () => {
+        recorded("turn.started");
+        claimed(0);
+        logged(0);
+
+        await failSandboxTurn(claims, died, diagnostic);
+      });
+
+      it("logs it before the sandbox stops, so a stop that never ends cannot lose it", async () => {
+        recorded("turn.started");
+        claimed(1);
+        const entries = logged(1);
+        let stopped!: () => void;
+        stopSandboxMock.mockReturnValueOnce(
+          new Promise<void>((resolve) => {
+            stopped = resolve;
+          }),
+        );
+
+        const report = failSandboxTurn(claims, died, diagnostic);
+        await vi.waitFor(() => expect(stopSandboxMock).toHaveBeenCalled());
+
+        expect(entries).toHaveLength(1);
+        stopped();
+        await report;
+      });
     });
 
     it.each(["turn.completed", "turn.failed"])(

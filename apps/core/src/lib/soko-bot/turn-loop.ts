@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import {
   isSokoBotSandboxCapability,
   isSokoBotSilentAnswer,
@@ -109,14 +110,16 @@ export class RuntimeEventLog {
   /**
    * Appends unless the turn already holds one of these event types, checked
    * under the same lock as the write. False when it was left out.
+   * `alsoWrite` commits with the append, or not at all.
    */
   async appendUnless(
     event: RuntimeEvent,
     recorded: readonly string[],
+    alsoWrite?: (tx: Prisma.TransactionClient) => Promise<unknown>,
   ): Promise<boolean> {
     const queued = this.tail.then(
-      () => this.write(event, recorded),
-      () => this.write(event, recorded),
+      () => this.write(event, recorded, alsoWrite),
+      () => this.write(event, recorded, alsoWrite),
     );
     // A failed append must not cancel the ones queued behind it.
     this.tail = queued.catch(() => undefined);
@@ -126,6 +129,7 @@ export class RuntimeEventLog {
   private async write(
     event: RuntimeEvent,
     unless: readonly string[],
+    alsoWrite?: (tx: Prisma.TransactionClient) => Promise<unknown>,
   ): Promise<boolean> {
     return prisma.$transaction(async (tx) => {
       const key = `soko-bot-runtime-event:${this.turnId}`;
@@ -155,6 +159,7 @@ export class RuntimeEventLog {
           occurredAt: new Date(event.meta.at),
         },
       });
+      await alsoWrite?.(tx);
       return true;
     }, APPEND_TRANSACTION_OPTIONS);
   }
