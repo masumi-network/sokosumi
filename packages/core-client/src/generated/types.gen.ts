@@ -13233,6 +13233,7 @@ export type SharedSokoBotSummary = {
     projectId: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
+    avatarCode?: string | null;
     status: SokoBotStatus;
     archivedAt: Date | null;
     sharedRoomId: string | null;
