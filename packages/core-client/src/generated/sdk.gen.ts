@@ -2362,7 +2362,7 @@ export const getDriveDataRoomsByIdQuestions = <ThrowOnError extends boolean = fa
 });
 
 /**
- * Answer a viewer's question. They see the answer beside the document.
+ * Answer a viewer's question. They see the answer beside the document; with shared, so does everyone in the room who may open it.
  */
 export const patchDriveDataRoomsByIdQuestionsByQuestionId = <ThrowOnError extends boolean = false>(options: Options<PatchDriveDataRoomsByIdQuestionsByQuestionIdData, ThrowOnError>): RequestResult<PatchDriveDataRoomsByIdQuestionsByQuestionIdResponses, PatchDriveDataRoomsByIdQuestionsByQuestionIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchDriveDataRoomsByIdQuestionsByQuestionIdResponses, PatchDriveDataRoomsByIdQuestionsByQuestionIdErrors, ThrowOnError>({
     url: '/drive/data-rooms/{id}/questions/{questionId}',
@@ -6044,7 +6044,7 @@ export const getShareRoomsByTokenZip = <ThrowOnError extends boolean = false>(op
 export const getShareRoomsByTokenLogo = <ThrowOnError extends boolean = false>(options: Options<GetShareRoomsByTokenLogoData, ThrowOnError>): RequestResult<GetShareRoomsByTokenLogoResponses, GetShareRoomsByTokenLogoErrors, ThrowOnError> => (options.client ?? client).get<GetShareRoomsByTokenLogoResponses, GetShareRoomsByTokenLogoErrors, ThrowOnError>({ url: '/share/rooms/{token}/logo', ...options });
 
 /**
- * The viewer's own questions in the room, with answers; about one document when resourceId is given.
+ * The viewer's own questions in the room and the answers the owner shared with everyone, never who else asked; about one document when resourceId is given.
  */
 export const getShareRoomsByTokenQuestions = <ThrowOnError extends boolean = false>(options: Options<GetShareRoomsByTokenQuestionsData, ThrowOnError>): RequestResult<GetShareRoomsByTokenQuestionsResponses, GetShareRoomsByTokenQuestionsErrors, ThrowOnError> => (options.client ?? client).get<GetShareRoomsByTokenQuestionsResponses, GetShareRoomsByTokenQuestionsErrors, ThrowOnError>({
     responseTransformer: getShareRoomsByTokenQuestionsResponseTransformer,
