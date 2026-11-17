@@ -104,6 +104,9 @@ const baseEnvSchema = z.object({
   // CMO's origin, for links Core writes into CMO notices (SOKD-246).
   CMO_APP_BASE_URL: z.url().default("https://app.cmo.xyz"),
 
+  AD_EVALS_ADMIN_ORGANIZATION_SLUG: z.string().trim().min(1).optional(),
+  AD_EVALS_ADMIN_ORGANIZATION_ID: z.string().trim().min(1).optional(),
+
   // Vercel (optional; Better Auth base URL on Preview)
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z

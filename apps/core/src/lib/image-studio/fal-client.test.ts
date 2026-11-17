@@ -193,6 +193,63 @@ describe("model-specific payloads", () => {
     });
   });
 
+  it("fits Recraft V3's 1000-character prompt limit without losing the branded brief", () => {
+    const brief = "A red ceramic mug on a linen tablecloth.";
+    const brand = `Follow this project's brand.\n\nPalette: red, cream.\n\n${"Brand context. ".repeat(100)}`;
+    const input = buildFalInput(
+      { ...settings, seed: null, prompt: `${brand}\n\nBrief:\n${brief}` },
+      "fal-ai/recraft/v3/text-to-image",
+    );
+    expect(input).toEqual({
+      prompt: expect.any(String),
+      image_size: { width: 2048, height: 1152 },
+    });
+    expect(input.prompt).toHaveLength(1000);
+    expect(input.prompt).toContain("Palette: red, cream.");
+    expect(input.prompt).toContain(`\n\nBrief:\n${brief}`);
+  });
+
+  it("bounds long Recraft V3 briefs without splitting Unicode characters", () => {
+    const brief = "🪴".repeat(1001);
+    for (const prompt of [
+      brief,
+      `Follow this project's brand.\n\nBrand context.\n\nBrief:\n${brief}`,
+    ]) {
+      expect(
+        buildFalInput(
+          { ...settings, seed: null, prompt },
+          "fal-ai/recraft/v3/text-to-image",
+        ).prompt,
+      ).toBe("🪴".repeat(1000));
+    }
+  });
+
+  it("keeps the start of an unbranded Recraft prompt containing a Brief heading", () => {
+    const prompt = `${"A scene with ceramic mugs. ".repeat(40)}\n\nBrief:\nAdd soft lighting.`;
+    expect(
+      buildFalInput(
+        { ...settings, seed: null, prompt },
+        "fal-ai/recraft/v3/text-to-image",
+      ).prompt,
+    ).toBe(prompt.slice(0, 1000));
+  });
+
+  it("leaves short Recraft prompts and other models' long prompts intact", () => {
+    expect(
+      buildFalInput(
+        { ...settings, seed: null },
+        "fal-ai/recraft/v3/text-to-image",
+      ).prompt,
+    ).toBe(settings.prompt);
+    const prompt = "A long creative brief. ".repeat(100);
+    expect(
+      buildFalInput(
+        { ...settings, prompt },
+        falModelForKind("GENERATE", "gemini-pro"),
+      ).prompt,
+    ).toBe(prompt);
+  });
+
   it("rejects references on a generation endpoint rather than silently dropping them", () => {
     expect(() =>
       buildFalInput(

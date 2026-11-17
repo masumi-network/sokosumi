@@ -191,6 +191,7 @@ export interface StudioTarget {
   lettering?: StudioJob["lettering"];
   useProductCutout?: boolean;
   modelIds: string[];
+  modelSelection?: "auto";
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }
