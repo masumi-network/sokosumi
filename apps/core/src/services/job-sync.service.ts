@@ -22,7 +22,9 @@ import {
   transformPurchaseToJobUpdate,
 } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { syncPurchasesFromDiff } from "@/services/job-purchase-diff.service";
 import { refundJob } from "@/services/job-refund";
 import {
@@ -42,9 +44,20 @@ type JobSyncKind =
   | "agent"
   | "refund";
 
+/** Names the jobs cron's events; job sync runs only there. */
+const JOB_SYNC_OPERATION = "job_sync";
+
 interface JobSyncPhaseResult {
   found: number;
   processed: number;
+  /** Where the phase stopped early; null when it did not. */
+  stopped: string | null;
+  /** Backfills skipped because the database refused the write (Prisma code). */
+  skipped: { jobId: string; code: string }[];
+}
+
+function emptyPhase(): JobSyncPhaseResult {
+  return { found: 0, processed: 0, stopped: null, skipped: [] };
 }
 
 export interface JobSyncExecutionOptions {
@@ -57,6 +70,11 @@ export interface JobSyncExecutionOptions {
 
 interface JobSyncRunOptions extends JobSyncExecutionOptions {
   enqueueEmail: (input: SendEmailInput) => void;
+}
+
+/** One phase's run options, carrying the result its summary reports. */
+interface JobSyncPhaseOptions extends JobSyncRunOptions {
+  phase: JobSyncPhaseResult;
 }
 
 export interface JobSyncResult {
@@ -105,60 +123,40 @@ function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
-function getJobSyncLogPrefix(kind: JobSyncKind): string {
+/** A job a phase could not process: what failed, and why, as Core says it. */
+function jobSyncFailure(kind: JobSyncKind): { message: string; why: string } {
   switch (kind) {
     case "purchase-backfill":
-      return "[sync/jobs/purchase-backfill]";
+      return {
+        message: "Could not backfill a job's purchase",
+        why: "Reading or attaching the purchase from the payment node threw",
+      };
     case "purchase-transaction":
-      return "[sync/jobs/purchase-transaction]";
+      return {
+        message: "Could not sync a job's purchase transaction",
+        why: "Applying the payment node's purchase state threw",
+      };
     case "agent":
-      return "[sync/jobs/agent]";
+      return {
+        message: "Could not sync a job's agent status",
+        why: "Applying the agent's job status threw",
+      };
     case "refund":
-      return "[sync/jobs/refund]";
+      return {
+        message: "Could not reconcile a job's refund",
+        why: "The refund transaction threw",
+      };
   }
 }
 
-function logJobSyncInfo(kind: JobSyncKind, message: string): void {
-  console.info(`${getJobSyncLogPrefix(kind)} ${message}`);
-}
-
-function logJobSyncError(
-  kind: JobSyncKind,
-  jobId: string,
-  error: unknown,
-): void {
-  const message = (() => {
-    switch (kind) {
-      case "purchase-backfill":
-        return `Failed to backfill the purchase for job ${jobId}`;
-      case "purchase-transaction":
-        return `Failed to sync the purchase transaction for job ${jobId}`;
-      case "agent":
-        return `Failed to sync agent status for job ${jobId}`;
-      case "refund":
-        return `Failed to reconcile refund for job ${jobId}`;
-    }
-  })();
-  console.error(`${getJobSyncLogPrefix(kind)} ${message}`, error);
-}
-
-function shouldStopSync(
-  options: JobSyncExecutionOptions,
-  reason: string,
-  kind: JobSyncKind,
-): boolean {
-  if (!options.shouldContinue()) {
-    logJobSyncInfo(kind, reason);
-    return true;
-  }
-
-  if (options.abortSignal.aborted) {
-    logJobSyncInfo(kind, reason);
-    return true;
-  }
-
-  if (!hasTimeRemaining(options.deadlineMs)) {
-    logJobSyncInfo(kind, reason);
+/** Records the first reason a phase stopped early, for its summary. */
+function shouldStopSync(options: JobSyncPhaseOptions, reason: string): boolean {
+  if (
+    !options.shouldContinue() ||
+    options.abortSignal.aborted ||
+    !hasTimeRemaining(options.deadlineMs)
+  ) {
+    options.phase.stopped ??= reason;
     return true;
   }
 
@@ -166,18 +164,17 @@ function shouldStopSync(
 }
 
 function createPollingSignal(
-  options: JobSyncExecutionOptions,
+  options: JobSyncPhaseOptions,
   reason: string,
-  kind: JobSyncKind,
 ): AbortSignal | null {
-  if (shouldStopSync(options, reason, kind)) {
+  if (shouldStopSync(options, reason)) {
     return null;
   }
 
   const remainingBudgetMs =
     options.deadlineMs - Date.now() - JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS;
   if (remainingBudgetMs <= 0) {
-    logJobSyncInfo(kind, reason);
+    options.phase.stopped ??= reason;
     return null;
   }
 
@@ -189,9 +186,33 @@ function createPollingSignal(
   ]);
 }
 
+/** A purchase the node resolved for a job but whose terms are not the job's. */
+function emitPurchaseMismatch(
+  job: JobWithSokosumiStatus,
+  purchaseId: string,
+  kind: "purchase-backfill" | "purchase-transaction",
+): void {
+  emitCoreError(
+    {
+      operation: JOB_SYNC_OPERATION,
+      jobSyncPhase: kind,
+      job: { id: job.id, blockchainIdentifier: job.blockchainIdentifier },
+      purchase: { id: purchaseId },
+    },
+    {
+      message:
+        kind === "purchase-backfill"
+          ? "Refused to attach a purchase to its job"
+          : "Refused to update a job from its purchase transaction",
+      why: "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+      fix: "Compare the purchase on the payment node with the job (Sentry has the same error). The job keeps its stored purchase state until they agree.",
+    },
+  );
+}
+
 async function backfillJobPurchase(
   initialJob: JobWithSokosumiStatus,
-  options: JobSyncRunOptions,
+  options: JobSyncPhaseOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
   let job = initialJob;
@@ -200,7 +221,6 @@ async function backfillJobPurchase(
     const backfillSignal = createPollingSignal(
       options,
       `Stopping before backfilling purchase for job ${job.id}`,
-      "purchase-backfill",
     );
     if (!backfillSignal) {
       return false;
@@ -218,7 +238,6 @@ async function backfillJobPurchase(
       shouldStopSync(
         options,
         `Stopping after backfilling purchase for job ${job.id}`,
-        "purchase-backfill",
       )
     ) {
       return false;
@@ -234,11 +253,7 @@ async function backfillJobPurchase(
         const mismatchError = new Error(
           `Resolved purchase does not match job terms; refusing purchase backfill for job ${job.id}`,
         );
-        console.error(mismatchError.message, {
-          jobId: job.id,
-          blockchainIdentifier: job.blockchainIdentifier,
-          purchaseId: purchase.id,
-        });
+        emitPurchaseMismatch(job, purchase.id, "purchase-backfill");
         Sentry.captureException(mismatchError);
         return false;
       }
@@ -262,18 +277,12 @@ async function backfillJobPurchase(
         if (code === "P2002") {
           // Unique constraint: purchase already created by a concurrent
           // request. The row exists, so fall through to refresh and finalize.
-          logJobSyncInfo(
-            "purchase-backfill",
-            `Skipping purchase backfill for job ${job.id}: ${code}`,
-          );
+          options.phase.skipped.push({ jobId: job.id, code });
         } else if (code === "P2014" || code === "P2025") {
           // Job was deleted or the relation can't be satisfied; nothing to
           // sync. Skip the refresh below, which would otherwise throw
           // "Job not found" for the now-missing job.
-          logJobSyncInfo(
-            "purchase-backfill",
-            `Skipping purchase backfill for job ${job.id}: ${code}`,
-          );
+          options.phase.skipped.push({ jobId: job.id, code });
           return false;
         } else {
           throw error;
@@ -304,7 +313,7 @@ async function backfillJobPurchase(
 
 async function syncPurchaseTransaction(
   job: JobWithSokosumiStatus,
-  options: JobSyncRunOptions,
+  options: JobSyncPhaseOptions,
 ): Promise<boolean> {
   if (!job.blockchainIdentifier) {
     return true;
@@ -313,7 +322,6 @@ async function syncPurchaseTransaction(
   const pollingSignal = createPollingSignal(
     options,
     `Stopping before polling the purchase transaction for job ${job.id}`,
-    "purchase-transaction",
   );
   if (!pollingSignal) {
     return false;
@@ -329,7 +337,6 @@ async function syncPurchaseTransaction(
     shouldStopSync(
       options,
       `Stopping after polling the purchase transaction for job ${job.id}`,
-      "purchase-transaction",
     )
   ) {
     return false;
@@ -351,11 +358,7 @@ async function syncPurchaseTransaction(
     const mismatchError = new Error(
       `Resolved purchase does not match job terms; refusing purchase transaction update for job ${job.id}`,
     );
-    console.error(mismatchError.message, {
-      jobId: job.id,
-      blockchainIdentifier: job.blockchainIdentifier,
-      purchaseId: purchaseResult.value.id,
-    });
+    emitPurchaseMismatch(job, purchaseResult.value.id, "purchase-transaction");
     Sentry.captureException(mismatchError);
     return false;
   }
@@ -366,7 +369,7 @@ async function syncPurchaseTransaction(
 
 async function syncAgentStatus(
   initialJob: JobWithSokosumiStatus,
-  options: JobSyncRunOptions,
+  options: JobSyncPhaseOptions,
 ): Promise<boolean> {
   const agentJobIdToSync = initialJob.agentJobId;
   if (!agentJobIdToSync) {
@@ -387,7 +390,6 @@ async function syncAgentStatus(
   const pollingSignal = createPollingSignal(
     options,
     `Stopping before polling agent status for job ${initialJob.id}`,
-    "agent",
   );
   if (!pollingSignal) {
     return false;
@@ -405,7 +407,6 @@ async function syncAgentStatus(
     shouldStopSync(
       options,
       `Stopping after polling agent status for job ${initialJob.id}`,
-      "agent",
     )
   ) {
     return false;
@@ -425,13 +426,12 @@ async function syncAgentStatus(
 
 async function syncRefundReconciliationJob(
   job: JobWithSokosumiStatus,
-  options: JobSyncRunOptions,
+  options: JobSyncPhaseOptions,
 ): Promise<boolean> {
   if (
     shouldStopSync(
       options,
       `Stopping before reconciling refund for job ${job.id}`,
-      "refund",
     )
   ) {
     return false;
@@ -447,13 +447,15 @@ async function syncRefundReconciliationJob(
 async function runSyncPhase(
   kind: JobSyncKind,
   where: Prisma.JobWhereInput,
-  options: JobSyncRunOptions,
+  runOptions: JobSyncRunOptions,
   seenJobIds: Set<string>,
   processor: (
     job: JobWithSokosumiStatus,
-    options: JobSyncRunOptions,
+    options: JobSyncPhaseOptions,
   ) => Promise<boolean>,
 ): Promise<JobSyncPhaseResult> {
+  const phase = emptyPhase();
+  const options: JobSyncPhaseOptions = { ...runOptions, phase };
   // Deliberately unbounded and unordered. A cap combined with a stable order
   // is worse than no cap here: nothing evicts a job that never reaches a
   // terminal agent status (free jobs have no other exit at all), so a fixed
@@ -472,37 +474,32 @@ async function runSyncPhase(
     seenJobIds.add(job.id);
   }
 
-  const foundMessage = (() => {
-    switch (kind) {
-      case "refund":
-        return `Found ${jobs.length} jobs pending local refund`;
-      case "purchase-backfill":
-        return `Found ${jobs.length} jobs needing a purchase backfill`;
-      case "purchase-transaction":
-        return `Found ${jobs.length} jobs needing purchase transaction sync`;
-      case "agent":
-        return `Found ${jobs.length} jobs for agent sync`;
-    }
-  })();
-  logJobSyncInfo(kind, foundMessage);
+  phase.found = jobs.length;
 
   const limit = pLimit(JOB_SYNC_CONCURRENCY);
   const tasks = jobs.map((job) =>
     limit(async () => {
-      if (
-        shouldStopSync(
-          options,
-          `Stopping before processing job ${job.id}`,
-          kind,
-        )
-      ) {
+      if (shouldStopSync(options, `Stopping before processing job ${job.id}`)) {
         return false;
       }
 
       try {
         return await processor(job, options);
       } catch (error) {
-        logJobSyncError(kind, job.id, error);
+        emitCoreError(
+          {
+            operation: JOB_SYNC_OPERATION,
+            jobSyncPhase: kind,
+            job: { id: job.id },
+          },
+          {
+            ...jobSyncFailure(kind),
+            fix: "The next jobs sync retries the job. If it fails every run, Sentry has the error.",
+          },
+          // Only safe fields: a job's state carries what its agent returned,
+          // and a write error can quote it. Sentry keeps the full error.
+          { failure: messageSafeErrorFields(error) },
+        );
         captureExternalServiceError(error, {
           label: `[sync/jobs/${kind}]`,
           extra: {
@@ -516,14 +513,11 @@ async function runSyncPhase(
   );
 
   const results = await Promise.allSettled(tasks);
-  const processed = results.filter(
+  phase.processed = results.filter(
     (result) => result.status === "fulfilled" && result.value,
   ).length;
 
-  return {
-    found: jobs.length,
-    processed,
-  };
+  return phase;
 }
 
 export const jobSyncService = {
@@ -541,13 +535,13 @@ export const jobSyncService = {
     };
 
     let diffProcessed = 0;
-    let backfillPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
-    let purchaseTransactionPhase: JobSyncPhaseResult = {
-      found: 0,
-      processed: 0,
-    };
-    let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
-    let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+    let backfillPhase = emptyPhase();
+    let purchaseTransactionPhase = emptyPhase();
+    let agentPhase = emptyPhase();
+    let refundPhase = emptyPhase();
+    // Runs after the jobs cron response: the run is one standalone event with
+    // each phase's counts. A job that fails is its own error event.
+    const log = createCoreLogger({ operation: JOB_SYNC_OPERATION });
 
     // All four network-bound phases share one reserved deadline, so whichever
     // of them is slow, the refund phase still gets its budget. Reserving only
@@ -592,7 +586,15 @@ export const jobSyncService = {
         });
         diffProcessed = purchaseDiff.processed;
       } catch (error) {
-        console.error("[sync/jobs/purchase-diff] Diff sync failed:", error);
+        emitCoreError(
+          { operation: JOB_SYNC_OPERATION, jobSyncPhase: "purchase-diff" },
+          {
+            message: "Could not sync changed purchases from the payment node",
+            why: "The purchase diff threw before it finished",
+            fix: "The other phases still run, and the next jobs sync resumes the diff from its stored cursor. If it fails every run, Sentry has the error.",
+            cause: error,
+          },
+        );
         // Through the shared helper, not Sentry directly: the transient
         // Prisma failures this block exists for (P2028 pool timeouts, P2034,
         // a deploy-window schema drift) would otherwise page on every tick.
@@ -635,6 +637,19 @@ export const jobSyncService = {
           });
         });
       }
+      log.set({
+        jobSync: {
+          phases: {
+            purchaseBackfill: backfillPhase,
+            purchaseDiff: { processed: diffProcessed },
+            purchaseTransaction: purchaseTransactionPhase,
+            agent: agentPhase,
+            refund: refundPhase,
+          },
+          unfinishedFound: seenJobIds.size,
+        },
+      });
+      log.emit();
     }
 
     return {

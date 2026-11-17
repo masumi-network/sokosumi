@@ -1,5 +1,6 @@
 import { CMO_PRODUCTION_TURN_PREFIX } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const boundary = vi.hoisted(() => ({
   advance: vi.fn(),
@@ -302,6 +303,37 @@ describe("monthly eval hard-budget guard", () => {
     expect(await poll()).toEqual({ kind: "waiting" });
     expect(boundary.cancelPosts).not.toHaveBeenCalled();
     expect(boundary.advance).not.toHaveBeenCalled();
+  });
+
+  it("lists every failed lane on one error, without the lanes' error text", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not move an eval run's lanes on",
+      ["A lane's step threw"],
+    );
+    boundary.run.mockResolvedValue({
+      id: "run",
+      repeats: 2,
+      trigger: "MANUAL",
+    });
+    // A lane runs a Soko Bot turn, and its error can quote the prompt.
+    boundary.lane.mockRejectedValue(
+      new Error('prompt "Confidential merger with Acme" sk_live_abc123'),
+    );
+
+    expect(await tickEvalRuns()).toEqual({ runId: "run", completed: false });
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "eval_tick",
+      evalRun: { id: "run" },
+      evalLaneFailures: [
+        { lane: 1, errorName: "Error" },
+        { lane: 2, errorName: "Error" },
+      ],
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
   });
 
   it.each(["expiry", "post cleanup"] as const)(

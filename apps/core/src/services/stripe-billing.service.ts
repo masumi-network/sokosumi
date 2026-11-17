@@ -9,6 +9,7 @@ import type Stripe from "stripe";
 import { stripeClient } from "@/clients/stripe.client";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import { resolveZeroMarginTopUpLookupKey } from "@/lib/zero-margin-top-up";
 import type { CreditTopUpPricing } from "@/schemas/billing.schema";
 import {
@@ -467,14 +468,31 @@ export const stripeBillingService = {
       // between the check above and this create. Re-fetch and reuse it; if
       // there is still none, the create genuinely failed — surface the
       // original error rather than masking it with a generic message.
-      console.error("Error claiming coupon:", error);
       const fallbackPromotionCode = await stripeClient.getPromotionCode(
         stripeCustomerId,
         params.couponId,
       );
+      // The request's error handler logs the original error.
       if (!fallbackPromotionCode) {
         throw error;
       }
+      recordCoreWarning(
+        { operation: "coupon_claim" },
+        {
+          message:
+            "Creating a coupon's promotion code failed, so the existing one is reused",
+          why: "A concurrent claim most likely created the code first",
+          cause: error,
+        },
+        {
+          coupon: { id: params.couponId },
+          stripeCustomer: { id: stripeCustomerId },
+          promotionCode: {
+            id: fallbackPromotionCode.id,
+            active: fallbackPromotionCode.active,
+          },
+        },
+      );
 
       return {
         promotionCodeId: fallbackPromotionCode.id,

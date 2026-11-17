@@ -11,6 +11,7 @@ import { waitUntil } from "@vercel/functions";
 import { err, ok, type Result } from "neverthrow";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { socialAccountStatisticsSchema } from "@/schemas/social-account-statistics.schema";
 import {
   backfillLinkedInAccountProfile,
@@ -167,10 +168,13 @@ export async function requestSocialAccountRefresh(
 }
 
 function startDetachedSync(connectionId: string): void {
-  const work = runDueSocialAccountSync({
-    connectionId,
-    shouldContinue: () => true,
-  }).then(() => undefined);
+  // Known background work: its events stay standalone (`recordCore*`).
+  const work = runAsBackgroundWork(() =>
+    runDueSocialAccountSync({
+      connectionId,
+      shouldContinue: () => true,
+    }),
+  ).then(() => undefined);
   if (process.env.VERCEL) waitUntil(work);
   else void work;
 }

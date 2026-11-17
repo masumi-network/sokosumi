@@ -48,6 +48,7 @@ import {
 } from "@/helpers/task-worker-context";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
 import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
@@ -425,19 +426,19 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
       waitUntil(
-        projectMemoryService
-          .refreshAfterTaskCompleted({ projectId, taskId })
-          .catch((error) => {
-            console.error("Project memory refresh failed", {
-              projectId,
-              taskId,
-              error,
-            });
-            Sentry.captureException(error, {
-              tags: { error_type: "project_memory_refresh_failed" },
-              extra: { projectId, taskId },
-            });
-          }),
+        runAsBackgroundWork(() =>
+          projectMemoryService.refreshAfterTaskCompleted({ projectId, taskId }),
+        ).catch((error) => {
+          console.error("Project memory refresh failed", {
+            projectId,
+            taskId,
+            error,
+          });
+          Sentry.captureException(error, {
+            tags: { error_type: "project_memory_refresh_failed" },
+            extra: { projectId, taskId },
+          });
+        }),
       );
     }
 

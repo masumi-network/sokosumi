@@ -13,6 +13,7 @@ import {
   retryMissingProjectCloseNotifications,
 } from "@/helpers/project-close-notifications";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
 import {
   getPendingProjectAdRevocation,
   revokeProjectAdConnectionForClose,
@@ -425,11 +426,27 @@ async function recordProjectCloseFailure(
   if (failed) {
     await notifyProjectCloseTransition(recorded);
   }
-  console.error("Project close batch failed", {
-    closeOperationId: claimed.id,
-    ...failureSummary,
-    error,
-  });
+  // The project-closes cron, after its response.
+  emitCoreError(
+    {
+      operation: "project_close_sync",
+      projectClose: {
+        operationId: claimed.id,
+        projectId: current.projectId,
+        attempts,
+        failed,
+        scheduleId: failureSummary.scheduleId,
+      },
+    },
+    {
+      message: "A project close batch failed",
+      why: failureSummary.message,
+      fix: failed
+        ? `The close stopped after ${PROJECT_CLOSE_MAX_FAILURES} failed batches and the project's owner was told; the cause on this event says what to fix before closing it again.`
+        : "The next project-closes sync retries the batch.",
+      cause: error,
+    },
+  );
   return failed;
 }
 

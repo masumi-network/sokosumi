@@ -17,6 +17,11 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
+import { emitCoreError, recordCoreError } from "@/lib/evlog";
+import {
+  messageSafeErrorFields,
+  type SafeErrorFields,
+} from "@/lib/safe-error-fields";
 import { sokoBotTurnsSyncService } from "@/services/soko-bot-turns-sync.service";
 import {
   isRunnableSokoBotVersionId,
@@ -375,10 +380,17 @@ async function completeIfDone(run: {
     // Loaded here: the email reads this module's report.
     const { sendEvalRegressionEmail } = await import("./eval-report-email");
     await sendEvalRegressionEmail(run.id).catch((error: unknown) => {
-      console.error("Eval regression email failed", {
-        runId: run.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Its own event: a lane failure may already hold the tick's error.
+      emitCoreError(
+        { operation: "eval_regression_email", evalRun: { id: run.id } },
+        {
+          message: "Could not send the daily eval regression email",
+          why: "Sending the report email failed",
+          fix: "The run is complete; read its report in the admin evals page.",
+        },
+        // Only provider metadata: a mail error can quote the report.
+        { failure: messageSafeErrorFields(error) },
+      );
     });
   }
   return true;
@@ -394,17 +406,31 @@ export async function tickEvalRuns(
 ): Promise<{ runId: string | null; completed: boolean }> {
   const run = await startNextRun();
   if (!run) return { runId: null, completed: false };
+  const laneFailures: ({ lane: number } & SafeErrorFields)[] = [];
   await Promise.all(
     Array.from({ length: run.repeats }, (_, index) =>
       advanceLane(run.id, index + 1, shouldContinue).catch((error: unknown) => {
-        console.error("Eval lane step failed", {
-          runId: run.id,
+        // Only safe fields: a lane runs a Soko Bot turn, and its error can
+        // quote the prompt.
+        laneFailures.push({
           lane: index + 1,
-          error: error instanceof Error ? error.message : "unknown",
+          ...messageSafeErrorFields(error),
         });
       }),
     ),
   );
+  if (laneFailures.length > 0) {
+    // One error per event, so every failed lane is listed on it.
+    recordCoreError(
+      { operation: "eval_tick" },
+      {
+        message: "Could not move an eval run's lanes on",
+        why: "A lane's step threw",
+        fix: "The next tick retries each lane. If one fails every tick, check evalLaneFailures[].errorName and status.",
+      },
+      { evalRun: { id: run.id }, evalLaneFailures: laneFailures },
+    );
+  }
   return {
     runId: run.id,
     completed: await completeIfDone(run),

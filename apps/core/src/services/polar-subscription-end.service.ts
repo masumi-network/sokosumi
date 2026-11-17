@@ -8,9 +8,8 @@ import { writeOffUnlessLiveCuso } from "@/helpers/cuso-project-credits";
 import { serviceUnavailable } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { emitCoreError, recordCoreWarning } from "@/lib/evlog";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
-
-const LOG_PREFIX = "[polar-subscription-end]";
 
 /**
  * Ending a Cuso ends his CMO subscription (ADR 0068): Polar stops charging at
@@ -54,9 +53,25 @@ async function revokeSubscriptions(
           { reportToSentry: false },
         );
       }
-      console.warn(
-        `${LOG_PREFIX} Revoke of ${subscription.polarSubscriptionId} failed; owed to the sync job:`,
-        error,
+      // Ending paths run in requests and in background work.
+      recordCoreWarning(
+        { operation: "polar_subscription_end" },
+        {
+          message:
+            "Could not revoke a CMO subscription at Polar, so the revoke is owed to the sync job",
+          why: "Polar refused or did not answer the revoke",
+          fix: "Nothing to do now: the subscription is ended here, and the polar-yearly-grants sync retries the revoke.",
+          cause: error,
+        },
+        // An array: one ending can owe several revokes on the same event.
+        {
+          polarRevokesOwed: [
+            {
+              subscriptionRowId: subscription.id,
+              polarSubscriptionId: subscription.polarSubscriptionId,
+            },
+          ],
+        },
       );
       const owedAt = new Date();
       await prisma.polarSubscription.updateMany({
@@ -176,15 +191,28 @@ export async function retryOwedPolarRevokes(
       await revokePolarSubscription(subscription.polarSubscriptionId);
     } catch (error) {
       result.errors += 1;
-      console.error(
-        `${LOG_PREFIX} Owed revoke of ${subscription.polarSubscriptionId} failed again:`,
-        error,
-      );
       const { revokeFailures } = await prisma.polarSubscription.update({
         where: { id: subscription.id },
         data: { revokeFailures: { increment: 1 } },
         select: { revokeFailures: true },
       });
+      // The polar-yearly-grants cron, after its response.
+      emitCoreError(
+        {
+          operation: "polar_owed_revoke_retry",
+          polarSubscription: {
+            subscriptionRowId: subscription.id,
+            polarSubscriptionId: subscription.polarSubscriptionId,
+            revokeFailures,
+          },
+        },
+        {
+          message: "Could not revoke a CMO subscription at Polar again",
+          why: "Polar refused or did not answer the owed revoke",
+          fix: `The next polar-yearly-grants sync retries it. Polar may go on charging; at ${REVOKE_FAILURES_REPORTED} failures Sentry reports it, and someone must revoke it in the Polar dashboard.`,
+          cause: error,
+        },
+      );
       if (revokeFailures === REVOKE_FAILURES_REPORTED) {
         Sentry.captureMessage(
           "CMO subscription revoke still owed: Polar may go on charging",

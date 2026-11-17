@@ -101,8 +101,8 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { projectCloseSyncService } from "@/services/project-close-sync.service";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
@@ -268,7 +268,13 @@ describe("project close sync", () => {
   });
 
   it("backs off transient failures and names the failed schedule after exhaustion", async () => {
-    expectConsole("error", "Project close batch failed");
+    const errors = expectCoreLogWhys(
+      "error",
+      "A project close batch failed",
+      ["Scheduled work could not be closed"],
+      // The schedule's own error wraps the failure.
+      ["Scheduled work could not be closed"],
+    );
     taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
     taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -299,10 +305,15 @@ describe("project close sync", () => {
     expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
       "project_event_123",
     );
+    expect(errors[0]?.fix).toContain("stopped after 3 failed batches");
+    expect(errors[0]?.event).toMatchObject({
+      operation: "project_close_sync",
+      projectClose: { attempts: 3, failed: true },
+    });
   });
 
   it("retries a failed batch later without notifying", async () => {
-    expectConsole("error", "Project close batch failed");
+    expectCoreLog("error", "A project close batch failed");
     taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
     taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -326,7 +337,7 @@ describe("project close sync", () => {
   });
 
   it("names no schedule when the failure is outside one", async () => {
-    expectConsole("error", "Project close batch failed");
+    expectCoreLog("error", "A project close batch failed");
     projectUpdateMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
       attempts: 2,
@@ -404,7 +415,7 @@ describe("project close sync", () => {
   });
 
   it("keeps a failed ad revocation retryable without closing the project", async () => {
-    expectConsole("error", "Project close batch failed");
+    expectCoreLog("error", "A project close batch failed");
     const pending = { adConnectionId: "ad_1", connectedAccountId: "ca_ads" };
     taskScheduleFindFirstMock.mockResolvedValue(null);
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -423,7 +434,7 @@ describe("project close sync", () => {
   });
 
   it("keeps a failed social revocation retryable without closing the project", async () => {
-    expectConsole("error", "Project close batch failed");
+    expectCoreLog("error", "A project close batch failed");
     const pending = { connectedAccountId: "ca_project" };
     taskScheduleFindFirstMock.mockResolvedValue(null);
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -780,7 +791,7 @@ describe("project close sync", () => {
     });
 
     it("fails the batch, naming the schedule, when it changed under the close", async () => {
-      expectConsole("error", "Project close batch failed");
+      expectCoreLog("error", "A project close batch failed");
       taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
       taskScheduleUpdateManyMock.mockResolvedValue({ count: 0 });
       projectCloseOperationFindFirstMock.mockResolvedValue({
