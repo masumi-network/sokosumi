@@ -327,9 +327,13 @@ function PanelBody({
     contact.channels.some((channel) => channel.type === type),
   );
 
+  // An archived contact is read-only until restored; Restore sits above. The
+  // fieldset stops native controls; Radix menus open on pointerdown, which a
+  // fieldset does not stop, so each menu trigger is disabled itself too.
+  const archived = !!contact.archivedAt;
+
   return (
-    // An archived contact is read-only until restored; Restore sits above.
-    <fieldset disabled={!!contact.archivedAt} className="flex min-w-0 flex-col">
+    <fieldset disabled={archived} className="flex min-w-0 flex-col">
       <header className="flex items-start gap-4 px-6 pt-6 pb-5 pe-14">
         <ContactAvatar
           name={contact.name}
@@ -424,7 +428,7 @@ function PanelBody({
                 })}
           </p>
         </div>
-        {contact.kind === "PERSON" && !contact.archivedAt ? (
+        {contact.kind === "PERSON" && !archived ? (
           <Button
             size="sm"
             variant="outline"
@@ -439,7 +443,7 @@ function PanelBody({
           </Button>
         ) : null}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild disabled={archived}>
             <Button
               size="icon"
               variant="ghost"
@@ -490,7 +494,7 @@ function PanelBody({
         </DropdownMenu>
       </header>
 
-      {contact.mergeSuggestions.length && !contact.archivedAt ? (
+      {contact.mergeSuggestions.length && !archived ? (
         <MergeBanner
           contact={contact}
           onOpenContact={onOpenContact}
@@ -501,7 +505,7 @@ function PanelBody({
       <dl className="grid gap-1 px-6 pb-5">
         <Property label={t("columns.stage")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 type="button"
                 aria-label={t("panel.changeStage", {
@@ -529,7 +533,7 @@ function PanelBody({
         </Property>
         <Property label={t("columns.importance")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 type="button"
                 aria-label={t("importance.change")}
@@ -599,7 +603,7 @@ function PanelBody({
         ) : null}
         <Property label={t("columns.lists")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 ref={listsTrigger}
                 type="button"

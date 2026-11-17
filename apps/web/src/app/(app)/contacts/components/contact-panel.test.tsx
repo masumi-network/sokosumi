@@ -207,6 +207,7 @@ describe("ContactPanel archived contact", () => {
   beforeEach(() => {
     shown.current = LENA;
     unarchive.mockReset();
+    changeMembers.mockReset();
   });
 
   it("is read-only apart from Restore: no Enrich, menu and edits disabled", async () => {
@@ -225,6 +226,41 @@ describe("ContactPanel archived contact", () => {
       screen.getByRole("button", { name: "panel.name: Lena Fischer" }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "panel.restore" })).toBeEnabled();
+  });
+
+  /** Presses a trigger the way Radix opens a menu: primary-button pointerdown. */
+  function press(name: string) {
+    fireEvent.pointerDown(screen.getByRole("button", { name }), {
+      button: 0,
+      ctrlKey: false,
+    });
+  }
+  const EDIT_MENUS = [
+    "panel.menu",
+    "panel.changeStage",
+    "importance.change",
+    "panel.changeLists",
+  ];
+
+  it("opens no edit menu on an archived contact, so nothing can change", async () => {
+    shown.current = ARCHIVED;
+    await renderPanel();
+    for (const name of EDIT_MENUS) {
+      press(name);
+      expect(screen.queryByRole("menu")).toBeNull();
+    }
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    expect(changeMembers).not.toHaveBeenCalled();
+  });
+
+  it("still opens every edit menu on a live contact", async () => {
+    await renderPanel();
+    for (const name of EDIT_MENUS) {
+      press(name);
+      expect(await screen.findByRole("menu")).toBeInTheDocument();
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    }
   });
 
   it("restores in place: the notice goes and editing comes back", async () => {
