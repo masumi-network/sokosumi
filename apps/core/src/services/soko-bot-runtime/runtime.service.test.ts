@@ -675,6 +675,7 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { buildSokoBotAudienceTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   MAX_CHAT_CHAIN_DEPTH,
@@ -10502,6 +10503,7 @@ describe("Content Studio image tools", () => {
     });
 
     it("still reports the image when the copy fails", async () => {
+      expectConsole("warn", "[soko-bot] could not copy an image into Files");
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(

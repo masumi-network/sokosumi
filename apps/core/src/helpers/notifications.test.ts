@@ -4,10 +4,9 @@ import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import prisma from "@/lib/db/prisma";
-
 import {
   type CreateNotificationInput,
   createNotification,
@@ -758,6 +757,10 @@ describe("createNotification push gating", () => {
   });
 
   it("queues unknown push consent for retry when the opt-in read fails", async () => {
+    expectConsole(
+      "error",
+      "Failed to read the notification preferences; skipping push",
+    );
     const notification = createChatRecord();
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(notification);
@@ -1594,6 +1597,7 @@ describe("chat room arrival count", () => {
    * cost the reader the interruption itself.
    */
   it("still publishes when the arrivals cannot be counted", async () => {
+    expectConsole("error", "Failed to count the room's unread notifications");
     notificationFindManyMock.mockRejectedValue(new Error("database gone"));
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());

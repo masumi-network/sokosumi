@@ -33,6 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { coworker: { findUnique: coworkerFindUniqueMock } },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   LATE_RESPONSE_GRACE_MS,
   LATE_RESPONSE_MAX_AGE_MS,
@@ -202,6 +203,10 @@ describe("syncLateCoworkerResponses", () => {
   });
 
   it("removes an expired entry even when its note cannot be saved", async () => {
+    expectConsole(
+      "error",
+      "[sync/coworker-late-responses] Failed to deliver resp_old",
+    );
     listMock.mockResolvedValue([
       entry("resp_old", LATE_RESPONSE_MAX_AGE_MS + 1),
     ]);
@@ -212,6 +217,10 @@ describe("syncLateCoworkerResponses", () => {
   });
 
   it("retries later when saving the reply fails", async () => {
+    expectConsole(
+      "error",
+      "[sync/coworker-late-responses] Failed to deliver resp_late",
+    );
     listMock.mockResolvedValue([
       entry("resp_late", LATE_RESPONSE_GRACE_MS + 1),
     ]);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
@@ -557,6 +558,11 @@ describe("jwtKeyStoreOptions", () => {
   }
 
   it("signs with a key of its own when the stored key is another secret's", async () => {
+    expectConsole(
+      "warn",
+      /^\S+ WARN \[Better Auth\]: Skipped 1 JWKS signing key\(s\) encrypted with another secret/,
+      3,
+    );
     const db = await forkedDb();
     const preview = createSigner(db, PREVIEW_SECRET, false);
 
@@ -569,6 +575,11 @@ describe("jwtKeyStoreOptions", () => {
   });
 
   it("publishes only the keys it can sign with", async () => {
+    expectConsole(
+      "warn",
+      /^\S+ WARN \[Better Auth\]: Skipped 1 JWKS signing key\(s\) encrypted with another secret/,
+      3,
+    );
     const db = await forkedDb();
     const preview = createSigner(db, PREVIEW_SECRET, false);
     await sign(preview);

@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it } from "vitest";
-
 import { transformPurchaseToJobUpdate } from "./purchase";
 
 type PurchaseInput = Parameters<typeof transformPurchaseToJobUpdate>[0];
@@ -70,6 +70,7 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits unknown on-chain states instead of throwing", () => {
+    expectConsole("error", "[purchase] skipping unknown value");
     const transformedPurchase = transformPurchaseToJobUpdate(
       buildPurchase({ onChainState: "SomeFutureState" as never }),
     );
@@ -79,6 +80,7 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits unknown next actions instead of throwing", () => {
+    expectConsole("error", "[purchase] skipping unknown value");
     const transformedPurchase = transformPurchaseToJobUpdate(
       buildPurchase({
         NextAction: {
@@ -94,6 +96,7 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits unknown next action error types instead of throwing", () => {
+    expectConsole("error", "[purchase] skipping unknown value");
     const transformedPurchase = transformPurchaseToJobUpdate(
       buildPurchase({
         NextAction: {
@@ -109,6 +112,7 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits transaction fields when the transaction status is unknown", () => {
+    expectConsole("error", "[purchase] skipping unknown value");
     const purchase = buildPurchase();
     const transformedPurchase = transformPurchaseToJobUpdate({
       ...purchase,

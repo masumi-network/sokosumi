@@ -66,6 +66,46 @@ describe("seoCapabilityGroups", () => {
 });
 
 describe("customer-facing limitations", () => {
+  it("keeps indexing results distinct from missing search traffic, without a manual sync action", () => {
+    const workspace = seoTestWorkspace();
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+          pageUrl: workspace.pages[0].url,
+          status: "issue",
+          report: true,
+          reason: "Google could not fetch this page.",
+          suggestedFix: "Repair the server error.",
+          evidence: [],
+        },
+      ],
+    };
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchTraffic",
+      fix: null,
+    });
+    expect(
+      seoCustomerAuditGaps(workspace).map((gap) => gap.message),
+    ).not.toContain("noSearchConsole");
+    workspace.indexTriage.assessments[0].status = "unavailable";
+    workspace.indexTriage.assessments[0].report = false;
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchConsole",
+      fix: "connect_search_console",
+    });
+    workspace.indexTriage.assessments[0] = {
+      ...workspace.indexTriage.assessments[0],
+      pageUrl: "https://another.example/private",
+      status: "review",
+    };
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchConsole",
+      fix: "connect_search_console",
+    });
+  });
+
   it("groups the open catalog into five limits and omits completed areas", () => {
     expect(seoCustomerLimitations()).toEqual([
       "site",

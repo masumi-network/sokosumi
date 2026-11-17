@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
@@ -66,6 +67,10 @@ describe("webhookClient", () => {
   });
 
   it("skips Sentry reporting on receiver backpressure", async () => {
+    expectConsole(
+      "warn",
+      "Webhook userCreated receiver reported queue backpressure; skipping Sentry report.",
+    );
     fetchMock.mockResolvedValue(
       new Response("The request queue reached full capacity.", {
         status: 400,
@@ -81,6 +86,10 @@ describe("webhookClient", () => {
   });
 
   it("skips Sentry reporting on transient webhook timeouts", async () => {
+    expectConsole(
+      "warn",
+      "Webhook userCreated call failed transiently; skipping Sentry report.",
+    );
     fetchMock.mockRejectedValue(
       Object.assign(new Error("The operation was aborted"), {
         name: "AbortError",

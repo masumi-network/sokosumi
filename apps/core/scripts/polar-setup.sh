@@ -244,10 +244,12 @@ CATALOG=(
   "CMO top-up 25,000 credits|750|One-time|top-up||25000"
 )
 
-# Scopes Core's calls need: checkouts, customer sessions (portal link),
+# Scopes Core's calls need: checkouts, customers (the organization's Polar
+# customer: look up, create, copy billing), customer sessions (portal link),
 # subscriptions (read, change plan, revoke), products (catalog), orders.
 TOKEN_SCOPES=(
   "checkouts:write"
+  "customers:write"
   "customer_sessions:write"
   "subscriptions:read"
   "subscriptions:write"

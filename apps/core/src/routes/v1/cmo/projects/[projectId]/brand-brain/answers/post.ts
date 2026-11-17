@@ -20,7 +20,7 @@ const route = createRoute({
   operationId: "answerCmoBrandBrainQuestionForProject",
   tags: ["CMO"],
   description:
-    "A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no (with what is true instead) or not sure.",
+    "A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no or not sure, each with the member's optional details.",
   request: {
     params: cmoProjectParamsSchema,
     body: {

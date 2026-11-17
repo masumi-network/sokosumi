@@ -20,7 +20,9 @@ import {
   withComposio,
 } from "@/services/composio-integration-tools.service";
 import {
+  CLEARED_SEO_ACCOUNT_IDENTITY,
   getSeoConnection,
+  recordSeoConnectionIdentity,
   requireSeoConnectionOwner,
   type SeoConnectionOwner,
   seoConnectionKey,
@@ -309,12 +311,21 @@ export async function finalizeSeoConnection(
         entityId: intent.executorEntityId,
         authConfigId: intent.authConfigId,
         connectedAt: new Date(),
+        ...CLEARED_SEO_ACCOUNT_IDENTITY,
+        // The finalize claims the identity read: a status read in the same moment (the popup
+        // closes and the opener gets focus) must not take it and leave this answer without one.
+        accountCheckedAt: new Date(),
       },
     });
     if (selected.count !== 1)
       throw conflict("SEO connection changed. Please retry.");
     return previous?.composioAccountId;
   }, "SEO connection changed. Please retry.");
+  await recordSeoConnectionIdentity(
+    { composioAccountId: connectionId, entityId: intent.executorEntityId },
+    { claimed: true },
+  );
+  const status = await getSeoConnection(owner, provider);
   if (superseded && superseded !== connectionId)
     await deleteProjectSocialConnectionIntent({
       connectedAccountId: superseded,
@@ -323,7 +334,7 @@ export async function finalizeSeoConnection(
         label: "seo_connection_replaced_cleanup",
       });
     });
-  return getSeoConnection(owner, provider);
+  return status;
 }
 
 export async function disconnectSeoConnection(
@@ -336,7 +347,11 @@ export async function disconnectSeoConnection(
     const selected = await tx.seoConnection.upsert({
       where: { workspaceId_userId_provider: key },
       create: { ...key, status: "DISCONNECTED", revision: 1 },
-      update: { status: "DISCONNECTED", revision: { increment: 1 } },
+      update: {
+        status: "DISCONNECTED",
+        revision: { increment: 1 },
+        ...CLEARED_SEO_ACCOUNT_IDENTITY,
+      },
     });
     const pending = await tx.seoConnectionIntent.findMany({
       where: { ...key, finalizedAt: null },

@@ -179,7 +179,7 @@ it("takes the answer back and says so when the save fails", async () => {
   expect(text()).toContain("That didn't save.");
 });
 
-it("keeps a no's note behaviour: No opens a line for what is true instead", async () => {
+it("answers No at once, and sends details typed first with the tap", async () => {
   const save = vi.fn(async () => {});
   await act(async () =>
     root.render(
@@ -193,15 +193,16 @@ it("keeps a no's note behaviour: No opens a line for what is true instead", asyn
     ),
   );
   await press("No");
-  expect(save).not.toHaveBeenCalled();
+  expect(save).toHaveBeenLastCalledWith("no", undefined);
+  await press("Add more details");
   typeInto(
     container.querySelector<HTMLInputElement>(
-      'input[aria-label="What\'s true instead"]',
+      'input[aria-label="More details"]',
     ),
     "Businesses",
   );
-  await press("Save");
-  expect(save).toHaveBeenCalledWith("no", "Businesses");
+  await press("Yes");
+  expect(save).toHaveBeenLastCalledWith("yes", "Businesses");
 });
 
 // Site, held until the founder moves on.
@@ -248,12 +249,24 @@ it("keeps a finished Site on screen until See your brand", async () => {
   await press("Yes");
   expect(text()).toContain("2 of 2");
   await press("No");
-  await press("Save");
   // Everything is answered, so Brand is next; the Site waits for the founder.
   expect(text()).toContain("That's all I need.");
   expect(text()).not.toContain("Looks like us");
   await press("See your brand");
   expect(text()).toContain("Looks like us");
+});
+
+it("moves to the next question before the save returns", async () => {
+  const actions = actionsFor({
+    answerBrandQuestion: vi.fn(() => new Promise<CmoOverview>(() => {})),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  await press("Yes");
+  expect(text()).toContain("2 of 2");
 });
 
 it("lets the founder change answers from the finished Site", async () => {
@@ -550,7 +563,7 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
   );
   expect(
     container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
-  ).toBe("Three moves");
+  ).toBe("Your funnel");
   await act(async () =>
     [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
       .find((tab) => tab.textContent === "How we know it works")
@@ -573,7 +586,7 @@ it("moves between plan tabs with the arrow keys", async () => {
   const selected = () =>
     container.querySelector('[role="tab"][aria-selected="true"]');
   const active = selected();
-  expect(active?.textContent).toBe("Three moves");
+  expect(active?.textContent).toBe("Your funnel");
   await act(async () => {
     active?.dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
@@ -840,7 +853,7 @@ it("approves the plan and lands on Launch", async () => {
   expect(text()).toContain("One thing, then I start.");
 });
 
-// Launch: the celebration shows after onLaunch; Go to Today records the finish (flow.tsx).
+// Launch: the celebration shows at once; Go to Today records the finish (flow.tsx).
 
 const active = {
   id: "x",
@@ -850,11 +863,7 @@ const active = {
   status: "ACTIVE",
 };
 
-it("celebrates after Launch, then opens the app on Go to Today", async () => {
-  let finish = () => {};
-  const onLaunch = vi.fn(
-    () => new Promise<void>((resolve) => (finish = resolve)),
-  );
+it("celebrates on Launch without a failure in between, then opens the app on Go to Today", async () => {
   const goToday = vi.fn();
   await act(async () =>
     root.render(
@@ -879,17 +888,15 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
         })}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
-        onLaunch={onLaunch}
         onGoToday={goToday}
       />,
     ),
   );
   expect(text()).not.toContain("is on it.");
   await press("Launch Cuso");
-  // The celebration waits for onLaunch.
-  expect(onLaunch).toHaveBeenCalledTimes(1);
-  expect(text()).not.toContain("is on it.");
-  await act(async () => finish());
+  // Launch calls no server action, so no "Could not launch" shows first.
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(text()).not.toContain("Could not launch");
   expect(text()).toContain("Cuso is on it.");
   expect(text()).toContain("Active, 7 pieces a week");
   expect(text()).toContain("€200 a month");
@@ -901,7 +908,6 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   await press("Change settings");
   expect(text()).toContain("One thing, then I start.");
   await press("Launch Cuso");
-  await act(async () => finish());
   await press("Go to Today");
   expect(goToday).toHaveBeenCalledTimes(1);
 });

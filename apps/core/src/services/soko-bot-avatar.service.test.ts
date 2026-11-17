@@ -41,8 +41,8 @@ vi.mock("@/lib/db/prisma", async () => {
   return { default: store.client };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
-
 import { LIMITS } from "@/config/constants";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
@@ -136,11 +136,14 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("buys one image, not six, when storing them is broken", async () => {
+    expectConsole(
+      "error",
+      "Soko Bot avatar generation failed; skipping this run",
+    );
     // The image model bills for an image whether or not we store it. With a
     // broken blob token the pool never fills, so an ungated run would buy six
     // on every top-up while writing nothing louder than a warning.
     putMock.mockRejectedValue(new Error("blob token rejected"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(generateAvatars(6, "user-1")).resolves.toBe(0);
 
@@ -148,8 +151,11 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("hands back the slots it never spent on, and keeps the one it may have paid for", async () => {
+    expectConsole(
+      "error",
+      "Soko Bot avatar generation failed; skipping this run",
+    );
     drawMock.mockRejectedValue(new Error("fal is down"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(generateAvatars(3, "user-1")).resolves.toBe(0);
 
@@ -161,24 +167,27 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("survives a release that fails instead of raising a 500", async () => {
+    expectConsole(
+      "error",
+      "Soko Bot avatar generation failed; skipping this run",
+    );
+    expectConsole("warn", "Soko Bot avatar reservations could not be released");
     vi.spyOn(store.client.sokoBotAvatar, "deleteMany").mockRejectedValue(
       new Error("pool exhausted"),
     );
     drawMock.mockRejectedValue(new Error("fal is down"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(generateAvatars(2, "user-1")).resolves.toBe(0);
   });
 
   it("reports how many images it actually added", async () => {
+    expectConsole("warn", "Soko Bot avatar generation failed");
     // Probe succeeds, then one of the two remaining fills fails.
     putMock
       .mockImplementationOnce(async (pathname: string) => ({
         url: `https://blob.test/${pathname}`,
       }))
       .mockRejectedValueOnce(new Error("blob rejected"));
-    vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(generateAvatars(3, "user-1")).resolves.toBe(2);
     await expect(listAvailableAvatars(6)).resolves.toHaveLength(2);
@@ -405,6 +414,7 @@ describe("restyling avatars from before the brand palette", () => {
   });
 
   it("leaves a bot on its old avatar when its draw fails", async () => {
+    expectConsole("warn", "Soko Bot avatar restyle failed");
     const old = seedOld("bot-1", "fox");
     drawMock.mockRejectedValueOnce(new Error("model down"));
 

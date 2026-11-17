@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   BASE_SEPOLIA,
   createAgentRow,
@@ -124,6 +123,9 @@ describe("GET /agents?kind=x402 catalog query", () => {
   });
 
   it("requires curated agents in the Mainnet catalog query", async () => {
+    // The query shape is the subject: an empty Mainnet page drops nothing.
+    agentFindManyMock.mockResolvedValue([]);
+    agentCountMock.mockResolvedValue(0);
     networkState.value = "Mainnet";
     const app = createApp();
 

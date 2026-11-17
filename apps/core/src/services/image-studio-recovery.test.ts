@@ -73,6 +73,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: vi.fn(),
     },
     project: { findUnique: vi.fn() },
+    projectImagePromptSnapshot: { upsert: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
   return { default: client };
@@ -102,6 +103,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   reconcileJob,
@@ -133,6 +135,7 @@ function queuedJob(overrides: Record<string, unknown> = {}) {
     cancelRequestedAt: null,
     createdAt: new Date(),
     asset: null,
+    idempotencyKey: "key-abcdefgh",
     ...overrides,
   };
 }
@@ -464,6 +467,7 @@ describe("a reservation whose process died before it claimed submission", () => 
   });
 
   it("leaves one alone when the access check itself is unavailable", async () => {
+    expectConsole("warn", "[image-studio] recovery access check unavailable");
     jobFindManyMock.mockResolvedValue([
       {
         id: "job-12",

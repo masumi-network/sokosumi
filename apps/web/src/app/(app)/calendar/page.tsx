@@ -5,6 +5,7 @@ import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-crea
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { SocialCalendarPreviewProvider } from "@/app/social/components/social-calendar-preview";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { calendarUrl } from "./calendar-url";
 import {
   type CalendarPageSearchParams,
@@ -44,6 +45,7 @@ export default async function CalendarPage({
 
   return (
     <CreateTaskModalProvider>
+      <RefreshPrefetchedPage />
       <SocialCalendarPreviewProvider>
         <WorkspaceCalendar
           activeOrganizationId={page.activeOrganizationId}

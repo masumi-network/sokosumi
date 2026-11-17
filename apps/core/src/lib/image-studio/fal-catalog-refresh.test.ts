@@ -9,13 +9,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * assertion is always the same: the catalog is still there.
  */
 
-const { getEnvMock, redisMock, fetchSourcesMock, fetchVideoSourcesMock } =
-  vi.hoisted(() => ({
-    getEnvMock: vi.fn(),
-    redisMock: vi.fn(),
-    fetchSourcesMock: vi.fn(),
-    fetchVideoSourcesMock: vi.fn(),
-  }));
+const {
+  getEnvMock,
+  redisMock,
+  fetchSourcesMock,
+  fetchVideoSourcesMock,
+  normaliseImageMock,
+  normaliseVideoMock,
+} = vi.hoisted(() => ({
+  getEnvMock: vi.fn(),
+  redisMock: vi.fn(),
+  fetchSourcesMock: vi.fn(),
+  fetchVideoSourcesMock: vi.fn(),
+  normaliseImageMock: vi.fn(),
+  normaliseVideoMock: vi.fn(),
+}));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/redis", () => ({ getRedisClient: redisMock }));
@@ -24,14 +32,17 @@ vi.mock("./fal-catalog-fetch", async () => ({
     "./fal-catalog-fetch",
   )),
   fetchFalCatalogSources: fetchSourcesMock,
+  normaliseFalCatalog: normaliseImageMock,
 }));
 vi.mock("./fal-video-catalog-fetch", async () => ({
   ...(await vi.importActual<typeof import("./fal-video-catalog-fetch")>(
     "./fal-video-catalog-fetch",
   )),
   fetchFalVideoCatalogSources: fetchVideoSourcesMock,
+  normaliseFalVideoCatalog: normaliseVideoMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getImageCatalog } from "./catalog";
 import {
   ensureImageCatalogFresh,
@@ -44,16 +55,48 @@ import { getVideoCatalog } from "./video-catalog";
 const SNAPSHOT_MODEL_COUNT = getImageCatalog().models.length;
 const SNAPSHOT_VIDEO_MODEL_COUNT = getVideoCatalog().models.length;
 
+const { normaliseFalCatalog } = await vi.importActual<
+  typeof import("./fal-catalog-fetch")
+>("./fal-catalog-fetch");
+
+/** What a crawl brought back; the normalisers decide what it is worth. */
+const CRAWLED = {
+  models: [],
+  prices: new Map(),
+  schemas: new Map(),
+  editEndpoints: new Set(),
+  fetchedAt: "2026-09-28T00:00:00.000Z",
+};
+
+/**
+ * A crawl that succeeds with the catalog already served, for tests about
+ * something else. Parsing fal's answer is `fal-*-catalog-fetch.test.ts`'s.
+ */
+function crawlFindsTheCurrentImageCatalog() {
+  fetchSourcesMock.mockResolvedValue(CRAWLED);
+  normaliseImageMock.mockImplementation(() => ({
+    models: getImageCatalog().models,
+    exclusions: [],
+  }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   resetImageCatalogFreshness();
   getEnvMock.mockReturnValue({ FAL_KEY: "k" });
   redisMock.mockReturnValue(null);
-  fetchVideoSourcesMock.mockRejectedValue(new Error("fal returned 429"));
+  // The video crawl, which runs first, succeeds unless a test says otherwise.
+  fetchVideoSourcesMock.mockResolvedValue(CRAWLED);
+  normaliseVideoMock.mockImplementation(() => ({
+    models: getVideoCatalog().models,
+    exclusions: [],
+  }));
+  normaliseImageMock.mockImplementation(normaliseFalCatalog);
 });
 
 describe("refreshImageCatalog", () => {
   it("keeps the last good catalog when fal cannot be reached", async () => {
+    expectConsole("warn", "[image-studio] catalog refresh failed");
     fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
 
     expect(await refreshImageCatalog()).toBe(false);
@@ -62,6 +105,10 @@ describe("refreshImageCatalog", () => {
   });
 
   it("keeps the last good catalog when the crawl produced nothing usable", async () => {
+    expectConsole(
+      "warn",
+      "[image-studio] catalog refresh produced no usable models; keeping the previous catalog",
+    );
     // Every endpoint excluded. That is a broken crawl, not news, and adopting it
     // would leave the studio with no models to offer.
     fetchSourcesMock.mockResolvedValue({
@@ -85,18 +132,12 @@ describe("refreshImageCatalog", () => {
   });
 
   it("crawls fal once however many callers arrive together", async () => {
+    crawlFindsTheCurrentImageCatalog();
     let release: (() => void) | undefined;
     fetchSourcesMock.mockImplementation(
       () =>
         new Promise((resolve) => {
-          release = () =>
-            resolve({
-              models: [],
-              prices: new Map(),
-              schemas: new Map(),
-              editEndpoints: new Set(),
-              fetchedAt: "2026-09-28T00:00:00.000Z",
-            });
+          release = () => resolve(CRAWLED);
         }),
     );
 
@@ -152,6 +193,7 @@ describe("ensureImageCatalogFresh", () => {
   });
 
   it("treats a shared cache that cannot be read as a miss, never an outage", async () => {
+    expectConsole("warn", "[image-studio] shared catalog read failed", 2);
     redisMock.mockReturnValue({
       get: vi.fn().mockRejectedValue(new Error("connection refused")),
       set: vi.fn(),
@@ -188,6 +230,7 @@ describe("ensureImageCatalogFresh", () => {
 
 describe("a crawl that runs out of time", () => {
   it("is discarded rather than adopted, so no model is silently dropped", async () => {
+    expectConsole("warn", "[image-studio] catalog refresh failed");
     // A partial catalog is a catalog missing models, and adopting one would take
     // working models out of the composer until the next successful crawl.
     fetchSourcesMock.mockImplementation(async (options) => {
@@ -202,13 +245,7 @@ describe("a crawl that runs out of time", () => {
   });
 
   it("hands the budget check down to the fetcher", async () => {
-    fetchSourcesMock.mockResolvedValue({
-      models: [],
-      prices: new Map(),
-      schemas: new Map(),
-      editEndpoints: new Set(),
-      fetchedAt: "2026-09-28T00:00:00.000Z",
-    });
+    crawlFindsTheCurrentImageCatalog();
     const shouldContinue = () => true;
 
     await refreshImageCatalog({ shouldContinue });
@@ -221,7 +258,9 @@ describe("a crawl that runs out of time", () => {
 
 describe("the video catalog", () => {
   it("keeps the last good video catalog, and still crawls images, when the video crawl fails", async () => {
-    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
+    expectConsole("warn", "[image-studio] video catalog refresh failed");
+    fetchVideoSourcesMock.mockRejectedValue(new Error("fal returned 429"));
+    crawlFindsTheCurrentImageCatalog();
 
     await refreshImageCatalog();
 
@@ -231,7 +270,7 @@ describe("the video catalog", () => {
   });
 
   it("crawls only the endpoints a person verified a price for", async () => {
-    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
+    crawlFindsTheCurrentImageCatalog();
 
     await refreshImageCatalog();
 

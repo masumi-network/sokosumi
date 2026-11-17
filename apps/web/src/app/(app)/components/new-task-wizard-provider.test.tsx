@@ -156,7 +156,8 @@ describe("NewTaskWizardProvider", () => {
       callback();
       return 1;
     });
-    Object.assign(window, { requestIdleCallback, cancelIdleCallback: vi.fn() });
+    vi.stubGlobal("requestIdleCallback", requestIdleCallback);
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
 
     render(
       <NewTaskWizardProvider>

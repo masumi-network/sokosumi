@@ -216,29 +216,48 @@ export function StudioGallery({
                     )}
                     data-asset-id={asset.id}
                   >
-                    <button
-                      aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
-                      className="focus-visible:ring-ring block w-full cursor-pointer outline-none focus-visible:ring-2"
-                      onClick={() => onOpen(asset.id)}
-                      type="button"
+                    {/* The image's own ratio, so 1:1 and 16:9 tiles pack into
+                    the columns without cropping or letterboxing. */}
+                    <div
+                      className="bg-muted relative flex w-full items-center justify-center"
+                      style={{ aspectRatio: tileAspectRatio(asset) }}
                     >
-                      {/* The image's own ratio, so 1:1 and 16:9 tiles pack into
-                      the columns without cropping or letterboxing. */}
-                      <span
-                        className="bg-muted flex w-full items-center justify-center"
-                        style={{ aspectRatio: tileAspectRatio(asset) }}
-                      >
-                        <StudioImage asset={asset} labels={labels} />
+                      {/* Open-details covers the picture as an empty sibling
+                      rather than wrapping it, because an unreadable picture
+                      carries its own "Try again" button and a button may not
+                      sit inside another. The picture comes after it, so "Try
+                      again" (positioned) paints above it and follows it in the
+                      tab order. The ring is inset: the figure clips anything
+                      drawn outside the picture, so an outer ring never showed. */}
+                      <button
+                        aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
+                        className="focus-visible:ring-ring absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                        onClick={() => onOpen(asset.id)}
+                        // The cover takes the pointer from the video beneath,
+                        // so it starts and stops the silent hover preview.
+                        onMouseEnter={(event) =>
+                          void event.currentTarget.parentElement
+                            ?.querySelector("video")
+                            ?.play()
+                            .catch(() => {})
+                        }
+                        onMouseLeave={(event) =>
+                          event.currentTarget.parentElement
+                            ?.querySelector("video")
+                            ?.pause()
+                        }
+                        type="button"
+                      />
+                      <StudioImage asset={asset} labels={labels} />
+                    </div>
+                    {video ? (
+                      <span className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs tabular-nums">
+                        <Play aria-hidden className="size-3" />
+                        {asset.video?.durationSeconds
+                          ? `${asset.video.durationSeconds}s`
+                          : null}
                       </span>
-                      {video ? (
-                        <span className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs tabular-nums">
-                          <Play aria-hidden className="size-3" />
-                          {asset.video?.durationSeconds
-                            ? `${asset.video.durationSeconds}s`
-                            : null}
-                        </span>
-                      ) : null}
-                    </button>
+                    ) : null}
 
                     {/* Actions live on the picture, on hover or focus, so the
                     grid stays a wall of images and the second draw is one

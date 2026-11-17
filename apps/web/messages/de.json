@@ -11657,7 +11657,7 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
-      "manageStatistics": "Google-Statistiken verwalten",
+      "manageStatistics": "Google-Verbindungen",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
@@ -11680,13 +11680,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Nur du kannst dieses Ergebnis sehen.",
+        "relatedFindingPage": "Zugehörige Seite",
         "measurements": "Zugriffe",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Probleme noch ohne Lösung",
+        "findings": "Audit-Ergebnisse",
+        "suggestedFix": "Vorgeschlagene Korrektur",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -11714,8 +11717,6 @@
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
-        "dailyValues": "Tageswerte",
-        "day": "Tag",
         "synced": "Zuletzt synchronisiert",
         "windowDays": "Letzte 7 Tage: {current}. Vorherige 7 Tage: {previous}. Beide enden am neuesten Tag, den Google gemeldet hat.",
         "noComparison": "Zu wenige Tage für einen Vergleich",
@@ -11753,12 +11754,16 @@
         "periodBetter": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt besser",
         "periodWorse": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt schlechter",
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
-        "changeMarker": "Erfasste Änderung am {day}: {changes}",
         "points": "{value} Pp.",
-        "googleUpdate": "Google: {name}, {from} bis {to}",
-        "googleUpdateOpen": "Google: {name}, {from} bis {to}, wird noch ausgerollt",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google-Updates bekannt bis {day}"
+        "googleUpdate": "{name}: {from} bis {to}",
+        "googleUpdateOpen": "{name}: seit {from}",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Google-Updates bekannt bis {day}",
+        "markerKind": "{kind, select, change {Seitenänderung} audit {Audit} task {Aufgabe erledigt} verified {Korrektur bestätigt} other {Ereignis}}",
+        "markerEvent": "{kind}: {label}",
+        "day": "Tag",
+        "markerEvents": "Ereignisse",
+        "markerLater": "{day} (noch keine Suchdaten): {events}"
       },
       "keywords": {
         "title": "Keywords",
@@ -11840,7 +11845,7 @@
           "subtitle": "Suchen im Monat gegen die Schwierigkeit. Oben links ist am besten.",
           "checked": "Ihre Keywords",
           "idea": "Idee",
-          "hint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Keywords, mit + oder - zoomen Sie.",
+          "hint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Keywords, mit der Eingabetaste öffnen Sie eines, mit + oder - zoomen Sie.",
           "axis": "Schwierigkeit",
           "difficulty": "Schwierigkeit {value} von 100",
           "top10": "{clicks, plural, =0 {Top 10: keine zusätzlichen Klicks} one {Top 10: +# Klick im Monat} other {Top 10: +# Klicks im Monat}}",
@@ -11850,7 +11855,14 @@
           "source": "Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO.",
           "zoomIn": "Vergrößern",
           "zoomOut": "Verkleinern",
-          "zoomReset": "Ganze Karte zeigen"
+          "zoomReset": "Ganze Karte zeigen",
+          "yours": "Ihr Keyword",
+          "gainShort": "Zusätzliche Klicks (Top 3)",
+          "contentTask": "Content-Aufgabe erstellen",
+          "ask": "SEO-Agent fragen",
+          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können. Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
+          "question": "Wie kann {site, select, none {meine Website} other {{site}}} bei Google für die Suche „{keyword}“ ranken? Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Die passende Produktfunktion: {feature}.}}",
+          "noGain": "Unbekannt"
         },
         "historyShow": "Verlauf",
         "historyPaidTitle": "Positionen in bezahlten Prüfungen",
@@ -11956,7 +11968,6 @@
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
-        "whyDetails": "Begründung und Belege",
         "effort": "Aufwand",
         "before": "Vorher",
         "after": "Vorgeschlagene Änderung",
@@ -11972,9 +11983,6 @@
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
         "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder frag den SEO-Agenten nach den nächsten Schritten.",
-        "fixesTitle": "Korrekturen für die Probleme",
-        "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
-        "opportunitiesTitle": "Vorschläge aus Suchdaten",
         "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
         "noOpportunitiesBody": "Die letzte Prüfung fand nichts zu beheben. Die Übersicht zeigt, was der SEO-Agent als Nächstes vorschlägt.",
         "kind": {
@@ -11982,7 +11990,19 @@
           "opportunity": "Vorschlag"
         },
         "problem": "{check}. Gefunden: {found}",
-        "impactLine": "{level}: {hint}"
+        "copyFix": "Änderung kopieren",
+        "copyInstructions": "Anweisungen für Agenten kopieren",
+        "copyPage": "Seite",
+        "copied": "In die Zwischenablage kopiert",
+        "copyFailed": "Kopieren nicht möglich. Text markieren und von Hand kopieren.",
+        "copyAgentLead": "Setze diese SEO-Änderung auf der Website um. Ändere nur, was sie nennt, und prüfe danach die Seite.",
+        "evidence": "Belege",
+        "change": "Die Änderung",
+        "filter": {
+          "label": "Aktionen filtern",
+          "all": "Alle",
+          "suggestions": "Vorschläge"
+        }
       },
       "pages": {
         "title": "Seiten",
@@ -12081,6 +12101,7 @@
         "failed": "Fehlgeschlagen",
         "invalid": "Prüfe Seiten, Keywords, Markt und Geräte. Vollständige Audits erlauben ein Keyword und beide Geräte.",
         "keywordsHelp": "Gib bis zu 20 Keywords mit jeweils bis zu 80 Zeichen ein.",
+        "relatedPages": "Prüft auch die Indexierung relevanter Seiten dieser Website, insgesamt bis zu {count} Seiten. Vollständige Audits prüfen nur ausgewählte Seiten.",
         "fullHelp": "Vollständige Audits erlauben ein Keyword und beide Geräte. Alle ausgewählten Seiten verwenden denselben Markt.",
         "serviceUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Kehre zum Audit zurück.",
         "returnToAudit": "Zurück zum Audit",
@@ -12094,8 +12115,8 @@
         "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten."
       },
       "statistics": {
-        "title": "Google-Statistiken",
-        "description": "Statistiken werden für die ausgewählten Seiten automatisch geladen. Wähle nur bei Bedarf eine Property.",
+        "title": "Google-Verbindungen",
+        "description": "Verbinde deine Google-Quellen. Statistiken für die ausgewählten Seiten werden automatisch geladen.",
         "provider": "Quelle",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12109,17 +12130,20 @@
         "propertiesLoading": "Autorisierte Properties werden geladen",
         "propertiesFailed": "Properties konnten nicht geladen werden. Versuche es erneut.",
         "noProperties": "Keine autorisierten Properties verfügbar.",
-        "ownerOnly": "Statistiken verwenden dein verbundenes Konto und dessen Zugriffsrechte.",
+        "ownerOnly": "Sokosumi liest Statistiken nur mit deinem Google-Zugriff.",
         "shared": "Gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt. Dein Google-Konto bleibt unter deiner Kontrolle.",
         "synced": "Statistiken synchronisiert",
         "readsSearch": "Liest die letzten {days} Tage der Google-Suchdaten.",
         "readsOrganic": "Liest die letzten {days} Tage des Traffics aus der organischen Suche.",
         "readsAll": "Liest die letzten {days} Tage des gesamten Website-Traffics.",
         "channelAny": "Alle gemessenen Segmente",
-        "connectTitle": "Statistiken einrichten",
-        "connectFirst": "Verbinde {provider}. Statistiken der letzten 90 Tage werden automatisch geladen.",
         "channelAiAssistant": "KI-Assistenten (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot."
+        "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot.",
+        "measures": {
+          "search_console": "Suchanfragen, Klicks und Positionen in der Google-Suche",
+          "ga4": "Besuche und Seitenaufrufe auf deiner Website"
+        },
+        "propertyNotMatching": "Diese Property deckt die ausgewählten Seiten nicht ab, daher werden keine Statistiken daraus geladen."
       },
       "metrics": {
         "page_views": "Seitenaufrufe",
@@ -12334,7 +12358,14 @@
         "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit.",
         "connectGoogle": "Google verbinden",
         "analyticsNext": "Google fragt zweimal nach deiner Zustimmung: zuerst für Search Console, dann für Google Analytics.",
-        "analyticsOff": "Google Analytics ist nicht verbunden. Besuche und Seitenaufrufe bleiben leer."
+        "connectShort": "Verbinden",
+        "connectedShort": "Verbunden",
+        "googleAccount": "Google-Konto",
+        "noneConnected": "Noch keine Quelle verbunden",
+        "options": "Optionen für das Google-Konto",
+        "settings": "Statistik-Einstellungen",
+        "switchFor": "Konto wechseln: {provider}",
+        "notConnected": "Nicht verbunden"
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
@@ -12392,6 +12423,15 @@
         "refreshing": "Google-Statistiken werden geladen.",
         "refreshFailed": "Google-Statistiken konnten nicht geladen werden. Versuche es erneut.",
         "nextTitle": "Der Agent schlägt vor",
+        "chart": "Angezeigtes Diagramm",
+        "chartKeywords": "Keyword-Suchen",
+        "statistics": "{analytics, select, missing {Google-Statistiken: Analytics ist nicht verbunden} no_property {Google-Statistiken: Dieses Google-Konto hat keine Analytics-Property} choose {Google-Statistiken: Für {site} ist keine Analytics-Property gewählt. Wähle eine deiner {count, plural, one {# Property} other {# Properties}}.} empty {Google-Statistiken: Die Analytics-Property {property} hat noch keine Besuche für diese Seiten} other {Google-Statistiken}}",
+        "figures": {
+          "label": "Kennzahlen",
+          "rankings": "{depth, select, same {{found} von {read} {count, plural, one {Keyword} other {Keywords}} gefunden · {max} Ergebnisse je Keyword gelesen} range {{found} von {read} {count, plural, one {Keyword} other {Keywords}} gefunden · {min} bis {max} Ergebnisse je Keyword gelesen} other {{found} von {read} {count, plural, one {Keyword} other {Keywords}} gefunden}}",
+          "searches": "{partial, select, yes {{total, plural, one {# Suche} other {# Suchen}} pro Monat für {keywords, number} von {of, number} Keywords} other {{total, plural, one {# Suche} other {# Suchen}} pro Monat}}",
+          "traffic": "{clicks, plural, one {# Klick} other {# Klicks}} · {impressions, plural, one {# Impression} other {# Impressionen}}"
+        },
         "nothingNext": "Es steht nichts an. Google-Statistiken werden für die ausgewählten Seiten automatisch geladen und bei Bedarf aktualisiert.",
         "steps": {
           "refresh": {
@@ -12441,18 +12481,16 @@
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
         "traffic": "Google-Suche für {pages, plural, one {diese Seite} other {diese # Seiten}}: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
-        "openTraffic": "Zugriffe öffnen",
-        "openRankings": "Rankings öffnen",
-        "toSteps": "Mit dem ersten Schritt beginnen",
         "draftFix": "Agent um Korrektur bitten",
-        "moreSteps": "{count, plural, one {# weiteren Schritt zeigen} other {# weitere Schritte zeigen}}",
-        "moreActions": "{kind, select, fix {{count, plural, one {# weitere Korrektur} other {# weitere Korrekturen}}} other {{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}}}",
         "statisticsMissing": "Statistiken sind nicht eingerichtet",
         "demand": {
           "title": "Geprüfte Keywords mit den meisten Suchen",
           "unit": "Suchen pro Monat",
           "position": "Position {position}"
-        }
+        },
+        "openAction": "Aktion öffnen",
+        "changeProperty": "Property ändern",
+        "chooseProperty": "Property wählen"
       },
       "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
@@ -12492,6 +12530,20 @@
           "device": "Google nennt ein Gerät nur für {listed, number} von {total, number} Impressionen.",
           "both": "Google nennt Land und Gerät nur für {listed, number} von {total, number} Impressionen."
         }
+      },
+      "indexReview": {
+        "title": "Hinweise zur Indexierung",
+        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
+        "checked": "Geprüft",
+        "state": {
+          "review": "Prüfung erforderlich",
+          "expected_exclusion": "Erwarteter Ausschluss",
+          "unavailable": "Nicht geprüft"
+        },
+        "suggestedFix": "Vorgeschlagener nächster Schritt",
+        "evidence": "Nachweise ansehen",
+        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
+        "sources": "Quellen: Google Search Console und dieses Audit."
       },
       "index": {
         "title": "Google-Index",
@@ -12637,15 +12689,10 @@
         "issues": "Probleme",
         "issuesNone": "Keine gefunden",
         "severityCount": "{count} {severity, select, critical {kritisch} major {mit großer Auswirkung} other {mit geringer Auswirkung}}",
-        "keywords": "Keywords in den ersten Google-Ergebnissen",
         "of": "von {total}",
-        "searches": "Suchen nach deinen Keywords",
-        "searchesFor": "Für {keywords} von {of} geprüften Keywords",
         "tests": "Abgeschlossene Tests",
         "testsNoResult": "{count, plural, one {# Test ohne Ergebnis} other {# Tests ohne Ergebnis}}",
-        "testsAll": "Jeder Test hat ein Ergebnis",
-        "aMonth": "pro Monat",
-        "depth": "{same, select, yes {Gelesene Ergebnisse pro Keyword: {max}} other {Gelesene Ergebnisse pro Keyword: {min} bis {max}}}"
+        "testsAll": "Jeder Test hat ein Ergebnis"
       },
       "traffic": {
         "searchType": "Suchtyp",
@@ -12727,6 +12774,7 @@
           "publishing": "Du setzt Änderungen selbst um, prüfst Korrekturen nach und teilst Berichte mit Kunden."
         },
         "gaps": {
+          "noSearchTraffic": "Suchstatistiken sind noch nicht verfügbar. Ergebnisse zur Indexierung findest du in diesem Audit.",
           "statisticsIncomplete": "Einige Google-Statistiken fehlen. Der Agent kann nur die verfügbaren Daten bewerten.",
           "checksIncomplete": "Einige Prüfungen lieferten kein Ergebnis. Dieses Audit kann Probleme übersehen.",
           "title": "Fehlende Audit-Daten",
@@ -12761,7 +12809,7 @@
         "fix": {
           "connect_search_console": "Statistiken einrichten",
           "connect_ga4": "Statistiken einrichten",
-          "sync": "Google-Statistiken verwalten",
+          "sync": "Google-Verbindungen",
           "run_check": "Prüfung starten"
         },
         "items": {

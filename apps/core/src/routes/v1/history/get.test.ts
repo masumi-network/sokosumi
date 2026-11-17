@@ -1,13 +1,12 @@
 import { HistoryKind, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { LIMITS } from "@/config/constants";
 import type { HistoryRowForApi } from "@/helpers/history";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
-
 import mountGetHistory from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -568,7 +567,10 @@ describe("GET /history", () => {
     ]);
     historyCountMock.mockResolvedValue(1);
     agentFindManyMock.mockRejectedValue(new Error("db down"));
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "Failed to load agent previews for history feed",
+    );
 
     const app = createApp();
     const response = await app.request("http://localhost/");
@@ -586,8 +588,6 @@ describe("GET /history", () => {
       agentName: null,
       agentIcon: null,
     });
-    expect(warnSpy).toHaveBeenCalled();
-
-    warnSpy.mockRestore();
+    expect(warnings).not.toHaveLength(0);
   });
 });

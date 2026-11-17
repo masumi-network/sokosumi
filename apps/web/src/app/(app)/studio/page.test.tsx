@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
   afterAll,
@@ -8,10 +9,10 @@ import {
   it,
   vi,
 } from "vitest";
-
 import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
 
 const {
+  connectionMock,
   imageStudioServiceMock,
   projectServiceMock,
   openProjectScopeMock,
@@ -19,6 +20,7 @@ const {
   setScopeCreateOpenMock,
   useHasAnyScopeProjectMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   openProjectScopeMock: vi.fn(),
   openScopeCreateMock: vi.fn(),
   setScopeCreateOpenMock: vi.fn(),
@@ -32,7 +34,16 @@ const {
   projectServiceMock: { getProjectById: vi.fn() },
 }));
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("server-only", () => ({}));
+
+vi.mock("next/server", () => ({ connection: connectionMock }));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
@@ -394,6 +405,59 @@ describe("StudioPage", () => {
     );
   });
 
+  // The reads are cached, so a link prefetch carries the page.
+  // connection() would drop it back to the skeleton.
+  it("renders the scoped project without deferring to the request", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "project-1",
+    );
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a failed read as the page the click opens.
+  it("renders a failed catalog read fresh on the click", async () => {
+    imageStudioServiceMock.getCatalog
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValue(CATALOG);
+
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-catalog-models",
+      "1",
+    );
+  });
+
+  // A Core 401 on a read the page can do without must still sign the reader
+  // out, instead of hiding the shortcut.
+  it("keeps a sign-in redirect from the recent projects read", async () => {
+    const { redirect } = await import("next/navigation");
+    imageStudioServiceMock.getRecentProjects.mockImplementation(async () =>
+      redirect("/signin"),
+    );
+
+    const { default: StudioPage } = await import("./page");
+
+    await expect(
+      StudioPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+  });
+
   it("reads the creative catalog for a scope this workspace lost", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(null);
     const { default: StudioPage } = await import("./page");
@@ -457,6 +521,7 @@ describe("StudioPage", () => {
   });
 
   it("keeps the first-ad screen when recent projects are empty or unavailable", async () => {
+    expectConsole("warn", "Image studio: recent projects unavailable");
     imageStudioServiceMock.getRecentProjects.mockRejectedValue(
       new Error("Core down"),
     );
@@ -518,8 +583,15 @@ describe("StudioPage", () => {
   });
 
   it("survives a selection Core will not accept, instead of taking the page down", async () => {
+    expectConsole(
+      "warn",
+      "Image studio: ignoring an unusable selection from the URL",
+    );
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    // Once-only answers: clearAllMocks keeps an implementation, and a lasting
+    // one would leak into later tests.
     imageStudioServiceMock.getState
+      .mockRejectedValueOnce(new Error("Invalid uuid"))
       .mockRejectedValueOnce(new Error("Invalid uuid"))
       .mockResolvedValueOnce(studioState());
 
@@ -537,16 +609,13 @@ describe("StudioPage", () => {
     // A `?v=` from a saved link can name a deleted asset, another project's
     // asset, or no asset at all. Asking for it is an optimisation, so a
     // refusal costs one more round trip and nothing else.
-    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
-      1,
-      "project-1",
-      { assetId: "not-an-id" },
-    );
-    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
-      2,
-      "project-1",
-      {},
-    );
+    // The prefetch cache keeps no fallback: the open studio keeps its first
+    // state, so a refresh could not repair one. The click reads fresh, and
+    // only that read falls back to the newest page.
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(
+      imageStudioServiceMock.getState.mock.calls.map(([, query]) => query),
+    ).toEqual([{ assetId: "not-an-id" }, { assetId: "not-an-id" }, {}]);
     expect(screen.getByTestId("image-studio")).toHaveAttribute(
       "data-selected",
       "",

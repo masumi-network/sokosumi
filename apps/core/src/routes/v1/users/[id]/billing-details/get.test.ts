@@ -1,12 +1,11 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-
 import mountGetUserBillingDetails from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -138,6 +137,7 @@ describe("GET /users/{id}/billing-details", () => {
   });
 
   it("returns 500 when the stripe read fails instead of empty billing details", async () => {
+    expectConsole("error", "Error: stripe down");
     getUserBillingDetailsMock.mockRejectedValue(new Error("stripe down"));
 
     const response = await createApp().request(

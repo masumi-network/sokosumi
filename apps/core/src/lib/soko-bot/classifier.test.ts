@@ -1,6 +1,6 @@
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it, vi } from "vitest";
-
 import {
   type ClassifierContextSummary,
   JevTurnClassifier,
@@ -22,7 +22,9 @@ describe("unwrapTitleTags", () => {
   });
 
   it("sends Jev the unwrapped message", async () => {
-    const evaluate = vi.fn<RouteEvaluator>().mockRejectedValue(new Error("x"));
+    const evaluate = vi.fn<RouteEvaluator>(async () =>
+      jevRoute("DIRECT_RESPONSE"),
+    );
     await new JevTurnClassifier(evaluate).classify(
       "Archive [TEST] Launch QA.",
       {
@@ -506,7 +508,7 @@ describe("failing closed", () => {
   });
 
   it("reads only when Jev is unreachable", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole("warn", "Soko Bot classifier failed");
     const result = await new JevTurnClassifier(async () => {
       throw new Error("gateway down");
     }).classify("Hire an agent", EMPTY_CONTEXT);
@@ -516,12 +518,11 @@ describe("failing closed", () => {
       usage: null,
       classification: { route: "CLARIFY", confidence: 0 },
     });
-    expect(warn).toHaveBeenCalledOnce();
-    warn.mockRestore();
+    expect(warn).toHaveLength(1);
   });
 
   it("rejects malformed answers and still reports what the call cost", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Soko Bot classifier failed");
     const result = await new JevTurnClassifier(
       answering({
         ...jevRoute("DIRECT_RESPONSE"),
@@ -535,7 +536,6 @@ describe("failing closed", () => {
       outputTokens: 20,
       costUsd: 0.00001,
     });
-    warn.mockRestore();
   });
 
   it("treats a route outside the known set as unsure", async () => {

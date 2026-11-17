@@ -1,6 +1,5 @@
 "use client";
 
-import { RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,15 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SeoConnectionButton } from "./seo-connection-button";
-import { SeoField, SeoSelect } from "./seo-form-fields";
-import {
-  SEO_DEFAULT_STATISTICS_DAYS,
-  type SeoStatisticsProvider,
-} from "./seo-statistics-model";
+import { SEO_GOOGLE_SOURCES, SeoGoogleAccounts } from "./seo-google-accounts";
+import type { SeoStatisticsProvider } from "./seo-statistics-model";
+import { SeoStatisticsSource } from "./seo-statistics-source";
 import { useSeoStatistics } from "./use-seo-statistics";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+/**
+ * The Google accounts as one card, then the property of each connected
+ * source. No source is chosen first: both are in view, and the one the reader
+ * came for is marked.
+ */
 export function SeoStatisticsDialog({
   model,
   source,
@@ -28,14 +29,10 @@ export function SeoStatisticsDialog({
   source?: SeoStatisticsProvider;
 }) {
   const t = useTranslations("App.Seo");
-  const form = useSeoStatistics(model, source);
-  const properties = form.properties.data;
-  // No account for this source yet: the dialog is the connect step. The sync fields follow the approval.
-  // After the approval the saved answer still says "not connected" until the new read ends.
-  const reading =
-    form.properties.isPending ||
-    (form.properties.isFetching && properties?.status === "not_connected");
-  const connectFirst = properties?.status === "not_connected" && !reading;
+  const forms = {
+    search_console: useSeoStatistics(model, "search_console"),
+    ga4: useSeoStatistics(model, "ga4"),
+  };
   return (
     <Dialog
       open
@@ -43,128 +40,48 @@ export function SeoStatisticsDialog({
         if (!open && !model.pending) model.setDialog(null);
       }}
     >
-      <DialogContent>
+      <DialogContent
+        // No button takes the first focus: one Enter must not start a Google approval. A dialog
+        // opened for one source focuses its section, so the next Tab reaches that source's control;
+        // else the dialog itself. A control may still be loading here, so none is chosen.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          const content = event.currentTarget as HTMLElement | null;
+          (
+            content?.querySelector<HTMLElement>("[data-focused]") ?? content
+          )?.focus();
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>
-            {t(connectFirst ? "statistics.connectTitle" : "statistics.title")}
-          </DialogTitle>
-          <DialogDescription>
-            {connectFirst
-              ? t("statistics.connectFirst", {
-                  provider: t(`statistics.${form.provider}`),
-                })
-              : t("statistics.description")}
-          </DialogDescription>
+          <DialogTitle>{t("statistics.title")}</DialogTitle>
+          <DialogDescription>{t("statistics.description")}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <SeoField
-            id="seo-statistics-provider"
-            label={t("statistics.provider")}
-          >
-            <SeoSelect
-              id="seo-statistics-provider"
-              value={form.provider}
-              onValueChange={form.changeProvider}
-              options={["ga4", "search_console"].map((value) => ({
-                value,
-                label: t(`statistics.${value}`),
-              }))}
+        <div className="space-y-3">
+          <SeoGoogleAccounts />
+          {SEO_GOOGLE_SOURCES.map((provider) => (
+            <SeoStatisticsSource
+              key={provider}
+              form={forms[provider]}
+              focused={provider === source}
             />
-          </SeoField>
-          {reading ? (
-            <p role="status" className="text-muted-foreground text-sm">
-              {t("statistics.propertiesLoading")}
-            </p>
-          ) : form.propertiesUnavailable ? (
-            <div role="alert">
-              <p>{t("statistics.propertiesFailed")}</p>
-              <Button
-                type="button"
-                variant="outline"
-                loading={form.properties.isFetching}
-                onClick={() => {
-                  void form.properties.refetch();
-                }}
-              >
-                <RotateCw />
-                {t("retry")}
-              </Button>
-            </div>
-          ) : properties?.properties.length === 1 ? (
-            // One property: nothing to choose, so it is a line and not a field.
-            <p className="text-sm">
-              <span className="text-muted-foreground">
-                {t("statistics.property")}:{" "}
-              </span>
-              {properties.properties[0].name}
-            </p>
-          ) : properties?.properties.length ? (
-            <SeoField
-              id="seo-statistics-property"
-              label={t("statistics.property")}
-            >
-              <SeoSelect
-                id="seo-statistics-property"
-                value={form.propertyId}
-                onValueChange={form.setPropertyId}
-                placeholder={t("statistics.chooseProperty")}
-                required
-                options={properties.properties.map((property) => ({
-                  value: property.id,
-                  label: property.name,
-                }))}
-              />
-            </SeoField>
-          ) : connectFirst ? null : (
-            <p className="text-muted-foreground text-sm">
-              {t("statistics.noProperties")}
-            </p>
-          )}
-          {properties?.reason && !connectFirst ? (
-            <p className="text-muted-foreground text-sm">{properties.reason}</p>
-          ) : null}
-          <SeoConnectionButton
-            key={form.provider}
-            provider={form.provider}
-            variant={connectFirst ? "primary" : "outline"}
-            onConnected={() => {
-              void form.properties.refetch();
-            }}
-          />
-          {connectFirst || !properties?.properties.length ? null : (
-            // The period and the traffic are set: the reader has no range or channel to choose.
-            <p className="text-sm" data-testid="seo-statistics-reads">
-              {t(
-                form.provider === "search_console"
-                  ? "statistics.readsSearch"
-                  : form.channel === "organic"
-                    ? "statistics.readsOrganic"
-                    : form.channel === "ai_assistant"
-                      ? "statistics.readsAiAssistant"
-                      : "statistics.readsAll",
-                { days: SEO_DEFAULT_STATISTICS_DAYS },
-              )}
-            </p>
-          )}
-          <p className="text-muted-foreground text-sm">
-            {t("statistics.ownerOnly")}
-          </p>
-          {model.data.sharing === "organization" ? (
-            <p className="text-muted-foreground text-sm">
-              {t("statistics.shared")}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={model.pending}
-              onClick={() => model.setDialog(null)}
-            >
-              {t("close")}
-            </Button>
-          </DialogFooter>
+          ))}
         </div>
+        <div className="text-muted-foreground space-y-1 text-sm">
+          <p>{t("statistics.ownerOnly")}</p>
+          {model.data.sharing === "organization" ? (
+            <p>{t("statistics.shared")}</p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={model.pending}
+            onClick={() => model.setDialog(null)}
+          >
+            {t("close")}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

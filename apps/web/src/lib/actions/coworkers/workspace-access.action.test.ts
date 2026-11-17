@@ -30,6 +30,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler({ ...args, session: { user: { id: "user_1" } } }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   grantDeveloperCoworkerEarlyAccessAction,
   revokeDeveloperCoworkerEarlyAccessAction,
@@ -106,9 +107,10 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
   });
 
   it("maps service failures through toCoreApiActionError", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to grant developer coworker early access CoreApiRequestError: Core backend timeout",
+    );
     createForCoworkerMock.mockRejectedValue(
       new CoreApiRequestError("Core backend timeout", { status: 503 }),
     );
@@ -128,7 +130,6 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
         });
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 });

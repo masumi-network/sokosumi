@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const subscriptionUpgradeMock = vi.fn();
@@ -67,6 +68,7 @@ describe("subscription.server", () => {
   });
 
   it("maps auth client upgrade errors by status without leaking the raw message", async () => {
+    expectConsole("error", "[subscription] auth client error");
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,
       error: {
@@ -93,6 +95,7 @@ describe("subscription.server", () => {
   });
 
   it("maps a 401 auth client error to UNAUTHENTICATED so the login affordance fires", async () => {
+    expectConsole("error", "[subscription] auth client error");
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,
       error: {
@@ -119,6 +122,7 @@ describe("subscription.server", () => {
   });
 
   it("passes the enterprise-contract exclusivity code through for the UI to localize", async () => {
+    expectConsole("error", "[subscription] auth client error");
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,
       error: {

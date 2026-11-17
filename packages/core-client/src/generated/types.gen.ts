@@ -6189,7 +6189,7 @@ export type ProjectImageStudioCatalogModel = {
     supportsSeed: boolean;
     maxReferences: number;
     dimensionMode: 'aspect-ratio' | 'image-size';
-    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls'>;
+    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls' | 'image_url' | 'mask_url' | 'strength'>;
     curatedRank: number | null;
     notes: string;
     price: {
@@ -8165,7 +8165,7 @@ export type QuestionAnswerRequest = {
     questionId: string;
     answer: 'yes' | 'no' | 'unsure';
     /**
-     * After a no: what is true instead, in the member's words.
+     * The member's own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.
      */
     note?: string;
 };
@@ -10846,6 +10846,7 @@ export type ProjectSeoWorkspace = {
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
+    indexTriage?: ProjectSeoIndexTriage | null;
     strategy?: ProjectSeoStrategy | null;
     serpHistory?: Array<ProjectSeoSerpSeries>;
     shareOfVoice?: ProjectSeoShareOfVoice | null;
@@ -10969,6 +10970,9 @@ export type ProjectSeoFinding = {
     title: string;
     severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
     evidence: Array<string>;
+    suggestedFix?: string | null;
+    relatedPageUrl?: string;
+    visibility?: 'PRIVATE';
     sourceRef: string;
     observedAt: Date;
 };
@@ -10989,6 +10993,8 @@ export type ProjectSeoAction = {
     } | null;
     taskId: string | null;
     status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+    completedAt?: Date;
+    verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };
@@ -11118,6 +11124,22 @@ export type ProjectSeoIndexedPage = {
     lastCrawlTime: Date | null;
     googleCanonical: string | null;
     userCanonical: string | null;
+};
+
+export type ProjectSeoIndexTriage = {
+    assessments: Array<ProjectSeoIndexAssessedPage>;
+};
+
+export type ProjectSeoIndexAssessedPage = {
+    pageUrl: string;
+    status: 'indexed' | 'issue' | 'review' | 'expected_exclusion' | 'unavailable';
+    report: boolean;
+    reason: string;
+    suggestedFix: string | null;
+    evidence: Array<string>;
+    taskId: string;
+    checkedAt: Date;
+    auditPageUrl?: string;
 };
 
 export type ProjectSeoStrategy = {
@@ -11560,6 +11582,11 @@ export type SeoConnectionStatus = {
     source: 'native' | 'personal' | 'none';
     pendingConnectionId?: string | null;
     canResume?: boolean;
+    account?: {
+        email: string;
+        name: string | null;
+        pictureUrl: string | null;
+    } | null;
     connectionVersion?: string;
 };
 
@@ -12153,9 +12180,9 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'checkout' | 'done';
+    onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -14186,6 +14213,75 @@ export type TaskSellerReceipt = {
     }>;
 };
 
+export type SeoTaskIndexingReceipt = {
+    version: 1;
+    taskId: string;
+    receiptHash: string;
+    checkedAt: Date;
+    auditPageUrl?: string;
+    assessmentSaved?: true;
+    status: 'available' | 'not_connected' | 'needs_property' | 'unavailable';
+    pages: Array<SeoTaskIndexedPage>;
+};
+
+export type SeoTaskIndexedPage = {
+    pageUrl: string;
+    verdict: 'PASS' | 'PARTIAL' | 'FAIL' | 'NEUTRAL' | 'VERDICT_UNSPECIFIED';
+    coverageState: string | null;
+    robotsTxtState: string | null;
+    lastCrawlTime: Date | null;
+    googleCanonical: string | null;
+    userCanonical: string | null;
+    indexingState: string | null;
+    pageFetchState: string | null;
+};
+
+export type SeoTaskIndexingRequest = {
+    expectedContext: TaskWorkerContext;
+    auditPageUrl?: string;
+};
+
+export type TaskWorkerContext = {
+    ownerId: string;
+    organizationId: string | null;
+    workspaceId: string;
+};
+
+export type SeoTaskIndexingResultAcknowledgment = {
+    version: 1;
+    taskId: string;
+    receiptHash: string;
+};
+
+export type SeoTaskIndexingResultRequest = {
+    expectedContext: TaskWorkerContext;
+    auditPageUrl?: string;
+    receiptHash: string;
+    assessments: Array<ProjectSeoIndexAssessment>;
+};
+
+export type ProjectSeoIndexAssessment = {
+    pageUrl: string;
+    status: 'indexed' | 'issue' | 'review' | 'expected_exclusion' | 'unavailable';
+    report: boolean;
+    reason: string;
+    suggestedFix: string | null;
+    evidence: Array<string>;
+};
+
+export type SeoTaskRelatedPagesReceipt = {
+    version: 1;
+    taskId: string;
+    auditPageUrl: string;
+    inspectionPageUrls: Array<string>;
+};
+
+export type SeoTaskRelatedPagesRequest = {
+    expectedContext: TaskWorkerContext;
+    seedPageUrls: Array<string>;
+    relatedPageUrls: Array<string>;
+};
+
 export type SendTaskToChatRequest = {
     roomId: string;
     note?: string;
@@ -14244,12 +14340,6 @@ export type MasumiTaskPaymentSource = {
     network: 'Preprod' | 'Mainnet';
     smartContractAddress: string;
     policyId: string;
-};
-
-export type TaskWorkerContext = {
-    ownerId: string;
-    organizationId: string | null;
-    workspaceId: string;
 };
 
 export type TaskFiles = Array<TaskFile>;
@@ -96888,6 +96978,366 @@ export type GetTasksByIdReceiptResponses = {
 };
 
 export type GetTasksByIdReceiptResponse = GetTasksByIdReceiptResponses[keyof GetTasksByIdReceiptResponses];
+
+export type PostTasksByIdSeoIndexingContextV1Data = {
+    body: SeoTaskIndexingRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingContextV1Error = PostTasksByIdSeoIndexingContextV1Errors[keyof PostTasksByIdSeoIndexingContextV1Errors];
+
+export type PostTasksByIdSeoIndexingContextV1Responses = {
+    /**
+     * Private URL Inspection receipt
+     */
+    200: {
+        data: SeoTaskIndexingReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingContextV1Response = PostTasksByIdSeoIndexingContextV1Responses[keyof PostTasksByIdSeoIndexingContextV1Responses];
+
+export type PostTasksByIdSeoIndexingResultContextV1Data = {
+    body: SeoTaskIndexingResultRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/result/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingResultContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingResultContextV1Error = PostTasksByIdSeoIndexingResultContextV1Errors[keyof PostTasksByIdSeoIndexingResultContextV1Errors];
+
+export type PostTasksByIdSeoIndexingResultContextV1Responses = {
+    /**
+     * Private indexing assessment saved
+     */
+    200: {
+        data: SeoTaskIndexingResultAcknowledgment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingResultContextV1Response = PostTasksByIdSeoIndexingResultContextV1Responses[keyof PostTasksByIdSeoIndexingResultContextV1Responses];
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Data = {
+    body: SeoTaskRelatedPagesRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/related-pages/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Error = PostTasksByIdSeoIndexingRelatedPagesContextV1Errors[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Errors];
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Responses = {
+    /**
+     * Immutable indexing evidence selection
+     */
+    200: {
+        data: SeoTaskRelatedPagesReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Response = PostTasksByIdSeoIndexingRelatedPagesContextV1Responses[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Responses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

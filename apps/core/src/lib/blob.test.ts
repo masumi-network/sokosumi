@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import {
   createOrganizationLogoUploadSession,
   createUserFileUploadSession,
@@ -330,6 +330,10 @@ describe("uploadCoworkerImage", () => {
   });
 
   it("returns null when blob storage is not configured", async () => {
+    expectConsole(
+      "warn",
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping coworker image upload",
+    );
     getEnvMock.mockReturnValue({});
 
     await expect(
@@ -485,6 +489,10 @@ describe("uploadOrganizationLogoBytes", () => {
   });
 
   it("returns null when blob storage is not configured", async () => {
+    expectConsole(
+      "warn",
+      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping org logo upload",
+    );
     getEnvMock.mockReturnValue({});
 
     await expect(

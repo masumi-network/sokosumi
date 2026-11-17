@@ -1,6 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -478,6 +478,7 @@ describe("PATCH /projects/{id}", () => {
   });
 
   it("nulls the URL when a briefing upload fails", async () => {
+    expectConsole("warn", "Project briefing saved without a Blob URL");
     const oldBriefingUrl =
       "https://blob.example/projects/project_1/secret_token/BRIEFING.md";
     projectFindFirstMock

@@ -37,7 +37,7 @@ describe("useLiveChatRooms", () => {
     vi.useFakeTimers();
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({ rooms: [] });
-    window.innerWidth = 1280;
+    vi.stubGlobal("innerWidth", 1280);
   });
   afterEach(() => vi.useRealTimers());
 
@@ -80,7 +80,7 @@ describe("useLiveChatRooms", () => {
   });
 
   it("reads at once on a phone", async () => {
-    window.innerWidth = 390;
+    vi.stubGlobal("innerWidth", 390);
     const view = render(<TabUnread />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);

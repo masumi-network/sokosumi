@@ -10,6 +10,7 @@ import {
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
@@ -269,6 +270,9 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotSchedule: {
       findFirst: scheduleFindFirstMock,
       update: scheduleUpdateMock,
+      // A new bot's built-in rhythms (`ensureSystemSchedules`): none exist yet.
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue({}),
     },
     sokoBotScheduleRunChange: { findMany: async () => [] },
     sokoBotScheduleRun: {
@@ -5321,7 +5325,7 @@ describe("SET_VERSION and fleet migration", () => {
       ...data,
     }));
     postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expectConsole("warn", "Soko Bot version notice failed");
 
     const result = await new SokoBotControlPlane().migrateVersions({
       operatorId: "admin_1",
@@ -5331,7 +5335,6 @@ describe("SET_VERSION and fleet migration", () => {
     });
 
     expect(result).toMatchObject({ moved: 1, notified: 0, failed: 0 });
-    warn.mockRestore();
   });
 
   it("posts nothing unless asked to", async () => {

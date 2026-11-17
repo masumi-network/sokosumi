@@ -49,7 +49,7 @@ const mockFetch = vi.fn();
 const mockSanitize = vi.mocked(DOMPurify.sanitize);
 const mockIpfsUrlResolver = vi.mocked(resolveIpfsOrHttpUrl);
 
-global.fetch = mockFetch;
+vi.stubGlobal("fetch", mockFetch);
 
 describe("ResolverSVGIcon", () => {
   beforeEach(() => {

@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -20,6 +28,11 @@ import {
   runTaskScheduleNow,
   updateTaskSchedule,
 } from "./task-schedule.service";
+
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&

@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   BASE_MAINNET,
   BASE_SEPOLIA,
@@ -156,7 +156,10 @@ describe("GET /agents?kind=x402", () => {
   ] as const)(
     "drops a %s entry whose discovery URL is not absolute HTTP(S)",
     async (type, urlOverrides) => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warn = expectConsole(
+        "warn",
+        "[agents] every x402 candidate agent was dropped as unpayable",
+      );
       agentFindManyMock.mockResolvedValue([
         createAgentRow({ type, ...urlOverrides }),
       ]);
@@ -168,9 +171,9 @@ describe("GET /agents?kind=x402", () => {
       expect((await response.json()) as { data: unknown[] }).toMatchObject({
         data: [],
       });
-      expect(warn).toHaveBeenCalledWith(
+      expect(warn).toContainEqual([
         '[agents] every x402 candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
-      );
+      ]);
     },
   );
 
@@ -255,7 +258,10 @@ describe("GET /agents?kind=x402", () => {
   });
 
   it("reports the dynamic gate that rejects a malformed preview", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
         paymentSources: [
@@ -278,9 +284,9 @@ describe("GET /agents?kind=x402", () => {
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
       data: [],
     });
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toContainEqual([
       '[agents] every x402 candidate agent was dropped as unpayable: {"malformed_pay_to":1}',
-    );
+    ]);
   });
 
   it("returns ready dynamic pricing as payable to a direct coworker", async () => {
@@ -365,7 +371,10 @@ describe("GET /agents?kind=x402", () => {
   });
 
   it("drops an X402 entry whose discovery URL is not absolute HTTP(S)", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     agentFindManyMock.mockResolvedValue([
       createAgentRow({ x402ResourcesUrl: "javascript:alert(1)" }),
     ]);
@@ -377,9 +386,9 @@ describe("GET /agents?kind=x402", () => {
     expect((await response.json()) as { data: unknown[] }).toMatchObject({
       data: [],
     });
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toContainEqual([
       '[agents] every x402 candidate agent was dropped as unpayable: {"invalid_discovery_url":1}',
-    );
+    ]);
   });
 
   it("advertises the cached node decimals over the agent's registered scale", async () => {
@@ -546,6 +555,10 @@ describe("GET /agents?kind=x402", () => {
   });
 
   it("returns an empty listing (not 500) when the credit_cost table is empty", async () => {
+    expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     // Ready sources exist, but nothing is priced. The listing must fail closed
     // to an empty array — every agent drops out of the pricing gate — not 500
     // out of a throwing credit-cost read.
@@ -574,7 +587,10 @@ describe("GET /agents?kind=x402", () => {
     // without ever exercising the CreditCost lookup. The credit_cost table
     // is non-empty (a row for another unit) to distinguish this from the
     // empty-table test above; the reason tally pins the exact gate.
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
@@ -610,15 +626,17 @@ describe("GET /agents?kind=x402", () => {
     expect(body.data).toEqual([]);
     // The sole candidate dropped on the unfiltered first page, so the tally
     // rides the warn line; the reason pins the pricing gate specifically.
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toContainEqual([
       '[agents] every x402 candidate agent was dropped as unpayable: {"unpriced_asset":1}',
-    );
-    warn.mockRestore();
+    ]);
     debug.mockRestore();
   });
 
   it("warns once with a per-reason tally when every candidate is dropped", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
         id: "agent_x402_unpriced",
@@ -668,14 +686,13 @@ describe("GET /agents?kind=x402", () => {
     const body = (await response.json()) as { data: unknown };
     expect(body.data).toEqual([]);
     // One line for the whole request, naming which gate hid what.
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toHaveLength(1);
+    expect(warn).toContainEqual([
       '[agents] every x402 candidate agent was dropped as unpayable: {"not_buy_side_ready":1,"unsupported_scheme":1,"no_payment_source":1}',
-    );
+    ]);
   });
 
   it("does not warn when every candidate on the first page drops but later pages remain", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue(
       Array.from({ length: 21 }, (_, index) =>
@@ -700,21 +717,18 @@ describe("GET /agents?kind=x402", () => {
     const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
-    expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
       '[agents] non-payable x402 agents by reason: {"unsupported_scheme":20}',
     );
   });
 
   it("stays quiet when every candidate agent is payable", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     const app = createApp();
 
     const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
-    expect(warn).not.toHaveBeenCalled();
     expect(debug).not.toHaveBeenCalled();
   });
 
@@ -722,7 +736,7 @@ describe("GET /agents?kind=x402", () => {
     // An empty page is not an anomaly — a coworker paging past the end, or a
     // deployment with no X402 entries yet, hits it on every poll. Warning here
     // would make client traffic drive warn volume, so nothing is logged.
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn");
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue([]);
     agentCountMock.mockResolvedValue(0);
@@ -742,7 +756,7 @@ describe("GET /agents?kind=x402", () => {
     // unpayable agent and make `listedCount === 0` hold on a perfectly healthy
     // deployment — one warn per request, looped at will. Only the unfiltered
     // first page, whose contents no client chooses, may warn.
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn");
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
@@ -782,7 +796,10 @@ describe("GET /agents?kind=x402", () => {
     // the client chose nothing, so the page is the same unfiltered first page
     // and must keep its warn. Guarding with `=== undefined` instead of
     // falsiness would silently demote exactly this request.
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
         id: "agent_x402_upto",
@@ -806,16 +823,16 @@ describe("GET /agents?kind=x402", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { data: unknown };
     expect(body.data).toEqual([]);
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toContainEqual([
       '[agents] every x402 candidate agent was dropped as unpayable: {"unsupported_scheme":1}',
-    );
+    ]);
   });
 
   it("stays quiet on a client-narrowed all-dropped page", async () => {
     // The second client-selectable input: `limit=1` slices the catalog down to
     // one agent, so any unpayable agent anywhere in the listing can be made
     // the whole page. Narrowing the page must not be a way to raise a warn.
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn");
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue([
       createAgentRow({
@@ -848,7 +865,6 @@ describe("GET /agents?kind=x402", () => {
   });
 
   it("does not warn when the first raw page drops but a later page remains", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     agentFindManyMock.mockResolvedValue(
       Array.from({ length: 21 }, (_, index) =>
@@ -872,7 +888,6 @@ describe("GET /agents?kind=x402", () => {
     const response = await app.request("http://localhost/?kind=x402");
 
     expect(response.status).toBe(200);
-    expect(warn).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledWith(
       '[agents] non-payable x402 agents by reason: {"unsupported_scheme":20}',
     );
@@ -977,6 +992,10 @@ describe("GET /agents?kind=x402", () => {
   });
 
   it("drops an agent whose (network, asset) pair is not buy-side ready", async () => {
+    expectConsole(
+      "warn",
+      "[agents] every x402 candidate agent was dropped as unpayable",
+    );
     seedReadiness([
       {
         caip2Network: BASE_SEPOLIA,

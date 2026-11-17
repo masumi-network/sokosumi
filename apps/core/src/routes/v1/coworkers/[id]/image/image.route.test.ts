@@ -1,8 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID, testVendor } from "@/test-fixtures/vendor.js";
-
 import mountDeleteCoworkerImage from "./delete";
 import mountPostCoworkerImage from "./post";
 
@@ -328,6 +327,7 @@ describe("POST /coworkers/{id}/image", () => {
   });
 
   it("deletes the new blob when the DB update fails after upload", async () => {
+    expectConsole("error", "Error: db write failed");
     findFirstMock.mockResolvedValue({ id: COWORKER_ID, image: PREVIOUS_IMAGE });
     uploadCoworkerImageMock.mockResolvedValue(NEW_IMAGE);
     updateManyMock.mockRejectedValue(new Error("db write failed"));

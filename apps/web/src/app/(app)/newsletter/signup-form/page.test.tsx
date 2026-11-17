@@ -2,7 +2,15 @@ import { render, screen } from "@testing-library/react";
 import type { Window } from "happy-dom";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import messages from "@/messages/en.json";
 import {
@@ -75,10 +83,19 @@ const PROPS = {
 };
 const SIGNUP_URL = `https://preview.example.com/n/${PUBLIC_NEWSLETTER_SLUG}`;
 
+// The window outlives this file; later files load iframes again.
+let iframePageLoading = true;
+
 beforeAll(() => {
+  const { settings } = (window as typeof window & Window).happyDOM;
+  iframePageLoading = settings.enableIframePageLoading;
   // Inspect the iframe destination without fetching the public page in this unit test.
+  settings.enableIframePageLoading = false;
+});
+
+afterAll(() => {
   (window as typeof window & Window).happyDOM.settings.enableIframePageLoading =
-    false;
+    iframePageLoading;
 });
 
 beforeEach(() => {
