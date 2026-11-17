@@ -14,7 +14,9 @@ import { createMailbox } from "./mailbox.ts";
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const KEY_NAME = "E2E recipe sync";
-const CLIENT_NAME = "E2E recipe app";
+// Long enough that a cramped card would cut it off.
+const CLIENT_NAME = "E2E recipe app for the weekend meal planning team";
+const REDIRECT_URI = "https://recipes.example.com/callback";
 
 const PROJECTS = [
   { name: "phone", width: 375, height: 812 },
@@ -154,7 +156,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .fill(CLIENT_NAME);
       await clientDialog
         .getByRole("textbox", { name: "Redirect URIs" })
-        .fill("https://recipes.example.com/callback");
+        .fill(REDIRECT_URI);
       await clientDialog
         .getByRole("button", { name: "Create OAuth client" })
         .click();
@@ -163,17 +165,33 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Done" })
         .click();
 
-      // The client's name and all three actions sit inside the screen.
-      await onScreen(
-        "the client name",
-        page.getByText(CLIENT_NAME, { exact: true }),
+      // The client's whole name and all three actions sit inside the screen.
+      const clientName = page.getByText(CLIENT_NAME, { exact: true });
+      await onScreen("the client name", clientName);
+      assert.equal(
+        await clientName.evaluate((el) => el.scrollWidth > el.clientWidth),
+        false,
+        "the client name is cut off",
       );
+      const redirect = await page
+        .getByText(REDIRECT_URI, { exact: true })
+        .boundingBox();
       for (const action of [
         "Edit OAuth client",
         "Rotate client secret",
         "Delete OAuth client",
       ]) {
-        await onScreen(action, page.getByRole("button", { name: action }));
+        const button = page.getByRole("button", { name: action });
+        await onScreen(action, button);
+        if (size === "phone") {
+          // Phones put the actions in a row at the card's foot, below the
+          // details, not in a column beside them.
+          const box = await button.boundingBox();
+          assert.ok(
+            box && redirect && box.y >= redirect.y + redirect.height,
+            `${action} is not below the client details`,
+          );
+        }
       }
       assert.equal(
         await page.evaluate(

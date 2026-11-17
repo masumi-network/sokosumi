@@ -11,22 +11,25 @@ import { ProjectTabs } from "@/app/projects/components/project-tabs";
  * one click instead of a trip through the account popover. Desktop only:
  * phones reach the sections from You → Developer and go back there.
  * Detail pages (a coworker, task or vendor) keep their own header.
+ *
+ * Only Vendors waits for the admin lookup; the vendor pages enforce access
+ * themselves, so the row shows on them straight away.
  */
 export function DeveloperSectionsHeader({
   showVendors,
 }: {
-  showVendors: boolean;
+  showVendors: Promise<boolean>;
 }) {
   const t = useTranslations("App.Developer");
   const pathname = usePathname();
-  const items = getDeveloperNavItems({ showVendors });
+  const items = getDeveloperNavItems({ showVendors: true });
 
   if (!items.some((item) => item.href === pathname)) {
     return null;
   }
 
   return (
-    <div className="mx-auto hidden max-w-4xl space-y-4 px-4 pt-2 md:block">
+    <div className="mx-auto hidden max-w-4xl space-y-4 px-4 pt-2 pb-4 md:block">
       <h1 className="text-2xl font-light tracking-tight">{t("title")}</h1>
       <ProjectTabs
         ariaLabel={t("sectionsLabel")}
@@ -34,6 +37,7 @@ export function DeveloperSectionsHeader({
           id: item.key,
           href: item.href,
           label: t(`tabs.${item.translationKey}`),
+          when: item.key === "vendors" ? showVendors : undefined,
         }))}
       />
     </div>

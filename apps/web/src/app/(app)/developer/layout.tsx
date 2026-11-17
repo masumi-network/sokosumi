@@ -1,23 +1,19 @@
-import { type ReactNode, Suspense } from "react";
+import type { ReactNode } from "react";
 
 import { DeveloperSectionsHeader } from "@/app/developer/components/developer-sections-header";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 
-async function DeveloperSectionsHeaderWithAccess() {
-  const { showVendors } = await getDeveloperVendorAdminAccess();
-  return <DeveloperSectionsHeader showVendors={showVendors} />;
-}
-
 /**
  * In the layout, not each page, so the heading and section row stay put while
- * a section loads. Vendors joins the row once the admin lookup resolves.
+ * a section loads. The admin lookup streams in and only adds Vendors.
  */
 export default function DeveloperLayout({ children }: { children: ReactNode }) {
+  const showVendors = getDeveloperVendorAdminAccess().then(
+    (access) => access.showVendors,
+  );
   return (
     <>
-      <Suspense fallback={<DeveloperSectionsHeader showVendors={false} />}>
-        <DeveloperSectionsHeaderWithAccess />
-      </Suspense>
+      <DeveloperSectionsHeader showVendors={showVendors} />
       {children}
     </>
   );

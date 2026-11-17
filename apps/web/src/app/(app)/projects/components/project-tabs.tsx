@@ -2,6 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { type ReactNode, Suspense, use } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,11 @@ export interface ProjectTab {
    * Overview up on pages that are not it.
    */
   exact?: boolean;
+  /**
+   * Show the tab only once this resolves true. Only this tab waits: the
+   * others stay mounted, so focus and layout hold while it loads.
+   */
+  when?: Promise<boolean>;
 }
 
 /**
@@ -80,7 +86,7 @@ export function ProjectTabs({
       <ul className="-mb-px flex flex-wrap items-center gap-x-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
-          return (
+          const item = (
             <li key={tab.id}>
               <Link
                 aria-current={isActive ? "page" : undefined}
@@ -102,10 +108,27 @@ export function ProjectTabs({
               </Link>
             </li>
           );
+          return tab.when ? (
+            <Suspense key={tab.id} fallback={null}>
+              <ShowWhen when={tab.when}>{item}</ShowWhen>
+            </Suspense>
+          ) : (
+            item
+          );
         })}
       </ul>
     </nav>
   );
+}
+
+function ShowWhen({
+  when,
+  children,
+}: {
+  when: Promise<boolean>;
+  children: ReactNode;
+}) {
+  return use(when) ? children : null;
 }
 
 /**
