@@ -9,6 +9,7 @@ import {
 } from "@/config/social-providers";
 import { linkedInPersonId } from "@/helpers/linkedin-person";
 import { tryUseLogger } from "@/lib/evlog";
+import { composioLogger } from "@/lib/evlog-library-logs";
 
 let instance: Composio | null | undefined;
 
@@ -21,6 +22,7 @@ export function getComposio(): Composio | null {
         apiKey: env.COMPOSIO_API_KEY,
         baseURL: env.COMPOSIO_API_BASE_URL ?? null,
         allowTracking: false,
+        logger: composioLogger,
       })
     : null;
   return instance;
