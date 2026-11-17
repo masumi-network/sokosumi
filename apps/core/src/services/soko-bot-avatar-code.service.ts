@@ -142,6 +142,35 @@ export async function assignRandomAvatarCode(
   throw new Error("No free avatar look found");
 }
 
+/**
+ * A new bot's first look: the one picked in the studio, or a random free one when none was
+ * picked or another bot took it meanwhile. A failure leaves the bot faceless (the orb) rather
+ * than failing the create.
+ */
+export async function giveNewSokoBotAvatar(
+  sokoBotId: string,
+  code?: string | null,
+) {
+  try {
+    if (code) {
+      try {
+        return await setSokoBotAvatarCode(sokoBotId, code);
+      } catch (error) {
+        if (!isTaken(error) && !isInvalid(error)) throw error;
+      }
+    }
+    return await assignRandomAvatarCode(sokoBotId);
+  } catch (error) {
+    console.error("Soko Bot avatar code failed", {
+      sokoBotId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
+  }
+}
+
+const isInvalid = (error: unknown) =>
+  error instanceof HTTPException && error.status === 422;
 // The service's only 409 is "taken".
 const isTaken = (error: unknown) =>
   error instanceof HTTPException && error.status === 409;

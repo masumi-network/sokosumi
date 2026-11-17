@@ -22,7 +22,7 @@ import { jevRoute } from "@/test/jev-routes";
 
 const assignCodeMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/soko-bot-avatar-code.service", () => ({
-  assignRandomAvatarCode: assignCodeMock.mockResolvedValue(undefined),
+  giveNewSokoBotAvatar: assignCodeMock.mockResolvedValue(null),
 }));
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
@@ -1706,6 +1706,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     expect(assignCodeMock).toHaveBeenCalledWith(
       "01960001-0001-7001-8001-00000000aaaa",
+      undefined,
     );
   });
 

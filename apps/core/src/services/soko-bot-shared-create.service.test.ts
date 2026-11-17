@@ -22,7 +22,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
 
 const { assignCodeMock } = vi.hoisted(() => ({ assignCodeMock: vi.fn() }));
 vi.mock("@/services/soko-bot-avatar-code.service", () => ({
-  assignRandomAvatarCode: assignCodeMock.mockResolvedValue(undefined),
+  giveNewSokoBotAvatar: assignCodeMock.mockResolvedValue(null),
 }));
 
 vi.mock("@/services/soko-bot-proactive.service", () => ({
@@ -135,7 +135,7 @@ describe("createSharedSokoBot", () => {
       name: "Team",
     });
 
-    expect(assignCodeMock).toHaveBeenCalledWith(BOT_ID);
+    expect(assignCodeMock).toHaveBeenCalledWith(BOT_ID, undefined);
   });
 
   it("refuses a workspace without an organization before any transaction", async () => {

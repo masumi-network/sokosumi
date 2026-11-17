@@ -52344,6 +52344,13 @@ export const CreateSokoBotRequestSchema = {
             ],
             format: 'uuid'
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        },
         personalityTone: {
             type: [
                 'integer',
@@ -53767,6 +53774,13 @@ export const CreateScopedSokoBotRequestSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
         },
         personalityTone: {
             type: [

@@ -13210,6 +13210,7 @@ export type CreateSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
     avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -13542,6 +13543,7 @@ export type CreateScopedSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
     avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;

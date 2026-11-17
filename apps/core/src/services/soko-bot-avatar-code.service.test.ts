@@ -6,6 +6,7 @@ import {
   originalAvatarLook,
   parseAvatarCode,
 } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
@@ -32,6 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import {
   assignRandomAvatarCode,
+  giveNewSokoBotAvatar,
   POOL_BACKGROUNDS,
   POOL_SUBJECT_ANIMALS,
   planAvatarCodes,
@@ -132,6 +134,28 @@ describe("assignRandomAvatarCode", () => {
     m.put.mockRejectedValue(new Error("blob down"));
 
     await expect(assignRandomAvatarCode("bot")).rejects.toThrow("blob down");
+  });
+});
+
+describe("giveNewSokoBotAvatar", () => {
+  it("saves the picked look", async () => {
+    await expect(giveNewSokoBotAvatar("bot", CODE)).resolves.toEqual({
+      avatarCode: CODE,
+      avatarImageUrl: URL,
+    });
+  });
+
+  it("falls back to a random look when the picked one is taken", async () => {
+    m.findFirst.mockResolvedValueOnce({ id: "other" }).mockResolvedValue(null);
+    const saved = await giveNewSokoBotAvatar("bot", CODE);
+    expect(saved?.avatarCode).not.toBe(CODE);
+    expect(parseAvatarCode(saved?.avatarCode ?? "")).not.toBeNull();
+  });
+
+  it("leaves the bot faceless instead of failing the create", async () => {
+    m.put.mockRejectedValue(new Error("blob down"));
+    expectConsole("error", "Soko Bot avatar code failed");
+    await expect(giveNewSokoBotAvatar("bot", CODE)).resolves.toBeNull();
   });
 });
 
