@@ -67,6 +67,8 @@ export const sharedSokoBotSummarySchema = z
     projectId: z.string().uuid().nullable(),
     avatarSeed: z.string().nullable(),
     avatarImageUrl: z.string().nullable(),
+    /** The bot's avatar code (its live SVG look); null until it has one. */
+    avatarCode: z.string().nullable().optional(),
     status: sokoBotStatusSchema,
     archivedAt: dateTimeSchema.nullable(),
     /** The room every member shares with this bot. */

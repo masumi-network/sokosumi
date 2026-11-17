@@ -52448,6 +52448,12 @@ export const SharedSokoBotSummarySchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },

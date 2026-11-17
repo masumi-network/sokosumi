@@ -826,7 +826,8 @@ export async function claimAvatar(
     }
     await tx.sokoBot.update({
       where: { id: sokoBotId },
-      data: { avatarImageUrl: avatar.imageUrl },
+      // A pool picture replaces any avatar code, so the code is free for another bot.
+      data: { avatarImageUrl: avatar.imageUrl, avatarCode: null },
       select: { id: true },
     });
     return avatar.imageUrl;
