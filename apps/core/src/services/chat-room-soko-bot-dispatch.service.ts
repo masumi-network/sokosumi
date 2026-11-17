@@ -3,7 +3,7 @@ import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import { persistSokoBotChatTurn } from "@/services/soko-bot-chat.service";
 import {
@@ -116,7 +116,7 @@ async function settleEndedTurn(
     await deliverSokoBotTurnOutbox(turnId).catch((error: unknown) => {
       emitCoreError(
         {
-          failure: describeErrorWithoutContent(error),
+          failure: messageSafeErrorFields(error),
           operation: "chat_room_mention_dispatch",
           sokoBotTurn: { id: turnId },
         },
@@ -317,7 +317,7 @@ export async function runSokoBotMentionDispatch(params: {
         // other signal, so look before giving up.
         emitCoreError(
           {
-            failure: describeErrorWithoutContent(openError),
+            failure: messageSafeErrorFields(openError),
             operation: "chat_room_mention_dispatch",
             mention: { id: mentionId },
           },
@@ -348,7 +348,7 @@ export async function runSokoBotMentionDispatch(params: {
         ]).catch((publishError: unknown) => {
           emitCoreError(
             {
-              failure: describeErrorWithoutContent(publishError),
+              failure: messageSafeErrorFields(publishError),
               operation: "chat_room_mention_dispatch",
               mention: { id: mentionId },
             },
@@ -458,7 +458,7 @@ export async function runSokoBotMentionDispatch(params: {
     await failReply(error).catch((fenceError: unknown) => {
       emitCoreError(
         {
-          failure: describeErrorWithoutContent(fenceError),
+          failure: messageSafeErrorFields(fenceError),
           operation: "chat_room_mention_dispatch",
           mention: { id: mentionId },
         },
@@ -467,7 +467,7 @@ export async function runSokoBotMentionDispatch(params: {
           why: "The ownership-checked write threw",
           fix: "Stale reclaim settles the mention. If this repeats, compare failure and replyFailure.",
         },
-        { replyFailure: describeErrorWithoutContent(error) },
+        { replyFailure: messageSafeErrorFields(error) },
       );
     });
   }

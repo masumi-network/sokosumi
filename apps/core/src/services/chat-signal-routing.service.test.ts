@@ -66,7 +66,7 @@ describe("suggestCoworkersForChatMessage", () => {
       why: "Jev did not rate the Coworkers",
     });
     expect(warnings[0]?.event).toMatchObject({
-      failure: { name: "TypeError" },
+      failure: { errorName: "TypeError" },
     });
     expect(JSON.stringify(warnings[0]?.event)).not.toContain("newsletter");
   });

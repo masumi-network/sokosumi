@@ -3,7 +3,7 @@ import { notFound } from "@/helpers/error";
 import { storedChatSignalTags } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
 import { logCoreWarning, tryUseLogger } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { queryWords } from "@/lib/soko-bot/agent-search";
 import { askJev } from "@/lib/soko-bot/jev";
 import { requireChatRoomUserMembership } from "@/routes/v1/chats/rooms/helpers";
@@ -121,7 +121,7 @@ export async function suggestCoworkersForChatMessage(input: {
           why: "Jev did not rate the Coworkers",
           fix: "The reader sees no suggestions for this message. If this repeats, check Jev and the AI Gateway.",
         },
-        { failure: describeErrorWithoutContent(error) },
+        { failure: messageSafeErrorFields(error) },
       );
     return [];
   }

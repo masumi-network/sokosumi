@@ -2,7 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
@@ -58,7 +58,7 @@ export async function markMentionFailed(
         {
           operation: "chat_room_mention_dispatch",
           mention: { id: mentionId },
-          failure: describeErrorWithoutContent(updateError),
+          failure: messageSafeErrorFields(updateError),
         },
         {
           message: "Could not mark a failed chat mention as failed",

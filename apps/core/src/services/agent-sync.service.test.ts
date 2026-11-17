@@ -3329,7 +3329,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
     });
     expect(errors[0]?.event).toMatchObject({
       agent: { id: "agent-1" },
-      failure: { name: "Error", code: "P2000" },
+      failure: { errorName: "Error", code: "P2000" },
     });
     const drained = JSON.stringify(errors[0]?.event);
     expect(drained).not.toContain("Private seller pitch");

@@ -1,3 +1,4 @@
+import { APICallError } from "ai";
 import { Hono } from "hono";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +38,7 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
 }));
 
 import { coreEvlogMiddleware } from "@/lib/evlog";
-import { expectCoreLog } from "@/test/core-log";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 
 import { enqueueAdEval } from "./ad-eval.service";
 
@@ -331,6 +332,58 @@ describe("background ad evaluations", () => {
     },
   );
 
+  it.each([
+    [
+      "a provider error carrying a subject and key",
+      Object.assign(new Error("Subject: Confidential merger with Acme"), {
+        name: "Confidential merger with Acme sk_live_abc123",
+        code: "sk_live_abc123",
+        statusCode: 429,
+        details: { operation: "Confidential merger", status: "sk_live_abc123" },
+      }),
+      { errorName: "Error", status: 429 },
+    ],
+    [
+      "an AI SDK call error",
+      new APICallError({
+        message: "Subject: Confidential merger with Acme",
+        url: "https://example.com/model",
+        requestBodyValues: { prompt: "Confidential merger sk_live_abc123" },
+        responseBody: "Confidential merger sk_live_abc123",
+        statusCode: 403,
+      }),
+      { errorName: "AI_APICallError", status: 403 },
+    ],
+    [
+      "a Prisma error",
+      Object.assign(new Error("Confidential merger with Acme"), {
+        name: "PrismaClientKnownRequestError",
+        code: "P2025",
+      }),
+      { errorName: "PrismaClientKnownRequestError", code: "P2025" },
+    ],
+  ])(
+    "logs only the known fields of %s from the judge",
+    async (_kind, error, failure) => {
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not evaluate a delivered ad",
+      );
+      mocks.judge.mockRejectedValue(error);
+      enqueueAdEval("job-1");
+      await finishBackground();
+
+      const event = JSON.stringify(warnings[0]?.event);
+      expect(event).not.toContain("Confidential");
+      expect(event).not.toContain("sk_live");
+      expect(warnings[0]?.event).toMatchObject({ failure });
+      expect(
+        (warnings[0]?.event as { failure: unknown } | undefined)?.failure,
+      ).toEqual(failure);
+      expect(coreLogEvents()).toHaveLength(1);
+    },
+  );
+
   it("contains a background registration failure", async () => {
     const warning = expectCoreLog(
       "warn",
@@ -346,7 +399,9 @@ describe("background ad evaluations", () => {
     expect(warning[0]).toMatchObject({
       why: "Registering the background work threw",
     });
-    expect(warning[0]?.event).toMatchObject({ failure: { name: "Error" } });
+    expect(warning[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
     vi.restoreAllMocks();
   });
 
