@@ -15,8 +15,8 @@ if [ -z "$ff" ]; then
   [ -x "$ff" ] || npm install --silent --no-save --prefix "$cache" ffmpeg-static@5.2.0 >/dev/null
 fi
 
-# 8 fps at 960 px wide keeps a 15 s journey around 3 MB.
+# 5 fps at 720 px wide keeps a 15 s journey with a full Studio wall around 3 MB.
 "$ff" -y -loglevel error -i "$in" \
-  -vf "fps=8,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
+  -vf "fps=5,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
   "$out"
 echo "gif $out ($(du -h "$out" | cut -f1))"

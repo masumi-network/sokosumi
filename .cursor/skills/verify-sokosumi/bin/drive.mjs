@@ -224,9 +224,47 @@ page.on(
     summary.failedRequests.push(`${r.status()} ${r.url().split("?")[0]}`),
 );
 
+// The dev server resizes each image on first request, so a shot taken at once shows
+// blank tiles. Wait for the images on screen; record the ones that never load.
+async function waitForImages() {
+  // A repeated tile (the Studio wall loops) counts as loaded once any copy is.
+  const pending = () =>
+    page.$$eval("img", (els) => {
+      const src = (e) => e.currentSrc || e.src;
+      const loaded = new Set(
+        els.filter((e) => e.complete && e.naturalWidth > 0).map(src),
+      );
+      return els
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          const onScreen =
+            r.width > 0 &&
+            r.bottom > 0 &&
+            r.right > 0 &&
+            r.top < innerHeight &&
+            r.left < innerWidth;
+          return onScreen && !loaded.has(src(e));
+        })
+        .map(src);
+    });
+  const deadline = Date.now() + 20_000;
+  let left = await pending();
+  while (left.length && Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    left = await pending();
+  }
+  if (left.length)
+    note(
+      `${left.length} image(s) on screen did not load: ${left.slice(0, 3).join(", ")}`,
+    );
+}
+
 let n = 0;
 const shot = async (label) => {
-  if (label !== "failure") await dismissCookies(page); // the banner can mount late
+  if (label !== "failure") {
+    await dismissCookies(page); // the banner can mount late
+    await waitForImages();
+  }
   const file = `${String(++n).padStart(2, "0")}-${label}.png`;
   await page.screenshot({ path: path.join(OUT, file) });
   summary.steps.push({ file, url: page.url().replace(WEB, "") });
@@ -241,9 +279,18 @@ const note = (text) => {
 
 async function signIn() {
   if (existsSync(AUTH_STATE)) {
-    await open(page, `/agents`);
-    if (!new URL(page.url()).pathname.startsWith("/signin"))
-      return note("reused saved session");
+    // `local-stack up` starts a fresh DB, and Better Auth's cookie cache can pass a
+    // dead session for minutes. Ask the server, past the cache, before reusing it.
+    const res = await page.request
+      .get(`${WEB}/api/auth/get-session?disableCookieCache=true`)
+      .catch(() => null);
+    const session = res?.ok() ? await res.json().catch(() => null) : null;
+    if (session?.user) {
+      await open(page, `/agents`);
+      if (!new URL(page.url()).pathname.startsWith("/signin"))
+        return note("reused saved session");
+    }
+    await context.clearCookies();
   }
   await open(page, `/signin`);
   const email = page.locator('[data-testid="auth-field-email"]');
