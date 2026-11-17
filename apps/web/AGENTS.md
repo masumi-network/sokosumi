@@ -381,8 +381,15 @@ one of them (nav row, list row, back link).
    - On the content's path, the page and its layouts call no `connection()`
      and make no uncached Core read. A read that must stay fresh (a banner)
      goes in its own `<Suspense>` and streams in after the click.
-   - Render `<RefreshPrefetchedPage />` in the page, so a prefetched copy
-     refreshes in the background after the visit.
+   - Render `<RefreshPrefetchedPage />` in the page. It refreshes only when
+     the page may show an old copy: after back or forward, on a return to a
+     page first visited, since the last refresh, more than 30 s ago (Next
+     reuses that visit's copy), and when
+     the shared layouts are older than `LAYOUT_REFRESH_MS` (2 min). Otherwise
+     a click opens page data at most about a minute old and does not refresh:
+     any `router.refresh()` drops every page prefetched for the next click.
+     Pass `everyVisit` only for a page whose cached copy must not linger (the
+     Ads lost-project state).
    - Add the path to `CONTENT_PREFETCH_PATHS`
      (`src/lib/navigation/content-prefetch-routes.ts`) and set
      `prefetchContent` on its sidebar row in
@@ -397,13 +404,18 @@ one of them (nav row, list row, back link).
      and decides from `canPrefetchRouteContent(href)` whether the parent
      supports it.
    - A page that is not content-prefetchable keeps a plain `<Link>`.
+   - With no intent at all, `WarmLikelyPages`
+     (`src/components/warm-likely-pages.client.tsx`, in the app frame) keeps
+     the reader's 3 most visited content pages loaded while the tab is
+     visible and in use. A new content page joins it once it is in
+     `CONTENT_PREFETCH_PATHS`.
 3. **Start content loads only through `prefetchRouteContent(router, href,
    { keepLoaded })`** (`src/lib/navigation/prefetch-route-content.ts`).
    - Each call is one server render of the page. Trigger it on reading
      intent, never for every link in view.
-   - Pass `keepLoaded`. Each `router.refresh()` (every
-     `RefreshPrefetchedPage`, a polling page, a revalidating Server Action)
-     drops every prefetched page, and Next loads only the shell again.
+   - Pass `keepLoaded`. Each `router.refresh()` (`RefreshPrefetchedPage`,
+     a polling page, a live update, a revalidating Server Action) drops every
+     prefetched page, and Next loads only the shell again.
      `keepLoaded` returns true while the reader still wants that page (the
      pointer still rests, the back link still shows), and the page then
      loads again, up to `MAX_CONTENT_RELOADS` times.
