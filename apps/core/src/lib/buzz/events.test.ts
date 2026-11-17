@@ -126,18 +126,12 @@ describe("richMessageText", () => {
 });
 
 describe("communityBanDraft", () => {
-  it("bans for good, or until the Sokosumi ban ends", () => {
-    expect(communityBanDraft("ab", null)).toEqual({
+  it("bans with no end, and lifts", () => {
+    expect(communityBanDraft("ab")).toEqual({
       kind: 9040,
       tags: [["p", "ab"]],
       content: "",
     });
-    expect(
-      communityBanDraft("ab", new Date("2026-12-01T00:00:00.500Z")).tags,
-    ).toEqual([
-      ["p", "ab"],
-      ["expiration", "1796083200"],
-    ]);
     expect(communityUnbanDraft("ab")).toEqual({
       kind: 9041,
       tags: [["p", "ab"]],

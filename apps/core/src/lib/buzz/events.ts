@@ -239,21 +239,12 @@ export function communityMemberDraft(pubkey: string): EventDraft {
   };
 }
 
-/** Bans a key from the whole community: every channel and DM, live too. */
-export function communityBanDraft(
-  pubkey: string,
-  until: Date | null,
-): EventDraft {
-  return {
-    kind: BUZZ_KIND.communityBan,
-    tags: [
-      ["p", pubkey],
-      ...(until
-        ? [["expiration", String(Math.floor(until.getTime() / 1000))]]
-        : []),
-    ],
-    content: "",
-  };
+/**
+ * Bans a key from the whole community: every channel and DM, live too. With
+ * no end: the bridge lifts it when Sokosumi's ban ends, however that changes.
+ */
+export function communityBanDraft(pubkey: string): EventDraft {
+  return { kind: BUZZ_KIND.communityBan, tags: [["p", pubkey]], content: "" };
 }
 
 export function communityUnbanDraft(pubkey: string): EventDraft {

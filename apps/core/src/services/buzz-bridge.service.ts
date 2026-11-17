@@ -1736,7 +1736,6 @@ export async function syncBuzzBans(): Promise<number> {
   let changed = 0;
   for (const member of members) {
     const person = member.identity.user ?? member.identity.ownerIdentity?.user;
-    const banExpires = person?.banExpires ?? null;
     const banned = person != null && !isActiveUser(person);
     if (banned === Boolean(member.bannedAt)) continue;
     for (const pubkey of keysOf(member.identity)) {
@@ -1744,12 +1743,10 @@ export async function syncBuzzBans(): Promise<number> {
         await publish(
           member.community.relayUrl,
           config.operatorSecretKey,
-          banned
-            ? communityBanDraft(pubkey, banExpires)
-            : communityUnbanDraft(pubkey),
+          banned ? communityBanDraft(pubkey) : communityUnbanDraft(pubkey),
         );
       } catch (error) {
-        // Lifted already: its expiry passed on the relay too.
+        // Lifted already, say by hand on Buzz.
         const lifted =
           !banned &&
           error instanceof BuzzRelayRejectedError &&
