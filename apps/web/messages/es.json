@@ -7005,13 +7005,6 @@
             "want": "Esperado"
           }
         },
-        "Avatar": {
-          "title": "Avatar",
-          "description": "Dale a este bot un avatar del grupo compartido, como lo haría su dueño.",
-          "apply": "Asignar avatar",
-          "done": "Avatar actualizado.",
-          "error": "No se pudo asignar el avatar."
-        },
         "Daily": {
           "title": "Últimos {days} días, UTC",
           "usersTitle": "Personas que escribieron a un Soko Bot",
@@ -7030,6 +7023,10 @@
           "tokens": "Tokens",
           "cost": "Soko Bots",
           "cmoCost": "CMO.xyz"
+        },
+        "Avatar": {
+          "title": "Aspecto",
+          "description": "Cambia el aspecto de este bot en el estudio de avatares, como lo haría su dueño."
         }
       },
       "MatchedChannels": {
@@ -10594,21 +10591,9 @@
         }
       },
       "Avatar": {
-        "title": "Imagen",
-        "description": "Una imagen única de la colección. Dos asistentes nunca comparten la misma.",
-        "save": "Usar esta imagen",
         "edit": "Cambiar aspecto",
         "saved": "Aspecto guardado.",
-        "saveError": "No se pudo guardar el aspecto.",
-        "current": "Imagen actual",
-        "hint": "Elige una o pide otras opciones.",
-        "showOthers": "Ver otras",
-        "noneNew": "Ahora no hay imágenes nuevas. Inténtalo de nuevo en un minuto.",
-        "drawing": "Dibujando imágenes nuevas. Puede tardar un minuto.",
-        "noMore": "No hay más imágenes nuevas por ahora. Elige una de arriba.",
-        "pictures": "Imágenes",
-        "loadError": "No se pudieron cargar las imágenes.",
-        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
+        "saveError": "No se pudo guardar el aspecto."
       },
       "AvatarStudio": {
         "title": "Diseña el aspecto",

@@ -270,8 +270,8 @@ const baseEnvSchema = z.object({
    */
   EVALS_REPORT_EMAILS: z.string().min(1).optional(),
   /**
-   * fal.ai key for Soko Bot avatar generation and the Project image studio.
-   * Neither feature can reach the provider without it; both degrade to a
+   * fal.ai key for the Project image studio.
+   * The studio cannot reach the provider without it; it degrades to a
    * read-only view rather than failing a page render.
    */
   FAL_KEY: z.string().min(1).optional(),

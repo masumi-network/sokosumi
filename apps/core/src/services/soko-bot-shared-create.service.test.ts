@@ -1,8 +1,6 @@
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSokoBotAvatarStore } from "@/test-fixtures/soko-bot-avatar-store";
-
 const { calls, transactionMock, workspaceFindUniqueMock } = vi.hoisted(() => ({
   calls: [] as string[],
   transactionMock: vi.fn(),
@@ -33,9 +31,6 @@ import { createSharedSokoBot } from "./soko-bot-shared-create.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
 
-// Avatars live only on the transaction: a claim made outside it finds nothing.
-const avatars = createSokoBotAvatarStore();
-
 function recordingTx(
   members: string[],
   sameVersionBot: { name: string } | null = null,
@@ -62,7 +57,6 @@ function recordingTx(
       create: record("sokoBot.create", { id: BOT_ID }),
       update: record("sokoBot.update", { id: BOT_ID, sharedRoomId: "room" }),
     },
-    sokoBotAvatar: avatars.client.sokoBotAvatar,
     sokoBotMemoryRevision: { create: record("memoryRevision.create", {}) },
     chatRoom: { create: record("chatRoom.create", { id: "room" }) },
   };
@@ -72,7 +66,6 @@ describe("createSharedSokoBot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     calls.length = 0;
-    avatars.reset();
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
   });
 
@@ -107,24 +100,7 @@ describe("createSharedSokoBot", () => {
     ]);
   });
 
-  it("claims the avatar it creates the bot with, in the same transaction", async () => {
-    avatars.seed({ id: "avatar-1" });
-    const tx = recordingTx(["caller"]);
-    transactionMock.mockImplementation(async (run) => await run(tx));
-
-    await createSharedSokoBot({
-      callerUserId: "caller",
-      workspaceId: "workspace_1",
-      projectId: null,
-      name: "Team",
-      avatarId: "avatar-1",
-    });
-
-    expect(avatars.avatars[0]?.claimedBySokoBotId).toBe(BOT_ID);
-    expect(assignCodeMock).not.toHaveBeenCalled();
-  });
-
-  it("gives the bot a random avatar code when no avatar was picked", async () => {
+  it("gives the bot a random avatar code when no look was picked", async () => {
     const tx = recordingTx(["caller"]);
     transactionMock.mockImplementation(async (run) => await run(tx));
 

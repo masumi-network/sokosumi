@@ -99,10 +99,10 @@ export const adminSokoBotService = {
     return response.data;
   },
 
-  async setAvatar(sokoBotId: string, avatarId: string) {
-    const response = await coreClient.setAdminSokoBotAvatar(
+  async setAvatarCode(sokoBotId: string, code: string) {
+    const response = await coreClient.setAdminSokoBotAvatarCode(
       sokoBotId,
-      avatarId,
+      code,
     );
     return response.data;
   },

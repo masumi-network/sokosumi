@@ -1,58 +1,5 @@
 import { z } from "@hono/zod-openapi";
 
-export const sokoBotAvatarSchema = z
-  .object({
-    id: z.string().uuid(),
-    imageUrl: z.string(),
-    subject: z.string(),
-    background: z.string(),
-  })
-  .openapi("SokoBotAvatar");
-
-export const listSokoBotAvatarsQuerySchema = z.object({
-  take: z.coerce.number().int().min(1).max(12).default(6),
-  /** Comma-separated avatar ids already shown; ask for a fresh set. */
-  exclude: z.string().max(1_000).optional(),
-});
-
-/**
- * Body for the top-up POST. Generation bills a third party and writes rows, so
- * it never rides on the GET: a GET is cacheable and a cross-site top-level
- * navigation carries the session cookie under `SameSite=Lax`.
- */
-export const topUpSokoBotAvatarsRequestSchema = z.object({
-  // One POST generates at most six images (`MAX_TOP_UP_PER_CALL`) and does
-  // not batch. Asking for more than that cannot fill the shortfall.
-  take: z.number().int().min(1).max(6).default(6),
-  /**
-   * Avatar ids already shown; ask for a fresh set. The cap matches the one the
-   * web action enforces on the picker.
-   */
-  excludeIds: z.array(z.string().uuid()).max(60).default([]),
-  /**
-   * "Show others": skip the pool, draw `take` new avatars and answer with
-   * only those. An empty answer still means a draw was tried; a draw that
-   * reserved nothing answers 409, a spent allowance 429.
-   */
-  fresh: z.boolean().default(false),
-});
-
-export const claimSokoBotAvatarRequestSchema = z
-  .object({ avatarId: z.string().uuid() })
-  .openapi("ClaimSokoBotAvatarRequest");
-
-export const restyleSokoBotAvatarsRequestSchema = z
-  .object({ limit: z.number().int().min(1).max(10).default(6) })
-  .openapi("RestyleSokoBotAvatarsRequest");
-
-export const restyleSokoBotAvatarsResultSchema = z
-  .object({
-    restyled: z.number().int(),
-    /** Bots still on an avatar from before the brand palette. */
-    remaining: z.number().int(),
-  })
-  .openapi("RestyleSokoBotAvatarsResult");
-
 export const setSokoBotAvatarCodeRequestSchema = z.object({
   // Parsed by the service, which answers 422 `avatar_code_invalid`.
   code: z.string().min(1).max(120).openapi({
