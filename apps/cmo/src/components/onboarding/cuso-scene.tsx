@@ -1,12 +1,19 @@
 import { AGENT_NAME } from "../../lib/agent";
 import { CusoClip } from "../cuso-clip";
 
-export type Scene = "research" | "brand" | "planning" | "launch" | "hero";
+export type Scene =
+  | "research"
+  | "brand"
+  | "planning"
+  | "subscribe"
+  | "launch"
+  | "hero";
 
 const ALT: Record<Scene, string> = {
   research: `${AGENT_NAME} reading a site with a magnifier`,
   brand: `${AGENT_NAME} holding up a brand board`,
   planning: `${AGENT_NAME} filling in a calendar`,
+  subscribe: `${AGENT_NAME} holding up a star card, thumbs up`,
   launch: `${AGENT_NAME} holding up a phone, thumbs up`,
   hero: `${AGENT_NAME} calling out with a megaphone`,
 };

@@ -1953,19 +1953,89 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-/* ── Step 5: Subscribe (the CMO plan checkout) ── */
+/* ── Step 4: Subscribe (the CMO plan checkout) ── */
 .ob-checkout {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: 16px;
 }
 
-.ob-checkout .panel {
+.ob-checkout > .ob-plan-options,
+.ob-checkout > .ob-gets,
+.ob-checkout > .ob-wide {
   width: 100%;
 }
 
-.ob-checkout > .ob-small {
-  justify-self: center;
+/* The plans side by side, so their prices compare at a glance. */
+.ob-checkout > .ob-plan-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+/* What the month holds, so the price reads against it. */
+.ob-gets {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+}
+
+.ob-gets li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.ob-gets svg {
+  margin-top: 4px;
+}
+
+/* Sits on the card's top edge, so the plans' names stay in line. */
+.ob-checkout .ob-plan-option {
+  position: relative;
+  overflow: visible;
+}
+
+.ob-plan-fit {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-mark);
+  background: var(--primary);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* What lowers the risk of paying, in one quiet row. */
+.ob-trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.ob-trust li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ob-trust li::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted);
 }
 
 .ob-plan-options {
@@ -2008,7 +2078,7 @@ body:has(.ob) .site-header {
   gap: 8px;
 }
 
-/* ── Step 4: Launch ── */
+/* ── Step 5: Launch ── */
 .ob-launch {
   justify-items: center;
 }

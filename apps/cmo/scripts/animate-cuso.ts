@@ -112,6 +112,12 @@ const CLIPS: Clip[] = [
     duration: 5,
   },
   {
+    still: "subscribe.jpg",
+    prompt: `${CUSO} on the pink round podium bounces eagerly, waves his star card a little towards the viewer, gives his thumbs up a small pump and blinks once. The pink backdrop stays plain. ${LOOP}`,
+    width: 720,
+    duration: 5,
+  },
+  {
     still: "celebration.jpg",
     prompt: `${CUSO} does a small happy jump with both fists up, the confetti flutters down, and the toy rocket's flame flickers. ${LOOP}`,
     width: 640,

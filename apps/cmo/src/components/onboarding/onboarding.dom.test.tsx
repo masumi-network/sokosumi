@@ -853,7 +853,7 @@ it("approves the plan and lands on Launch", async () => {
   expect(text()).toContain("One thing, then I start.");
 });
 
-// Launch: the celebration shows after onLaunch; Go to Today records the finish (flow.tsx).
+// Launch: the celebration shows at once; Go to Today records the finish (flow.tsx).
 
 const active = {
   id: "x",
@@ -863,11 +863,7 @@ const active = {
   status: "ACTIVE",
 };
 
-it("celebrates after Launch, then opens the app on Go to Today", async () => {
-  let finish = () => {};
-  const onLaunch = vi.fn(
-    () => new Promise<void>((resolve) => (finish = resolve)),
-  );
+it("celebrates on Launch without a failure in between, then opens the app on Go to Today", async () => {
   const goToday = vi.fn();
   await act(async () =>
     root.render(
@@ -892,17 +888,15 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
         })}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
-        onLaunch={onLaunch}
         onGoToday={goToday}
       />,
     ),
   );
   expect(text()).not.toContain("is on it.");
   await press("Launch Cuso");
-  // The celebration waits for onLaunch.
-  expect(onLaunch).toHaveBeenCalledTimes(1);
-  expect(text()).not.toContain("is on it.");
-  await act(async () => finish());
+  // Launch calls no server action, so no "Could not launch" shows first.
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(text()).not.toContain("Could not launch");
   expect(text()).toContain("Cuso is on it.");
   expect(text()).toContain("Active, 7 pieces a week");
   expect(text()).toContain("€200 a month");
@@ -914,7 +908,6 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   await press("Change settings");
   expect(text()).toContain("One thing, then I start.");
   await press("Launch Cuso");
-  await act(async () => finish());
   await press("Go to Today");
   expect(goToday).toHaveBeenCalledTimes(1);
 });
