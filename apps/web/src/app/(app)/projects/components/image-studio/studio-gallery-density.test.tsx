@@ -455,7 +455,12 @@ describe("a gallery with work in it", () => {
     mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
     fireEvent.click(download);
     await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(download).toBeEnabled());
+    // A loading Button stays enabled but ignores clicks (aria-busy), so wait
+    // for the first attempt to finish, not only for the button to enable.
+    await waitFor(() => {
+      expect(download).toBeEnabled();
+      expect(download).not.toHaveAttribute("aria-busy");
+    });
     expect(mocks.createArchive).not.toHaveBeenCalled();
 
     fireEvent.click(download);
