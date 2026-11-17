@@ -120,7 +120,6 @@ export function ToolConnectors({
   );
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
@@ -181,7 +180,6 @@ export function ToolConnectors({
             className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
           />
           <Input
-            ref={searchInput}
             type="search"
             maxLength={SEARCH_MAX_LENGTH}
             value={query}
@@ -193,21 +191,7 @@ export function ToolConnectors({
         </div>
       )}
       {searching && (catalog.phase !== "done" || !catalog.data?.length) ? (
-        <SearchOutcome
-          query={query.trim()}
-          catalog={catalog}
-          // The results replace Try again, so focus goes back to the search,
-          // unless the user moved it or searched for something else meanwhile.
-          onFound={(retry, term) => {
-            const lost =
-              retry !== null &&
-              (document.activeElement === retry ||
-                (!retry.isConnected &&
-                  document.activeElement === document.body));
-            if (lost && searchInput.current?.value.trim() === term)
-              searchInput.current.focus();
-          }}
-        />
+        <SearchOutcome query={query.trim()} catalog={catalog} />
       ) : (
         <ul
           className={cn(
@@ -267,11 +251,9 @@ export function ToolConnectors({
 function SearchOutcome({
   query,
   catalog,
-  onFound,
 }: {
   query: string;
   catalog: ReturnType<typeof useCatalog>;
-  onFound: (retry: Element | null, term: string) => void;
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
   if (catalog.phase === "searching") return <SearchPlaceholder query={query} />;
@@ -284,10 +266,11 @@ function SearchOutcome({
         retryLabel={t("tryAgain")}
         title={t("searchFailed")}
         variant="banner"
-        onRetry={async () => {
-          const retry = document.activeElement;
-          if (!(await catalog.refetch()).isError) onFound(retry, query);
-        }}
+        // Try again stays mounted and busy while it runs, and through another
+        // failure. Results replace it without moving focus on purpose: the
+        // browser drops focus to the page and the next Tab continues from
+        // where the button was, which never pulls a user who moved on back.
+        onRetry={() => void catalog.refetch()}
       />
     );
   return (

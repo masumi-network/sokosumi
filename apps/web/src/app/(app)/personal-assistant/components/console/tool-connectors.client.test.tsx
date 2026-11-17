@@ -293,7 +293,7 @@ describe("ToolConnectors", () => {
     expect(screen.queryByText("figma")).toBeNull();
   });
 
-  it("keeps keyboard focus on Try again while it runs, then moves it to the search", async () => {
+  it("keeps keyboard focus on Try again while it runs and through another failure", async () => {
     const user = userEvent.setup();
     renderConnectors([]);
     searchCatalog.mockResolvedValue({ ok: false, error: "down" });
@@ -321,7 +321,6 @@ describe("ToolConnectors", () => {
     expect(
       await screen.findByRole("button", { name: "Connect figma" }),
     ).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole("searchbox")).toHaveFocus());
   });
 
   it("takes no more than the 100 characters a search allows", async () => {
@@ -381,7 +380,7 @@ describe("ToolConnectors", () => {
     ).toBeTruthy();
   });
 
-  it("leaves focus where the user moved it while Try again ran", async () => {
+  it("never moves focus when a pointer retry finds results", async () => {
     const user = userEvent.setup();
     renderConnectors([]);
     searchCatalog.mockResolvedValue({ ok: false, error: "down" });
@@ -398,8 +397,7 @@ describe("ToolConnectors", () => {
     );
     elsewhere.id = "elsewhere";
 
-    retry.focus();
-    await user.keyboard("{Enter}");
+    await user.click(retry);
     await waitFor(() => expect(searchCatalog).toHaveBeenCalled());
     elsewhere.focus();
     answer({ ok: true, value: catalog.filter((e) => e.provider === "figma") });
@@ -409,6 +407,7 @@ describe("ToolConnectors", () => {
     ).toBeTruthy();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(elsewhere).toHaveFocus();
+    expect(screen.getByRole("searchbox")).not.toHaveFocus();
   });
 
   it("caps a connect link's search at the same 100 characters", async () => {
