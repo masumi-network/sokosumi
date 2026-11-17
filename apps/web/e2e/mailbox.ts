@@ -32,8 +32,11 @@ async function call<T>(path: string, init: RequestInit = {}, token?: string) {
 
 export interface Mailbox {
   address: string;
-  /** Waits for the next 6-digit code that arrives after the last one read. */
-  nextCode(timeoutMs?: number): Promise<string>;
+  /**
+   * Waits for the next 6-digit code that arrives after the last one read, in a
+   * message whose subject matches `subject` (other messages are skipped).
+   */
+  nextCode(timeoutMs?: number, subject?: RegExp): Promise<string>;
 }
 
 export async function createMailbox(): Promise<Mailbox> {
@@ -59,7 +62,7 @@ export async function createMailbox(): Promise<Mailbox> {
 
   return {
     address,
-    async nextCode(timeoutMs = 90_000) {
+    async nextCode(timeoutMs = 90_000, subject = /./) {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
         const list = await call<{ "hydra:member": Message[] }>(
@@ -75,6 +78,8 @@ export async function createMailbox(): Promise<Mailbox> {
             text?: string;
             html?: string[];
           }>(`/messages/${id}`, {}, token);
+          // An invitation's HTML holds colour codes that look like codes.
+          if (!subject.test(full.subject ?? "")) continue;
           const text = [full.subject, full.text, ...(full.html ?? [])].join(
             "\n",
           );
