@@ -16,7 +16,7 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => pending.push(promise)),
 }));
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: { create: createSandboxMock, get: getSandboxMock },

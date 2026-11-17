@@ -87,9 +87,9 @@ vi.mock("@/services/sync-lock.service", () => ({
 // Partial: `prisma.ts` also imports `attachDatabasePool` from here.
 vi.mock("@vercel/functions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/functions")>()),
-  waitUntil: (work: Promise<unknown>) => {
+  waitUntil: vi.fn((work: Promise<unknown>) => {
     pending.push(work);
-  },
+  }),
 }));
 
 import prisma from "@/lib/db/prisma";

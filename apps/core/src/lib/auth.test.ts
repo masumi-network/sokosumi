@@ -279,7 +279,7 @@ vi.mock("@sentry/node", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => waitUntilMock(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => waitUntilMock(promise)),
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { expectBackgroundRejection } from "@/test/wait-until";
 import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountMarkChatRoomRead from "./post";
@@ -85,9 +86,9 @@ vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
 // Background work never reaches the response, failure included — that is the
 // whole point of handing it to waitUntil.
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void Promise.resolve(promise).catch(() => {});
-  },
+  }),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -480,6 +481,8 @@ describe("POST /chats/rooms/{id}/read", () => {
   });
 
   it("still marks the room read when the read event cannot be published", async () => {
+    // The read event is published after the response; its failure is the subject.
+    expectBackgroundRejection("ably down");
     publishChatRoomReadRealtimeMock.mockRejectedValue(new Error("ably down"));
 
     const response = await createApp(userAuthContext).request(

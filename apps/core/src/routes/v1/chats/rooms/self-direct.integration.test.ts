@@ -60,7 +60,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => background.push(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => background.push(promise)),
 }));
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatch,
