@@ -142,6 +142,61 @@ describe("messageSafeErrorFields", () => {
     });
   });
 
+  describe("an error that wraps another through cause", () => {
+    it("keeps the known code and status beneath a wrapper, never its text", () => {
+      const prismaError = Object.assign(
+        new Error(`Transaction failed: name "${SUBJECT}"`),
+        { name: "PrismaClientKnownRequestError", code: "P2028" },
+      );
+      const wrapper = new Error("Scheduled work could not be closed", {
+        cause: new Error(`release ${SUBJECT}`, { cause: prismaError }),
+      });
+      wrapper.name = "ProjectCloseScheduleError";
+
+      const fields = messageSafeErrorFields(wrapper);
+
+      expect(fields).toEqual({
+        errorName: "ProjectCloseScheduleError",
+        code: "P2028",
+      });
+      expect(JSON.stringify(fields)).not.toContain(SUBJECT);
+    });
+
+    it("prefers the outermost known code", () => {
+      const error = Object.assign(new Error("outer"), {
+        code: "ECONNRESET",
+        cause: Object.assign(new Error("inner"), { code: "P2028" }),
+      });
+      expect(messageSafeErrorFields(error).code).toBe("ECONNRESET");
+    });
+
+    it("reads at most five links below the error", () => {
+      const wrapped = (links: number) => {
+        let error: Error = Object.assign(new Error("deep"), { code: "P2028" });
+        for (let link = 0; link < links; link++) {
+          error = new Error("wrapper", { cause: error });
+        }
+        return error;
+      };
+      expect(messageSafeErrorFields(wrapped(5)).code).toBe("P2028");
+      expect(messageSafeErrorFields(wrapped(6)).code).toBeUndefined();
+    });
+
+    it("stops at a cycle and at a cause that throws when read", () => {
+      const cyclic = new Error("a") as Error & { cause?: unknown };
+      cyclic.cause = new Error("b", { cause: cyclic });
+      expect(messageSafeErrorFields(cyclic)).toEqual({ errorName: "Error" });
+
+      const throwing = new Error("c");
+      Object.defineProperty(throwing, "cause", {
+        get() {
+          throw new Error(SUBJECT);
+        },
+      });
+      expect(messageSafeErrorFields(throwing)).toEqual({ errorName: "Error" });
+    });
+  });
+
   it("names anything that is not an Error by a fixed category", () => {
     expect(messageSafeErrorFields(`${SUBJECT} ${KEY}`)).toEqual({
       errorName: "Error",

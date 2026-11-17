@@ -13,6 +13,8 @@ import {
   retryMissingProjectCloseNotifications,
 } from "@/helpers/project-close-notifications";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   getPendingProjectAdRevocation,
   revokeProjectAdConnectionForClose,
@@ -425,11 +427,30 @@ async function recordProjectCloseFailure(
   if (failed) {
     await notifyProjectCloseTransition(recorded);
   }
-  console.error("Project close batch failed", {
-    closeOperationId: claimed.id,
-    ...failureSummary,
-    error,
-  });
+  // The project-closes cron, after its response.
+  emitCoreError(
+    {
+      operation: "project_close_sync",
+      projectClose: {
+        operationId: claimed.id,
+        projectId: current.projectId,
+        attempts,
+        failed,
+        scheduleId: failureSummary.scheduleId,
+      },
+    },
+    {
+      message: "A project close batch failed",
+      why: failureSummary.message,
+      fix: failed
+        ? `The close stopped after ${PROJECT_CLOSE_MAX_FAILURES} failed batches and the project's owner was told. failure.code and failure.status say what failed (projectClose.scheduleId names the schedule); fix that before closing it again.`
+        : "The next project-closes sync retries the batch. If it keeps failing, failure.code and failure.status say what failed.",
+    },
+    // Only safe fields: releasing scheduled work writes the schedule's task
+    // name and description, and a write error can quote them. They include
+    // the Prisma code beneath ProjectCloseScheduleError.
+    { failure: messageSafeErrorFields(error) },
+  );
   return failed;
 }
 
