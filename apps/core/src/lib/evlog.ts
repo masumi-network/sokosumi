@@ -1,5 +1,5 @@
 import { waitUntil } from "@vercel/functions";
-import type { DrainContext } from "evlog";
+import type { DrainContext, RedactConfig, RequestLogger } from "evlog";
 import { createLogger, initLogger } from "evlog";
 import { evlog, useLogger } from "evlog/hono";
 import { createSentryDrain } from "evlog/sentry";
@@ -7,6 +7,12 @@ import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
 import { matchedRouteTemplate } from "./route-template.js";
+import {
+  getEnvSecrets,
+  MAX_REDACTION_DEPTH,
+  REDACTED_TOO_DEEP,
+  redactDeep,
+} from "./secret-redaction.js";
 
 const OPENAPI_SPEC_PATH = "/v1/openapi.json";
 
@@ -20,6 +26,115 @@ export function initCoreLogger(options: InitCoreLoggerOptions = {}) {
     env: { service: "core" },
     silent: options.silent,
     drain: options.drain ?? coreEvlogDrain(),
+    redact: CORE_REDACT,
+  });
+}
+
+/**
+ * Redaction before console output and every drain, in every environment, so
+ * tests see what Sentry sees. evlog's default built-ins mask emails, JWTs,
+ * bearer tokens, and values under keys ending in password, secret or token;
+ * env secrets by value are added here, as `beforeSend` does for Sentry events.
+ *
+ * `transform` runs first, on evlog's copy of the event. It turns the event
+ * into bounded, acyclic JSON data, so evlog's own recursive built-ins and the
+ * JSON output after them cannot overflow the stack on a cyclic or very deep
+ * field: logging must not throw in place of the failure it reports.
+ */
+const CORE_REDACT: RedactConfig = {
+  transform: (event) => {
+    const safe = redactDeep(toLogData(event, 0, new Set()), getEnvSecrets());
+    for (const key of Object.keys(event)) delete event[key];
+    Object.assign(event, safe);
+  },
+};
+
+const LOG_CIRCULAR = "[circular]";
+
+/**
+ * `value` as JSON would serialize it, cut at {@link MAX_REDACTION_DEPTH} and
+ * at cycles: an unwalked subtree is replaced, never passed through.
+ */
+function toLogData(
+  value: unknown,
+  depth: number,
+  ancestors: Set<object>,
+): unknown {
+  if (typeof value === "bigint") return value.toString();
+  if (value === null || typeof value !== "object") {
+    return typeof value === "function" || typeof value === "symbol"
+      ? undefined
+      : value;
+  }
+  if (ancestors.has(value)) return LOG_CIRCULAR;
+  if (depth >= MAX_REDACTION_DEPTH) return REDACTED_TOO_DEEP;
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
+    return `[binary ${value.byteLength} bytes]`;
+  }
+
+  ancestors.add(value);
+  try {
+    const toJSON = (value as { toJSON?: unknown }).toJSON;
+    if (typeof toJSON === "function") {
+      let json: unknown;
+      try {
+        json = toJSON.call(value);
+      } catch {
+        return "[unserializable]";
+      }
+      if (json !== value) return toLogData(json, depth + 1, ancestors);
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => toLogData(item, depth + 1, ancestors) ?? null);
+    }
+    const source: Record<string, unknown> =
+      value instanceof Error
+        ? {
+            ...value,
+            name: value.name,
+            message: value.message,
+            stack: value.stack,
+            cause: value.cause,
+          }
+        : (value as Record<string, unknown>);
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(source)) {
+      if (key === "toJSON") continue;
+      const data = toLogData(item, depth + 1, ancestors);
+      if (data !== undefined) out[key] = data;
+    }
+    return out;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+/** What a Core warning says: what happened, why, and what to do. */
+export interface CoreWarning {
+  message: string;
+  why?: string;
+  fix?: string;
+  link?: string;
+}
+
+/**
+ * Records `warning` on `log`'s event, under `warnings`, so each warning keeps
+ * its `why` and `fix` next to the others on the same event. Errors go through
+ * `log.error(createError({ message, why, fix, link }))` instead.
+ *
+ * `requestLogIndex` names the `requestLogs` line this warning adds, so its
+ * guidance stays with that line even when another warning shares the text.
+ */
+export function logCoreWarning(
+  log: Pick<RequestLogger, "warn" | "getContext">,
+  warning: CoreWarning,
+  fields: Record<string, unknown> = {},
+) {
+  const { requestLogs } = log.getContext();
+  const requestLogIndex = Array.isArray(requestLogs) ? requestLogs.length : 0;
+  log.warn(warning.message, {
+    ...fields,
+    warnings: [{ ...warning, requestLogIndex }],
   });
 }
 

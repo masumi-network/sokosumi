@@ -1,5 +1,6 @@
 import { installConsoleGuard } from "@sokosumi/utils/test-console";
 import { vi } from "vitest";
+import { installCoreLogDrain } from "./core-log";
 import { workerDatabaseUrl } from "./worker-database-url";
 
 const envDefaults: Record<string, string> = {
@@ -114,3 +115,4 @@ vi.mock("@sentry/node", () => {
 });
 
 installConsoleGuard();
+installCoreLogDrain();
