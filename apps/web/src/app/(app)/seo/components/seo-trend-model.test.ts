@@ -117,24 +117,45 @@ describe("change markers", () => {
 
   it("puts a change on its calendar day, merges one day's changes and drops days before the chart", () => {
     const model = seoTrendModel(days, "position", [
-      { date: "2026-10-03", label: "New title" },
-      { date: "2026-10-03", label: "New description" },
-      { date: "2026-10-04", label: "Moved page" },
-      { date: "2026-09-30", label: "Before the chart" },
-      { date: "2026-10-07", label: "After the last reported day" },
+      { date: "2026-10-03", kind: "change", label: "New title" },
+      { date: "2026-10-03", kind: "verified", label: "Fix" },
+      { date: "2026-10-03", kind: "audit", label: "" },
+      { date: "2026-10-04", kind: "task", label: "Moved page" },
+      { date: "2026-09-30", kind: "change", label: "Before the chart" },
+      { date: "2026-10-07", kind: "change", label: "After the last day" },
     ]);
     expect(model.changes).toEqual([
-      { date: "2026-10-03", labels: ["New title", "New description"], x: 50 },
+      {
+        date: "2026-10-03",
+        events: [
+          { kind: "change", label: "New title" },
+          { kind: "verified", label: "Fix" },
+          { kind: "audit", label: "" },
+        ],
+        // A confirmed fix outranks the change and the audit of the same day.
+        kind: "verified",
+        x: 50,
+      },
       // A day without a measurement still has its place on the calendar.
-      { date: "2026-10-04", labels: ["Moved page"], x: 75 },
-      // Google has not reported this day yet: named, not plotted.
-      { date: "2026-10-07", labels: ["After the last reported day"], x: null },
+      {
+        date: "2026-10-04",
+        events: [{ kind: "task", label: "Moved page" }],
+        kind: "task",
+        x: 75,
+      },
+      // Google has not reported this day yet: kept, not plotted.
+      {
+        date: "2026-10-07",
+        events: [{ kind: "change", label: "After the last day" }],
+        kind: "change",
+        x: null,
+      },
     ]);
   });
 
   it("centres a change in its day band for bars", () => {
     const model = seoTrendModel(days, "count", [
-      { date: "2026-10-01", label: "Launch" },
+      { date: "2026-10-01", kind: "change", label: "Launch" },
     ]);
     expect(model.changes[0].x).toBe(10);
   });

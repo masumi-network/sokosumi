@@ -13,13 +13,6 @@ import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { StepMarkers } from "./onboarding/step-markers";
-import { StatRow } from "./onboarding/tiles";
-
-const STATS = [
-  { value: "3 min", line: "I read your site and what is public about you." },
-  { value: "5 taps", line: "You answer quick questions while I read." },
-  { value: "1 plan", line: "You approve it. Nothing posts before that." },
-];
 
 /** hero.jpg's size, and its megaphone's mouth while Cuso shouts (as shares). */
 const HERO = { width: 800, height: 1200 };
@@ -122,6 +115,7 @@ export function Onboarding({
               alt={`${AGENT_NAME} walking with a megaphone`}
               width={640}
               height={800}
+              replayAfterMs={0}
               onStart={() => {
                 if (stage.current) aimLabels(stage.current);
                 setAnnouncing(true);
@@ -203,7 +197,6 @@ export function Onboarding({
               ))}
             </fieldset>
           ) : null}
-          <StatRow stats={STATS} />
         </form>
       </main>
     </div>

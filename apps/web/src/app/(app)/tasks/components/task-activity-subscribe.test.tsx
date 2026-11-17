@@ -86,6 +86,14 @@ describe("TaskActivitySubscribeControl", () => {
     expect(screen.queryByRole("button", { name: "unsubscribe" })).toBeNull();
   });
 
+  it("gives Subscribe a 28px touch target like Jump to latest beside it", () => {
+    renderControl();
+    expect(screen.getByRole("button", { name: "subscribe" })).toHaveClass(
+      "h-7",
+      "px-2",
+    );
+  });
+
   it("shows Unsubscribe when the viewer is a participant", () => {
     renderControl({
       participants: [participant("viewer-1", "Viewer")],

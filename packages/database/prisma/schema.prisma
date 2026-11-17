@@ -5425,6 +5425,9 @@ model ProjectImageJob {
   /// Files (a brand's product photos) sent as references after the assets,
   /// readable by the person who asked. Ids for the same reason as above.
   referenceFileIds  String[] @default([]) @db.Uuid
+  /// Reference library images (`reference_image`) sent first, as the style to
+  /// borrow: Cuso's pictures in the look of an old ad or poster.
+  referenceLibraryIds String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 

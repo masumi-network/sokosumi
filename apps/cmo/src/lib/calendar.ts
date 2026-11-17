@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { channelInfo } from "./channels";
+import { channelInfo, formatMedia } from "./channels";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
@@ -47,6 +47,21 @@ export function entryReadiness(
 ): "ready" | "connect" | "soon" {
   if (connected.includes(channel)) return "ready";
   return isSocialProvider(channel) ? "connect" : "soon";
+}
+
+/**
+ * Whether a piece is fully made: scheduled or out, or written with its picture
+ * or video when it needs one. Until then the owner sees only that it is coming.
+ */
+export function pieceMade(
+  entry: Pick<Entry, "status" | "channel" | "format">,
+  hasMedia: boolean,
+): boolean {
+  if (entry.status === "scheduled" || entry.status === "published") {
+    return true;
+  }
+  if (entry.status !== "draft") return false;
+  return hasMedia || formatMedia(entry.channel, entry.format) === null;
 }
 
 const DAY_MS = 86_400_000;

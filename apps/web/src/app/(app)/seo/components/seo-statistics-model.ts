@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/core-client";
 import { seoStatisticsLostData } from "@sokosumi/utils";
 import { seoWindowDays } from "./seo-performance-model";
+import type { SeoChartMarker } from "./seo-trend-model";
 
 /**
  * The days every sync reads; the reader does not choose a range. A quarter gives the trend a
@@ -268,13 +269,14 @@ export function seoSearchTraffic(metrics: ProjectSeoMetric[]) {
 }
 
 /**
- * Recorded page changes as chart markers, each on its day in the metric's time
- * zone, so a change lands on the same day as the measurements around it.
+ * What happened on the site, as chart markers: recorded page changes, full audits, Tasks that completed a
+ * recommended action, and checks that confirmed a fix. Each lands on its day in the metric's time zone,
+ * so it sits on the same day as the measurements around it.
  */
-export function seoChangeMarkers(
-  timeline: ProjectSeoWorkspace["timeline"],
+export function seoChartMarkers(
+  workspace: Pick<ProjectSeoWorkspace, "timeline" | "actions" | "observations">,
   timeZone: string,
-) {
+): SeoChartMarker[] {
   const isoDay = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
   let day: Intl.DateTimeFormat;
   try {
@@ -283,10 +285,44 @@ export function seoChangeMarkers(
     // A zone the browser does not know: UTC days, never a dropped marker.
     day = new Intl.DateTimeFormat("en-CA", { ...isoDay, timeZone: "UTC" });
   }
-  return timeline
-    .filter((item) => item.kind === "page_change")
-    .map((item) => ({
-      date: day.format(new Date(item.at)),
-      label: item.title,
-    }));
+  const on = (at: string | Date) => day.format(new Date(at));
+  const observedAt = new Map(
+    workspace.observations.map((row) => [row.id, row.observedAt]),
+  );
+  return [
+    ...workspace.timeline.flatMap((item): SeoChartMarker[] =>
+      item.kind === "page_change"
+        ? [{ date: on(item.at), kind: "change", label: item.title }]
+        : // An audit counts on the day it read the site, not the day its report was saved.
+          item.kind === "audit" && item.observationId
+          ? [
+              {
+                date: on(observedAt.get(item.observationId) ?? item.at),
+                kind: "audit",
+                label: "",
+              },
+            ]
+          : [],
+    ),
+    ...workspace.actions.flatMap((action) => [
+      ...(action.completedAt
+        ? [
+            {
+              date: on(action.completedAt),
+              kind: "task" as const,
+              label: action.title,
+            },
+          ]
+        : []),
+      ...(action.verifiedAt
+        ? [
+            {
+              date: on(action.verifiedAt),
+              kind: "verified" as const,
+              label: action.title,
+            },
+          ]
+        : []),
+    ]),
+  ];
 }
