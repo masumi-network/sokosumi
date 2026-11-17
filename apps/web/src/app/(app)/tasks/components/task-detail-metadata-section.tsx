@@ -80,6 +80,7 @@ export async function TaskMetadataSection({
             participants={task.participants}
             labels={{
               participants: t("participants"),
+              noParticipants: t("noParticipants"),
               followsWithSokoBot: t("followsWithSokoBot"),
             }}
           />

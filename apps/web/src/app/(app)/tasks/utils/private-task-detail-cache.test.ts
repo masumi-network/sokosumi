@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 
 const getTaskByIdMock = vi.fn();
 const getMySokoBotActivityMock = vi.fn();
@@ -81,21 +82,69 @@ describe("startPrivateTaskDetailReads", () => {
 
   // Only Core's "no bot" sends the viewer to setup instead of following.
   it.each([
-    [404, false],
-    [503, true],
-  ])("reads a Soko Bot activity %s as has-bot %s", async (status, expected) => {
-    getMySokoBotActivityMock.mockRejectedValue(coreError(status));
-    const task = {
-      projectId: null,
-      organizationId: "org-1",
-      visibility: "PRIVATE",
-      workspace: { organizationId: "org-1" },
-    } as unknown as Parameters<typeof startPrivateTaskDetailReads>[0];
+    [
+      "a 404",
+      () => getMySokoBotActivityMock.mockRejectedValue(coreError(404)),
+      null,
+    ],
+    [
+      "a 503",
+      () => getMySokoBotActivityMock.mockRejectedValue(coreError(503)),
+      { imageUrl: null, avatarCode: null, seed: "soko-bot" },
+    ],
+    [
+      "a bot",
+      () =>
+        getMySokoBotActivityMock.mockResolvedValue({
+          data: {
+            id: "bot-1",
+            userId: "user-1",
+            avatarSeed: "seed-1",
+            avatarImageUrl: "/bot.png",
+            avatarCode: "code-1",
+          },
+        }),
+      { imageUrl: "/bot.png", avatarCode: "code-1", seed: "seed-1" },
+    ],
+    [
+      "a bot from a Core that predates the face fields",
+      () =>
+        getMySokoBotActivityMock.mockResolvedValue({
+          data: { status: "IDLE" },
+        }),
+      { imageUrl: null, avatarCode: null, seed: "soko-bot" },
+    ],
+    [
+      "a bot with no seed of its own",
+      () =>
+        getMySokoBotActivityMock.mockResolvedValue({
+          data: {
+            id: "bot-1",
+            userId: "user-1",
+            avatarSeed: null,
+            avatarImageUrl: null,
+            avatarCode: null,
+          },
+        }),
+      // The owner's default orb, as the sidebar and roster draw it.
+      { imageUrl: null, avatarCode: null, seed: defaultOrbSeed("user-1") },
+    ],
+  ])(
+    "reads %s as the viewer's Soko Bot face",
+    async (_case, arrange, expected) => {
+      arrange();
+      const task = {
+        projectId: null,
+        organizationId: "org-1",
+        visibility: "PRIVATE",
+        workspace: { organizationId: "org-1" },
+      } as unknown as Parameters<typeof startPrivateTaskDetailReads>[0];
 
-    const reads = startPrivateTaskDetailReads(task, false);
+      const reads = startPrivateTaskDetailReads(task, false);
 
-    await expect(reads.viewerHasSokoBotPromise).resolves.toBe(expected);
-  });
+      await expect(reads.viewerSokoBotPromise).resolves.toEqual(expected);
+    },
+  );
 
   it("keeps a sign-in redirect from the seat read", async () => {
     const { redirect } = await import("next/navigation");

@@ -79,6 +79,8 @@ function participant(
   };
 }
 
+const BOT = { imageUrl: "/bot.png", avatarCode: null, seed: "bot-seed" };
+
 const follower = () =>
   participant("viewer-1", "Viewer", { subscribed: true, withBot: true });
 
@@ -91,7 +93,7 @@ function renderControl(
       viewerId="viewer-1"
       viewerName="Viewer"
       viewerImage={null}
-      viewerHasSokoBot
+      viewerSokoBot={BOT}
       participants={[]}
       canComment
       {...overrides}
@@ -123,6 +125,8 @@ describe("TaskActivitySubscribeControl", () => {
     const user = userEvent.setup();
     renderControl();
     const button = screen.getByRole("button", { name: "followAdd" });
+    // The viewer's own bot, beside the label.
+    expect(button.querySelector('img[src="/bot.png"]')).not.toBeNull();
     await user.click(button);
     expect(subscribeTaskParticipantMock).toHaveBeenCalledWith({
       taskId: "task-1",
@@ -142,9 +146,11 @@ describe("TaskActivitySubscribeControl", () => {
   it("stops following and keeps the viewer a participant", async () => {
     const user = userEvent.setup();
     renderControl({ participants: [follower()] });
-    await user.click(
-      screen.getByRole("button", { name: "followActive. unfollow" }),
-    );
+    const active = screen.getByRole("button", {
+      name: "followActive. unfollow",
+    });
+    expect(active.querySelector('img[src="/bot.png"]')).not.toBeNull();
+    await user.click(active);
     expect(unsubscribeTaskMock).toHaveBeenCalledWith({ taskId: "task-1" });
     expect(removeTaskParticipantMock).not.toHaveBeenCalled();
     expect(
@@ -156,7 +162,7 @@ describe("TaskActivitySubscribeControl", () => {
   });
 
   it("sends a viewer without a Soko Bot to setup, returning to this Task", () => {
-    renderControl({ viewerHasSokoBot: false });
+    renderControl({ viewerSokoBot: null });
     expect(screen.getByRole("link", { name: "followSetup" })).toHaveAttribute(
       "href",
       `/setup/assistant?${new URLSearchParams({ next: "/tasks/task-1?follow=1" })}`,
@@ -165,7 +171,7 @@ describe("TaskActivitySubscribeControl", () => {
 
   it("remembers the Task when the viewer starts setup from it", async () => {
     const user = userEvent.setup();
-    renderControl({ viewerHasSokoBot: false });
+    renderControl({ viewerSokoBot: null });
     const link = screen.getByRole("link", { name: "followSetup" });
     link.addEventListener("click", (event) => event.preventDefault());
     await user.click(link);
@@ -208,7 +214,7 @@ describe("TaskActivitySubscribeControl", () => {
           viewerId="viewer-1"
           viewerName="Viewer"
           viewerImage={null}
-          viewerHasSokoBot
+          viewerSokoBot={BOT}
           participants={[]}
           canComment
         />
@@ -224,7 +230,7 @@ describe("TaskActivitySubscribeControl", () => {
   it("keeps the hand-off while the page shows no bot, and follows once the fresh render shows it", async () => {
     searchParams = "follow=1";
     window.sessionStorage.setItem(FOLLOW_SESSION_KEY, "task-1");
-    const { rerender } = renderControl({ viewerHasSokoBot: false });
+    const { rerender } = renderControl({ viewerSokoBot: null });
     expect(subscribeTaskParticipantMock).not.toHaveBeenCalled();
     expect(followMarker()).toBe("1");
     expect(window.sessionStorage.getItem(FOLLOW_SESSION_KEY)).toBe("task-1");
@@ -235,7 +241,7 @@ describe("TaskActivitySubscribeControl", () => {
         viewerId="viewer-1"
         viewerName="Viewer"
         viewerImage={null}
-        viewerHasSokoBot
+        viewerSokoBot={BOT}
         participants={[]}
         canComment
       />,
@@ -248,7 +254,7 @@ describe("TaskActivitySubscribeControl", () => {
 
   it("remembers nothing when setup opens in a new tab", async () => {
     const user = userEvent.setup();
-    renderControl({ viewerHasSokoBot: false });
+    renderControl({ viewerSokoBot: null });
     const link = screen.getByRole("link", { name: "followSetup" });
     link.addEventListener("click", (event) => event.preventDefault());
     await user.keyboard("{Meta>}");
@@ -267,7 +273,7 @@ describe("TaskActivitySubscribeControl", () => {
   });
 
   it("sends a follower whose bot is gone to setup", () => {
-    renderControl({ viewerHasSokoBot: false, participants: [follower()] });
+    renderControl({ viewerSokoBot: null, participants: [follower()] });
     expect(
       screen.getByRole("link", { name: "followSetup" }),
     ).toBeInTheDocument();
@@ -392,7 +398,7 @@ describe("TaskActivitySubscribeControl", () => {
         viewerId="viewer-1"
         viewerName="Viewer"
         viewerImage={null}
-        viewerHasSokoBot
+        viewerSokoBot={BOT}
         participants={others}
         canComment
       />,
@@ -419,7 +425,7 @@ describe("TaskActivitySubscribeControl", () => {
         viewerId="viewer-1"
         viewerName="Viewer"
         viewerImage={null}
-        viewerHasSokoBot
+        viewerSokoBot={BOT}
         participants={newer}
         canComment
       />,

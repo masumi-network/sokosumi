@@ -8,6 +8,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { TaskParticipantFace } from "@/app/tasks/components/task-participant-face";
 import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -55,13 +56,20 @@ function takeFollowAfterSetup(): string | null {
 
 const BUTTON_CLASS = "text-muted-foreground h-7 px-2 text-xs font-medium";
 
+/** What draws the viewer's own Soko Bot on the follow button. */
+export interface ViewerSokoBotFace {
+  imageUrl: string | null;
+  avatarCode: string | null;
+  seed: string;
+}
+
 export interface TaskActivitySubscribeControlProps {
   taskId: string;
   viewerId: string | null;
   viewerName: string | null;
   viewerImage: string | null;
-  /** The viewer has a personal Soko Bot in this workspace. */
-  viewerHasSokoBot: boolean;
+  /** The viewer's personal Soko Bot in this workspace; null for none. */
+  viewerSokoBot: ViewerSokoBotFace | null;
   participants: TaskParticipant[];
   /** Comment gate. Follow is hidden when false and the viewer is not a participant. */
   canComment: boolean;
@@ -72,10 +80,11 @@ export function TaskActivitySubscribeControl({
   viewerId,
   viewerName,
   viewerImage,
-  viewerHasSokoBot,
+  viewerSokoBot,
   participants,
   canComment,
 }: TaskActivitySubscribeControlProps) {
+  const viewerHasSokoBot = viewerSokoBot !== null;
   const t = useTranslations("App.Tasks.Detail");
   const [followMarker, setFollowMarker] = useQueryState(
     FOLLOW_AFTER_SETUP_PARAM,
@@ -210,6 +219,7 @@ export function TaskActivitySubscribeControl({
           loading={isPending}
           onClick={unfollow}
         >
+          {viewerSokoBot ? <SokoBotMark face={viewerSokoBot} /> : null}
           {t("followActive")}
         </Button>
       ) : followArm === "add" ? (
@@ -221,6 +231,7 @@ export function TaskActivitySubscribeControl({
           loading={isPending}
           onClick={follow}
         >
+          {viewerSokoBot ? <SokoBotMark face={viewerSokoBot} /> : null}
           {t("followAdd")}
         </Button>
       ) : (
@@ -303,6 +314,20 @@ export function TaskActivitySubscribeControl({
         </DropdownMenu>
       ) : null}
     </div>
+  );
+}
+
+/** The viewer's bot, small, beside the follow label; decorative. */
+function SokoBotMark({ face }: { face: ViewerSokoBotFace }) {
+  return (
+    <BotFace
+      imageUrl={face.imageUrl}
+      seed={face.seed}
+      avatarCode={face.avatarCode}
+      orbSize={32}
+      avatarSize={16}
+      className="size-4"
+    />
   );
 }
 

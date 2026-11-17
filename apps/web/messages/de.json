@@ -2130,6 +2130,7 @@
         "privateSchedule": "Privater Zeitplan",
         "participantsList": "Task-Teilnehmer",
         "participants": "Beteiligte",
+        "noParticipants": "Keine Beteiligten",
         "followAdd": "Mit deinem Soko Bot folgen",
         "followActive": "Soko Bot hält dich auf dem Laufenden",
         "followSetup": "Richte deinen Soko Bot ein, um zu folgen",

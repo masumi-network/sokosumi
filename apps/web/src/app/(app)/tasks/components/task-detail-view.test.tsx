@@ -46,7 +46,17 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: { getProjectById: async () => null },
 }));
 vi.mock("@/lib/clients/core.client", () => ({
-  coreClient: { getMySokoBotActivity: async () => ({}) },
+  coreClient: {
+    getMySokoBotActivity: async () => ({
+      data: {
+        id: "bot-1",
+        userId: "viewer-1",
+        avatarSeed: null,
+        avatarImageUrl: null,
+        avatarCode: null,
+      },
+    }),
+  },
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {

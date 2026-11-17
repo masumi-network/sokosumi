@@ -1,4 +1,5 @@
 import type { TaskParticipant } from "@sokosumi/core-client";
+import { UsersRound } from "lucide-react";
 import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
 import { PropertyRow } from "./task-metadata";
 import { TaskParticipantFace } from "./task-participant-face";
@@ -9,9 +10,25 @@ export function TaskMetadataParticipantsRow({
   labels,
 }: {
   participants: TaskParticipant[];
-  labels: { participants: string; followsWithSokoBot: string };
+  labels: {
+    participants: string;
+    noParticipants: string;
+    followsWithSokoBot: string;
+  };
 }) {
-  if (participants.length === 0) return null;
+  if (participants.length === 0) {
+    return (
+      <PropertyRow
+        label={labels.participants}
+        value={labels.noParticipants}
+        icon={<UsersRound className="text-muted-foreground size-4" />}
+      >
+        <span className="text-muted-foreground truncate">
+          {labels.noParticipants}
+        </span>
+      </PropertyRow>
+    );
+  }
   const faces = participants.slice(0, READ_RECEIPT_FACE_CAP);
   const remainingCount = participants.length - faces.length;
   const names = participants

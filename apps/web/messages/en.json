@@ -2130,6 +2130,7 @@
         "privateSchedule": "Private schedule",
         "participantsList": "Task participants",
         "participants": "Participants",
+        "noParticipants": "No participants",
         "followAdd": "Add your Soko Bot to follow",
         "followActive": "Soko Bot will update you",
         "followSetup": "Set up your Soko Bot to follow",

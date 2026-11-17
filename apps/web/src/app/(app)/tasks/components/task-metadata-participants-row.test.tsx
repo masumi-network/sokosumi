@@ -8,6 +8,7 @@ vi.mock("@/components/aurora-orb", () => ({
 
 const labels = {
   participants: "Participants",
+  noParticipants: "No participants",
   followsWithSokoBot: "follows with Soko Bot",
 };
 
@@ -38,10 +39,10 @@ describe("TaskMetadataParticipantsRow", () => {
     expect(screen.queryByTestId("task-participant-bot-mark-u2")).toBeNull();
   });
 
-  it("renders nothing for a Task without participants", () => {
-    const { container } = render(
-      <TaskMetadataParticipantsRow participants={[]} labels={labels} />,
+  it("says so for a Task without participants, as the other properties do", () => {
+    render(<TaskMetadataParticipantsRow participants={[]} labels={labels} />);
+    expect(screen.getByRole("group")).toHaveAccessibleName(
+      "Participants: No participants",
     );
-    expect(container).toBeEmptyDOMElement();
   });
 });

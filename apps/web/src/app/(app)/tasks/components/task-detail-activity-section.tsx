@@ -8,7 +8,10 @@ import {
   type MentionableUser,
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
-import { TaskActivitySubscribeControl } from "@/app/tasks/components/task-activity-subscribe";
+import {
+  TaskActivitySubscribeControl,
+  type ViewerSokoBotFace,
+} from "@/app/tasks/components/task-activity-subscribe";
 import type {
   AgentsResult,
   SessionResult,
@@ -27,7 +30,7 @@ export async function TaskActivitySectionContent({
   sessionPromise,
   currentPlanPromise,
   mentionableUsersPromise,
-  viewerHasSokoBotPromise,
+  viewerSokoBotPromise,
 }: {
   taskId: string;
   task: Task;
@@ -37,7 +40,7 @@ export async function TaskActivitySectionContent({
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
   mentionableUsersPromise: Promise<MentionableUser[]>;
-  viewerHasSokoBotPromise: Promise<boolean>;
+  viewerSokoBotPromise: Promise<ViewerSokoBotFace | null>;
 }) {
   const [
     agents,
@@ -45,7 +48,7 @@ export async function TaskActivitySectionContent({
     viewerPlan,
     hasAssignedSeat,
     mentionableUsers,
-    viewerHasSokoBot,
+    viewerSokoBot,
     t,
   ] = await Promise.all([
     agentsPromise,
@@ -53,7 +56,7 @@ export async function TaskActivitySectionContent({
     currentPlanPromise,
     hasAssignedSeatPromise,
     mentionableUsersPromise,
-    viewerHasSokoBotPromise,
+    viewerSokoBotPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
   // The task payload already carries every event, so a second events read
@@ -146,7 +149,7 @@ export async function TaskActivitySectionContent({
           viewerId={forceReadOnly ? null : (currentUser?.id ?? null)}
           viewerName={currentUser?.name ?? null}
           viewerImage={currentUser?.image ?? null}
-          viewerHasSokoBot={viewerHasSokoBot}
+          viewerSokoBot={viewerSokoBot}
           participants={task.participants}
           canComment={canComment}
         />
