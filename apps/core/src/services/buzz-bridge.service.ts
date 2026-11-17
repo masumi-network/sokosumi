@@ -4419,18 +4419,40 @@ export async function applyInboundEvent(
         await rememberDuplicate(existing, event.id);
         return "echo";
       }
+      // Added again on Buzz while Sokosumi takes the old one back: that
+      // finishes first, so the link only ever stands for the new one.
+      const oldRemoval = existing ? asPending(existing.pendingEvent) : null;
+      if (existing && oldRemoval) {
+        const channel = channelId
+          ? await prisma.buzzChannel.findUnique({
+              where: { channelId },
+              select: { community: { select: { relayUrl: true } } },
+            })
+          : null;
+        if (!channel) return "ignored";
+        await deliver(channel.community.relayUrl, oldRemoval, (fresh) =>
+          prisma.buzzReactionLink.update({
+            where: { id: existing.id },
+            data: { pendingEvent: fresh as unknown as object },
+          }),
+        );
+      }
       await sendAs(core, author, {
         method: "PUT",
         path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
       });
       if (existing) {
-        // Added again on Buzz while Sokosumi takes the old one back: the new
-        // event replaces it, and the old ones stay undone.
+        // The old ones stay undone; the new event is the reaction now.
         await prisma.$transaction([
           rememberUndone([existing.eventId, ...existing.duplicateEventIds]),
           prisma.buzzReactionLink.update({
             where: { id: existing.id },
-            data: { eventId: event.id, signerPubkey, duplicateEventIds: [] },
+            data: {
+              eventId: event.id,
+              signerPubkey,
+              duplicateEventIds: [],
+              pendingEvent: PrismaNull.DbNull,
+            },
           }),
         ]);
         return "reacted";

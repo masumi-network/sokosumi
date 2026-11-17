@@ -444,8 +444,34 @@ describe("applyInboundEvent", () => {
               id: "link",
               eventId: "old",
               duplicateEventIds: ["old-copy"],
-              pendingEvent: { kind: 5, tags: [["e", "old"]] },
+              pendingEvent: oldRemoval,
             },
+    );
+    db.buzzChannel.findUnique.mockResolvedValue({
+      community: { relayUrl: "ws://relay" },
+    });
+    const oldRemoval = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "old"],
+      ],
+    });
+    // Sokosumi holds the key that signed the old removal.
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      ...bob,
+      encryptedSecretKey: sealSecret(
+        Buffer.from(BOB_KEY).toString("hex"),
+        SECRET,
+      ),
+    });
+    const sent: { id: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)));
+        return Response.json({ accepted: true });
+      }),
     );
     const again = nostrEvent({
       kind: 7,
@@ -455,7 +481,13 @@ describe("applyInboundEvent", () => {
       ],
       content: "👍",
     });
-    await expect(applyInboundEvent(again, core)).resolves.toBe("reacted");
+    try {
+      await expect(applyInboundEvent(again, core)).resolves.toBe("reacted");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    // The old one comes off Buzz first, so the link only stands for the new.
+    expect(sent.map((event) => event.id)).toEqual([oldRemoval.id]);
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "PUT",
@@ -468,7 +500,12 @@ describe("applyInboundEvent", () => {
     });
     expect(db.buzzReactionLink.update).toHaveBeenCalledWith({
       where: { id: "link" },
-      data: { eventId: again.id, signerPubkey: null, duplicateEventIds: [] },
+      data: {
+        eventId: again.id,
+        signerPubkey: null,
+        duplicateEventIds: [],
+        pendingEvent: expect.anything(),
+      },
     });
   });
 
