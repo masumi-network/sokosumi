@@ -385,6 +385,42 @@ describe("the funnel strategy", () => {
     expect(problems("4 page fixes, 2 articles monthly")).not.toContain(
       "cadence",
     );
+    // cmo-v3 writes social cadences as a daily rate.
+    expect(problems("3 a day")).toContain("means about 84");
+    expect(problems("1 to 2 daily")).not.toContain("cadence");
+  });
+
+  it("asks a weekly Cuso for the weeks still missing, and holds each to the pace", () => {
+    const weekOne = Array.from({ length: 21 }, (_, index) => ({
+      ...entry(`w${index}`, index % 2 ? "x" : "linkedin", "post"),
+      date: `2026-11-0${2 + (index % 7)}`,
+    }));
+    const pace = { level: "all_in" as const, why: "Go hard", perWeek: 50 };
+    const weekly = cmoPlanProblems(plan({ calendar: weekOne, pace }), {
+      weekly: true,
+    }).join(" ");
+    expect(weekly).toContain("calendar covers 1 of four weeks");
+    expect(weekly).toContain("about 21 pieces a week");
+    expect(weekly).not.toContain("about 5 pieces a week");
+    // Cusos that save the month whole are read as before.
+    expect(
+      cmoPlanProblems(plan({ calendar: weekOne, pace })).join(" "),
+    ).not.toContain("calendar covers");
+  });
+
+  it("refuses a pace reached by piling one network", () => {
+    const calendar = Array.from({ length: 99 }, (_, index) =>
+      entry(`i${index}`, "instagram", index % 2 ? "image" : "carousel"),
+    );
+    expect(cmoPlanProblems(plan({ calendar })).join(" ")).toContain(
+      "instagram has 99 pieces, more than 2 a day",
+    );
+    const x = Array.from({ length: 84 }, (_, index) =>
+      entry(`x${index}`, "x", "post"),
+    );
+    expect(cmoPlanProblems(plan({ calendar: x })).join(" ")).not.toContain(
+      "more than",
+    );
   });
 });
 

@@ -9,6 +9,7 @@ import {
   type CmoPlanQuestion,
   type CmoStrategySave,
   type CmoStrategySavePart,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
 } from "@sokosumi/soko-bot";
@@ -37,7 +38,10 @@ import {
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
-import { cmoPlanRuleProblems } from "@/services/cmo-plan-review.service";
+import {
+  cmoPlanRuleProblems,
+  WEEKLY_STRATEGY_SKILL,
+} from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
   cmoChangeKind,
@@ -481,6 +485,12 @@ function changeMessage(
   return lines.join("\n");
 }
 
+const PLAN_SAVE_TWO_CALLS =
+  "This is the plan, not the posts. Save it in two calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
+
+const PLAN_SAVE_WEEKLY =
+  "This is the plan, not the posts. Save it in short calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then the day-by-day calendar, one week a call: part calendar with week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece), then part patch with week two, then week three, then week four, each as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why) under new ids. Every week holds about the pace's perWeek pieces in the mix and pillar shares. Each part leaves the rest as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
+
 async function startStrategyTurn(
   cuso: Cuso,
   input: StrategyTurn,
@@ -504,6 +514,15 @@ async function startStrategyTurn(
       route: CMO_STRATEGY_ROUTE,
     });
   }
+  // A month at cmo-v3's pace is too long for one call: its Cuso saves it week
+  // by week, and is told so here, where the two-call message once capped it.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { versionId: true },
+  });
+  const savesWeekly =
+    bot?.versionId != null &&
+    getSokoBotVersion(bot.versionId).skills.includes(WEEKLY_STRATEGY_SKILL);
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
@@ -539,7 +558,7 @@ async function startStrategyTurn(
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-              "This is the plan, not the posts. Save it in two calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
+              savesWeekly ? PLAN_SAVE_WEEKLY : PLAN_SAVE_TWO_CALLS,
             ],
       )
       .concat([
@@ -624,7 +643,8 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = 120;
+/** All-in on three networks with seo is about 200 pieces a month (cmo-v3). */
+const CMO_CALENDAR_LIMIT = 240;
 
 export function calendarBounds(
   now: Date,

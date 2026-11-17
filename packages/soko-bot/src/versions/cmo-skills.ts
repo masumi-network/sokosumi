@@ -1,6 +1,7 @@
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
+import { weeklyStrategy } from "./cmo-strategy-weekly.js";
 import type { SokoBotSkill } from "./skills.js";
 
 /** How Cuso writes everything the owner reads: plans, Brand Brain, posts. */
@@ -295,6 +296,9 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   },
   strategySkill("cmo-strategy", CALENDAR_WHOLE, SAVING_REVIEWED),
   strategySkill("cmo-strategy-patches", CALENDAR_IN_PIECES, SAVING_PATCHES),
+  weeklyStrategy(
+    strategySkill("cmo-strategy-patches", CALENDAR_IN_PIECES, SAVING_PATCHES),
+  ),
   {
     id: "cmo-production",
     name: "Make the month",

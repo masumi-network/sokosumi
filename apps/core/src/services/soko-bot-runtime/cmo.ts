@@ -32,6 +32,7 @@ import {
 import {
   CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
+  CMO_WEEKLY_EXTRA_REVIEWS,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
   cmoCalendarRepeats,
@@ -39,6 +40,7 @@ import {
   cmoPlanDrift,
   cmoPlanProblemsSince,
   cmoReplySafety,
+  WEEKLY_STRATEGY_SKILL,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
@@ -210,10 +212,16 @@ export async function reviewCmoPlan(
   const budget = plan.calendarSent
     ? CMO_CALENDAR_REVIEWS_PER_TURN
     : CMO_PLAN_REVIEWS_PER_TURN;
+  // A weekly Cuso saves a long month in four calendar calls first.
+  const weekly = getSokoBotVersion(authorized.turn.versionId).skills.includes(
+    WEEKLY_STRATEGY_SKILL,
+  );
   // Jev reads the first saves only; the rule checks cost nothing and run on
   // a few more, so a late save still hears about a repeated title. Past
   // that the review stops, so a plan that cannot be fixed still ends.
-  if (reviewed >= 2 * budget) return null;
+  const ruleChecks =
+    2 * budget + (weekly && plan.calendarSent ? CMO_WEEKLY_EXTRA_REVIEWS : 0);
+  if (reviewed >= ruleChecks) return null;
   // The plan this turn built on, as it was before the turn touched it.
   const before =
     (plan.executing ? await approvedMarketingStrategy(plan.projectId) : null) ??
@@ -229,7 +237,7 @@ export async function reviewCmoPlan(
       select: { plan: true },
     }));
   const earlier = parseMarketingPlan(before?.plan);
-  const problems = cmoPlanProblemsSince(strategy, earlier);
+  const problems = cmoPlanProblemsSince(strategy, earlier, { weekly });
   if (reviewed >= budget) {
     return {
       save: saves,
