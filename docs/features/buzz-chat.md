@@ -25,17 +25,18 @@ Buzz app ──wss──▶ relay (Railway)  ◀── operator API, events ─�
 
 ## What crosses
 
-| In Sokosumi                                       | On Buzz                                                          |
-| ------------------------------------------------- | ---------------------------------------------------------------- |
-| Messages, edits, deletions, threads               | Both ways                                                        |
-| Reactions                                         | Both ways, a Buzz agent's included                               |
-| Mentions                                          | Both ways, as each app writes them (`@Name` and a tagged key)    |
-| Files                                             | Both ways, as attachments in each app (history's too)            |
-| Quotes, attached skills, result cards             | Text: the quote above, skills and card links below               |
-| Directs between people of different organizations | In the oldest community one of them is in; the others are guests |
-| Pins                                              | Sokosumi only: Buzz pins are per person, not per channel         |
-| Read state                                        | Not shared: Buzz keeps it encrypted to the person's own key      |
-| Mobile push                                       | Needs the relay's push gateway (Block's APNs app)                |
+| In Sokosumi                                       | On Buzz                                                                     |
+| ------------------------------------------------- | --------------------------------------------------------------------------- |
+| Messages, edits, deletions, threads               | Both ways                                                                   |
+| Reactions                                         | Both ways, a Buzz agent's included                                          |
+| Mentions                                          | Both ways, as each app writes them (`@Name` and a tagged key)               |
+| Files                                             | Both ways, as attachments in each app (history's too)                       |
+| Quotes, attached skills, result cards             | Text: the quote above, skills and card links below                          |
+| Directs between people of different organizations | In the oldest community one of them is in; the others are guests            |
+| Pins                                              | Sokosumi only: Buzz pins are per person, not per channel                    |
+| Read state                                        | Not shared: Buzz keeps it encrypted to the person's own key                 |
+| Mobile push                                       | Needs the relay's push gateway (Block's APNs app)                           |
+| A banned person                                   | Banned from their communities (app key and agents too), lifted with the ban |
 
 A result card on Buzz is a link without its title (a title may be private to
 some readers); Sokosumi checks access when it is opened.

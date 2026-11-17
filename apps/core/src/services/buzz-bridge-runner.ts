@@ -31,6 +31,7 @@ import {
   repairBuzzOutbox,
   saveInboundCursor,
   syncBuzzAgents,
+  syncBuzzBans,
   syncRoomChannel,
   unlinkedBuzzRooms,
 } from "@/services/buzz-bridge.service";
@@ -65,17 +66,25 @@ const LEASE_RENEW_MS = 15_000;
  */
 /**
  * Core refuses access (401/403) while a membership is still syncing, so those
- * are retried, but only for about half an hour: a room that turned read-only
- * would otherwise hold its community's cursor forever.
+ * are retried; but one still refused half an hour after it was written is
+ * given up after a few tries, or a room that turned read-only would hold its
+ * community's cursor forever. Judged by the event's age, so it holds across
+ * runs.
  */
-const FORBIDDEN_ATTEMPTS = 12;
+const FORBIDDEN_FOR_S = 30 * 60;
 
-export function rejectedForGood(error: unknown, attempt: number): boolean {
+export function rejectedForGood(
+  error: unknown,
+  attempt: number,
+  createdAt: number,
+  now = Date.now(),
+): boolean {
   if (!(error instanceof CoreRejectedError)) return false;
   if (error.terminal) return true;
   return (
     (error.status === 401 || error.status === 403) &&
-    attempt + 1 >= FORBIDDEN_ATTEMPTS
+    attempt >= 2 &&
+    now / 1000 - createdAt > FORBIDDEN_FOR_S
   );
 }
 
@@ -267,7 +276,7 @@ export async function runBuzzBridge(options: {
   // Inbound events are applied one at a time, in order. One whose target is
   // not linked yet waits (up to 6 tries, then is applied as well as it can
   // be); one that fails because Core is unreachable is retried until it works,
-  // one Core keeps refusing access to only for a while.
+  // one Core keeps refusing access to only for a while (see rejectedForGood).
   let inbound = Promise.resolve();
   const seen = new Set<string>();
   const TARGET_ATTEMPTS = 6;
@@ -381,7 +390,7 @@ export async function runBuzzBridge(options: {
         // Core said no for good (the message is gone, the reaction too
         // long), or keeps refusing access: retrying would hold the cursor
         // forever.
-        if (rejectedForGood(error, attempt)) {
+        if (rejectedForGood(error, attempt, event.created_at)) {
           log(
             `in  kind ${event.kind} ${event.id.slice(0, 8)} → rejected`,
             reason,
@@ -724,6 +733,15 @@ export async function runBuzzBridge(options: {
         if (repaired > 0) log(`${repaired} change(s) queued again for Buzz`);
         const left = await removeAgentsWithoutOwner();
         if (left > 0) log(`${left} personal agent(s) left with their owner`);
+        try {
+          const bans = await syncBuzzBans();
+          if (bans > 0) log(`${bans} ban(s) carried to Buzz`);
+        } catch (error) {
+          log(
+            "ban sync failed",
+            error instanceof Error ? error.message : error,
+          );
+        }
         const inBudget = within(Date.now() + SWEEP_BUDGET_MS);
         const rooms = await linkedBuzzRooms();
         for (let done = 0; done < rooms.length && inBudget(); done++) {

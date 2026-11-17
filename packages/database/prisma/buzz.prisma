@@ -78,6 +78,9 @@ model BuzzCommunityMember {
   /// Hash of the kind:0 profile last published in this community, to
   /// republish only on change.
   profileHash String?
+  /// When the bridge banned this identity's keys from the community, because
+  /// Sokosumi banned the person (or the owner of this agent).
+  bannedAt    DateTime?
   createdAt   DateTime      @default(now())
 
   @@id([communityId, identityId])

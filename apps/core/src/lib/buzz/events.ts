@@ -27,6 +27,8 @@ export const BUZZ_KIND = {
   createChannel: 9007,
   deleteChannel: 9008,
   addCommunityMember: 9030,
+  communityBan: 9040,
+  communityUnban: 9041,
   /** Relay-signed (NIP-43): a key was admitted to the community. */
   memberAdded: 8000,
   /** An owner's record of one of their Buzz agents; `d` is the agent's key. */
@@ -235,6 +237,27 @@ export function communityMemberDraft(pubkey: string): EventDraft {
     ],
     content: "",
   };
+}
+
+/** Bans a key from the whole community: every channel and DM, live too. */
+export function communityBanDraft(
+  pubkey: string,
+  until: Date | null,
+): EventDraft {
+  return {
+    kind: BUZZ_KIND.communityBan,
+    tags: [
+      ["p", pubkey],
+      ...(until
+        ? [["expiration", String(Math.floor(until.getTime() / 1000))]]
+        : []),
+    ],
+    content: "",
+  };
+}
+
+export function communityUnbanDraft(pubkey: string): EventDraft {
+  return { kind: BUZZ_KIND.communityUnban, tags: [["p", pubkey]], content: "" };
 }
 
 export function tagValues(event: Event, name: string): string[] {

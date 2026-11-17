@@ -77,20 +77,28 @@ describe("rejectedForGood", () => {
         terminal: boolean,
       ) => Error
     )(status, terminal);
+  const now = 1_800_000_000_000;
+  const fresh = now / 1000 - 60;
+  const old = now / 1000 - 31 * 60;
 
   it("gives up at once on a terminal rejection", () => {
-    expect(rejectedForGood(rejected(404, true), 0)).toBe(true);
+    expect(rejectedForGood(rejected(404, true), 0, fresh, now)).toBe(true);
   });
 
-  it("retries a refused access a while, then gives up", () => {
-    expect(rejectedForGood(rejected(403, false), 0)).toBe(false);
-    expect(rejectedForGood(rejected(403, false), 10)).toBe(false);
-    expect(rejectedForGood(rejected(403, false), 11)).toBe(true);
-    expect(rejectedForGood(rejected(401, false), 11)).toBe(true);
+  it("retries a refused access while the event is new", () => {
+    expect(rejectedForGood(rejected(403, false), 40, fresh, now)).toBe(false);
+  });
+
+  it("gives up on an old event Core keeps refusing, in any run", () => {
+    expect(rejectedForGood(rejected(403, false), 1, old, now)).toBe(false);
+    expect(rejectedForGood(rejected(403, false), 2, old, now)).toBe(true);
+    expect(rejectedForGood(rejected(401, false), 2, old, now)).toBe(true);
   });
 
   it("keeps retrying when Core is unreachable or busy", () => {
-    expect(rejectedForGood(rejected(429, false), 50)).toBe(false);
-    expect(rejectedForGood(new Error("fetch failed"), 50)).toBe(false);
+    expect(rejectedForGood(rejected(429, false), 50, old, now)).toBe(false);
+    expect(rejectedForGood(new Error("fetch failed"), 50, old, now)).toBe(
+      false,
+    );
   });
 });

@@ -24,7 +24,9 @@ import {
   BUZZ_KIND,
   channelIdOf,
   channelMembersDraft,
+  communityBanDraft,
   communityMemberDraft,
+  communityUnbanDraft,
   contentHash,
   createChannelDraft,
   deletionDraft,
@@ -1698,6 +1700,77 @@ async function ensureCommunityMember(
   });
 }
 
+/**
+ * A person Sokosumi banned is banned from their Buzz communities too, with
+ * their app key and their own agents: leaving them out of rooms is not enough,
+ * since a retired Direct keeps its people on Buzz. Lifted with their ban.
+ */
+export async function syncBuzzBans(): Promise<number> {
+  const config = requireConfig();
+  const bannedPerson = { banned: true };
+  const members = await prisma.buzzCommunityMember.findMany({
+    where: {
+      OR: [
+        { bannedAt: { not: null } },
+        { identity: { user: bannedPerson } },
+        { identity: { ownerIdentity: { user: bannedPerson } } },
+      ],
+    },
+    select: {
+      communityId: true,
+      identityId: true,
+      bannedAt: true,
+      community: { select: { relayUrl: true } },
+      identity: {
+        select: {
+          pubkey: true,
+          appPubkey: true,
+          user: { select: { banned: true, banExpires: true } },
+          ownerIdentity: {
+            select: { user: { select: { banned: true, banExpires: true } } },
+          },
+        },
+      },
+    },
+  });
+  let changed = 0;
+  for (const member of members) {
+    const person = member.identity.user ?? member.identity.ownerIdentity?.user;
+    const banExpires = person?.banExpires ?? null;
+    const banned = person != null && !isActiveUser(person);
+    if (banned === Boolean(member.bannedAt)) continue;
+    for (const pubkey of keysOf(member.identity)) {
+      try {
+        await publish(
+          member.community.relayUrl,
+          config.operatorSecretKey,
+          banned
+            ? communityBanDraft(pubkey, banExpires)
+            : communityUnbanDraft(pubkey),
+        );
+      } catch (error) {
+        // Lifted already: its expiry passed on the relay too.
+        const lifted =
+          !banned &&
+          error instanceof BuzzRelayRejectedError &&
+          /not banned/i.test(error.reason);
+        if (!lifted && !isAlreadyDone(error)) throw error;
+      }
+    }
+    await prisma.buzzCommunityMember.update({
+      where: {
+        communityId_identityId: {
+          communityId: member.communityId,
+          identityId: member.identityId,
+        },
+      },
+      data: { bannedAt: banned ? new Date() : null },
+    });
+    changed++;
+  }
+  return changed;
+}
+
 async function ensureProfile(
   community: { id: string; relayUrl: string },
   identity: BuzzIdentity,
@@ -2833,7 +2906,6 @@ async function reconcileReactions(input: {
   channelId: string;
   relayUrl: string;
   reactions: { userId: string; emoji: string }[];
-  /** Coworkers react on Buzz only: theirs are linked as they come in. */
   agentReactions: { coworkerId: string; emoji: string }[];
 }) {
   let links = await prisma.buzzReactionLink.findMany({
@@ -2880,9 +2952,25 @@ async function reconcileReactions(input: {
     ...input.agentReactions.map((r) => key(r.coworkerId, r.emoji)),
   ]);
 
-  for (const reaction of input.reactions) {
-    if (linked.has(key(reaction.userId, reaction.emoji))) continue;
-    const identity = await ensureIdentity({ userId: reaction.userId });
+  // A Coworker whose key Sokosumi holds reacts on Buzz through Sokosumi; one
+  // with its own key (a person's agent) reacts on Buzz itself.
+  const toSend = [
+    ...input.reactions.map((r) => ({ actor: { userId: r.userId }, ...r })),
+    ...input.agentReactions.map((r) => ({
+      actor: { coworkerId: r.coworkerId },
+      ...r,
+    })),
+  ];
+  for (const { actor, emoji } of toSend) {
+    if (
+      linked.has(
+        key("userId" in actor ? actor.userId : actor.coworkerId, emoji),
+      )
+    )
+      continue;
+    if ("coworkerId" in actor && (await isPersonalAgent(actor.coworkerId)))
+      continue;
+    const identity = await ensureIdentity(actor);
     const event = signEvent(
       vouched(
         identity,
@@ -2890,7 +2978,7 @@ async function reconcileReactions(input: {
           channelId: input.channelId,
           eventId: input.eventId,
           authorPubkey: input.authorPubkey,
-          emoji: reaction.emoji,
+          emoji,
         }),
       ),
       identitySecretKey(identity),
@@ -2902,7 +2990,7 @@ async function reconcileReactions(input: {
           data: {
             messageId: input.messageId,
             identityId: identity.id,
-            emoji: reaction.emoji,
+            emoji,
             eventId: event.id,
             pendingEvent: event as unknown as object,
           },

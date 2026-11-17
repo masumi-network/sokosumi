@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   BUZZ_KIND,
+  communityBanDraft,
+  communityUnbanDraft,
   messageDraft,
   openedDirectMessageChannelId,
   readableContent,
@@ -120,5 +122,26 @@ describe("richMessageText", () => {
     );
     expect(richMessageText("plain words")).toBe("plain words");
     expect(richMessageText('{"other":1}')).toBe('{"other":1}');
+  });
+});
+
+describe("communityBanDraft", () => {
+  it("bans for good, or until the Sokosumi ban ends", () => {
+    expect(communityBanDraft("ab", null)).toEqual({
+      kind: 9040,
+      tags: [["p", "ab"]],
+      content: "",
+    });
+    expect(
+      communityBanDraft("ab", new Date("2026-12-01T00:00:00.500Z")).tags,
+    ).toEqual([
+      ["p", "ab"],
+      ["expiration", "1796083200"],
+    ]);
+    expect(communityUnbanDraft("ab")).toEqual({
+      kind: 9041,
+      tags: [["p", "ab"]],
+      content: "",
+    });
   });
 });
