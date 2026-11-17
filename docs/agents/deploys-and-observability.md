@@ -19,6 +19,12 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. How 
 - **`VERCEL_PROJECT_PRODUCTION_URL` is baked at build time** and can name a `*.preview.sokosumi.com` production alias instead of the custom domain, which sends the wrong OAuth `redirect_uri`. Keep the custom domain the project's only production alias; after a Domains change, redeploy production, since the running deployment keeps the old value.
 - **`VERCEL_RELATED_PROJECTS` appends the requesting project's preview suffix**, so a CMO preview gets Core's alias on `preview.cmo.xyz`. `sokosumiPreviewUrl` in `apps/cmo/src/lib/auth-config.ts` swaps in `preview.sokosumi.com`; reuse it for any new related project.
 - **Query a new hostname only after its DNS record exists.** Resolvers cache the NXDOMAIN for the zone's negative TTL, so an early lookup keeps the new site unreachable for that long on the whole network. Before the record propagates, ask the authoritative nameserver and use `curl --resolve`.
+- **A hash deployment URL is frozen.** `<project>-<hash>.<suffix>` serves its own build forever; only project and branch aliases follow the promoted build. A browser-side repair, such as a service worker update, never reaches a client that stays on a hash host.
+
+## Vercel logs
+
+- **Trace one request by its id.** Take the `x-vercel-id` response header without its region prefix and run `vercel logs --scope masumi -p <project> --request-id <id> --since 30m`; projects are `sokosumi-{app,core}-{preprod,mainnet}`. `-n` caps the results, so a count is a floor.
+- **An occasional 5 to 11 s page load: check Core boot lines first.** One page load sends many parallel Core requests, and one of them can land on a freshly booted Core instance. Before reading app code, search Core logs at that time for boot lines, such as pg's `SECURITY WARNING: The SSL modes` line.
 
 ## Sentry
 

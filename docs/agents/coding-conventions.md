@@ -33,6 +33,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Formatting**: Run `pnpm format` after substantial edits
 - **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
 - **Components**: Default to Server Components; add `'use client'` only for browser APIs
+- **Comments**: Write only facts the code cannot state. Do not narrate what the next line does or how the code got here. The repo runs comment-deletion sweeps across `packages/` and `apps/`, so narration comes back as rebase conflicts and gets deleted again.
 
 ### Linting & Formatting
 
@@ -75,6 +76,10 @@ function handler(_req, res) {
 - **Prove money races on PostgreSQL.** For a credit or billing race, add a `*.postgres.test.ts` in `apps/core` beside the mocked route test, running both orderings on separate connections; Test Core PostgreSQL runs these against a real PostgreSQL. PGlite takes one connection and cannot run the race.
 - **`null` means not given.** Store a missing value as `null`, and keep `""` out of use as a second marker beside it (new row vs legacy row): any writer that trims empty input to `null` silently moves a row between the two. When rows need different treatment, derive it from real data or add an explicit field.
 - **`skipDuplicates` is idempotent, not free.** PostgreSQL runs BEFORE INSERT row triggers for every proposed row, including the ones `ON CONFLICT DO NOTHING` (`createMany({ skipDuplicates: true })`) then skips. On a table with row triggers (`task_schedule_run` enqueues a calendar invalidation per row), send only the rows that are not there yet (for example, continue after the last planned row) instead of the whole set, and keep `skipDuplicates`, since a concurrent writer can still insert the same row.
+
+## Security
+
+- **Redirect targets keep the host.** Never build a redirect as `new URL(requestPath, base)`: a path like `//evil.example/x` is protocol-relative, so only the scheme survives and the target leaves the site. Strip leading `/` and `\` from the path, assign it to `target.pathname`, and assert `new URL(location).host` in the test.
 
 ## Testing Guidelines
 
