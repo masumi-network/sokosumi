@@ -40,6 +40,8 @@ export function ApiKeyActions({
       <Button
         size="sm"
         variant="ghost"
+        // DESIGN.md touch targets: 40px below md, 32px from md up.
+        className="size-10 md:size-8"
         onClick={(e) => {
           e.stopPropagation();
           onToggleStatus(apiKey);
@@ -59,6 +61,7 @@ export function ApiKeyActions({
       <Button
         size="sm"
         variant="ghost"
+        className="size-10 md:size-8"
         onClick={(e) => {
           e.stopPropagation();
           onDeleteClick(apiKey);

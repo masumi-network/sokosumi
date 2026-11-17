@@ -13,7 +13,33 @@ interface DeveloperVendorsListProps {
 
 // Wordmarks are wide: fit the whole logo inside the circle on the row's own
 // surface, so neither the fallback letter nor a crop shows through.
-const VENDOR_LOGO_CLASS = "bg-muted object-contain p-1";
+function VendorAvatar({
+  src,
+  name,
+  theme,
+  className,
+}: {
+  src: string | undefined;
+  name: string;
+  theme: "light" | "dark";
+  className: string;
+}) {
+  return (
+    <Avatar
+      data-testid={`vendor-logo-${theme}`}
+      className={cn("size-10 shrink-0", className)}
+    >
+      <AvatarImage
+        src={src}
+        alt={name}
+        className="bg-muted object-contain p-1"
+      />
+      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+        {name.charAt(0).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
 
 export async function DeveloperVendorsList({
   adminVendors,
@@ -35,21 +61,21 @@ export async function DeveloperVendorsList({
             className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex min-w-0 items-start gap-3">
-              <Avatar className="size-10 shrink-0">
-                <AvatarImage
-                  src={logos.light}
-                  alt={vendor.name}
-                  className={cn(VENDOR_LOGO_CLASS, "dark:hidden")}
-                />
-                <AvatarImage
-                  src={logos.dark}
-                  alt={vendor.name}
-                  className={cn(VENDOR_LOGO_CLASS, "hidden dark:block")}
-                />
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  {vendor.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              {/* One avatar per theme, so a logo that fails in one theme
+                  falls back to the initial without the other theme's image
+                  hiding that fallback. */}
+              <VendorAvatar
+                src={logos.light}
+                name={vendor.name}
+                theme="light"
+                className="dark:hidden"
+              />
+              <VendorAvatar
+                src={logos.dark}
+                name={vendor.name}
+                theme="dark"
+                className="hidden dark:flex"
+              />
               <div className="min-w-0 space-y-1">
                 <p className="truncate font-medium">{vendor.name}</p>
                 <p className="text-muted-foreground font-mono text-xs">
