@@ -1,14 +1,13 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { connection } from "next/server";
-import { useTranslations } from "next-intl";
 
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
+import { LegalLinks } from "@/components/legal-links";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { readRouteSession } from "@/lib/auth/route-session";
-import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 export default async function FlowsLayout({
   children,
@@ -52,35 +51,9 @@ export default async function FlowsLayout({
           <main className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
             {children}
           </main>
-          <FlowsLayoutFooter />
+          <LegalLinks />
         </div>
       </div>
     </ClientMessageBoundary>
-  );
-}
-
-function FlowsLayoutFooter() {
-  const t = useTranslations("Auth.Footer");
-
-  return (
-    // Wraps: German labels at enlarged text overflow a 320px phone in one row.
-    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-      <Link
-        href={LEGAL_URLS.PRIVACY_POLICY}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        {t("privacyPolicy")}
-      </Link>
-      <Link
-        href={LEGAL_URLS.TERMS_OF_SERVICE}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        {t("termsOfServices")}
-      </Link>
-    </div>
   );
 }

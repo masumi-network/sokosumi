@@ -84,9 +84,12 @@ describe("FlowsLayout impersonation banner", () => {
 
     render(await FlowsLayout({ children: <p>gate content</p> }));
 
+    // The same four links, in the same order, as sign-up and log in.
     for (const [name, href] of [
-      ["privacyPolicy", LEGAL_URLS.PRIVACY_POLICY],
       ["termsOfServices", LEGAL_URLS.TERMS_OF_SERVICE],
+      ["privacyPolicy", LEGAL_URLS.PRIVACY_POLICY],
+      ["imprint", LEGAL_URLS.IMPRINT],
+      ["acceptableUse", LEGAL_URLS.ACCEPTABLE_USE],
     ]) {
       const link = screen.getByRole("link", { name });
       expect(link).toHaveAttribute("href", href);
