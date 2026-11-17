@@ -1161,6 +1161,7 @@ export class SokoBotControlPlane {
       duplicate: true,
       errorKind: null,
       reconciliationLeaseToken: turn.leaseToken,
+      acknowledgedByCaller: true,
     };
   }
 
@@ -3004,7 +3005,13 @@ export class SokoBotControlPlane {
           currentAfterAcknowledgementFailure?.eveSessionId ===
           acceptedRuntime.sessionId
         ) {
-          return duplicateResult(currentAfterAcknowledgementFailure);
+          return {
+            ...duplicateResult(currentAfterAcknowledgementFailure),
+            // Only its response was lost: this caller's own acknowledgement.
+            ...(currentAfterAcknowledgementFailure.leaseToken === leaseToken
+              ? { acknowledgedByCaller: true }
+              : {}),
+          };
         }
         if (
           currentAfterAcknowledgementFailure?.leaseToken !== leaseToken ||

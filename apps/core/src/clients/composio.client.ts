@@ -8,8 +8,15 @@ import {
   type ProjectSocialProvider,
 } from "@/config/social-providers";
 import { linkedInPersonId } from "@/helpers/linkedin-person";
-import { tryUseLogger } from "@/lib/evlog";
+import {
+  createCoreLogger,
+  recordCoreWarning,
+  tryUseLiveLogger,
+  tryUseLogger,
+} from "@/lib/evlog";
 import { composioLogger } from "@/lib/evlog-library-logs";
+import { knownKeyPaths } from "@/lib/known-key-paths";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 let instance: Composio | null | undefined;
 
@@ -639,8 +646,21 @@ export async function deleteComposioToolSession(
       { method: "DELETE", signal },
     );
     await projectComposioResponse(response, context);
-  } catch {
-    console.warn(`[composio] ${context} failed`);
+  } catch (error) {
+    // A session's answer can quote what its tools read or posted.
+    recordCoreWarning(
+      { operation: "composio_delete_tool_session" },
+      {
+        message: "Composio could not delete a tool session",
+        why: "The Composio tool session delete request failed",
+        fix: "Nothing: Composio expires the session on its own. If it repeats, check Composio's status.",
+      },
+      {
+        provider: "composio",
+        composioOperation: context,
+        failure: messageSafeErrorFields(error),
+      },
+    );
   }
 }
 
@@ -856,15 +876,29 @@ function socialIdentity(
   return id ? { id, handle, displayName, avatarUrl, subscriptionType } : null;
 }
 
-/** Key paths (never values) of a payload, to learn a provider's shape from logs. */
-function payloadKeyPaths(value: unknown, prefix = "", depth = 0): string[] {
-  const data = record(value);
-  if (!data || depth > 4) return [];
-  return Object.entries(data).flatMap(([key, nested]) => {
-    const path = prefix ? `${prefix}.${key}` : key;
-    return [path, ...payloadKeyPaths(nested, path, depth + 1)];
-  });
-}
+/** Keys a LinkedIn profile or userinfo may name in a log: the ones Core reads. */
+const LINKEDIN_PROFILE_LOG_KEYS: ReadonlySet<string> = new Set([
+  "data",
+  "response_dict",
+  "id",
+  "sub",
+  "vanityName",
+  "name",
+  "given_name",
+  "family_name",
+  "localizedFirstName",
+  "localizedLastName",
+  "picture",
+  "profile_picture",
+  "profile_picture_url",
+  "profilePictureUrl",
+  "profilePicture",
+  "displayImage",
+  "displayImage~",
+  "elements",
+  "identifiers",
+  "identifier",
+]);
 
 /**
  * Best effort: fill a LinkedIn photo (and name) from userinfo when the profile
@@ -896,10 +930,18 @@ async function withLinkedInUserInfo(
     if (!avatarUrl) {
       // Many members have no photo, so info; the key paths show where one
       // would be. The account sync runs this after its request has ended.
-      console.info("[composio] LinkedIn identity has no photo", {
-        profileKeys: payloadKeyPaths(profilePayload).slice(0, 60),
-        userInfoKeys: payloadKeyPaths(payload).slice(0, 60),
-      });
+      const linkedInPhoto = {
+        found: false,
+        profile: knownKeyPaths(profilePayload, LINKEDIN_PROFILE_LOG_KEYS, 4),
+        userInfo: knownKeyPaths(payload, LINKEDIN_PROFILE_LOG_KEYS, 4),
+      };
+      const log = tryUseLiveLogger();
+      if (log) log.set({ linkedInPhoto });
+      else
+        createCoreLogger({
+          operation: "composio_linkedin_userinfo",
+          linkedInPhoto,
+        }).emit();
     }
     return {
       ...identity,
@@ -907,8 +949,17 @@ async function withLinkedInUserInfo(
       displayName:
         identity.displayName ?? (profile ? linkedInDisplayName(profile) : null),
     };
-  } catch {
-    console.warn("[composio] LinkedIn userinfo lookup failed");
+  } catch (error) {
+    // Userinfo answers with the member's name and photo.
+    recordCoreWarning(
+      { operation: "composio_linkedin_userinfo" },
+      {
+        message: "Composio could not look up a LinkedIn member's userinfo",
+        why: "The LinkedIn userinfo tool call through Composio failed",
+        fix: "Nothing: the identity keeps its profile data without a photo, and the next account sync tries again.",
+      },
+      { provider: "composio", failure: messageSafeErrorFields(error) },
+    );
     return identity;
   }
 }

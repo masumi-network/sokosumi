@@ -1,7 +1,12 @@
 import { v7 as uuidv7 } from "uuid";
-
 import { getEnv } from "@/config/env";
+import {
+  recordCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import { getRedisClient } from "@/lib/redis";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export const COWORKER_STREAM_LOCK_TTL_SECONDS = 120;
 export const COWORKER_STREAM_LOCK_HEARTBEAT_MS = 60_000;
@@ -49,8 +54,14 @@ export async function acquireStreamLock(
   const redis = getRedisClient();
   if (!redis) {
     // No REDIS_URL / KV_URL — local and some agent envs. Fail-open is intentional.
-    console.warn(
-      "[coworker-stream-lock] Redis not configured; skipping coworker stream lock.",
+    recordCoreWarning(
+      { operation: "coworker_stream_lock" },
+      {
+        message: "A coworker stream ran without its lock",
+        why: "Redis is not configured, so the stream lock is skipped",
+        fix: "Set REDIS_URL or KV_URL where more than one instance serves streams.",
+      },
+      { conversationId: internalConversationId },
     );
     return { status: "unavailable" };
   }
@@ -72,8 +83,11 @@ export async function acquireStreamLock(
   } catch (error) {
     // Redis is configured but broken — fail-closed so multi-instance cannot
     // double-persist stream turns under a silent unlocked path.
-    console.error(
-      "[coworker-stream-lock] Redis error acquiring coworker stream lock:",
+    recordStreamLockFailure(
+      "acquire",
+      internalConversationId,
+      "Redis failed the lock request",
+      "The stream is refused so no two instances persist the same turn. Check Redis; failure has its name and code.",
       error,
     );
     return { status: "error" };
@@ -101,7 +115,13 @@ export async function renewStreamLock(
     );
     return result === 1;
   } catch (error) {
-    console.error("[coworker-stream-lock] Failed to renew stream lock:", error);
+    recordStreamLockFailure(
+      "renew",
+      internalConversationId,
+      "Redis failed the lock renewal",
+      "The lock may expire while the stream still runs. Check Redis; failure has its name and code.",
+      error,
+    );
     return false;
   }
 }
@@ -126,8 +146,11 @@ export async function releaseStreamLock(
     );
     return result === 1;
   } catch (error) {
-    console.error(
-      "[coworker-stream-lock] Failed to release stream lock:",
+    recordStreamLockFailure(
+      "release",
+      internalConversationId,
+      "Redis failed the lock release",
+      "The conversation stays locked until the lock expires. Check Redis; failure has its name and code.",
       error,
     );
     return false;
@@ -148,15 +171,34 @@ export function startStreamLockHeartbeat(
   options?: StartStreamLockHeartbeatOptions,
 ): () => void {
   const timer = setInterval(() => {
-    void (async () => {
+    void runAsBackgroundWork(async () => {
       const renewed = await renewStreamLock(internalConversationId, ownerToken);
       if (renewed && options?.onRenew) {
         await options.onRenew();
       }
-    })();
+    });
   }, COWORKER_STREAM_LOCK_HEARTBEAT_MS);
 
   return () => {
     clearInterval(timer);
   };
+}
+
+/** ioredis quotes the server's or a proxy's reply: content-free fields only. */
+function recordStreamLockFailure(
+  action: "acquire" | "renew" | "release",
+  conversationId: string,
+  why: string,
+  fix: string,
+  error: unknown,
+): void {
+  recordCoreError(
+    { operation: "coworker_stream_lock" },
+    {
+      message: `Could not ${action} a coworker stream lock`,
+      why,
+      fix,
+    },
+    { conversationId, failure: messageSafeErrorFields(error) },
+  );
 }

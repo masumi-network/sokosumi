@@ -1,5 +1,6 @@
 import { stripeClient } from "@/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 const STRIPE_CUSTOMER_DELETE_TIMEOUT_MS = 2500;
@@ -71,9 +72,13 @@ export async function deleteStripeCustomerBestEffort(
   if (runningSubscription) {
     // Expected: the subscription keeps its customer. Info, not a warning;
     // this runs in waitUntil, after the request's wide event has gone.
-    console.info(
-      `Skipping Stripe customer ${input.stripeCustomerId} delete: running subscription still present for ${input.ownerType} ${input.ownerId}`,
-    );
+    createCoreLogger({
+      operation: "stripe_customer_delete",
+      ownerType: input.ownerType,
+      ownerId: input.ownerId,
+      stripeCustomerId: input.stripeCustomerId,
+      outcome: "kept_for_running_subscription",
+    }).emit();
     return;
   }
 
