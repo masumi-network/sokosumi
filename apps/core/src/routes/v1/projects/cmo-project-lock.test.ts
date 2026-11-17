@@ -62,9 +62,10 @@ function lockedRoute(route: string) {
 }
 
 describe("cmoLockedProjectId on the projects router", () => {
-  it("leaves only Pin, Hide, Task links and reading POSTs open", () => {
+  it("leaves only Pin, Hide, Featured, Task links and reading POSTs open", () => {
     expect(writeRoutes.filter((route) => !lockedRoute(route)).sort()).toEqual(
       [
+        "DELETE /:id/featured",
         "DELETE /:id/hide",
         "DELETE /:id/star",
         "DELETE /:id/tasks/:taskId",
@@ -75,6 +76,7 @@ describe("cmoLockedProjectId on the projects router", () => {
         "POST /:id/social-posts/:postId/statistics/refresh",
         "POST /:id/star",
         "POST /:id/tasks",
+        "PUT /:id/featured",
       ].sort(),
     );
   });

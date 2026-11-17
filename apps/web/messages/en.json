@@ -2597,6 +2597,15 @@
           "undo": "Undo",
           "hideError": "Could not hide the project. Try again.",
           "showError": "Could not show the project. Try again."
+        },
+        "featured": {
+          "heading": "Featured by your team",
+          "badge": "Featured",
+          "open": "Open project",
+          "feature": "Feature for everyone",
+          "unfeature": "Stop featuring",
+          "featuredToast": "Featured for everyone in this workspace",
+          "error": "Could not change the featured project. Try again."
         }
       },
       "column": {

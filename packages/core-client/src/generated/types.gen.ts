@@ -7489,6 +7489,14 @@ export type StarredProject = Project & {
     starredAt: Date;
 };
 
+export type FeaturedProject = {
+    project?: Project;
+    /**
+     * True when the reader is an owner or admin of the workspace's organization and may feature or stop featuring a Project.
+     */
+    canFeature: boolean;
+};
+
 export type AddProjectJobRequest = {
     jobId: string;
 };
@@ -8396,6 +8404,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -8645,6 +8655,8 @@ export type MarketingStrategyRequest = {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -9372,6 +9384,10 @@ export type PatchNewsletterSubscriberRequest = {
 export type ProjectStar = {
     projectId: string;
     starredAt: Date | null;
+};
+
+export type ProjectFeature = {
+    featuredProjectId: string | null;
 };
 
 export type ProjectHide = {
@@ -10317,6 +10333,8 @@ export type SocialPost = {
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
         story?: string;
     } | null;
@@ -12874,6 +12892,8 @@ export type CmoPlan = {
         socialPostId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
         story?: string;
         imageFileId?: string;
@@ -57997,6 +58017,85 @@ export type GetProjectsStarredResponses = {
 
 export type GetProjectsStarredResponse = GetProjectsStarredResponses[keyof GetProjectsStarredResponses];
 
+export type GetProjectsFeaturedData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/projects/featured';
+};
+
+export type GetProjectsFeaturedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsFeaturedError = GetProjectsFeaturedErrors[keyof GetProjectsFeaturedErrors];
+
+export type GetProjectsFeaturedResponses = {
+    /**
+     * The featured Project
+     */
+    200: {
+        data: FeaturedProject;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsFeaturedResponse = GetProjectsFeaturedResponses[keyof GetProjectsFeaturedResponses];
+
 export type PostProjectsByIdJobsData = {
     body?: AddProjectJobRequest;
     headers?: {
@@ -64532,6 +64631,198 @@ export type PostProjectsByIdStarResponses = {
 };
 
 export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
+
+export type DeleteProjectsByIdFeaturedData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/featured';
+};
+
+export type DeleteProjectsByIdFeaturedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdFeaturedError = DeleteProjectsByIdFeaturedErrors[keyof DeleteProjectsByIdFeaturedErrors];
+
+export type DeleteProjectsByIdFeaturedResponses = {
+    /**
+     * The featured Project
+     */
+    200: {
+        data: ProjectFeature;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdFeaturedResponse = DeleteProjectsByIdFeaturedResponses[keyof DeleteProjectsByIdFeaturedResponses];
+
+export type PutProjectsByIdFeaturedData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/featured';
+};
+
+export type PutProjectsByIdFeaturedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdFeaturedError = PutProjectsByIdFeaturedErrors[keyof PutProjectsByIdFeaturedErrors];
+
+export type PutProjectsByIdFeaturedResponses = {
+    /**
+     * The featured Project
+     */
+    200: {
+        data: ProjectFeature;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdFeaturedResponse = PutProjectsByIdFeaturedResponses[keyof PutProjectsByIdFeaturedResponses];
 
 export type DeleteProjectsByIdHideData = {
     body?: never;

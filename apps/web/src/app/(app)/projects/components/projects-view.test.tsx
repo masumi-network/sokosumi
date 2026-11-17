@@ -54,6 +54,8 @@ vi.mock("@/app/projects/actions", () => ({
   unpinProjectAction: vi.fn(),
   hideProjectAction: vi.fn(),
   showProjectAction: vi.fn(),
+  featureProjectAction: vi.fn(),
+  unfeatureProjectAction: vi.fn(),
 }));
 
 vi.mock("@/app/projects/components/create-project-modal", () => ({
@@ -92,10 +94,21 @@ const labels = {
   pinned: "Pinned",
   closed: "Closed",
   cmo: "CMO",
+  featured: {
+    heading: "Featured by your team",
+    badge: "Featured",
+    open: "Open project",
+  },
   actions: {
     moreActions: "More actions",
     close: "Close",
     pin: { pin: "Pin", unpin: "Unpin", error: "Could not change the Pin." },
+    feature: {
+      feature: "Feature for everyone",
+      unfeature: "Stop featuring",
+      featured: "Featured for everyone",
+      error: "Could not change the featured project",
+    },
     hide: {
       hide: "Hide",
       show: "Show",
@@ -427,5 +440,65 @@ describe("ProjectsView switching views", () => {
       "true",
     ); // A refetch left pending holds every later transition in this worker.
     await act(async () => refetch.resolve());
+  });
+});
+
+describe("ProjectsView featured Project", () => {
+  const featuredProject = {
+    ...project,
+    id: "project-2",
+    name: "Spring Launch",
+    briefing: "Everyone works here this quarter",
+  };
+
+  it("leads with the Project the organization featured, linked to it", () => {
+    renderView({ featured: { project: featuredProject, canFeature: false } });
+
+    const card = screen.getByRole("region", { name: "Featured by your team" });
+    expect(card).toHaveTextContent("Spring Launch");
+    expect(card).toHaveTextContent("Everyone works here this quarter");
+    expect(
+      screen.getByRole("link", { name: "Open project Spring Launch" }),
+    ).toHaveAttribute("href", "/projects/project-2");
+  });
+
+  it("shows no featured card when nothing is featured", () => {
+    renderView({ featured: { canFeature: true } });
+
+    expect(
+      screen.queryByRole("region", { name: "Featured by your team" }),
+    ).toBeNull();
+  });
+
+  it("marks the featured Project's own card in the grid", () => {
+    renderView({
+      projects: [project, { ...project, ...featuredProject }],
+      featured: { project: featuredProject, canFeature: false },
+    });
+
+    const cards = screen.getAllByRole("article");
+    expect(cards[1]).toHaveTextContent("Featured");
+    expect(cards[0]).not.toHaveTextContent("Featured");
+  });
+
+  it("offers owners and admins Feature on a card, and Stop featuring on the featured one", async () => {
+    const user = userEvent.setup();
+    renderView({
+      projects: [project, { ...project, ...featuredProject }],
+      featured: { project: featuredProject, canFeature: true },
+    });
+
+    const [plain, featured] = screen.getAllByRole("button", {
+      name: "More actions",
+    });
+    await user.click(plain);
+    expect(
+      screen.getByRole("menuitem", { name: "Feature for everyone" }),
+    ).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(featured);
+    expect(
+      screen.getByRole("menuitem", { name: "Stop featuring" }),
+    ).toBeInTheDocument();
   });
 });

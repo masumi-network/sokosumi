@@ -3,12 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const connectionMock = vi.fn(async () => undefined);
 const listProjectsMock = vi.fn();
+const getFeaturedProjectMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("next/server", () => ({ connection: () => connectionMock() }));
 vi.mock("@/lib/services/project.service", () => ({
-  projectService: { listProjects: listProjectsMock },
+  projectService: {
+    listProjects: listProjectsMock,
+    getFeaturedProject: getFeaturedProjectMock,
+  },
 }));
 
 const { loadProjectsPageData } = await import("./projects-page-data");
@@ -19,6 +23,24 @@ describe("loadProjectsPageData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listProjectsMock.mockReset();
+    getFeaturedProjectMock.mockResolvedValue({ canFeature: false });
+  });
+
+  it("reads the featured Project for the unfiltered Open view only", async () => {
+    listProjectsMock.mockResolvedValue(PAGE);
+    const featured = { project: { id: "project-2" }, canFeature: true };
+    getFeaturedProjectMock.mockResolvedValue(featured);
+
+    expect(
+      (await loadProjectsPageData({ query: "", state: "open" })).featured,
+    ).toEqual(featured);
+    expect(
+      (await loadProjectsPageData({ query: "launch", state: "open" })).featured,
+    ).toBeNull();
+    expect(
+      (await loadProjectsPageData({ query: "", state: "closed" })).featured,
+    ).toBeNull();
+    expect(getFeaturedProjectMock).toHaveBeenCalledOnce();
   });
 
   // connection() would drop the page from every link prefetch.

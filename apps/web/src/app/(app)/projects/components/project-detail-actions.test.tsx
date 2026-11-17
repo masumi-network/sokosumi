@@ -12,6 +12,8 @@ const {
   hideProjectActionMock,
   showProjectActionMock,
   pinProjectActionMock,
+  featureProjectActionMock,
+  unfeatureProjectActionMock,
 } = vi.hoisted(() => ({
   closeProjectMock: vi.fn(),
   refreshMock: vi.fn(),
@@ -20,6 +22,8 @@ const {
   hideProjectActionMock: vi.fn(),
   showProjectActionMock: vi.fn(),
   pinProjectActionMock: vi.fn(),
+  featureProjectActionMock: vi.fn(),
+  unfeatureProjectActionMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -44,6 +48,8 @@ vi.mock("@/app/projects/actions", () => ({
   hideProjectAction: hideProjectActionMock,
   showProjectAction: showProjectActionMock,
   pinProjectAction: pinProjectActionMock,
+  featureProjectAction: featureProjectActionMock,
+  unfeatureProjectAction: unfeatureProjectActionMock,
 }));
 
 const LABELS = {
@@ -79,6 +85,100 @@ describe("ProjectDetailActions", () => {
     hideProjectActionMock.mockReset();
     showProjectActionMock.mockReset();
     pinProjectActionMock.mockReset();
+    featureProjectActionMock.mockReset();
+    unfeatureProjectActionMock.mockReset();
+  });
+
+  const FEATURE_LABELS = {
+    ...LABELS,
+    feature: {
+      feature: "Feature for everyone",
+      unfeature: "Stop featuring",
+      featured: "Featured for everyone",
+      error: "Could not change the featured project",
+    },
+  };
+
+  it("leaves Feature out for a reader who may not feature", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions projectId="project-1" labels={FEATURE_LABELS} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Feature for everyone" }),
+    ).toBeNull();
+  });
+
+  it("features the project for everyone and confirms it", async () => {
+    const user = userEvent.setup();
+    featureProjectActionMock.mockResolvedValue({
+      featuredProjectId: "project-1",
+    });
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        labels={FEATURE_LABELS}
+        canFeature
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(
+      screen.getByRole("menuitem", { name: "Feature for everyone" }),
+    );
+
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith("Featured for everyone"),
+    );
+    expect(featureProjectActionMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
+  });
+
+  it("stops featuring the featured project, and says so when that fails", async () => {
+    const user = userEvent.setup();
+    unfeatureProjectActionMock.mockRejectedValue(new Error("down"));
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        labels={FEATURE_LABELS}
+        canFeature
+        isFeatured
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Stop featuring" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Could not change the featured project",
+      ),
+    );
+    expect(unfeatureProjectActionMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
+  });
+
+  it("offers no Feature on a Hidden or closing project", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        labels={FEATURE_LABELS}
+        canFeature
+        isClosingOrClosed
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Feature for everyone" }),
+    ).toBeNull();
   });
 
   it("hides the project with an Undo that shows and re-Pins it", async () => {

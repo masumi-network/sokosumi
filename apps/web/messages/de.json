@@ -2597,6 +2597,15 @@
           "undo": "Rückgängig",
           "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
           "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        },
+        "featured": {
+          "heading": "Von deinem Team hervorgehoben",
+          "badge": "Hervorgehoben",
+          "open": "Projekt öffnen",
+          "feature": "Für alle hervorheben",
+          "unfeature": "Nicht mehr hervorheben",
+          "featuredToast": "Für alle in diesem Workspace hervorgehoben",
+          "error": "Das hervorgehobene Projekt konnte nicht geändert werden. Versuche es erneut."
         }
       },
       "column": {

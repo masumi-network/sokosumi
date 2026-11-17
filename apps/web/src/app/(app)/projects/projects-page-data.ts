@@ -17,11 +17,15 @@ export interface ProjectsPageDataInput {
 }
 
 async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
-  const projectsPage = await projectService.listProjects({
-    limit: PROJECTS_PAGE_LIMIT,
-    query,
-    ...projectsListStateQuery(state),
-  });
+  // The featured card leads the unfiltered Open view only.
+  const [projectsPage, featured] = await Promise.all([
+    projectService.listProjects({
+      limit: PROJECTS_PAGE_LIMIT,
+      query,
+      ...projectsListStateQuery(state),
+    }),
+    state === "open" && !query ? projectService.getFeaturedProject() : null,
+  ]);
   // An empty Open view reads "No projects yet" only when there is truly
   // nothing; one Closed project is enough to say "all closed" instead.
   const hasClosedProjects =
@@ -31,7 +35,7 @@ async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
     (await projectService.listProjects({ limit: 1, state: "closed" })).projects
       .length > 0;
 
-  return { projectsPage, hasClosedProjects };
+  return { projectsPage, hasClosedProjects, featured };
 }
 
 type ProjectsPageData = Awaited<ReturnType<typeof readProjectsPageData>>;

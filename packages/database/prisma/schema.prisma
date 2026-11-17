@@ -166,6 +166,13 @@ model Workspace {
 
   calendarRevision Int @default(0)
 
+  /// The one Project an organization's owners and admins feature for every
+  /// member, shown first on the Projects page. Shared, unlike a Pin, which
+  /// is personal (ProjectStar). Null in personal workspaces and when nothing
+  /// is featured. Reads skip a featured Project that has since closed.
+  featuredProjectId String?  @unique @db.Uuid
+  featuredProject   Project? @relation("WorkspaceFeaturedProject", fields: [featuredProjectId], references: [id], onDelete: SetNull)
+
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -515,6 +522,7 @@ model Project {
   events           ProjectEvent[]
   stars            ProjectStar[]
   hides            ProjectHide[]
+  featuredIn       Workspace?             @relation("WorkspaceFeaturedProject")
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]

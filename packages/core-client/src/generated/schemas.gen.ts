@@ -25673,6 +25673,22 @@ export const StarredProjectSchema = {
     ]
 } as const;
 
+export const FeaturedProjectSchema = {
+    type: 'object',
+    properties: {
+        project: {
+            $ref: '#/components/schemas/Project'
+        },
+        canFeature: {
+            type: 'boolean',
+            description: 'True when the reader is an owner or admin of the workspace\'s organization and may feature or stop featuring a Project.'
+        }
+    },
+    required: [
+        'canFeature'
+    ]
+} as const;
+
 export const AddProjectJobRequestSchema = {
     type: 'object',
     properties: {
@@ -30864,6 +30880,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 3
                                     },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
                                     slides: {
                                         type: 'array',
                                         items: {
@@ -32308,6 +32333,15 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
                             },
                             slides: {
                                 type: 'array',
@@ -35321,6 +35355,23 @@ export const ProjectStarSchema = {
     required: [
         'projectId',
         'starredAt'
+    ]
+} as const;
+
+export const ProjectFeatureSchema = {
+    type: 'object',
+    properties: {
+        featuredProjectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        }
+    },
+    required: [
+        'featuredProjectId'
     ]
 } as const;
 
@@ -38559,6 +38610,15 @@ export const SocialPostSchema = {
                         maxLength: 100
                     },
                     maxItems: 3
+                },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
                 },
                 slides: {
                     type: 'array',
@@ -50868,6 +50928,15 @@ export const CmoPlanSchema = {
                             maxLength: 100
                         },
                         maxItems: 3
+                    },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
                     },
                     slides: {
                         type: 'array',

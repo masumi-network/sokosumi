@@ -334,6 +334,32 @@ export const starredProjectSchema = projectSchema
   })
   .openapi("StarredProject");
 
+/**
+ * The organization's featured Project, chosen by an owner or admin for every
+ * member. Absent when nothing is featured, the Project is closing or closed,
+ * the reader Hid it, or the workspace is personal. Optional rather than
+ * nullable: the client generator types a nullable named schema as non-null.
+ */
+export const featuredProjectSchema = z
+  .object({
+    project: projectSchema.optional(),
+    canFeature: z.boolean().openapi({
+      description:
+        "True when the reader is an owner or admin of the workspace's organization and may feature or stop featuring a Project.",
+    }),
+  })
+  .openapi("FeaturedProject");
+
+export const projectFeatureSchema = z
+  .object({
+    featuredProjectId: z
+      .string()
+      .uuid()
+      .nullable()
+      .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
+  })
+  .openapi("ProjectFeature");
+
 const projectActivityBaseSchema = z.object({
   id: z.string().openapi({
     description: "ID of the event this row is about",

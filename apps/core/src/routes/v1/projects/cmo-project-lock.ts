@@ -7,12 +7,14 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * Writes that stay open on a CMO Project, after `/projects/{id}`: a person's
- * Pin and Hide, Task links, and the POSTs that only read (a newsletter
- * preview, a statistics refresh from the network).
+ * Pin and Hide, the organization's Featured choice, Task links, and the
+ * POSTs that only read (a newsletter preview, a statistics refresh from the
+ * network).
  */
 const OPEN_WRITE_PATTERNS = [
   /^\/star$/,
   /^\/hide$/,
+  /^\/featured$/,
   /^\/tasks(\/[^/]+)?$/,
   /^\/newsletter\/issues\/preview$/,
   /^\/social-connections\/[^/]+\/statistics\/refresh$/,

@@ -5,6 +5,7 @@ import type {
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
+  FeaturedProject,
   GetProjectsByIdCalendarData,
   GetProjectsData,
   InitiateProjectSocialConnectionRequest,
@@ -17,6 +18,7 @@ import type {
   ProjectCloseRequest,
   ProjectCloseStatus,
   ProjectContextMd,
+  ProjectFeature,
   ProjectHide,
   ProjectHideResult,
   ProjectListItem,
@@ -196,6 +198,41 @@ export const projectService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to unpin project");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * The Project an owner or admin featured for the whole organization, and
+   * whether the reader may change it. Separate from `listProjects`, whose
+   * activity order and Pins it leaves alone.
+   */
+  async function getFeaturedProject(): Promise<FeaturedProject> {
+    const result = await coreClient.getFeaturedProject();
+
+    if (!result.data) {
+      throw new Error("Failed to fetch featured project");
+    }
+
+    return result.data;
+  }
+
+  async function featureProject(projectId: string): Promise<ProjectFeature> {
+    const result = await coreClient.featureProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to feature project");
+    }
+
+    return result.data;
+  }
+
+  async function unfeatureProject(projectId: string): Promise<ProjectFeature> {
+    const result = await coreClient.unfeatureProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to stop featuring project");
     }
 
     return result.data;
@@ -756,6 +793,9 @@ export const projectService = (() => {
     getProjectContextMd,
     getProjectCalendar,
     createProject,
+    getFeaturedProject,
+    featureProject,
+    unfeatureProject,
     pinProject,
     unpinProject,
     listPinnedProjects,

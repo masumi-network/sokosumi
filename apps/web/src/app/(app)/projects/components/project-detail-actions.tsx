@@ -4,6 +4,8 @@ import {
   CircleStop,
   Eye,
   EyeOff,
+  Flag,
+  FlagOff,
   MoreHorizontal,
   Pencil,
   Pin,
@@ -37,6 +39,7 @@ import { closeProject } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
 
 import {
+  type ProjectFeatureLabels,
   type ProjectHideLabels,
   type ProjectMenuChange,
   useProjectMenuActions,
@@ -50,6 +53,8 @@ export interface ProjectDetailActionsLabels {
   /** Only on a project card; the header has its own Pin button. */
   pin?: { pin: string; unpin: string; error: string };
   hide: ProjectHideLabels;
+  /** Only on a project card, for owners and admins of an organization. */
+  feature?: ProjectFeatureLabels;
   closeDialog: {
     title: string;
     description: string;
@@ -73,6 +78,10 @@ interface ProjectDetailActionsProps {
   isPinned?: boolean;
   /** A CMO Project: CMO edits and closes it, so only Pin and Hide stay. */
   readOnly?: boolean;
+  /** The reader is an owner or admin, so the menu offers Feature. */
+  canFeature?: boolean;
+  /** This is the organization's featured Project. */
+  isFeatured?: boolean;
   labels: ProjectDetailActionsLabels;
   /** Restyles the "More actions" button, as the project card does. */
   triggerClassName?: string;
@@ -81,8 +90,9 @@ interface ProjectDetailActionsProps {
 }
 
 /**
- * The project's menu: Edit (header only), Pin or Unpin (card only), Hide or
- * Show, and Close behind a confirmation. Shared by the project header and the
+ * The project's menu: Edit (header only), Pin or Unpin (card only), Feature
+ * or Stop featuring (card only, owners and admins), Hide or Show, and Close
+ * behind a confirmation. Shared by the project header and the
  * Projects list card.
  */
 export function ProjectDetailActions({
@@ -92,6 +102,8 @@ export function ProjectDetailActions({
   isHidden = false,
   isPinned = false,
   readOnly = false,
+  canFeature = false,
+  isFeatured = false,
   labels,
   triggerClassName,
   onChanging,
@@ -103,8 +115,17 @@ export function ProjectDetailActions({
   const projectActions = useProjectMenuActions({
     labels: labels.hide,
     pinError: labels.pin?.error,
+    featureLabels: labels.feature,
     onChanging,
   });
+  // Featuring is for every member, so a Project the reader Hid or one that
+  // is closing has nothing to offer them; Stop featuring always stays.
+  const featureItem =
+    labels.feature &&
+    canFeature &&
+    (isFeatured || (!isHidden && !isClosingOrClosed))
+      ? labels.feature
+      : null;
   // Hiding unpins, so a Hidden project offers no Pin; a closing one keeps
   // only Unpin, as the header's Pin button does.
   const pinItem =
@@ -198,6 +219,21 @@ export function ProjectDetailActions({
                 <Pin className="size-4" aria-hidden />
               )}
               {isPinned ? pinItem.unpin : pinItem.pin}
+            </DropdownMenuItem>
+          ) : null}
+          {featureItem ? (
+            <DropdownMenuItem
+              disabled={projectActions.isPending}
+              onSelect={() =>
+                projectActions.setFeatured(projectId, !isFeatured)
+              }
+            >
+              {isFeatured ? (
+                <FlagOff className="size-4" aria-hidden />
+              ) : (
+                <Flag className="size-4" aria-hidden />
+              )}
+              {isFeatured ? featureItem.unfeature : featureItem.feature}
             </DropdownMenuItem>
           ) : null}
           {isHidden ? (

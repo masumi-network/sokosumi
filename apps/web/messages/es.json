@@ -2597,6 +2597,15 @@
           "undo": "Deshacer",
           "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
           "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        },
+        "featured": {
+          "heading": "Destacado por tu equipo",
+          "badge": "Destacado",
+          "open": "Abrir proyecto",
+          "feature": "Destacar para todos",
+          "unfeature": "Dejar de destacar",
+          "featuredToast": "Destacado para todos en este espacio de trabajo",
+          "error": "No se pudo cambiar el proyecto destacado. Inténtalo de nuevo."
         }
       },
       "column": {

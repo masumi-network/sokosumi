@@ -1,6 +1,9 @@
 "use client";
 
-import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
+import type {
+  FeaturedProject,
+  ProjectListItem as ProjectListItemType,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
@@ -26,6 +29,10 @@ import {
   CreateProjectModalProvider,
   useCreateProjectModal,
 } from "./create-project-modal";
+import {
+  FeaturedProjectCard,
+  type FeaturedProjectLabels,
+} from "./featured-project-card";
 import type { ProjectDetailActionsLabels } from "./project-detail-actions";
 import { ProjectListItem } from "./project-list-item";
 import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
@@ -65,6 +72,7 @@ export interface ProjectsViewLabels {
   pinned: string;
   closed: string;
   cmo: string;
+  featured: FeaturedProjectLabels;
   /**
    * Each card's menu: Pin or Unpin, Hide or Show, and Close. Its writes
    * revalidate the page, so a new Pin re-sorts the Open view.
@@ -87,6 +95,11 @@ interface ProjectsViewProps {
   labels: ProjectsViewLabels;
   /** The Workspace column, beside the grid. The page passes it for Open only. */
   column?: ReactNode;
+  /**
+   * The organization's featured Project and whether the reader may change
+   * it. The page passes it for the unfiltered Open view only.
+   */
+  featured?: FeaturedProject | null;
 }
 
 function ProjectsMobileCreateFabSlot() {
@@ -124,7 +137,9 @@ export function ProjectsView({
   createProjectModalResetKey,
   labels,
   column,
+  featured = null,
 }: ProjectsViewProps) {
+  const featuredProjectId = featured?.project?.id ?? null;
   const listKey = browseListKey(query, state, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
@@ -204,6 +219,12 @@ export function ProjectsView({
         <div className={column ? PROJECTS_OPEN_LAYOUT_CLASS : "contents"}>
           {column}
           <div className="flex min-w-0 flex-col gap-5">
+            {featured?.project ? (
+              <FeaturedProjectCard
+                project={featured.project}
+                labels={labels.featured}
+              />
+            ) : null}
             {/* One panel for the grid and for every empty state, so switching
                 views or filtering never swaps the surface under the toolbar. */}
             <div
@@ -228,6 +249,8 @@ export function ProjectsView({
                       key={project.id}
                       project={project}
                       hidden={state === "hidden"}
+                      canFeature={featured?.canFeature ?? false}
+                      isFeatured={project.id === featuredProjectId}
                       labels={{
                         counts: labels.counts,
                         lastActivity: labels.lastActivity,
@@ -235,6 +258,7 @@ export function ProjectsView({
                         pinned: labels.pinned,
                         closed: labels.closed,
                         cmo: labels.cmo,
+                        featured: labels.featured.badge,
                         actions: labels.actions,
                       }}
                     />

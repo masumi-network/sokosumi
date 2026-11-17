@@ -5,14 +5,24 @@ import { useContext, useTransition } from "react";
 import { toast } from "sonner";
 import { SCOPE_PAGE_QUERY_KEY } from "@/app/components/project-scope/use-scope-projects";
 import {
+  featureProjectAction,
   hideProjectAction,
   pinProjectAction,
   showProjectAction,
+  unfeatureProjectAction,
   unpinProjectAction,
 } from "@/app/projects/actions";
 import { PINNED_PROJECTS_QUERY_KEY } from "@/hooks/use-pinned-projects";
 
 export type ProjectMenuChange = "pin" | "unpin" | "hide" | "show";
+
+export interface ProjectFeatureLabels {
+  feature: string;
+  unfeature: string;
+  /** Toast after featuring. */
+  featured: string;
+  error: string;
+}
 
 export interface ProjectHideLabels {
   hide: string;
@@ -32,9 +42,12 @@ export interface ProjectHideLabels {
 export function useProjectMenuActions({
   labels,
   pinError,
+  featureLabels,
   onChanging,
 }: {
   labels: ProjectHideLabels;
+  /** Toasts for Feature and Stop featuring. */
+  featureLabels?: ProjectFeatureLabels;
   /** Toast when a Pin or Unpin fails. */
   pinError?: string;
   /**
@@ -117,5 +130,23 @@ export function useProjectMenuActions({
     });
   }
 
-  return { hide, show, setPinned, isPending };
+  /**
+   * Feature or stop featuring for the whole organization. The actions
+   * revalidate the Projects page, which redraws the featured card.
+   */
+  function setFeatured(projectId: string, featured: boolean) {
+    startTransition(async () => {
+      try {
+        await (featured
+          ? featureProjectAction({ projectId })
+          : unfeatureProjectAction({ projectId }));
+      } catch {
+        if (featureLabels) toast.error(featureLabels.error);
+        return;
+      }
+      if (featured && featureLabels) toast.success(featureLabels.featured);
+    });
+  }
+
+  return { hide, show, setPinned, setFeatured, isPending };
 }

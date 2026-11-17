@@ -239,6 +239,7 @@ import {
   deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
   deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdFeatured as coreDeleteProjectsByIdFeatured,
   deleteProjectsByIdHide as coreDeleteProjectsByIdHide,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdNewsletterIssuesByIssueId as coreDeleteProjectsByIdNewsletterIssuesByIssueId,
@@ -366,6 +367,7 @@ import {
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
   getProjectsByIdSocialPostsStatistics as coreGetProjectsByIdSocialPostsStatistics,
   getProjectsByIdSocialQueueSlots as coreGetProjectsByIdSocialQueueSlots,
+  getProjectsFeatured as coreGetProjectsFeatured,
   getProjectsStarred as coreGetProjectsStarred,
   getProjectsStats as coreGetProjectsStats,
   getPublicNewslettersByPublicSlug as coreGetPublicNewslettersByPublicSlug,
@@ -578,6 +580,7 @@ import {
   putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
+  putProjectsByIdFeatured as corePutProjectsByIdFeatured,
   putProjectsByIdNewsletter as corePutProjectsByIdNewsletter,
   putProjectsByIdNewsletterSendingDomain as corePutProjectsByIdNewsletterSendingDomain,
   putProjectsByIdSocialQueueSlots as corePutProjectsByIdSocialQueueSlots,
@@ -3213,6 +3216,30 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch job",
+    );
+  }
+
+  async function getFeaturedProject() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetProjectsFeatured({ client, cache: "no-store" }),
+      "Failed to fetch featured project",
+    );
+  }
+
+  async function featureProject(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePutProjectsByIdFeatured({ client, path: { id } }),
+      "Failed to feature project",
+    );
+  }
+
+  async function unfeatureProject(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteProjectsByIdFeatured({ client, path: { id } }),
+      "Failed to stop featuring project",
     );
   }
 
@@ -7318,6 +7345,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPendingNotices,
     getPinnedProjects,
     getProjects,
+    getFeaturedProject,
+    featureProject,
+    unfeatureProject,
     pinProject,
     unpinProject,
     getProjectHide,

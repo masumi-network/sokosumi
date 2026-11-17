@@ -30,6 +30,8 @@ interface ProjectListItemLabels {
   closed: string;
   /** The "CMO" badge on a CMO Project. */
   cmo: string;
+  /** The badge on the organization's featured Project. */
+  featured: string;
   /** The project menu without Edit: a card opens the project to edit it. */
   actions: Omit<ProjectDetailActionsLabels, "edit">;
 }
@@ -39,12 +41,18 @@ interface ProjectListItemProps {
   labels: ProjectListItemLabels;
   /** The card sits in the Hidden view: no Pin, and its menu offers Show. */
   hidden?: boolean;
+  /** The reader is an owner or admin, so the menu offers Feature. */
+  canFeature?: boolean;
+  /** This is the organization's featured Project. */
+  isFeatured?: boolean;
 }
 
 export function ProjectListItem({
   project,
   labels,
   hidden = false,
+  canFeature = false,
+  isFeatured = false,
 }: ProjectListItemProps) {
   const briefing = stripMarkdownToText(project.briefing);
   // Core floors lastActivityAt at createdAt (GREATEST(p."createdAt", …)), so
@@ -114,6 +122,15 @@ export function ProjectListItem({
               {labels.cmo}
             </Badge>
           ) : null}
+          {isFeatured ? (
+            <Badge
+              variant="secondary"
+              data-testid="project-featured-badge"
+              className="shrink-0"
+            >
+              {labels.featured}
+            </Badge>
+          ) : null}
           {isPinned ? (
             <span
               data-testid="project-pinned-mark"
@@ -166,6 +183,8 @@ export function ProjectListItem({
           isClosingOrClosed={project.closingAt != null}
           isHidden={hidden}
           isPinned={isPinned}
+          canFeature={canFeature}
+          isFeatured={isFeatured}
           readOnly={project.cmo}
           onChanging={showChange}
           labels={labels.actions}

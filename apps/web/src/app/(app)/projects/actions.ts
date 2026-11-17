@@ -94,3 +94,22 @@ export const showProjectAction = withSession<
 >(async ({ projectId }) =>
   thenRevalidateProjects(projectService.showProject(projectId)),
 );
+
+/**
+ * Featuring is the organization's, not the reader's: an owner or admin picks
+ * the one Project every member sees first. Core checks the role and replaces
+ * any Project featured before.
+ */
+export const featureProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.featureProject>>
+>(async ({ projectId }) =>
+  thenRevalidateProjects(projectService.featureProject(projectId)),
+);
+
+export const unfeatureProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.unfeatureProject>>
+>(async ({ projectId }) =>
+  thenRevalidateProjects(projectService.unfeatureProject(projectId)),
+);

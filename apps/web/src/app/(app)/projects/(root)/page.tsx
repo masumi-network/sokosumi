@@ -52,11 +52,12 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         }
       : null;
 
-  const [{ projectsPage, hasClosedProjects }, t, tCmo] = await Promise.all([
-    projectsPageDataPromise,
-    translationsPromise,
-    getTranslations("Components.CmoProject"),
-  ]);
+  const [{ projectsPage, hasClosedProjects, featured }, t, tCmo] =
+    await Promise.all([
+      projectsPageDataPromise,
+      translationsPromise,
+      getTranslations("Components.CmoProject"),
+    ]);
   const initialCreateProjectOpen = create === "true";
 
   return (
@@ -68,6 +69,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         query={query}
         state={state}
         hasClosedProjects={hasClosedProjects}
+        featured={featured}
         initialCreateProjectOpen={initialCreateProjectOpen}
         createProjectModalResetKey={String(initialCreateProjectOpen)}
         column={
@@ -113,11 +115,22 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           pinned: t("list.pinned"),
           closed: t("list.closed"),
           cmo: tCmo("badge"),
+          featured: {
+            heading: t("list.featured.heading"),
+            badge: t("list.featured.badge"),
+            open: t("list.featured.open"),
+          },
           // No scheduled-posts warning: the list does not count a card's
           // scheduled posts, so the dialog keeps its general description.
           actions: {
             moreActions: t("Detail.actions.moreActions"),
             close: t("Detail.actions.close"),
+            feature: {
+              feature: t("list.featured.feature"),
+              unfeature: t("list.featured.unfeature"),
+              featured: t("list.featured.featuredToast"),
+              error: t("list.featured.error"),
+            },
             pin: {
               pin: t("list.pin"),
               unpin: t("list.unpin"),

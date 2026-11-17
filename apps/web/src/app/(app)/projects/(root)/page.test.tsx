@@ -14,6 +14,7 @@ const {
   projectServiceMock: {
     listProjects: vi.fn(),
     listRecentActivity: vi.fn(),
+    getFeaturedProject: vi.fn(),
   },
   projectsViewMock: vi.fn(),
 }));
@@ -113,6 +114,9 @@ describe("ProjectsPage", () => {
     vi.clearAllMocks();
     notificationServiceMock.listNeedsYou.mockResolvedValue([]);
     projectServiceMock.listRecentActivity.mockResolvedValue([]);
+    projectServiceMock.getFeaturedProject.mockResolvedValue({
+      canFeature: false,
+    });
   });
 
   it("puts the Workspace column beside the Open view with Recent activity only", async () => {
