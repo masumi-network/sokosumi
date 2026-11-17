@@ -99,6 +99,7 @@ vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
 import { contentHash } from "@/lib/buzz/events";
 import { ownerAuthTag } from "@/lib/buzz/owner-attestation";
 import { sealSecret } from "@/lib/buzz/secret-box";
+import { expectConsole } from "@/test/console";
 import {
   applyInboundEvent,
   BuzzTargetPendingError,
@@ -192,11 +193,10 @@ describe("enqueueBuzzSync", () => {
 
   it("never lets a Buzz failure fail the chat write", async () => {
     db.chatRoom.findUnique.mockRejectedValue(new Error("db down"));
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to enqueue Buzz sync");
     await expect(
       enqueueBuzzSync({ roomId: "room", messageId: "m" }),
     ).resolves.toBeUndefined();
-    error.mockRestore();
   });
 });
 
@@ -1175,6 +1175,7 @@ describe("a person's own Buzz agents", () => {
     db.vendor.upsert.mockResolvedValue({ id: "vendor" });
     db.coworker.findMany.mockResolvedValue([{ id: "cw-agent" }]);
     relay.queryEvents.mockRejectedValue(new Error("relay down"));
+    expectConsole("error", "Buzz agents on wss://acme.example not read");
     await expect(syncBuzzAgents()).resolves.toEqual([]);
     expect(db.coworker.updateMany).not.toHaveBeenCalled();
     // Asked for Bob alone (an invite naming a new agent): it fails for him,
