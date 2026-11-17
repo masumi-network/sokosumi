@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   AVATAR_ANIMALS,
-  AVATAR_BACKGROUNDS,
   AVATAR_COMBINATIONS,
   AVATAR_EYES,
   AVATAR_HATS,
@@ -10,7 +9,6 @@ import {
   avatarCodeSchema,
   avatarStateOf,
   buildAvatarSvg,
-  closestAvatarLooks,
   featureOptions,
   formatAvatarCode,
   isReadable,
@@ -106,23 +104,6 @@ describe("avatar codes", () => {
     for (let i = 0; i < 500; i++) {
       const look = randomAvatarLook(rand);
       expect(parseAvatarCode(formatAvatarCode(look))).toEqual(look);
-    }
-  });
-
-  it("maps every pool picture to distinct readable looks, closest first", () => {
-    for (const animal of AVATAR_ANIMALS) {
-      for (const bg of AVATAR_BACKGROUNDS) {
-        const looks = closestAvatarLooks(animal, bg);
-        const codes = looks.map(formatAvatarCode);
-        expect(new Set(codes).size).toBe(codes.length);
-        for (const look of looks)
-          expect(parseAvatarCode(formatAvatarCode(look))).toEqual(look);
-        // Enough fallbacks for many bots sharing one picture's animal and background.
-        expect(looks.length).toBeGreaterThanOrEqual(50);
-        expect(looks[0]?.animal).toBe(animal);
-        expect(looks[0]?.eyes).toBe("original");
-        expect(looks[0]?.hat).toBe("none");
-      }
     }
   });
 });

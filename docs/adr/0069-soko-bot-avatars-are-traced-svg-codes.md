@@ -10,6 +10,8 @@ Supersedes the pool part of [0064](0064-soko-bot-avatars-are-original-style-agai
 
 **Consequences:**
 
-- Changing a look is `PUT .../avatar-code`; a taken code is 409 `avatar_code_taken`, a bad one 422 `avatar_code_invalid`. Setting a code releases the bot's pool row.
+- Changing a look is `PUT .../avatar-code`; a taken code is 409 `avatar_code_taken`, a bad one 422 `avatar_code_invalid`.
 - Removing the pool (tables, top-up, claim routes, generation cap) follows in a later PR, once every bot has a code.
 - A bot whose still failed to render at create has no face until a code is set.
+
+**Pool removed:** the `soko_bot_avatar` table, fal generation and top-up, the list, claim and restyle routes, `avatarId`, the Web picker, the admin pool picker, the conversion script and the Blob prefix-move script are deleted. This was safe because the conversion had given every bot a code before this shipped, and a bot's face is read from `avatarCode` and `avatarImageUrl`, never from the pool. Deploy only after `soko-bot:avatar-codes --apply` has run in production. Admins no longer have a picker; they set a look through `PUT /v1/admin/soko-bots/{id}/avatar-code`. Old pool images stay in Blob until someone deletes the `soko-bots/avatars/` objects outside `code/`.

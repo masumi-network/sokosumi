@@ -1,45 +1,37 @@
 "use client";
 
-import type { SokoBotAvatar } from "@sokosumi/core-client";
-import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 
-import { AvatarPicker } from "@/app/personal-assistant/components/avatar-picker.client";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
-import { setAdminSokoBotAvatarAction } from "@/lib/actions/admin-soko-bots/action";
+import { setAdminSokoBotAvatarCodeAction } from "@/lib/actions/admin-soko-bots/action";
 
-/** Gives another user's bot a Soko Bot avatar from the same pool the owner picks from. */
+/** Loaded on open: it carries the 16 traced animals. */
+const AvatarStudioDialog = dynamic(
+  () =>
+    import("@/app/personal-assistant/components/avatar-studio.client").then(
+      (m) => ({ default: m.AvatarStudioDialog }),
+    ),
+  { ssr: false },
+);
+
+/** Gives another user's bot a look in the same avatar studio its owner uses. */
 export function AdminSokoBotAvatar({
   sokoBotId,
-  currentImageUrl,
+  avatarCode,
+  avatarImageUrl,
+  seed,
 }: {
   sokoBotId: string;
-  currentImageUrl: string | null;
+  avatarCode: string | null;
+  avatarImageUrl: string | null;
+  seed: string;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Avatar");
-  const router = useRouter();
-  const [picked, setPicked] = useState<SokoBotAvatar | null>(null);
-  // The picker mounts loading its first set; start there so Apply is held.
-  const [loadingAvatars, setLoadingAvatars] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  function apply() {
-    if (!picked) return;
-    startTransition(async () => {
-      const result = await setAdminSokoBotAvatarAction({
-        input: { sokoBotId, avatarId: picked.id },
-      });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("error"));
-        return;
-      }
-      toast.success(t("done"));
-      setPicked(null);
-      router.refresh();
-    });
-  }
+  const tAvatar = useTranslations("App.SokoBot.Avatar");
+  const [open, setOpen] = useState(false);
 
   return (
     <section id="avatar" className="space-y-3 rounded-lg border p-4">
@@ -47,19 +39,28 @@ export function AdminSokoBotAvatar({
         <h2 className="font-medium text-sm">{t("title")}</h2>
         <p className="text-muted-foreground text-xs">{t("description")}</p>
       </div>
-      <AvatarPicker
-        value={picked?.id ?? null}
-        onChange={setPicked}
-        currentImageUrl={currentImageUrl}
-        onLoadingChange={setLoadingAvatars}
-      />
-      <Button
-        size="sm"
-        disabled={!picked || isPending || loadingAvatars}
-        onClick={apply}
-      >
-        {t("apply")}
-      </Button>
+      <div className="flex items-center gap-4">
+        <BotFace
+          imageUrl={avatarImageUrl}
+          seed={seed}
+          avatarCode={avatarCode}
+          avatarSize={64}
+          className="size-16"
+        />
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          {tAvatar("edit")}
+        </Button>
+      </div>
+      {open ? (
+        <AvatarStudioDialog
+          open={open}
+          onOpenChange={setOpen}
+          initialCode={avatarCode}
+          saveLook={(code) =>
+            setAdminSokoBotAvatarCodeAction({ input: { sokoBotId, code } })
+          }
+        />
+      ) : null}
     </section>
   );
 }

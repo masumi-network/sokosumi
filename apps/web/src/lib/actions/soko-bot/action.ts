@@ -4,7 +4,6 @@ import type { SokoBotIntegrationCatalogEntry } from "@sokosumi/core-client";
 import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
-  SokoBotAvatar,
   type SokoBotDeletionResult,
   type SokoBotLabRun,
   type SokoBotLabTaskEvent,
@@ -33,9 +32,6 @@ import {
 } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
-  SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE,
-  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
-  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOTS_ROUTE,
   sokoBotConsoleRoute,
@@ -47,17 +43,10 @@ import {
 
 const createSokoBotSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  avatarId: z.string().uuid().nullable().optional(),
   /** The look picked in the avatar studio; Core draws a random one if it is taken. */
   avatarCode: avatarCodeSchema.nullable().optional(),
   /** The creator's browser timezone; Core sets it on a new bot only. */
   timezone: z.string().min(1).max(64).optional(),
-});
-
-const avatarListSchema = z.object({
-  take: z.number().int().min(1).max(6).default(6),
-  excludeIds: z.array(z.string().uuid()).max(60).default([]),
-  fresh: z.boolean().default(false),
 });
 
 const startTurnSchema = z.object({
@@ -100,25 +89,6 @@ interface BotScopedParams extends AuthenticatedRequest {
 
 function invalidInput(): ActionError {
   return { code: CommonErrorCode.BAD_INPUT, message: "Invalid input" };
-}
-
-// A spent hourly allowance is a wait, not a breakage. Give the picker its own
-// code so it can say so instead of showing the generic load failure.
-function mapAvatarTopUpError(error: unknown): ActionError {
-  if (error instanceof CoreApiRequestError) {
-    // Each of these means nothing was drawn or billed, so the picker can
-    // offer a free retry instead of spending one of its turns.
-    const code =
-      error.status === 409
-        ? SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE
-        : error.status === 429
-          ? SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
-          : error.status === 503
-            ? SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE
-            : null;
-    if (code) return { code, message: error.message };
-  }
-  return toCoreApiActionError(error);
 }
 
 function mapTurnError(error: unknown): ActionError {
@@ -404,37 +374,6 @@ export const resolveSokoBotDecisionAction = withSession<
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
-
-interface ListAvatarsParams extends AuthenticatedRequest {
-  input: unknown;
-}
-
-/**
- * Unclaimed Soko Bot avatars for the picker; pass shown ids to get a fresh set.
- * This generates missing avatars first, so it bills the image model and writes rows. Named
- * for that rather than for the list it returns.
- */
-export const topUpSokoBotAvatarsAction = withSession<
-  ListAvatarsParams,
-  ActionResultDto<SokoBotAvatar[], ActionError>
->(async ({ input }) => {
-  const parsed = avatarListSchema.safeParse(input ?? {});
-  if (!parsed.success) return toActionResult(err(invalidInput()));
-  try {
-    const avatars = await sokoBotService.topUpAvatars(
-      parsed.data.take,
-      parsed.data.excludeIds,
-      parsed.data.fresh,
-    );
-    return toActionResult(ok(avatars));
-  } catch (error) {
-    return toActionResult(err(mapAvatarTopUpError(error)));
-  }
-});
-
-interface ClaimAvatarParams extends AuthenticatedRequest {
-  avatarId: unknown;
-}
 
 interface SetVersionParams extends AuthenticatedRequest {
   versionId: unknown;
@@ -789,21 +728,6 @@ export const introduceSokoBotAction = withSession<
   if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
     return toActionResult(ok(await sokoBotService.introduce(parsed.data)));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
-
-export const claimSokoBotAvatarAction = withSession<
-  ClaimAvatarParams,
-  ActionResultDto<SokoBot, ActionError>
->(async ({ avatarId }) => {
-  const parsed = idSchema.safeParse(avatarId);
-  if (!parsed.success) return toActionResult(err(invalidInput()));
-  try {
-    const bot = await sokoBotService.claimAvatar(parsed.data);
-    revalidate();
-    return toActionResult(ok(bot));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

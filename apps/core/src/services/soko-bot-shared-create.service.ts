@@ -10,7 +10,6 @@ import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
-import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
 import {
   memoryHash,
@@ -28,7 +27,6 @@ export interface CreateSharedSokoBotInput {
   projectId: string | null;
   name: string;
   avatarSeed?: string | null;
-  avatarId?: string | null;
   avatarCode?: string | null;
   personalityTone?: number | null;
   personalityDetail?: number | null;
@@ -209,16 +207,13 @@ export async function createSharedSokoBot(
         where: { id: bot.id },
         data: { sharedRoomId: room.id },
       });
-      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return shared;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
   );
   // Outside the transaction: it uploads to Blob.
-  if (!input.avatarId) {
-    const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
-    if (look) Object.assign(created, look);
-  }
+  const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+  if (look) Object.assign(created, look);
   // Shared bots get their built-in rhythms switched off; a member turns them on.
   const { ensureSystemSchedules } = await import(
     "@/services/soko-bot-proactive.service"

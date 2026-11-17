@@ -244,23 +244,3 @@ export function randomAvatarLook(rand: () => number = Math.random): AvatarLook {
     hat: any(AVATAR_HATS, rand),
   };
 }
-
-/**
- * Looks for a bot that had a pool picture of `animal` on `bg`, closest first: the drawing
- * as is, then the other corner, other sizes, other eyes, then a hat. The first one no other
- * bot holds is its look.
- */
-export function closestAvatarLooks(
-  animal: AvatarAnimal,
-  bg: AvatarBackground,
-): AvatarLook[] {
-  const own = originalAvatarLook(animal, bg);
-  const other: AvatarLook["corner"] = own.corner === "l" ? "r" : "l";
-  const looks: AvatarLook[] = [];
-  for (const hat of AVATAR_HATS)
-    for (const eyes of AVATAR_EYES)
-      for (const size of ["M", "S", "L"] as const)
-        for (const corner of [own.corner, other])
-          looks.push({ ...own, hat, eyes, size, corner });
-  return looks;
-}

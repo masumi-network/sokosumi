@@ -7041,13 +7041,6 @@
             "want": "Expected"
           }
         },
-        "Avatar": {
-          "title": "Avatar",
-          "description": "Give this bot an avatar from the shared pool, as its owner would.",
-          "apply": "Set avatar",
-          "done": "Avatar updated.",
-          "error": "Could not set the avatar."
-        },
         "Daily": {
           "title": "Last {days} days, UTC",
           "usersTitle": "People who wrote to a Soko Bot",
@@ -7066,6 +7059,10 @@
           "tokens": "Tokens",
           "cost": "Soko Bots",
           "cmoCost": "CMO.xyz"
+        },
+        "Avatar": {
+          "title": "Look",
+          "description": "Change this bot's look in the avatar studio, as its owner would."
         }
       },
       "MatchedChannels": {
@@ -10594,21 +10591,9 @@
         }
       },
       "Avatar": {
-        "title": "Picture",
-        "description": "A unique picture from the collection. No two assistants share one.",
-        "save": "Use this picture",
         "edit": "Change look",
         "saved": "Look saved.",
-        "saveError": "Could not save the look.",
-        "current": "Current picture",
-        "hint": "Pick one, or ask for other options.",
-        "showOthers": "Show others",
-        "noneNew": "No new pictures right now. Try again in a minute.",
-        "drawing": "Drawing new pictures. This can take a minute.",
-        "noMore": "That is all the new pictures for now. Pick one above.",
-        "pictures": "Pictures",
-        "loadError": "Could not load pictures.",
-        "rateLimited": "Too many new pictures requested. Try again later."
+        "saveError": "Could not save the look."
       },
       "AvatarStudio": {
         "title": "Design the look",
