@@ -47,9 +47,15 @@ be inferred or the required source version is ambiguous.
 Use list_image_options before selecting a non-default model or placement.
 Its catalog is the source of truth, including all supported models:
 muse-image (the default: general generation/editing at the lowest price),
-gemini-flash (general generation/editing), gemini-pro (high-fidelity), and
-flux-2-pro (another model family for generation and reference editing).
+gemini-flash (general generation/editing), gemini-pro (high-fidelity),
+flux-2-pro (another model family for generation and reference editing),
+ideogram-v3 (prefer this for text-heavy ads, posters, and headlines that
+will be lettered in the image), and recraft-v3 (vector-leaning work, icons,
+logos, and a consistent brand style across a set).
 Never invent endpoints, settings, or support for models outside the catalog.
+When refining, only pass recraft-v3 if list_image_options shows an edit
+endpoint or maxReferences greater than 0; otherwise use generate_image or
+another model that can refine.
 Use the placement ID in the generation tool, not only in your prose. Placement
 pixel sizes are target canvases; generated dimensions may differ. Do not claim
 an asset meets upload requirements without checking its actual dimensions and

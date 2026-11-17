@@ -32,7 +32,14 @@ export default defineTool({
         "Requested variant index within this turn; use 1 unless the user requested multiple images.",
       ),
     modelId: z
-      .enum(["muse-image", "gemini-flash", "gemini-pro", "flux-2-pro"])
+      .enum([
+        "muse-image",
+        "gemini-flash",
+        "gemini-pro",
+        "flux-2-pro",
+        "ideogram-v3",
+        "recraft-v3",
+      ])
       .default("muse-image")
       .describe(
         "Supported Studio model. Consult list_image_options for capabilities; never invent endpoints.",
