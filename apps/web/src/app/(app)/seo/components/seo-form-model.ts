@@ -39,6 +39,17 @@ export const SEO_COUNTRIES = [
   "BR",
   "PT",
 ] as const;
+
+/** The search languages of the markets above. */
+export const SEO_LANGUAGES = [
+  "en",
+  "de",
+  "fr",
+  "es",
+  "it",
+  "nl",
+  "pt",
+] as const;
 export const SEO_ANALYSIS_KINDS = [
   "page_check",
   "rankings",

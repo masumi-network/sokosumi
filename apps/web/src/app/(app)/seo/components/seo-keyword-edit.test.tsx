@@ -77,7 +77,9 @@ function KeywordWorkspace({ workspace }: { workspace: ProjectSeoWorkspace }) {
     <>
       <SeoSearchQueries model={model} />
       <SeoRankings model={model} />
-      {model.dialog === "edit_keyword" ? <SeoEditDialog model={model} /> : null}
+      {model.dialog === "edit_keyword" || model.dialog === "keyword" ? (
+        <SeoEditDialog model={model} />
+      ) : null}
     </>
   );
 }
@@ -437,25 +439,46 @@ describe("Saved keyword edits", () => {
     ).toBeInTheDocument();
   });
 
-  it("says what the country and language codes look like", async () => {
+  it("tracks a keyword in a market picked by name and saves its codes", async () => {
     const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
+    mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Add a keyword" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Track a keyword",
+    });
+    await user.type(within(dialog).getByLabelText("Keyword"), "Wallets");
     await user.click(
-      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+      within(dialog).getByRole("combobox", { name: "Search country" }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    const dialog = await screen.findByRole("dialog", { name: "Edit keyword" });
-    expect(
-      within(dialog).getByLabelText("Country code"),
-    ).toHaveAccessibleDescription(enMessages.App.Seo.keywords.countryHelp);
-    expect(
-      within(dialog).getByLabelText("Language code"),
-    ).toHaveAccessibleDescription(enMessages.App.Seo.keywords.languageHelp);
+    await user.click(screen.getByRole("option", { name: "Germany" }));
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    );
+    await user.click(screen.getByRole("option", { name: "German" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      keyword: "Wallets",
+      countryCode: "DE",
+      languageCode: "de",
+    });
+  });
+
+  it("says no target page once under a keyword without one", () => {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    saved.pageUrl = null;
+    saved.targetPageId = null;
+    renderWorkspace(workspace);
+    const row = screen.getByText("Stablecoins").closest("tr");
+    if (!row) throw new Error("The keyword row is missing");
+    expect(within(row).getAllByText(/No target page/)).toHaveLength(1);
   });
 
   it("edits a saved keyword target and priority with the version shown when editing began", async () => {
@@ -475,7 +498,12 @@ describe("Saved keyword edits", () => {
     expect(within(dialog).getByLabelText("Keyword")).toHaveAttribute(
       "readonly",
     );
-    expect(within(dialog).getByLabelText("Country code")).toHaveValue("DE");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    ).toHaveTextContent("Germany");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    ).toHaveTextContent("German");
     expect(
       within(dialog).getByRole("combobox", { name: "Target page" }),
     ).toHaveTextContent("Home");

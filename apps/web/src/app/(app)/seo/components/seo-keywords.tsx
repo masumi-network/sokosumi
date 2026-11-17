@@ -409,8 +409,13 @@ export function SeoKeywords({
                                 {t("keywords.anyPage")}
                               </span>
                             )}
-                            {/* One page in scope: the target can only be that page. */}
-                            {row.version > 0 && manyPages ? (
+                            {/* One page in scope: the target can only be that page. The line also stays away when it
+                                would repeat the line above: no page and no target, or the target is that page. */}
+                            {row.version > 0 &&
+                            manyPages &&
+                            (target
+                              ? target.url !== row.pageUrl
+                              : row.pageUrl) ? (
                               <p className="text-muted-foreground mt-1 text-xs">
                                 {t("keywords.target")}:{" "}
                                 {target?.label ||

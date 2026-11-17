@@ -108,19 +108,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await track
         .getByRole("textbox", { name: "Keyword" })
         .fill("example domain");
-      const country = track.getByRole("textbox", { name: "Country code" });
-      const language = track.getByRole("textbox", { name: "Language code" });
-      assert.equal(
-        await country.getAttribute("aria-describedby"),
-        "seo-edit-country-help",
-      );
-      await track.getByText("Two letters, like US or DE.").waitFor();
-      await track.getByText("Like en or de.").waitFor();
-      await country.fill("DE");
-      await language.fill("de");
+      // The market is picked by name; the codes behind it are saved.
+      await track.getByRole("combobox", { name: "Search country" }).click();
+      await page.getByRole("option", { name: "Germany", exact: true }).click();
+      await track.getByRole("combobox", { name: "Search language" }).click();
+      await page.getByRole("option", { name: "German", exact: true }).click();
       await shot("3-keyword");
       await track.getByRole("button", { name: "Save" }).click();
       await page.getByText("Germany · German").waitFor();
+      // A keyword without a target page says so once.
+      const row = page.getByRole("row").filter({ hasText: "example domain" });
+      assert.equal(await row.getByText(/No target page/).count(), 1);
 
       const overflow = await page.evaluate(
         () =>
