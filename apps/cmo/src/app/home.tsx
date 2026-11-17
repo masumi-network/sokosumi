@@ -283,16 +283,18 @@ export async function Home({ searchParams, view }: HomeProps) {
     }
     return (
       <OnboardingFlow
-        // Launch sets the cookie and re-renders this page into the checkout:
-        // start the flow fresh, or it keeps the overview and cookie it was
-        // first given.
+        // Go to Today sets the cookie and re-renders this page: start the
+        // flow fresh, or it keeps the overview and cookie it was first given.
         key={skipped.includes("accounts") ? "launched" : "hiring"}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
+        // Approving the plan opens Subscribe in place, so the plans load
+        // while the strategy waits for approval too.
         plans={
-          overview.onboardingStep === "checkout"
+          overview.onboardingStep === "checkout" ||
+          overview.onboardingStep === "strategy"
             ? await loadPlans().catch(() => [])
             : []
         }

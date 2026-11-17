@@ -22,15 +22,8 @@ export function FixtureScreen({ screen }: FixtureScreenProps) {
     <OnboardingFlow
       overview={overview}
       messages={[]}
-      // The Brand screen shows its questions-left line when they were skipped;
-      // the checkout comes after Launch, which the cookie remembers.
-      skipped={
-        screen === "brand"
-          ? ["questions"]
-          : screen === "subscribe"
-            ? ["accounts"]
-            : []
-      }
+      // The Brand screen shows its questions-left line when they were skipped.
+      skipped={screen === "brand" ? ["questions"] : []}
       plans={cmoPlans}
       returnedFromCheckout={screen === "subscribe-confirming"}
       actions={inertOnboardingActions(overview)}

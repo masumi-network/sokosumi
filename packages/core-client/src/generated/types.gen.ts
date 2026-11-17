@@ -12178,9 +12178,9 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'checkout' | 'done';
+    onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;

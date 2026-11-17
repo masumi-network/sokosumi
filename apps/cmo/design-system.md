@@ -81,7 +81,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
-**Step marker.** 8px radius, small 500, "1 Research". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Research, Brand, Plan, Launch, Subscribe.
+**Step marker.** 8px radius, small 500, "1 Research". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Research, Brand, Plan, Subscribe, Launch.
 
 **Buttons.** 44px high, 8px radius, body 500, 0 18px.
 
@@ -94,7 +94,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Selection.** Tabs, radio cards (pace) and the open tile button use the ink inversion: ink fill, inverted text. Iris is never selection; it means now.
 
-**Plan card (Subscribe).** The CMO plans of one interval as cards on a panel: name (h2), price (value step) with its interval (small, muted), credits a month (small). A Monthly / Yearly switch above them uses the ink inversion; the picked plan is the selected tile and takes the Iris shadow. One primary button below ("Continue to payment") leads to Polar's hosted checkout.
+**Plan card (Subscribe).** Under Cuso's scene and a card of what the approved month holds (checks: pieces and channels, pictures and videos, the daily and weekly work), the CMO plans of one interval as cards: an Iris "Fits your {pace} plan" mark on the one that fits, the tier's name, the price a month (value step; a yearly plan shows its month and "billed once a year"), credits a month (small). A Monthly / Yearly switch above them uses the ink inversion and names the yearly saving; the picked plan is the selected tile and takes the Iris shadow. One primary button below names the plan and its price ("Start Growth for $500 a month") and leads to Polar's hosted checkout; a quiet row under it says only what is true (change or cancel in Settings, discount codes, Polar).
 
 **Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
 
@@ -120,7 +120,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card, 176px where he leads an onboarding step.
-- **Cuso leads onboarding.** Every step opens with his scene on the hero's Iris stage (`CusoScene`, 220 by 280px, looping): Research, Brand, Plan and Launch each have their own; a failure or a question shows the Needs you avatar instead. While he works, a tilted label over the stage's lower edge says what he is doing now (with the working dot) and an ink bar runs along the bottom, so the wait reads as work. The title under him is what he says. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
+- **Cuso leads onboarding.** Every step opens with his scene on the hero's Iris stage (`CusoScene`, 220 by 280px, looping): Research, Brand, Plan, Subscribe and Launch each have their own; a failure or a question shows the Needs you avatar instead. While he works, a tilted label over the stage's lower edge says what he is doing now (with the working dot) and an ink bar runs along the bottom, so the wait reads as work. The title under him is what he says. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
 - **Stage:** the hire hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600); a step's scene carries one, what he is doing now. These are the only places labels tilt.
 - **Celebration:** the party image shows only after Launch is pressed.
 - **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the step scenes loop, and the celebration plays once. Under `prefers-reduced-motion` only the still shows.
