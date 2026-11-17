@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { askJev } = vi.hoisted(() => ({ askJev: vi.fn() }));
 vi.mock("@/lib/soko-bot/jev", () => ({ askJev }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { judgeRoleInboxes, MIN_PERSON_PROBABILITY } from "./capture-judge";
 
 const samples = [

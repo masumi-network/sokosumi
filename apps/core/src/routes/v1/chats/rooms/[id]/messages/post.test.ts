@@ -167,8 +167,8 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { expectConsole } from "@/test/console";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";

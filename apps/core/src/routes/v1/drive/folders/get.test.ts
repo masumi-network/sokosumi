@@ -34,8 +34,8 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { expectConsole } from "@/test/console";
 import mountGet from "./get.js";
 
 function app() {

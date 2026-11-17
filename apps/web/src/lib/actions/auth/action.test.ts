@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 const setPasswordViaCoreMock = vi.fn();
 const resetPasswordViaCoreMock = vi.fn();

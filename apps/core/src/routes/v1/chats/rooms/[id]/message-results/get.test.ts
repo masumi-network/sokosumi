@@ -1,8 +1,8 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { expectConsole } from "@/test/console";
 import mount from "./get";
 
 const mocks = vi.hoisted(() => ({

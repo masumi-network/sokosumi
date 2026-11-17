@@ -19,7 +19,7 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   revokeSokoBotIntegrationAccounts: mocks.revoke,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   disconnectLeaverSokoBotIntegrations,
   disconnectLeaverSokoBotIntegrationsBestEffort,

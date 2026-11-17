@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   answerShowsNotificationsQuery,
   clearNotificationTargetFromUrl,
@@ -14,7 +14,6 @@ import {
   SHOWS_NOTIFICATIONS_QUERY,
   subscribeNotificationClicks,
 } from "@/lib/utils/notification-service-worker";
-import { expectConsole } from "@/test/console";
 
 const envMock = vi.hoisted(() => ({
   NEXT_PUBLIC_VERCEL_ENV: undefined as

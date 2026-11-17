@@ -99,11 +99,11 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
 import { pngBytes } from "@/test/image-bytes";
 
 const JOB = {

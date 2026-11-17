@@ -9,8 +9,8 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getWorkspaceOrganizationId } from "@/lib/utils/workspace-organization.client";
-import { expectConsole } from "@/test/console";
 
 describe("getWorkspaceOrganizationId", () => {
   beforeEach(() => {

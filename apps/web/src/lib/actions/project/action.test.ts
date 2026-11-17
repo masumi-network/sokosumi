@@ -1,6 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),

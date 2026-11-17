@@ -224,7 +224,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 `next/image` cannot measure a `fill` parent in happy-dom; mock it with `vi.mock("next/image", () => import("@/test/next-image"))`.
 
-Only a test whose subject is that error path declares it, with `expectConsole(method, start, times = 1)` from `@/test/console`: the message must start with `start` and come exactly `times` times, and the return value holds the matched calls' arguments, so assert the reason or error on them.
+Only a test whose subject is that error path declares it, with `expectConsole(method, start, times = 1)` from `@sokosumi/utils/test-console`: the message must start with `start` and come exactly `times` times, and the return value holds the matched calls' arguments, so assert the reason or error on them.
 
 **Reproduce an order.** The log's first line prints `Running tests with seed "<seed>"`. Rerun that order with `pnpm --filter web exec vitest run --sequence.seed=<seed>`. Adding `--maxWorkers=1` puts every file in one worker, which brings out leaks a 4-worker run only hits now and then. A failure that only shows up under one seed is a leak: find the earlier file that causes it and fix it there. Never retry it, skip it or give it a wider timeout.
 

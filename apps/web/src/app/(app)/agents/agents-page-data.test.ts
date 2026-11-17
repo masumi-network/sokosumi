@@ -1,7 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { expectConsole } from "@/test/console";
 
 const connectionMock = vi.fn(async () => undefined);
 const listCoworkersMock = vi.fn();

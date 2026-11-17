@@ -101,8 +101,8 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { projectCloseSyncService } from "@/services/project-close-sync.service";
-import { expectConsole } from "@/test/console";
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const PROJECT_ID = "22222222-2222-7222-8222-222222222222";

@@ -58,13 +58,13 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler({ ...args, session: { user: { id: "user_1" } } }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   clearPendingOrganizationJoinCookieAction,
   createPersonalWorkspaceAction,
   deletePersonalWorkspaceAction,
   ensureOAuthWorkspaceAction,
 } from "@/lib/actions/workspace-gate/action";
-import { expectConsole } from "@/test/console";
 
 describe("ensureOAuthWorkspaceAction", () => {
   beforeEach(() => {

@@ -1,6 +1,22 @@
-import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import {
+  aroundEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
-import { checkConsoleUntouched, expectConsole } from "./console";
+import {
+  checkConsoleUntouched,
+  expectConsole,
+  installConsoleGuard,
+} from "./test-console";
+
+// Core and Web install the guard from their Vitest setup files; this package
+// has none, so its self-test installs it here.
+installConsoleGuard();
 
 describe("console guard", () => {
   it("lets console.log through", () => {
@@ -228,6 +244,180 @@ describe("console guard: cleanup after afterEach", () => {
       const calls = expectConsole("error", "routed after beforeEach cleanup");
       console.error("routed after beforeEach cleanup");
       expect(calls).toHaveLength(1);
+    });
+  });
+});
+
+// Vitest 5.1.0 runs aroundEach teardown after the guard's per-test check, so
+// the guard first sees a replacement there when the next test starts.
+describe("console guard: aroundEach teardown", () => {
+  let first = true;
+  let routed = false;
+  aroundEach(async (runTest) => {
+    await runTest();
+    if (!first) return;
+    first = false;
+    console.warn = () => {};
+  });
+
+  // The limit: nothing in Vitest runs after this teardown to fail this test.
+  it("passes, its aroundEach teardown running after the check", () => {});
+
+  it.fails("fails the next test, naming the one before it", () => {
+    const calls = expectConsole("warn", "routed after aroundEach teardown");
+    console.warn("routed after aroundEach teardown");
+    routed = calls.length === 1;
+  });
+
+  it("ran that next test guarded", () => {
+    expect(routed).toBe(true);
+  });
+});
+
+// Vitest 5.1.0 tears down the fixtures an aroundEach uses after every hook,
+// so the guard first sees a replacement there when the next test starts.
+describe("console guard: teardown of a fixture aroundEach uses", () => {
+  let first = true;
+  let routed = false;
+  const fixtureTest = it.extend<{ muting: undefined }>({
+    muting: async ({ task: _task }, use) => {
+      await use(undefined);
+      if (!first) return;
+      first = false;
+      console.error = () => {};
+    },
+  });
+  fixtureTest.aroundEach(async (runTest, { muting: _muting }) => {
+    await runTest();
+  });
+
+  // The limit: nothing in Vitest runs after this teardown to fail this test.
+  fixtureTest("passes, its fixture teardown running after the check", () => {});
+
+  fixtureTest.fails("fails the next test, naming the one before it", () => {
+    const calls = expectConsole("error", "routed after fixture teardown");
+    console.error("routed after fixture teardown");
+    routed = calls.length === 1;
+  });
+
+  fixtureTest("ran that next test guarded", () => {
+    expect(routed).toBe(true);
+  });
+});
+
+// A test cancelled with skip() is reported skipped and Vitest drops its
+// errors, so what it or a test before it left is reported by the next test
+// that runs. Each block runs in order.
+describe("console guard: undeclared output, then skips", () => {
+  it("writes undeclared output, then skips", ({ skip }) => {
+    console.error(
+      "console guard: undeclared before a skip (a later test is expected to fail)",
+    );
+    skip();
+  });
+
+  it("skips again", ({ skip }) => skip());
+
+  it.fails("reports it at the next test that runs", () => {});
+});
+
+describe("console guard: a replacement, then skips", () => {
+  it("replaces console.warn, then skips", ({ skip }) => {
+    console.warn = () => {};
+    skip();
+  });
+
+  it("skips again", ({ skip }) => skip());
+
+  it.fails("reports it at the next test that runs", () => {});
+});
+
+describe("console guard: a late violation, then a skip", () => {
+  let first = true;
+  const fixtureTest = it.extend<{ resource: number }>({
+    resource: async ({ task: _task }, use) => {
+      await use(1);
+      if (!first) return;
+      first = false;
+      console.error(
+        "console guard: undeclared in a late teardown (a later test is expected to fail)",
+      );
+    },
+  });
+  fixtureTest.aroundEach(async (runTest, { resource: _resource }) => {
+    await runTest();
+  });
+
+  fixtureTest("leaves output in a late teardown", () => {});
+
+  fixtureTest("skips", ({ skip }) => skip());
+
+  fixtureTest.fails("reports it at the next test that runs", () => {});
+});
+
+// Automatic fixtures tear down inside the test, before the guard checks it.
+describe("console guard: automatic fixtures", () => {
+  describe("declared output in teardown", () => {
+    const autoTest = it.extend<{ resource: number }>({
+      resource: [
+        async ({ task: _task }, use) => {
+          await use(1);
+          console.warn("declared in an automatic fixture's teardown");
+        },
+        { auto: true },
+      ],
+    });
+
+    autoTest("counts for the test that declared it", () => {
+      expectConsole("warn", "declared in an automatic fixture's teardown");
+    });
+  });
+
+  describe("undeclared output in teardown", () => {
+    let first = true;
+    const autoTest = it.extend<{ resource: number }>({
+      resource: [
+        async ({ task: _task }, use) => {
+          await use(1);
+          if (!first) return;
+          first = false;
+          console.error(
+            "console guard: undeclared in an automatic fixture's teardown (expected to fail)",
+          );
+        },
+        { auto: true },
+      ],
+    });
+
+    autoTest.fails("fails the test whose fixture wrote it", () => {});
+
+    autoTest("leaves the next test clean", () => {});
+  });
+
+  describe("a replacement in teardown, then the next setup", () => {
+    let first = true;
+    let routed = -1;
+    const autoTest = it.extend<{ resource: number }>({
+      resource: [
+        async ({ task: _task }, use) => {
+          if (!first) {
+            const calls = expectConsole("warn", "routed in fixture setup");
+            console.warn("routed in fixture setup");
+            routed = calls.length;
+          }
+          await use(1);
+          if (!first) return;
+          first = false;
+          console.warn = () => {};
+        },
+        { auto: true },
+      ],
+    });
+
+    autoTest.fails("fails the test whose fixture replaced it", () => {});
+
+    autoTest("guards the next fixture's setup", () => {
+      expect(routed).toBe(1);
     });
   });
 });

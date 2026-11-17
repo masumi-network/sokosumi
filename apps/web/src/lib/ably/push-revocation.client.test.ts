@@ -16,7 +16,7 @@ vi.mock("./push-repair-outcome.client", () => ({
   recordPushRepairOutcome: recordOutcome,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   handleRevokedPushDevice,
   stopRevokedPushDevice,

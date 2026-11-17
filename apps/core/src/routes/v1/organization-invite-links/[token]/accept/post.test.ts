@@ -1,7 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { expectConsole } from "@/test/console";
 import mountAcceptInviteLink from "./post";
 
 const {

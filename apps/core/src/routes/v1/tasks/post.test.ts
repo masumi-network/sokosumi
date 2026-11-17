@@ -6,6 +6,7 @@ import {
   VendorGrantStatus,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden, notFound } from "@/helpers/error";
@@ -13,9 +14,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { TASK_TAG_IDS, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
 import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
-import { expectConsole } from "@/test/console";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {

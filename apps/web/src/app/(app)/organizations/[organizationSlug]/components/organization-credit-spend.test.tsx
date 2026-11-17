@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import { OrganizationCreditSpendCard } from "./organization-credit-spend";
 
 const { getOrganizationCreditSpendMock } = vi.hoisted(() => ({

@@ -57,7 +57,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { SandboxSokoBotRuntime } from "./sandbox-runtime";
 
 const turn = {

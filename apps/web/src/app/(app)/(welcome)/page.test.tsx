@@ -135,7 +135,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import WelcomePage, { generateMetadata } from "./page";
 
 async function renderPage() {

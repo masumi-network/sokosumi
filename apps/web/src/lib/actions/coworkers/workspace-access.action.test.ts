@@ -30,11 +30,11 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler({ ...args, session: { user: { id: "user_1" } } }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   grantDeveloperCoworkerEarlyAccessAction,
   revokeDeveloperCoworkerEarlyAccessAction,
 } from "@/lib/actions/coworkers/workspace-access.action";
-import { expectConsole } from "@/test/console";
 
 const COWORKER_ID = "11111111-1111-4111-8111-111111111111";
 const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";

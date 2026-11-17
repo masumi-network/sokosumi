@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   captureExternalServiceError,
   isSchemaDriftPrismaError,
@@ -9,7 +9,6 @@ import {
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
-import { expectConsole } from "@/test/console";
 
 const { captureExceptionMock, setExtrasMock, withScopeMock } = vi.hoisted(
   () => {

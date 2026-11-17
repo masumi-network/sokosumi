@@ -5,6 +5,7 @@ import {
   TaskVisibility,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
@@ -13,7 +14,6 @@ import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { expectConsole } from "@/test/console";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountPostTaskEvents from "./post";
 

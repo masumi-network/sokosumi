@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { signJWT } from "better-auth/crypto";
@@ -5,7 +6,6 @@ import { betterAuth } from "better-auth/minimal";
 import { oAuthProxy } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/config/env";
-import { expectConsole } from "@/test/console";
 import { asServedOnVercel } from "@/test-fixtures/served-on-vercel";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { withPublicScheme } from "./request-scheme";

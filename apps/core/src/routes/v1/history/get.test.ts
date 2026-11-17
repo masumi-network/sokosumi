@@ -1,13 +1,12 @@
 import { HistoryKind, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { LIMITS } from "@/config/constants";
 import type { HistoryRowForApi } from "@/helpers/history";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
-import { expectConsole } from "@/test/console";
 import mountGetHistory from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {

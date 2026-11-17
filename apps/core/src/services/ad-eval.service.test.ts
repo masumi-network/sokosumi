@@ -35,7 +35,7 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   downloadStudioFileReference: mocks.reference,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { enqueueAdEval } from "./ad-eval.service";
 
 const ENV = {

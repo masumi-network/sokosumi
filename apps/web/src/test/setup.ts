@@ -1,10 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TextDecoder, TextEncoder } from "node:util";
-
+import { installConsoleGuard } from "@sokosumi/utils/test-console";
 import { createElement } from "react";
 import { afterAll, vi } from "vitest";
-
-import { installConsoleGuard } from "./console";
 
 // Test files share a worker (`isolate: false`). Start each file with a fresh
 // module registry so its `vi.mock` calls apply even when an earlier file

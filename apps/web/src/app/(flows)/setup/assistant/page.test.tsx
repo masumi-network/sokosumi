@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 const readRouteSessionMock = vi.fn();
 const redirectMock = vi.fn();

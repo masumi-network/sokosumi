@@ -29,7 +29,7 @@ vi.mock("next-intl", () => ({
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { PurchaseSuccessCoworkerRow } from "./purchase-success-coworker-row";
 
 function createCoworker(

@@ -4,6 +4,7 @@ import {
   SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostProvider,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import {
@@ -13,7 +14,6 @@ import {
 import { forbidden } from "@/helpers/error";
 import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
 
 const {
   publishingAccessMock,

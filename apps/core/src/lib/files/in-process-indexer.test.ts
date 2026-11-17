@@ -25,7 +25,7 @@ vi.mock("@/services/file-table-index.service", () => ({
   processStaleTableIndexes: (input: unknown) => processStaleTableIndexes(input),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   nudgeFileExtraction,
   nudgeFileIndexing,

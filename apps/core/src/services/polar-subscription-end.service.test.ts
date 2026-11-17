@@ -31,8 +31,8 @@ vi.mock("@/lib/db/transaction", () => ({
 }));
 
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
-import { expectConsole } from "@/test/console";
 import {
   retryOwedPolarRevokes,
   revokeCusoSubscription,

@@ -8,7 +8,7 @@ vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: { generateTaskName: generateTaskNameMock },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { resolveTaskName } from "./task-name";
 
 describe("resolveTaskName", () => {

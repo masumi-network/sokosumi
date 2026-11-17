@@ -5,9 +5,9 @@ import {
   jobInclude,
 } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
 

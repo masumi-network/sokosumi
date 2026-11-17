@@ -59,7 +59,7 @@ vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
   triageMail: triageMailMock,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { SokoBotIngestSyncService } from "./soko-bot-ingest.service";
 
 const LAST_SEEN = "2026-09-30T06:14:00.000Z";

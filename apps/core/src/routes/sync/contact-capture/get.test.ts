@@ -26,7 +26,7 @@ vi.mock("@vercel/functions", () => ({
   },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import mount, { CONTACT_CAPTURE_SYNC_LOCK_KEY } from "./get";
 
 const authorized = { headers: { authorization: "Bearer test-secret" } };

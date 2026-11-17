@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import {
@@ -8,7 +8,6 @@ import {
   isUserNotMemberOfOrganizationError,
 } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
-import { expectConsole } from "@/test/console";
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {

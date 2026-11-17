@@ -4,8 +4,8 @@ import {
   TaskPriority,
   TaskStatus,
 } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),

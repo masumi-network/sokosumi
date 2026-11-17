@@ -66,9 +66,9 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { LIMITS } from "@/config/constants";
 import { errorHandler } from "@/helpers/error-handler";
-import { expectConsole } from "@/test/console";
 import app from "./index";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";

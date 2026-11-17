@@ -23,7 +23,7 @@ vi.mock("@/lib/evlog", () => ({
   createCoreLogger: () => ({ set: logSetMock, emit: vi.fn() }),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   MAIL_TRIAGE_CRITERIA,
   mailTriageTag,

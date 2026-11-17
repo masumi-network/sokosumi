@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -11,9 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { getMyPreferencesQueryKey } from "@/queries/preferences";
-import { expectConsole } from "@/test/console";
 import { CELL_TRACK, CELL_TRACK_SPAN } from "./notification-cells";
 import { NotificationKinds } from "./notification-kinds";
 

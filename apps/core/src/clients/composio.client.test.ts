@@ -1,11 +1,10 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { ConnectedSocialIdentity } from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
-import { expectConsole } from "@/test/console";
 
 const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),

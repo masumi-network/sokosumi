@@ -1,8 +1,8 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectConsole } from "@/test/console";
 import type { AuthEntrySearchParams } from "./auth-entry";
 
 const cookiesMock = vi.fn();

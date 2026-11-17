@@ -10,6 +10,7 @@ import {
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
@@ -17,7 +18,6 @@ import { loadClassificationContext } from "@/lib/soko-bot/classification-context
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
-import { expectConsole } from "@/test/console";
 import { jevRoute } from "@/test/jev-routes";
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));

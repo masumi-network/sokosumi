@@ -1,8 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { expectConsole } from "@/test/console";
 
 vi.mock("server-only", () => ({}));
 
