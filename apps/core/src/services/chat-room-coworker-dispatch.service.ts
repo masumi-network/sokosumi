@@ -17,7 +17,7 @@ import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import {
   readQuoteFromMetadata,
@@ -66,7 +66,7 @@ export async function dispatchChatRoomMention(
     // Runs in waitUntil (or the effect outbox), so its own event.
     emitCoreError(
       {
-        failure: describeErrorWithoutContent(error),
+        failure: messageSafeErrorFields(error),
         operation: "chat_room_mention_dispatch",
         mention: { id: mentionId },
       },
@@ -104,7 +104,7 @@ export async function dispatchChatRoomMention(
       }).catch((cleanupError) => {
         emitCoreError(
           {
-            failure: describeErrorWithoutContent(cleanupError),
+            failure: messageSafeErrorFields(cleanupError),
             operation: "chat_room_mention_dispatch",
             mention: { id: mentionId },
           },
@@ -393,7 +393,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     } catch (publishError) {
       emitCoreError(
         {
-          failure: describeErrorWithoutContent(publishError),
+          failure: messageSafeErrorFields(publishError),
           operation: "chat_room_mention_dispatch",
           mention: { id: mentionId },
         },
@@ -557,7 +557,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
             .catch((publishError) => {
               emitCoreError(
                 {
-                  failure: describeErrorWithoutContent(publishError),
+                  failure: messageSafeErrorFields(publishError),
                   operation: "chat_room_mention_dispatch",
                   mention: { id: mentionId },
                 },

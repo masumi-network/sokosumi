@@ -1745,7 +1745,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
-  it("gives a new assistant a random avatar code unless it picked a pool avatar", async () => {
+  it("gives a new assistant a random avatar code", async () => {
     botFindFirstMock.mockResolvedValue(null);
     botCreateMock.mockResolvedValue({
       id: "01960001-0001-7001-8001-00000000aaaa",

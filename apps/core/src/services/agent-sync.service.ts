@@ -21,7 +21,7 @@ import {
   emitCoreWarning,
   logCoreWarning,
 } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
 import {
@@ -1101,7 +1101,7 @@ async function runSummarySync(
         {
           operation: SUMMARY_SYNC_OPERATION,
           agent: { id: agent.id },
-          failure: describeErrorWithoutContent(error),
+          failure: messageSafeErrorFields(error),
         },
         {
           message: "Could not generate a summary for an agent",

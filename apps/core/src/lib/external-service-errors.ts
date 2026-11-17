@@ -47,25 +47,6 @@ function getPrismaErrorCode(error: unknown): string | null {
 }
 
 /**
- * What a log may say about an error that can quote a mail, message or prompt:
- * its name, HTTP status and Prisma or provider code, never its message or a
- * response body.
- */
-export function describeErrorWithoutContent(error: unknown): {
-  name: string;
-  statusCode?: number;
-  code?: string;
-} {
-  const statusCode = getErrorStatusCode(error);
-  const code = getPrismaErrorCode(error);
-  return {
-    name: getErrorName(error) || typeof error,
-    ...(typeof statusCode === "number" ? { statusCode } : {}),
-    ...(code ? { code } : {}),
-  };
-}
-
-/**
  * Network timeouts and dropped connections from outbound HTTP/fetch calls.
  * Shared by Resend, Coworker retrieval, and similar integrations.
  */

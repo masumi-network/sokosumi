@@ -237,8 +237,7 @@ interface ReserveImageJobInput
  * all read the same count, all pass the limit, and each then buys an image — the
  * cap would bound a serial loop and not a burst. And a debit outside the insert
  * is a charge with no job to point at, or a job nobody paid for, depending on
- * which half failed. This is the same reasoning, and the same helper, that
- * `soko-bot-avatar.service.ts` uses for its generation cap.
+ * which half failed.
  */
 async function reserveJob(input: ReserveImageJobInput) {
   try {

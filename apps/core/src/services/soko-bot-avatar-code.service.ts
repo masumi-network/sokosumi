@@ -1,10 +1,6 @@
 import {
-  type AvatarAnimal,
-  type AvatarBackground,
   buildAvatarSvg,
-  closestAvatarLooks,
   formatAvatarCode,
-  originalAvatarLook,
   parseAvatarCode,
   randomAvatarLook,
 } from "@sokosumi/soko-bot";
@@ -14,7 +10,6 @@ import sharp from "sharp";
 import { getEnv } from "@/config/env";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
-import { SOKO_BOT_AVATAR_BLOB_DIR } from "@/helpers/soko-bot-avatar-blob-path";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -26,39 +21,7 @@ import prisma from "@/lib/db/prisma";
 const STILL_SIZE = 512;
 const STILL_QUALITY = 85;
 const RANDOM_TRIES = 8;
-
-/** The pool's `subject` text for each traced animal. */
-export const POOL_SUBJECT_ANIMALS: Record<string, AvatarAnimal> = {
-  owl: "owl",
-  fox: "fox",
-  "round helper robot": "robot",
-  "bear cub": "bear",
-  whale: "whale",
-  cat: "cat",
-  penguin: "penguin",
-  sloth: "sloth",
-  axolotl: "axolotl",
-  frog: "frog",
-  elephant: "elephant",
-  koala: "koala",
-  duckling: "duckling",
-  hedgehog: "hedgehog",
-  rabbit: "rabbit",
-  otter: "otter",
-};
-
-/** The pool's `background` text for each palette background. */
-export const POOL_BACKGROUNDS: Record<string, AvatarBackground> = {
-  "iris flower pink": "iris",
-  "golden yellow": "golden",
-  "crimson purple": "crimson",
-  "peach blossom pink": "peach",
-  "persimmon orange": "persimmon",
-  "vivid sakura pink": "sakura",
-  sand: "sand",
-  "electric pink": "electric",
-  "scarlet red": "scarlet",
-};
+const BLOB_DIR = "soko-bots/avatars/code";
 
 /** Render a code to a 512 px WebP still in the blob store; returns its public URL. */
 export async function renderAvatarCode(code: string): Promise<string> {
@@ -71,18 +34,14 @@ export async function renderAvatarCode(code: string): Promise<string> {
     .webp({ quality: STILL_QUALITY })
     .toBuffer();
   // The path is the code, so the same code always writes the same bytes.
-  const blob = await put(
-    `${SOKO_BOT_AVATAR_BLOB_DIR}/code/${code}.webp`,
-    image,
-    {
-      access: "public",
-      contentType: "image/webp",
-      token,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      abortSignal: AbortSignal.timeout(60_000),
-    },
-  );
+  const blob = await put(`${BLOB_DIR}/${code}.webp`, image, {
+    access: "public",
+    contentType: "image/webp",
+    token,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    abortSignal: AbortSignal.timeout(60_000),
+  });
   return blob.url;
 }
 
@@ -105,8 +64,6 @@ export async function setSokoBotAvatarCode(sokoBotId: string, code: string) {
   if (holder) throw taken();
   const avatarImageUrl = await renderAvatarCode(code);
   try {
-    // The pool row the bot may still claim stays: the pool is dropped whole (SOKD-271 3/3),
-    // and touching it here would fail saves while that drop deploys.
     await prisma.sokoBot.update({
       where: { id: sokoBotId },
       data: { avatarCode: code, avatarImageUrl },
@@ -172,33 +129,3 @@ const isInvalid = (error: unknown) =>
 // The service's only 409 is "taken".
 const isTaken = (error: unknown) =>
   error instanceof HTTPException && error.status === 409;
-
-/**
- * One code per bot for the conversion script. A bot with a recognised pool
- * picture gets the closest look nobody holds; every other bot a random free
- * one. `held` is mutated, so two bots with the same picture get different codes.
- */
-export function planAvatarCodes(
-  bots: { id: string; subject?: string | null; background?: string | null }[],
-  held: Set<string>,
-  rand: () => number = Math.random,
-): Map<string, string> {
-  const plan = new Map<string, string>();
-  for (const bot of bots) {
-    const animal = bot.subject ? POOL_SUBJECT_ANIMALS[bot.subject] : undefined;
-    const bg = bot.background ? POOL_BACKGROUNDS[bot.background] : undefined;
-    const closest = animal
-      ? closestAvatarLooks(animal, originalAvatarLook(animal, bg).bg).map(
-          formatAvatarCode,
-        )
-      : [];
-    let code = closest.find((one) => !held.has(one));
-    while (!code) {
-      const random = formatAvatarCode(randomAvatarLook(rand));
-      if (!held.has(random)) code = random;
-    }
-    held.add(code);
-    plan.set(bot.id, code);
-  }
-  return plan;
-}

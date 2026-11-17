@@ -541,15 +541,6 @@ export type AdminSokoBotVersionMigrationRequest = {
     notifyOwners?: boolean;
 };
 
-export type RestyleSokoBotAvatarsResult = {
-    restyled: number;
-    remaining: number;
-};
-
-export type RestyleSokoBotAvatarsRequest = {
-    limit?: number;
-};
-
 export type AdminSokoBotChatRoom = {
     id: string;
     isOwnerRoom: boolean;
@@ -1223,10 +1214,6 @@ export type AdminSokoBotActionRequest = {
     targetId?: string;
     versionId?: string;
     reason: string;
-};
-
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
 };
 
 export type SokoBotAvatarCode = {
@@ -13251,7 +13238,6 @@ export type SokoBotActivity = {
 export type CreateSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
-    avatarId?: string | null;
     avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
@@ -13309,13 +13295,6 @@ export type UpdateSokoBotScheduleRequest = {
 
 export type ResolveSokoBotDecisionRequest = {
     resolution: 'ACCEPT' | 'REJECT';
-};
-
-export type SokoBotAvatar = {
-    id: string;
-    imageUrl: string;
-    subject: string;
-    background: string;
 };
 
 export type SokoBotIntegrations = {
@@ -13584,7 +13563,6 @@ export type JudgeSokoBotLabTurnRequest = {
 export type CreateScopedSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
-    avatarId?: string | null;
     avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
@@ -17697,94 +17675,6 @@ export type MigrateAdminSokoBotVersionsResponses = {
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
 
-export type RestyleAdminSokoBotAvatarsData = {
-    body?: RestyleSokoBotAvatarsRequest;
-    path?: never;
-    query?: never;
-    url: '/admin/soko-bots/avatars/restyle';
-};
-
-export type RestyleAdminSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type RestyleAdminSokoBotAvatarsError = RestyleAdminSokoBotAvatarsErrors[keyof RestyleAdminSokoBotAvatarsErrors];
-
-export type RestyleAdminSokoBotAvatarsResponses = {
-    /**
-     * How many avatars were redrawn and how many are left
-     */
-    200: {
-        data: RestyleSokoBotAvatarsResult;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type RestyleAdminSokoBotAvatarsResponse = RestyleAdminSokoBotAvatarsResponses[keyof RestyleAdminSokoBotAvatarsResponses];
-
 export type ListAdminSokoBotChatsData = {
     body?: never;
     path: {
@@ -18049,113 +17939,6 @@ export type PerformAdminSokoBotActionResponses = {
 };
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
-
-export type SetAdminSokoBotAvatarData = {
-    body?: ClaimSokoBotAvatarRequest;
-    path: {
-        sokoBotId: string;
-    };
-    query?: never;
-    url: '/admin/soko-bots/{sokoBotId}/avatar';
-};
-
-export type SetAdminSokoBotAvatarErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
-
-export type SetAdminSokoBotAvatarResponses = {
-    /**
-     * The bot's new Soko Bot avatar
-     */
-    200: {
-        data: {
-            avatarImageUrl: string;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
 
 export type SetAdminSokoBotAvatarCodeData = {
     body?: {
@@ -88547,159 +88330,6 @@ export type ResolveMySokoBotDecisionResponses = {
 
 export type ResolveMySokoBotDecisionResponse = ResolveMySokoBotDecisionResponses[keyof ResolveMySokoBotDecisionResponses];
 
-export type ListSokoBotAvatarsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        take?: number;
-        exclude?: string;
-    };
-    url: '/soko-bots/avatars';
-};
-
-export type ListSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ListSokoBotAvatarsError = ListSokoBotAvatarsErrors[keyof ListSokoBotAvatarsErrors];
-
-export type ListSokoBotAvatarsResponses = {
-    /**
-     * Unclaimed Soko Bot avatars to pick from
-     */
-    200: {
-        data: Array<SokoBotAvatar>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
-
-export type TopUpSokoBotAvatarsData = {
-    body: {
-        take?: number;
-        excludeIds?: Array<string>;
-        fresh?: boolean;
-    };
-    path?: never;
-    query?: never;
-    url: '/soko-bots/avatars/top-up';
-};
-
-export type TopUpSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Too Many Requests
-     */
-    429: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];
-
-export type TopUpSokoBotAvatarsResponses = {
-    /**
-     * Unclaimed Soko Bot avatars, after filling a short pool
-     */
-    200: {
-        data: Array<SokoBotAvatar>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type TopUpSokoBotAvatarsResponse = TopUpSokoBotAvatarsResponses[keyof TopUpSokoBotAvatarsResponses];
-
 export type ListMySokoBotIntegrationsData = {
     body?: never;
     path?: never;
@@ -89102,94 +88732,6 @@ export type IntroduceMySokoBotResponses = {
 };
 
 export type IntroduceMySokoBotResponse = IntroduceMySokoBotResponses[keyof IntroduceMySokoBotResponses];
-
-export type ClaimMySokoBotAvatarData = {
-    body?: ClaimSokoBotAvatarRequest;
-    path?: never;
-    query?: never;
-    url: '/soko-bots/me/avatar';
-};
-
-export type ClaimMySokoBotAvatarErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ClaimMySokoBotAvatarError = ClaimMySokoBotAvatarErrors[keyof ClaimMySokoBotAvatarErrors];
-
-export type ClaimMySokoBotAvatarResponses = {
-    /**
-     * Bot with the new avatar
-     */
-    200: {
-        data: SokoBot;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
 
 export type SetMySokoBotAvatarCodeData = {
     body?: {

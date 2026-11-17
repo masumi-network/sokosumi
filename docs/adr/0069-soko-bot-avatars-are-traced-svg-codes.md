@@ -6,10 +6,12 @@ Supersedes the pool part of [0064](0064-soko-bot-avatars-are-original-style-agai
 
 **Why:** the pool costs a paid image per avatar and a top-up wait, and its pictures cannot move or react. A code is free, instant, unique by construction, and renders live in Web.
 
-**Conversion:** `pnpm --filter @sokosumi/core soko-bot:avatar-codes` (dry run; `--apply` writes) gives each bot without a code the closest free look to its pool picture, else a random one.
+**Conversion (done 2026-11-17):** a one-off script gave each bot without a code the closest free look to its pool picture (same animal, background and colours), else a random one. It ran on production mainnet and preprod, leaving 0 live bots without a code, and was deleted with the pool.
 
 **Consequences:**
 
-- Changing a look is `PUT .../avatar-code`; a taken code is 409 `avatar_code_taken`, a bad one 422 `avatar_code_invalid`. Setting a code releases the bot's pool row.
+- Changing a look is `PUT .../avatar-code`; a taken code is 409 `avatar_code_taken`, a bad one 422 `avatar_code_invalid`.
 - Removing the pool (tables, top-up, claim routes, generation cap) follows in a later PR, once every bot has a code.
 - A bot whose still failed to render at create has no face until a code is set.
+
+**Pool removed:** the `soko_bot_avatar` table, fal generation and top-up, the list, claim and restyle routes, `avatarId`, the Web picker, the admin pool picker, the conversion script and the Blob prefix-move script are deleted. This was safe because the conversion had given every bot a code before this shipped, and a bot's face is read from `avatarCode` and `avatarImageUrl`, never from the pool. Admins change a bot's look in the same avatar studio, on the admin advanced page (`PUT /v1/admin/soko-bots/{id}/avatar-code`). Old pool images stay in Blob until someone deletes the `soko-bots/avatars/` objects outside `code/`.

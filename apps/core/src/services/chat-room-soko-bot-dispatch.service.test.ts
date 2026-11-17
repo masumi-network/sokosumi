@@ -555,8 +555,8 @@ describe("a reclaimed mention whose turn already ended", () => {
     });
     expect(fenceErrors[0]?.event).toMatchObject({
       mention: { id: "mention-a" },
-      failure: { name: "Error" },
-      replyFailure: { name: "Error" },
+      failure: { errorName: "Error" },
+      replyFailure: { errorName: "Error" },
     });
     const drained = JSON.stringify(fenceErrors[0]?.event);
     expect(drained).not.toContain("transaction timeout");
