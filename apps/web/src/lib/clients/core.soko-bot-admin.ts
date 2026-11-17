@@ -24,7 +24,7 @@ import {
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
-  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
+  setAdminSokoBotAvatarCode as coreSetAdminSokoBotAvatarCode,
   updateAdminSokoBotVersion as coreUpdateAdminSokoBotVersion,
 } from "@sokosumi/core-client";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
@@ -59,16 +59,16 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     );
   }
 
-  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
+  async function setAdminSokoBotAvatarCode(sokoBotId: string, code: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreSetAdminSokoBotAvatar({
+        coreSetAdminSokoBotAvatarCode({
           client,
           path: { sokoBotId },
-          body: { avatarId },
+          body: { code },
         }),
-      "Failed to set Soko Bot avatar",
+      "Failed to set Soko Bot avatar code",
     );
   }
 
@@ -259,7 +259,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteAdminSokoBot,
-    setAdminSokoBotAvatar,
+    setAdminSokoBotAvatarCode,
     listAdminSokoBots,
     getAdminSokoBotQuality,
     getAdminSokoBotModelEvaluations,

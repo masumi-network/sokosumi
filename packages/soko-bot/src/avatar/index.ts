@@ -15,7 +15,6 @@ export {
   type AvatarLook,
   type AvatarSize,
   avatarCodeSchema,
-  closestAvatarLooks,
   featureOptions,
   formatAvatarCode,
   isReadable,

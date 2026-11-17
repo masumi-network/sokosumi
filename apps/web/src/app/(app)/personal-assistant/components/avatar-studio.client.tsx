@@ -331,6 +331,7 @@ export function AvatarStudioDialog({
   onOpenChange,
   initialCode,
   botId,
+  saveLook = (code) => setSokoBotAvatarCodeAction({ code, botId }),
   onSaved,
 }: {
   open: boolean;
@@ -338,7 +339,10 @@ export function AvatarStudioDialog({
   initialCode: string | null;
   /** A shared bot's id; absent for your own. */
   botId?: string;
-  onSaved: () => void | Promise<void>;
+  /** Saves the look; the admin page passes its own action. Defaults to the owner's. */
+  saveLook?: (code: string) => ReturnType<typeof setSokoBotAvatarCodeAction>;
+  /** Extra work after a save; the page itself is already refreshed. */
+  onSaved?: () => void | Promise<void>;
 }) {
   const t = useTranslations("App.SokoBot");
   const [code, setCode] = useState(initialCode);
@@ -353,7 +357,7 @@ export function AvatarStudioDialog({
   function save() {
     if (!code) return;
     startSaving(async () => {
-      const result = await setSokoBotAvatarCodeAction({ code, botId });
+      const result = await saveLook(code);
       if (!result.ok) {
         if (result.error.kind === AVATAR_CODE_TAKEN) setTaken(true);
         else toast.error(t("Avatar.saveError"));
@@ -361,7 +365,7 @@ export function AvatarStudioDialog({
       }
       toast.success(t("Avatar.saved"));
       onOpenChange(false);
-      await onSaved();
+      await onSaved?.();
     });
   }
 

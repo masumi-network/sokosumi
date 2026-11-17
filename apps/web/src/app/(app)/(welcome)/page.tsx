@@ -126,7 +126,6 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     sokoBot,
     lastFailure,
     summary,
-    avatars,
   } = await homeData;
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
@@ -189,7 +188,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   return (
     <>
       {landingNotice}
-      <SokoBotSetup avatars={avatars} />
+      <SokoBotSetup />
     </>
   );
 }
