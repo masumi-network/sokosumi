@@ -62,7 +62,7 @@ The live tree is `apps/core/src/`.
 
 **OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`. Hook and preview gotchas: [`docs/agents/auth.md`](../../docs/agents/auth.md).
 
-**CMO Projects are read-only** ([ADR 0066](../../docs/adr/0066-cmo-projects-are-read-only-in-sokosumi.md)): a new Project-scoped write route outside `/v1/cmo/**` applies the lock in `routes/v1/projects/cmo-project-lock.ts` and declares the 409 `cmo_project_read_only` in its OpenAPI; `cmo-lock-responses.openapi.test.ts` fails without it.
+**CMO Projects are read-only** ([ADR 0066](../../docs/adr/0066-cmo-projects-are-read-only-in-sokosumi.md)): a new Project-scoped write route outside `/v1/cmo/**` applies the lock (a path the matcher in `routes/v1/projects/cmo-project-lock.ts` covers, or a direct `requireNotCmoProject` call listed in `DIRECT_LOCKED` in `routes/v1/cmo-lock-responses.openapi.test.ts`) and declares the 409 `cmo_project_read_only` in its OpenAPI. That test checks only the routes it knows, so a route missing from both passes green while CMO Projects stay writable through it.
 
 Email rendering lives in `@sokosumi/email`, not under Core `lib/email` or `locales/`.
 

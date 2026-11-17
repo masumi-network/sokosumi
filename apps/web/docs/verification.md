@@ -2,7 +2,7 @@
 
 Read before claiming a Web layout, styling or navigation change works. Recipes run from a worktree with no login, cheapest first. Paths are relative to `apps/web/`.
 
-`agent-browser` runs Lightpanda: it has no layout engine or CSS, so it cannot judge anything visual. Use Playwright with Chrome or WebKit for screenshots, measurements and frame checks.
+`agent-browser` can run Chrome or Lightpanda (`"engine"` in `~/.agent-browser/config.json`; `navigator.userAgent` tells which). Lightpanda has no layout engine or CSS, so it cannot judge anything visual. Use Playwright with Chrome or WebKit for screenshots, measurements and frame checks.
 
 ## 1. Dump the real markup
 

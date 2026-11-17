@@ -508,7 +508,7 @@ export function MyComponent() {
 
 ## Browser Automation
 
-Use `agent-browser` for web automation. Run `agent-browser --help` for all commands. It runs Lightpanda, which has no layout or CSS: for screenshots, measurements and phone layout, follow [Verifying Web UI](docs/verification.md).
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands. With `"engine": "lightpanda"` in `~/.agent-browser/config.json` (`navigator.userAgent` reports `Lightpanda`) it has no layout or CSS: for screenshots, measurements and phone layout, follow [Verifying Web UI](docs/verification.md).
 
 Core workflow:
 
