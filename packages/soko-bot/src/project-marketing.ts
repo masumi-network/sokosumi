@@ -68,7 +68,8 @@ export const cmoBrandSectionSchema = z.object({
    */
   fix: z
     .object({
-      note: shortText,
+      /** Every correction waiting on the section, a no's statement with its note included. */
+      note: longText,
       /** When the owner asked, as an ISO time. */
       at: z.string().max(40),
       fixed: z.boolean(),

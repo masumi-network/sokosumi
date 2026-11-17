@@ -601,9 +601,21 @@ describe("Brand Brain fixes", () => {
       brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
     ).toBe("From 19 dollars. Teams pay per seat.");
 
-    // Cut to 400 from the start, the new correction would be lost.
+    // A no's fix, its statement and the owner's whole note, fits.
+    const no = `Not true: ${"s".repeat(400)} True instead: ${"n".repeat(400)}`;
+    brainFindUnique.mockResolvedValueOnce(waiting("From 19 dollars."));
+    await requestBrandBrainFix(PROJECT_ID, {
+      section: "pricing",
+      note: no,
+      at: new Date(asked),
+    });
+    expect(
+      brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
+    ).toBe(`From 19 dollars. ${no}`);
+
+    // Cut to fit, the new correction would be lost.
     brainUpdate.mockClear();
-    brainFindUnique.mockResolvedValueOnce(waiting("x".repeat(390)));
+    brainFindUnique.mockResolvedValueOnce(waiting("x".repeat(1990)));
     await expect(
       requestBrandBrainFix(PROJECT_ID, {
         section: "pricing",
@@ -650,6 +662,52 @@ describe("Brand Brain fixes", () => {
     // Asked while the turn wrote: the next change still has it.
     await rewrite("2026-11-10T10:01:00.000Z");
     expect(fixOf()).toMatchObject({ fixed: false });
+  });
+
+  it("keeps a no open on its question while its section's fix stays open", async () => {
+    const no = {
+      id: "q1",
+      section: "pricing" as const,
+      question: "Do you start at 9 dollars?",
+      statement: "Acme starts at 9 dollars.",
+      answer: "no" as const,
+      corrected: false,
+    };
+    const rewrite = (fixAt: string) => {
+      brainFindUnique.mockResolvedValueOnce({
+        body: {
+          ...essentials,
+          profile: {
+            ...sixteen,
+            pricing: {
+              ...sixteen.pricing,
+              fix: { note: "Not true.", at: fixAt, fixed: false },
+            },
+          },
+          questions: [no],
+        },
+      });
+      return saveBrandBrain(
+        PROJECT_ID,
+        {
+          sections: {
+            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
+          },
+        },
+        undefined,
+        { briefedAt: new Date(asked) },
+      );
+    };
+    const questionOf = () =>
+      brainUpsert.mock.lastCall?.[0].update.body.questions[0];
+
+    // Answered while the turn wrote: the turn never read it.
+    await rewrite("2026-11-10T10:01:00.000Z");
+    expect(questionOf()).toMatchObject({ corrected: false });
+
+    // In the turn's brief: the rewrite corrects it.
+    await rewrite("2026-11-10T09:59:00.000Z");
+    expect(questionOf()).toMatchObject({ corrected: true });
   });
 
   it("marks the fix done when its section is rewritten, and leaves the other 15 untouched", async () => {

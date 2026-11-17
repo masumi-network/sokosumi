@@ -23,7 +23,6 @@ import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
   brandBrainOpenFixes,
-  getBrandBrain,
   parseBrandBrain,
   requestBrandBrainFix,
   withdrawBrandBrainFix,
@@ -328,9 +327,19 @@ export async function fixCmoBrandSection(
     note: input.note,
     at: now,
   });
+  return startQueuedFix(cuso, input.userId, brandBrain, now);
+}
+
+/** Starts the fix just stored, unless Cuso is busy: then it waits for his turn to end. */
+async function startQueuedFix(
+  cuso: Cuso,
+  userId: string,
+  brandBrain: BrandBrain,
+  now: Date,
+): Promise<{ turnId: string } | { queued: true }> {
   try {
     const started = await startNextCmoChange(
-      { sokoBotId: cuso.sokoBotId, userId: input.userId },
+      { sokoBotId: cuso.sokoBotId, userId },
       now,
       { ...cuso, brandBrain },
     );
@@ -362,27 +371,36 @@ export async function answerCmoBrandQuestion(
   now: Date = new Date(),
 ): Promise<void> {
   const cuso = await requireCuso(input);
-  const stored = await getBrandBrain(cuso.projectId);
-  const asked = parseBrandBrain(stored?.body)?.questions.find(
-    (question) => question.id === input.questionId,
-  );
-  const answered = await answerBrandBrainQuestion(cuso.projectId, input);
-  // An earlier no's fix goes, so a changed answer never rewrites the section.
-  if (asked?.answer === "no") {
-    await withdrawBrandBrainFix(cuso.projectId, {
-      section: asked.section,
-      note: noFix(asked),
-    });
-  }
-  if (answered.answer !== "no") return;
-  // The answer is saved and the fix waits on its section, so a fix that
-  // cannot start now (no credits) runs when Cuso's next turn ends.
-  await fixCmoBrandSection(
-    { ...input, section: answered.section, note: noFix(answered) },
-    now,
-  ).catch((error: unknown) => {
-    if (!(error instanceof CmoConflictError)) throw error;
+  // The answer and its fix are one write: an answered no always waits on
+  // its section, so the next change picks it up.
+  const fixed = await prisma.$transaction(async (tx) => {
+    const { asked, answered } = await answerBrandBrainQuestion(
+      cuso.projectId,
+      input,
+      tx,
+    );
+    // An earlier no's fix goes, so a changed answer never rewrites the section.
+    if (asked.answer === "no") {
+      await withdrawBrandBrainFix(
+        cuso.projectId,
+        { section: asked.section, note: noFix(asked) },
+        tx,
+      );
+    }
+    if (answered.answer !== "no") return null;
+    return requestBrandBrainFix(
+      cuso.projectId,
+      { section: answered.section, note: noFix(answered), at: now },
+      tx,
+    );
   });
+  if (!fixed) return;
+  // A fix that cannot start now (no credits) runs when Cuso's next turn ends.
+  await startQueuedFix(cuso, input.userId, fixed, now).catch(
+    (error: unknown) => {
+      if (!(error instanceof CmoConflictError)) throw error;
+    },
+  );
 }
 
 /**

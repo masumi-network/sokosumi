@@ -86499,6 +86499,21 @@ export type AnswerCmoBrandBrainQuestionForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * A no whose fix does not fit beside the corrections already waiting on its section
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectError = AnswerCmoBrandBrainQuestionForProjectErrors[keyof AnswerCmoBrandBrainQuestionForProjectErrors];

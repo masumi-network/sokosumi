@@ -1,5 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { keepAnswers } from "@/helpers/question-answers";
+import prisma from "@/lib/db/prisma";
 import { detectSiteLanguage } from "@/lib/site-platform";
 import {
   brainFindUnique,
@@ -1647,6 +1656,24 @@ describe("changes after the plan", () => {
       await expect(
         startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
       ).resolves.toBeNull();
+    });
+
+    it("queues a no whose note is as long as a note may be, in the one write that saves the answer", async () => {
+      turnFindFirst.mockResolvedValue(turn("plan", 2));
+      const note = "From 19 dollars a month.".padEnd(400, ".");
+      const transaction = vi.spyOn(prisma, "$transaction");
+      onTestFinished(() => transaction.mockRestore());
+
+      await answer("no", note);
+
+      // The answer and its fix land together, or neither does.
+      expect(transaction).toHaveBeenCalledTimes(1);
+      const stored = brainUpdate.mock.lastCall?.[0].data.body;
+      expect(stored.questions[0]).toMatchObject({ answer: "no", note });
+      expect(stored.profile.pricing.fix).toMatchObject({
+        note: `Not true: Acme starts at 9 dollars a month. True instead: ${note}`,
+        fixed: false,
+      });
     });
 
     it("leaves a yes in its section and starts nothing", async () => {

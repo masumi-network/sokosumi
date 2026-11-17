@@ -26281,7 +26281,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26381,7 +26381,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26481,7 +26481,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26581,7 +26581,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26681,7 +26681,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26781,7 +26781,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26881,7 +26881,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -26981,7 +26981,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27081,7 +27081,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27181,7 +27181,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27281,7 +27281,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27381,7 +27381,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27481,7 +27481,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27581,7 +27581,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27681,7 +27681,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -27781,7 +27781,7 @@ export const BrandBrainSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -28569,7 +28569,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -28669,7 +28669,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -28769,7 +28769,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -28869,7 +28869,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -28969,7 +28969,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29069,7 +29069,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29169,7 +29169,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29269,7 +29269,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29369,7 +29369,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29469,7 +29469,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29569,7 +29569,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29669,7 +29669,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29769,7 +29769,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29869,7 +29869,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -29969,7 +29969,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -30069,7 +30069,7 @@ export const BrandBrainRequestSchema = {
                                         note: {
                                             type: 'string',
                                             minLength: 1,
-                                            maxLength: 400
+                                            maxLength: 2000
                                         },
                                         at: {
                                             type: 'string',
@@ -48952,7 +48952,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49052,7 +49052,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49152,7 +49152,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49252,7 +49252,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49352,7 +49352,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49452,7 +49452,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49552,7 +49552,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49652,7 +49652,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49752,7 +49752,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49852,7 +49852,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -49952,7 +49952,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -50052,7 +50052,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -50152,7 +50152,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -50252,7 +50252,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -50352,7 +50352,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',
@@ -50452,7 +50452,7 @@ export const CmoOverviewSchema = {
                                                 note: {
                                                     type: 'string',
                                                     minLength: 1,
-                                                    maxLength: 400
+                                                    maxLength: 2000
                                                 },
                                                 at: {
                                                     type: 'string',

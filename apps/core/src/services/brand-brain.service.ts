@@ -197,15 +197,23 @@ export async function saveStudioBrandCopy(
   });
 }
 
-/** The sections whose answer a save changed. */
+/**
+ * The sections whose answer a save changed, and whose fix it closed: a no
+ * answered while the turn wrote is still waiting, like its fix.
+ */
 function rewrittenSections(
   before: CmoBrandProfile,
   after: CmoBrandProfile,
 ): Set<CmoBrandSectionKey> {
   return new Set(
-    CMO_BRAND_SECTION_KEYS.filter(
-      (key) => after[key] && after[key]?.answer !== before[key]?.answer,
-    ),
+    CMO_BRAND_SECTION_KEYS.filter((key) => {
+      const section = after[key];
+      return (
+        section &&
+        section.answer !== before[key]?.answer &&
+        (!section.fix || section.fix.fixed)
+      );
+    }),
   );
 }
 
@@ -230,8 +238,11 @@ function withCorrections(
   });
 }
 
-/** A section's waiting correction, as the Brand Brain stores it. */
-const BRAND_FIX_NOTE_MAX = 400;
+/**
+ * A section's waiting corrections, as the Brand Brain stores them: room for
+ * a no's statement and the owner's whole note, twice over.
+ */
+const BRAND_FIX_NOTE_MAX = 2_000;
 
 /**
  * The owner says one section is wrong: the fix waits on that section until
@@ -241,8 +252,9 @@ const BRAND_FIX_NOTE_MAX = 400;
 export async function requestBrandBrainFix(
   projectId: string,
   input: { section: CmoBrandSectionKey; note: string; at?: Date },
+  db?: Prisma.TransactionClient,
 ): Promise<BrandBrain> {
-  return prisma.$transaction(async (tx) => {
+  const write = async (tx: Prisma.TransactionClient) => {
     const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
     const section = brain?.profile[input.section];
     if (!brain || !section) {
@@ -267,7 +279,8 @@ export async function requestBrandBrainFix(
     };
     await tx.brandBrain.update({ where: { projectId }, data: { body: fixed } });
     return fixed;
-  });
+  };
+  return db ? write(db) : prisma.$transaction(write);
 }
 
 /**
@@ -277,8 +290,9 @@ export async function requestBrandBrainFix(
 export async function withdrawBrandBrainFix(
   projectId: string,
   input: { section: CmoBrandSectionKey; note: string },
+  db?: Prisma.TransactionClient,
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  const write = async (tx: Prisma.TransactionClient) => {
     const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
     const section = brain?.profile[input.section];
     const fix = section?.fix;
@@ -305,7 +319,8 @@ export async function withdrawBrandBrainFix(
       where: { projectId },
       data: { body: withdrawn },
     });
-  });
+  };
+  await (db ? write(db) : prisma.$transaction(write));
 }
 
 /** The sections the owner fixed that Cuso has not rewritten yet. */
@@ -385,8 +400,9 @@ export async function confirmBrandBrain(
 export async function answerBrandBrainQuestion(
   projectId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
-): Promise<CmoBrandQuestion> {
-  return prisma.$transaction(async (tx) => {
+  db?: Prisma.TransactionClient,
+): Promise<{ asked: CmoBrandQuestion; answered: CmoBrandQuestion }> {
+  const write = async (tx: Prisma.TransactionClient) => {
     const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
     const question = brain?.questions.find(
       (candidate) => candidate.id === input.questionId,
@@ -437,8 +453,9 @@ export async function answerBrandBrainQuestion(
         },
       },
     });
-    return answered;
-  });
+    return { asked: question, answered };
+  };
+  return db ? write(db) : prisma.$transaction(write);
 }
 
 /** A saved profile section at a glance. */

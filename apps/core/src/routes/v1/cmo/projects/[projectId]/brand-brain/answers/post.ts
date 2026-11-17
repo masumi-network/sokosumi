@@ -32,6 +32,9 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet, or no such question"),
+    409: jsonErrorResponse(
+      "A no whose fix does not fit beside the corrections already waiting on its section",
+    ),
   },
 });
 
