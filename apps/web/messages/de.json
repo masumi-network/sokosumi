@@ -8746,6 +8746,8 @@
       "discardConfirm": "Änderungen verwerfen"
     },
     "Developer": {
+      "title": "Entwickler",
+      "sectionsLabel": "Entwicklerbereiche",
       "tabs": {
         "oauthClients": "OAuth-Clients",
         "apiKeys": "API-Keys",

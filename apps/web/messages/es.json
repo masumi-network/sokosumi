@@ -8746,6 +8746,8 @@
       "discardConfirm": "Descartar cambios"
     },
     "Developer": {
+      "title": "Desarrollador",
+      "sectionsLabel": "Secciones de desarrollador",
       "tabs": {
         "oauthClients": "Clientes OAuth",
         "apiKeys": "API Keys",
