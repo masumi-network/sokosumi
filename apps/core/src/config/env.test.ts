@@ -1,7 +1,6 @@
 import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
-import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import {
   isExplicitPreprod,
   resolveWebRelatedProjectFallbackHost,
@@ -26,14 +25,17 @@ function setSokoBotEnv(
   for (const [key, value] of Object.entries(values)) process.env[key] = value;
 }
 
-function expectInvalidEnvironment(message: string) {
-  const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+function expectInvalidEnvironment(
+  message: string,
+  start = "❌ Invalid environment variables",
+) {
+  const errors = expectConsole("error", start);
   vi.spyOn(process, "exit").mockImplementation((code) => {
     throw new Error(`process.exit(${code})`);
   });
 
   expect(() => validateEnv()).toThrow("process.exit(1)");
-  expect(JSON.stringify(consoleError.mock.calls)).toContain(message);
+  expect(JSON.stringify(errors)).toContain(message);
 }
 
 afterEach(() => {
@@ -44,6 +46,48 @@ afterEach(() => {
   }
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+});
+
+describe("automatic ad eval configuration", () => {
+  it("defaults off with bounded daily budgets", () => {
+    for (const key of [
+      "AD_EVALS_ENABLED",
+      "AD_EVALS_PAUSED",
+      "AD_EVALS_WORKSPACE_DAILY_LIMIT",
+      "AD_EVALS_GLOBAL_DAILY_USD",
+    ]) {
+      vi.stubEnv(key, undefined);
+    }
+    const env = validateEnv();
+    expect(env.AD_EVALS_ENABLED).toBe(false);
+    expect(env.AD_EVALS_PAUSED).toBe(false);
+    expect(env.AD_EVALS_WORKSPACE_DAILY_LIMIT).toBe(100);
+    expect(env.AD_EVALS_GLOBAL_DAILY_USD).toBe(10);
+  });
+
+  it("accepts the flag, kill switch and zero budgets", () => {
+    vi.stubEnv("AD_EVALS_ENABLED", "true");
+    vi.stubEnv("AD_EVALS_PAUSED", "true");
+    vi.stubEnv("AD_EVALS_WORKSPACE_DAILY_LIMIT", "0");
+    vi.stubEnv("AD_EVALS_GLOBAL_DAILY_USD", "0");
+    const env = validateEnv();
+    expect(env.AD_EVALS_ENABLED).toBe(true);
+    expect(env.AD_EVALS_PAUSED).toBe(true);
+    expect(env.AD_EVALS_WORKSPACE_DAILY_LIMIT).toBe(0);
+    expect(env.AD_EVALS_GLOBAL_DAILY_USD).toBe(0);
+  });
+
+  it.each([
+    ["AD_EVALS_ENABLED", "yes"],
+    ["AD_EVALS_PAUSED", "yes"],
+    ["AD_EVALS_WORKSPACE_DAILY_LIMIT", "-1"],
+    ["AD_EVALS_WORKSPACE_DAILY_LIMIT", "1.5"],
+    ["AD_EVALS_GLOBAL_DAILY_USD", "-1"],
+    ["AD_EVALS_GLOBAL_DAILY_USD", "Infinity"],
+  ])("rejects invalid %s", (key, value) => {
+    vi.stubEnv(key, value);
+    expectInvalidEnvironment(key);
+  });
 });
 
 describe("resolveWebRelatedProjectFallbackHost", () => {
@@ -272,6 +316,30 @@ describe("Newsletter environment", () => {
   );
 });
 
+describe("Polar environment", () => {
+  it("allows a deployment without Polar settings", () => {
+    vi.stubEnv("POLAR_ACCESS_TOKEN", undefined);
+    vi.stubEnv("POLAR_WEBHOOK_SECRET", undefined);
+    vi.stubEnv("POLAR_ENVIRONMENT", undefined);
+
+    const env = validateEnv();
+
+    expect(env.POLAR_ACCESS_TOKEN).toBeUndefined();
+    expect(env.POLAR_WEBHOOK_SECRET).toBeUndefined();
+    expect(env.POLAR_ENVIRONMENT).toBeUndefined();
+  });
+
+  it.each(["sandbox", "production"])("accepts the %s environment", (value) => {
+    vi.stubEnv("POLAR_ENVIRONMENT", value);
+    expect(validateEnv().POLAR_ENVIRONMENT).toBe(value);
+  });
+
+  it("rejects an unknown environment", () => {
+    vi.stubEnv("POLAR_ENVIRONMENT", "staging");
+    expectInvalidEnvironment("POLAR_ENVIRONMENT");
+  });
+});
+
 describe("CMO hire allowlist", () => {
   it.each([
     [undefined, []],
@@ -285,19 +353,31 @@ describe("CMO hire allowlist", () => {
     vi.stubEnv("CMO_HIRE_ALLOWLIST", value);
     expect(validateEnv().CMO_HIRE_ALLOWLIST).toEqual(entries);
   });
+
+  it("parses the subscription skip allowlist the same way", () => {
+    vi.stubEnv("CMO_SUBSCRIPTION_SKIP_ALLOWLIST", " Tester@Acme.io , @QA.io,");
+    expect(validateEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST).toEqual([
+      "tester@acme.io",
+      "@qa.io",
+    ]);
+  });
 });
 
 describe("Turnstile deployment configuration", () => {
-  let consoleWarn: MockInstance<typeof console.warn>;
+  const UNSET_WARNING =
+    "TURNSTILE_SECRET_KEY is unset in a deployed environment";
+  const TEST_SECRET_WARNING =
+    "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview";
 
   beforeEach(() => {
     vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
-    consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   it.each(["development", "production", "staging"])(
     "allows an omitted secret in Node %s",
     (nodeEnv) => {
+      // Only production counts as deployed here.
+      if (nodeEnv === "production") expectConsole("warn", UNSET_WARNING);
       vi.stubEnv("NODE_ENV", nodeEnv);
       vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
       expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
@@ -306,6 +386,7 @@ describe("Turnstile deployment configuration", () => {
   it.each(["production", "preview"])(
     "allows an omitted secret on Vercel %s",
     (vercelEnv) => {
+      expectConsole("warn", UNSET_WARNING);
       vi.stubEnv("VERCEL_ENV", vercelEnv);
       vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
       expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
@@ -317,14 +398,13 @@ describe("Turnstile deployment configuration", () => {
   });
 
   it("warns when the secret is omitted in a deployed environment", () => {
+    const warnings = expectConsole("warn", UNSET_WARNING);
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
 
     validateEnv();
 
-    expect(consoleWarn).toHaveBeenCalledWith(
-      expect.stringContaining("TURNSTILE_SECRET_KEY is unset"),
-    );
+    expect(warnings).toHaveLength(1);
   });
 
   it("refuses to boot production with the always-passes test secret", () => {
@@ -334,17 +414,24 @@ describe("Turnstile deployment configuration", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
 
-    expectInvalidEnvironment("always-passes testing secret");
+    expectInvalidEnvironment(
+      "always-passes testing secret",
+      "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret",
+    );
   });
 
   it("refuses to boot Vercel production with the always-passes test secret", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
 
-    expectInvalidEnvironment("always-passes testing secret");
+    expectInvalidEnvironment(
+      "always-passes testing secret",
+      "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret",
+    );
   });
 
   it("warns but boots on a preview holding the always-passes test secret", () => {
+    const warnings = expectConsole("warn", TEST_SECRET_WARNING);
     // Previews are throwaway, and a test key there is what lets an agent drive
     // the sign-in form without answering a human check. Failing would close
     // that door along with the hole.
@@ -354,9 +441,7 @@ describe("Turnstile deployment configuration", () => {
     expect(validateEnv().TURNSTILE_SECRET_KEY).toBe(
       TURNSTILE_ALWAYS_PASS_SECRET,
     );
-    expect(consoleWarn).toHaveBeenCalledWith(
-      expect.stringContaining("always-passes testing secret"),
-    );
+    expect(warnings).toHaveLength(1);
   });
 
   /**
@@ -368,6 +453,7 @@ describe("Turnstile deployment configuration", () => {
    * leaves NODE_ENV alone.
    */
   it("warns but boots on a Vercel preview, where NODE_ENV is production too", () => {
+    const warnings = expectConsole("warn", TEST_SECRET_WARNING);
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
@@ -375,9 +461,7 @@ describe("Turnstile deployment configuration", () => {
     expect(validateEnv().TURNSTILE_SECRET_KEY).toBe(
       TURNSTILE_ALWAYS_PASS_SECRET,
     );
-    expect(consoleWarn).toHaveBeenCalledWith(
-      expect.stringContaining("always-passes testing secret"),
-    );
+    expect(warnings).toHaveLength(1);
   });
 
   it("still refuses a Vercel production build holding the test secret", () => {
@@ -385,7 +469,10 @@ describe("Turnstile deployment configuration", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
 
-    expectInvalidEnvironment("always-passes testing secret");
+    expectInvalidEnvironment(
+      "always-passes testing secret",
+      "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret",
+    );
   });
 
   it("stays quiet about the test secret on a local machine", () => {
@@ -394,9 +481,7 @@ describe("Turnstile deployment configuration", () => {
 
     validateEnv();
 
-    expect(consoleWarn).not.toHaveBeenCalledWith(
-      expect.stringContaining("always-passes testing secret"),
-    );
+    // The console guard fails this test on any warning.
   });
 
   it("stays silent with a secret in a deployed environment", () => {
@@ -405,7 +490,7 @@ describe("Turnstile deployment configuration", () => {
 
     validateEnv();
 
-    expect(consoleWarn).not.toHaveBeenCalled();
+    // The console guard fails this test on any warning.
   });
 
   it("stays silent without a secret in local development", () => {
@@ -415,7 +500,7 @@ describe("Turnstile deployment configuration", () => {
 
     validateEnv();
 
-    expect(consoleWarn).not.toHaveBeenCalled();
+    // The console guard fails this test on any warning.
   });
 });
 

@@ -3,7 +3,13 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   checkChannelSlugAvailabilityAction,
@@ -55,7 +61,14 @@ function isDiscoverability(value: string): value is Discoverability {
   return value === "public" || value === "private" || value === "external";
 }
 
-export function CreateChannelDialog() {
+interface CreateChannelDialogProps {
+  /** Opens the dialog in place of the sidebar's `+`. */
+  trigger?: ReactNode;
+}
+
+export function CreateChannelDialog({
+  trigger,
+}: CreateChannelDialogProps = {}) {
   const t = useTranslations("App.Channels.CreateWizard");
   const tChannels = useTranslations("App.Channels");
   const tVisibility = useTranslations("App.Channels.Visibility");
@@ -224,13 +237,15 @@ export function CreateChannelDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={tChannels("createChannel")}
-          className={SIDEBAR_ICON_ACTION_CLASS}
-        >
-          <Plus className="size-4 md:size-3.5" aria-hidden />
-        </button>
+        {trigger ?? (
+          <button
+            type="button"
+            aria-label={tChannels("createChannel")}
+            className={SIDEBAR_ICON_ACTION_CLASS}
+          >
+            <Plus className="size-4 md:size-3.5" aria-hidden />
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent
         className="app-scrollbar max-h-[calc(100dvh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"

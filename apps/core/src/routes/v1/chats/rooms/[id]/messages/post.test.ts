@@ -168,6 +168,7 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 }));
 
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { expectConsole } from "@/test/console";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
@@ -570,6 +571,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
   );
 
   it("keeps invalidation independent of failed notification discovery", async () => {
+    expectConsole("error", "Failed to emit chat room message effects");
     const publishing = Promise.withResolvers<void>();
     publishChatRoomsChangedMock.mockReturnValueOnce(publishing.promise);
     userFindManyMock.mockRejectedValueOnce(
@@ -640,6 +642,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
   );
 
   it("publishes no invalidation when message creation rolls back", async () => {
+    expectConsole("error", "Error: transaction rolled back");
     prismaTransactionMock.mockRejectedValueOnce(
       new Error("transaction rolled back"),
     );

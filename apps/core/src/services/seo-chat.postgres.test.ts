@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { getEnv } from "@/config/env";
@@ -79,6 +80,15 @@ describe.skipIf(!enabled)(
       });
       await prisma.workspace.create({
         data: { id: outsideWorkspaceId, userId: outsideUserId },
+      });
+      await prisma.creditBucket.create({
+        data: {
+          organization: { connect: { id: organizationId } },
+          amount: convertCreditsToCents(100),
+          sourceTransaction: {
+            create: { organizationId, amount: convertCreditsToCents(100) },
+          },
+        },
       });
     });
     afterAll(async () => {

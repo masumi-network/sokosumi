@@ -183,6 +183,15 @@ export interface BillingLowBalanceEmailProps extends NotificationEmailProps {
   credits: number;
 }
 
+/** A Cuso's Project credits ran low (SOKD-246); the action opens CMO. */
+export interface CusoLowCreditsEmailProps extends NotificationEmailProps {
+  businessName: string;
+  credits: number;
+  cusoName: string;
+  /** When his plan grants its next month; null when none is coming. */
+  nextGrantAt: Date | null;
+}
+
 /** Payment failures stay in-app; Stripe already mailed those. */
 export type BillingFollowUpReason = "lowBalance";
 

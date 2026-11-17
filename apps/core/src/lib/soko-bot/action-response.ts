@@ -45,6 +45,8 @@ export const ACTION_LABELS: Record<string, string> = {
   delete_newsletter_issue: "Deleted newsletter issue",
   submit_newsletter_issue: "Submitted newsletter issue for approval",
   update_newsletter_settings: "Updated newsletter settings",
+  save_announcement: "Saved announcement draft",
+  publish_announcement: "Changed what every user sees",
   add_newsletter_subscriber: "Added newsletter subscriber",
   import_newsletter_subscribers: "Imported newsletter subscribers",
   add_newsletter_subscribers_from_contacts: "Added contacts to the newsletter",

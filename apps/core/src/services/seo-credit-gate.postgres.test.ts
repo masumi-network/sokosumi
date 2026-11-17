@@ -1,9 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import {
   requestSeoAnalysisSchema,
   type SeoActor,
@@ -14,7 +23,16 @@ import {
   releaseSeoMonitorRun,
 } from "./project-seo-monitor.service";
 import { requestProjectSeoAnalysis } from "./project-seo-operations.service";
-import { runTaskScheduleNow } from "./task-schedule.service";
+import {
+  createTaskSchedule,
+  runTaskScheduleNow,
+  updateTaskSchedule,
+} from "./task-schedule.service";
+
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -60,6 +78,7 @@ const rankings = () =>
 const fullAudit = () =>
   requestSeoAnalysisSchema.parse({
     kind: "audit_full",
+    fullAuditCredits: 750,
     pageIds: [pageId],
     countryCode: "US",
     languageCode: "en",
@@ -160,7 +179,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     ).rejects.toMatchObject({
       status: 422,
       message:
-        "Not enough credits. This check costs up to 150 credits and the balance is 149.",
+        "Not enough credits. This check requires 150 credits and the balance is 149.",
       cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
     });
     expect(await counts()).toEqual(before);
@@ -169,34 +188,167 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     expect(analysis.taskId).not.toBeNull();
   });
 
-  it("bounds a one-page full audit by its 50-credit page ceiling", async () => {
-    await setBalance(49n);
+  it("requires the fixed 750 credits before a one-page full audit", async () => {
+    await setBalance(749n);
     await expect(
       requestProjectSeoAnalysis(actor, fullAudit()),
     ).rejects.toMatchObject({ status: 422 });
-    await setBalance(50n);
+    await setBalance(750n);
     expect(
       (await requestProjectSeoAnalysis(actor, fullAudit())).taskId,
     ).not.toBeNull();
   });
 
-  it("bounds a multi-page full audit by its default USD 3 limit, 450 credits", async () => {
+  it("requires the same fixed 750 credits for a multi-page full audit", async () => {
     const twoPages = () => ({
       ...fullAudit(),
       pageIds: [pageId, secondPageId],
     });
-    await setBalance(449n);
+    await setBalance(749n);
     await expect(
       requestProjectSeoAnalysis(actor, twoPages()),
     ).rejects.toMatchObject({
       status: 422,
       message:
-        "Not enough credits. This check costs up to 450 credits and the balance is 449.",
+        "Not enough credits. This check requires 750 credits and the balance is 749.",
     });
-    await setBalance(450n);
+    await setBalance(750n);
     expect(
       (await requestProjectSeoAnalysis(actor, twoPages())).taskId,
     ).not.toBeNull();
+  });
+
+  it("keeps an approved legacy Task on its quoted terms after the price changes", async () => {
+    await setBalance(750n);
+    const created = await requestProjectSeoAnalysis(actor, fullAudit());
+    const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId: created.taskId! },
+    });
+    const packet = JSON.parse(JSON.stringify(analysis.request));
+    delete packet.price;
+    await prisma.projectSeoAnalysis.update({
+      where: { id: analysis.id },
+      data: { request: packet },
+    });
+    const task = await prisma.task.update({
+      where: { id: created.taskId! },
+      data: { description: `seo_audit: ${JSON.stringify(packet)}` },
+    });
+    await setBalance(49n);
+    await expect(
+      prisma.$transaction((tx) => requireSeoTaskStartBalance(tx, task)),
+    ).rejects.toMatchObject({ status: 422 });
+    await setBalance(50n);
+    await expect(
+      prisma.$transaction((tx) => requireSeoTaskStartBalance(tx, task)),
+    ).resolves.toBeUndefined();
+  });
+
+  it("checks the frozen 750-credit price again before provider work", async () => {
+    await setBalance(750n);
+    const created = await requestProjectSeoAnalysis(actor, fullAudit());
+    const task = await prisma.task.findUniqueOrThrow({
+      where: { id: created.taskId! },
+    });
+    await setBalance(749n);
+    await expect(
+      prisma.$transaction((tx) => requireSeoTaskStartBalance(tx, task)),
+    ).rejects.toMatchObject({ status: 422 });
+    await setBalance(750n);
+    await expect(
+      prisma.$transaction((tx) => requireSeoTaskStartBalance(tx, task)),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a stale full-audit price acknowledgement before dispatch", async () => {
+    await setBalance(1000n);
+    const before = await counts();
+    const stale = fullAudit();
+    delete stale.fullAuditCredits;
+    await expect(requestProjectSeoAnalysis(actor, stale)).rejects.toMatchObject(
+      { status: 409 },
+    );
+    expect(await counts()).toEqual(before);
+  });
+
+  it("keeps legacy monitor pricing on both scheduled release and Run now", async () => {
+    await setBalance(750n);
+    const monitor = await createProjectSeoMonitor(vars, actor, {
+      operationId: randomUUID(),
+      rule: {
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "AFTER",
+        targetRunCount: 3,
+      },
+      analysis: fullAudit(),
+    });
+    const stored = await prisma.taskSchedule.findUniqueOrThrow({
+      where: { id: monitor.id },
+    });
+    const marker = "seo_monitor: ";
+    const legacy = JSON.parse(stored.description!.slice(marker.length));
+    expect(legacy.analysis.fullAuditCredits).toBe(750);
+    delete legacy.analysis.fullAuditCredits;
+    const schedule = await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { description: marker + JSON.stringify(legacy) },
+    });
+    await expect(
+      createTaskSchedule(vars, {
+        operationId: randomUUID(),
+        name: "New legacy-price bypass",
+        description: schedule.description!,
+        visibility: "PUBLIC",
+        assigneeId: coworkerId,
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "UTC",
+          endsMode: "AFTER",
+          targetRunCount: 3,
+        },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    const ordinary = await createTaskSchedule(vars, {
+      operationId: randomUUID(),
+      name: "Ordinary schedule",
+      visibility: "PUBLIC",
+      assigneeId: coworkerId,
+      rule: {
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "AFTER",
+        targetRunCount: 3,
+      },
+    });
+    await expect(
+      updateTaskSchedule(vars, ordinary.id, {
+        expectedRevision: 0,
+        description: schedule.description!,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await setBalance(50n);
+    const run = await prisma.taskScheduleRun.findFirstOrThrow({
+      where: { scheduleId: monitor.id, state: "PLANNED" },
+    });
+    const released = await prisma.$transaction((tx) =>
+      releaseSeoMonitorRun(tx, schedule, run.id),
+    );
+    const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId: released!.id },
+    });
+    expect(analysis.request).not.toHaveProperty("price");
+    await prisma.task.update({
+      where: { id: released!.id },
+      data: { status: "COMPLETED" },
+    });
+    const manual = await runTaskScheduleNow(vars, monitor.id, {
+      expectedRevision: 0,
+    });
+    const manualAnalysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId: manual.run.releasedTaskId! },
+    });
+    expect(manualAnalysis.request).not.toHaveProperty("price");
   });
 
   it("checks a monitor at creation and rechecks the balance before each scheduled Run", async () => {

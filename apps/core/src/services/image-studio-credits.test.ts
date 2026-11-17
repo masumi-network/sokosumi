@@ -83,6 +83,7 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: vi.fn(),
     },
     project: { findUnique: vi.fn() },
+    projectImagePromptSnapshot: { upsert: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
   return { default: client };
@@ -139,15 +140,8 @@ import {
   failImageJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
-
-function pngBytes(width: number, height: number): Uint8Array {
-  const bytes = new Uint8Array(24);
-  bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
-  const data = new DataView(bytes.buffer);
-  data.setUint32(16, width);
-  data.setUint32(20, height);
-  return bytes;
-}
+import { expectConsole } from "@/test/console";
+import { pngBytes } from "@/test/image-bytes";
 
 const BASE_INPUT = {
   modelId: "gemini-flash",
@@ -197,6 +191,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     error: null,
     chargedCents: FLASH_1K_CENTS,
     transactionId: null,
+    idempotencyKey: BASE_INPUT.idempotencyKey,
     ...overrides,
   };
 }
@@ -408,6 +403,10 @@ describe("delivering an image is when the money moves", () => {
   });
 
   it("keeps the image and charges nothing when the balance no longer covers it", async () => {
+    expectConsole(
+      "error",
+      "[image-studio] delivered an image free: the balance no longer covered the quote",
+    );
     // Money must never cost somebody an image the platform has already paid fal
     // for. `prepareConsumption` cannot overdraw, so a balance that fell between
     // submit and delivery makes the debit throw — and letting that abort the
@@ -457,6 +456,7 @@ describe("delivering an image is when the money moves", () => {
 
 describe("a failed generation moves no money", () => {
   it("takes nothing when the provider refuses the submission", async () => {
+    expectConsole("warn", "[image-studio] provider refused a submission");
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
@@ -472,6 +472,7 @@ describe("a failed generation moves no money", () => {
   });
 
   it("takes nothing when fal's runner reports an error", async () => {
+    expectConsole("warn", "[image-studio] provider failed a generation");
     await failImageJob(
       "job-1",
       "provider_error",
@@ -485,6 +486,7 @@ describe("a failed generation moves no money", () => {
   });
 
   it("takes nothing when the request could not be prepared", async () => {
+    expectConsole("warn", "[image-studio] a generation could not be prepared");
     // A model fal withdrew between submit and send.
     const withdrawn = jobRow({ model: "fal-ai/withdrawn-last-year" });
     jobCreateMock.mockResolvedValue(withdrawn);

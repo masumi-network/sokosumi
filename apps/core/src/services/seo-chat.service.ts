@@ -2,6 +2,7 @@ import type {
   Prisma,
   SeoAuditChatTurn as StoredTurn,
 } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { generateText } from "ai";
 
 import { DAY_MS } from "@/config/constants";
@@ -17,6 +18,11 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
 import {
+  chargeSeoChatReply,
+  requireSeoChatBalance,
+  seoChatUsage,
+} from "@/lib/seo/chat-billing";
+import {
   availableSeoChatActions,
   parseSeoChatReply,
   SEO_CHAT_SYSTEM,
@@ -24,7 +30,6 @@ import {
   seoChatTaskActions,
 } from "@/lib/seo/chat-context";
 import { seoSharingFor, seoVisibilityFor } from "@/lib/seo/data-visibility";
-import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import {
@@ -49,9 +54,11 @@ const SEO_CHAT_MAX_OUTPUT_TOKENS = 3_000;
 const SEO_CHAT_HISTORY_MAX_CHARS = 16_000;
 const SEO_CHAT_AUTHOR_INCLUDE = {
   user: { select: { id: true, name: true } },
+  transaction: { select: { amount: true } },
 } as const;
 type TurnWithAuthor = StoredTurn & {
   user: { id: string; name: string | null };
+  transaction: { amount: bigint } | null;
 };
 
 function conversationWhere(actor: SeoActor, auditId: string) {
@@ -66,7 +73,11 @@ export interface SeoChatDeps {
   generate: (
     system: string,
     prompt: string,
-  ) => Promise<{ text: string; costUsd: number }>;
+  ) => Promise<{
+    text: string;
+    costUsd: number;
+    usage?: Prisma.InputJsonObject;
+  }>;
 }
 
 const defaultDeps: SeoChatDeps = {
@@ -81,9 +92,11 @@ const defaultDeps: SeoChatDeps = {
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(SEO_CHAT_TIMEOUT_MS),
     });
+    const usage = seoChatUsage(result);
     return {
       text: result.text,
-      costUsd: gatewayCostUsd(result.providerMetadata),
+      costUsd: usage.costUsd,
+      usage,
     };
   },
 };
@@ -115,6 +128,9 @@ function turnView(
           : "failed",
     scope: seoChatScopeSchema.parse(row.scopeSnapshot),
     createdAt: row.createdAt.toISOString(),
+    creditsCharged: row.transaction
+      ? convertCentsToCredits(-row.transaction.amount)
+      : null,
   };
 }
 
@@ -169,7 +185,9 @@ export async function sendSeoChat(
   const auditId = auditIdFor(actor);
   await requireSeoOwner(actor);
   const requestHash = sha256(JSON.stringify(input));
-  const workspace = await getProjectSeoWorkspace(actor, input.scope ?? {});
+  const workspace = await getProjectSeoWorkspace(actor, input.scope ?? {}, {
+    includePrivateIndexing: actor.organizationId === null,
+  });
   const scopeSnapshot = {
     name: workspace.scope.name,
     pageIds: workspace.scope.pageIds,
@@ -198,7 +216,7 @@ export async function sendSeoChat(
         throw conflict(
           "This chat request key was already used for another message",
         );
-      return { row: previous, fresh: false };
+      return { row: previous, fresh: false as const };
     }
     const now = new Date();
     const dayStart = new Date(now);
@@ -233,6 +251,13 @@ export async function sendSeoChat(
       select: { id: true },
     });
     if (active) throw conflict("An SEO chat reply is already in progress");
+    const owner = await requireSeoOwner(actor, tx);
+    const payer = {
+      userId: actor.userId,
+      organizationId: actor.organizationId,
+      projectId: owner.projectId,
+    };
+    await requireSeoChatBalance(tx, payer);
     const row = await tx.seoAuditChatTurn.create({
       data: {
         auditId,
@@ -248,7 +273,7 @@ export async function sendSeoChat(
       },
       include: SEO_CHAT_AUTHOR_INCLUDE,
     });
-    return { row, fresh: true };
+    return { row, fresh: true as const, payer };
   }, "The audit conversation changed. Try again.");
   if (!reservation.fresh)
     return turnView(
@@ -270,7 +295,7 @@ export async function sendSeoChat(
     const result = await deps.generate(
       SEO_CHAT_SYSTEM,
       JSON.stringify({
-        auditEvidence: seoChatContext(workspace),
+        auditEvidence: seoChatContext(workspace, seoSharingFor(actor)),
         history: historyPrompt(previous),
         question: input.question,
       }),
@@ -281,7 +306,7 @@ export async function sendSeoChat(
     const reply = parseSeoChatReply(
       result.text,
       workspace.availableActions.canRequestAnalysis,
-      seoChatTaskActions(workspace),
+      seoChatTaskActions(workspace, seoSharingFor(actor)),
     );
     return await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor);
@@ -298,11 +323,24 @@ export async function sendSeoChat(
           response: reply.reply,
           actions: reply.actions,
           costUsd: result.costUsd,
+          usage: {
+            ...result.usage,
+            billing: { projectId: reservation.payer.projectId },
+          },
           completedAt: new Date(),
         },
       });
       if (saved.count !== 1)
         throw conflict("The SEO chat reply expired. Send a new message.");
+      const transactionId = await chargeSeoChatReply(
+        tx,
+        reservation.payer,
+        result.costUsd,
+      );
+      await tx.seoAuditChatTurn.update({
+        where: { id: reservation.row.id },
+        data: { transactionId },
+      });
       const row = await tx.seoAuditChatTurn.findUniqueOrThrow({
         where: { id: reservation.row.id },
         include: SEO_CHAT_AUTHOR_INCLUDE,

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { expectConsole } from "@/test/console";
 
 const {
   acquireLockMock,
@@ -22,6 +23,8 @@ const {
   purgeExpiredTaskX402PaymentHeadersMock,
   purgeExpiredVerificationsMock,
   syncProjectClosesMock,
+  syncPolarYearlyGrantsMock,
+  retryOwedPolarRevokesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
 } = vi.hoisted(() => ({
@@ -30,6 +33,8 @@ const {
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
+  syncPolarYearlyGrantsMock: vi.fn(),
+  retryOwedPolarRevokesMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -156,6 +161,14 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/services/polar-yearly-grant-sync.service", () => ({
+  syncPolarYearlyGrants: syncPolarYearlyGrantsMock,
+}));
+
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  retryOwedPolarRevokes: retryOwedPolarRevokesMock,
+}));
+
 vi.mock("@/services/free-subscription-sync.service", () => ({
   freeSubscriptionSyncService: {
     renewLocalFreeSubscriptions: syncFreeSubscriptionRenewalMock,
@@ -274,7 +287,22 @@ describe("sync routes", () => {
       durationMs: 0,
     });
     syncSourceImportMock.mockResolvedValue(3);
-    syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
+    syncFreeSubscriptionRenewalMock.mockResolvedValue({
+      preCreated: 0,
+      renewalErrors: 0,
+      renewed: 0,
+      stoppedEarly: false,
+    });
+    syncPolarYearlyGrantsMock.mockResolvedValue({
+      errors: 0,
+      granted: 0,
+      stoppedEarly: false,
+    });
+    retryOwedPolarRevokesMock.mockResolvedValue({
+      errors: 0,
+      revoked: 0,
+      stoppedEarly: false,
+    });
     syncEnterpriseContractRenewalMock.mockResolvedValue({
       catchUpGranted: 0,
       completedContracts: 0,
@@ -548,6 +576,10 @@ describe("sync routes", () => {
   });
 
   it("still runs the registry sync when x402 readiness throws", async () => {
+    expectConsole(
+      "warn",
+      "[sync/agents] x402 buy-side readiness sync failed; continuing registry sync",
+    );
     // x402 readiness is advisory; the registry sync is this route's primary
     // job. An unhandled throw from the readiness refresh (e.g. its 10s abort
     // firing) must be swallowed so the registry replay still runs.
@@ -639,6 +671,46 @@ describe("sync routes", () => {
     expect(prismaTransactionMock.mock.calls[0]?.[1]).toEqual({
       isolationLevel: "Serializable",
     });
+  });
+
+  it("returns 200 and starts the CMO yearly grants sync and owed revokes exactly once in background", async () => {
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/polar-yearly-grants",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("polar-yearly-grants-sync");
+
+    await flushMicrotasks();
+    expect(syncPolarYearlyGrantsMock).toHaveBeenCalledTimes(1);
+    expect(syncPolarYearlyGrantsMock).toHaveBeenCalledWith(
+      expect.any(Function),
+    );
+    expect(retryOwedPolarRevokesMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Function),
+    );
+    // Grants first: revokes failing at Polar cannot take their time.
+    expect(syncPolarYearlyGrantsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retryOwedPolarRevokesMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("retries owed revokes even when the CMO yearly grants fail", async () => {
+    expectConsole("error", "Error in sync operation");
+    syncPolarYearlyGrantsMock.mockRejectedValue(new Error("catalog down"));
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/polar-yearly-grants",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(retryOwedPolarRevokesMock).toHaveBeenCalledOnce();
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {
@@ -753,6 +825,10 @@ describe("sync routes", () => {
   });
 
   it("releases source import lock when sync exceeds timeout budget", async () => {
+    expectConsole(
+      "warn",
+      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
+    );
     vi.useFakeTimers();
 
     try {
@@ -764,39 +840,36 @@ describe("sync routes", () => {
             });
           }),
       );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
 
-      try {
-        const app = createApp();
-        const response = await app.request(
-          "http://localhost/sync/source-import",
-          {
-            headers: {
-              Authorization: "Bearer test-cron-secret",
-            },
+      const app = createApp();
+      const response = await app.request(
+        "http://localhost/sync/source-import",
+        {
+          headers: {
+            Authorization: "Bearer test-cron-secret",
           },
-        );
+        },
+      );
 
-        expect(response.status).toBe(200);
-        await flushPromises();
-        expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(200);
+      await flushPromises();
+      expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
 
-        vi.advanceTimersByTime(4000);
-        await flushPromises();
+      vi.advanceTimersByTime(4000);
+      await flushPromises();
 
-        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-        expect(releaseLockMock).toHaveBeenCalledTimes(1);
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+      expect(releaseLockMock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
   });
 
   it("releases jobs lock when sync exceeds timeout budget", async () => {
+    expectConsole(
+      "warn",
+      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
+    );
     vi.useFakeTimers();
 
     try {
@@ -816,30 +889,23 @@ describe("sync routes", () => {
             });
           }),
       );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
 
-      try {
-        const app = createApp();
-        const response = await app.request("http://localhost/sync/jobs", {
-          headers: {
-            Authorization: "Bearer test-cron-secret",
-          },
-        });
+      const app = createApp();
+      const response = await app.request("http://localhost/sync/jobs", {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      });
 
-        expect(response.status).toBe(200);
-        await flushPromises();
-        expect(syncJobsMock).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(200);
+      await flushPromises();
+      expect(syncJobsMock).toHaveBeenCalledTimes(1);
 
-        vi.advanceTimersByTime(4000);
-        await flushPromises();
+      vi.advanceTimersByTime(4000);
+      await flushPromises();
 
-        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-        expect(releaseLockMock).toHaveBeenCalledTimes(1);
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+      expect(releaseLockMock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -990,6 +1056,10 @@ describe("sync routes", () => {
    * is not enough, because a fresh AbortController has the right shape.
    */
   it("hands the follow-up run the deadline its lock is held under", async () => {
+    expectConsole(
+      "warn",
+      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
+    );
     vi.useFakeTimers();
 
     try {
@@ -1164,6 +1234,10 @@ describe("sync routes", () => {
   });
 
   it("does not release guest invitation expiry lock when sync ignores cancellation", async () => {
+    expectConsole(
+      "warn",
+      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
+    );
     vi.useFakeTimers();
 
     try {
@@ -1173,45 +1247,7 @@ describe("sync routes", () => {
             // Intentionally never resolves.
           }),
       );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
 
-      try {
-        const app = createApp();
-        const response = await app.request(
-          "http://localhost/sync/chat-room-guest-invitations-expire",
-          {
-            headers: {
-              Authorization: "Bearer test-cron-secret",
-            },
-          },
-        );
-
-        expect(response.status).toBe(200);
-        await flushPromises();
-        expect(expireStalePendingInvitationsMock).toHaveBeenCalledTimes(1);
-
-        vi.advanceTimersByTime(4000);
-        await flushPromises();
-
-        expect(releaseLockMock).not.toHaveBeenCalled();
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("warns when guest invitation expiry lock ownership changed on release", async () => {
-    expireStalePendingInvitationsMock.mockResolvedValue(1);
-    releaseLockMock.mockResolvedValue(false);
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-
-    try {
       const app = createApp();
       const response = await app.request(
         "http://localhost/sync/chat-room-guest-invitations-expire",
@@ -1223,90 +1259,112 @@ describe("sync routes", () => {
       );
 
       expect(response.status).toBe(200);
-      await flushMicrotasks();
-      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("ownership changed"),
-      );
+      await flushPromises();
+      expect(expireStalePendingInvitationsMock).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(4000);
+      await flushPromises();
+
+      expect(releaseLockMock).not.toHaveBeenCalled();
     } finally {
-      consoleWarnSpy.mockRestore();
+      vi.useRealTimers();
     }
   });
 
+  it("warns when guest invitation expiry lock ownership changed on release", async () => {
+    expireStalePendingInvitationsMock.mockResolvedValue(1);
+    releaseLockMock.mockResolvedValue(false);
+    const warnings = expectConsole(
+      "warn",
+      "[sync/lock-key] Lock not released because ownership changed",
+    );
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/sync/chat-room-guest-invitations-expire",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+    expect(warnings).toContainEqual([
+      expect.stringContaining("ownership changed"),
+    ]);
+  });
+
   it("does not release lock when a long-running sync ignores cancellation", async () => {
+    expectConsole(
+      "warn",
+      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
+    );
     vi.useFakeTimers();
 
     try {
       syncRegistryAgentsMock.mockImplementation(
-        (_options: { abortSignal: AbortSignal }) =>
+        () =>
           new Promise<void>(() => {
             // Intentionally never resolves.
           }),
       );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
 
-      try {
-        const app = createApp();
-        const response = await app.request("http://localhost/sync/agents", {
-          headers: {
-            Authorization: "Bearer test-cron-secret",
-          },
-        });
+      const app = createApp();
+      const response = await app.request("http://localhost/sync/agents", {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      });
 
-        expect(response.status).toBe(200);
-        await flushPromises();
-        expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(200);
+      await flushPromises();
+      expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
 
-        vi.advanceTimersByTime(4000);
-        await flushPromises();
+      vi.advanceTimersByTime(4000);
+      await flushPromises();
 
-        expect(releaseLockMock).not.toHaveBeenCalled();
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(releaseLockMock).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
   });
 
   it("releases lock when a long-running sync cooperatively cancels", async () => {
+    expectConsole(
+      "warn",
+      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
+    );
     vi.useFakeTimers();
 
     try {
       syncRegistryAgentsMock.mockImplementation(
-        (options: { abortSignal: AbortSignal }) =>
+        (_metadataKey: string, options: { abortSignal: AbortSignal }) =>
           new Promise<void>((resolve) => {
             options.abortSignal.addEventListener("abort", () => {
               resolve();
             });
           }),
       );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
 
-      try {
-        const app = createApp();
-        const response = await app.request("http://localhost/sync/agents", {
-          headers: {
-            Authorization: "Bearer test-cron-secret",
-          },
-        });
+      const app = createApp();
+      const response = await app.request("http://localhost/sync/agents", {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      });
 
-        expect(response.status).toBe(200);
-        await flushPromises();
-        expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(200);
+      await flushPromises();
+      expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
 
-        vi.advanceTimersByTime(4000);
-        await flushPromises();
+      vi.advanceTimersByTime(4000);
+      await flushPromises();
 
-        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-        expect(releaseLockMock).toHaveBeenCalledTimes(1);
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+      expect(releaseLockMock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -1314,9 +1372,7 @@ describe("sync routes", () => {
 
   it("clears background timers when sync fails", async () => {
     vi.useFakeTimers();
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Error in sync operation");
 
     try {
       syncRegistryAgentsMock.mockRejectedValue(new Error("sync failed fast"));
@@ -1334,7 +1390,6 @@ describe("sync routes", () => {
       expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
       expect(vi.getTimerCount()).toBe(0);
     } finally {
-      consoleErrorSpy.mockRestore();
       vi.useRealTimers();
     }
   });

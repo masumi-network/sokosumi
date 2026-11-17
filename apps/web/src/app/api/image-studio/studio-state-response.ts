@@ -7,6 +7,7 @@ interface StudioStateQuery {
   assetId?: string;
   before?: string;
   beforeId?: string;
+  sort?: "newest" | "best";
 }
 
 /**
@@ -39,6 +40,7 @@ export async function studioStateResponse(
       assetId: url.searchParams.get("assetId") ?? undefined,
       before: url.searchParams.get("before") ?? undefined,
       beforeId: url.searchParams.get("beforeId") ?? undefined,
+      sort: url.searchParams.get("sort") === "best" ? "best" : "newest",
     });
     return NextResponse.json(state, {
       headers: { "cache-control": "no-store" },

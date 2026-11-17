@@ -88,6 +88,7 @@ const {
   transactionMock,
   turnFindUniqueMock,
   transactionChatMessageCreateMock,
+  transactionChatMessageFindFirstMock,
   transactionChatMentionCreateManyMock,
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
@@ -221,6 +222,7 @@ const {
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
   transactionChatMessageCreateMock: vi.fn(),
+  transactionChatMessageFindFirstMock: vi.fn(),
   transactionChatMentionCreateManyMock: vi.fn(),
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
@@ -697,6 +699,7 @@ import {
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 import * as scheduleService from "@/services/soko-bot-schedule.service";
+import { expectConsole } from "@/test/console";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
@@ -5528,6 +5531,7 @@ describe("post_chat chain depth", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -5687,6 +5691,30 @@ describe("post_chat chain depth", () => {
       }),
     ).rejects.toThrow(/rate limited/i);
 
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses the same text from this bot twice in an hour", async () => {
+    // Two follow-ups of one run both posted the weekly summary to Everyone.
+    const authorized = armPostChat(0);
+    transactionChatMessageFindFirstMock.mockResolvedValueOnce({ id: "msg_0" });
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_2",
+        roomId: "room_1",
+        content: "What changed last week",
+      }),
+    ).rejects.toThrow(/already posted this exact message/i);
+
+    expect(transactionChatMessageFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          content: "What changed last week",
+          deletedAt: null,
+        }),
+      }),
+    );
     expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
   });
 
@@ -5872,6 +5900,7 @@ describe("open_direct_chat", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -6307,6 +6336,7 @@ describe("ask_coworker", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -10473,6 +10503,7 @@ describe("Content Studio image tools", () => {
     });
 
     it("still reports the image when the copy fails", async () => {
+      expectConsole("warn", "[soko-bot] could not copy an image into Files");
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(

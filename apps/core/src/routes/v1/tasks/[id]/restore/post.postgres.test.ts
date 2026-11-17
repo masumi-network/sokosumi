@@ -7,6 +7,11 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGetTasks from "../../get";
 import mountPostTaskRestore from "./post";
 
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(

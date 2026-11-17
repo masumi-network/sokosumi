@@ -14,6 +14,9 @@ import {
   sanitizeHistoryTypeInput,
   sanitizeHistoryUuidInput,
 } from "@/app/history/utils/history-filters";
+import de from "../../../../../messages/de.json";
+import en from "../../../../../messages/en.json";
+import es from "../../../../../messages/es.json";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
@@ -40,6 +43,7 @@ describe("history-filters", () => {
       "task",
       "coworker",
       "sokoBot",
+      "seoChat",
       "contacts",
       "topUp",
       "unattributed",
@@ -177,5 +181,18 @@ describe("history-filters", () => {
       getHistoryFiltersResetKey({ ...base, taskId: TASK_ID }, "org-1"),
     ).not.toBe(key);
     expect(getHistoryFiltersResetKey(base, null)).not.toBe(key);
+  });
+});
+
+describe("history source labels", () => {
+  it.each([
+    ["en", en],
+    ["de", de],
+    ["es", es],
+  ])("%s names every source the filter offers", (_locale, messages) => {
+    const kinds = messages.App.TransactionHistory.Row.kind;
+    for (const type of HISTORY_TYPE_VALUES) {
+      expect(kinds).toHaveProperty(type);
+    }
   });
 });

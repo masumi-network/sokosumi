@@ -1,5 +1,6 @@
 import {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_FOLLOW_UP_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
@@ -358,6 +359,25 @@ describe("getNotificationHref", () => {
         }),
       ).toBe("/billing?tab=credits");
     }
+  });
+
+  it("opens CMO's top-up and plan screen for a Cuso that ran low, never Sokosumi's billing", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "project-1",
+        messageKey: BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
+        metadata: { url: "https://app.cmo.xyz/settings?project=project-1" },
+      }),
+    ).toBe("https://app.cmo.xyz/settings?project=project-1");
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "project-1",
+        messageKey: BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
+        metadata: { url: "javascript:alert(1)" },
+      }),
+    ).toBe("/");
   });
 
   it("opens the subscription tab for a payment or a plan that ends", () => {

@@ -154,7 +154,8 @@ export function findImageModelForEndpoint(endpoint: string): ImageModel | null {
     resolvedModels.find(
       (candidate) =>
         candidate.generateEndpoint === endpoint ||
-        candidate.editEndpoint === endpoint,
+        candidate.editEndpoint === endpoint ||
+        candidate.inpaintEndpoint === endpoint,
     ) ?? null
   );
 }

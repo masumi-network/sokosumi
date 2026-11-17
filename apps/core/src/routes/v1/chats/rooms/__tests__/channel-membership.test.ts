@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
+import { expectConsole } from "@/test/console";
 import mountDeleteChatRoomCoworker from "../[id]/coworkers/[coworkerId]/delete";
 import mountDeleteChatRoomMember from "../[id]/members/[userId]/delete";
 import mountPostChatRoomMembers from "../[id]/members/post";
@@ -739,6 +739,7 @@ describe("channel membership authorization and concurrency", () => {
   );
 
   it("keeps other after-commit effects independent when timeline publication fails", async () => {
+    expectConsole("error", "Failed to publish channel membership change");
     asRole("admin");
     mocks.publishStatus.mockRejectedValue(new Error("timeline unavailable"));
     expect(

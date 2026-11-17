@@ -15,6 +15,11 @@ const external = vi.hoisted(() => ({
   driveHead: vi.fn(),
 }));
 
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -75,6 +80,7 @@ import {
   studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
 import { settleWithMedia } from "@/services/image-studio-jobs.service";
+import { expectConsole } from "@/test/console";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -397,6 +403,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         batchId,
         product: { id: product.id, name: product.name },
         exportHeadline: index === 0 ? approvedLine : secondApprovedLine,
+        lettering: "overlay",
         modelId: "muse-image",
         settings: { aspectRatio },
         prompt: productBrief(product),
@@ -601,6 +608,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         body: JSON.stringify({
           ...refinement,
           aspectRatio: "9:16",
+          lettering: "overlay",
           idempotencyKey: randomUUID(),
         }),
       });
@@ -617,6 +625,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           referenceAssetIds: [parentAssetId],
           batchId: explicitBatchId,
           product,
+          lettering: "overlay",
           settings: { aspectRatio: "9:16" },
           idempotencyKey: randomUUID(),
         }),
@@ -737,6 +746,12 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
   });
 
   it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {
+    // Refused twice before it is accepted: no transparency, then a changed file.
+    expectConsole(
+      "warn",
+      "[image-studio] a generation could not be prepared",
+      2,
+    );
     const path = `/${projectId}/image-studio`;
     const studio = app();
     const width = 20;

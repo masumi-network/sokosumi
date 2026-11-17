@@ -1591,19 +1591,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Origen",
         "projectLabel": "Proyecto",
-        "typeOptions": {
-          "job": "Job de agente",
-          "image": "Imagen",
-          "task": "Tarea",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "topUp": "Recarga",
-          "unattributed": "Otros"
-        }
+        "activeCount": "{count, plural, =1 {1 activo} other {# activos}}",
+        "activeFilters": "Filtros activos",
+        "chip": "{label}: {value}",
+        "removeFilter": "Quitar filtro {filter}",
+        "clearAll": "Quitar todos",
+        "searchLabel": "Búsqueda"
       },
       "Empty": {
         "title": "Aún no hay transacciones",
         "description": "Cada ejecución de job, generación de imagen, demás consumos de créditos y recargas aparecerán aquí."
+      },
+      "EmptyFiltered": {
+        "title": "No hay transacciones coincidentes",
+        "description": "Nada coincide con estos filtros.",
+        "searchTitle": "No hay resultados para «{query}»",
+        "searchDescription": "Revisa la ortografía o prueba otra búsqueda.",
+        "clear": "Borrar filtros"
       },
       "List": {
         "loadMore": "Cargar más",
@@ -1620,6 +1624,7 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "Chat de SEO",
           "topUp": "Recarga",
           "unattributed": "Otros",
           "contacts": "Buscar personas"
@@ -4521,6 +4526,14 @@
       "approvedHeadline": "Titular aprobado",
       "noHeadline": "Sin titular",
       "headlineHint": "Studio guarda este titular en el anuncio y lo usa en los archivos PNG y ZIP.",
+      "headlineLettering": "Rotulación del titular",
+      "letteringOverlay": "Fuente exacta superpuesta",
+      "letteringIdeogram": "Rotulación con Ideogram",
+      "letteringOverlayHint": "Añade el titular después de generar la imagen. Para una fuente exacta.",
+      "letteringIdeogramHint": "Gemini Pro crea la escena y Ideogram v3 rota el titular. Dos generaciones de pago. Si la rotulación falla, se añade la fuente exacta de la marca.",
+      "letteringEditHint": "Edita la escena existente con Ideogram v3. Una generación de pago.",
+      "letteringPlan": "Gemini Pro + Ideogram v3 · dos generaciones por anuncio",
+      "letteringPlanCredits": "Gemini Pro: {sceneCredits} + Ideogram v3: {letteringCredits} = {credits} créditos",
       "headlineLoading": "Cargando titulares aprobados…",
       "headlineLoadFailed": "No se pudieron cargar los titulares aprobados.",
       "useApprovedHeadlines": "Usar titulares aprobados",
@@ -4568,6 +4581,26 @@
       "archiveImageLimit": "Selecciona hasta {count} imágenes por archivo ZIP.",
       "archiveSizeLimit": "Selecciona imágenes que en total ocupen {size} MiB o menos.",
       "archiveDownloadFailed": "No se pudo descargar el archivo ZIP. Vuelve a intentarlo o descarga las imágenes por separado.",
+      "Pairwise": {
+        "title": "Comparar anuncios",
+        "hint": "Elige el mejor anuncio. Los modelos se muestran después de tu elección.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Empate",
+        "bothBad": "Ambos malos",
+        "done": "Listo",
+        "loadFailed": "No se pudieron cargar las comparaciones. Inténtalo de nuevo.",
+        "saveFailed": "No se pudo guardar la comparación. Inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "loading": "Cargando comparaciones…",
+        "saved": "Elección guardada",
+        "bestModels": "Tus mejores modelos",
+        "loadingScores": "Cargando modelos…",
+        "scoreboardFailed": "No se pudieron cargar los modelos. Inténtalo de nuevo.",
+        "scoreboardEmpty": "Compara anuncios para encontrar tus mejores modelos.",
+        "modelStats": "{percent}% de victorias · {count, plural, one {# elección} other {# elecciones}}",
+        "smallSample": "Resultados iniciales · menos de {count} elecciones"
+      },
       "compare": "Comparar",
       "version": "Versión",
       "generating": "Generando",
@@ -4756,7 +4789,27 @@
         "processedMegapixels": "megapíxel procesado"
       },
       "creditsCheckedOn": "Precio comprobado el {date}",
-      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
+      "letteringFallbackHint": "La rotulación con Ideogram no está disponible, así que Studio añadirá el titular con la fuente exacta de la marca.",
+      "Rating": {
+        "label": "Valorar anuncio",
+        "up": "Me gusta",
+        "down": "No me gusta",
+        "reasons": "Motivos (opcional)",
+        "offBrand": "No refleja la marca",
+        "badText": "Texto deficiente",
+        "wrongProduct": "Producto incorrecto",
+        "ugly": "Poco atractivo",
+        "great": "Excelente",
+        "comment": "Comentario (opcional)",
+        "more": "Más acciones del anuncio",
+        "hide": "Ocultar anuncio",
+        "sort": "Ordenar anuncios",
+        "newest": "Más recientes",
+        "best": "Mejores primero",
+        "saveFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+        "hideFailed": "No se pudo ocultar el anuncio. Inténtalo de nuevo."
+      }
     },
     "Ads": {
       "title": "Anuncios",
@@ -5541,7 +5594,8 @@
       "actions": {
         "confirm": "Confirmar",
         "seeMore": "Ver más",
-        "openLink": "Abrir enlace"
+        "openLink": "Abrir enlace",
+        "close": "Cerrar"
       },
       "errors": {
         "acknowledgeFailed": "No se pudo confirmar el aviso"
@@ -9633,6 +9687,10 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
+        "firstCatchUpTitle": "Todavía no hay nada pendiente",
+        "firstCatchUpDescription": "Cuando la gente hable en tus canales y chats, aquí verás lo esencial y todo lo que te espera.",
+        "firstCatchUpCreateChannel": "Crear un canal",
+        "firstCatchUpMessageTeammate": "Escribir a un compañero",
         "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje, pasa el cursor por encima y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
@@ -11700,7 +11758,7 @@
       "runAnalysis": "Iniciar comprobación",
       "runFullAudit": "Iniciar auditoría completa",
       "runPageCheck": "Iniciar comprobación de página",
-      "manageStatistics": "Gestionar estadísticas de Google",
+      "manageStatistics": "Conexiones de Google",
       "syncStatistics": "Sincronizar estadísticas",
       "noPages": "Añade una página para empezar",
       "noPagesBody": "Las páginas definen qué abarcan las comprobaciones y las estadísticas.",
@@ -11723,13 +11781,16 @@
         "rankings": "Posiciones"
       },
       "overview": {
+        "privateFinding": "Solo tú puedes ver este hallazgo.",
+        "relatedFindingPage": "Página relacionada",
         "measurements": "Tráfico",
         "not_connected": "Todavía no hay estadísticas de tráfico guardadas para estas páginas. Elige una cuenta para cargarlas.",
         "unavailable": "Las estadísticas no están disponibles. Revisa aquí la conexión e inténtalo de nuevo.",
         "partial": "Faltan algunas estadísticas. Abre cada fuente para ver cuáles.",
         "available": "Hay estadísticas disponibles para los periodos indicados.",
         "priority": "Acciones recomendadas",
-        "findings": "Problemas aún sin solución",
+        "findings": "Hallazgos de la auditoría",
+        "suggestedFix": "Corrección sugerida",
         "audits": "Resultados capturados",
         "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
         "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
@@ -11798,10 +11859,10 @@
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
         "changeMarker": "Cambio registrado el {day}: {changes}",
         "points": "{value} p. p.",
-        "googleUpdate": "Google: {name}, del {from} al {to}",
-        "googleUpdateOpen": "Google: {name}, del {from} al {to}, aún en despliegue",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}"
+        "googleUpdate": "{name}: del {from} al {to}",
+        "googleUpdateOpen": "{name}: desde el {from}, en curso",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Actualizaciones de Google a fecha del {day}"
       },
       "keywords": {
         "title": "Palabras clave",
@@ -12110,7 +12171,9 @@
         "desktop": "Ordenador",
         "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
         "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
+        "fixedCredits": "{credits, plural, =1 {# crédito} other {# créditos}}",
         "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
+        "fixedCreditsPerRun": "{credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
@@ -12122,6 +12185,7 @@
         "failed": "Fallida",
         "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
         "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
+        "relatedPages": "También comprueba la indexación de páginas relevantes de este sitio, hasta {count} páginas en total. Las auditorías completas cubren solo las páginas seleccionadas.",
         "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
         "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
         "returnToAudit": "Volver a la auditoría",
@@ -12135,8 +12199,8 @@
         "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas."
       },
       "statistics": {
-        "title": "Estadísticas de Google",
-        "description": "Las estadísticas se cargan automáticamente para las páginas seleccionadas. Elige una propiedad solo cuando sea necesario.",
+        "title": "Conexiones de Google",
+        "description": "Conecta tus fuentes de Google. Las estadísticas de las páginas seleccionadas se cargan automáticamente.",
         "provider": "Fuente",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12150,17 +12214,20 @@
         "propertiesLoading": "Cargando propiedades autorizadas",
         "propertiesFailed": "No se pudieron cargar las propiedades. Inténtalo de nuevo.",
         "noProperties": "No hay propiedades autorizadas disponibles.",
-        "ownerOnly": "Las estadísticas usan tu cuenta conectada y sus permisos.",
+        "ownerOnly": "Sokosumi lee las estadísticas solo con tu acceso de Google.",
         "shared": "Las estadísticas guardadas se comparten en esta auditoría de tu organización. Tu cuenta de Google sigue bajo tu control.",
         "synced": "Estadísticas sincronizadas",
         "readsSearch": "Lee los últimos {days} días de datos de búsqueda de Google.",
         "readsOrganic": "Lee los últimos {days} días de tráfico de búsqueda orgánica.",
         "readsAll": "Lee los últimos {days} días de todo el tráfico del sitio.",
         "channelAny": "Todos los segmentos medidos",
-        "connectTitle": "Configurar estadísticas",
-        "connectFirst": "Conecta {provider}. Las estadísticas de los últimos 90 días se cargarán automáticamente.",
         "channelAiAssistant": "Asistentes de IA (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Lee los últimos {days} días de visitas desde asistentes de IA como ChatGPT, Gemini y Copilot."
+        "readsAiAssistant": "Lee los últimos {days} días de visitas desde asistentes de IA como ChatGPT, Gemini y Copilot.",
+        "measures": {
+          "search_console": "Búsquedas, clics y posiciones en la Búsqueda de Google",
+          "ga4": "Visitas y páginas vistas en tu sitio"
+        },
+        "propertyNotMatching": "No cubre las páginas seleccionadas, así que no se cargan estadísticas de ella."
       },
       "metrics": {
         "page_views": "Vistas de página",
@@ -12327,6 +12394,9 @@
         "open": "Abrir {action}",
         "auditRequired": "Abre una auditoría para preguntar al agente SEO.",
         "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
+        "insufficientCredits": "No tienes suficientes créditos para esta respuesta. Añade créditos e inténtalo de nuevo.",
+        "usagePricing": "Las respuestas consumen créditos según el uso del modelo.",
+        "creditsCharged": "{credits, number, :: .##########} créditos usados",
         "createTask": "Crear borrador de tarea: {title}",
         "showMore": "Mostrar la pregunta completa",
         "showLess": "Mostrar menos",
@@ -12372,7 +12442,14 @@
         "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría.",
         "connectGoogle": "Conectar Google",
         "analyticsNext": "Google pide tu aprobación dos veces: primero para Search Console y después para Google Analytics.",
-        "analyticsOff": "Google Analytics no está conectado. Las visitas y las páginas vistas quedan vacías."
+        "connectShort": "Conectar",
+        "connectedShort": "Conectado",
+        "googleAccount": "Cuenta de Google",
+        "noneConnected": "Aún no hay ninguna fuente conectada",
+        "options": "Opciones de la cuenta de Google",
+        "settings": "Ajustes de estadísticas",
+        "switchFor": "Cambiar de cuenta: {provider}",
+        "notConnected": "No conectado"
       },
       "unavailableTitle": "SEO no está disponible en este Workspace",
       "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
@@ -12530,6 +12607,20 @@
           "device": "Google indica el dispositivo solo para {listed, number} de tus {total, number} impresiones.",
           "both": "Google indica el país y el dispositivo solo para {listed, number} de tus {total, number} impresiones."
         }
+      },
+      "indexReview": {
+        "title": "Notas sobre la indexación",
+        "help": "Estas páginas necesitan una decisión o más evidencia. Las notas explican qué pudo verificar el agente.",
+        "checked": "Revisado",
+        "state": {
+          "review": "Revisión necesaria",
+          "expected_exclusion": "Exclusión esperada",
+          "unavailable": "Sin revisar"
+        },
+        "suggestedFix": "Siguiente paso sugerido",
+        "evidence": "Ver evidencia",
+        "unavailableEvidence": "Google Search Console o la auditoría no proporcionaron evidencia suficiente.",
+        "sources": "Fuentes: Google Search Console y esta auditoría."
       },
       "index": {
         "title": "Índice de Google",
@@ -12738,8 +12829,8 @@
       },
       "improve": {
         "catalog": {
-          "title": "Lo que el agente aún no puede hacer",
-          "help": "Funciones que el agente SEO aún no tiene."
+          "title": "Limitaciones del agente",
+          "help": "Qué revisa el agente, qué falta y qué debes hacer por tu cuenta."
         },
         "groups": {
           "technical": "Técnica",
@@ -12756,8 +12847,19 @@
         "requestText": "Solicitud de función para el agente SEO, punto {id}: {title}. Lo que falta: {missing}",
         "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
         "copyFailed": "No se pudo copiar la solicitud.",
+        "summary": {
+          "title": "Qué puedes esperar",
+          "site": "Las revisiones cubren las páginas seleccionadas. Un rastreo completo o una revisión de migración requiere trabajo adicional.",
+          "content": "El agente sugiere cambios en las páginas. No incluye artículos completos ni planes de contenido de todo el sitio.",
+          "research": "No incluye investigación detallada de enlaces, posiciones por ciudad ni seguimiento de contactos.",
+          "measurement": "Las reseñas del negocio, menciones de marca en IA, ingresos e impacto de cada cambio no se miden por completo.",
+          "publishing": "Tú aplicas los cambios, vuelves a revisar las correcciones y compartes informes con clientes."
+        },
         "gaps": {
-          "title": "Lo que esta auditoría no pudo ver",
+          "noSearchTraffic": "Las estadísticas de tráfico de búsqueda aún no están disponibles. Los resultados de indexación aparecen en esta auditoría.",
+          "statisticsIncomplete": "Faltan algunas estadísticas de Google. El agente solo puede evaluar los datos disponibles.",
+          "checksIncomplete": "Algunas revisiones no dieron resultados. Esta auditoría puede pasar por alto problemas.",
+          "title": "Datos que faltan en la auditoría",
           "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
           "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
           "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",
@@ -12789,7 +12891,7 @@
         "fix": {
           "connect_search_console": "Configurar estadísticas",
           "connect_ga4": "Configurar estadísticas",
-          "sync": "Gestionar estadísticas de Google",
+          "sync": "Conexiones de Google",
           "run_check": "Iniciar comprobación"
         },
         "items": {
@@ -13268,6 +13370,7 @@
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",
+        "cusoLowCredits": "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",
         "paymentFailed": "Un pago de suscripción falló",
         "creditsAdded": "Se añadieron {credits} créditos a tu saldo",
         "subscriptionEnding": "Tu suscripción termina al final del periodo actual",

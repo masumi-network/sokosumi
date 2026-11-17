@@ -128,6 +128,30 @@ const STORY_AD = STUDIO_TEMPLATES.find(
 ) as (typeof STUDIO_TEMPLATES)[number];
 
 describe("starting from a template", () => {
+  it("sends the selected template and clears it for a fresh brief", () => {
+    mocks.enqueue.mockClear();
+    mount();
+    pickTemplate("social-post");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    // Fill the template slots first; generate refuses a brief that still has them.
+    fireEvent.change(prompt, {
+      target: {
+        value:
+          "Create a lifestyle feed ad for iced oat latte aimed at home cooks. Show the product being used in a morning kitchen with warm natural daylight. Make a calm start to the day clear through the scene. Leave a quiet area for the headline and use only approved claims.",
+      },
+    });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+
+    expect(mocks.enqueue.mock.calls[0][0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ templateId: "social-post" }),
+      ]),
+    );
+    fireEvent.change(prompt, { target: { value: "A fresh campaign brief" } });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(mocks.enqueue.mock.calls[1][0][0].templateId).toBeUndefined();
+  });
+
   it("offers every template, in the order they are declared", () => {
     mount();
 

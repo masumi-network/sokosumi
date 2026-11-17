@@ -7,6 +7,7 @@ import messages from "@/messages/en.json";
 
 const {
   adsServiceMock,
+  connectionMock,
   hasAnyScopeProjectMock,
   notFoundMock,
   projectServiceMock,
@@ -15,6 +16,7 @@ const {
   setScopeCreateOpenMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn() },
+  connectionMock: vi.fn(async () => undefined),
   hasAnyScopeProjectMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -25,9 +27,17 @@ const {
   setScopeCreateOpenMock: vi.fn(),
 }));
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("next/server", () => ({ connection: connectionMock }));
 
-vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next/navigation", async () => ({
+  ...(await vi.importActual<typeof import("next/navigation")>(
+    "next/navigation",
+  )),
+  notFound: notFoundMock,
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
@@ -307,6 +317,16 @@ describe("AdsPage", () => {
         expect(screen.queryByTestId("ads-market")).not.toBeInTheDocument();
       },
     );
+  });
+
+  // The project and accounts are cached, so a link prefetch carries the page.
+  it("renders the scoped project without deferring to the request", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("ads-tabs")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

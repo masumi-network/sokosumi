@@ -492,7 +492,8 @@ async function refreshAfterTaskCompleted({
 }: RefreshProjectMemoryInput): Promise<ProjectMemoryRefreshResult> {
   const env = getEnv();
   if (!isProjectMemoryConfigured(env)) {
-    console.warn(
+    // A supported setup (local, previews): the refresh is off, not broken.
+    console.info(
       "Project memory refresh skipped: AI Gateway or Blob storage is not configured",
     );
     return { status: "skipped", reason: "missing_configuration" };

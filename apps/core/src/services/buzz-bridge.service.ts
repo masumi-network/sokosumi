@@ -2624,7 +2624,11 @@ export function buzzTextOf(message: {
     skills.length > 0 &&
       `Skills: ${skills.map((skill) => skill.name).join(", ")}`,
     results
-      .map(({ data }) => `[${RESULT_LABEL[data.kind]} ↗](${data.sourceHref})`)
+      .flatMap(({ data }) =>
+        data.state === "available"
+          ? [`[${RESULT_LABEL[data.kind]} ↗](${data.sourceHref})`]
+          : [],
+      )
       .join(" · "),
   ]
     .filter(Boolean)

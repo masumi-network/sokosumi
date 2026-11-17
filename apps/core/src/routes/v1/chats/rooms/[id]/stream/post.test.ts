@@ -11,7 +11,7 @@ import {
 } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-
+import { expectConsole } from "@/test/console";
 import mountPostRoomStream from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -1273,6 +1273,10 @@ describe("POST /chats/rooms/{id}/stream", () => {
     });
 
     it("releases the stream lock when the UI stream errors before finish", async () => {
+      expectConsole(
+        "error",
+        "Coworker chat UI stream error (POST /rooms/{id}/stream)",
+      );
       roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
       const waitUntilPromises: Promise<unknown>[] = [];
       waitUntilMock.mockImplementation((promise: Promise<unknown>) => {

@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 
+import { installConsoleGuard } from "./console";
 import { workerDatabaseUrl } from "./worker-database-url";
 
 const envDefaults: Record<string, string> = {
@@ -9,6 +10,9 @@ const envDefaults: Record<string, string> = {
   DATABASE_URL: "https://example.com/database",
   BETTER_AUTH_SECRET: "test-secret",
   CMO_OAUTH_CLIENT_ID: "cmo-oauth-client",
+  POLAR_ACCESS_TOKEN: "polar_oat_test",
+  POLAR_WEBHOOK_SECRET: "whsec_cG9sYXItd2ViaG9vay10ZXN0LXNlY3JldA==",
+  POLAR_ENVIRONMENT: "sandbox",
   TURNSTILE_SECRET_KEY: "test-turnstile-secret",
   BETTER_AUTH_URL: "https://example.com/auth",
   BETTER_AUTH_RP_ID: "localhost",
@@ -109,3 +113,5 @@ vi.mock("@sentry/node", () => {
     requestDataIntegration: () => ({}),
   };
 });
+
+installConsoleGuard();

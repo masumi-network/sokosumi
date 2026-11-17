@@ -8,6 +8,7 @@ vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: { generateTaskName: generateTaskNameMock },
 }));
 
+import { expectConsole } from "@/test/console";
 import { resolveTaskName } from "./task-name";
 
 describe("resolveTaskName", () => {
@@ -100,17 +101,11 @@ describe("resolveTaskName", () => {
 
   it("falls back when generation throws trailing bytes", async () => {
     generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Task name generation failed");
 
-    try {
-      expect(await resolveTaskName({ description: "First line\nsecond" })).toBe(
-        "First line",
-      );
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    expect(await resolveTaskName({ description: "First line\nsecond" })).toBe(
+      "First line",
+    );
   });
 
   it("cleans a heading first line when generation is missing", async () => {

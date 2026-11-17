@@ -158,9 +158,33 @@ export const SOKO_BOT_CAPABILITIES = [
   "stop_background_run",
   "wait_for",
   "workspace_import_file",
+  "list_announcements",
+  "save_announcement",
+  "publish_announcement",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
+
+/**
+ * The announcements every Sokosumi user sees, as a sidebar card and a popup.
+ * Core offers them only to the bots listed in SOKO_BOT_ANNOUNCEMENT_BOT_IDS
+ * and checks the list again on each call. Saving keeps a draft nobody sees;
+ * only publish_announcement, on the owner's word in chat or in their own
+ * schedule, shows or ends one.
+ */
+export const SOKO_BOT_ANNOUNCEMENT_CAPABILITIES = [
+  "list_announcements",
+  "save_announcement",
+  "publish_announcement",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotAnnouncementCapability(
+  value: string,
+): value is (typeof SOKO_BOT_ANNOUNCEMENT_CAPABILITIES)[number] {
+  return (SOKO_BOT_ANNOUNCEMENT_CAPABILITIES as readonly string[]).includes(
+    value,
+  );
+}
 
 /**
  * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
@@ -304,6 +328,9 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   // A brief is a prompt for a turn with this one's tools; a page must not write it.
   "start_background_run",
   "wait_for",
+  // Words every Sokosumi user will read; a page must not write or show them.
+  "save_announcement",
+  "publish_announcement",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -344,6 +371,7 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "update_ad_campaign",
   "edit_ad_campaign",
   "delete_ad_campaign",
+  "publish_announcement",
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
@@ -361,6 +389,7 @@ const DIRECT_READ_CAPABILITIES = [
   "read_file",
   "get_image",
   "get_video",
+  "list_announcements",
   "list_skills",
   "list_tables",
   "read_table",
@@ -513,6 +542,9 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",
+  // A draft nobody sees; publishing it is Core-checked on the owner's word.
+  "save_announcement",
+  "publish_announcement",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**

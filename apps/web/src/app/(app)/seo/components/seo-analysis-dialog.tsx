@@ -120,6 +120,11 @@ export function SeoAnalysisDialog({
               devices={form.devices}
               keywords={form.wantsKeywords ? market.keywords : null}
             />
+            {full ? (
+              <p className="text-muted-foreground text-sm">
+                {t("analysis.relatedPages", { count: SEO_MAX_PAGES })}
+              </p>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -347,9 +352,13 @@ export function SeoAnalysisDialog({
             >
               {maxCredits
                 ? t(
-                    monitor
-                      ? "analysis.maxCreditsPerRun"
-                      : "analysis.maxCredits",
+                    full
+                      ? monitor
+                        ? "analysis.fixedCreditsPerRun"
+                        : "analysis.fixedCredits"
+                      : monitor
+                        ? "analysis.maxCreditsPerRun"
+                        : "analysis.maxCredits",
                     { credits: maxCredits },
                   )
                 : null}

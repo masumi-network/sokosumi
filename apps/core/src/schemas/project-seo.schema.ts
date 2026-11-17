@@ -1,5 +1,9 @@
 import { z } from "@hono/zod-openapi";
-import { SEO_FULL_AUDIT_MAX_SECONDS, SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
+import {
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MAX_SECONDS,
+  SEO_MIN_AUDIT_USD,
+} from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
@@ -24,6 +28,7 @@ import {
 } from "./project-seo-traffic.schema";
 
 export const SEO_MAX_PAGES = 10;
+export const SEO_MAX_INDEX_ASSESSMENTS = SEO_MAX_PAGES * SEO_MAX_PAGES;
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_COMPETITORS = 10;
 export const SEO_MAX_PROVIDER_CALLS = 100;
@@ -194,6 +199,7 @@ export const requestSeoAnalysisSchema = z
       .min(0)
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
+    fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
     fullAuditLimits: z
       .object({
         usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
@@ -308,6 +314,9 @@ export const seoFindingSchema = z
     title: z.string(),
     severity: seoSeveritySchema,
     evidence: z.array(z.string()),
+    suggestedFix: z.string().max(2000).nullable().optional(),
+    relatedPageUrl: seoUrlSchema.optional(),
+    visibility: z.literal("PRIVATE").optional(),
     sourceRef: z.string(),
     observedAt: dateTimeSchema,
   })
@@ -512,6 +521,40 @@ export const seoIndexStatusSchema = z
       .max(SEO_MAX_PAGES),
   })
   .openapi("ProjectSeoIndexStatus");
+/** The SEO worker's private assessment, separate from the public audit artifact. */
+export const seoIndexAssessmentSchema = z
+  .object({
+    pageUrl: seoUrlSchema,
+    status: z.enum([
+      "indexed",
+      "issue",
+      "review",
+      "expected_exclusion",
+      "unavailable",
+    ]),
+    report: z.boolean(),
+    reason: z.string().min(1).max(2000),
+    suggestedFix: z.string().min(1).max(2000).nullable(),
+    evidence: z.array(z.string().max(2000)).max(20),
+  })
+  .strict()
+  .refine((value) => value.report === (value.status === "issue"))
+  .openapi("ProjectSeoIndexAssessment");
+export const seoIndexTriageSchema = z
+  .object({
+    assessments: z
+      .array(
+        seoIndexAssessmentSchema
+          .safeExtend({
+            taskId: z.string(),
+            checkedAt: dateTimeSchema,
+            auditPageUrl: seoUrlSchema.optional(),
+          })
+          .openapi("ProjectSeoIndexAssessedPage"),
+      )
+      .max(SEO_MAX_INDEX_ASSESSMENTS),
+  })
+  .openapi("ProjectSeoIndexTriage");
 export const seoSearchQueriesSchema = z
   .object({
     observationId: seoIdSchema,
@@ -653,6 +696,8 @@ export const projectSeoWorkspaceSchema = z
       .optional(),
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
+    /** Private indexing assessment for the current viewer's audit and selected pages. */
+    indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */

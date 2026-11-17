@@ -1,3 +1,4 @@
+import { globSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { configDefaults, defineConfig } from "vitest/config";
@@ -5,7 +6,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 /**
  * Opt-in Postgres / DB files skip in the unit run. Keep them out of collect
  * so Vitest does not load them. `admin.integration.test.ts` is a mocked
- * router test and stays in the unit suite.
+ * router test and is always collected, by the isolated `integration` project.
  *
  * Vitest applies `exclude` before the filename filter, so a CLI filter only
  * sees files that survived exclude. A filter that names one of these files
@@ -34,6 +35,17 @@ const optInPostgresFiles = [
   "src/helpers/transaction-history.postgres.test.ts",
   "src/helpers/history-sort-at.postgres.test.ts",
   "src/helpers/soko-bot-owner-scope.postgres.test.ts",
+  "src/helpers/cuso-project-credits.postgres.test.ts",
+  "src/routes/v1/webhooks/polar.postgres.test.ts",
+  "src/routes/v1/webhooks/polar-refund.postgres.test.ts",
+  "src/routes/v1/webhooks/polar.renewals.postgres.test.ts",
+  "src/routes/v1/webhooks/polar-top-up.postgres.test.ts",
+  "src/services/polar-credit-grant.postgres.test.ts",
+  "src/services/cmo-free-hiring.postgres.test.ts",
+  "src/services/cmo-tester-credits.postgres.test.ts",
+  "src/services/polar-plan-change.postgres.test.ts",
+  "src/services/polar-subscription-end.postgres.test.ts",
+  "src/services/polar-yearly-grant-sync.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [
@@ -107,6 +119,33 @@ export function cliSelectsOptInDbFile(
   });
 }
 
+/**
+ * A run that selects an opt-in PostgreSQL or integration file keeps
+ * per-file isolation, as before.
+ */
+const optInDbRun = cliSelectsOptInDbFile(process.argv);
+
+/**
+ * Integration files open real databases when their env is set (most skip
+ * without it), so their project keeps per-file isolation in every run.
+ * `admin.integration.test.ts` is a mocked router test; it rides along.
+ */
+const integrationFiles = ["src/**/*.integration.test.ts"];
+
+/**
+ * File order is shuffled across projects or not at all (Vitest has no
+ * per-project file shuffle), so a run that selects an integration file
+ * keeps the default order too.
+ */
+const shuffleFiles =
+  !optInDbRun &&
+  !cliSelectsOptInDbFile(
+    process.argv,
+    globSync(integrationFiles, {
+      cwd: fileURLToPath(new URL(".", import.meta.url)),
+    }),
+  );
+
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
@@ -118,22 +157,49 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
     exclude: [
       ...configDefaults.exclude,
       // Unconditional: a CLI filter naming this file must not resurrect
       // it, because it throws rather than skipping. See above.
       ...unprovisionedDbFiles,
-      ...(cliSelectsOptInDbFile(process.argv) ? [] : optInDbExclude),
+      ...(optInDbRun ? [] : optInDbExclude),
     ],
-    setupFiles: ["src/test/setup.ts"],
     // One database per worker for the parallel PostgreSQL run in CI. See
-    // `src/test/postgres-worker-databases.ts`.
+    // `src/test/postgres-worker-databases.ts`. At the root, so it runs once
+    // for whichever projects the run selects.
     globalSetup:
       process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true"
         ? ["src/test/postgres-worker-databases.ts"]
         : [],
+    // The log prints the seed; `--sequence.seed=<seed>` replays the order.
+    sequence: { shuffle: { files: shuffleFiles, tests: false } },
     /** Same cap as web, for the same reason — see `apps/web/vitest.config.mts`. */
     maxWorkers: process.env.CI ? undefined : "50%",
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["src/**/*.test.ts"],
+          exclude: integrationFiles,
+          // Reuses workers across files, so each file must clean up after
+          // itself: `src/test/reset-per-file.ts`. Shuffled file order makes
+          // a file that leans on another's leftovers fail.
+          isolate: optInDbRun,
+          setupFiles: [
+            ...(optInDbRun ? [] : ["src/test/reset-per-file.ts"]),
+            "src/test/setup.ts",
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          include: integrationFiles,
+          setupFiles: ["src/test/setup.ts"],
+        },
+      },
+    ],
   },
 });

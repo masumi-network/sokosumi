@@ -58,6 +58,7 @@ import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImproveDialog } from "./seo-improve";
 import { SeoIndexStatus } from "./seo-index-status";
+import { SeoIndexTriage } from "./seo-index-triage";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
@@ -191,10 +192,10 @@ export function SeoWorkspace({
       </p>
     );
   const { canRequestAnalysis } = model.data.availableActions;
-  // The run of every tab, in the secondary look; only the Agent tab's step wears the brand fill. The setup card is on the Agent tab only;
-  // there its own check step leads.
+  // Setup owns the first run action until submission. Once accepted, the header keeps its disabled run and schedule menu.
   const runAudit =
-    model.waitingForGoogle || (model.filters.tab === "agent" && setup)
+    model.waitingForGoogle ||
+    (model.filters.tab === "agent" && setup && setup.check !== "running")
       ? null
       : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.
@@ -215,8 +216,9 @@ export function SeoWorkspace({
     historyNotice ||
     pausedNotice ||
     readOnlyNotice ||
-    model.statisticsSync.state === "needs_property" ||
-    (model.filters.tab !== "agent" && model.statisticsSync.state !== "idle");
+    (model.filters.tab !== "agent" &&
+      (model.statisticsSync.state === "loading" ||
+        model.statisticsSync.state === "failed"));
   const scopePage =
     model.data.scope.pageIds.length === 1
       ? model.data.pages.find((page) => page.id === model.data.scope.pageIds[0])
@@ -300,7 +302,7 @@ export function SeoWorkspace({
                   onSelect={() => model.setDialog("statistics")}
                 >
                   <Settings2 className="size-4" />
-                  {t("overview.manageConnections")}
+                  {t("manageStatistics")}
                 </DropdownMenuItem>
               ) : null}
               {model.data.availableActions.canEdit ? (
@@ -341,20 +343,6 @@ export function SeoWorkspace({
       </div>
       {/* One group of notices; it takes no room when none shows. */}
       <div className="space-y-2 empty:hidden">
-        {model.statisticsSync.state === "needs_property" ? (
-          <div role="status" className="space-y-2 text-sm">
-            <p>{t("statistics.propertyNeeded")}</p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                model.openStatistics(model.statisticsSync.propertyProvider)
-              }
-            >
-              {t("statistics.chooseProperty")}
-            </Button>
-          </div>
-        ) : null}
         {model.filters.tab !== "agent" &&
         model.statisticsSync.state === "loading" ? (
           <p role="status" className="text-muted-foreground text-sm">
@@ -607,6 +595,7 @@ export function SeoWorkspace({
                 filters={model.filters}
               />
               <SeoActions model={model} />
+              <SeoIndexTriage workspace={model.data} />
               <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
             </TabsContent>

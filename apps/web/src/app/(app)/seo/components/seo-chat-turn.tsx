@@ -116,7 +116,6 @@ function ChatActions({
         <SeoConnectionButton
           key={`${action.provider}:${index}`}
           provider={action.provider}
-          inRow
           onConnected={() => {
             void model.result.refetch();
           }}
@@ -275,6 +274,11 @@ export function SeoChatTurn({
             ) : (
               <>
                 <SeoChatReply text={turn.response ?? ""} />
+                {turn.creditsCharged != null ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("chat.creditsCharged", { credits: turn.creditsCharged })}
+                  </p>
+                ) : null}
                 <ChatActions turn={turn} model={model} />
               </>
             )}

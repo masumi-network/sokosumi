@@ -50,6 +50,7 @@ export type {
 } from "./better-auth-types.js";
 export {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
@@ -362,6 +363,12 @@ export {
   newsletterSignupLinks,
 } from "./newsletter.js";
 export {
+  buildNoticeTemplate,
+  type NoticeTemplateHeader,
+  type ParsedNoticeTemplate,
+  parseNoticeTemplate,
+} from "./notice-template.js";
+export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
@@ -467,6 +474,8 @@ export {
 } from "./seo-capabilities.js";
 export {
   SEO_DEFAULT_FULL_AUDIT_USD,
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MAX_PROVIDER_USD,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MARKUP_PERCENT,
   SEO_MAX_CALL_CENTS,
@@ -559,6 +568,11 @@ export {
 } from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export {
+  studioAdBrief,
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
+} from "./studio-ad-prompts.js";
 export {
   MAX_STUDIO_BATCH_IMAGES,
   MAX_STUDIO_HEADLINE_LENGTH,

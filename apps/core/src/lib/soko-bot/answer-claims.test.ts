@@ -6,6 +6,7 @@ vi.mock("ai", () => ({
   gateway: { evaluationModel: vi.fn() },
 }));
 
+import { expectConsole } from "@/test/console";
 import { claimsAction } from "./answer-claims";
 
 describe("claimsAction", () => {
@@ -37,6 +38,7 @@ describe("claimsAction", () => {
   });
 
   it("reports a failed or malformed check as unchecked", async () => {
+    expectConsole("warn", "Soko Bot claim check failed");
     evaluateMock.mockRejectedValueOnce(new Error("timeout"));
     await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
     evaluateMock.mockResolvedValueOnce({ answers: {} });

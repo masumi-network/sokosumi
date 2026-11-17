@@ -143,6 +143,15 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
+// A Soko Bot mention leaves this service for its own dispatcher, which
+// `chat-room-soko-bot-dispatch.service.test.ts` covers.
+vi.mock("./chat-room-soko-bot-dispatch.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("./chat-room-soko-bot-dispatch.service")
+  >()),
+  runSokoBotMentionDispatch: vi.fn().mockResolvedValue(undefined),
+}));
+
 const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
   vi.hoisted(() => ({
     persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
@@ -155,12 +164,13 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-
+import { expectConsole } from "@/test/console";
 import { dispatchChatRoomMention } from "./chat-room-coworker-dispatch.service";
 import {
   ROOM_COWORKER_STREAM_TIMEOUT,
   ROOM_SENT_STALE_MS,
 } from "./chat-room-mention-state";
+import { runSokoBotMentionDispatch } from "./chat-room-soko-bot-dispatch.service";
 
 const publishRealtimeMock = vi.mocked(publishChatRoomMessageRealtimeById);
 
@@ -522,6 +532,8 @@ describe("dispatchChatRoomMention claim", () => {
   });
 
   it("ends the assistant bubble when dispatch throws after opening one", async () => {
+    expectConsole("error", "Failed to mark room mention as failed");
+    expectConsole("error", "Room coworker dispatch failed");
     // Marking the row failed unpins the poller but leaves the person watching
     // a spinner that never stops — the shape of the messages that never ended.
     findUniqueMock.mockResolvedValueOnce(pendingMention()).mockResolvedValue({
@@ -1110,6 +1122,7 @@ describe("dispatchChatRoomMention claim", () => {
   });
 
   it("keeps a failed Thought shell when the provider stream throws", async () => {
+    expectConsole("error", "Room coworker dispatch failed");
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     streamTextMock.mockReturnValue({
@@ -1158,6 +1171,7 @@ describe("dispatchChatRoomMention claim", () => {
   });
 
   it("fails closed when fullStream emits an error part after Thought", async () => {
+    expectConsole("error", "Room coworker dispatch failed");
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     streamTextMock.mockReturnValue({
@@ -1349,6 +1363,9 @@ describe("coworker mention chat log fields", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
+    expect(runSokoBotMentionDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionId: MENTION_ID }),
+    );
     expect(capturedChatEvents).toHaveLength(0);
   });
 });

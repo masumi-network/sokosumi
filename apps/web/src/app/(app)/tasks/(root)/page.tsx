@@ -2,7 +2,6 @@ import { TaskStatus } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { calendarUrl } from "@/app/calendar/calendar-url";
@@ -13,23 +12,9 @@ import {
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
-import { findCoworkerIdBySlug } from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
-import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
-import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
-import {
-  firstQueryString,
-  type ProjectFilterOption,
-  parseTasksFilters,
-} from "@/app/tasks/utils/tasks-filters";
-import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
-import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
-import { getSession } from "@/lib/auth/auth.server";
-import { coworkerService } from "@/lib/services/coworker.service";
-import { organizationSeatService } from "@/lib/services/organization-seat.service";
-import { projectService } from "@/lib/services/project.service";
-import { sokoBotService } from "@/lib/services/soko-bot.service";
-import { taskService } from "@/lib/services/task.service";
+import { firstQueryString } from "@/app/tasks/utils/tasks-filters";
+import { loadTasksPageData } from "@/app/tasks/utils/tasks-page-data";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import {
   parseTasksDensity,
   TASKS_DENSITY_COOKIE_NAME,
@@ -75,33 +60,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const PROJECT_FILTER_OPTIONS_LIMIT = 100;
-
-function emptyColumnHiddenCountById(): Record<KanbanColumnId, number> {
-  return Object.fromEntries(
-    KANBAN_COLUMNS.map((column) => [column.id, 0]),
-  ) as Record<KanbanColumnId, number>;
-}
-
-function emptyColumnNextCursorById(): Record<KanbanColumnId, string | null> {
-  return Object.fromEntries(
-    KANBAN_COLUMNS.map((column) => [column.id, null]),
-  ) as Record<KanbanColumnId, string | null>;
-}
-
-async function loadTasksPageData() {
-  return await Promise.all([
-    coworkerService.listCoworkers("tasks").catch(() => []),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-    sokoBotService.getMine().catch(() => null),
-  ]);
-}
-
 async function TasksPageContent({ searchParams }: TasksPageProps) {
-  // Defer before any cookies()/headers()-bound work so PPR shell probing does
-  // not soft-reject dynamic APIs while filling this Suspense hole.
-  await connection();
-
   const resolvedSearchParams = await searchParams;
   if (firstQueryString(resolvedSearchParams.tab) === "calendar") {
     redirect(calendarUrl(resolvedSearchParams));
@@ -121,43 +80,39 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     visibility,
     stuck,
   } = resolvedSearchParams;
-  const [
-    t,
-    tColumns,
-    tDetailActions,
-    tApp,
-    cookieStore,
-    session,
-    defaultViewMode,
-  ] = await Promise.all([
-    getTranslations("App.Tasks"),
-    getTranslations("App.Tasks.Columns"),
-    getTranslations("App.Tasks.Detail.actions"),
-    getTranslations("App"),
-    cookies(),
-    getSession(),
-    // `?view=board` (Home's "need your input" link) opens the board even
-    // where the list is the saved or device default, without saving it.
-    getDefaultTasksViewMode(
-      parseTasksViewMode(firstQueryString(resolvedSearchParams.view)),
-    ),
-  ]);
+  const [t, tColumns, tDetailActions, tApp, cookieStore, defaultViewMode] =
+    await Promise.all([
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Columns"),
+      getTranslations("App.Tasks.Detail.actions"),
+      getTranslations("App"),
+      cookies(),
+      // `?view=board` (Home's "need your input" link) opens the board even
+      // where the list is the saved or device default, without saving it.
+      getDefaultTasksViewMode(
+        parseTasksViewMode(firstQueryString(resolvedSearchParams.view)),
+      ),
+    ]);
   const defaultDensity =
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [[taskCoworkers, projectsPage, ownerBot], memberOptions] =
-    await Promise.all([
-      loadTasksPageData(),
-      listTaskAssigneeMemberOptions(activeOrganizationId),
-    ]);
-  // Core decides schedule eligibility; start that request before loading the board.
-  const coworkerOptionsPromise = listTaskAssigneeOptions(
+  const initialCreateTaskOpen = create === "true";
+  const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
+  const {
+    tasks,
+    listNextCursor,
+    columnNextCursorById,
+    columnHiddenCountById,
+    coworkerOptions,
+    projectOptions,
+    userId,
     activeOrganizationId,
-    memberOptions,
-  );
-  const filters = parseTasksFilters(
-    {
+    activeFilters,
+    canCreateTask,
+    initialAssigneeId,
+    parkedTaskCount,
+  } = await loadTasksPageData({
+    filterParams: {
       scope,
       assigneeId,
       assigneeSokoBotId,
@@ -168,164 +123,13 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       visibility,
       stuck,
     },
-    activeOrganizationId,
-  );
-  let projectOptions: ProjectFilterOption[] = projectsPage.projects.map(
-    (project) => ({
-      id: project.id,
-      name: project.name,
-      logo: project.logo,
-      designMd: project.designMd,
-      briefingUrl: project.briefingUrl,
-      contextMd: project.contextMd,
-    }),
-  );
-  if (
-    filters.projectId &&
-    !projectOptions.some((project) => project.id === filters.projectId)
-  ) {
-    const selectedProject = await projectService.getProjectById(
-      filters.projectId,
-    );
-    if (selectedProject) {
-      projectOptions = [
-        {
-          id: selectedProject.id,
-          name: selectedProject.name,
-          logo: selectedProject.logo,
-          designMd: selectedProject.designMd,
-          briefingUrl: selectedProject.briefingUrl,
-          contextMd: selectedProject.contextMd,
-        },
-        ...projectOptions,
-      ];
-    }
-  }
-  const coworkersById = new Map(
-    taskCoworkers.map((coworker) => [coworker.id, coworker]),
-  );
-  const validCoworkerIds = new Set(
-    taskCoworkers.map((coworker) => coworker.id),
-  );
-  const ownerSokoBotId = ownerBot?.id ?? null;
-  const validProjectIds = new Set(projectOptions.map((project) => project.id));
-  const activeFilters = {
-    ...filters,
-    assigneeId:
-      filters.assigneeId &&
-      validCoworkerIds.has(filters.assigneeId) &&
-      filters.assigneeId !== ownerSokoBotId
-        ? filters.assigneeId
-        : null,
-    assigneeSokoBotId:
-      filters.assigneeSokoBotId &&
-      ownerSokoBotId &&
-      filters.assigneeSokoBotId === ownerSokoBotId
-        ? filters.assigneeSokoBotId
-        : null,
-    assigneeUserId:
-      filters.assigneeUserId &&
-      memberOptions.some((member) => member.id === filters.assigneeUserId)
-        ? filters.assigneeUserId
-        : null,
-    projectId:
-      filters.projectId && validProjectIds.has(filters.projectId)
-        ? filters.projectId
-        : null,
-  };
-  const shouldCountGrantPendingTasks =
-    activeFilters.status == null ||
-    activeFilters.status === TaskStatus.GRANT_PENDING;
-
-  const listPageParams = {
-    cursor: null as string | null,
-    limit: TASKS_COLUMN_PAGE_LIMIT,
-    scope: activeFilters.scope,
-    assigneeId: activeFilters.assigneeId,
-    assigneeSokoBotId: activeFilters.assigneeSokoBotId,
-    assigneeUserId: activeFilters.assigneeUserId,
-    status: activeFilters.status,
-    projectId: activeFilters.projectId,
-    visibility: activeFilters.visibility,
-    stuck: activeFilters.stuck,
-    coworkersById,
+    viewMode: defaultViewMode,
     personalAssistantFallback: t("personalAssistant"),
-  };
-
-  const [tasksPageResult, parkedTasksPage] = await Promise.all([
-    defaultViewMode === "list"
-      ? getTasksListPage(listPageParams).then((page) => ({
-          mode: "list" as const,
-          page,
-        }))
-      : Promise.all(
-          KANBAN_COLUMNS.map(async (column) => {
-            const page = await getTasksColumnPage({
-              columnId: column.id,
-              ...listPageParams,
-            });
-
-            return [column.id, page] as const;
-          }),
-        ).then((columnPages) => ({
-          mode: "board" as const,
-          columnPages,
-        })),
-    shouldCountGrantPendingTasks
-      ? taskService.listTasks({
-          status: TaskStatus.GRANT_PENDING,
-          scope: activeFilters.scope,
-          assigneeId: activeFilters.assigneeId ?? undefined,
-          assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
-          assigneeUserId: activeFilters.assigneeUserId ?? undefined,
-          projectId: activeFilters.projectId ?? undefined,
-          ...(activeFilters.visibility
-            ? { visibility: activeFilters.visibility }
-            : {}),
-          limit: 1,
-        })
-      : Promise.resolve({ tasks: [], pagination: null }),
-  ]);
-
-  const tasks =
-    tasksPageResult.mode === "list"
-      ? tasksPageResult.page.tasks
-      : tasksPageResult.columnPages.flatMap(([_columnId, page]) => page.tasks);
-  const listNextCursor =
-    tasksPageResult.mode === "list" ? tasksPageResult.page.nextCursor : null;
-  const columnNextCursorById =
-    tasksPageResult.mode === "list"
-      ? emptyColumnNextCursorById()
-      : (Object.fromEntries(
-          tasksPageResult.columnPages.map(([columnId, page]) => [
-            columnId,
-            page.nextCursor,
-          ]),
-        ) as Record<KanbanColumnId, string | null>);
-
-  // Tasks past the first page of each column: its header counts them too.
-  const columnHiddenCountById =
-    tasksPageResult.mode === "list"
-      ? emptyColumnHiddenCountById()
-      : (Object.fromEntries(
-          tasksPageResult.columnPages.map(([columnId, page]) => [
-            columnId,
-            page.nextCursor ? Math.max(0, page.total - page.tasks.length) : 0,
-          ]),
-        ) as Record<KanbanColumnId, number>);
-
-  const coworkerOptions = await coworkerOptionsPromise;
-  const canCreateTask =
-    await organizationSeatService.hasAssignedSeat(activeOrganizationId);
-  const initialCreateTaskOpen = create === "true";
-  const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
-  const initialAssigneeId =
-    initialCreateTaskOpen && resolvedAssigneeSlug
-      ? findCoworkerIdBySlug(coworkerOptions, resolvedAssigneeSlug)
-      : null;
+    createAssigneeSlug: initialCreateTaskOpen
+      ? (resolvedAssigneeSlug ?? null)
+      : null,
+  });
   const initialProjectId = activeFilters.projectId;
-
-  const parkedTaskCount = parkedTasksPage.pagination?.total ?? 0;
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
@@ -337,6 +141,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
 
   return (
     <div className="content-in w-full">
+      <RefreshPrefetchedPage />
       <Suspense fallback={null}>
         <TasksPendingVendorGrantBannerSlot
           activeOrganizationId={activeOrganizationId}
@@ -351,7 +156,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        userId={session?.user.id ?? null}
+        userId={userId}
         activeOrganizationId={activeOrganizationId}
         initialFilters={activeFilters}
         defaultViewMode={defaultViewMode}

@@ -892,7 +892,9 @@ async function withLinkedInUserInfo(
     const profile = record(payload?.response_dict) ?? payload;
     const avatarUrl = profile ? linkedInAvatarUrl(profile) : null;
     if (!avatarUrl) {
-      console.warn("[composio] LinkedIn identity has no photo", {
+      // Many members have no photo, so info; the key paths show where one
+      // would be. The account sync runs this after its request has ended.
+      console.info("[composio] LinkedIn identity has no photo", {
         profileKeys: payloadKeyPaths(profilePayload).slice(0, 60),
         userInfoKeys: payloadKeyPaths(payload).slice(0, 60),
       });

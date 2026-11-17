@@ -21800,7 +21800,10 @@ export const ProjectImageStudioCatalogModelSchema = {
                     'num_images',
                     'seed',
                     'limit_generations',
-                    'image_urls'
+                    'image_urls',
+                    'image_url',
+                    'mask_url',
+                    'strength'
                 ]
             }
         },
@@ -22052,6 +22055,14 @@ export const ProjectImageAssetSchema = {
         headline: {
             $ref: '#/components/schemas/StudioAdHeadline'
         },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -22119,6 +22130,55 @@ export const ProjectImageAssetSchema = {
         },
         contentPath: {
             type: 'string'
+        },
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
         }
     },
     required: [
@@ -22139,7 +22199,13 @@ export const ProjectImageAssetSchema = {
         'createdAt',
         'jobId',
         'settings',
-        'contentPath'
+        'contentPath',
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
     ]
 } as const;
 
@@ -22252,6 +22318,17 @@ export const ProjectImageJobSchema = {
         prompt: {
             type: 'string'
         },
+        templateId: {
+            type: 'string'
+        },
+        creativeDirection: {
+            type: 'string'
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -22279,8 +22356,21 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
@@ -39828,6 +39918,140 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioCompareStateSchema = {
+    type: 'object',
+    properties: {
+        pair: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioComparePair'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'pair'
+    ]
+} as const;
+
+export const StudioComparePairSchema = {
+    type: 'object',
+    properties: {
+        a: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        },
+        b: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        }
+    },
+    required: [
+        'a',
+        'b'
+    ]
+} as const;
+
+export const StudioPairwisePickSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioPairwisePick'
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'id'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioPairOutcomeSchema = {
+    type: 'string',
+    enum: [
+        'A',
+        'B',
+        'TIE',
+        'BOTH_BAD'
+    ]
+} as const;
+
+export const SaveStudioPairwisePickSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        otherAssetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        outcome: {
+            $ref: '#/components/schemas/StudioPairOutcome'
+        }
+    },
+    required: [
+        'assetId',
+        'otherAssetId',
+        'outcome'
+    ]
+} as const;
+
+export const StudioModelScoreboardSchema = {
+    type: 'object',
+    properties: {
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string'
+                    },
+                    comparisons: {
+                        type: 'integer',
+                        exclusiveMinimum: 0
+                    },
+                    winRate: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    elo: {
+                        type: 'number'
+                    },
+                    provisional: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'model',
+                    'comparisons',
+                    'winRate',
+                    'elo',
+                    'provisional'
+                ]
+            }
+        },
+        minimumComparisons: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'models',
+        'minimumComparisons'
+    ]
+} as const;
+
 export const StudioBrandKitSchema = {
     type: 'object',
     properties: {
@@ -40239,6 +40463,21 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        templateId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        creativeDirection: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
@@ -40253,6 +40492,13 @@ export const CreateProjectImageJobRequestSchema = {
         },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ]
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
@@ -40423,6 +40669,133 @@ export const StudioAdPlacementRatioSchema = {
         '4:5',
         '9:16',
         '16:9'
+    ]
+} as const;
+
+export const RecordStudioAssetEventSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'viewed_lightbox'
+            ]
+        }
+    },
+    required: [
+        'type'
+    ]
+} as const;
+
+export const StudioAssetRatingSchema = {
+    type: 'object',
+    properties: {
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
+        }
+    },
+    required: [
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
+    ]
+} as const;
+
+export const SetStudioAssetFeedbackSchema = {
+    type: 'object',
+    properties: {
+        thumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        reasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            },
+            maxItems: 5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        }
+    },
+    required: [
+        'thumb'
     ]
 } as const;
 
@@ -40644,6 +41017,16 @@ export const ProjectSeoWorkspaceSchema = {
             anyOf: [
                 {
                     $ref: '#/components/schemas/ProjectSeoIndexStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        indexTriage: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoIndexTriage'
                 },
                 {
                     type: 'null'
@@ -41364,6 +41747,24 @@ export const ProjectSeoFindingSchema = {
             items: {
                 type: 'string'
             }
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        relatedPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        visibility: {
+            type: 'string',
+            enum: [
+                'PRIVATE'
+            ]
         },
         sourceRef: {
             type: 'string'
@@ -42151,6 +42552,91 @@ export const ProjectSeoIndexedPageSchema = {
         'lastCrawlTime',
         'googleCanonical',
         'userCanonical'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexTriageSchema = {
+    type: 'object',
+    properties: {
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessedPage'
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'assessments'
+    ]
+} as const;
+
+export const ProjectSeoIndexAssessedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        },
+        taskId: {
+            type: 'string'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence',
+        'taskId',
+        'checkedAt'
     ],
     additionalProperties: false
 } as const;
@@ -43590,6 +44076,12 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             maximum: 100,
             default: 20
         },
+        fullAuditCredits: {
+            type: 'number',
+            enum: [
+                750
+            ]
+        },
         fullAuditLimits: {
             type: 'object',
             properties: {
@@ -44315,6 +44807,13 @@ export const SeoAuditChatTurnSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        creditsCharged: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0
         }
     },
     required: [
@@ -44437,6 +44936,38 @@ export const SeoConnectionStatusSchema = {
         },
         canResume: {
             type: 'boolean'
+        },
+        account: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        email: {
+                            type: 'string'
+                        },
+                        name: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        pictureUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'email',
+                        'name',
+                        'pictureUrl'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         connectionVersion: {
             type: 'string',
@@ -46706,7 +47237,8 @@ export const CmoOverviewSchema = {
             description: 'Cuso\'s first look at the business: still running, failed or stuck (offer a retry), or done.'
         },
         subscriptionActive: {
-            type: 'boolean'
+            type: 'boolean',
+            description: 'Whether Cuso may work: his Project has an active CMO subscription (a scheduled cancel counts until the period ends), he is still in free hiring, or he holds Tester credits that are not used up. False means paused, even when the Organization credit pool has credits; `billing.status` says whether a payment failed.'
         },
         viewerCanApprove: {
             type: 'boolean',
@@ -46748,9 +47280,10 @@ export const CmoOverviewSchema = {
                 'brandBrain',
                 'strategy',
                 'accounts',
+                'checkout',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
@@ -48797,23 +49330,35 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
-        subscribeUrl: {
-            type: 'string'
-        },
         billing: {
             type: 'object',
             properties: {
-                plan: {
+                tier: {
                     anyOf: [
                         {
                             type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The CMO plan\'s tier, as its Polar product names it.'
+                },
+                interval: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            enum: [
+                                'month',
+                                'year'
+                            ]
                         },
                         {
                             type: 'null'
                         }
                     ]
                 },
-                subscriptionStatus: {
+                status: {
                     anyOf: [
                         {
                             type: 'string'
@@ -48821,17 +49366,64 @@ export const CmoOverviewSchema = {
                         {
                             type: 'null'
                         }
+                    ],
+                    description: 'Polar\'s subscription status, as sent.'
+                },
+                periodEnd: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        {
+                            type: 'null'
+                        }
                     ]
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                pendingTier: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The tier a scheduled downgrade moves to at period end.'
                 },
                 availableCredits: {
                     type: 'number'
+                },
+                viewerCanManage: {
+                    type: 'boolean',
+                    description: 'Whether this member may change the plan and open the customer portal: the organization\'s owners and admins only.'
+                },
+                hasTesterCredits: {
+                    type: 'boolean',
+                    description: 'This Cuso was granted Tester credits (by a tester, or at a hire before CMO plans), spent or not, so his hiring ends without a checkout.'
+                },
+                maySkipSubscription: {
+                    type: 'boolean',
+                    description: 'The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Tester credits left): CMO offers to continue without a subscription.'
                 }
             },
             required: [
-                'plan',
-                'subscriptionStatus',
-                'availableCredits'
-            ]
+                'tier',
+                'interval',
+                'status',
+                'periodEnd',
+                'cancelAtPeriodEnd',
+                'pendingTier',
+                'availableCredits',
+                'viewerCanManage',
+                'hasTesterCredits',
+                'maySkipSubscription'
+            ],
+            description: 'Cuso\'s CMO plan, read from his Project\'s CMO subscription that has not ended; the plan fields are null without one.'
         },
         posts: {
             type: 'object',
@@ -48899,7 +49491,6 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
-        'subscribeUrl',
         'billing',
         'posts',
         'createdAt'
@@ -51025,6 +51616,79 @@ export const CmoProductionSchema = {
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
 
+export const CmoOnboardingConflictErrorSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            example: 'organization_not_found'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
+        },
+        unpaidCuso: {
+            type: 'object',
+            properties: {
+                projectId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                businessName: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'projectId',
+                'businessName'
+            ],
+            description: 'The person\'s live Cuso that nobody paid for yet, to continue there instead.'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
 export const CmoOnboardingRequestSchema = {
     type: 'object',
     properties: {
@@ -51042,6 +51706,46 @@ export const CmoOnboardingRequestSchema = {
     },
     required: [
         'websiteUrl'
+    ]
+} as const;
+
+export const CmoSubscriptionPlanSchema = {
+    type: 'object',
+    properties: {
+        tier: {
+            type: 'string',
+            minLength: 1,
+            description: 'The plan\'s tier, as its Polar product names it.'
+        },
+        name: {
+            type: 'string'
+        },
+        interval: {
+            type: 'string',
+            enum: [
+                'month',
+                'year'
+            ]
+        },
+        credits: {
+            type: 'integer',
+            description: 'Credits granted every month, on a yearly plan too.'
+        },
+        priceAmount: {
+            type: 'integer',
+            description: 'Price per interval in the currency\'s minor unit.'
+        },
+        currency: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tier',
+        'name',
+        'interval',
+        'credits',
+        'priceAmount',
+        'currency'
     ]
 } as const;
 
@@ -51149,6 +51853,18 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoCheckoutSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
 export const CmoMeasurementConnectSchema = {
     type: 'object',
     properties: {
@@ -51170,6 +51886,35 @@ export const CmoTurnStartedSchema = {
     },
     required: [
         'turnId'
+    ]
+} as const;
+
+export const CmoPlanChangeSchema = {
+    type: 'object',
+    properties: {
+        change: {
+            type: 'string',
+            enum: [
+                'upgrade',
+                'downgrade',
+                'kept'
+            ]
+        }
+    },
+    required: [
+        'change'
+    ]
+} as const;
+
+export const CmoCustomerPortalSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 
@@ -51201,6 +51946,18 @@ export const CmoStrategyRequestSchema = {
             maxLength: 1000
         }
     }
+} as const;
+
+export const CmoTopUpCheckoutSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
 } as const;
 
 export const SokoBotApiKeySchema = {
@@ -55227,6 +55984,384 @@ export const TaskSellerReceiptSchema = {
     ]
 } as const;
 
+export const SeoTaskIndexingReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        assessmentSaved: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'available',
+                'not_connected',
+                'needs_property',
+                'unavailable'
+            ]
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SeoTaskIndexedPage'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash',
+        'checkedAt',
+        'status',
+        'pages'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'PASS',
+                'PARTIAL',
+                'FAIL',
+                'NEUTRAL',
+                'VERDICT_UNSPECIFIED'
+            ]
+        },
+        coverageState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        robotsTxtState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        lastCrawlTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        googleCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        userCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        pageFetchState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        }
+    },
+    required: [
+        'pageUrl',
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical',
+        'indexingState',
+        'pageFetchState'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'expectedContext'
+    ],
+    additionalProperties: false
+} as const;
+
+export const TaskWorkerContextSchema = {
+    type: 'object',
+    properties: {
+        ownerId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 128
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'ownerId',
+        'organizationId',
+        'workspaceId'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultAcknowledgmentSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessment'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'receiptHash',
+        'assessments'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexAssessmentSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        inspectionPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'auditPageUrl',
+        'inspectionPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        seedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        relatedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'seedPageUrls',
+        'relatedPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SendTaskToChatRequestSchema = {
     type: 'object',
     properties: {
@@ -55463,35 +56598,6 @@ export const MasumiTaskPaymentSourceSchema = {
     ]
 } as const;
 
-export const TaskWorkerContextSchema = {
-    type: 'object',
-    properties: {
-        ownerId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 128
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            maxLength: 128
-        },
-        workspaceId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'ownerId',
-        'organizationId',
-        'workspaceId'
-    ],
-    additionalProperties: false
-} as const;
-
 export const TaskFilesSchema = {
     type: 'array',
     items: {
@@ -55724,6 +56830,9 @@ export const TransactionHistoryItemSchema = {
             $ref: '#/components/schemas/TransactionHistorySokoBotItem'
         },
         {
+            $ref: '#/components/schemas/TransactionHistorySeoChatItem'
+        },
+        {
             $ref: '#/components/schemas/TransactionHistoryContactsItem'
         },
         {
@@ -55741,6 +56850,7 @@ export const TransactionHistoryItemSchema = {
             task: '#/components/schemas/TransactionHistoryTaskItem',
             coworker: '#/components/schemas/TransactionHistoryCoworkerItem',
             sokoBot: '#/components/schemas/TransactionHistorySokoBotItem',
+            seoChat: '#/components/schemas/TransactionHistorySeoChatItem',
             contacts: '#/components/schemas/TransactionHistoryContactsItem',
             topUp: '#/components/schemas/TransactionHistoryTopUpItem',
             unattributed: '#/components/schemas/TransactionHistoryUnattributedItem'
@@ -56214,6 +57324,78 @@ export const TransactionHistorySokoBotItemSchema = {
     ]
 } as const;
 
+export const TransactionHistorySeoChatItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        title: {
+            type: 'string',
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits this row moved, always positive. `kind: topUp` added them; every other kind took them. The magnitude of the signed ledger amount.',
+            example: 5
+        },
+        consumedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits moved (`Transaction.createdAt`). The list sorts by this field.'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'seoChat'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'credits',
+        'consumedAt',
+        'projectId',
+        'owner',
+        'kind'
+    ]
+} as const;
+
 export const TransactionHistoryContactsItemSchema = {
     type: 'object',
     properties: {
@@ -56360,7 +57542,7 @@ export const TransactionHistoryTopUpItemSchema = {
                 'string',
                 'null'
             ],
-            description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.',
+            description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP, CMO_TESTER_CREDITS). Null when no bucket records one.',
             example: 'STRIPE_TOPUP'
         },
         refundedJobId: {

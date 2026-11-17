@@ -2053,6 +2053,28 @@ describe("buzzTextOf", () => {
     expect(buzzTextOf({ content: "hi", metadata: null })).toBe("hi");
   });
 
+  it("drops a result card whose resource the turn removed", () => {
+    expect(
+      buzzTextOf({
+        content: "Done",
+        metadata: {
+          result_preview_snapshots: [
+            {
+              workspaceId: "w",
+              reference: { kind: "task", id: "t1" },
+              data: {
+                id: "550e8400-e29b-41d4-a716-446655440001",
+                state: "unavailable",
+                capturedAt: "2026-11-15T00:00:00.000Z",
+                kind: "task",
+              },
+            },
+          ],
+        },
+      }),
+    ).toBe("Done");
+  });
+
   it("hashes a decorated message so the repair sweep can compare its text alone", () => {
     const plain = buzzHashOf("hi", "hi");
     expect(plain).toMatch(/^[0-9a-f]{64}$/);

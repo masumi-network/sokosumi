@@ -458,13 +458,53 @@ describe("SEO audit first run", () => {
     // The check needs no more input, so the wait is the time for the statistics.
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     const setup = screen.getByTestId("seo-setup");
+    // The settings are in the account card's menu: no second button stands under the card.
     expect(
       await within(setup).findByRole("button", {
-        name: "Google statistics settings",
+        name: copy.connections.options,
       }),
     ).toBeVisible();
+    expect(
+      within(setup).queryByRole("button", { name: "Google connections" }),
+    ).toBeNull();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
     expect(primaryButtons(setup)).toEqual([]);
+  });
+
+  it("keeps the first running audit controls visible without starting a second check", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "first-audit",
+        kind: "audit_full",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: workspace.scope.version,
+        createdAt: new Date(),
+      },
+    ];
+    network(workspace);
+    await renderWorkspace(workspace);
+    expect(screen.getByRole("group", { name: "Checks" })).toBeVisible();
+    const setup = screen.getByTestId("seo-setup");
+    const runButtons = screen.getAllByRole("button", {
+      name: copy.setup.checkRunningBadge,
+    });
+    const headerRun = runButtons.find((button) => !setup.contains(button));
+    expect(headerRun).toBeDefined();
+    for (const button of runButtons) {
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      button.focus();
+      await user.keyboard("{Enter}");
+    }
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.monitor.create }));
+    expect(
+      await screen.findByRole("menuitem", { name: copy.monitor.create }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
   });
 
   it("explains automatic collection on Traffic once the account is connected", async () => {
@@ -488,7 +528,7 @@ describe("SEO audit first run", () => {
     // Nothing is measured yet: one card asks for the sync, and no second empty card asks again.
     expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Google statistics settings" }),
+      screen.getAllByRole("button", { name: "Google connections" }),
     ).toHaveLength(1);
   });
 
@@ -543,25 +583,26 @@ describe("SEO audit first run", () => {
       within(row)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Google statistics settings"]);
-    // The dialog opens on this banner's source.
+    ).toEqual(["Google connections"]);
+    // The dialog marks this banner's source.
     await userEvent.click(within(row).getByRole("button"));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
     expect(
-      within(
-        await screen.findByRole("dialog", { name: "Google statistics" }),
-      ).getByRole("combobox", { name: "Source" }),
-    ).toHaveTextContent("Search Console");
-    // Without a source the dialog starts on the connected account too: on Google Analytics it had no sync.
+      within(dialog).getByRole("region", { name: "Search Console" }),
+    ).toHaveAttribute("aria-current", "true");
+    // Without a source no connected source is marked.
     await userEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
     await openStatisticsSetup(userEvent);
     const reopened = await screen.findByRole("dialog", {
-      name: "Google statistics",
+      name: "Google connections",
     });
-    await waitFor(() =>
-      expect(
-        within(reopened).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console"),
-    );
+    expect(
+      await within(reopened).findByRole("region", { name: "Search Console" }),
+    ).toBeVisible();
+    for (const region of within(reopened).getAllByRole("region"))
+      expect(region).not.toHaveAttribute("aria-current");
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {
@@ -740,11 +781,26 @@ describe("SEO audit first run", () => {
       issues,
       seconds: 600,
     });
-    // One run is no choice: no row.
+    // The first saved run keeps the timeline and the same run/schedule controls as later runs.
     workspace.runs = [run("2026-11-12T13:00:00Z", 5)];
     network(workspace);
     const view = render(page(<SeoWorkspace workspace={workspace} />));
-    expect(screen.queryByRole("group", { name: "Checks" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Checks" })).toBeVisible();
+    expect(
+      within(screen.getByRole("group", { name: "Checks" })).getByRole(
+        "button",
+        { name: "Nov 12" },
+      ),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      await screen.findByRole("button", { name: copy.runFullAudit }),
+    ).toBeVisible();
+    expect(screen.queryByTestId("seo-setup")).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.monitor.create }));
+    expect(
+      await screen.findByRole("menuitem", { name: copy.monitor.create }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
     view.unmount();
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
     render(page(<SeoWorkspace workspace={workspace} />));
@@ -881,9 +937,10 @@ describe("SEO audit first run", () => {
     expect(
       screen.getByText((text) => text.startsWith(copy.setup.checkStartedNow)),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: copy.setup.checkRunningBadge }),
-    ).toHaveAttribute("aria-disabled", "true");
+    for (const button of screen.getAllByRole("button", {
+      name: copy.setup.checkRunningBadge,
+    }))
+      expect(button).toHaveAttribute("aria-disabled", "true");
   });
 
   it("ends setup for a filtered view, which keeps the notice", async () => {

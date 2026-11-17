@@ -240,6 +240,26 @@ export async function postChat(
           `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
         );
       }
+      // Two follow-ups of one run each read the room, saw the post and still
+      // sent the same weekly summary to Everyone again. Reading first is not
+      // enough, so the same text from this bot twice in an hour is refused.
+      const repeat = await tx.chatRoomMessage.findFirst({
+        where: {
+          roomId: room.id,
+          senderSokoBotId: room.sokoBotId,
+          content: input.content,
+          deletedAt: null,
+          createdAt: {
+            gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
+          },
+        },
+        select: { id: true },
+      });
+      if (repeat) {
+        throw new SokoBotRuntimeValidationError(
+          `You already posted this exact message here in the last hour (message ${repeat.id}). It is done: do not post it again.`,
+        );
+      }
       const created = await tx.chatRoomMessage.create({
         data: {
           roomId: room.id,

@@ -6,7 +6,7 @@ import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-
+import { expectConsole } from "@/test/console";
 import mountGetUserBillingDetails from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -138,6 +138,7 @@ describe("GET /users/{id}/billing-details", () => {
   });
 
   it("returns 500 when the stripe read fails instead of empty billing details", async () => {
+    expectConsole("error", "Error: stripe down");
     getUserBillingDetailsMock.mockRejectedValue(new Error("stripe down"));
 
     const response = await createApp().request(

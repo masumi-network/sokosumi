@@ -433,3 +433,129 @@ describe("switching project", () => {
     expect(result.current.error).toBeNull();
   });
 });
+
+describe("rating gallery page races", () => {
+  it("ignores an older newest page after Best first is selected", async () => {
+    let resolveOlder!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveOlder = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assets: [asset("best", 2)],
+            jobs: [],
+            nextCursor: { createdAt: JOB_STARTED_AT, id: "best" },
+          }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() =>
+      useStudioState({
+        projectId: "project-1",
+        initialState: {
+          ...INITIAL,
+          nextCursor: { createdAt: new Date(JOB_STARTED_AT), id: "a1" },
+        },
+        initialSelectedAssetId: null,
+      }),
+    );
+    let page!: Promise<void>;
+    act(() => {
+      page = result.current.loadOlder();
+    });
+    act(() => result.current.setSort("best"));
+    await waitFor(() =>
+      expect(result.current.state.assets.map(({ id }) => id)).toEqual(["best"]),
+    );
+    await act(async () => {
+      resolveOlder(
+        new Response(
+          JSON.stringify({
+            assets: [asset("old-newest-page", 1)],
+            jobs: [],
+            nextCursor: null,
+          }),
+        ),
+      );
+      await page;
+    });
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual(["best"]);
+    expect(result.current.state.nextCursor?.id).toBe("best");
+  });
+
+  it("keeps a hidden asset out when a poll started before the hide returns", async () => {
+    let resolveRefresh!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(
+        new Promise<Response>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+      ),
+    );
+    const { result } = renderHook(() =>
+      useStudioState({
+        projectId: "project-1",
+        initialState: INITIAL,
+        initialSelectedAssetId: null,
+      }),
+    );
+    let refresh!: Promise<void>;
+    act(() => {
+      refresh = result.current.refresh();
+    });
+    act(() => result.current.removeAsset("a1"));
+    await act(async () => {
+      resolveRefresh(new Response(JSON.stringify(INITIAL)));
+      await refresh;
+    });
+    expect(result.current.state.assets).toEqual([]);
+  });
+});
+
+it("keeps saved feedback when a poll started before the rating returns", async () => {
+  let resolveRefresh!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    ),
+  );
+  const { result } = renderHook(() =>
+    useStudioState({
+      projectId: "project-1",
+      initialState: INITIAL,
+      initialSelectedAssetId: null,
+    }),
+  );
+  let refresh!: Promise<void>;
+  act(() => {
+    refresh = result.current.refresh();
+  });
+  act(() =>
+    result.current.updateRating("a1", {
+      myThumb: 1,
+      myReasons: ["great"],
+      myComment: null,
+      thumbsUp: 1,
+      thumbsDown: 0,
+      score: 0.6,
+    }),
+  );
+  await act(async () => {
+    resolveRefresh(new Response(JSON.stringify(INITIAL)));
+    await refresh;
+  });
+  expect(result.current.state.assets[0]).toMatchObject({
+    myThumb: 1,
+    myReasons: ["great"],
+    thumbsUp: 1,
+  });
+});

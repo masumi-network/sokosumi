@@ -11,6 +11,7 @@ vi.mock("@/clients/webhook.client", () => ({
 }));
 
 import { webhookService } from "@/services/webhook.service";
+import { expectConsole } from "@/test/console";
 
 const validUser = {
   id: "user_1",
@@ -37,18 +38,18 @@ describe("webhookService", () => {
   });
 
   it("skips the user created webhook when the payload is invalid", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Invalid user data for userCreated webhook",
+    );
 
     await webhookService.callUserWebhook("userCreated", { id: "user_1" });
 
     expect(callWebhookMock).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalledWith(
+    expect(consoleError).toContainEqual([
       "Invalid user data for userCreated webhook:",
       expect.anything(),
-    );
-    consoleError.mockRestore();
+    ]);
   });
 
   it("forwards a valid user updated payload", async () => {

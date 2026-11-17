@@ -22,6 +22,8 @@ import {
   seoAuditGaps,
   seoAuditGapValues,
   seoCapabilityGroups,
+  seoCustomerAuditGaps,
+  seoCustomerLimitations,
   seoViewNarrowed,
 } from "./seo-improve-model";
 import {
@@ -60,6 +62,106 @@ describe("seoCapabilityGroups", () => {
       "technical",
       "keywords",
     ]);
+  });
+});
+
+describe("customer-facing limitations", () => {
+  it("keeps indexing results distinct from missing search traffic, without a manual sync action", () => {
+    const workspace = seoTestWorkspace();
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+          pageUrl: workspace.pages[0].url,
+          status: "issue",
+          report: true,
+          reason: "Google could not fetch this page.",
+          suggestedFix: "Repair the server error.",
+          evidence: [],
+        },
+      ],
+    };
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchTraffic",
+      fix: null,
+    });
+    expect(
+      seoCustomerAuditGaps(workspace).map((gap) => gap.message),
+    ).not.toContain("noSearchConsole");
+    workspace.indexTriage.assessments[0].status = "unavailable";
+    workspace.indexTriage.assessments[0].report = false;
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchConsole",
+      fix: "connect_search_console",
+    });
+    workspace.indexTriage.assessments[0] = {
+      ...workspace.indexTriage.assessments[0],
+      pageUrl: "https://another.example/private",
+      status: "review",
+    };
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchConsole",
+      fix: "connect_search_console",
+    });
+  });
+
+  it("groups the open catalog into five limits and omits completed areas", () => {
+    expect(seoCustomerLimitations()).toEqual([
+      "site",
+      "content",
+      "research",
+      "measurement",
+      "publishing",
+    ]);
+    const onlyTechnical = SEO_CAPABILITIES.map((item) => ({
+      ...item,
+      status: item.group === "technical" ? item.status : ("built" as const),
+    }));
+    expect(seoCustomerLimitations(onlyTechnical)).toEqual(["site"]);
+    expect(seoCustomerLimitations([])).toEqual([]);
+  });
+
+  it("keeps a statistics recovery action when a later truncated-data note has no action", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [
+      {
+        ...seoTestMetric(),
+        notes: ["Internal provider response could not be read"],
+      },
+    ];
+    workspace.searchQueries = {
+      observationId: "queries",
+      propertyId: "sc-domain:example.com",
+      from: "2026-01-01",
+      to: "2026-01-02",
+      timeZone: "UTC",
+      observedAt: new Date("2026-01-03T00:00:00Z"),
+      rows: [],
+      truncated: true,
+      rowLimit: 100,
+    };
+    expect(
+      seoCustomerAuditGaps(workspace).filter(
+        (gap) => gap.message === "statisticsIncomplete",
+      ),
+    ).toEqual([{ message: "statisticsIncomplete", fix: "sync" }]);
+  });
+
+  it("does not say no check ran when its first result exists only in run history", () => {
+    const workspace = seoTestWorkspace();
+    workspace.runs = [
+      {
+        observationId: "first-check",
+        kind: "audit_full",
+        observedAt: new Date("2026-01-03T00:00:00Z"),
+        issues: 0,
+        seconds: 600,
+      },
+    ];
+    expect(
+      seoCustomerAuditGaps(workspace).map((gap) => gap.message),
+    ).not.toContain("noCheck");
   });
 });
 

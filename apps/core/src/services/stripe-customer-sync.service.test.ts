@@ -219,7 +219,7 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
         () =>
           new Promise((resolve) => {
             resolveFirstCreate = () => {
-              resolve(undefined);
+              resolve({ id: "cus_user_1" });
             };
           }),
       )

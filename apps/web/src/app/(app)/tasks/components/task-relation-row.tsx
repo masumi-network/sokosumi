@@ -36,6 +36,8 @@ export function TaskRelationRow({
   return (
     <TaskDetailLink
       href={href}
+      // Admin and developer task pages read uncached, so only the shell helps.
+      prefetchContent={!hrefBasePath}
       className="hover:bg-accent -mx-2 flex h-8 w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 text-sm transition-colors"
     >
       <span

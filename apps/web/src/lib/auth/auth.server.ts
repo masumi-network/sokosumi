@@ -4,6 +4,7 @@ import type { Account, Session } from "@sokosumi/utils";
 import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { err, ok, type Result } from "neverthrow";
+import { cacheLife } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -11,6 +12,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
+import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-content-stale-time";
 import { reportCoreAuthReadOutage } from "@/lib/sentry/core-auth-read-outage";
 
 import { getAuthServerClient } from "./auth.server.client";
@@ -285,6 +287,27 @@ export async function getSession(
   options?: GetSessionOptions,
 ): Promise<Session | null> {
   return (await getSessionResult(options)).unwrapOr(null);
+}
+
+async function readPrivateCachedSession(): Promise<Session | null> {
+  "use cache: private";
+  cacheLife({ stale: PREFETCHED_CONTENT_STALE_SECONDS });
+  const result = await fetchSessionResult(await getRequestHeaders());
+  // Thrown rather than returned, so a Core outage is never kept as "signed out".
+  if (result.isErr()) {
+    throw new CoreAuthUnavailableError(result.error.reason);
+  }
+  return result.value;
+}
+
+/**
+ * `getSession` for a page that should open from its link prefetch. The
+ * prefetch carries a page only when its reads are cached, so this keeps the
+ * session in browser memory for this tab only. An outage reads as no session,
+ * as in `getSession`.
+ */
+export function getPrivateCachedSession(): Promise<Session | null> {
+  return readPrivateCachedSession().catch(() => null);
 }
 
 const getCachedUserAccounts = cache(

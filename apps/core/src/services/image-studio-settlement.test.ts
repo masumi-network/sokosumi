@@ -21,6 +21,8 @@ const {
   putMock,
   requireProjectAccessForUserMock,
   getEnvMock,
+  adEventCreateMock,
+  enqueueAdEvalMock,
 } = vi.hoisted(() => ({
   jobFindUniqueMock: vi.fn(),
   jobUpdateMock: vi.fn(),
@@ -33,6 +35,12 @@ const {
   putMock: vi.fn(),
   requireProjectAccessForUserMock: vi.fn(),
   getEnvMock: vi.fn(),
+  adEventCreateMock: vi.fn(),
+  enqueueAdEvalMock: vi.fn(),
+}));
+
+vi.mock("@/services/ad-eval.service", () => ({
+  enqueueAdEval: enqueueAdEvalMock,
 }));
 
 // `BLOB_READ_WRITE_TOKEN` is present on purpose. It is the shared *public*
@@ -64,6 +72,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: assetCreateMock,
     },
     project: { findUnique: vi.fn() },
+    adEvent: { create: adEventCreateMock },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
   return { default: client };
@@ -94,6 +103,8 @@ import {
   reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+import { expectConsole } from "@/test/console";
+import { pngBytes } from "@/test/image-bytes";
 
 const JOB = {
   id: "job-1",
@@ -111,6 +122,7 @@ const JOB = {
   cancelRequestedAt: null,
   createdAt: new Date(),
   asset: null,
+  idempotencyKey: "key-abcdefgh",
 };
 
 const STUDIO_BLOB_TOKEN = "studio-private-store-token";
@@ -129,7 +141,7 @@ beforeEach(() => {
     userId: "user-1",
   });
   downloadMediaMock.mockResolvedValue({
-    bytes: new Uint8Array([1, 2, 3]),
+    bytes: pngBytes(1024, 1024),
     contentType: "image/png",
   });
   putMock.mockResolvedValue({ pathname: "projects/p/image-studio/job-1-abc" });
@@ -228,17 +240,141 @@ describe("model and placement provenance", () => {
   });
 });
 
-describe("the stored version's dimensions", () => {
-  /** A real PNG header, so the byte-reading fallback has something to read. */
-  function pngBytes(width: number, height: number): Uint8Array {
-    const bytes = new Uint8Array(24);
-    bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
-    const data = new DataView(bytes.buffer);
-    data.setUint32(16, width);
-    data.setUint32(20, height);
-    return bytes;
-  }
+describe("automatic ad eval enqueue", () => {
+  beforeEach(() => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
 
+  it("enqueues once after inserting an image asset", async () => {
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).toHaveBeenCalledOnce();
+    expect(enqueueAdEvalMock).toHaveBeenCalledExactlyOnceWith("job-1");
+    expect(assetCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      enqueueAdEvalMock.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("does not enqueue a job that already has an asset", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      asset: { id: "existing-asset" },
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when the transaction finds another settler's asset", async () => {
+    assetFindUniqueMock.mockResolvedValue({ id: "existing-asset" });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue a settlement lease loser", async () => {
+    jobUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when a competing insertion wins the unique key", async () => {
+    assetCreateMock.mockRejectedValueOnce({ code: "P2002" });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("batch slot preference signals", () => {
+  it("penalizes the displayed revision when refining an older parent", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      parentAssetId: "original-a",
+      batchSlotId: "slot-job",
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    assetFindFirstMock.mockImplementation(async ({ where }) => {
+      if (where.id === "original-a") return { rootId: "root-a" };
+      if (where.rootId) return { version: 2 };
+      if (where.job) return { id: "displayed-b" };
+      return null;
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ parentId: "original-a", version: 3 }),
+      }),
+    );
+    expect(adEventCreateMock).toHaveBeenCalledExactlyOnceWith({
+      data: {
+        workspaceId: "workspace-1",
+        assetId: "displayed-b",
+        userId: "user-1",
+        type: "replaced_in_batch",
+        meta: { jobId: "job-1", batchSlotId: "slot-job" },
+      },
+    });
+    expect(assetFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        projectId: "project-1",
+        workspaceId: "workspace-1",
+        mediaType: "IMAGE",
+        hiddenAt: null,
+        version: { lt: 3 },
+        job: { OR: [{ id: "slot-job" }, { batchSlotId: "slot-job" }] },
+      },
+      orderBy: { version: "desc" },
+      select: { id: true },
+    });
+  });
+
+  it("does not replace the slot when the refinement cannot be delivered", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      parentAssetId: "original-a",
+      batchSlotId: "slot-job",
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    putMock.mockRejectedValueOnce(new Error("storage unavailable"));
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(adEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the delivered refinement when its preference lookup fails", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      parentAssetId: "original-a",
+      batchSlotId: "slot-job",
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    assetFindFirstMock.mockImplementation(async ({ where }) => {
+      if (where.job) throw new Error("event lookup unavailable");
+      return where.id ? { rootId: "root-a" } : { version: 2 };
+    });
+
+    await expect(
+      settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
+    ).resolves.toBeUndefined();
+    expect(assetCreateMock).toHaveBeenCalled();
+    expect(adEventCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("the stored version's dimensions", () => {
   /** A minimal lossy WebP, which is what `recraft/v3` actually returns. */
   function webpBytes(width: number, height: number): Uint8Array {
     const bytes = new Uint8Array(30);
@@ -311,6 +447,10 @@ describe("the stored version's dimensions", () => {
   });
 
   it("stores zero, and keeps the image, when nothing can be read", async () => {
+    expectConsole(
+      "warn",
+      "[image-studio] stored an image with no readable dimensions",
+    );
     // Not a failure: the client falls back to the rendered image's intrinsic size.
     // Throwing away an image we paid for because its header is exotic would be
     // much worse than a missing number.
@@ -353,6 +493,7 @@ describe("concurrent settlement", () => {
     expect(downloadMediaMock).toHaveBeenCalledTimes(1);
     expect(putMock).toHaveBeenCalledTimes(1);
     expect(assetCreateMock).toHaveBeenCalledTimes(1);
+    expect(enqueueAdEvalMock).toHaveBeenCalledExactlyOnceWith("job-1");
   });
 
   it("writes one object per job, so a loser cannot leave an orphan", async () => {
@@ -398,6 +539,10 @@ describe("where generated images are stored", () => {
   });
 
   it("refuses to write anywhere else when no private store is set", async () => {
+    expectConsole(
+      "error",
+      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the",
+    );
     // The shared public token is still present in the environment here. The
     // studio must refuse anyway: an image nobody can see is recoverable, an
     // image published by accident is not.
@@ -413,6 +558,10 @@ describe("where generated images are stored", () => {
   });
 
   it("keeps the paid job recoverable instead of failing it", async () => {
+    expectConsole(
+      "error",
+      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the",
+    );
     // `failJob` here was a real loss: fal has already produced and charged for
     // the image, FAILED is outside LIVE_STATUSES, and the row would drop out
     // of recoverableSelection() — so putting the token back could never bring
@@ -438,6 +587,10 @@ describe("where generated images are stored", () => {
   });
 
   it("hands the lease back when it refuses for want of a private store", async () => {
+    expectConsole(
+      "error",
+      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the",
+    );
     getEnvMock.mockReturnValue({
       FAL_KEY: "k",
       BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
@@ -487,6 +640,7 @@ describe("a settlement whose storage write fails", () => {
     await expect(
       settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
     ).resolves.toBeUndefined();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
   });
 
   it("hands the lease back to the owner that took it", async () => {
@@ -573,6 +727,7 @@ describe("settling a video", () => {
         height: 0,
       }),
     });
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
   });
 
   it("calls an mp4 a CDN mislabelled a video, so it stays playable", async () => {

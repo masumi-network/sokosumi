@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", () => ({
@@ -12,10 +13,13 @@ const hasAssignedSeatMock = vi.fn();
 const listSchedulesMock = vi.fn();
 const countSchedulesMock = vi.fn();
 const taskSchedulesViewMock = vi.fn();
+const connectionMock = vi.fn();
 
 vi.mock("next/server", () => ({
-  connection: vi.fn(),
+  connection: () => connectionMock(),
 }));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 
 vi.mock("@/app/tasks/components/task-schedules-view", () => ({
   TaskSchedulesView: (props: unknown) => {
@@ -26,6 +30,14 @@ vi.mock("@/app/tasks/components/task-schedules-view", () => ({
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
+  getSessionResult: async () => ok(await getSessionMock()),
+}));
+
+vi.mock("next/navigation", async () => ({
+  ...(await vi.importActual<typeof import("next/navigation")>(
+    "next/navigation",
+  )),
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("@/lib/helpers/project-filter-options", () => ({
@@ -172,5 +184,13 @@ describe("SchedulesPage", () => {
 
     expect(hasAssignedSeatMock).toHaveBeenCalledWith("org-1");
     expect(props).toEqual(expect.objectContaining({ canCreate: false }));
+  });
+
+  // The schedule reads are cached, so a link prefetch carries the page.
+  it("renders the page without deferring to the request", async () => {
+    const props = await renderPage({});
+
+    expect(props).toEqual(expect.objectContaining({ schedules: [SCHEDULE] }));
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 });

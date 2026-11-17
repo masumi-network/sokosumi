@@ -55,11 +55,13 @@ export {
 export {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
+  isSokoBotAnnouncementCapability,
   isSokoBotCapability,
   isSokoBotCmoCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSandboxCapability,
   limitSokoBotWrites,
+  SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_CMO_CAPABILITIES,

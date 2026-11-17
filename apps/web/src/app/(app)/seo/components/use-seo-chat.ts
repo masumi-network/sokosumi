@@ -158,6 +158,12 @@ export function useSeoChat(model: SeoWorkspaceModel) {
         restore();
         return;
       }
+      if (response.status === 422) {
+        pendingAttempt.current = null;
+        setError(t("chat.insufficientCredits"));
+        restore();
+        return;
+      }
       if (!response.ok) throw new Error("Audit reply unavailable");
       const turn: SeoAuditChatTurn = await response.json();
       if (!alive.current) return;

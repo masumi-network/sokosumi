@@ -19,6 +19,7 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   revokeSokoBotIntegrationAccounts: mocks.revoke,
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   disconnectLeaverSokoBotIntegrations,
   disconnectLeaverSokoBotIntegrationsBestEffort,
@@ -105,12 +106,14 @@ describe("disconnectLeaverSokoBotIntegrations", () => {
 describe("disconnectLeaverSokoBotIntegrationsBestEffort", () => {
   it("never fails the member removal", async () => {
     mocks.memberFindFirst.mockRejectedValue(new Error("db down"));
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const log = expectConsole(
+      "error",
+      "Soko Bot leaver integration disconnect failed",
+    );
     await expect(
       disconnectLeaverSokoBotIntegrationsBestEffort("leaver", "org"),
     ).resolves.toBeUndefined();
-    expect(log).toHaveBeenCalledOnce();
-    log.mockRestore();
+    expect(log).toHaveLength(1);
   });
 });
 

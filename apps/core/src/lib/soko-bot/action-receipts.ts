@@ -58,6 +58,8 @@ export const ACTION_CAPABILITIES = new Set([
   "delete_newsletter_issue",
   "submit_newsletter_issue",
   "update_newsletter_settings",
+  "save_announcement",
+  "publish_announcement",
   "add_newsletter_subscriber",
   "import_newsletter_subscribers",
   "add_newsletter_subscribers_from_contacts",

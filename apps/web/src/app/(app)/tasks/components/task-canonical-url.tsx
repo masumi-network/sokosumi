@@ -24,15 +24,16 @@ interface TaskCanonicalUrlProps {
 export function TaskCanonicalUrl({ href }: TaskCanonicalUrlProps) {
   const pathname = usePathname();
 
-  // Syncs with the browser history, an external system. Re-runs when the path
-  // changes (edit modal closing) or a rename changes the slug.
+  // Syncs with the browser history, an external system. Runs after every
+  // render: a router refresh (RefreshPrefetchedPage) writes the router's own
+  // URL back into history when it commits, so the rewrite must follow it.
   useEffect(() => {
     const match = pathname.match(/^\/tasks\/([^/]+)\/?$/);
     if (!match) return;
 
     const ref = match[1];
     if (isUuidString(ref)) return;
-    if (pathname === href) return;
+    if (window.location.pathname === href) return;
 
     const { search, hash } = window.location;
     window.history.replaceState(
@@ -40,7 +41,7 @@ export function TaskCanonicalUrl({ href }: TaskCanonicalUrlProps) {
       "",
       `${href}${search}${hash}`,
     );
-  }, [pathname, href]);
+  });
 
   return null;
 }

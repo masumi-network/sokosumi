@@ -41,6 +41,7 @@ const labels: HistoryListItemLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
+    seoChat: "SEO chat",
     contacts: "Find people",
     topUp: "Top up",
     unattributed: "Other",
@@ -159,6 +160,18 @@ describe("HistoryListItem", () => {
       "href",
       "/agents/agent-1/jobs/job-1",
     );
+  });
+
+  it("shows exact fractional SEO chat credits without a private conversation link", () => {
+    const { container } = renderItem({
+      ...base,
+      kind: "seoChat",
+      id: "tx-seo-chat",
+      title: "SEO chat",
+      credits: 0.1234,
+    });
+    expect(screen.getByText("0.1234 credits")).toBeInTheDocument();
+    expect(container.querySelector("a")).toBeNull();
   });
 
   it("renders a consumption with no destination as plain text", () => {

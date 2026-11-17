@@ -13,14 +13,14 @@ describe("SEO credit ceiling", () => {
     expect(() => seoCreditsForCents(0.5)).toThrow();
   });
 
-  it("bounds a one-page audit by the page reserve and a site audit by its USD limit", () => {
-    expect(seoMaxCredits({ kind: "audit_full", pages: 1 })).toBe(50);
-    expect(seoMaxCredits({ kind: "audit_full", pages: 3 })).toBe(450);
+  it("prices every new full audit at a fixed 750 credits", () => {
+    expect(seoMaxCredits({ kind: "audit_full", pages: 1 })).toBe(750);
+    expect(seoMaxCredits({ kind: "audit_full", pages: 3 })).toBe(750);
     // 0.33 USD is 33 cents: 49.5 credits rounds up to 50, and float noise in 0.33 * 100 is gone.
-    expect(seoMaxCredits({ kind: "audit_full", pages: 2, usd: 0.33 })).toBe(50);
-    expect(seoMaxCredits({ kind: "audit_full", pages: 10, usd: 50 })).toBe(
-      7_500,
+    expect(seoMaxCredits({ kind: "audit_full", pages: 2, usd: 0.33 })).toBe(
+      750,
     );
+    expect(seoMaxCredits({ kind: "audit_full", pages: 10, usd: 50 })).toBe(750);
   });
 
   it("bounds a focused check by its paid calls, and a free check at 0", () => {
