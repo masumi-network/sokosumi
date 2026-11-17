@@ -155,7 +155,7 @@ function QuestionItem({
           onChange={(event) => setAnswer(event.target.value)}
         />
         <div className="grid gap-1">
-          <Label className="flex items-center gap-2 font-normal">
+          <Label className="flex min-h-6 items-center gap-2 font-normal">
             <Checkbox
               checked={shared}
               onCheckedChange={(checked) => setShared(checked === true)}
