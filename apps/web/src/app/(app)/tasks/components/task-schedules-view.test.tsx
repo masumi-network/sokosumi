@@ -1,5 +1,12 @@
 import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -201,7 +208,9 @@ describe("TaskSchedulesView", () => {
       "aria-checked",
       "true",
     );
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     await user.click(screen.getByRole("radio", { name: "viewGrid" }));
     expect(document.cookie).toContain("schedules_view_mode=grid");
     expect(screen.getByRole("list")).toHaveAttribute("data-view", "grid");
@@ -377,7 +386,6 @@ describe("TaskSchedulesView", () => {
   });
 
   it("loads more of the same project and state", async () => {
-    const user = userEvent.setup();
     const projectId = "33333333-3333-4333-8333-333333333333";
     searchParamsRef.current = new URLSearchParams(
       `projectId=${projectId}&scheduleState=PAUSED`,
@@ -397,7 +405,9 @@ describe("TaskSchedulesView", () => {
       state: "PAUSED",
     });
 
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
 
     expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
       cursor: "cursor-1",
@@ -411,7 +421,6 @@ describe("TaskSchedulesView", () => {
   });
 
   it("reloads appended pages after changing a schedule", async () => {
-    const user = userEvent.setup();
     const older = schedule({
       id: "older",
       name: "Older schedule",
@@ -422,11 +431,17 @@ describe("TaskSchedulesView", () => {
       nextCursor: null,
     });
     renderView([schedule({})], { nextCursor: "cursor-1" });
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    // Loading more and pausing start async transitions; let them settle
+    // inside act.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     const link = await screen.findByRole("link", { name: "Older schedule" });
     const row = link.closest("li");
     if (!row) throw new Error("Missing schedule row");
-    await user.click(within(row).getByRole("button", { name: "pause" }));
+    await act(async () => {
+      fireEvent.click(within(row).getByRole("button", { name: "pause" }));
+    });
     expect(changeTaskScheduleStateMock).toHaveBeenCalledWith({
       scheduleId: "older",
       action: "pause",
@@ -438,7 +453,9 @@ describe("TaskSchedulesView", () => {
       schedules: [{ ...older, state: "PAUSED" }],
       nextCursor: null,
     });
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     const refreshed = (
       await screen.findByRole("link", { name: "Older schedule" })
     ).closest("li");
@@ -449,10 +466,11 @@ describe("TaskSchedulesView", () => {
   });
 
   it("uses the refreshed first-page cursor after invalidating appended pages", async () => {
-    const user = userEvent.setup();
     const initial = [schedule({})];
     const view = renderView(initial, { nextCursor: "old-cursor" });
-    await user.click(screen.getByRole("button", { name: "pause" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "pause" }));
+    });
     view.rerender(
       <TaskSchedulesView
         schedules={initial}
@@ -470,7 +488,9 @@ describe("TaskSchedulesView", () => {
       schedules: [],
       nextCursor: null,
     });
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
       cursor: "new-cursor",
       projectId: null,
@@ -506,11 +526,12 @@ describe("TaskSchedulesView", () => {
   });
 
   it("stops asking on its own once a page fails, and keeps a retry", async () => {
-    const user = userEvent.setup();
     loadMoreTaskSchedulesMock.mockRejectedValue(new Error("nope"));
     renderView([schedule({})], { nextCursor: "cursor-1" });
 
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("loadMoreError");
     expect(loadWhenVisibleMock.mock.calls.at(-1)?.[0].armed).toBe(false);
