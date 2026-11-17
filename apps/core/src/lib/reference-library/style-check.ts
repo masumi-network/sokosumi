@@ -4,16 +4,20 @@ import { z } from "zod";
 
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
-/** Sees both images well and costs little: one read per made picture. */
-export const STYLE_CHECK_MODEL = "anthropic/claude-haiku-4.5";
+/**
+ * Reads both images closely enough to catch a faint headline and a crowded
+ * logo corner (Haiku 4.5 passed both in the NMKR trial); under a cent a read.
+ */
+export const STYLE_CHECK_MODEL = "anthropic/claude-sonnet-5.5";
 /** Its list price per token, for when the Gateway reports no cost. */
-const PRICE = { input: 1 / 1e6, output: 5 / 1e6 };
+const PRICE = { input: 2 / 1e6, output: 10 / 1e6 };
 const CHECK_PX = 1024;
 
 const verdictSchema = z.object({
   /** Every word visible in the first image, exactly as drawn. */
   text: z.array(z.string()),
   headlineCorrect: z.boolean(),
+  legible: z.boolean(),
   copiedFromReference: z.boolean(),
   brandColours: z.boolean(),
   extraMarks: z.boolean(),
@@ -28,8 +32,9 @@ const RUBRIC = `You check one picture before it is posted as a brand's ad. The f
 Answer each field from what you see:
 - text: every word, number and letter visible in the picture, exactly as drawn.
 - headlineCorrect: true when the picture's only words are the headline given, spelled exactly (true when no headline is given and the picture has no words).
-- copiedFromReference: true when the picture copies the reference's own content: its words, names, mastheads, brand names, characters, figures or a recognisable illustration. Shared style, layout or technique is fine and is false.
-- brandColours: true when the picture is built mostly on the brand colours given (a few neutral tones are fine).
+- legible: true when the headline reads at a glance on a phone: strong contrast against what is behind it, not faint, not lost in shadow or glow (true when there are no words).
+- copiedFromReference: true only when the picture reuses the reference's own content: any of its words or numbers, its names, masthead or brand, a recognisable person or character from it, or the same drawing traced or redrawn. Borrowing its layout, composition, kind of chart, pictogram style, technique, lettering style, era or a similar kind of scene is the point and is false.
+- brandColours: true when the brand colours given lead the picture (the strongest colours are brand colours); it need not use every one, and neutral tones are fine.
 - extraMarks: true when it shows any logo, brand mark, emblem, coin or currency symbol (bitcoin and the like), signature or watermark that was not asked for.
 - cornerClear: true when the lower-right corner is plain enough to place a small logo on without covering anything important.
 - garbled: true for fake lettering, misspellings or unreadable glyphs.
@@ -47,6 +52,7 @@ async function jpeg(bytes: Uint8Array): Promise<Buffer> {
 export function styleCheckPasses(verdict: StyleCheckVerdict): boolean {
   return (
     verdict.headlineCorrect &&
+    verdict.legible &&
     !verdict.copiedFromReference &&
     verdict.brandColours &&
     !verdict.extraMarks &&
