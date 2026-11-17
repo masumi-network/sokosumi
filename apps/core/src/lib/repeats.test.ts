@@ -1,7 +1,7 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it, vi } from "vitest";
 import type { EmbedTexts } from "@/lib/embeddings";
 import { findRepeats } from "@/lib/repeats";
+import { expectCoreLog } from "@/test/core-log";
 
 /** One dimension per topic a text names, plus a little of everything. */
 function fakeEmbed(topics: readonly RegExp[]): EmbedTexts & {
@@ -98,10 +98,8 @@ describe("findRepeats", () => {
   });
 
   it("skips the check when the embedding model fails", async () => {
-    const warned = expectConsole(
-      "warn",
-      "[repeats] embedding failed; check skipped",
-    );
+    // Through Core's logger, so the provider's error is redacted and drained.
+    const warned = expectCoreLog("warn", "Repeat check skipped");
     const failing: EmbedTexts = async () => {
       throw new Error("Gateway timeout");
     };
@@ -113,12 +111,13 @@ describe("findRepeats", () => {
     );
 
     expect(result).toEqual({ repeats: [null, null], costUsd: 0 });
-    expect(warned[0]?.[1]).toBeInstanceOf(Error);
+    expect(warned[0]?.why).toContain("Gateway timeout");
+    expect(warned[0]?.event.operation).toBe("repeats_check");
   });
 
   it("skips the check when the embedding model is slow, and keeps what it returns later", async () => {
     vi.useFakeTimers();
-    expectConsole("warn", "[repeats] embedding failed; check skipped");
+    expectCoreLog("warn", "Repeat check skipped");
     const embed = fakeEmbed([/staking/i]);
     const slow: EmbedTexts = (values) =>
       new Promise((resolve) =>

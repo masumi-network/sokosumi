@@ -6,6 +6,8 @@
  */
 import { createHash } from "node:crypto";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
+import { getErrorMessage } from "@/lib/external-service-errors";
 
 /**
  * Cosine similarity at which two texts say one thing, measured on real
@@ -120,7 +122,13 @@ export async function findRepeats(
       }),
     ]);
   } catch (error) {
-    console.warn("[repeats] embedding failed; check skipped", error);
+    const log = createCoreLogger({ operation: "repeats_check", kind });
+    logCoreWarning(log, {
+      message: "Repeat check skipped: the embedding model did not answer",
+      why: getErrorMessage(error) || "unknown error",
+      fix: "Nothing to do for this save. If it happens on every save, check the AI Gateway embedding model.",
+    });
+    log.emit();
     return none;
   } finally {
     clearTimeout(timer);
