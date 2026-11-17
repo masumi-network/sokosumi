@@ -22,6 +22,7 @@ import { linkedInPersonId, linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { emitCoreWarning } from "@/lib/evlog";
 import {
   deleteSocialAccountAvatarIfOwned,
   snapshotSocialAccountAvatar,
@@ -955,9 +956,21 @@ export async function backfillLinkedInAccountProfile(connection: {
     }
     return true;
   } catch {
-    console.warn("[social-connections] LinkedIn profile backfill failed", {
-      connectionId: connection.id,
-    });
+    // Runs in the social account sync: its cron, or detached after a refresh.
+    emitCoreWarning(
+      {
+        operation: "linkedin_profile_backfill",
+        socialConnection: {
+          id: connection.id,
+          projectId: connection.projectId,
+        },
+      },
+      {
+        message: "Could not backfill a LinkedIn account's profile photo",
+        why: "Reading the LinkedIn identity or storing its photo failed",
+        fix: "Nothing to do: the next social account sync tries again while the account has no photo.",
+      },
+    );
     if (snapshot) {
       await deleteSocialAccountAvatarIfOwned(
         snapshot,

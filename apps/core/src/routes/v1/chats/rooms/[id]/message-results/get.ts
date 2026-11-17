@@ -4,10 +4,12 @@ import { readMessageResultSnapshots } from "@/helpers/chat-result-metadata";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatResultPreviewSchema } from "@/schemas/chat-result-preview.schema";
 import {
@@ -91,10 +93,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ),
       })),
     );
-    for (const outcome of settled) {
-      if (outcome.status === "rejected") {
-        console.error("Failed to hydrate chat message results", outcome.reason);
-      }
+    // Snapshots quote the results a message shows: content-free fields only.
+    const failures = settled.flatMap((outcome, index) =>
+      outcome.status === "rejected"
+        ? [
+            {
+              messageId: prepared[index]?.messageId,
+              failure: messageSafeErrorFields(outcome.reason),
+            },
+          ]
+        : [],
+    );
+    if (failures.length > 0) {
+      recordCoreError(
+        { operation: "chat_message_results_read", roomId: id },
+        {
+          message: "Could not show the results of some chat messages",
+          why: "Hydrating their result snapshots failed",
+          fix: "Only those messages' result cards show an error. If it repeats, look up the error name and code under failures.",
+        },
+        { failures },
+      );
     }
     return ok(
       c,

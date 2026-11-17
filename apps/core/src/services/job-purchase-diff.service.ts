@@ -9,7 +9,9 @@ import type { MasumiPurchaseDiffEntry } from "@sokosumi/masumi/clients";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { doesPurchaseMatchJobTerms } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, emitCoreError, emitCoreWarning } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
  * Cursor key for the purchase diff feed. Versioned like the registry cursor
@@ -60,6 +62,9 @@ export const PURCHASE_DIFF_REREAD_WINDOW_MS = 1000 * 60 * 5;
 
 const PURCHASE_DIFF_REQUEST_TIMEOUT_MS = 10_000;
 
+/** Names the purchase diff's events; it runs only inside the jobs cron. */
+const PURCHASE_DIFF_OPERATION = "job_purchase_diff_sync";
+
 /**
  * Kept off the request timeout so a request started just before the deadline
  * cannot run past it and eat the refund phase's reserve. Mirrors the buffer in
@@ -90,6 +95,13 @@ export interface PurchaseDiffSyncResult {
   processed: number;
 }
 
+/** What a run did, for its one summary event. */
+interface PurchaseDiffRun extends PurchaseDiffSyncResult {
+  cursorReset: boolean;
+  /** Where the run stopped early; null when it did not. */
+  stopped: string | null;
+}
+
 interface PurchaseDiffCursor {
   changedAt: Date;
   id: string;
@@ -104,18 +116,19 @@ interface PersistedPurchaseDiffCursor {
 
 function shouldStop(
   options: PurchaseDiffSyncOptions,
+  run: PurchaseDiffRun,
   message: string,
   allowExpiredDeadline = false,
 ): boolean {
   if (options.abortSignal.aborted) {
-    console.info(`[sync/jobs/purchase-diff] ${message} (aborted)`);
+    run.stopped = `${message} (aborted)`;
     return true;
   }
   if (
     !options.shouldContinue() ||
     (!allowExpiredDeadline && Date.now() >= options.deadlineMs)
   ) {
-    console.info(`[sync/jobs/purchase-diff] ${message} (out of budget)`);
+    run.stopped = `${message} (out of budget)`;
     return true;
   }
   return false;
@@ -203,10 +216,23 @@ async function getJobsForDiffPurchases(
           ? `Purchase ${purchase.id} matches a job blockchain identifier but not its durable terms`
           : `Purchase ${purchase.id} ambiguously matches ${matchingJobs.length} jobs by blockchain identifier and durable terms`,
       );
-      console.error(fallbackError.message, {
-        candidateJobIds: candidates.map((job) => job.id),
-        purchaseId: purchase.id,
-      });
+      emitCoreError(
+        {
+          operation: PURCHASE_DIFF_OPERATION,
+          purchase: { id: purchase.id },
+          candidateJobIds: candidates.map((job) => job.id),
+          matchingJobCount: matchingJobs.length,
+        },
+        {
+          message:
+            "Refused to attach a changed purchase to a job found by its blockchain identifier",
+          why:
+            matchingJobs.length === 0
+              ? "The purchase shares the job's blockchain identifier but not its durable terms"
+              : "The purchase matches more than one job by blockchain identifier and durable terms",
+          fix: "Compare the purchase on the payment node with the candidate jobs (Sentry has the same error). The jobs keep their stored purchase until it is resolved.",
+        },
+      );
       Sentry.captureException(fallbackError);
       continue;
     }
@@ -214,8 +240,18 @@ async function getJobsForDiffPurchases(
     if (job === undefined) {
       continue;
     }
-    console.warn(
-      `[sync/jobs/purchase-diff] Purchase ${purchase.id} matched job ${job.id} by blockchain identifier; stored externalId was stale`,
+    emitCoreWarning(
+      {
+        operation: PURCHASE_DIFF_OPERATION,
+        purchase: { id: purchase.id },
+        job: { id: job.id },
+      },
+      {
+        message:
+          "Matched a changed purchase to its job by blockchain identifier",
+        why: "The job's stored purchase id is stale: the payment node replaced the purchase row",
+        fix: "Nothing to do: the update writes the new purchase id back to the job.",
+      },
     );
     claimedJobIds.add(job.id);
     jobsByPurchaseId.set(purchase.id, job);
@@ -318,6 +354,7 @@ function encodePersistedCursor(
 
 async function readCursor(
   options: PurchaseDiffSyncOptions,
+  run: PurchaseDiffRun,
   stableThrough: Date,
 ): Promise<PurchaseDiffCursorStart> {
   if (options.resetCursor) {
@@ -331,9 +368,8 @@ async function readCursor(
       },
       update: { cursorId: null, lastSyncedAt: replayStart },
     });
-    console.info(
-      "[sync/jobs/purchase-diff] Cursor reset requested — replaying the full purchase diff",
-    );
+    // Cursor reset requested: replaying the full purchase diff.
+    run.cursorReset = true;
     return {
       changedAt: replayStart,
       cursorId: null,
@@ -376,7 +412,18 @@ async function readCursor(
     const invalidCursorError = new Error(
       "Stored purchase diff cursor state is invalid; restarting from the safe watermark",
     );
-    console.error(invalidCursorError.message);
+    emitCoreError(
+      {
+        operation: PURCHASE_DIFF_OPERATION,
+        syncMetadata: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      },
+      {
+        message:
+          "The stored purchase diff cursor is invalid, so the run restarts from the safe watermark",
+        why: "The stored cursor state is not a version 1 cursor with valid dates",
+        fix: "Nothing to do for one run: the diff re-reads from the watermark. If it recurs, find what writes this sync metadata key.",
+      },
+    );
     Sentry.captureException(invalidCursorError);
     await prisma.syncMetadata.updateMany({
       where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
@@ -466,6 +513,28 @@ function createRequestSignal(
 export async function syncPurchasesFromDiff(
   options: PurchaseDiffSyncOptions,
 ): Promise<PurchaseDiffSyncResult> {
+  // Runs after the jobs cron response: the run is one standalone event with
+  // its counts and where it stopped early. Failures are their own events.
+  const run: PurchaseDiffRun = {
+    found: 0,
+    processed: 0,
+    cursorReset: false,
+    stopped: null,
+  };
+  const log = createCoreLogger({ operation: PURCHASE_DIFF_OPERATION });
+  try {
+    await runPurchaseDiff(options, run);
+  } finally {
+    log.set({ purchaseDiff: run });
+    log.emit();
+  }
+  return { found: run.found, processed: run.processed };
+}
+
+async function runPurchaseDiff(
+  options: PurchaseDiffSyncOptions,
+  run: PurchaseDiffRun,
+): Promise<void> {
   const startedAt = Date.now();
   const nextStableThrough = new Date(
     startedAt - PURCHASE_DIFF_REREAD_WINDOW_MS,
@@ -473,32 +542,29 @@ export async function syncPurchasesFromDiff(
   if (
     shouldStop(
       options,
+      run,
       options.resetCursor
         ? "Stopping before resetting the diff cursor"
         : "Stopping before reading the diff cursor",
       options.resetCursor === true,
     )
   ) {
-    return { found: 0, processed: 0 };
+    return;
   }
-  const cursorStart = await readCursor(options, nextStableThrough);
+  const cursorStart = await readCursor(options, run, nextStableThrough);
   const { safeWatermark, stableThrough } = cursorStart;
   let { changedAt, cursorId } = cursorStart;
   const claimedJobIds = new Set<string>();
   let drained = false;
-  let found = 0;
-  let processed = 0;
 
   while (true) {
-    if (shouldStop(options, "Stopping before the next diff request")) {
+    if (shouldStop(options, run, "Stopping before the next diff request")) {
       break;
     }
 
     const signal = createRequestSignal(options);
     if (signal === null) {
-      console.info(
-        "[sync/jobs/purchase-diff] Stopping before the next diff request (no time left)",
-      );
+      run.stopped = "Stopping before the next diff request (no time left)";
       break;
     }
 
@@ -515,9 +581,7 @@ export async function syncPurchasesFromDiff(
       (options.abortSignal.aborted ||
         Date.now() >= options.deadlineMs - PURCHASE_DIFF_TIMEOUT_BUFFER_MS)
     ) {
-      console.info(
-        "[sync/jobs/purchase-diff] Stopping after the diff request (aborted)",
-      );
+      run.stopped = "Stopping after the diff request (aborted)";
       break;
     }
     if (purchasesResult.isErr()) {
@@ -531,6 +595,8 @@ export async function syncPurchasesFromDiff(
       if (hasNodeErrorEnvelope) {
         Sentry.captureException(error);
       } else {
+        // Safe fields and the status only: without the node's envelope the
+        // message is whatever the proxy answered, stringified.
         captureExternalServiceError(error, {
           label: "sync/jobs/purchase-diff",
         });
@@ -543,7 +609,7 @@ export async function syncPurchasesFromDiff(
       drained = true;
       break;
     }
-    found += purchases.length;
+    run.found += purchases.length;
 
     const stablePurchases = purchases.filter(
       (purchase) =>
@@ -584,7 +650,7 @@ export async function syncPurchasesFromDiff(
         lastHandledCursor = purchaseCursor;
         continue;
       }
-      if (shouldStop(options, `Stopping before purchase ${purchase.id}`)) {
+      if (shouldStop(options, run, `Stopping before purchase ${purchase.id}`)) {
         stopAfterThisPage = true;
         break;
       }
@@ -601,12 +667,22 @@ export async function syncPurchasesFromDiff(
         const foreignPurchaseError = new Error(
           `Diff purchase is for a different blockchain identifier than job ${job.id}; refusing purchase state update`,
         );
-        console.error(foreignPurchaseError.message, {
-          jobId: job.id,
-          jobBlockchainIdentifier: job.blockchainIdentifier,
-          purchaseBlockchainIdentifier: purchase.blockchainIdentifier,
-          purchaseId: purchase.id,
-        });
+        emitCoreError(
+          {
+            operation: PURCHASE_DIFF_OPERATION,
+            job: { id: job.id, blockchainIdentifier: job.blockchainIdentifier },
+            purchase: {
+              id: purchase.id,
+              blockchainIdentifier: purchase.blockchainIdentifier,
+            },
+          },
+          {
+            message:
+              "Refused to apply a changed purchase to its job, because their blockchain identifiers differ",
+            why: "The stored purchase id joins the purchase to this job, but the purchase is for another blockchain identifier",
+            fix: "Check the job's purchase row against the payment node's purchase (Sentry has the same error): one side is corrupt. The diff moves past this row.",
+          },
+        );
         Sentry.captureException(foreignPurchaseError);
         lastHandledCursor = purchaseCursor;
         continue;
@@ -614,12 +690,23 @@ export async function syncPurchasesFromDiff(
 
       try {
         await options.applyPurchase(job, purchase);
-        processed++;
+        run.processed++;
       } catch (error) {
         // Park the cursor in front of this row so the next run retries it.
-        console.error(
-          `[sync/jobs/purchase-diff] Failed to apply purchase ${purchase.id} to job ${job.id}:`,
-          error,
+        emitCoreError(
+          {
+            operation: PURCHASE_DIFF_OPERATION,
+            purchase: { id: purchase.id },
+            job: { id: job.id },
+          },
+          {
+            message: "Could not apply a changed purchase to its job",
+            why: "Writing the purchase state to the job failed",
+            fix: "The diff stays parked in front of this purchase, so the next jobs sync retries it. If it fails every run, Sentry has the error.",
+          },
+          // Only safe fields: the write carries the provider's free-text
+          // error note, and a Prisma validation error quotes what it writes.
+          { failure: messageSafeErrorFields(error) },
         );
         // Transient Prisma classes (write conflict, pool timeout) self-heal on
         // the next run and would otherwise page on every cron tick; a real
@@ -647,8 +734,17 @@ export async function syncPurchasesFromDiff(
       changedAt = lastHandledCursor.changedAt;
       cursorId = lastHandledCursor.id;
       if (cursorStalled) {
-        console.warn(
-          `[sync/jobs/purchase-diff] Cursor did not advance past ${cursorId}; stopping this run`,
+        emitCoreWarning(
+          {
+            operation: PURCHASE_DIFF_OPERATION,
+            purchaseDiffCursor: { id: cursorId },
+          },
+          {
+            message:
+              "The purchase diff cursor did not advance, so the run stopped",
+            why: "The page ended on the same row as the previous page",
+            fix: "The next jobs sync resumes from this row. If it stalls every run, check how the payment node pages its purchase diff.",
+          },
         );
         // Only a page that ran to its end proves the feed has nothing past
         // this row. A page cut short by the budget or by a failed apply ends
@@ -675,9 +771,4 @@ export async function syncPurchasesFromDiff(
   if (drained) {
     await markCursorDrained(stableThrough);
   }
-
-  console.info(
-    `[sync/jobs/purchase-diff] Completed purchase diff (found=${found}, processed=${processed}, durationMs=${Date.now() - startedAt})`,
-  );
-  return { found, processed };
 }

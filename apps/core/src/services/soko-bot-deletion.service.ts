@@ -262,6 +262,7 @@ export async function deleteSokoBot(
         name: null,
         avatarSeed: null,
         avatarImageUrl: null,
+        avatarCode: null,
         personalityTone: null,
         personalityDetail: null,
         personalityStyle: null,

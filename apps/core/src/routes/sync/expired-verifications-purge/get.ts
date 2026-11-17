@@ -13,20 +13,14 @@ export default function mount(app: Hono) {
       c,
       EXPIRED_VERIFICATIONS_PURGE_SYNC_LOCK_KEY,
       async (context) => {
-        console.info(
-          "[sync/expired-verifications-purge] Starting expired verification purge",
-        );
-        const startedAt = Date.now();
         const result =
           await expiredVerificationsPurgeService.purgeExpiredVerifications({
             abortSignal: context.abortSignal,
           });
 
-        console.info("[sync/expired-verifications-purge] Completed sync", {
-          durationMs: Date.now() - startedAt,
-          purged: result.purged,
-        });
+        context.log.set({ result: { purged: result.purged } });
       },
+      { errorDetail: "cause" },
     );
   });
 }

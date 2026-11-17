@@ -13,7 +13,7 @@ import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
-import { CusoClip } from "../cuso-clip";
+import { cusoArt } from "../cuso";
 import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
 import { CusoScene } from "./cuso-scene";
@@ -178,9 +178,9 @@ export function LaunchStep({
       <section className="ob-launch ob-launch-done">
         <div className="ob-celebration-panel">
           <div className="card ob-celebration">
-            <CusoClip
-              src="/cuso/celebration.jpg"
-              alt={`${AGENT_NAME} celebrating next to a toy rocket`}
+            <img
+              src={cusoArt("thumbs-up")}
+              alt={`${AGENT_NAME} giving a thumbs up`}
               width={320}
               height={320}
             />

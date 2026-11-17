@@ -1,6 +1,6 @@
 import { waitUntil } from "@vercel/functions";
-
 import { type SendEmailInput, sendEmail } from "@/clients/email.client";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 interface BackgroundEmailReport {
@@ -20,13 +20,15 @@ export function sendEmailInBackground(
   { label, extra, message }: BackgroundEmailReport,
 ): void {
   waitUntil(
-    sendEmail(input).catch((error: unknown) => {
-      captureExternalServiceError(error, {
-        label,
-        sentry: { tags: { context: label } },
-        ...(extra ? { extra } : {}),
-        ...(message ? { message } : {}),
-      });
-    }),
+    runAsBackgroundWork(() =>
+      sendEmail(input).catch((error: unknown) => {
+        captureExternalServiceError(error, {
+          label,
+          sentry: { tags: { context: label } },
+          ...(extra ? { extra } : {}),
+          ...(message ? { message } : {}),
+        });
+      }),
+    ),
   );
 }

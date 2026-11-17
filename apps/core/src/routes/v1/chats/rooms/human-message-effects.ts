@@ -4,6 +4,7 @@ import {
   shouldEmitChatDirectMessageNotifications,
 } from "@/helpers/chat-direct-message-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { enqueueChatMessageSignal } from "@/services/chat-message-signals.service";
 import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unfurl.service";
 
@@ -53,39 +54,45 @@ export function emitHumanRoomMessageEffects({
     );
     if (recipientUserIds.length > 0) {
       waitUntil(
-        emitChatDirectMessageNotifications({
-          roomId: room.id,
-          roomName: room.name,
-          organizationId: room.organizationId,
-          messageId: message.id,
-          parentMessageId: message.parentMessageId,
-          content: message.content,
-          authorUserId,
-          authorName,
-          recipientUserIds,
-          mentionedUserIds,
-        }),
+        runAsBackgroundWork(() =>
+          emitChatDirectMessageNotifications({
+            roomId: room.id,
+            roomName: room.name,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            parentMessageId: message.parentMessageId,
+            content: message.content,
+            authorUserId,
+            authorName,
+            recipientUserIds,
+            mentionedUserIds,
+          }),
+        ),
       );
     }
   }
 
   waitUntil(
-    emitChatRoomMessageCreatedEffects({
-      roomId: room.id,
-      roomName: room.name,
-      roomKind: room.kind,
-      organizationId: room.organizationId,
-      messageId: message.id,
-      parentMessageId: message.parentMessageId,
-      content: message.content,
-      authorUserId,
-      authorName,
-      memberUserIds: room.memberUserIds,
-      mentionedUserIds,
-    }),
+    runAsBackgroundWork(() =>
+      emitChatRoomMessageCreatedEffects({
+        roomId: room.id,
+        roomName: room.name,
+        roomKind: room.kind,
+        organizationId: room.organizationId,
+        messageId: message.id,
+        parentMessageId: message.parentMessageId,
+        content: message.content,
+        authorUserId,
+        authorName,
+        memberUserIds: room.memberUserIds,
+        mentionedUserIds,
+      }),
+    ),
   );
 
-  waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+  waitUntil(
+    runAsBackgroundWork(() => scheduleChatRoomMessageUnfurls(message.id)),
+  );
   // Jev reads it once the room goes quiet; never in front of the send.
-  waitUntil(enqueueChatMessageSignal(message.id));
+  waitUntil(runAsBackgroundWork(() => enqueueChatMessageSignal(message.id)));
 }

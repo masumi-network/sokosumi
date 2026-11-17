@@ -75,8 +75,15 @@ for (const { name, ...viewport } of PROJECTS) {
         await page.getByRole("button", { name: "Add a keyword" }).click();
         const dialog = page.getByRole("dialog", { name: "Track a keyword" });
         await dialog.getByRole("textbox", { name: "Keyword" }).fill(keyword);
-        await dialog.getByRole("textbox", { name: "Country code" }).fill("US");
-        await dialog.getByRole("textbox", { name: "Language code" }).fill("en");
+        // The market is picked by name since #7365.
+        await dialog.getByRole("combobox", { name: "Search country" }).click();
+        await page
+          .getByRole("option", { name: "United States", exact: true })
+          .click();
+        await dialog.getByRole("combobox", { name: "Search language" }).click();
+        await page
+          .getByRole("option", { name: "English", exact: true })
+          .click();
         await dialog.getByRole("button", { name: "Save" }).click();
         await dialog.waitFor({ state: "hidden" });
       }

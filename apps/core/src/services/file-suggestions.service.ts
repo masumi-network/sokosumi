@@ -377,12 +377,16 @@ export async function runSuggestionJob(
     // Said out loud rather than inferred from a count nobody compares.
     // This is the only signal that a workspace has outgrown the window,
     // and the workspace owner is the only person who can act on it.
-    console.info("[files] label vocabulary did not fit the shortlist", {
-      resourceId: resource.id,
-      workspaceId: resource.workspaceId,
-      truncated: allocation.truncated,
-      asked: allocation.categories + allocation.tags,
-    });
+    // Suggestion runs in the cron or after a response: its own event.
+    createCoreLogger({
+      operation: "files_auto_tag",
+      fileResource: { id: resource.id },
+      workspace: { id: resource.workspaceId },
+      labelVocabulary: {
+        truncated: allocation.truncated,
+        asked: allocation.categories + allocation.tags,
+      },
+    }).emit();
   }
 
   const shortlist = vocabulary.filter(
@@ -433,13 +437,14 @@ export async function runSuggestionJob(
       // truncation notice above: this is the one signal that a workspace
       // has no vocabulary at all, and its owner is the only person who
       // can do anything about it.
-      console.info("[files] workspace has no label vocabulary yet", {
-        resourceId: resource.id,
-        workspaceId: resource.workspaceId,
-        consequence:
-          "Nothing was asked and nothing was suggested. This document is " +
-          "not re-examined on its own when a first label is created.",
-      });
+      // Nothing was asked and nothing was suggested. This document is not
+      // re-examined on its own when a first label is created.
+      createCoreLogger({
+        operation: "files_auto_tag",
+        fileResource: { id: resource.id },
+        workspace: { id: resource.workspaceId },
+        labelVocabulary: { size: 0 },
+      }).emit();
       return {
         suggested: 0,
         skipped: "no-vocabulary",

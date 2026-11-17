@@ -10,6 +10,7 @@ import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -119,7 +120,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // the request that claimed the read cancels: the other would ask Resend
     // to drop an email that is already gone, and report the refusal.
     if (claimedTheRead) {
-      waitUntil(cancelNotificationEmails([updated]));
+      waitUntil(runAsBackgroundWork(() => cancelNotificationEmails([updated])));
     }
 
     // The counted room row is the one a banner stands for, so it is the only
@@ -137,7 +138,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       notification.kind === NotificationKind.CHAT &&
       notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY
     ) {
-      waitUntil(publishClearedNotifications([updated.id]));
+      waitUntil(
+        runAsBackgroundWork(() => publishClearedNotifications([updated.id])),
+      );
     }
 
     return ok(c, notificationItemSchema.parse(mapNotificationToItem(updated)));

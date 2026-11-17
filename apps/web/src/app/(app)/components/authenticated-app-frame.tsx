@@ -8,6 +8,7 @@ import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-e
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
+import { WarmLikelyPages } from "@/components/warm-likely-pages.client";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
@@ -163,6 +164,11 @@ export default async function AuthenticatedAppFrame({
                         <SidebarEdgeHandle />
                         <Suspense fallback={null}>
                           <AppShellOverlays />
+                        </Suspense>
+                        {/* Reads the project scope from the URL's search
+                            params, which wait for the request. */}
+                        <Suspense fallback={null}>
+                          <WarmLikelyPages />
                         </Suspense>
                         <div
                           className="flex min-w-0 flex-1 overflow-clip"

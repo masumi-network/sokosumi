@@ -12,6 +12,37 @@ import {
   versionShowsResultCards,
 } from "../versions/index.js";
 
+describe("cmo-v3", () => {
+  it("is cmo-v2 with the weekly strategy skill, leaving cmo-v2's untouched", () => {
+    const v2 = getSokoBotVersion("cmo-v2");
+    const v3 = getSokoBotVersion("cmo-v3");
+    expect(v3.skills).toEqual(
+      v2.skills.map((skill) =>
+        skill === "cmo-strategy-patches"
+          ? "cmo-strategy-weekly"
+          : skill === "cmo-production"
+            ? "cmo-production-styles"
+            : skill,
+      ),
+    );
+    // Picture styles wait for the reference library's tool; until then the
+    // production skill is cmo-production's word for word.
+    const styles = getSokoBotSkill("cmo-production-styles")?.content ?? "";
+    const production = getSokoBotSkill("cmo-production")?.content ?? "";
+    expect(production).not.toContain("styleReferenceId");
+    expect(styles.startsWith(production.trimEnd())).toBe(true);
+    expect(styles).toContain("call find_style_references");
+    const weekly = getSokoBotSkill("cmo-strategy-weekly")?.content ?? "";
+    const patches = getSokoBotSkill("cmo-strategy-patches")?.content ?? "";
+    expect(weekly).toContain("Do you want to try Google Ads");
+    expect(weekly).toContain("all_in: three a day on X");
+    expect(weekly).toContain("Build every piece from concrete material");
+    expect(weekly).toContain("then each later week with part patch");
+    expect(patches).not.toContain("Do you want to try Google Ads");
+    expect(patches).toContain("all_in: 15 or more a week");
+  });
+});
+
 describe("versions", () => {
   it("have unique ids, known skills, and an existing default", () => {
     expect(new Set(SOKO_BOT_VERSIONS.map((v) => v.id)).size).toBe(

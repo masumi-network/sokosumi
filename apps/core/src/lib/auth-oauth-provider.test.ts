@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { oauthProvider } from "@better-auth/oauth-provider";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
@@ -9,6 +8,7 @@ import { jwt } from "better-auth/plugins";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isProductionEnvironment } from "@/config/env";
+import { expectCoreLog } from "@/test/core-log";
 import { emailCodeSignIn } from "./auth-email-code-sign-in";
 import { afterNewSession } from "./auth-new-session";
 import {
@@ -18,6 +18,7 @@ import {
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
+import { betterAuthLogger } from "./evlog-library-logs";
 
 type MemoryDb = Record<string, Record<string, unknown>[]>;
 
@@ -532,6 +533,7 @@ describe("jwtKeyStoreOptions", () => {
 
   function createSigner(db: MemoryDb, secret: string, isProduction: boolean) {
     return betterAuth({
+      logger: betterAuthLogger,
       baseURL: "https://auth.example.com",
       basePath: "/auth",
       secret,
@@ -558,9 +560,9 @@ describe("jwtKeyStoreOptions", () => {
   }
 
   it("signs with a key of its own when the stored key is another secret's", async () => {
-    expectConsole(
+    expectCoreLog(
       "warn",
-      /^\S+ WARN \[Better Auth\]: Skipped 1 JWKS signing key\(s\) encrypted with another secret/,
+      "Skipped 1 JWKS signing key(s) encrypted with another secret",
       3,
     );
     const db = await forkedDb();
@@ -575,9 +577,9 @@ describe("jwtKeyStoreOptions", () => {
   });
 
   it("publishes only the keys it can sign with", async () => {
-    expectConsole(
+    expectCoreLog(
       "warn",
-      /^\S+ WARN \[Better Auth\]: Skipped 1 JWKS signing key\(s\) encrypted with another secret/,
+      "Skipped 1 JWKS signing key(s) encrypted with another secret",
       3,
     );
     const db = await forkedDb();

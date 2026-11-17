@@ -13,7 +13,6 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   afterAll,
   beforeAll,
@@ -23,6 +22,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { handlePolarSubscriptionEvent } from "./polar-subscription.service";
 import {
   retryOwedPolarRevokes,
@@ -215,9 +215,11 @@ describe.skipIf(!db)(
     });
 
     it("keeps an owed revoke ended through Polar's later events until the job revokes it", async () => {
-      expectConsole(
+      expectCoreLogWhys(
         "warn",
-        /^\[polar-subscription-end\] Revoke of \S+ failed; owed to the sync job/,
+        "Could not revoke a CMO subscription at Polar, so the revoke is owed to the sync job",
+        ["Polar refused or did not answer the revoke"],
+        ["polar is down"],
       );
       const cuso = await hiredCuso();
       await handlePolarSubscriptionEvent(subscriptionCreated(cuso));

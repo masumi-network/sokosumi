@@ -11,9 +11,11 @@ import {
 } from "@sokosumi/utils";
 import { z } from "zod";
 import { socialProviderWorkspaceForProject } from "@/config/social-providers";
+import { badRequest } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
@@ -43,6 +45,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  ownMessageProblem,
   prepareSocialPostMutationMedia,
   requireMonthPostPicture,
   scheduleSocialPost,
@@ -60,6 +63,7 @@ import {
   actsForOwner,
   requireSokoBotWorkspaceAccess,
 } from "./acting-scope";
+import { chargeCheck } from "./cmo";
 import { type RuntimeOperations } from "./operations";
 
 /** Social tools use the turn's owner/workspace, never actor fields from model input. */
@@ -300,6 +304,22 @@ export async function executeSocialTool(
               SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(input.input),
             )
           : { media: undefined, threadParts: undefined };
+      if (input.capability === "update_social_post") {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
+          input.input,
+        );
+        // Compared by meaning, which waits on the embedding model, so it
+        // runs before the transaction.
+        if (params.text) {
+          const own = await ownMessageProblem({
+            postId: params.postId,
+            workspaceId,
+            text: params.text,
+          });
+          await chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
+          if (own.problem) throw badRequest(own.problem);
+        }
+      }
       if (
         input.capability === "create_social_post" ||
         input.capability === "update_social_post" ||

@@ -42,7 +42,7 @@ vi.mock("./fal-video-catalog-fetch", async () => ({
   normaliseFalVideoCatalog: normaliseVideoMock,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import { getImageCatalog } from "./catalog";
 import {
   ensureImageCatalogFresh,
@@ -96,7 +96,12 @@ beforeEach(() => {
 
 describe("refreshImageCatalog", () => {
   it("keeps the last good catalog when fal cannot be reached", async () => {
-    expectConsole("warn", "[image-studio] catalog refresh failed");
+    expectCoreLogWhys(
+      "warn",
+      "Could not refresh the image catalog from fal",
+      ["fal's catalog crawl failed or ran out of time"],
+      ["fal returned 429"],
+    );
     fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
 
     expect(await refreshImageCatalog()).toBe(false);
@@ -105,9 +110,10 @@ describe("refreshImageCatalog", () => {
   });
 
   it("keeps the last good catalog when the crawl produced nothing usable", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[image-studio] catalog refresh produced no usable models; keeping the previous catalog",
+      "Kept the previous image catalog, because the crawl found no usable models",
+      ["fal's catalog crawl excluded every image endpoint"],
     );
     // Every endpoint excluded. That is a broken crawl, not news, and adopting it
     // would leave the studio with no models to offer.
@@ -121,6 +127,12 @@ describe("refreshImageCatalog", () => {
 
     expect(await refreshImageCatalog()).toBe(false);
     expect(getImageCatalog().models).toHaveLength(SNAPSHOT_MODEL_COUNT);
+    // One event for the run.
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_catalog_refresh",
+      imageCatalog: { models: 0 },
+      imageCatalogRefresh: { refreshed: false },
+    });
   });
 
   it("does not call fal at all without a key, and does not treat that as an incident", async () => {
@@ -193,7 +205,11 @@ describe("ensureImageCatalogFresh", () => {
   });
 
   it("treats a shared cache that cannot be read as a miss, never an outage", async () => {
-    expectConsole("warn", "[image-studio] shared catalog read failed", 2);
+    expectCoreLog(
+      "warn",
+      "Could not read the shared image studio catalog from Redis",
+      2,
+    );
     redisMock.mockReturnValue({
       get: vi.fn().mockRejectedValue(new Error("connection refused")),
       set: vi.fn(),
@@ -230,7 +246,12 @@ describe("ensureImageCatalogFresh", () => {
 
 describe("a crawl that runs out of time", () => {
   it("is discarded rather than adopted, so no model is silently dropped", async () => {
-    expectConsole("warn", "[image-studio] catalog refresh failed");
+    expectCoreLogWhys(
+      "warn",
+      "Could not refresh the image catalog from fal",
+      ["fal's catalog crawl failed or ran out of time"],
+      ["the catalog crawl ran out of time before it finished"],
+    );
     // A partial catalog is a catalog missing models, and adopting one would take
     // working models out of the composer until the next successful crawl.
     fetchSourcesMock.mockImplementation(async (options) => {
@@ -258,7 +279,12 @@ describe("a crawl that runs out of time", () => {
 
 describe("the video catalog", () => {
   it("keeps the last good video catalog, and still crawls images, when the video crawl fails", async () => {
-    expectConsole("warn", "[image-studio] video catalog refresh failed");
+    expectCoreLogWhys(
+      "warn",
+      "Could not refresh the video catalog from fal",
+      ["fal's video catalog crawl failed or ran out of time"],
+      ["fal returned 429"],
+    );
     fetchVideoSourcesMock.mockRejectedValue(new Error("fal returned 429"));
     crawlFindsTheCurrentImageCatalog();
 

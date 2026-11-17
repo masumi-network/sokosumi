@@ -8,6 +8,11 @@ import {
 import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
 import {
+  emitCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
@@ -15,6 +20,7 @@ import {
   getResumableUiStreamContext,
   isUiStreamResumptionConfigured,
 } from "@/lib/resumable-ui-stream-context";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { requireUserAuthContext } from "@/middleware/auth";
 
 import { requireChatRoomUserMembership } from "../../helpers";
@@ -88,32 +94,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!isResumableStreamAckTimeoutError(error)) {
         throw error;
       }
-      console.warn(
-        "Resumable UI stream resume timed out waiting for Redis ack (likely slow Redis or cross-instance latency)",
-        { roomId, activeStreamId },
+      recordCoreWarning(
+        { operation: "chat_room_stream_resume", roomId, activeStreamId },
+        {
+          message: "Could not resume a chat room's live stream",
+          why: "Redis did not acknowledge the resume in time",
+          fix: "The client falls back to the saved messages. If it repeats, check the Redis instance's latency.",
+        },
+        // The resume carries the reply's stream: content-free fields only.
+        { failure: messageSafeErrorFields(error) },
       );
-      void clearActiveUiStreamIdForRoom({
-        roomId,
-        userId: userContext.userId,
-      }).catch((clearError) => {
-        console.error(
-          "Failed to clear active UI stream id after resume ack timeout:",
-          clearError,
-        );
-      });
+      clearStaleStreamIdAfterResponse(
+        { roomId, userId: userContext.userId },
+        "resume_ack_timeout",
+      );
       return new Response(null, { status: 204 });
     }
 
     if (resumed == null) {
-      void clearActiveUiStreamIdForRoom({
-        roomId,
-        userId: userContext.userId,
-      }).catch((error) => {
-        console.error(
-          "Failed to clear stale active UI stream id after resume miss:",
-          error,
-        );
-      });
+      clearStaleStreamIdAfterResponse(
+        { roomId, userId: userContext.userId },
+        "resume_miss",
+      );
       return new Response(null, { status: 204 });
     }
 
@@ -122,4 +124,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       headers: UI_MESSAGE_STREAM_HEADERS,
     });
   });
+}
+
+/**
+ * Clears the room's stale stream id without holding the response; a failure
+ * is its own event, since the request's event may be emitted by then.
+ */
+function clearStaleStreamIdAfterResponse(
+  params: { roomId: string; userId: string },
+  staleBecause: "resume_ack_timeout" | "resume_miss",
+): void {
+  void runAsBackgroundWork(() => clearActiveUiStreamIdForRoom(params)).catch(
+    (error) => {
+      emitCoreError(
+        {
+          operation: "chat_room_stream_resume",
+          roomId: params.roomId,
+          staleBecause,
+        },
+        {
+          message: "Could not clear a chat room's stale stream id",
+          why: "Writing the room's stream metadata failed",
+          fix: "The next resume attempt misses again and retries the clear. If it repeats, check the database.",
+        },
+        // The room's stream metadata sits next to the reply's stream:
+        // content-free fields only.
+        { failure: messageSafeErrorFields(error) },
+      );
+    },
+  );
 }

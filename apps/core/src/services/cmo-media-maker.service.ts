@@ -10,11 +10,13 @@ import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
@@ -629,11 +631,20 @@ async function start(
     return true;
   } catch (error) {
     if (!(error instanceof HTTPException)) throw error;
-    console.warn("CMO media could not start", {
-      sokoBotId: context.cuso.sokoBotId,
-      pieceId: piece.id,
-      error: error.message,
-    });
+    // The refusal can name the prompt, so only its status and name.
+    recordCoreWarning(
+      {
+        operation: "cmo_media",
+        sokoBot: { id: context.cuso.sokoBotId },
+      },
+      {
+        message: "The image studio refused to start a CMO picture",
+        why: "Image studio refused the generation",
+        fix: "The piece waits for its picture; the next production sync asks again. If it repeats, check the status on its cmoPieces entry (429 is the hourly limit, 402 the balance).",
+      },
+      // One entry per piece: a month can refuse several on one event.
+      { cmoPieces: [{ id: piece.id, failure: messageSafeErrorFields(error) }] },
+    );
     return false;
   }
 }
@@ -857,10 +868,19 @@ async function schedule(
     scheduledAt: post.scheduledAt,
   }).catch((error: unknown) => {
     if (!(error instanceof HTTPException)) throw error;
-    console.warn("CMO media could not schedule a post", {
-      postId: post.id,
-      error: error.message,
-    });
+    // A post's refusal can quote its text, so only its status and name.
+    recordCoreWarning(
+      { operation: "cmo_media" },
+      {
+        message: "Could not schedule a CMO Social post",
+        why: "Social publishing refused the schedule",
+        fix: "The post stays a draft; the next production sync tries again. If it repeats, check the status on its socialPosts entry.",
+      },
+      // One entry per post: a month can refuse several on one event.
+      {
+        socialPosts: [{ id: post.id, failure: messageSafeErrorFields(error) }],
+      },
+    );
   });
 }
 

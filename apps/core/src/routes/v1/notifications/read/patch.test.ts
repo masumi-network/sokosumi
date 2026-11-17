@@ -6,8 +6,13 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notificationFeedWhere } from "@/helpers/notification-feed";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountMarkNotificationsRead from "./patch";
 
@@ -30,9 +35,9 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilPromises.push(promise);
-  },
+  }),
 }));
 
 vi.mock("@/helpers/notifications", async (importOriginal) => ({
@@ -56,8 +61,12 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   role: "user",
 };
 
-function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
+function createApp(
+  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -153,6 +162,28 @@ describe("PATCH /notifications/read", () => {
 
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(1);
+  });
+
+  it("publishes the clear as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("publishClearedNotifications");
+    publishClearedNotificationsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishClearedNotifications"),
+    );
+    notificationUpdateManyAndReturnMock.mockResolvedValue([
+      {
+        id: "notif_room",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      },
+    ]);
+
+    const response = await patchRead(
+      createApp(USER_AUTH_CONTEXT, { evlog: true }),
+      { ids: ["notif_room"] },
+    );
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
   });
 
   it("publishes a clear only for the room rows a banner stands for", async () => {

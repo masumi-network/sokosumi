@@ -50,7 +50,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
       <WorkspacePageShell title={t("title")}>
         {/* A lost project came from the cached read, so a client visit
             renders it again rather than keep it for the cache's stale time. */}
-        {projectId ? <RefreshPrefetchedPage /> : null}
+        {projectId ? <RefreshPrefetchedPage everyVisit /> : null}
         <ProjectScopeRequired
           // Not `notFound()` for a lost id: it came from a switchable scope,
           // so the repair is to pick another project.

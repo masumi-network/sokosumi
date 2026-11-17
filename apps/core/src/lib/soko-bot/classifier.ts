@@ -6,6 +6,8 @@ import type {
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationClassifierContext } from "./evaluation-dispatch";
@@ -613,10 +615,19 @@ export class JevTurnClassifier implements TurnClassifier {
       // Fail closed, but never silently: a broken classifier turns every
       // request into a clarification and looks like a prompt problem. The
       // message itself is never logged.
-      console.warn("Soko Bot classifier failed", {
-        model: SOKO_BOT_ROUTE_MODEL,
-        error: error instanceof Error ? error.name : "unknown",
-      });
+      recordCoreWarning(
+        { operation: "soko_bot_classifier" },
+        {
+          message:
+            "The Soko Bot classifier failed, so the request became a clarification",
+          why: "The routing model call failed, or its answer did not parse",
+          fix: "If it repeats, check the AI gateway and the classifier's model: meanwhile every request is answered with reads only.",
+        },
+        {
+          model: SOKO_BOT_ROUTE_MODEL,
+          failure: messageSafeErrorFields(error),
+        },
+      );
       return {
         classification: baseClassification(
           "CLARIFY",

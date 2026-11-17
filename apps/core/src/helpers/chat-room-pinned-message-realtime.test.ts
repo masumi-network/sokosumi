@@ -1,5 +1,6 @@
 import { CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const { publishMock, channelsGetMock, channelEnvironmentMock } = vi.hoisted(
   () => ({
@@ -64,5 +65,25 @@ describe("publishChatRoomPinnedMessageRealtime", () => {
     expect(channelsGetMock).toHaveBeenCalledWith(
       `chat_rooms:preview:mainnet:branch_fix%2Fx:room_${ROOM_ID}`,
     );
+  });
+
+  it("keeps Ably's answer out of the log when the publish fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A pinned message event was not published over Ably",
+      ["The Ably publish of the pinned message event failed"],
+    );
+    publishMock.mockRejectedValue(new Error("ably down: 'Ada private note'"));
+
+    await expect(
+      publishChatRoomPinnedMessageRealtime(INPUT),
+    ).resolves.toBeUndefined();
+
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      action: "pin",
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
   });
 });

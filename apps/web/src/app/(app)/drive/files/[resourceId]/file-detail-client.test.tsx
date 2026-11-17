@@ -1,6 +1,18 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/back-link", () => ({
+  BackLink: ({
+    children,
+    href,
+    ...props
+  }: React.ComponentProps<"a"> & { href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 /**
  * The detail screen resolves its scope from the session, and the session
  * arrives after the first render. That made two loads race.

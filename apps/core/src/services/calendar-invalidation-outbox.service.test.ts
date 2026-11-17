@@ -1,4 +1,8 @@
+import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import { causeMessage, expectCoreLog } from "@/test/core-log";
 
 const {
   cancelNotificationEmailsMock,
@@ -107,6 +111,64 @@ describe("calendarInvalidationOutboxService", () => {
     workspaceUpdateManyMock.mockResolvedValue({ count: 1 });
     publishMock.mockResolvedValue(undefined);
     publishAccessRevokedMock.mockResolvedValue(undefined);
+  });
+
+  it("logs one error event when pruning published invalidations fails, and still returns the run", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not delete old published Calendar invalidations",
+    );
+    findManyMock.mockResolvedValue([]);
+    executeRawMock.mockRejectedValue(new Error("connection reset"));
+    const { calendarInvalidationOutboxService } = await import(
+      "./calendar-invalidation-outbox.service"
+    );
+
+    await expect(
+      calendarInvalidationOutboxService.syncInvalidations({
+        shouldContinue: () => true,
+      }),
+    ).resolves.toEqual({ claimed: 0, published: 0, failed: 0 });
+
+    expect(causeMessage(errors[0]?.cause)).toBe("connection reset");
+    expect(errors[0]).toMatchObject({
+      why: "The database delete failed",
+      fix: expect.stringContaining("next Calendar invalidation sync"),
+    });
+    expect(errors[0]?.event).toMatchObject({
+      operation: "calendar_invalidation_prune",
+    });
+  });
+
+  it("records a prune failure on the request's event when a request delivers invalidations", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not delete old published Calendar invalidations",
+    );
+    findManyMock.mockResolvedValue([]);
+    executeRawMock.mockRejectedValue(new Error("connection reset"));
+    const { calendarInvalidationOutboxService } = await import(
+      "./calendar-invalidation-outbox.service"
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.patch("/tasks/:id", async (c) => {
+      await calendarInvalidationOutboxService.syncInvalidations({
+        shouldContinue: () => true,
+      });
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/tasks/task-1", { method: "PATCH" });
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ why: "The database delete failed" });
+    expect(causeMessage(errors[0]?.cause)).toBe("connection reset");
+    expect(errors[0]?.event).toMatchObject({
+      method: "PATCH",
+      path: "/tasks/task-1",
+    });
+    expect(errors[0]?.event.operation).toBeUndefined();
   });
 
   it("cancels departed members' scheduled emails without exposing provider IDs", async () => {

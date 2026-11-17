@@ -6,7 +6,6 @@ import {
   VendorGrantStatus,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden, notFound } from "@/helpers/error";
@@ -15,6 +14,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { TASK_TAG_IDS, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -1563,7 +1563,9 @@ describe("POST /tasks", () => {
   it("creates the task when name generation throws trailing bytes", async () => {
     generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
     const app = createApp();
-    expectConsole("error", "Task name generation failed");
+    expectCoreLogWhys("error", "Task name generation failed", [
+      "Generating a task name from its description threw",
+    ]);
 
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -1879,13 +1881,15 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("still returns 201 when post-create grant notify fails", async () => {
-    expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "Failed to notify approvers of pending vendor grant after task create",
+      "Could not notify workspace approvers of a pending grant",
+      ["Sending the approval request failed after the task was created"],
     );
     mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
+    // The mail names the task, so a provider error can quote it.
     notifyWorkspaceApproversOfPendingGrantMock.mockRejectedValue(
-      new Error("notify down"),
+      new Error('Mail for "Parked Task" was rejected'),
     );
 
     const response = await createDelegatedCoworkerApp().request(
@@ -1905,6 +1909,12 @@ describe("POST /tasks delegated coworker create grant", () => {
 
     expect(response.status).toBe(201);
     expect(taskCreateMock).toHaveBeenCalled();
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      operation: "task_create",
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Parked Task");
   });
 
   it("notifies approvers when parking against an existing pending grant", async () => {

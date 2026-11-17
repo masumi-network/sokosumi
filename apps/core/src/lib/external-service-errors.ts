@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/node";
 
+import { recordCoreError, recordCoreWarning } from "./evlog.js";
+import { messageSafeErrorFields } from "./safe-error-fields.js";
 import { getEnvSecrets, redactDeep } from "./secret-redaction.js";
 
 export function getErrorMessage(error: unknown): string {
@@ -146,30 +148,64 @@ export function shouldSuppressSentryForExternalError(error: unknown): boolean {
   );
 }
 
+interface SuppressedErrorOptions {
+  extra?: Record<string, unknown>;
+  /** Fixed text for failures whose provider details may contain personal data. */
+  message?: string;
+  /**
+   * What the log keeps of a suppressed error: `"cause"`, its text, only when
+   * every call behind it carries ids, counts, dates and enum values alone;
+   * otherwise `"safe-fields"` (the default), its name, known code and status.
+   */
+  errorDetail?: "cause" | "safe-fields";
+}
+
 function logSuppressedExternalError(
   label: string,
   error: unknown,
-  extra?: Record<string, unknown>,
-  message?: string,
+  { extra, message, errorDetail = "safe-fields" }: SuppressedErrorOptions,
 ): void {
-  const level = isSchemaDriftPrismaError(error) ? "error" : "warn";
+  // Fail closed: the error's text reaches the log only when the caller says
+  // its operation carries ids, counts, dates and enum values alone. A mail
+  // body, a one-time link or a quoted Prisma argument is nothing redaction
+  // can recognize. A fixed `message` marks private detail and wins.
+  const cause = errorDetail === "cause" && !message ? error : undefined;
   // Same last line of defence Sentry's `beforeSend` applies, for the other
   // sink. Error text assembled from a far side's response body can carry our
   // own credential back to us, and `extra` routinely holds that text.
-  const payload = redactDeep(
-    {
-      error: message ?? getErrorMessage(error),
-      ...extra,
-    },
-    getEnvSecrets(),
-  );
+  const fields = {
+    suppressedFailure: { label },
+    ...(redactDeep(extra ?? {}, getEnvSecrets()) as Record<string, unknown>),
+    ...(cause === undefined ? { failure: messageSafeErrorFields(error) } : {}),
+  };
+  const context = { operation: "external_service_failure" };
 
-  if (level === "error") {
-    console.error(`[${label}] suppressed external failure`, payload);
+  // A call inside a request lands on its event, a cron's or `waitUntil`
+  // work's on its own event.
+  if (isSchemaDriftPrismaError(error)) {
+    recordCoreError(
+      context,
+      {
+        message: "Kept a database schema mismatch out of Sentry",
+        why: "The database schema does not match this Core build, as happens while migrations deploy before the matching release",
+        fix: "If it lasts beyond the deploy, check that the deployed Core release matches the applied migrations.",
+        cause,
+      },
+      fields,
+    );
     return;
   }
 
-  console.warn(`[${label}] suppressed external failure`, payload);
+  recordCoreWarning(
+    context,
+    {
+      message: "Kept a transient external failure out of Sentry",
+      why: "The call failed in a way that usually clears on the next attempt: a timeout, a dropped connection, an upstream gateway error or a busy database",
+      fix: "Nothing, unless it repeats: then check the service named by suppressedFailure.label.",
+      cause,
+    },
+    fields,
+  );
 }
 
 /**
@@ -181,21 +217,13 @@ export function captureExternalServiceError(
   options: {
     label: string;
     sentry?: Parameters<typeof Sentry.captureException>[1];
-    extra?: Record<string, unknown>;
-    /** Fixed text for failures whose provider details may contain personal data. */
-    message?: string;
-  },
+  } & SuppressedErrorOptions,
 ): void {
   // Classify the original failure, but keep its message, stack and cause out
   // of both sinks when the caller needs a privacy-safe report.
   const reportedError = options.message ? new Error(options.message) : error;
   if (shouldSuppressSentryForExternalError(error)) {
-    logSuppressedExternalError(
-      options.label,
-      error,
-      options.extra,
-      options.message,
-    );
+    logSuppressedExternalError(options.label, error, options);
     return;
   }
 

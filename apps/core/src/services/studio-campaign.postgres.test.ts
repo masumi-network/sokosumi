@@ -58,7 +58,6 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeStudioDriveFile: vi.fn(),
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
@@ -81,6 +80,7 @@ import {
   studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
 import { settleWithMedia } from "@/services/image-studio-jobs.service";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -747,11 +747,10 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
 
   it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {
     // Refused twice before it is accepted: no transparency, then a changed file.
-    expectConsole(
-      "warn",
-      "[image-studio] a generation could not be prepared",
-      2,
-    );
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+      "Preparing the request for the image provider threw",
+    ]);
     const path = `/${projectId}/image-studio`;
     const studio = app();
     const width = 20;

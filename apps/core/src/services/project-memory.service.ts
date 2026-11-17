@@ -5,6 +5,7 @@ import { generateText } from "ai";
 import { getEnv } from "@/config/env";
 import { aiGateway } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, emitCoreWarning } from "@/lib/evlog";
 import {
   ensureProjectFilesToken,
   uploadProjectContextMdFile,
@@ -17,6 +18,9 @@ import {
   latestUpdateWindowFor,
   refreshProjectLatestUpdate,
 } from "./project-latest-update";
+
+/** Names the refresh's events; it runs after the task event's response. */
+const PROJECT_MEMORY_OPERATION = "project_memory_refresh";
 
 const MEMORY_GENERATION_TIMEOUT_MS = 60_000;
 const MAX_CONTEXT_WORDS = 800;
@@ -406,11 +410,21 @@ ${formatPromptData(generation.text)}
       );
     }
     if (candidate.status === "invalid") {
-      console.warn("Project memory refresh skipped: invalid model output", {
-        projectId,
-        taskId,
-        reason: candidate.reason,
-      });
+      // After the task event's response (`waitUntil`).
+      emitCoreWarning(
+        {
+          operation: PROJECT_MEMORY_OPERATION,
+          project: { id: projectId },
+          task: { id: taskId },
+        },
+        {
+          message: "Skipped a project memory refresh",
+          why: "The model's CONTEXT.md is not valid",
+          fix: "Nothing to do: the project keeps its current memory, and the next completed task refreshes it again.",
+        },
+        // A Core-owned reason code, never the output itself.
+        { projectMemory: { invalidReason: candidate.reason } },
+      );
       return {
         lockStartedAt,
         result: { status: "skipped", reason: candidate.reason },
@@ -467,9 +481,19 @@ ${formatPromptData(generation.text)}
         data: { contextMdUrl, contextMdUpdatingSince: null },
       });
     } else {
-      console.warn(
-        "Project memory updated without replacing its CONTEXT.md blob",
-        { projectId, version: nextVersion },
+      emitCoreWarning(
+        {
+          operation: PROJECT_MEMORY_OPERATION,
+          project: { id: projectId },
+          task: { id: taskId },
+        },
+        {
+          message:
+            "Updated a project's memory without replacing its CONTEXT.md file",
+          why: "The project has no files token, or the Blob upload returned no URL",
+          fix: "The new memory is saved in the database; its file follows on the next refresh. If it keeps happening, check Blob storage.",
+        },
+        { projectMemory: { version: nextVersion } },
       );
     }
 
@@ -493,9 +517,11 @@ async function refreshAfterTaskCompleted({
   const env = getEnv();
   if (!isProjectMemoryConfigured(env)) {
     // A supported setup (local, previews): the refresh is off, not broken.
-    console.info(
-      "Project memory refresh skipped: AI Gateway or Blob storage is not configured",
-    );
+    createCoreLogger({
+      operation: PROJECT_MEMORY_OPERATION,
+      project: { id: projectId },
+      projectMemory: { skipped: "missing_configuration" },
+    }).emit();
     return { status: "skipped", reason: "missing_configuration" };
   }
 

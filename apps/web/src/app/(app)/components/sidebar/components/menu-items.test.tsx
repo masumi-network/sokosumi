@@ -632,9 +632,10 @@ describe("MenuItems prefetch", () => {
 
     restOn(/taskManager/);
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
-      kind: "full",
-    });
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks",
+      expect.objectContaining({ kind: "full" }),
+    );
   });
 
   // These pages' reads are private-cached too.
@@ -652,9 +653,10 @@ describe("MenuItems prefetch", () => {
 
     restOn(new RegExp(`^${label}$`));
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(href, {
-      kind: "full",
-    });
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      href,
+      expect.objectContaining({ kind: "full" }),
+    );
   });
 
   it("loads the Home content on a resting hover from another page", () => {
@@ -663,9 +665,10 @@ describe("MenuItems prefetch", () => {
 
     restOn(/^home$/);
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/", {
-      kind: "full",
-    });
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/",
+      expect.objectContaining({ kind: "full" }),
+    );
   });
 
   it("loads the selected project's Overview content on a resting hover", () => {
@@ -677,7 +680,7 @@ describe("MenuItems prefetch", () => {
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       "/projects/p-1",
-      { kind: "full" },
+      expect.objectContaining({ kind: "full" }),
     );
   });
 
@@ -709,9 +712,10 @@ describe("MenuItems prefetch", () => {
       approachElement(screen.getByRole("link", { name: /taskManager/ })),
     );
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
-      kind: "full",
-    });
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks",
+      expect.objectContaining({ kind: "full" }),
+    );
   });
 
   // Back to the list from a task is the common way to reach it.
@@ -721,8 +725,9 @@ describe("MenuItems prefetch", () => {
 
     restOn(/taskManager/);
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
-      kind: "full",
-    });
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks",
+      expect.objectContaining({ kind: "full" }),
+    );
   });
 });

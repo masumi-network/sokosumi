@@ -7,15 +7,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SignInProblem } from "./sign-in-problem";
 
-// The mascot's separate suite covers WebGL. Keep asset downloads out of form tests.
-vi.mock("three/addons/loaders/GLTFLoader.js", () => ({
-  GLTFLoader: class {
-    async loadAsync() {
-      throw new Error("No WebGL in form tests");
-    }
-  },
-}));
-
 async function signIn() {}
 
 const alertFor = (error: string) =>

@@ -13,20 +13,14 @@ export default function mount(app: Hono) {
       c,
       TASK_X402_PAYMENT_HEADERS_PURGE_SYNC_LOCK_KEY,
       async (context) => {
-        console.info(
-          "[sync/task-x402-payment-headers-purge] Starting expired x402 header purge",
-        );
-        const startedAt = Date.now();
         const result =
           await taskX402PaymentPurgeService.purgeExpiredTaskX402PaymentHeaders({
             abortSignal: context.abortSignal,
           });
 
-        console.info("[sync/task-x402-payment-headers-purge] Completed sync", {
-          durationMs: Date.now() - startedAt,
-          purged: result.purged,
-        });
+        context.log.set({ result: { purged: result.purged } });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

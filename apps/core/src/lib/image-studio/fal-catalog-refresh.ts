@@ -1,4 +1,9 @@
 import { getEnv } from "@/config/env";
+import {
+  createCoreLogger,
+  logCoreWarning,
+  recordCoreWarning,
+} from "@/lib/evlog";
 import { getRedisClient } from "@/lib/redis";
 
 import { setResolvedImageCatalog } from "./catalog";
@@ -49,6 +54,9 @@ import type { VideoModel } from "./video-model";
  * The one rule is unchanged: a refresh failure logs and keeps serving the last
  * good catalog. No path here empties the studio.
  */
+
+/** The refresh run's one event. */
+type CatalogRefreshLog = ReturnType<typeof createCoreLogger>;
 
 /** fal's catalog moves on the scale of days; six hours is ample. */
 const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
@@ -113,6 +121,8 @@ export async function refreshImageCatalog(options?: {
     return false;
   }
   let outcome = false;
+  // One event per refresh, from the cron or the script, never a request.
+  const log = createCoreLogger({ operation: "image_catalog_refresh" });
   inFlight = (async () => {
     try {
       const apiKey = getEnv().FAL_KEY;
@@ -124,7 +134,7 @@ export async function refreshImageCatalog(options?: {
       }
       // First, because it is a dozen reads and the image crawl is two hundred:
       // a crawl that runs out of budget should not take the short one with it.
-      await refreshVideoCatalog(apiKey, options?.shouldContinue);
+      await refreshVideoCatalog(log, apiKey, options?.shouldContinue);
       const sources = await fetchFalCatalogSources({
         fetchImpl: fetch,
         apiKey,
@@ -132,31 +142,41 @@ export async function refreshImageCatalog(options?: {
       });
       const { models, exclusions } = normaliseFalCatalog(sources);
       if (!setResolvedImageCatalog(models, sources.fetchedAt)) {
-        console.warn(
-          "[image-studio] catalog refresh produced no usable models; keeping the previous catalog",
-          { excluded: exclusions.length },
+        logCoreWarning(
+          log,
+          {
+            message:
+              "Kept the previous image catalog, because the crawl found no usable models",
+            why: "fal's catalog crawl excluded every image endpoint",
+            fix: "Check imageCatalog.excluded and the exclusion rules in normaliseFalCatalog: a crawl that keeps nothing usually means fal changed its catalog's shape.",
+          },
+          { imageCatalog: { models: 0, excluded: exclusions.length } },
         );
         return;
       }
-      await writeSharedCatalog(REDIS_KEY, {
+      await writeSharedCatalog(log, REDIS_KEY, {
         fetchedAt: sources.fetchedAt,
         models,
       });
       outcome = true;
-      console.info("[image-studio] catalog refreshed from fal", {
-        models: models.length,
-        excluded: exclusions.length,
+      log.set({
+        imageCatalog: { models: models.length, excluded: exclusions.length },
       });
     } catch (error) {
       // The last good catalog stays in place. Backing off for the full TTL is
       // deliberate: fal answering 429 is a reason to stop asking, not to retry
       // on the next page load.
-      console.warn("[image-studio] catalog refresh failed", {
-        error: error instanceof Error ? error.message : "unknown",
+      logCoreWarning(log, {
+        message: "Could not refresh the image catalog from fal",
+        why: "fal's catalog crawl failed or ran out of time",
+        fix: "Nothing: the last good catalog stays in place, and the next scheduled refresh tries again.",
+        cause: error,
       });
     } finally {
       markFresh();
       inFlight = null;
+      log.set({ imageCatalogRefresh: { refreshed: outcome } });
+      log.emit();
     }
   })();
   await inFlight;
@@ -170,6 +190,7 @@ export async function refreshImageCatalog(options?: {
  * not stop the image crawl that follows it.
  */
 async function refreshVideoCatalog(
+  log: CatalogRefreshLog,
   apiKey: string,
   shouldContinue: (() => boolean) | undefined,
 ): Promise<void> {
@@ -180,19 +201,28 @@ async function refreshVideoCatalog(
     );
     const { models, exclusions } = normaliseFalVideoCatalog(sources);
     if (!setResolvedVideoCatalog(models)) {
-      console.warn(
-        "[image-studio] video catalog refresh produced no usable models; keeping the previous catalog",
-        { excluded: exclusions.length },
+      logCoreWarning(
+        log,
+        {
+          message:
+            "Kept the previous video catalog, because the crawl found no usable models",
+          why: "fal's video catalog crawl excluded every verified endpoint",
+          fix: "Check videoCatalog.excluded and the verified video endpoints: a crawl that keeps nothing usually means fal changed its catalog's shape.",
+        },
+        { videoCatalog: { models: 0, excluded: exclusions.length } },
       );
       return;
     }
-    await writeSharedCatalog(VIDEO_REDIS_KEY, {
+    await writeSharedCatalog(log, VIDEO_REDIS_KEY, {
       fetchedAt: sources.fetchedAt,
       models,
     });
   } catch (error) {
-    console.warn("[image-studio] video catalog refresh failed", {
-      error: error instanceof Error ? error.message : "unknown",
+    logCoreWarning(log, {
+      message: "Could not refresh the video catalog from fal",
+      why: "fal's video catalog crawl failed or ran out of time",
+      fix: "Nothing: the last good video catalog stays in place, and the next scheduled refresh tries again.",
+      cause: error,
     });
   }
 }
@@ -211,14 +241,23 @@ async function readSharedCatalog<Model>(
     return parsed;
   } catch (error) {
     // A cache that cannot be read is a cache miss, never an outage.
-    console.warn("[image-studio] shared catalog read failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // On the request's event, or its own from a background caller.
+    recordCoreWarning(
+      { operation: "image_catalog_read" },
+      {
+        message: "Could not read the shared image studio catalog from Redis",
+        why: "The Redis read failed or returned an entry that does not parse",
+        fix: "Nothing: this instance keeps its catalog for six hours. Check Redis if it repeats.",
+        cause: error,
+      },
+      { redisKey: key },
+    );
     return null;
   }
 }
 
 async function writeSharedCatalog<Model>(
+  log: CatalogRefreshLog,
   key: string,
   entry: SharedCatalogEntry<Model>,
 ): Promise<void> {
@@ -227,9 +266,16 @@ async function writeSharedCatalog<Model>(
   try {
     await redis.set(key, JSON.stringify(entry), "PX", CATALOG_TTL_MS);
   } catch (error) {
-    console.warn("[image-studio] shared catalog write failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    logCoreWarning(
+      log,
+      {
+        message: "Could not share the refreshed catalog through Redis",
+        why: "The Redis write failed",
+        fix: "Nothing: this instance serves the new catalog, and the others keep theirs until the next refresh writes it.",
+        cause: error,
+      },
+      { redisKey: key },
+    );
   }
 }
 

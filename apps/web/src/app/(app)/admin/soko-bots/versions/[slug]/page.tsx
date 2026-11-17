@@ -1,16 +1,15 @@
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { SokoBotVersionDetail } from "@/components/admin/soko-bots/soko-bot-version-detail";
 import { SokoBotVersionForm } from "@/components/admin/soko-bots/soko-bot-version-form.client";
+import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
-
 import { loadVersionDetailSearchParams } from "../search-params";
 
 export const instant = false;
@@ -48,12 +47,12 @@ export default async function SokoBotVersionDetailPage({
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-2">
           <header className="space-y-1">
             <Button asChild variant="ghost" size="sm" className="-ml-2">
-              <Link
+              <BackLink
                 href={`${ADMIN_SOKO_BOT_VERSIONS_ROUTE}/${encodeURIComponent(version.id)}`}
               >
                 <ArrowLeft aria-hidden className="size-4" />
                 {t("backToVersion")}
-              </Link>
+              </BackLink>
             </Button>
             <h1 className="text-2xl font-semibold tracking-tight">
               {t("editTitle", { version: version.name })}
@@ -83,10 +82,10 @@ export default async function SokoBotVersionDetailPage({
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-2">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href={ADMIN_SOKO_BOT_VERSIONS_ROUTE}>
+          <BackLink href={ADMIN_SOKO_BOT_VERSIONS_ROUTE}>
             <ArrowLeft aria-hidden className="size-4" />
             {t("backToVersions")}
-          </Link>
+          </BackLink>
         </Button>
         <SokoBotVersionDetail
           version={version}

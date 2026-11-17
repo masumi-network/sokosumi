@@ -53,6 +53,7 @@ import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -379,14 +380,32 @@ const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
 function reportOrphanedSellerJob(
   reason: string,
   context: Record<string, unknown>,
-  options: { page?: boolean } = {},
+  options: { page?: boolean; sentryExtra?: Record<string, unknown> } = {},
 ): void {
   const message = `Seller-side job orphaned after start_job: ${reason}`;
-  console.error(`[createAgentJobForUser] ${message}`, context);
+  recordCoreError(
+    { operation: "agent_job_start" },
+    {
+      message: "A seller started a job that Sokosumi will not track",
+      why: `The ${reason}`,
+      fix: "MIP-003 has no cancel, so the seller's job runs on. Check the agent's registry data or seller; the fields name what it returned.",
+    },
+    context,
+  );
   if (options.page !== false) {
-    Sentry.captureException(new Error(message), { extra: context });
+    Sentry.captureException(new Error(message), {
+      extra: { ...context, ...options.sentryExtra },
+    });
   }
 }
+
+/** The seller's failure text can echo the job's input. */
+const START_JOB_FAILURE_WHY: Record<AgentJobStartFailure["kind"], string> = {
+  unreachable: "The seller could not be reached or refused the job",
+  ambiguous:
+    "The seller's start_job call timed out or failed after it was sent",
+  "invalid-response": "The seller answered start_job off the MIP-003 contract",
+};
 
 /**
  * A `start_job` call that never produced a usable response.
@@ -407,16 +426,21 @@ function reportStrandedStartJobFailure(
   context: Record<string, unknown>,
 ): void {
   if (failure.kind !== "invalid-response") {
-    console.warn("[createAgentJobForUser] start_job failed", {
-      ...context,
-      kind: failure.kind,
-      failure: failure.message,
-    });
+    recordCoreWarning(
+      { operation: "agent_job_start" },
+      {
+        message: "A seller's start_job call failed",
+        why: START_JOB_FAILURE_WHY[failure.kind],
+        fix: "Nothing: no credits were charged and the user is told the hire failed. If one agent keeps failing, check its seller.",
+      },
+      { ...context, startJob: { kind: failure.kind } },
+    );
     return;
   }
   reportOrphanedSellerJob(
     "seller accepted start_job but returned a response that does not match the MIP-003 contract",
-    { ...context, failure: failure.message },
+    { ...context, startJob: { kind: failure.kind } },
+    { sentryExtra: { failure: failure.message } },
   );
 }
 
@@ -852,8 +876,13 @@ export async function createAgentJobForUser(
             response.paymentSourceType !== "Web3CardanoV1") ||
           response.supportedPaymentSourceIndex !== undefined
         ) {
-          console.warn(
-            "[createAgentJobForUser] legacy agent returned V2 payment fields; ignoring",
+          recordCoreWarning(
+            { operation: "agent_job_start" },
+            {
+              message: "A legacy agent's seller returned V2 payment fields",
+              why: "The seller of a V1 agent echoed V2 payment fields, as an upgraded seller SDK does",
+              fix: "Nothing: the hire continues on the V1 rail. The agent's registry entry should move to V2.",
+            },
             {
               agentId: agent.id,
               paymentSourceType: response.paymentSourceType,
