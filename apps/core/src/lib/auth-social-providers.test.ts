@@ -5,12 +5,14 @@ import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
+import { expectCoreLog } from "@/test/core-log";
 import { auth } from "./auth";
 import {
   accountOptions,
   SOCIAL_PROVIDER_IDS,
   socialProviderOptions,
 } from "./auth-social-providers";
+import { betterAuthLogger } from "./evlog-library-logs";
 
 const { captureExceptionMock, uploadProfileImageMock } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
@@ -237,10 +239,7 @@ describe("social sign-in boundaries (SOK-1178)", () => {
   it.each(["google", "microsoft"] as const)(
     "rejects client-submitted %s ID tokens before creating a session",
     async (provider) => {
-      expectConsole(
-        "error",
-        /^\S+ ERROR \[Better Auth\]: Provider does not support id token verification/,
-      );
+      expectCoreLog("error", "Provider does not support id token verification");
       const db: MemoryDb = {
         user: [],
         session: [],
@@ -248,6 +247,7 @@ describe("social sign-in boundaries (SOK-1178)", () => {
         verification: [],
       };
       const signInAuth = betterAuth({
+        logger: betterAuthLogger,
         baseURL: "https://auth.example.com",
         basePath: "/auth",
         secret: linkingSecret,

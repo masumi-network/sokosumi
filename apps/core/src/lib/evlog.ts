@@ -1,5 +1,10 @@
 import { waitUntil } from "@vercel/functions";
-import type { DrainContext, RedactConfig, RequestLogger } from "evlog";
+import type {
+  DrainContext,
+  EvlogPlugin,
+  RedactConfig,
+  RequestLogger,
+} from "evlog";
 import { createLogger, initLogger } from "evlog";
 import { evlog, useLogger } from "evlog/hono";
 import { createSentryDrain } from "evlog/sentry";
@@ -53,13 +58,17 @@ const LOG_CIRCULAR = "[circular]";
 
 /**
  * `value` as JSON would serialize it, cut at {@link MAX_REDACTION_DEPTH} and
- * at cycles: an unwalked subtree is replaced, never passed through.
+ * at cycles: an unwalked subtree is replaced, never passed through. An Error
+ * keeps its own fields (`code`, `cause`, …). `text`, when given, rewrites
+ * every string on the way.
  */
-function toLogData(
+export function toLogData(
   value: unknown,
-  depth: number,
-  ancestors: Set<object>,
+  depth = 0,
+  ancestors = new Set<object>(),
+  text?: (value: string) => string,
 ): unknown {
+  if (typeof value === "string") return text ? text(value) : value;
   if (typeof value === "bigint") return value.toString();
   if (value === null || typeof value !== "object") {
     return typeof value === "function" || typeof value === "symbol"
@@ -82,10 +91,12 @@ function toLogData(
       } catch {
         return "[unserializable]";
       }
-      if (json !== value) return toLogData(json, depth + 1, ancestors);
+      if (json !== value) return toLogData(json, depth + 1, ancestors, text);
     }
     if (Array.isArray(value)) {
-      return value.map((item) => toLogData(item, depth + 1, ancestors) ?? null);
+      return value.map(
+        (item) => toLogData(item, depth + 1, ancestors, text) ?? null,
+      );
     }
     const source: Record<string, unknown> =
       value instanceof Error
@@ -100,7 +111,7 @@ function toLogData(
     const out: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(source)) {
       if (key === "toJSON") continue;
-      const data = toLogData(item, depth + 1, ancestors);
+      const data = toLogData(item, depth + 1, ancestors, text);
       if (data !== undefined) out[key] = data;
     }
     return out;
@@ -149,9 +160,29 @@ export function coreEvlogDrain() {
   return process.env.SENTRY_DSN ? createSentryDrain() : undefined;
 }
 
+/** Request loggers whose wide event has been emitted; writes to them are dropped. */
+const emittedRequestLoggers = new WeakSet<RequestLogger>();
+
+/**
+ * Marks each request logger as it emits. evlog 2.35.1 exposes no emitted
+ * state, and work after the response keeps the request's async context, so
+ * `useLogger()` still hands that logger out.
+ */
+const markEmittedRequestLoggers: EvlogPlugin = {
+  name: "core-emitted-request-loggers",
+  extendLogger(logger) {
+    const emit = logger.emit;
+    logger.emit = (overrides) => {
+      emittedRequestLoggers.add(logger);
+      return emit(overrides);
+    };
+  },
+};
+
 export function coreEvlogMiddleware() {
   return evlog({
     exclude: [OPENAPI_SPEC_PATH],
+    plugins: [markEmittedRequestLoggers],
     drain: coreEvlogDrain(),
     // Local/tests must not pass waitUntil: evlog then skips awaiting the
     // drain, and @vercel/functions waitUntil is a no-op off Vercel.
@@ -334,6 +365,19 @@ export function auditImpersonationDenied(input: ImpersonationDenialInput) {
       ? { target: { type: "user", id: input.targetUserId } }
       : {}),
   });
+}
+
+/**
+ * The request's logger while its wide event can still take writes: `null`
+ * outside a request and after the event was emitted (work in `waitUntil`).
+ * For code that cannot know where it runs, such as library loggers, which
+ * fall back to a standalone event. `tryUseLogger` keeps returning the emitted
+ * logger, so evlog still warns about a late write that should have been a
+ * standalone event.
+ */
+export function tryUseLiveLogger() {
+  const log = tryUseLogger();
+  return log && !emittedRequestLoggers.has(log) ? log : null;
 }
 
 export function tryUseLogger() {
