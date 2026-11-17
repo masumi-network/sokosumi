@@ -740,6 +740,40 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(messageCreateMock).not.toHaveBeenCalled();
     });
 
+    it("gives a Coworker the winner's message when two posts with one client id race", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageFindUniqueMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(
+          createdMessage({ senderCoworkerId: COWORKER_ID }),
+        );
+      messageCreateMock.mockRejectedValue({
+        code: "P2002",
+        meta: { target: ["roomId", "clientMessageId"] },
+      });
+
+      const response = await createApp(coworkerAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "hello",
+            clientMessageId: "client-x",
+          }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      expect((await response.json()).data.id).toBe(MESSAGE_ID);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+    });
+
     it("keeps buzz: client ids for the Buzz bridge, so no one claims another's Buzz message", async () => {
       for (const auth of [coworkerAuthContext, userAuthContext]) {
         const response = await createApp(auth).request(`/${ROOM_ID}/messages`, {

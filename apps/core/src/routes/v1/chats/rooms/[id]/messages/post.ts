@@ -122,6 +122,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ) {
         throw badRequest("Client message ids starting with buzz: are reserved");
       }
+      // The key is the room's: one someone else used is theirs, not ours.
+      const replayAgentMessage = async (clientMessageId: string) => {
+        const replayed = await prisma.chatRoomMessage.findUnique({
+          where: { roomId_clientMessageId: { roomId: id, clientMessageId } },
+          include: chatRoomMessageInclude,
+        });
+        if (!replayed) return null;
+        if (
+          replayed.senderCoworkerId !==
+            (isCoworkerAuthContext(authContext)
+              ? authContext.coworkerId
+              : null) ||
+          replayed.senderSokoBotId !==
+            (isSokoBotAuthContext(authContext) ? authContext.sokoBotId : null)
+        ) {
+          throw conflict(
+            "clientMessageId already used by another sender in this room",
+          );
+        }
+        return created(
+          c,
+          chatRoomMessageSchema.parse(
+            mapChatRoomMessage(await withChatRoomReplyCount(prisma, replayed)),
+          ),
+        );
+      };
       // A replay of an agent's post (say the bridge lost Core's answer) is the
       // same message, not a second one.
       if (body.clientMessageId) {
@@ -135,93 +161,75 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         } else {
           await requireChatRoomSokoBotAccess(id, authContext.sokoBotId, prisma);
         }
-        const replayed = await prisma.chatRoomMessage.findUnique({
-          where: {
-            roomId_clientMessageId: {
-              roomId: id,
-              clientMessageId: body.clientMessageId,
-            },
-          },
-          include: chatRoomMessageInclude,
-        });
-        // The key is the room's: one someone else used is theirs, not ours.
-        if (
-          replayed &&
-          (replayed.senderCoworkerId !==
-            (isCoworkerAuthContext(authContext)
-              ? authContext.coworkerId
-              : null) ||
-            replayed.senderSokoBotId !==
-              (isSokoBotAuthContext(authContext)
-                ? authContext.sokoBotId
-                : null))
-        ) {
-          throw conflict(
-            "clientMessageId already used by another sender in this room",
-          );
-        }
-        if (replayed) {
-          return created(
-            c,
-            chatRoomMessageSchema.parse(
-              mapChatRoomMessage(
-                await withChatRoomReplyCount(prisma, replayed),
-              ),
-            ),
-          );
-        }
+        const replayed = await replayAgentMessage(body.clientMessageId);
+        if (replayed) return replayed;
       }
-      const persisted = await prisma.$transaction(async (tx) => {
-        const room = isCoworkerAuthContext(authContext)
-          ? await requireChatRoomCoworkerAccess(id, authContext.coworkerId, tx)
-          : await requireChatRoomSokoBotAccess(id, authContext.sokoBotId, tx);
+      const persisted = await prisma
+        .$transaction(async (tx) => {
+          const room = isCoworkerAuthContext(authContext)
+            ? await requireChatRoomCoworkerAccess(
+                id,
+                authContext.coworkerId,
+                tx,
+              )
+            : await requireChatRoomSokoBotAccess(id, authContext.sokoBotId, tx);
 
-        const parentMessageId = await resolveThreadParentMessageId(
-          tx,
-          room.id,
-          body.parentMessageId,
-        );
-        if (body.quote?.roomId && body.quote.roomId !== room.id) {
-          throw quotedMessageNotFound();
-        }
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          body.quote?.messageId,
-        );
-        const metadata = mergeChatRoomMessageMetadata(null, quote);
+          const parentMessageId = await resolveThreadParentMessageId(
+            tx,
+            room.id,
+            body.parentMessageId,
+          );
+          if (body.quote?.roomId && body.quote.roomId !== room.id) {
+            throw quotedMessageNotFound();
+          }
+          const quote = await resolveRoomQuoteSnapshot(
+            tx,
+            room.id,
+            body.quote?.messageId,
+          );
+          const metadata = mergeChatRoomMessageMetadata(null, quote);
 
-        const message = await tx.chatRoomMessage.create({
-          data: {
+          const message = await tx.chatRoomMessage.create({
+            data: {
+              roomId: room.id,
+              parentMessageId,
+              senderCoworkerId: isCoworkerAuthContext(authContext)
+                ? authContext.coworkerId
+                : null,
+              senderSokoBotId: isSokoBotAuthContext(authContext)
+                ? authContext.sokoBotId
+                : null,
+              clientMessageId: body.clientMessageId ?? null,
+              content: body.content,
+              ...(metadata ? { metadata } : {}),
+            },
+            include: chatRoomMessageInclude,
+          });
+          const mentionedUserIds = await persistChatHumanMentions(tx, {
+            messageId: message.id,
             roomId: room.id,
-            parentMessageId,
-            senderCoworkerId: isCoworkerAuthContext(authContext)
-              ? authContext.coworkerId
-              : null,
-            senderSokoBotId: isSokoBotAuthContext(authContext)
-              ? authContext.sokoBotId
-              : null,
-            clientMessageId: body.clientMessageId ?? null,
             content: body.content,
-            ...(metadata ? { metadata } : {}),
-          },
-          include: chatRoomMessageInclude,
-        });
-        const mentionedUserIds = await persistChatHumanMentions(tx, {
-          messageId: message.id,
-          roomId: room.id,
-          content: body.content,
-          // A shared bot's room holds the whole organization.
-          expandAll: !isSharedSokoBotAuthContext(authContext),
-        });
+            // A shared bot's room holds the whole organization.
+            expandAll: !isSharedSokoBotAuthContext(authContext),
+          });
 
-        await tx.chatRoom.update({
-          where: { id: room.id },
-          data: { updatedAt: new Date() },
-        });
+          await tx.chatRoom.update({
+            where: { id: room.id },
+            data: { updatedAt: new Date() },
+          });
 
-        return { message, room, mentionedUserIds };
-      });
+          return { message, room, mentionedUserIds };
+        })
+        // Two posts with one id at once: the one that lost gets the winner's.
+        .catch(async (error: unknown) => {
+          if (!body.clientMessageId || !isPrismaUniqueViolation(error)) {
+            throw error;
+          }
+          const raced = await replayAgentMessage(body.clientMessageId);
+          if (!raced) throw error;
+          return raced;
+        });
+      if (persisted instanceof Response) return persisted;
 
       const { message, room, mentionedUserIds } = persisted;
 

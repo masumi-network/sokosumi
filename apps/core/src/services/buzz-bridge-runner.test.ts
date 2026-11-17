@@ -14,9 +14,19 @@ vi.mock("@/services/buzz-bridge.service", () => ({
   buzzConfig: () => ({ operatorPubkey: "a".repeat(64) }),
   buzzSubscriptions: vi.fn(async () => []),
   claimBuzzState: vi.fn(async () => true),
+  CoreRejectedError: class extends Error {
+    constructor(
+      readonly status: number,
+      readonly terminal: boolean,
+    ) {
+      super(`core ${status}`);
+    }
+  },
 }));
 
-import { runLeasedBuzzBridge } from "./buzz-bridge-runner";
+import { CoreRejectedError } from "@/services/buzz-bridge.service";
+
+import { rejectedForGood, runLeasedBuzzBridge } from "./buzz-bridge-runner";
 
 const locked = () => Object.assign(new Error("LOCK_IS_LOCKED"));
 const core = vi.fn();
@@ -56,5 +66,31 @@ describe("runLeasedBuzzBridge", () => {
     await expect(
       runLeasedBuzzBridge({ core, log: vi.fn(), until: 0, waitMs: 5_000 }),
     ).rejects.toThrow("database down");
+  });
+});
+
+describe("rejectedForGood", () => {
+  const rejected = (status: number, terminal: boolean) =>
+    new (
+      CoreRejectedError as unknown as new (
+        status: number,
+        terminal: boolean,
+      ) => Error
+    )(status, terminal);
+
+  it("gives up at once on a terminal rejection", () => {
+    expect(rejectedForGood(rejected(404, true), 0)).toBe(true);
+  });
+
+  it("retries a refused access a while, then gives up", () => {
+    expect(rejectedForGood(rejected(403, false), 0)).toBe(false);
+    expect(rejectedForGood(rejected(403, false), 10)).toBe(false);
+    expect(rejectedForGood(rejected(403, false), 11)).toBe(true);
+    expect(rejectedForGood(rejected(401, false), 11)).toBe(true);
+  });
+
+  it("keeps retrying when Core is unreachable or busy", () => {
+    expect(rejectedForGood(rejected(429, false), 50)).toBe(false);
+    expect(rejectedForGood(new Error("fetch failed"), 50)).toBe(false);
   });
 });

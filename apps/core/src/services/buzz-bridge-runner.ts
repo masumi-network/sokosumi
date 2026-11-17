@@ -63,6 +63,22 @@ const LEASE_RENEW_MS = 15_000;
  * stops at `until` (a timestamp), when the lease is lost, or when
  * `shouldContinue` says so. Returns false when the lease never came free.
  */
+/**
+ * Core refuses access (401/403) while a membership is still syncing, so those
+ * are retried, but only for about half an hour: a room that turned read-only
+ * would otherwise hold its community's cursor forever.
+ */
+const FORBIDDEN_ATTEMPTS = 12;
+
+export function rejectedForGood(error: unknown, attempt: number): boolean {
+  if (!(error instanceof CoreRejectedError)) return false;
+  if (error.terminal) return true;
+  return (
+    (error.status === 401 || error.status === 403) &&
+    attempt + 1 >= FORBIDDEN_ATTEMPTS
+  );
+}
+
 export async function runLeasedBuzzBridge(options: {
   core: CoreRequest;
   log: BridgeLog;
@@ -250,7 +266,8 @@ export async function runBuzzBridge(options: {
 
   // Inbound events are applied one at a time, in order. One whose target is
   // not linked yet waits (up to 6 tries, then is applied as well as it can
-  // be); one that fails because Core is unreachable is retried until it works.
+  // be); one that fails because Core is unreachable is retried until it works,
+  // one Core keeps refusing access to only for a while.
   let inbound = Promise.resolve();
   const seen = new Set<string>();
   const TARGET_ATTEMPTS = 6;
@@ -362,8 +379,9 @@ export async function runBuzzBridge(options: {
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         // Core said no for good (the message is gone, the reaction too
-        // long): retrying would hold the cursor forever.
-        if (error instanceof CoreRejectedError && error.terminal) {
+        // long), or keeps refusing access: retrying would hold the cursor
+        // forever.
+        if (rejectedForGood(error, attempt)) {
           log(
             `in  kind ${event.kind} ${event.id.slice(0, 8)} → rejected`,
             reason,

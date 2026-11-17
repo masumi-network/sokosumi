@@ -137,7 +137,7 @@ is why a run lasts 240 s (the rest lets the change being applied finish).
    `https://operator.chat.sokosumi.com/operator/communities` answers 401
    (unsigned) rather than 404.
 2. Set the Vercel variables and deploy Core (the migrations
-   `20261115131501_buzz_bridge` to `20261115131523_buzz_agent_reactions` run with it).
+   `20261116210000_buzz_bridge` to `20261116212200_buzz_agent_reactions` run with it).
 3. The first runs give every organization a community (25 created per
    30-second sweep: about half an hour for 1,300), put each room on Buzz
    (50 per sweep) and import its history (3 rooms per sweep). Watch the

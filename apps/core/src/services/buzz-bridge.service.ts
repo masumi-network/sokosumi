@@ -3110,7 +3110,7 @@ export async function repairBuzzOutbox(limit = 200): Promise<number> {
        )
      LIMIT ${limit}`;
   // Reactions change no message: added ones Buzz has no link for, and a
-  // person's links whose reaction is gone, whichever key signed it (one their
+  // person's or a Coworker's links whose reaction is gone, whichever key signed it (one their
   // own app key signed is tombstoned, so a re-add from Buzz counts again).
   const reactions = await prisma.$queryRaw<{ id: string; roomId: string }[]>`
     SELECT DISTINCT m.id::text AS id, m."roomId"::text AS "roomId"
@@ -3140,6 +3140,29 @@ export async function repairBuzzOutbox(limit = 200): Promise<number> {
               AND NOT EXISTS (
                 SELECT 1 FROM chat_room_reaction r
                  WHERE r."messageId" = m.id AND r."userId" = i."userId"
+                   AND r.emoji = rl.emoji
+              )
+         )
+         OR EXISTS (
+           SELECT 1 FROM chat_room_agent_reaction r
+             JOIN buzz_identity i ON i."coworkerId" = r."coworkerId"
+            WHERE r."messageId" = m.id
+              AND r."createdAt" BETWEEN now() - interval '1 day' AND now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM buzz_reaction_link rl
+                 WHERE rl."messageId" = m.id AND rl."identityId" = i.id
+                   AND rl.emoji = r.emoji
+              )
+         )
+         OR EXISTS (
+           SELECT 1 FROM buzz_reaction_link rl
+             JOIN buzz_identity i ON i.id = rl."identityId"
+            WHERE rl."messageId" = m.id
+              AND i."coworkerId" IS NOT NULL AND rl."pendingEvent" IS NULL
+              AND rl."createdAt" < now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM chat_room_agent_reaction r
+                 WHERE r."messageId" = m.id AND r."coworkerId" = i."coworkerId"
                    AND r.emoji = rl.emoji
               )
          )
