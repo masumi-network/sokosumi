@@ -23,10 +23,16 @@ import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { createInterface } from "node:readline";
 
+import { put } from "@vercel/blob";
 import { gateway, generateText, Output } from "ai";
 import pLimit from "p-limit";
 import sharp from "sharp";
-
+import {
+  embedContactTexts,
+  vectorLiteral,
+} from "../src/lib/contacts/embeddings";
+import prisma from "../src/lib/db/prisma";
+import type { ReferenceDescription } from "../src/lib/reference-library/description";
 import {
   clipDescription,
   REFERENCE_DESCRIBE_MODEL,
@@ -198,6 +204,150 @@ async function describe(root: string): Promise<void> {
   console.log(`done · $${costUsd.toFixed(2)}`);
 }
 
+type Described = ReferenceDescription & {
+  path: string;
+  width: number;
+  height: number;
+};
+
+/** The pathname an image has in the private reference library store. */
+function blobPathname(libraryPath: string): string {
+  return `library/${libraryPath}`;
+}
+
+/**
+ * Puts every described image into the private reference library store
+ * (`REFERENCE_LIBRARY_READ_WRITE_TOKEN`), resumable from `_meta/uploaded.jsonl`.
+ */
+async function upload(root: string): Promise<void> {
+  const token = process.env.REFERENCE_LIBRARY_READ_WRITE_TOKEN;
+  if (!token) throw new Error("Set REFERENCE_LIBRARY_READ_WRITE_TOKEN in .env");
+  const out = path.join(root, "_meta", "uploaded.jsonl");
+  const done = new Set(
+    (await readJsonl<{ path: string }>(out)).map((row) => row.path),
+  );
+  const described = await readJsonl<Described>(
+    path.join(root, "_meta", "descriptions.jsonl"),
+  );
+  const rows = described.filter((row) => !done.has(row.path));
+  console.log(`${done.size} uploaded, ${rows.length} to go`);
+  const limit = pLimit(CONCURRENCY);
+  let finished = 0;
+  await Promise.all(
+    rows.map((row) =>
+      limit(async () => {
+        try {
+          const body = readFileSync(path.join(root, row.path));
+          const blob = await put(blobPathname(row.path), body, {
+            access: "private",
+            token,
+            allowOverwrite: true,
+            contentType: row.path.toLowerCase().endsWith(".png")
+              ? "image/png"
+              : "image/jpeg",
+          });
+          await appendFile(
+            out,
+            `${JSON.stringify({ path: row.path, pathname: blob.pathname })}\n`,
+          );
+        } catch (error) {
+          console.error(`skip ${row.path}: ${(error as Error).message}`);
+        }
+        finished += 1;
+        if (finished % 500 === 0) console.log(`${finished}/${rows.length}`);
+      }),
+    ),
+  );
+  console.log("done");
+}
+
+/** The text Cuso's search matches a reference by. */
+function searchText(row: Described): string {
+  return [
+    row.kind,
+    row.era,
+    row.description,
+    `Technique: ${row.technique}`,
+    `Layout: ${row.layout}`,
+    `Lettering: ${row.lettering}`,
+    `Subjects: ${row.subjects.join(", ")}`,
+    `Mood: ${row.mood.join(", ")}`,
+    `Suits: ${row.suits.join(", ")}`,
+  ].join(". ");
+}
+
+/**
+ * Writes a `reference_image` row with its embedding for every uploaded,
+ * described image; rows already there are left alone.
+ */
+async function load(root: string): Promise<void> {
+  const manifest = new Map(readManifests(root).map((row) => [row.path, row]));
+  const uploaded = new Map(
+    (
+      await readJsonl<{ path: string; pathname: string }>(
+        path.join(root, "_meta", "uploaded.jsonl"),
+      )
+    ).map((row) => [row.path, row.pathname]),
+  );
+  const existing = new Set(
+    (
+      await prisma.referenceImage.findMany({ select: { libraryPath: true } })
+    ).map((row) => row.libraryPath),
+  );
+  const rows = (
+    await readJsonl<Described>(path.join(root, "_meta", "descriptions.jsonl"))
+  ).filter((row) => uploaded.has(row.path) && !existing.has(row.path));
+  console.log(`${existing.size} loaded, ${rows.length} to go`);
+  const BATCH = 100;
+  let costUsd = 0;
+  for (let at = 0; at < rows.length; at += BATCH) {
+    const batch = rows.slice(at, at + BATCH);
+    const { embeddings, costUsd: cost } = await embedContactTexts(
+      batch.map(searchText),
+    );
+    costUsd += cost;
+    for (const [index, row] of batch.entries()) {
+      const source = manifest.get(row.path);
+      const created = await prisma.referenceImage.create({
+        data: {
+          libraryPath: row.path,
+          pathname: uploaded.get(row.path) ?? blobPathname(row.path),
+          width: row.width,
+          height: row.height,
+          title: source?.title ?? "",
+          maker: source?.maker ?? "",
+          date: source?.date ?? "",
+          source: source?.source ?? "",
+          credit: source?.credit ?? "",
+          kind: row.kind,
+          era: row.era,
+          description: row.description,
+          subjects: row.subjects,
+          technique: row.technique,
+          layout: row.layout,
+          lettering: row.lettering,
+          palette: row.palette,
+          mood: row.mood,
+          suits: row.suits,
+          textAmount: row.textAmount,
+          usable: row.usable,
+        },
+        select: { id: true },
+      });
+      const embedding = embeddings[index];
+      if (embedding) {
+        await prisma.$executeRaw`
+          UPDATE "reference_image" SET "embedding" = ${vectorLiteral(embedding)}::vector
+          WHERE "id" = ${created.id}::uuid`;
+      }
+    }
+    console.log(
+      `${Math.min(at + BATCH, rows.length)}/${rows.length} · $${costUsd.toFixed(2)}`,
+    );
+  }
+  console.log("done");
+}
+
 const [command, root] = process.argv.slice(2);
 if (!root || !existsSync(root)) {
   console.error(
@@ -207,6 +357,11 @@ if (!root || !existsSync(root)) {
 }
 if (command === "describe") {
   await describe(path.resolve(root));
+} else if (command === "upload") {
+  await upload(path.resolve(root));
+} else if (command === "load") {
+  await load(path.resolve(root));
+  await prisma.$disconnect();
 } else {
   console.error(`Unknown command ${command}`);
   process.exit(1);
