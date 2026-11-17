@@ -17,6 +17,7 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 
 // The flow publishes over Ably; the test env has no real key.
 vi.mock("@/lib/ably/client", async () =>
@@ -287,6 +288,51 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       where: { taskId },
     });
     expect(delegation.followUpTurnId).toBe(carried[0].id);
+  });
+
+  it("lets the losing event sync return while the winner is still starting the turn", async () => {
+    const taskId = await delegateWithPlan("Give the findings to Alex.");
+    await complete(taskId, "Findings: A, B, C.");
+    // The winner holds after its STARTING turn commits, before the runtime
+    // accepts it. The loser has read the completion as new and holds before
+    // startTurn until then, so it gets the winner's turn as a duplicate.
+    const runtime = getSokoBotRuntime();
+    const createSession = runtime.createSession.bind(runtime);
+    const winnerStarting = Promise.withResolvers<void>();
+    const runtimeAccepts = Promise.withResolvers<void>();
+    vi.spyOn(runtime, "createSession").mockImplementation(async (input) => {
+      winnerStarting.resolve();
+      await runtimeAccepts.promise;
+      return createSession(input);
+    });
+    const startTurn = sokoBotControlPlane.startTurn.bind(sokoBotControlPlane);
+    const loserStarts = Promise.withResolvers<void>();
+    vi.spyOn(sokoBotControlPlane, "startTurn").mockImplementationOnce(
+      async (input) => {
+        loserStarts.resolve();
+        await winnerStarting.promise;
+        return startTurn(input);
+      },
+    );
+    const reconcile = vi.spyOn(sokoBotControlPlane, "reconcileTurn");
+
+    const loser = syncEvents();
+    await loserStarts.promise;
+    const winner = syncEvents();
+    await loser;
+    const [turn] = await eventTurns();
+    expect(turn.status).toBe("STARTING");
+    runtimeAccepts.resolve();
+    await winner;
+
+    expect(await eventTurns()).toEqual([
+      expect.objectContaining({ id: turn.id, status: "COMPLETED" }),
+    ]);
+    expect(reconcile).toHaveBeenCalledTimes(2);
+    const delegation = await prisma.sokoBotDelegation.findFirstOrThrow({
+      where: { taskId },
+    });
+    expect(delegation.followUpTurnId).toBe(turn.id);
   });
 
   it("refuses to claim a plan another turn already carried out", async () => {
