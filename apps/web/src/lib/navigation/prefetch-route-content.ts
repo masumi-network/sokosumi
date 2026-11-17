@@ -5,9 +5,10 @@ import { PrefetchKind } from "next/dist/client/components/router-reducer/router-
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 /**
- * How many times one load repeats after the router drops it. Each page's
- * `router.refresh()` after a navigation drops every prefetched page, and some
- * pages poll with a refresh, so the cap bounds the server renders one resting
+ * How many times one load repeats after the router drops it. Every
+ * `router.refresh()` drops every prefetched page (a page that may show an old
+ * copy, a live update, a revalidating action), and some pages poll with a
+ * refresh, so the cap bounds the server renders one resting
  * pointer or shown link can start. On a page that polls every few seconds, a
  * rest longer than the cap's polls ends with the page dropped again: a click
  * then shows the loading skeleton, as before the reloads.
