@@ -17,6 +17,8 @@ import {
   snapshotChatRoomUnfurlImage,
 } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning } from "@/lib/evlog";
+import { describeErrorWithoutContent } from "@/lib/external-service-errors";
 import type { ChatRoomMessageUnfurlCard } from "@/lib/open-graph-html";
 
 export interface ScheduleChatRoomMessageUnfurlsResult {
@@ -199,9 +201,18 @@ export async function scheduleChatRoomMessageUnfurls(
       persisted: visibleCards.length,
     };
   } catch (error) {
-    console.warn(
-      `[chat-unfurl] scheduleChatRoomMessageUnfurls failed for ${messageId}`,
-      error,
+    // Runs in waitUntil after the send, so its own event.
+    emitCoreWarning(
+      {
+        failure: describeErrorWithoutContent(error),
+        operation: "chat_message_unfurl",
+        chatMessage: { id: messageId },
+      },
+      {
+        message: "Could not add link previews to a chat message",
+        why: "The unfurl run threw",
+        fix: "The message was sent without previews; editing it runs the unfurl again. If this repeats, look up the error name and code under failure.",
+      },
     );
     await discardFreshSnapshots().catch(() => undefined);
     return empty;

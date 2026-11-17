@@ -1,4 +1,4 @@
-import { beforeEach } from "vitest";
+import { beforeEach, expect, onTestFinished } from "vitest";
 
 /**
  * In tests evlog is silent and every event lands in this drain, reset per
@@ -19,6 +19,8 @@ export interface CoreLogEntry {
   why?: string;
   fix?: string;
   link?: string;
+  /** The error behind it, as drained: provider text belongs here, not in `why`. */
+  cause?: unknown;
   /** The whole drained event, for its fields. */
   event: Record<string, unknown>;
 }
@@ -55,6 +57,7 @@ function guidance(record: Record<string, unknown>) {
     why: optionalString(record.why),
     fix: optionalString(record.fix),
     link: optionalString(record.link),
+    cause: record.cause,
   };
 }
 
@@ -169,6 +172,32 @@ export function expectCoreLog(
     }
   }
   return declaration.entries;
+}
+
+/**
+ * `expectCoreLog` for entries whose `why` is known: one entry per item of
+ * `whys`, checked in order when the test ends, and, when given, each entry's
+ * `cause` message (where provider text belongs) against `causes`.
+ */
+export function expectCoreLogWhys(
+  level: CoreLogLevel,
+  start: string,
+  whys: readonly string[],
+  causes?: readonly string[],
+): CoreLogEntry[] {
+  const entries = expectCoreLog(level, start, whys.length);
+  onTestFinished(() => {
+    expect(entries.map((entry) => entry.why)).toEqual(whys);
+    if (causes) {
+      expect(entries.map((entry) => causeMessage(entry.cause))).toEqual(causes);
+    }
+  });
+  return entries;
+}
+
+/** A drained `cause`'s message, the provider text it carries. */
+export function causeMessage(cause: unknown): string | undefined {
+  return isRecord(cause) ? optionalString(cause.message) : undefined;
 }
 
 /**

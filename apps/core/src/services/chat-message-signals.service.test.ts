@@ -1,7 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import { expectCoreLog } from "@/test/core-log";
+
+const { updateManyMock } = vi.hoisted(() => ({ updateManyMock: vi.fn() }));
+
+vi.mock("@/lib/ai-gateway-purpose", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ai-gateway-purpose")>()),
+  aiGatewayApiKey: () => "test-only-key",
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: { chatMessageSignal: { updateMany: updateManyMock } },
+}));
+vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
+
 import {
   chatSignalSkipReason,
   readableChatSignalText,
+  requeueEditedChatMessageSignal,
 } from "./chat-message-signals.service";
 
 const base = {
@@ -65,5 +80,27 @@ describe("readableChatSignalText", () => {
         new Map([[id, "Alice"]]),
       ),
     ).toBe("@Alice can you check? cc @dan-smith and @everyone");
+  });
+});
+
+describe("requeueEditedChatMessageSignal", () => {
+  it("logs one error event, with the message id, when the requeue fails", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not queue an edited chat message for signal tagging",
+    );
+    updateManyMock.mockRejectedValueOnce(new Error("connection reset"));
+
+    await expect(
+      requeueEditedChatMessageSignal("message-1"),
+    ).resolves.toBeUndefined();
+
+    expect(errors[0]).toMatchObject({ why: "The chat signals step threw" });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("connection reset");
+    expect(errors[0]?.event).toMatchObject({
+      operation: "chat_message_signals",
+      chatMessage: { id: "message-1" },
+      failure: { name: "Error" },
+    });
   });
 });
