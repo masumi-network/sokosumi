@@ -18,13 +18,13 @@ describe("withSkippedSteps", () => {
     }
   });
 
-  it("owes the checkout once the person skipped the accounts", () => {
+  it("is done once the person finished the accounts (Core reaches them only after the checkout)", () => {
     expect(
       withSkippedSteps(
         cmoOverview({ onboardingStep: "accounts" }),
         readSkippedSteps("accounts"),
       ).onboardingStep,
-    ).toBe("checkout");
+    ).toBe("done");
   });
 
   it("is done after skipped accounts for a Cuso with Tester credits", () => {

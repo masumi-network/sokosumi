@@ -16,7 +16,7 @@ import {
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
-import { answerNote, keepAnswers } from "@/helpers/question-answers";
+import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
 
@@ -214,16 +214,17 @@ export function brandBrainCorrections(brain: BrandBrain): CmoBrandQuestion[] {
 }
 
 /**
- * What an answer adds to its section: a yes confirms the statement, a no
- * records what is true instead or, without a note, that the statement is not.
+ * What an answer adds to its section: a yes confirms the statement (with the
+ * owner's details), a no records what is true instead or, without a note,
+ * that the statement is not, and a not sure adds only the owner's details.
  */
 function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
   const point =
     question.answer === "yes"
-      ? question.statement
+      ? confirmed(question.statement, question.note)
       : question.answer === "no"
         ? (question.note ?? notTrue(question.statement))
-        : undefined;
+        : question.note;
   return point
     ? {
         point,
@@ -236,6 +237,10 @@ function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
 
 function notTrue(statement: string): string {
   return `Not true: ${statement}`.slice(0, 400);
+}
+
+function confirmed(statement: string, note: string | undefined): string {
+  return note ? `${statement} (${note})`.slice(0, 400) : statement;
 }
 
 /**
@@ -279,7 +284,8 @@ export async function answerBrandBrainQuestion(
     const answered: CmoBrandQuestion = {
       ...asked,
       answer: input.answer,
-      note: answerNote(input.answer, input.note),
+      // Any answer may carry the owner's details, not only a no.
+      note: input.note?.trim() || undefined,
       // A no stays open until its section says what is true instead.
       ...(input.answer === "no" ? { corrected: false } : {}),
     };
@@ -287,6 +293,7 @@ export async function answerBrandBrainQuestion(
       question.statement,
       notTrue(question.statement),
       question.note,
+      confirmed(question.statement, question.note),
     ].filter(Boolean);
     const section = brain.profile[question.section];
     const finding = answerFinding(answered);
