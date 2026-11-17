@@ -10,6 +10,9 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { type SeoExport, seoTablePlan } from "./seo-export-model";
 
+/** The toasts carry the way to the new Table or how to finish it: they stay until dismissed. */
+const STAY = { duration: Infinity, closeButton: true };
+
 type Attempt = {
   plan: ReturnType<typeof seoTablePlan>;
   tableId?: string;
@@ -80,6 +83,7 @@ export function SeoTableButton({
           count: plan.batches.reduce((sum, b) => sum + b.insert.length, 0),
         }),
         {
+          ...STAY,
           action: {
             label: t("openTable"),
             onClick: () => router.push(`/drive/tables/${id}`),
@@ -87,7 +91,7 @@ export function SeoTableButton({
         },
       );
     } catch {
-      toast.error(t("tableFailed"));
+      toast.error(t("tableFailed"), STAY);
     } finally {
       setPending(false);
     }

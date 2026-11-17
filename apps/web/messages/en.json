@@ -12797,7 +12797,8 @@
         "tableDescription": "Copied from SEO on {date}. A snapshot: it does not change when SEO checks again.",
         "tableCopied": "{count, plural, one {# keyword copied to a new table.} other {# keywords copied to a new table.}}",
         "openTable": "Open table",
-        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it."
+        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it.",
+        "list": "List"
       },
       "datePresets": {
         "label": "Quick periods",

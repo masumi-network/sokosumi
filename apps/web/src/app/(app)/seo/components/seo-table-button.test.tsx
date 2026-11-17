@@ -64,6 +64,8 @@ describe("SeoTableButton", () => {
     ]);
     const [message, options] = m.success.mock.calls[0];
     expect(message).toBe("150 keywords copied to a new table.");
+    // It carries the only way to the new Table: it stays until dismissed.
+    expect(options).toMatchObject({ duration: Infinity, closeButton: true });
     options.action.onClick();
     expect(m.push).toHaveBeenCalledWith("/drive/tables/table-1");
   });
@@ -74,6 +76,10 @@ describe("SeoTableButton", () => {
     const button = show();
     await user.click(button);
     await waitFor(() => expect(m.error).toHaveBeenCalledOnce());
+    expect(m.error.mock.calls[0][1]).toMatchObject({
+      duration: Infinity,
+      closeButton: true,
+    });
     expect(m.success).not.toHaveBeenCalled();
     await waitFor(() => expect(button).toBeEnabled());
     await user.click(button);

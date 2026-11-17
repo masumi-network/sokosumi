@@ -10,8 +10,15 @@ import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
 
-/** One table as the CSV writes it: translated column names and raw values. */
-export type SeoExport = { header: string[]; rows: SeoCsvCell[][] };
+/**
+ * One table as the CSV writes it: translated column names and raw values. `types` names what each column
+ * holds, for a copy into a Files Table; a column without one is text.
+ */
+export type SeoExport = {
+  header: string[];
+  rows: SeoCsvCell[][];
+  types?: TableColumn["type"][];
+};
 /** The translator of the "App.Seo" messages. */
 type Label = IntlTranslation<"App.Seo">;
 
@@ -103,19 +110,53 @@ export function seoKeywordsExport(
       t("keywords.country"),
       t("keywords.language"),
       t("keywords.volume"),
+      t("keywords.difficulty.title"),
       t("keywords.position"),
       t("observed"),
       t("keywords.priority"),
     ],
-    rows: groups.map(({ lead, volume, best, reads }) => [
+    types: [
+      "text",
+      "url",
+      "text",
+      "text",
+      "number",
+      "number",
+      "number",
+      "date",
+      "text",
+    ],
+    rows: groups.map(({ lead, volume, difficulty, best, reads }) => [
       lead.keyword,
       lead.pageUrl,
       lead.countryCode,
       lead.languageCode,
       volume,
+      difficulty,
       best,
       day(reads[0]?.observedAt ?? null),
       t(`priority.${lead.priority}`),
+    ]),
+  };
+}
+
+/** The checked keywords, then the ideas, with a last column that names each row's list. */
+export function seoKeywordsTableExport(
+  checked: SeoKeywordGroup[],
+  ideas: SeoKeywordGroup[],
+  t: Label,
+): SeoExport {
+  const {
+    header,
+    types = [],
+    rows,
+  } = seoKeywordsExport([...checked, ...ideas], t);
+  return {
+    header: [...header, t("export.list")],
+    types: [...types, "text"],
+    rows: rows.map((row, i) => [
+      ...row,
+      i < checked.length ? t("keywords.title") : t("keywords.ideas.short"),
     ]),
   };
 }
@@ -150,7 +191,6 @@ export function seoActionsExport(
   };
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const WEB = /^https?:\/\//;
 /** Not URL.canParse: Next still supports Safari 16.4, which lacks it. */
 function isWebAddress(value: string) {
@@ -163,30 +203,24 @@ function isWebAddress(value: string) {
   }
 }
 
-/** A column's type from its filled cells: a Table rejects a value its column type does not take. */
-function columnType(cells: SeoCsvCell[]): TableColumn["type"] {
-  const filled = cells.filter((value) => value !== null);
-  if (!filled.length) return "text";
-  if (filled.every((value) => typeof value === "number")) return "number";
-  const text = filled.map(String);
-  if (text.every((value) => DAY.test(value))) return "date";
-  if (text.every(isWebAddress)) return "url";
-  return "text";
-}
-
 /**
  * One exported table as a new Files Table: the create request and every row in batches of at most 100,
  * keyed by `key`, so a retry with the same plan creates and inserts nothing twice. An empty cell stays empty.
  */
 export function seoTablePlan(
-  { header, rows }: SeoExport,
+  { header, rows, types = [] }: SeoExport,
   source: { title: string; description: string; projectId: string | null },
   key: string,
 ) {
   const columns = header.map((name, i) => ({
     id: crypto.randomUUID(),
     name,
-    type: columnType(rows.map((row) => row[i] ?? null)),
+    // A page that is not a web address keeps the column text: a URL column refuses it.
+    type:
+      types[i] === "url" &&
+      !rows.every((row) => row[i] == null || isWebAddress(String(row[i])))
+        ? "text"
+        : (types[i] ?? "text"),
   }));
   const table = createDataTableSchema.parse({ key, ...source, columns });
   const insert = rows.map((row) => ({

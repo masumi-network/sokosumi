@@ -1744,4 +1744,28 @@ describe("Keyword exports", () => {
       screen.getByRole("button", { name: "Copy to a table: Keywords" }),
     ).toBeInTheDocument();
   });
+
+  it("offers the ideas of a check as a Table, with no CSV of checked keywords to give", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.keywords.push(
+      seoTestKeyword({
+        keyword: "battery saver",
+        source: "gap",
+        saved: false,
+        volume: 300,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    );
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", { name: "Copy to a table: Keywords" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download CSV: Keywords" }),
+    ).not.toBeInTheDocument();
+  });
 });

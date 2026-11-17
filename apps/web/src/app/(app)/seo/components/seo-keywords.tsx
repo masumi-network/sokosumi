@@ -18,7 +18,7 @@ import {
 import { seoAuditName } from "./seo-audit-name";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
-import { seoKeywordsExport } from "./seo-export-model";
+import { seoKeywordsExport, seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
   SEO_DIFFICULTY_COLUMN_CLASS,
@@ -674,14 +674,17 @@ export function SeoKeywords({
               onToggle={() => setExpanded((open) => !open)}
             />
           ) : null}
-          {/* Under the keyword list itself, before the strategy: the exports hold the checked keywords only. */}
-          {checked.length ? (
+          {/* Under the keyword list itself, before the strategy. The CSV holds the checked keywords; the Table
+          copy also the ideas, with a column that names each row's list. */}
+          {checked.length || ideas.length ? (
             <div className="flex flex-wrap gap-x-2 px-2">
-              <SeoCsvButton
-                name="keywords"
-                title={t("keywords.title")}
-                table={() => seoKeywordsExport(checked, t)}
-              />
+              {checked.length ? (
+                <SeoCsvButton
+                  name="keywords"
+                  title={t("keywords.title")}
+                  table={() => seoKeywordsExport(checked, t)}
+                />
+              ) : null}
               <SeoTableButton
                 title={t("keywords.title")}
                 site={seoAuditName(
@@ -689,7 +692,8 @@ export function SeoKeywords({
                   model.data.websiteUrl ?? "",
                 )}
                 projectId={model.data.projectId}
-                table={() => seoKeywordsExport(checked, t)}
+                table={() => seoKeywordsTableExport(checked, ideas, t)}
+                className={checked.length ? undefined : "-ms-2.5"}
               />
             </div>
           ) : null}

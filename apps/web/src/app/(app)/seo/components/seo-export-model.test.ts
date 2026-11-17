@@ -2,7 +2,7 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
 import {
-  seoKeywordsExport,
+  seoKeywordsTableExport,
   seoTablePlan,
   seoTopPagesExport,
 } from "./seo-export-model";
@@ -67,43 +67,66 @@ describe("seoTablePlan", () => {
     description: "Copied from SEO",
     projectId: null,
   };
-  const exported = seoKeywordsExport(
-    keywordGroups([
-      seoTestKeyword({ volume: 1200 }),
-      // Tracked by hand, never read: no volume, no position, no date.
-      seoTestKeyword({
-        id: "keyword-2",
-        keyword: "charge timer",
-        source: "saved",
-        version: 1,
-        position: null,
-        positionStatus: "unavailable",
-        observedAt: null,
-        observationId: null,
-        device: null,
-      }),
-    ]).checked,
-    t,
-  );
+  const groups = keywordGroups([
+    seoTestKeyword({ volume: 1200, difficulty: 35 }),
+    // Tracked by hand, never read: no volume, no position, no date. Its text looks like a date.
+    seoTestKeyword({
+      id: "keyword-2",
+      keyword: "2026-13-01",
+      source: "saved",
+      version: 1,
+      position: null,
+      positionStatus: "unavailable",
+      observedAt: null,
+      observationId: null,
+      device: null,
+    }),
+    // An idea a check only listed, as a competitor gap.
+    seoTestKeyword({
+      id: "keyword-3",
+      keyword: "battery saver",
+      source: "gap",
+      saved: false,
+      volume: 300,
+      difficulty: 42,
+      position: null,
+      positionStatus: "unavailable",
+      observedAt: null,
+      observationId: null,
+      device: null,
+    }),
+  ]);
+  const exported = seoKeywordsTableExport(groups.checked, groups.ideas, t);
 
-  it("types each column from its values and keeps a blank blank, never 0", () => {
+  it("types each column by what it holds, keeps keyword text text, and a blank blank", () => {
     const plan = seoTablePlan(exported, source, "key-1");
     const type = (name: string) =>
       plan.table.columns.find((column) => column.name === name)?.type;
     expect(type("Keyword")).toBe("text");
     expect(type("Page")).toBe("url");
     expect(type("Searches a month")).toBe("number");
+    expect(type("Difficulty")).toBe("number");
     expect(type("Position")).toBe("number");
     expect(type("Last checked")).toBe("date");
+    expect(type("List")).toBe("text");
     const id = (name: string) =>
       plan.table.columns.find((column) => column.name === name)?.id ?? "";
     const rows = plan.batches.flatMap((batch) => batch.insert);
-    // The list's order: the reader's own choice first.
+    // The list's order: the reader's own choice first, the ideas last.
     expect(rows.map((row) => row.values[id("Keyword")])).toEqual([
-      "charge timer",
+      "2026-13-01",
       "battery app",
+      "battery saver",
     ]);
-    const [tracked, read] = rows;
+    expect(rows.map((row) => row.values[id("List")])).toEqual([
+      "Keywords",
+      "Keywords",
+      "Ideas",
+    ]);
+    const [tracked, read, idea] = rows;
+    expect(read.values[id("Difficulty")]).toBe(35);
+    expect(idea.values[id("Difficulty")]).toBe(42);
+    expect(idea.values[id("Searches a month")]).toBe(300);
     expect(read.values[id("Searches a month")]).toBe(1200);
     expect(read.values[id("Last checked")]).toBe("2026-10-08");
     expect(id("Position") in tracked.values).toBe(false);
@@ -130,7 +153,11 @@ describe("seoTablePlan", () => {
 
   it("keeps a page that is not a web address as text", () => {
     const plan = seoTablePlan(
-      { header: ["Page"], rows: [["https://example.com/"], ["/pricing"]] },
+      {
+        header: ["Page"],
+        types: ["url"],
+        rows: [["https://example.com/"], ["/pricing"]],
+      },
       source,
       "key-3",
     );

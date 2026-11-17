@@ -12797,7 +12797,8 @@
         "tableDescription": "Copiado de SEO el {date}. Una instantánea: no cambia cuando SEO vuelve a comprobar.",
         "tableCopied": "{count, plural, one {# palabra clave copiada a una tabla nueva.} other {# palabras clave copiadas a una tabla nueva.}}",
         "openTable": "Abrir tabla",
-        "tableFailed": "La tabla aún no está completa. Pulsa de nuevo «Copiar a una tabla» para terminarla."
+        "tableFailed": "La tabla aún no está completa. Pulsa de nuevo «Copiar a una tabla» para terminarla.",
+        "list": "Lista"
       },
       "datePresets": {
         "label": "Periodos rápidos",
