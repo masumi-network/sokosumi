@@ -63,8 +63,10 @@
   --sc-in-top: calc((100% - var(--sc-top, 100%)) / 2);
   --sc-in-bottom: calc((100% - var(--sc-bottom, 100%)) / 2);
   display: grid;
-  place-items: center;
-  min-height: 96px;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  min-height: 88px;
   padding: 12px calc(var(--sc-in-bottom) + 12px);
   background: var(--foreground);
   color: var(--background);
@@ -113,21 +115,39 @@
   }
 }
 
-.sc-stage-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.sc-stage-head .sc-goal {
-  flex: 1;
-  color: var(--foreground);
+.sc-step {
+  font-size: 0.75rem;
   font-weight: 500;
+  opacity: 0.7;
 }
 
-.sc-stage-head .sc-owner {
-  flex: none;
+.sc-stage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.sc-icons {
+  display: flex;
+  gap: 8px;
+}
+
+/* The detail of a stage, closed until asked for. */
+.sc-how {
+  display: grid;
+  gap: 10px;
+}
+
+.sc-how > summary {
+  width: max-content;
+  color: var(--muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.sc-how[open] > summary {
+  margin-bottom: 10px;
 }
 
 .sc-stage-name {
@@ -153,7 +173,8 @@
 
 .sc-goal {
   margin: 0;
-  color: var(--muted);
+  font-weight: 500;
+  text-wrap: pretty;
 }
 
 .sc-plays {

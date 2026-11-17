@@ -784,7 +784,11 @@ export function PlanReview({
                     }
                   />
                 ) : tab === "month" ? (
-                  <MonthPanel strategy={strategy} onOpen={setOpen} />
+                  <MonthPanel
+                    strategy={strategy}
+                    onOpen={setOpen}
+                    pending={!approved}
+                  />
                 ) : (
                   <ResultsPanel
                     overview={overview}

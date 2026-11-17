@@ -563,7 +563,7 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
   );
   expect(
     container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
-  ).toBe("Three moves");
+  ).toBe("Your funnel");
   await act(async () =>
     [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
       .find((tab) => tab.textContent === "How we know it works")
@@ -586,7 +586,7 @@ it("moves between plan tabs with the arrow keys", async () => {
   const selected = () =>
     container.querySelector('[role="tab"][aria-selected="true"]');
   const active = selected();
-  expect(active?.textContent).toBe("Three moves");
+  expect(active?.textContent).toBe("Your funnel");
   await act(async () => {
     active?.dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
