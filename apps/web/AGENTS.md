@@ -383,11 +383,18 @@ one of them (nav row, list row, back link).
      goes in its own `<Suspense>` and streams in after the click.
    - Render `<RefreshPrefetchedPage />` in the page. It refreshes only when
      the page may show an old copy: after back or forward, on a return to a
-     page first visited, since the last refresh, more than 30 s ago (Next
-     reuses that visit's copy), and when
-     the shared layouts are older than `LAYOUT_REFRESH_MS` (2 min). Otherwise
-     a click opens page data at most about a minute old and does not refresh:
-     any `router.refresh()` drops every page prefetched for the next click.
+     page first visited, since its last refresh, more than 30 s ago (Next
+     reuses that visit's copy), and when the shared layouts are older than
+     `LAYOUT_REFRESH_MS` (2 min). Otherwise
+     a click opens page data at most about a minute old and does not refresh.
+     It refreshes through a Server Action that calls `refresh()`
+     (`refreshPage`), which keeps every page prefetched for the next click;
+     `router.refresh()` drops them all. It waits while a link to another page
+     or a button has the pointer or keyboard focus (up to 3 s): a navigation
+     during the refresh makes Next run a `router.refresh()` after it, and a
+     button's Server Action would queue behind it. This one-render action is
+     the exception to the background-action rule in "Server actions vs Route
+     Handlers": only an action can refresh the page and keep the loaded ones.
      Pass `everyVisit` only for a page whose cached copy must not linger (the
      Ads lost-project state).
    - Add the path to `CONTENT_PREFETCH_PATHS`
@@ -413,9 +420,10 @@ one of them (nav row, list row, back link).
    { keepLoaded })`** (`src/lib/navigation/prefetch-route-content.ts`).
    - Each call is one server render of the page. Trigger it on reading
      intent, never for every link in view.
-   - Pass `keepLoaded`. Each `router.refresh()` (`RefreshPrefetchedPage`,
-     a polling page, a live update, a revalidating Server Action) drops every
-     prefetched page, and Next loads only the shell again.
+   - Pass `keepLoaded`. Each `router.refresh()` (a polling page, a live
+     update, the `RefreshPrefetchedPage` fallback) and each Server Action
+     that calls `revalidatePath` or `updateTag` or writes a cookie drops
+     every prefetched page, and Next loads only the shell again.
      `keepLoaded` returns true while the reader still wants that page (the
      pointer still rests, the back link still shows), and the page then
      loads again, up to `MAX_CONTENT_RELOADS` times.
