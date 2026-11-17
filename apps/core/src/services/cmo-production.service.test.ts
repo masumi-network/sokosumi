@@ -389,6 +389,37 @@ describe("cmoProductionMessage", () => {
     );
   });
 
+  it("asks for picture styles only where the reference library is set up and a piece has a picture", () => {
+    const withPicture = [entry({ id: "a", format: "image" })];
+    const input = {
+      businessName: "Acme",
+      strategy: strategy(withPicture),
+      pending: withPicture.map((item) => piece(item)),
+      connected: new Set<string>(),
+      attempt: 1,
+      topUp: false,
+    };
+    expect(cmoProductionMessage({ ...input, styles: true })).toContain(
+      "call find_style_references",
+    );
+    expect(cmoProductionMessage(input)).not.toContain("find_style_references");
+    // Text has no picture; a carousel's slides each carry their own words.
+    for (const patch of [
+      { id: "b" },
+      { id: "c", channel: "instagram", format: "carousel" },
+    ]) {
+      const other = [entry(patch)];
+      expect(
+        cmoProductionMessage({
+          ...input,
+          strategy: strategy(other),
+          pending: other.map((item) => piece(item)),
+          styles: true,
+        }),
+      ).not.toContain("find_style_references");
+    }
+  });
+
   it("makes the whole month from a short plan: titled weeks like week one", () => {
     // The first plan writes week one in full and weeks two to four as titles.
     const calendar = Array.from({ length: 16 }, (_, index) =>

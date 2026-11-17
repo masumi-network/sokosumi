@@ -11,15 +11,17 @@ A piece with a picture can take the look of an old print: call find_style_refere
 
 /**
  * cmo-v3's production skill: cmo-production, plus picture styles once the
- * reference library's tool exists (branch cmo-reference-ads); until then it
- * is cmo-production word for word, so it never names a tool Cuso lacks.
+ * reference library's tool exists, so it never names a tool Cuso lacks.
+ * cmo-production carries the section itself now (cmo-v1 uses the library
+ * too), so it is added only to a base that lacks it, never twice.
  */
 export function productionWithStyles(base: SokoBotSkill): SokoBotSkill {
   return {
     ...base,
     id: "cmo-production-styles",
     content:
-      STYLE_TOOL in SOKO_BOT_TOOL_DESCRIPTIONS
+      STYLE_TOOL in SOKO_BOT_TOOL_DESCRIPTIONS &&
+      !base.content.includes("## Picture styles")
         ? `${base.content.trimEnd()}${PICTURE_STYLES}\n`
         : base.content,
   };
