@@ -40,7 +40,7 @@ const cases = [
     name: "researching reads",
     patch: { learning: "running" as const },
     pose: "reading",
-    scene: "research",
+    art: "searching",
     line: "Learning",
   },
   {
@@ -51,14 +51,14 @@ const cases = [
       production: production({ state: "running", ready: 8 }),
     },
     pose: "thinking",
-    scene: "planning",
+    art: "thinking",
     line: "8 of 11 made",
   },
   {
     name: "a plan waiting for approval needs the owner",
     patch: {},
     pose: "needs-you",
-    scene: "hero",
+    art: "pointing",
     line: "Waiting for approval",
   },
   {
@@ -70,7 +70,7 @@ const cases = [
       updates: [report("2026-11-05T09:00:00Z")],
     },
     pose: "reporting",
-    scene: "brand",
+    art: "walking",
     line: "Running",
   },
   {
@@ -82,16 +82,16 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
-    scene: "launch",
+    art: "thumbs-up",
     line: "Running",
   },
 ];
 
-it.each(cases)("Cuso's status card: $name", ({ patch, pose, scene, line }) => {
+it.each(cases)("Cuso's status card: $name", ({ patch, pose, art, line }) => {
   const html = renderToStaticMarkup(
     <CusoStatus overview={cmoOverview(patch)} now={NOW} />,
   );
-  expect(html).toContain(`src="/cuso/${scene}.jpg"`);
+  expect(html).toContain(`src="/cuso/${art}.png"`);
   expect(html).toContain("Cuso");
   expect(html).toContain(line);
   // Needs you calls out on Iris; working shows what he does over the bar.

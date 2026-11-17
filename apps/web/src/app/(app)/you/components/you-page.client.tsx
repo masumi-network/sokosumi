@@ -14,6 +14,7 @@ import {
   Megaphone,
   Repeat,
   Scale,
+  SearchCheck,
   Share2,
   ShieldCheck,
 } from "lucide-react";
@@ -48,6 +49,7 @@ const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
 const STUDIO_HREF = "/studio";
 const SOCIAL_HREF = "/social";
+const SEO_HREF = "/seo";
 const ADS_HREF = "/ads";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
@@ -193,13 +195,19 @@ export function YouPageClient({
               label={tMenu("contentStudio")}
               testId="you-studio"
             />
-            {/* The sidebar's Social and Ads rows, for phones, where the You
-                page is the menu. */}
+            {/* The sidebar's Social, SEO and Ads rows, for phones, where the
+                You page is the menu. */}
             <MobileStackedMenuLink
               href={SOCIAL_HREF}
               icon={<Share2 className="size-4 shrink-0" aria-hidden />}
               label={tMenu("social")}
               testId="you-social"
+            />
+            <MobileStackedMenuLink
+              href={SEO_HREF}
+              icon={<SearchCheck className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("seo")}
+              testId="you-seo"
             />
             <MobileStackedMenuLink
               href={ADS_HREF}
