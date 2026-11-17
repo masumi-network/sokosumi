@@ -18,6 +18,7 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
         });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

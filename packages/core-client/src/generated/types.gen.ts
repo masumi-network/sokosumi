@@ -541,15 +541,6 @@ export type AdminSokoBotVersionMigrationRequest = {
     notifyOwners?: boolean;
 };
 
-export type RestyleSokoBotAvatarsResult = {
-    restyled: number;
-    remaining: number;
-};
-
-export type RestyleSokoBotAvatarsRequest = {
-    limit?: number;
-};
-
 export type AdminSokoBotChatRoom = {
     id: string;
     isOwnerRoom: boolean;
@@ -671,6 +662,10 @@ export type ChatRoomSokoBotParticipant = {
     caption: string | null;
     image: string | null;
     avatarSeed: string | null;
+    /**
+     * Feature code of the live SVG avatar; null until the bot has one.
+     */
+    avatarCode?: string | null;
     /**
      * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
@@ -1202,6 +1197,7 @@ export type SokoBot = {
     pendingDecisions?: Array<SokoBotPendingDecision>;
     schedules?: Array<SokoBotSchedule>;
     avatarImageUrl?: string | null;
+    avatarCode?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
     mailAutoRead?: boolean;
@@ -1220,8 +1216,9 @@ export type AdminSokoBotActionRequest = {
     reason: string;
 };
 
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
+export type SokoBotAvatarCode = {
+    avatarCode: string;
+    avatarImageUrl: string;
 };
 
 export type AdminUserOverviewItem = {
@@ -7619,6 +7616,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -7632,6 +7634,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -7645,6 +7652,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -7658,6 +7670,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -7671,6 +7688,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -7684,6 +7706,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -7697,6 +7724,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -7710,6 +7742,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -7723,6 +7760,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -7736,6 +7778,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -7749,6 +7796,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -7762,6 +7814,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -7775,6 +7832,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -7788,6 +7850,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -7801,6 +7868,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -7814,6 +7886,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -7950,6 +8027,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -7963,6 +8045,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -7976,6 +8063,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -7989,6 +8081,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -8002,6 +8099,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -8015,6 +8117,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -8028,6 +8135,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -8041,6 +8153,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -8054,6 +8171,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -8067,6 +8189,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -8080,6 +8207,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -8093,6 +8225,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -8106,6 +8243,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -8119,6 +8261,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -8132,6 +8279,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -8145,6 +8297,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -8254,6 +8411,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8481,6 +8640,53 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             body: string;
         }>;
         changes?: Array<string>;
+        patched?: Array<{
+            id: string;
+            was: {
+                id: string;
+                date: string;
+                time?: string;
+                channel: string;
+                title: string;
+                format: string;
+                status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+                hook?: string;
+                brief?: string;
+                draft?: string;
+                why?: string;
+                socialPostId?: string;
+                visual?: string;
+                visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
+                slides?: Array<string>;
+                story?: string;
+                imageFileId?: string;
+                slideFileIds?: Array<string>;
+                fileId?: string;
+                searchAd?: {
+                    keywords: Array<string>;
+                    headlines: Array<string>;
+                    descriptions: Array<string>;
+                    negativeKeywords?: Array<string>;
+                    maxCpc?: number;
+                    finalUrl: string;
+                    path1?: string;
+                    path2?: string;
+                    location?: string;
+                    language?: string;
+                    callouts?: Array<string>;
+                };
+                adCampaign?: {
+                    accountId: string;
+                    campaignId: string;
+                };
+                taskId?: string;
+                campaignId?: string;
+                approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+                pillar?: string;
+            } | null;
+        }>;
     };
 };
 
@@ -8505,6 +8711,8 @@ export type MarketingStrategyRequest = {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8732,6 +8940,53 @@ export type MarketingStrategyRequest = {
             body: string;
         }>;
         changes?: Array<string>;
+        patched?: Array<{
+            id: string;
+            was: {
+                id: string;
+                date: string;
+                time?: string;
+                channel: string;
+                title: string;
+                format: string;
+                status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+                hook?: string;
+                brief?: string;
+                draft?: string;
+                why?: string;
+                socialPostId?: string;
+                visual?: string;
+                visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
+                slides?: Array<string>;
+                story?: string;
+                imageFileId?: string;
+                slideFileIds?: Array<string>;
+                fileId?: string;
+                searchAd?: {
+                    keywords: Array<string>;
+                    headlines: Array<string>;
+                    descriptions: Array<string>;
+                    negativeKeywords?: Array<string>;
+                    maxCpc?: number;
+                    finalUrl: string;
+                    path1?: string;
+                    path2?: string;
+                    location?: string;
+                    language?: string;
+                    callouts?: Array<string>;
+                };
+                adCampaign?: {
+                    accountId: string;
+                    campaignId: string;
+                };
+                taskId?: string;
+                campaignId?: string;
+                approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+                pillar?: string;
+            } | null;
+        }>;
     };
 };
 
@@ -12297,6 +12552,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -12310,6 +12570,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -12323,6 +12588,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -12336,6 +12606,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -12349,6 +12624,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -12362,6 +12642,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -12375,6 +12660,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -12388,6 +12678,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -12401,6 +12696,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -12414,6 +12714,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -12427,6 +12732,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -12440,6 +12750,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -12453,6 +12768,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -12466,6 +12786,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -12479,6 +12804,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -12492,6 +12822,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -12640,6 +12975,10 @@ export type CmoOverview = {
 
 export type CmoWork = {
     kind: 'research' | 'strategy';
+    /**
+     * A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.
+     */
+    change?: 'fix' | 'patch' | null;
     status: 'running' | 'failed' | 'done';
     startedAt: Date;
     steps: Array<CmoWorkStep>;
@@ -12738,6 +13077,8 @@ export type CmoPlan = {
         channel: string;
         cadence: string;
         why?: string;
+        role?: 'main' | 'side';
+        buyer?: string;
     }>;
     idea?: {
         who: string;
@@ -12965,6 +13306,53 @@ export type CmoPlan = {
         body: string;
     }>;
     changes?: Array<string>;
+    patched?: Array<{
+        id: string;
+        was: {
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
+            slides?: Array<string>;
+            story?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            fileId?: string;
+            searchAd?: {
+                keywords: Array<string>;
+                headlines: Array<string>;
+                descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
+                finalUrl: string;
+                path1?: string;
+                path2?: string;
+                location?: string;
+                language?: string;
+                callouts?: Array<string>;
+            };
+            adCampaign?: {
+                accountId: string;
+                campaignId: string;
+            };
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        } | null;
+    }>;
 };
 
 export type CmoUpdate = {
@@ -13151,6 +13539,22 @@ export type CmoTopUpCheckout = {
     url: string;
 };
 
+export type CmoBrandFixStarted = {
+    turnId: string | null;
+    /**
+     * Cuso is busy: the fix is kept on its section and starts when his current turn ends.
+     */
+    queued: boolean;
+};
+
+export type CmoBrandFixRequest = {
+    section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+    /**
+     * What is true instead, in the owner's words.
+     */
+    note: string;
+};
+
 export type SokoBotApiKey = {
     id: string;
     sokoBotId: string;
@@ -13207,6 +13611,7 @@ export type SokoBotState = {
         pendingDecisions?: Array<SokoBotPendingDecision>;
         schedules?: Array<SokoBotSchedule>;
         avatarImageUrl?: string | null;
+        avatarCode?: string | null;
         versionId?: string | null;
         followWholeBoard?: boolean;
         mailAutoRead?: boolean;
@@ -13230,6 +13635,7 @@ export type SharedSokoBotSummary = {
     projectId: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
+    avatarCode?: string | null;
     status: SokoBotStatus;
     archivedAt: Date | null;
     sharedRoomId: string | null;
@@ -13247,7 +13653,7 @@ export type SokoBotActivity = {
 export type CreateSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
-    avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -13304,13 +13710,6 @@ export type UpdateSokoBotScheduleRequest = {
 
 export type ResolveSokoBotDecisionRequest = {
     resolution: 'ACCEPT' | 'REJECT';
-};
-
-export type SokoBotAvatar = {
-    id: string;
-    imageUrl: string;
-    subject: string;
-    background: string;
 };
 
 export type SokoBotIntegrations = {
@@ -13435,6 +13834,7 @@ export type SokoBotTeam = {
             id: string;
             name: string | null;
             avatarImageUrl: string | null;
+            avatarCode?: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
             lastActivityAt: Date | null;
@@ -13578,7 +13978,7 @@ export type JudgeSokoBotLabTurnRequest = {
 export type CreateScopedSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
-    avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -17690,94 +18090,6 @@ export type MigrateAdminSokoBotVersionsResponses = {
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
 
-export type RestyleAdminSokoBotAvatarsData = {
-    body?: RestyleSokoBotAvatarsRequest;
-    path?: never;
-    query?: never;
-    url: '/admin/soko-bots/avatars/restyle';
-};
-
-export type RestyleAdminSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type RestyleAdminSokoBotAvatarsError = RestyleAdminSokoBotAvatarsErrors[keyof RestyleAdminSokoBotAvatarsErrors];
-
-export type RestyleAdminSokoBotAvatarsResponses = {
-    /**
-     * How many avatars were redrawn and how many are left
-     */
-    200: {
-        data: RestyleSokoBotAvatarsResult;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type RestyleAdminSokoBotAvatarsResponse = RestyleAdminSokoBotAvatarsResponses[keyof RestyleAdminSokoBotAvatarsResponses];
-
 export type ListAdminSokoBotChatsData = {
     body?: never;
     path: {
@@ -18043,16 +18355,18 @@ export type PerformAdminSokoBotActionResponses = {
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
 
-export type SetAdminSokoBotAvatarData = {
-    body?: ClaimSokoBotAvatarRequest;
+export type SetAdminSokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
     path: {
         sokoBotId: string;
     };
     query?: never;
-    url: '/admin/soko-bots/{sokoBotId}/avatar';
+    url: '/admin/soko-bots/{sokoBotId}/avatar-code';
 };
 
-export type SetAdminSokoBotAvatarErrors = {
+export type SetAdminSokoBotAvatarCodeErrors = {
     /**
      * Unauthorized
      */
@@ -18099,7 +18413,7 @@ export type SetAdminSokoBotAvatarErrors = {
         };
     };
     /**
-     * Conflict
+     * Another bot already has this look
      */
     409: {
         error: string;
@@ -18114,7 +18428,7 @@ export type SetAdminSokoBotAvatarErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Not a valid avatar code
      */
     422: {
         error: string;
@@ -18130,16 +18444,14 @@ export type SetAdminSokoBotAvatarErrors = {
     };
 };
 
-export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
+export type SetAdminSokoBotAvatarCodeError = SetAdminSokoBotAvatarCodeErrors[keyof SetAdminSokoBotAvatarCodeErrors];
 
-export type SetAdminSokoBotAvatarResponses = {
+export type SetAdminSokoBotAvatarCodeResponses = {
     /**
-     * The bot's new Soko Bot avatar
+     * The bot's new look
      */
     200: {
-        data: {
-            avatarImageUrl: string;
-        };
+        data: SokoBotAvatarCode;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18148,7 +18460,7 @@ export type SetAdminSokoBotAvatarResponses = {
     };
 };
 
-export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
+export type SetAdminSokoBotAvatarCodeResponse = SetAdminSokoBotAvatarCodeResponses[keyof SetAdminSokoBotAvatarCodeResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -85743,7 +86055,7 @@ export type RequestCmoStrategyForProjectErrors = {
         };
     };
     /**
-     * The Brand Brain is not ready yet
+     * The Brand Brain is not ready yet, or Cuso is still writing the plan or finishing a change
      */
     409: {
         error: string;
@@ -86195,6 +86507,21 @@ export type AnswerCmoBrandBrainQuestionForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * A no whose fix does not fit beside the corrections already waiting on its section
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectError = AnswerCmoBrandBrainQuestionForProjectErrors[keyof AnswerCmoBrandBrainQuestionForProjectErrors];
@@ -86214,6 +86541,96 @@ export type AnswerCmoBrandBrainQuestionForProjectResponses = {
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectResponse = AnswerCmoBrandBrainQuestionForProjectResponses[keyof AnswerCmoBrandBrainQuestionForProjectResponses];
+
+export type FixCmoBrandSectionForProjectData = {
+    body?: CmoBrandFixRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand/fix';
+};
+
+export type FixCmoBrandSectionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such section
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectError = FixCmoBrandSectionForProjectErrors[keyof FixCmoBrandSectionForProjectErrors];
+
+export type FixCmoBrandSectionForProjectResponses = {
+    /**
+     * Cuso is fixing the section, or will once his current turn ends
+     */
+    201: {
+        data: CmoBrandFixStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectResponse = FixCmoBrandSectionForProjectResponses[keyof FixCmoBrandSectionForProjectResponses];
 
 export type ApproveCmoMarketingStrategyForProjectData = {
     body?: never;
@@ -88433,159 +88850,6 @@ export type ResolveMySokoBotDecisionResponses = {
 
 export type ResolveMySokoBotDecisionResponse = ResolveMySokoBotDecisionResponses[keyof ResolveMySokoBotDecisionResponses];
 
-export type ListSokoBotAvatarsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        take?: number;
-        exclude?: string;
-    };
-    url: '/soko-bots/avatars';
-};
-
-export type ListSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ListSokoBotAvatarsError = ListSokoBotAvatarsErrors[keyof ListSokoBotAvatarsErrors];
-
-export type ListSokoBotAvatarsResponses = {
-    /**
-     * Unclaimed Soko Bot avatars to pick from
-     */
-    200: {
-        data: Array<SokoBotAvatar>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
-
-export type TopUpSokoBotAvatarsData = {
-    body: {
-        take?: number;
-        excludeIds?: Array<string>;
-        fresh?: boolean;
-    };
-    path?: never;
-    query?: never;
-    url: '/soko-bots/avatars/top-up';
-};
-
-export type TopUpSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Too Many Requests
-     */
-    429: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];
-
-export type TopUpSokoBotAvatarsResponses = {
-    /**
-     * Unclaimed Soko Bot avatars, after filling a short pool
-     */
-    200: {
-        data: Array<SokoBotAvatar>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type TopUpSokoBotAvatarsResponse = TopUpSokoBotAvatarsResponses[keyof TopUpSokoBotAvatarsResponses];
-
 export type ListMySokoBotIntegrationsData = {
     body?: never;
     path?: never;
@@ -88989,18 +89253,35 @@ export type IntroduceMySokoBotResponses = {
 
 export type IntroduceMySokoBotResponse = IntroduceMySokoBotResponses[keyof IntroduceMySokoBotResponses];
 
-export type ClaimMySokoBotAvatarData = {
-    body?: ClaimSokoBotAvatarRequest;
+export type SetMySokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
     path?: never;
     query?: never;
-    url: '/soko-bots/me/avatar';
+    url: '/soko-bots/me/avatar-code';
 };
 
-export type ClaimMySokoBotAvatarErrors = {
+export type SetMySokoBotAvatarCodeErrors = {
     /**
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -89028,7 +89309,7 @@ export type ClaimMySokoBotAvatarErrors = {
         };
     };
     /**
-     * Conflict
+     * Another bot already has this look
      */
     409: {
         error: string;
@@ -89043,7 +89324,7 @@ export type ClaimMySokoBotAvatarErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Not a valid avatar code
      */
     422: {
         error: string;
@@ -89059,14 +89340,14 @@ export type ClaimMySokoBotAvatarErrors = {
     };
 };
 
-export type ClaimMySokoBotAvatarError = ClaimMySokoBotAvatarErrors[keyof ClaimMySokoBotAvatarErrors];
+export type SetMySokoBotAvatarCodeError = SetMySokoBotAvatarCodeErrors[keyof SetMySokoBotAvatarCodeErrors];
 
-export type ClaimMySokoBotAvatarResponses = {
+export type SetMySokoBotAvatarCodeResponses = {
     /**
-     * Bot with the new avatar
+     * The bot's new look
      */
     200: {
-        data: SokoBot;
+        data: SokoBotAvatarCode;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -89075,7 +89356,7 @@ export type ClaimMySokoBotAvatarResponses = {
     };
 };
 
-export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
+export type SetMySokoBotAvatarCodeResponse = SetMySokoBotAvatarCodeResponses[keyof SetMySokoBotAvatarCodeResponses];
 
 export type ListSokoBotVersionsData = {
     body?: never;
@@ -91118,6 +91399,113 @@ export type RenameSokoBotResponses = {
 };
 
 export type RenameSokoBotResponse = RenameSokoBotResponses[keyof RenameSokoBotResponses];
+
+export type SetSokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/avatar-code';
+};
+
+export type SetSokoBotAvatarCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another bot already has this look
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a valid avatar code
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSokoBotAvatarCodeError = SetSokoBotAvatarCodeErrors[keyof SetSokoBotAvatarCodeErrors];
+
+export type SetSokoBotAvatarCodeResponses = {
+    /**
+     * The bot's new look
+     */
+    200: {
+        data: SokoBotAvatarCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetSokoBotAvatarCodeResponse = SetSokoBotAvatarCodeResponses[keyof SetSokoBotAvatarCodeResponses];
 
 export type ResolveSokoBotDecisionData = {
     body?: ResolveSokoBotDecisionRequest;

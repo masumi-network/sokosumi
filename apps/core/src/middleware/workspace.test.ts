@@ -304,6 +304,7 @@ describe("workspaceMiddleware", () => {
       expect.any(Error),
       {
         label: "workspace_context_resolution",
+        errorDetail: "cause",
         sentry: {
           tags: {
             context: "workspace_context_resolution",

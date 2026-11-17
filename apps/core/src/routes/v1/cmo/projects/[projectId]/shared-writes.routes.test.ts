@@ -29,6 +29,7 @@ const m = vi.hoisted(() => ({
   getBrandBrain: vi.fn(),
   confirmBrandBrain: vi.fn(),
   answerBrandBrainQuestion: vi.fn(),
+  requestBrandBrainFix: vi.fn(),
   answerMarketingStrategyQuestion: vi.fn(),
   strategyFindFirst: vi.fn(),
   startCmoProductionForProject: vi.fn(),
@@ -91,6 +92,7 @@ vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   getBrandBrain: m.getBrandBrain,
   confirmBrandBrain: m.confirmBrandBrain,
   answerBrandBrainQuestion: m.answerBrandBrainQuestion,
+  requestBrandBrainFix: m.requestBrandBrainFix,
 }));
 // Approving stays real: its owner-or-admin check is what the tests prove.
 vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
@@ -199,6 +201,14 @@ const WRITES = [
     reaches: m.answerBrandBrainQuestion,
   },
   {
+    name: "Brand Brain section fix",
+    method: "POST",
+    path: `${BASE}/brand/fix`,
+    body: { section: "pricing", note: "From 19 dollars." },
+    status: 201,
+    reaches: m.requestBrandBrainFix,
+  },
+  {
     name: "strategy approve",
     method: "POST",
     path: `${BASE}/marketing-strategies/${STRATEGY_ID}/approve`,
@@ -255,6 +265,11 @@ beforeEach(() => {
   m.hasCuso = true;
   m.getBrandBrain.mockResolvedValue(null);
   m.confirmBrandBrain.mockResolvedValue(null);
+  // The answered question; a yes starts no fix.
+  m.answerBrandBrainQuestion.mockResolvedValue({
+    asked: {},
+    answered: { answer: "yes" },
+  });
   m.strategyFindFirst.mockResolvedValue(strategyVersion());
   m.answerMarketingStrategyQuestion.mockResolvedValue(strategyVersion());
   m.initiateProjectSocialConnection.mockResolvedValue({

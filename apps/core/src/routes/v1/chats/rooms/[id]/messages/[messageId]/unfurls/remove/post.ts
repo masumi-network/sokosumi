@@ -19,6 +19,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { deleteChatRoomUnfurlSnapshotsIfOwned } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -182,7 +183,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // The snapshot belongs to the removed card only (ADR 0030). Off the
       // response path, and not gated on the realtime publish succeeding.
       waitUntil(
-        deleteChatRoomUnfurlSnapshotsIfOwned([removedImageUrl], id, messageId),
+        runAsBackgroundWork(() =>
+          deleteChatRoomUnfurlSnapshotsIfOwned(
+            [removedImageUrl],
+            id,
+            messageId,
+          ),
+        ),
       );
       await publishChatRoomMessageRealtime(message, "unfurl");
     }

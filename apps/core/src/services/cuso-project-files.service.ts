@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import type { Cuso } from "@/services/cmo-cuso.service";
 import { updateFileMetadata } from "@/services/file-metadata.service";
 import {
@@ -69,11 +70,24 @@ async function linkToProject(
       if (outcome.status !== "conflict") return;
     }
   } catch (error) {
-    console.warn("Cuso's file not linked to the Project", {
-      projectId: drive.projectId,
-      resourceId,
-      error: error instanceof Error ? error.message : "unknown",
+    // Cuso saves files from background turns and crons, never inside a
+    // request, so this is its own event.
+    const log = createCoreLogger({
+      operation: "cuso_project_file_link",
+      project: { id: drive.projectId },
+      fileResource: { id: resourceId },
     });
+    logCoreWarning(
+      log,
+      {
+        message: "Cuso saved a file but could not link it to his Project",
+        why: "The file metadata update failed",
+        fix: "The file is in Files; confirm it on the Project by hand, or let Cuso save it again.",
+      },
+      // The raw error is redacted detail, never the why.
+      { cause: error },
+    );
+    log.emit();
   }
 }
 

@@ -14,8 +14,9 @@ export default function mount(app: Hono) {
       CMO_PRODUCTION_SYNC_LOCK_KEY,
       async (context) => {
         const result = await syncCmoProduction(context.shouldContinue);
-        console.info("[sync/cmo-production] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

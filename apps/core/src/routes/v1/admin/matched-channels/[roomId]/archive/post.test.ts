@@ -5,6 +5,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import mountArchiveAdminMatchedChannel from "./post";
 
@@ -138,6 +139,24 @@ describe("POST /admin/matched-channels/{roomId}/archive", () => {
       [USER_A, USER_B],
       "removed",
     );
+  });
+
+  it("still archives when the revoke publish fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish every effect of a channel membership change",
+      ["A realtime publish failed after the membership change was saved"],
+    );
+    publishChatMembershipRevokedToUsersMock.mockRejectedValueOnce(
+      new Error("ably down"),
+    );
+
+    const response = await archive();
+
+    expect(response.status).toBe(200);
+    expect(errors[0]?.event.failures).toEqual([
+      { effect: "membership_revoked", failure: { errorName: "Error" } },
+    ]);
   });
 
   it("archives an empty matched channel without revoking anyone", async () => {

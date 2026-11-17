@@ -2627,9 +2627,10 @@ model SokoBot {
   /// Last morning briefing sent; one per local day.
   lastBriefingAt      DateTime?
 
-  /// Picked mascot image (see SokoBotAvatar); null → generative orb.
+  /// Rendered still of `avatarCode`; null → generative orb.
   avatarImageUrl String?
-  avatar         SokoBotAvatar?
+  /// Feature code of the live SVG avatar (see @sokosumi/soko-bot avatar); unique, so no two bots look alike.
+  avatarCode     String?        @unique
 
   /// User-chosen display name for their personal assistant. Null until named.
   name String?
@@ -2697,40 +2698,6 @@ model SokoBot {
 
 /// Immutable copy of external Hermes chat history made during first-party
 /// Soko Bot cutover. New messages are represented by SokoBotTurn.
-/// Pool of pre-generated mascot images. Each row is a unique (subject,
-/// background, seed) draw; a bot claims at most one at a time.
-model SokoBotAvatar {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-
-  subject    String
-  background String
-  seed       Int
-  model      String
-  imageUrl   String
-  sourceUrl  String?
-
-  claimedBySokoBotId String?   @unique @db.Uuid
-  claimedBySokoBot   SokoBot?  @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
-  claimedAt          DateTime?
-
-  /// The user whose top-up caused this image. Null for rows the removed pool
-  /// cron made, which no user asked for. Read by the per-user generation cap.
-  requestedByUserId String?
-  requestedBy       User?   @relation("SokoBotAvatarRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
-
-  /// Set when the row is claimed as a generation slot, before the paid image
-  /// call. Cleared once `imageUrl` holds a real image. A non-null value means
-  /// the image is still in flight or the run died, so the row is not showable.
-  /// Every read filters on it; the top-up sweeps stale ones.
-  reservedAt DateTime?
-
-  @@unique([subject, background, seed])
-  @@index([claimedAt])
-  @@index([requestedByUserId, createdAt])
-  @@map("soko_bot_avatar")
-}
-
 model SokoBotLegacyMessage {
   id        String   @id @db.Uuid
   createdAt DateTime

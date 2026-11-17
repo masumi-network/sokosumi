@@ -53,6 +53,8 @@ export async function deleteStripeCustomerBestEffort(
   } catch (error) {
     captureExternalServiceError(error, {
       label: "stripe_customer_delete",
+      // Core's own subscription read, by id and status only.
+      errorDetail: "cause",
       sentry: {
         tags: {
           context: "stripe_customer_delete",
@@ -86,6 +88,8 @@ export async function deleteStripeCustomerBestEffort(
 
     captureExternalServiceError(error, {
       label: "stripe_customer_delete",
+      // No opt-in: the Stripe SDK copies the response's message, from
+      // Stripe or a proxy in front of it, into the error.
       sentry: {
         tags: {
           context: "stripe_customer_delete",

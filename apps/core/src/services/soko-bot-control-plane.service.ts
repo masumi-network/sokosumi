@@ -69,6 +69,13 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  emitCoreWarning,
+  recordCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
   sokoBotScheduleActingUserWhere,
@@ -120,6 +127,8 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import {
   revokeCusoSubscription,
@@ -127,7 +136,7 @@ import {
   revokeSubscriptionsLeftByEnding,
 } from "@/services/polar-subscription-end.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
-import { claimAvatar } from "@/services/soko-bot-avatar.service";
+import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
 import {
   notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
@@ -159,6 +168,9 @@ import {
 } from "@/services/soko-bot-version.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
+
+/** Context for the control plane's standalone events. */
+const TURN_LOG = { operation: "soko_bot_turn" };
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 /**
@@ -239,7 +251,7 @@ export interface CreateSokoBotInput {
   workspaceId: string;
   name: string;
   avatarSeed?: string | null;
-  avatarId?: string | null;
+  avatarCode?: string | null;
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
@@ -656,10 +668,19 @@ export class SokoBotControlPlane {
         reason: "Soko Bot prior turn completed",
       });
     } catch (error) {
-      console.warn("Soko Bot old runtime session cleanup failed", {
-        sokoBotId: input.bot.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      recordCoreWarning(
+        TURN_LOG,
+        {
+          message: "Could not reset a Soko Bot's previous runtime session",
+          why: "The runtime refused the reset",
+          fix: "Nothing to do: the new turn runs in its own session and the old one ages out at the runtime.",
+        },
+        {
+          sokoBot: { id: input.bot.id },
+          turn: { id: input.turnId },
+          failure: messageSafeErrorFields(error),
+        },
+      );
     }
   }
 
@@ -1288,7 +1309,6 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1321,9 +1341,13 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
+    // Outside the transaction: it uploads to Blob.
+    if (!created.avatarCode) {
+      const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+      if (look) Object.assign(created, look);
+    }
     const { ensureSystemSchedules } = await import(
       "@/services/soko-bot-proactive.service"
     );
@@ -1333,10 +1357,17 @@ export class SokoBotControlPlane {
       workspaceId: input.workspaceId,
       ingestTimezone: created.ingestTimezone,
     }).catch((error) => {
-      console.error("Soko Bot system schedules failed", {
-        sokoBotId: created.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Awaited inside the create request; an eval lane creates outside one.
+      recordCoreError(
+        TURN_LOG,
+        {
+          message: "Created a Soko Bot without its built-in rhythms",
+          why: "Creating the system schedules failed",
+          fix: "The bot works without them. The owner can add the rhythms on the bot's Schedules page.",
+          cause: error,
+        },
+        { sokoBot: { id: created.id } },
+      );
     });
     return created;
   }
@@ -1475,14 +1506,23 @@ export class SokoBotControlPlane {
     } | null = null;
     // A Cuso's charge gets his own notice, on his Project (SOKD-246).
     let chargedCusoProjectId: string | null = null;
+    // A CMO research or plan turn that ended: Cuso's first plan, or the
+    // next fix the owner asked for meanwhile, may start now.
+    let cmoTurnEnded: {
+      sokoBotId: string;
+      userId: string | null;
+      clientTurnId: string | null;
+    } | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
       chargedCusoProjectId = null;
+      cmoTurnEnded = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
           sokoBotId: true,
+          clientTurnId: true,
           requestedByUserId: true,
           sokoBot: { select: { userId: true } },
           workspaceId: true,
@@ -1603,6 +1643,23 @@ export class SokoBotControlPlane {
         },
       });
       if (settled.count === 0) return false;
+      // Once any foreground turn of Cuso ends, his first plan or the next
+      // fix the owner asked for meanwhile may start (one turn per bot). A
+      // turn the owner stopped starts nothing.
+      if (
+        settledStatus !== "CANCELLED" &&
+        (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
+          (turn.parentTurnId === null &&
+            turn.versionId !== undefined &&
+            getSokoBotVersion(turn.versionId).profile === "cmo"))
+      ) {
+        cmoTurnEnded = {
+          sokoBotId: turn.sokoBotId,
+          userId: turn.requestedByUserId,
+          clientTurnId: turn.clientTurnId,
+        };
+      }
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
       // The owner reads the model's own words; the claim check has already
@@ -1693,24 +1750,61 @@ export class SokoBotControlPlane {
         if (chargedCusoProjectId) {
           await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
         }
-        if (settled) {
+        if (settled && cmoTurnEnded) {
+          const ended: {
+            sokoBotId: string;
+            userId: string | null;
+            clientTurnId: string | null;
+          } = cmoTurnEnded;
           waitUntil(
-            logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
-          );
-          waitUntil(
-            import("@/services/soko-bot-delivery.service")
-              .then(({ deliverSokoBotTurnOutbox }) =>
-                deliverSokoBotTurnOutbox(input.turnId),
-              )
-              .catch((error) => {
-                console.warn(
-                  "Soko Bot inline delivery failed; durable retry remains pending",
+            import("@/services/cmo-strategy.service")
+              .then(({ afterCmoTurn }) => afterCmoTurn(ended))
+              .catch((error: unknown) => {
+                // After the response: a standalone event, redacted and drained.
+                emitCoreWarning(
+                  { operation: "cmo_next_run" },
                   {
-                    turnId: input.turnId,
-                    error: error instanceof Error ? error.message : "unknown",
+                    message: "CMO's next run did not start",
+                    why: "Starting the first plan or a queued brand fix threw after Cuso's turn settled",
+                    fix: "It starts again when Cuso's next turn ends. If it keeps failing, read the failure and the Cuso's credits.",
+                  },
+                  {
+                    sokoBot: { id: ended.sokoBotId },
+                    clientTurnId: ended.clientTurnId,
+                    failure: messageSafeErrorFields(error),
                   },
                 );
               }),
+          );
+        }
+        if (settled) {
+          waitUntil(
+            runAsBackgroundWork(() =>
+              logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
+            ),
+          );
+          waitUntil(
+            runAsBackgroundWork(() =>
+              import("@/services/soko-bot-delivery.service")
+                .then(({ deliverSokoBotTurnOutbox }) =>
+                  deliverSokoBotTurnOutbox(input.turnId),
+                )
+                .catch((error) => {
+                  emitCoreWarning(
+                    TURN_LOG,
+                    {
+                      message:
+                        "Could not deliver a settled Soko Bot turn right away",
+                      why: "The inline delivery threw",
+                      fix: "Nothing to do: the delivery outbox keeps it and the soko-bot-turns sync delivers it.",
+                    },
+                    {
+                      turn: { id: input.turnId },
+                      failure: messageSafeErrorFields(error),
+                    },
+                  );
+                }),
+            ),
           );
         }
         return settled;
@@ -1790,10 +1884,16 @@ export class SokoBotControlPlane {
       try {
         await this.deliverRuntimeCancellation(turn);
       } catch (error) {
-        console.warn("Soko Bot deadline cancellation failed", {
-          turnId,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        // Crons expire turns, and so do CMO status reads inside a request.
+        recordCoreWarning(
+          TURN_LOG,
+          {
+            message: "Could not cancel an expired Soko Bot turn at the runtime",
+            why: "The runtime refused the cancel",
+            fix: "The turn is still settled as failed; the runtime stops it at its own limit.",
+          },
+          { turn: { id: turnId }, failure: messageSafeErrorFields(error) },
+        );
       }
     }
     return this.settleTurn({
@@ -1992,11 +2092,21 @@ export class SokoBotControlPlane {
       ) {
         await notifySokoBotOutOfCredits(bot.id).catch(
           (noticeError: unknown) => {
-            console.warn("Soko Bot out-of-credits notice failed", {
-              sokoBotId: bot.id,
-              error:
-                noticeError instanceof Error ? noticeError.name : "unknown",
-            });
+            recordCoreWarning(
+              TURN_LOG,
+              {
+                message:
+                  "Could not tell a Soko Bot's owner that it is out of credits",
+                why: "Posting the out-of-credits notice in the owner's chat failed",
+                fix: "The turn is still refused. The owner sees the balance on the billing page; the next self-started turn posts the notice again.",
+              },
+              // The name only: the notice's text is about the owner.
+              {
+                sokoBot: { id: bot.id },
+                errorName:
+                  noticeError instanceof Error ? noticeError.name : "unknown",
+              },
+            );
           },
         );
       }
@@ -2911,11 +3021,19 @@ export class SokoBotControlPlane {
           });
           acceptedSessionWasReset = true;
         } catch (cleanupError) {
-          console.warn("Soko Bot unacknowledged runtime cleanup failed", {
-            turnId: turn.id,
-            error:
-              cleanupError instanceof Error ? cleanupError.message : "unknown",
-          });
+          recordCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not reset the runtime session of a turn whose start was not acknowledged",
+              why: "The runtime refused the reset",
+              fix: "Nothing to do: the session ages out at the runtime, and the start is retried or fails on its own.",
+            },
+            {
+              turn: { id: turn.id },
+              failure: messageSafeErrorFields(cleanupError),
+            },
+          );
         }
       }
       if (error instanceof SokoBotStartAbortedError) {
@@ -3015,8 +3133,6 @@ export class SokoBotControlPlane {
       );
     }
 
-    let aggregateUsage = parseTurnUsage(turn.usage);
-    let aggregateCostUsdMicros = turn.costUsdMicros ?? 0n;
     const priorTerminalEvent = await prisma.sokoBotEvent.findFirst({
       where: {
         turnId: turn.id,
@@ -3055,15 +3171,26 @@ export class SokoBotControlPlane {
           eveTurnId: boundEveTurnId,
         });
       } catch (error) {
-        console.warn("Soko Bot cancellation redelivery failed", {
-          turnId: turn.id,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        emitCoreWarning(
+          TURN_LOG,
+          {
+            message:
+              "Could not redeliver a Soko Bot turn's cancellation to the runtime",
+            why: "The runtime refused the cancel",
+            fix: "The next reconcile redelivers it, and the turn's deadline ends it otherwise.",
+          },
+          { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+        );
       }
     };
 
-    const heartbeat = async (): Promise<void> => {
-      const updated = await prisma.sokoBotTurn.updateMany({
+    // Inside an event write it is the fence: the UPDATE locks the turn row,
+    // so the usage read after it sees what another writer under the same
+    // lease (the in-process loop's settle, an admin retry) committed.
+    const heartbeat = async (
+      client: Prisma.TransactionClient = prisma,
+    ): Promise<void> => {
+      const updated = await client.sokoBotTurn.updateMany({
         where: {
           id: turn.id,
           leaseToken,
@@ -3081,9 +3208,47 @@ export class SokoBotControlPlane {
       }
     };
 
+    // A writer that lags behind replays a lower index: it never moves the
+    // cursor back.
+    const advanceCursor = (tx: Prisma.TransactionClient, streamIndex: number) =>
+      tx.sokoBotTurn.updateMany({
+        where: { id: turn.id, eveStreamIndex: { lt: streamIndex } },
+        data: { eveStreamIndex: streamIndex },
+      });
+
+    // Adds a step's usage to the locked row's totals, never to a copy read
+    // before another writer added its own step.
+    const usageAfterStep = async (
+      tx: Prisma.TransactionClient,
+      event: IndexedRuntimeEvent["event"],
+    ): Promise<Prisma.SokoBotTurnUpdateInput> => {
+      const current = await tx.sokoBotTurn.findUnique({
+        where: { id: turn.id },
+        select: { usage: true, costUsdMicros: true },
+      });
+      const nextUsage = addTurnUsage(
+        parseTurnUsage(current?.usage),
+        event.data.usage,
+        event.data.modelId,
+      );
+      if (!nextUsage) return {};
+      return {
+        usage: jsonInput(nextUsage),
+        costUsdMicros:
+          (current?.costUsdMicros ?? 0n) +
+          BigInt(
+            Math.round(
+              nonnegativeNumber(
+                (event.data.usage as Record<string, unknown>).costUsd,
+              ) * 1_000_000,
+            ),
+          ),
+      };
+    };
+
     const persistEvent = async (
       indexed: IndexedRuntimeEvent,
-      data: Prisma.SokoBotTurnUpdateManyMutationInput = {},
+      data: Prisma.SokoBotTurnUpdateInput = {},
     ): Promise<boolean> => {
       return prisma.$transaction(async (tx) => {
         const projection = safeEventProjection(
@@ -3110,47 +3275,34 @@ export class SokoBotControlPlane {
           ],
           skipDuplicates: true,
         });
-        const updated = await tx.sokoBotTurn.updateMany({
-          where: {
-            id: turn.id,
-            leaseToken,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-          },
-          data: {
-            ...(persisted.count === 1 ? data : {}),
-            eveStreamIndex: indexed.startIndex,
-            reconcilerHeartbeatAt: new Date(),
-            leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-          },
-        });
-        if (updated.count === 0) {
-          throw new SokoBotReconciliationLeaseLostError(
-            "Soko Bot reconciliation lease was lost",
-          );
+        // Insert, then fence: the order every release writes in, so a writer
+        // from the release before cannot deadlock with this one. A failed
+        // fence rolls the insert back.
+        await heartbeat(tx);
+        const persistedNew = persisted.count === 1;
+        if (persistedNew) {
+          const update = {
+            ...data,
+            ...(indexed.event.type === "step.completed"
+              ? await usageAfterStep(tx, indexed.event)
+              : {}),
+          };
+          if (Object.keys(update).length > 0)
+            await tx.sokoBotTurn.update({
+              where: { id: turn.id },
+              data: update,
+            });
         }
-        return persisted.count === 1;
+        await advanceCursor(tx, indexed.startIndex);
+        return persistedNew;
       });
     };
 
-    const advancePastUnownedEvent = async (streamIndex: number) => {
-      const updated = await prisma.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          leaseToken,
-          status: { in: [...ACTIVE_TURN_STATUSES] },
-        },
-        data: {
-          eveStreamIndex: streamIndex,
-          reconcilerHeartbeatAt: new Date(),
-          leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        },
+    const advancePastUnownedEvent = (streamIndex: number) =>
+      prisma.$transaction(async (tx) => {
+        await heartbeat(tx);
+        await advanceCursor(tx, streamIndex);
       });
-      if (updated.count === 0) {
-        throw new SokoBotReconciliationLeaseLostError(
-          "Soko Bot reconciliation lease was lost",
-        );
-      }
-    };
 
     const heartbeatTimer = setInterval(() => {
       void heartbeat().catch(() => {
@@ -3219,35 +3371,13 @@ export class SokoBotControlPlane {
         // later durable event advances the cursor across all skipped deltas.
         if (!shouldPersistSokoBotRuntimeEvent(indexed.event.type)) continue;
 
-        const turnData: Prisma.SokoBotTurnUpdateManyMutationInput = {};
-        let nextAggregateUsage: SokoBotTurnUsage | null = null;
-        let nextAggregateCostUsdMicros: bigint | null = null;
+        // A step's usage is added inside persistEvent, from the locked row.
+        const turnData: Prisma.SokoBotTurnUpdateInput = {};
         if (
           indexed.event.type === "step.started" &&
           typeof indexed.event.data.modelId === "string"
         ) {
           turnData.modelId = indexed.event.data.modelId.slice(0, 240);
-        } else if (indexed.event.type === "step.completed") {
-          const nextUsage = addTurnUsage(
-            aggregateUsage,
-            indexed.event.data.usage,
-            indexed.event.data.modelId,
-          );
-          if (nextUsage) {
-            nextAggregateUsage = nextUsage;
-            nextAggregateCostUsdMicros =
-              aggregateCostUsdMicros +
-              BigInt(
-                Math.round(
-                  nonnegativeNumber(
-                    (indexed.event.data.usage as Record<string, unknown>)
-                      .costUsd,
-                  ) * 1_000_000,
-                ),
-              );
-            turnData.usage = jsonInput(nextAggregateUsage);
-            turnData.costUsdMicros = nextAggregateCostUsdMicros;
-          }
         }
         if (indexed.event.type === "message.completed") {
           if (typeof indexed.event.data.message === "string") {
@@ -3285,21 +3415,18 @@ export class SokoBotControlPlane {
             "@/services/soko-bot-chat.service"
           );
           await publishSokoBotChatProgress(turn.id).catch((error) => {
-            console.warn("Soko Bot chat progress publish failed", {
-              turnId: turn.id,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            emitCoreWarning(
+              TURN_LOG,
+              {
+                message:
+                  "Could not publish a Soko Bot turn's progress to its chat",
+                why: "Publishing the progress failed",
+                fix: "Nothing to do: the chat shows the answer when the turn settles.",
+              },
+              { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+            );
           });
         }
-        if (
-          eventWasNew &&
-          nextAggregateUsage &&
-          nextAggregateCostUsdMicros !== null
-        ) {
-          aggregateUsage = nextAggregateUsage;
-          aggregateCostUsdMicros = nextAggregateCostUsdMicros;
-        }
-
         if (indexed.event.type === "input.requested") {
           try {
             await this.runtime.cancelTurn({
@@ -3307,10 +3434,16 @@ export class SokoBotControlPlane {
               eveTurnId: boundEveTurnId ?? undefined,
             });
           } catch (error) {
-            console.warn("Soko Bot unsupported input cancellation failed", {
-              turnId: turn.id,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            emitCoreWarning(
+              TURN_LOG,
+              {
+                message:
+                  "Could not cancel a Soko Bot turn that asked for input it cannot get",
+                why: "The runtime refused the cancel",
+                fix: "The turn is still settled as failed; the runtime stops it at its own limit.",
+              },
+              { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+            );
           }
           await this.settleTurn({
             turnId: turn.id,
@@ -3619,10 +3752,25 @@ export class SokoBotControlPlane {
           content: notice,
           key: `version:${runId}:${bot.id}`,
         }).catch((error: unknown) => {
-          console.warn("Soko Bot version notice failed", {
-            sokoBotId: bot.id,
-            error: error instanceof Error ? error.name : "unknown",
-          });
+          // The admin's migrate request is awaiting this.
+          recordCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not tell a Soko Bot's owner about its version move",
+              why: "Posting the version notice in the owner's chat failed",
+              fix: "The move stands and is counted as not notified; tell the owner another way if they need to know.",
+            },
+            // The name only: the notice's text is about the owner.
+            {
+              versionNoticeFailures: [
+                {
+                  sokoBotId: bot.id,
+                  errorName: error instanceof Error ? error.name : "unknown",
+                },
+              ],
+            },
+          );
           return null;
         });
         if (posted) notified += 1;
@@ -4014,10 +4162,18 @@ export class SokoBotControlPlane {
         });
       } catch (auditError) {
         if (!isPrismaUniqueViolation(auditError)) {
-          console.error("Failed to append Soko Bot admin action outcome", {
-            operationId,
-            sokoBotId: bot.id,
-          });
+          // Admin actions run inside the admin's request.
+          recordCoreError(
+            TURN_LOG,
+            {
+              message:
+                "Could not record the outcome of a failed Soko Bot admin action",
+              why: "Writing the audit row failed",
+              fix: "The action's intent is recorded; add the FAILED outcome for this operationId by hand if the audit trail needs it.",
+              cause: auditError,
+            },
+            { adminAction: { operationId }, sokoBot: { id: bot.id } },
+          );
         }
       }
     };
@@ -4106,11 +4262,21 @@ export class SokoBotControlPlane {
       if (active) {
         try {
           await this.deliverRuntimeCancellation(active);
-        } catch {
-          console.warn("Soko Bot runtime cancellation failed during pause", {
-            sokoBotId: bot.id,
-            turnId: active.id,
-          });
+        } catch (error) {
+          recordCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not cancel a paused Soko Bot's running turn at the runtime",
+              why: "The runtime refused the cancel",
+              fix: "The bot is paused; the next reconcile or the turn's deadline ends the turn.",
+            },
+            {
+              sokoBot: { id: bot.id },
+              turn: { id: active.id },
+              failure: messageSafeErrorFields(error),
+            },
+          );
         }
       }
     } else if (input.action === "RESUME") {
@@ -4759,11 +4925,21 @@ export class SokoBotControlPlane {
     try {
       await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
-      console.warn("Soko Bot runtime cancellation failed during archive", {
-        sokoBotId: archived.activeTurn.sokoBotId,
-        turnId: archived.activeTurn.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Archiving runs inside the delete request (Web or CMO).
+      recordCoreWarning(
+        TURN_LOG,
+        {
+          message:
+            "Could not cancel an archived Soko Bot's running turn at the runtime",
+          why: "The runtime refused the cancel",
+          fix: "The bot is archived; the next reconcile or the turn's deadline ends the turn.",
+        },
+        {
+          sokoBot: { id: archived.activeTurn.sokoBotId },
+          turn: { id: archived.activeTurn.id },
+          failure: messageSafeErrorFields(error),
+        },
+      );
     }
   }
 }

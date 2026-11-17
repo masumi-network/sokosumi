@@ -143,6 +143,7 @@ export async function listSharedSokoBots(
       projectId: true,
       avatarSeed: true,
       avatarImageUrl: true,
+      avatarCode: true,
       status: true,
       archivedAt: true,
       sharedRoomId: true,

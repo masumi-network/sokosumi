@@ -12,8 +12,6 @@ export default function mount(app: Hono) {
       c,
       SOURCE_IMPORT_SYNC_LOCK_KEY,
       async (context) => {
-        console.info("[sync/source-import] Importing pending source imports");
-        const startedAt = Date.now();
         const pendingBlobCount =
           await sourceImportSyncService.importPendingResultBlobs({
             abortSignal: context.abortSignal,
@@ -21,10 +19,9 @@ export default function mount(app: Hono) {
             shouldContinue: context.shouldContinue,
           });
 
-        console.info(
-          `[sync/source-import] Completed import sync (pendingBlobs=${pendingBlobCount}, durationMs=${Date.now() - startedAt})`,
-        );
+        context.log.set({ result: { pendingBlobs: pendingBlobCount } });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

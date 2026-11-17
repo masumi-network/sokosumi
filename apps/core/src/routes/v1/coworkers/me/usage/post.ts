@@ -15,6 +15,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
@@ -219,10 +220,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (result.created) {
       waitUntil(
-        notifyLowBalanceAfterCharge({
-          userId,
-          organizationId: organizationId ?? null,
-        }),
+        runAsBackgroundWork(() =>
+          notifyLowBalanceAfterCharge({
+            userId,
+            organizationId: organizationId ?? null,
+          }),
+        ),
       );
       return created(c, coworkerUsageSchema.parse(response));
     }

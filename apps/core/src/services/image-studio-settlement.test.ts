@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 /**
  * Settling a job exactly once.
@@ -23,6 +24,9 @@ const {
   getEnvMock,
   adEventCreateMock,
   enqueueAdEvalMock,
+  jobFindManyMock,
+  fetchQueueResultMock,
+  waitUntilMock,
 } = vi.hoisted(() => ({
   jobFindUniqueMock: vi.fn(),
   jobUpdateMock: vi.fn(),
@@ -37,7 +41,12 @@ const {
   getEnvMock: vi.fn(),
   adEventCreateMock: vi.fn(),
   enqueueAdEvalMock: vi.fn(),
+  jobFindManyMock: vi.fn(),
+  fetchQueueResultMock: vi.fn(),
+  waitUntilMock: vi.fn(),
 }));
+
+vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
 vi.mock("@/services/ad-eval.service", () => ({
   enqueueAdEval: enqueueAdEvalMock,
@@ -59,7 +68,7 @@ vi.mock("@/lib/db/prisma", () => {
     projectImageJob: {
       findUnique: jobFindUniqueMock,
       findUniqueOrThrow: vi.fn(),
-      findMany: vi.fn().mockResolvedValue([]),
+      findMany: jobFindManyMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
       count: vi.fn(),
@@ -94,16 +103,23 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   )),
   downloadMedia: downloadMediaMock,
   fetchQueueStatus: fetchQueueStatusMock,
+  fetchQueueResult: fetchQueueResultMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import {
   reconcileJob,
+  reconcileProjectJobs,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
 
 const JOB = {
@@ -135,6 +151,7 @@ beforeEach(() => {
     IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: STUDIO_BLOB_TOKEN,
   });
   jobFindUniqueMock.mockResolvedValue(JOB);
+  jobFindManyMock.mockResolvedValue([]);
   requireProjectAccessForUserMock.mockResolvedValue({
     projectId: "project-1",
     workspaceId: "workspace-1",
@@ -294,6 +311,60 @@ describe("automatic ad eval enqueue", () => {
   });
 });
 
+describe("ad eval placement", () => {
+  it("records a failed ad-eval start on the image-studio GET that reconciled the job", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not start the evaluation of a delivered ad",
+    );
+    const { enqueueAdEval } = await vi.importActual<
+      typeof import("@/services/ad-eval.service")
+    >("@/services/ad-eval.service");
+    enqueueAdEvalMock.mockImplementation(enqueueAdEval);
+    onTestFinished(() => {
+      enqueueAdEvalMock.mockReset();
+      waitUntilMock.mockReset();
+    });
+    getEnvMock.mockReturnValue({
+      ...getEnvMock(),
+      AD_EVALS_ENABLED: true,
+      AD_EVALS_PAUSED: false,
+    });
+    // The ad eval registers first; the CMO month nudge after it must not throw.
+    waitUntilMock.mockImplementationOnce(() => {
+      throw new Error("registration unavailable");
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    // Reservation recovery finds nothing; then the project's one live job.
+    jobFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "job-1" }]);
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "media",
+      media: [{ url: "https://v3b.fal.media/files/a.png" }],
+    });
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.get("/projects/:id/image-studio", async (c) => {
+      await reconcileProjectJobs(c.req.param("id"));
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/projects/project-1/image-studio");
+
+    expect(assetCreateMock).toHaveBeenCalledOnce();
+    expect(warnings[0]).toMatchObject({
+      why: "Registering the background work threw",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      method: "GET",
+      path: "/projects/project-1/image-studio",
+      job: { id: "job-1" },
+    });
+  });
+});
+
 describe("batch slot preference signals", () => {
   it("penalizes the displayed revision when refining an older parent", async () => {
     jobFindUniqueMock.mockResolvedValue({
@@ -447,9 +518,10 @@ describe("the stored version's dimensions", () => {
   });
 
   it("stores zero, and keeps the image, when nothing can be read", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[image-studio] stored an image with no readable dimensions",
+      "Stored a generated image without dimensions",
+      ["Neither the provider nor the image header gave a width and height"],
     );
     // Not a failure: the client falls back to the rendered image's intrinsic size.
     // Throwing away an image we paid for because its header is exotic would be
@@ -467,6 +539,45 @@ describe("the stored version's dimensions", () => {
         data: expect.objectContaining({ width: 0, height: 0 }),
       }),
     );
+    expect(warnings[0]?.event).toMatchObject({
+      imageJobs: [
+        { id: "job-1", media: { contentType: "image/avif", bytes: 3 } },
+      ],
+    });
+  });
+});
+
+describe("a provider Content-Type with more than a type", () => {
+  it("logs only a known type, never the header's parameters", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Stored a generated image without dimensions",
+      2,
+    );
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    downloadMediaMock
+      .mockResolvedValueOnce({
+        bytes: new Uint8Array([1, 2, 3]),
+        contentType: "IMAGE/AVIF; note=SECRET-MERGER sk_live_abc123",
+      })
+      .mockResolvedValueOnce({
+        bytes: new Uint8Array([1, 2, 3]),
+        contentType: "x-secret/SECRET-MERGER",
+      });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.avif");
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/b.avif");
+
+    expect(
+      warnings.map(
+        (warning) =>
+          (warning.event.imageJobs as { media: { contentType: string } }[])[0]
+            ?.media.contentType,
+      ),
+    ).toEqual(["image/avif", "unrecognized"]);
+    const drained = JSON.stringify(coreLogEvents());
+    expect(drained).not.toContain("SECRET-MERGER");
+    expect(drained).not.toContain("sk_live");
   });
 });
 
@@ -539,10 +650,9 @@ describe("where generated images are stored", () => {
   });
 
   it("refuses to write anywhere else when no private store is set", async () => {
-    expectConsole(
-      "error",
-      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the",
-    );
+    expectCoreLogWhys("error", "Deferred storing a generated image", [
+      "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the image has nowhere private to go",
+    ]);
     // The shared public token is still present in the environment here. The
     // studio must refuse anyway: an image nobody can see is recoverable, an
     // image published by accident is not.
@@ -558,10 +668,9 @@ describe("where generated images are stored", () => {
   });
 
   it("keeps the paid job recoverable instead of failing it", async () => {
-    expectConsole(
-      "error",
-      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the",
-    );
+    expectCoreLogWhys("error", "Deferred storing a generated image", [
+      "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the image has nowhere private to go",
+    ]);
     // `failJob` here was a real loss: fal has already produced and charged for
     // the image, FAILED is outside LIVE_STATUSES, and the row would drop out
     // of recoverableSelection() — so putting the token back could never bring
@@ -587,10 +696,9 @@ describe("where generated images are stored", () => {
   });
 
   it("hands the lease back when it refuses for want of a private store", async () => {
-    expectConsole(
-      "error",
-      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the",
-    );
+    expectCoreLogWhys("error", "Deferred storing a generated image", [
+      "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the image has nowhere private to go",
+    ]);
     getEnvMock.mockReturnValue({
       FAL_KEY: "k",
       BLOB_READ_WRITE_TOKEN: "shared-public-store-token",

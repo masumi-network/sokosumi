@@ -8,6 +8,8 @@ import { del, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 const PROJECT_FILES_TOKEN_BYTES = 24;
 
@@ -26,8 +28,15 @@ async function uploadProjectFile({
 }: UploadProjectFileOptions): Promise<string | null> {
   const blobToken = getEnv().BLOB_READ_WRITE_TOKEN;
   if (!blobToken) {
-    console.warn(
-      `Project ${kind} upload skipped: Blob storage is not configured`,
+    recordCoreWarning(
+      { operation: "project_file_upload" },
+      {
+        message:
+          "Skipped a project file upload, because blob storage is not configured",
+        why: "BLOB_READ_WRITE_TOKEN is unset",
+        fix: "Set BLOB_READ_WRITE_TOKEN to the read-write token of the Vercel Blob store.",
+      },
+      { projectFile: { kind }, projectId },
     );
     return null;
   }
@@ -48,7 +57,21 @@ async function uploadProjectFile({
     });
     return blob.url;
   } catch (error) {
-    console.warn(`Project ${kind} upload failed`, { projectId });
+    // Only safe fields: the error can quote the pathname, whose files token
+    // is a capability, or the project's content. Sentry keeps the error.
+    recordCoreWarning(
+      { operation: "project_file_upload" },
+      {
+        message: "Could not upload a project file",
+        why: "Vercel Blob rejected the upload",
+        fix: "The file is written again on the project's next update; Sentry has the error.",
+      },
+      {
+        projectFile: { kind },
+        projectId,
+        failure: messageSafeErrorFields(error),
+      },
+    );
     Sentry.captureException(error, {
       tags: { function: "uploadProjectFile", projectFileKind: kind },
       extra: { projectId },
@@ -122,7 +145,16 @@ export async function deleteProjectBriefingBlob(
   try {
     await del(url, { token: blobToken });
   } catch (error) {
-    console.warn("Project briefing blob deletion failed");
+    // Only safe fields: the error can quote the URL and its files token.
+    recordCoreWarning(
+      { operation: "project_file_delete" },
+      {
+        message: "Could not delete a project briefing file",
+        why: "Vercel Blob rejected the deletion",
+        fix: "Sentry has the error; the file stays in the store until it is deleted by hand.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       tags: { function: "deleteProjectBriefingBlob" },
     });

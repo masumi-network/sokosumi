@@ -128,13 +128,13 @@ vi.mock("@/lib/db/transaction", () => ({
     run((await import("@/lib/db/prisma")).default),
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   getImageCatalog,
   imageModel,
   setResolvedImageCatalog,
 } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
 import {
   createImageJob,
@@ -381,7 +381,9 @@ describe("optional two-step lettering", () => {
   });
 
   it("delivers the backdrop even if Ideogram leaves the catalog between steps", async () => {
-    expectConsole("warn", "[image-studio] a generation could not be prepared");
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+    ]);
     await createImageJob({ ...INPUT, lettering: "ideogram" });
     const catalog = getImageCatalog();
     setResolvedImageCatalog(

@@ -14,6 +14,7 @@ import {
 } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
 import { driveList } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -155,9 +156,15 @@ async function emptyFolderMarkers(context: {
       cursor = result.cursor;
     }
   } catch (error) {
-    console.warn("[drive] folder markers unavailable", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "drive_folders_list" },
+      {
+        message: "Listed drive folders without the empty ones",
+        why: "Blob storage could not list the folder markers",
+        fix: "Empty folders reappear once storage answers again. If it persists, check the drive Blob store's status and token.",
+        cause: error,
+      },
+    );
   }
   return folders;
 }

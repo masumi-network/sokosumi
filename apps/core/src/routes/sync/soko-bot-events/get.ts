@@ -20,21 +20,17 @@ export default function mount(app: Hono) {
         // reaches: its overdue sweep runs on quarter-hour ticks.
         const tickStartedAt = new Date();
         const adopted = await adoptCoworkerSubtasks();
-        if (adopted)
-          console.info("[sync/soko-bot-events] Adopted Coworker sub-tasks", {
-            adopted,
-          });
+        context.log.set({ result: { adopted } });
         const watches = await syncSokoBotWatches({
           shouldContinue: context.shouldContinue,
         });
-        if (watches.checked)
-          console.info("[sync/soko-bot-events] Checked waits", watches);
+        context.log.set({ result: { watches } });
         if (!context.shouldContinue()) return;
         const result = await sokoBotEventsSyncService.syncDelegatedWork({
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/soko-bot-events] Completed sync", result);
+        context.log.set({ result: { delegatedWork: result } });
         // After delegated work: a burst of completion summaries must not
         // hold back the wakes that bots asked for.
         if (!context.shouldContinue()) return;
@@ -43,18 +39,15 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
           now: tickStartedAt,
         });
-        if (interest.moments)
-          console.info("[sync/soko-bot-events] Task interest", interest);
+        context.log.set({ result: { taskInterest: interest } });
         if (!context.shouldContinue()) return;
         const taskboard = await sokoBotTaskboardSyncService.syncTaskboard({
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
-        console.info(
-          "[sync/soko-bot-events] Completed taskboard sync",
-          taskboard,
-        );
+        context.log.set({ result: { taskboard } });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

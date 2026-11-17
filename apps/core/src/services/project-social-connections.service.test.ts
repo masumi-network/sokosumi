@@ -1,10 +1,10 @@
 import { isSocialProviderEnabled } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
   deleteSocialAccountAvatarIfOwnedMock,
@@ -2140,14 +2140,20 @@ describe("backfillLinkedInAccountProfile", () => {
 
   it("never throws when the lookup fails", async () => {
     getConnectedSocialIdentityMock.mockRejectedValue(new Error("down"));
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[social-connections] LinkedIn profile backfill failed",
+      "Could not backfill a LinkedIn account's profile photo",
+      ["Reading the LinkedIn identity or storing its photo failed"],
     );
     const { backfillLinkedInAccountProfile } = await import(
       "./project-social-connections.service"
     );
 
     await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "linkedin_profile_backfill",
+      // evlog masks all-digit UUID segments until ticket 14 lands.
+      socialConnection: { id: expect.any(String) },
+    });
   });
 });

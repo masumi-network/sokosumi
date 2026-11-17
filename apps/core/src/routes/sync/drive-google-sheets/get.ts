@@ -15,12 +15,9 @@ export default function mount(app: Hono) {
         const result = await refreshDueGoogleSheets({
           shouldContinue: context.shouldContinue,
         });
-        if (result.refreshed + result.failed > 0)
-          console.info(
-            "[sync/drive-google-sheets] Refreshed Google Sheets",
-            result,
-          );
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

@@ -13,25 +13,23 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(
       c,
       ENTERPRISE_CONTRACTS_RENEWAL_SYNC_LOCK_KEY,
-      async () => {
-        console.info(
-          "[sync/enterprise-contracts-renewal] Starting enterprise contract renewal",
-        );
-        const startedAt = Date.now();
+      async (context) => {
         // The period amount read here must serialize with admin credit edits.
         const result = await serializableTransaction(
           (tx) => runEnterpriseContractSchedulerPass(tx),
           "Enterprise contract changed concurrently; retry renewal",
         );
 
-        console.info("[sync/enterprise-contracts-renewal] Completed sync", {
-          catchUpGranted: result.catchUpGranted,
-          completedContracts: result.completedContracts,
-          durationMs: Date.now() - startedAt,
-          expiredPeriods: result.expiredPeriods,
-          preCreated: result.preCreated,
+        context.log.set({
+          result: {
+            catchUpGranted: result.catchUpGranted,
+            completedContracts: result.completedContracts,
+            expiredPeriods: result.expiredPeriods,
+            preCreated: result.preCreated,
+          },
         });
       },
+      { errorDetail: "cause" },
     );
   });
 }

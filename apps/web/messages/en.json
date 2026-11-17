@@ -7047,13 +7047,6 @@
             "want": "Expected"
           }
         },
-        "Avatar": {
-          "title": "Avatar",
-          "description": "Give this bot an avatar from the shared pool, as its owner would.",
-          "apply": "Set avatar",
-          "done": "Avatar updated.",
-          "error": "Could not set the avatar."
-        },
         "Daily": {
           "title": "Last {days} days, UTC",
           "usersTitle": "People who wrote to a Soko Bot",
@@ -7072,6 +7065,10 @@
           "tokens": "Tokens",
           "cost": "Soko Bots",
           "cmoCost": "CMO.xyz"
+        },
+        "Avatar": {
+          "title": "Look",
+          "description": "Change this bot's look in the avatar studio, as its owner would."
         }
       },
       "MatchedChannels": {
@@ -10259,7 +10256,7 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}"
+        "pictureTitle": "Choose a look for {name}"
       },
       "Memory": {
         "title": "Memory",
@@ -10600,21 +10597,101 @@
         }
       },
       "Avatar": {
-        "title": "Picture",
-        "description": "A unique picture from the collection. No two assistants share one.",
-        "save": "Use this picture",
-        "edit": "Change picture",
-        "saved": "Picture updated.",
-        "saveError": "Could not update the picture.",
-        "current": "Current picture",
-        "hint": "Pick one, or ask for other options.",
-        "showOthers": "Show others",
-        "noneNew": "No new pictures right now. Try again in a minute.",
-        "drawing": "Drawing new pictures. This can take a minute.",
-        "noMore": "That is all the new pictures for now. Pick one above.",
-        "pictures": "Pictures",
-        "loadError": "Could not load pictures.",
-        "rateLimited": "Too many new pictures requested. Try again later."
+        "edit": "Change look",
+        "saved": "Look saved.",
+        "saveError": "Could not save the look."
+      },
+      "AvatarStudio": {
+        "title": "Design the look",
+        "description": "Pick an animal, colours and details. No two assistants share a look.",
+        "previewAlt": "Preview of the avatar",
+        "stateLabel": "Preview state",
+        "states": {
+          "idle": "Idle",
+          "thinking": "Thinking",
+          "working": "Working",
+          "needs_you": "Needs you",
+          "done": "Done",
+          "error": "Error",
+          "sleeping": "Sleeping"
+        },
+        "shuffle": "Shuffle",
+        "animal": "Animal",
+        "background": "Background",
+        "body": "Animal colour",
+        "mark": "Second colour",
+        "corner": "Corner",
+        "cornerLeft": "Lower left",
+        "cornerRight": "Lower right",
+        "size": "Size",
+        "sizes": {
+          "S": "Small",
+          "M": "Medium",
+          "L": "Large"
+        },
+        "eyes": "Eyes",
+        "eyesOptions": {
+          "original": "Original",
+          "sparkle": "Sparkle",
+          "happy": "Happy",
+          "sleepy": "Sleepy",
+          "dots": "Dots"
+        },
+        "mouth": "Mouth",
+        "mouths": {
+          "original": "Original",
+          "smile": "Smile",
+          "open": "Open",
+          "tongue": "Tongue"
+        },
+        "cheeks": "Cheeks",
+        "cheekOptions": {
+          "none": "None",
+          "blush": "Blush"
+        },
+        "hat": "Headwear",
+        "hats": {
+          "none": "None",
+          "party": "Party hat",
+          "crown": "Crown",
+          "beanie": "Beanie",
+          "cap": "Cap",
+          "star": "Star"
+        },
+        "cancel": "Cancel",
+        "save": "Save look",
+        "taken": "That look is taken. Change one thing or shuffle.",
+        "animals": {
+          "axolotl": "Axolotl",
+          "bear": "Bear",
+          "cat": "Cat",
+          "duckling": "Duckling",
+          "elephant": "Elephant",
+          "fox": "Fox",
+          "frog": "Frog",
+          "hedgehog": "Hedgehog",
+          "koala": "Koala",
+          "otter": "Otter",
+          "owl": "Owl",
+          "penguin": "Penguin",
+          "rabbit": "Rabbit",
+          "robot": "Robot",
+          "sloth": "Sloth",
+          "whale": "Whale"
+        },
+        "colours": {
+          "crimson": "Crimson",
+          "iris": "Iris",
+          "electric": "Electric pink",
+          "sakura": "Sakura",
+          "peach": "Peach",
+          "sand": "Sand",
+          "persimmon": "Persimmon",
+          "scarlet": "Scarlet",
+          "golden": "Golden",
+          "white": "White",
+          "ink": "Ink"
+        }
       },
       "Skills": {
         "builtIn": "Included",

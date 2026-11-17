@@ -1,4 +1,4 @@
-import { beforeEach } from "vitest";
+import { beforeEach, expect, onTestFinished } from "vitest";
 
 /**
  * In tests evlog is silent and every event lands in this drain, reset per
@@ -19,6 +19,8 @@ export interface CoreLogEntry {
   why?: string;
   fix?: string;
   link?: string;
+  /** The error behind it, as drained: provider text belongs here, not in `why`. */
+  cause?: unknown;
   /** The whole drained event, for its fields. */
   event: Record<string, unknown>;
 }
@@ -55,6 +57,7 @@ function guidance(record: Record<string, unknown>) {
     why: optionalString(record.why),
     fix: optionalString(record.fix),
     link: optionalString(record.link),
+    cause: record.cause,
   };
 }
 
@@ -172,6 +175,32 @@ export function expectCoreLog(
 }
 
 /**
+ * `expectCoreLog` for entries whose `why` is known: one entry per item of
+ * `whys`, checked in order when the test ends, and, when given, each entry's
+ * `cause` message (where provider text belongs) against `causes`.
+ */
+export function expectCoreLogWhys(
+  level: CoreLogLevel,
+  start: string,
+  whys: readonly string[],
+  causes?: readonly string[],
+): CoreLogEntry[] {
+  const entries = expectCoreLog(level, start, whys.length);
+  onTestFinished(() => {
+    expect(entries.map((entry) => entry.why)).toEqual(whys);
+    if (causes) {
+      expect(entries.map((entry) => causeMessage(entry.cause))).toEqual(causes);
+    }
+  });
+  return entries;
+}
+
+/** A drained `cause`'s message, the provider text it carries. */
+export function causeMessage(cause: unknown): string | undefined {
+  return isRecord(cause) ? optionalString(cause.message) : undefined;
+}
+
+/**
  * The current test's failures: undeclared entries, and declarations that
  * matched another number of times. Clears the test's state.
  */
@@ -207,14 +236,52 @@ export function evlogConfigAtFileStart(): Record<string, unknown> | undefined {
   return configAtFileStart;
 }
 
-/** Registers the per-test drain and check. Called once per file from `setup.ts`. */
-export function installCoreLogDrain(): void {
+/**
+ * `expectCoreLog` for an entry logged while the test file loads, before any
+ * test: call it at the top of the file, before the import that logs. The
+ * file's first test fails when the count differs.
+ */
+export function expectCoreLogAtLoad(
+  level: CoreLogLevel,
+  start: string,
+  times = 1,
+): CoreLogEntry[] {
+  return expectCoreLog(level, start, times);
+}
+
+/**
+ * Registers the drain and the per-test check. Called once per file from
+ * `setup.ts`, before the file's modules load: a module that logs at import
+ * lands in the silent, redacting test drain too, and counts against the
+ * file's first test unless `expectCoreLogAtLoad` declared it.
+ */
+export async function installCoreLogDrain(): Promise<void> {
   const config = (
     globalThis as Record<symbol, { config?: Record<string, unknown> }>
   )[EVLOG_REGISTRY]?.config;
   configAtFileStart = config ? { ...config } : undefined;
 
+  declarations.length = 0;
+  recorded.length = 0;
+  events.length = 0;
+  // A copy of its own, by query: the file's `@/lib/evlog` still loads after
+  // the file's `vi.mock`s apply. The drain is evlog's process-wide config,
+  // so this copy's call holds for the file's copy too.
+  const ownCopy = "@/lib/evlog?test-drain";
+  const evlog = (await import(ownCopy)) as typeof import("@/lib/evlog");
+  evlog.initCoreLogger({ silent: true, drain: coreLogDrain });
+  let loading = true;
+
   beforeEach(async ({ task, onTestFinished }) => {
+    if (loading) {
+      loading = false;
+      const failures = takeCoreLogFailures();
+      if (failures.length > 0) {
+        throw new Error(
+          `While the test file loaded:\n${failures.join("\n")}\nFix its cause, or declare it with expectCoreLogAtLoad() from "@/test/core-log".`,
+        );
+      }
+    }
     declarations.length = 0;
     recorded.length = 0;
     events.length = 0;

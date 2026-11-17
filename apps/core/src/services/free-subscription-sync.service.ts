@@ -9,13 +9,20 @@ import {
 } from "@sokosumi/database/helpers";
 
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 
-const LOG_PREFIX = "[sync/free-subscriptions-renewal]";
+/** Names the renewal's events; it runs only in its cron, after the response. */
+const RENEWAL_OPERATION = "free_subscription_renewal";
 
 interface SyncExecutionOptions {
   deadlineMs: number;
   msRemaining: () => number;
   shouldContinue: () => boolean;
+}
+
+/** The run's options, carrying where it stopped early for its summary. */
+interface RenewalRunOptions extends SyncExecutionOptions {
+  run: { stopped: string | null };
 }
 
 export interface FreeSubscriptionRenewalSyncResult {
@@ -47,17 +54,14 @@ function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
-function shouldStopSync(
-  options: SyncExecutionOptions,
-  reason: string,
-): boolean {
+function shouldStopSync(options: RenewalRunOptions, reason: string): boolean {
   if (!options.shouldContinue()) {
-    console.info(`${LOG_PREFIX} ${reason} (cancelled)`);
+    options.run.stopped = `${reason} (cancelled)`;
     return true;
   }
 
   if (!hasTimeRemaining(options.deadlineMs)) {
-    console.info(`${LOG_PREFIX} ${reason} (deadline)`);
+    options.run.stopped = `${reason} (deadline)`;
     return true;
   }
 
@@ -186,7 +190,7 @@ const localFreeSubscriptionSelect = {
 } as const;
 
 async function preCreateUpcomingLocalFreeSubscriptions(
-  options: SyncExecutionOptions,
+  options: RenewalRunOptions,
   attemptedSubscriptionIds: Set<string>,
 ): Promise<{ preCreated: number; stoppedEarly: boolean }> {
   let preCreated = 0;
@@ -272,9 +276,21 @@ async function preCreateUpcomingLocalFreeSubscriptions(
         }
       } catch (error) {
         attemptedSubscriptionIds.add(subscription.id);
-        console.error(
-          `${LOG_PREFIX} Failed to pre-create local free subscription ${subscription.id}:`,
-          error,
+        emitCoreError(
+          {
+            operation: RENEWAL_OPERATION,
+            subscription: {
+              id: subscription.id,
+              referenceId: subscription.referenceId,
+            },
+          },
+          {
+            message:
+              "Could not pre-create the next period of a local free subscription",
+            why: "The transaction that writes the next period failed",
+            fix: "Nothing to do now: the next renewal sync tries again, and the period is also created when the current one ends.",
+            cause: error,
+          },
         );
       }
     }
@@ -282,7 +298,7 @@ async function preCreateUpcomingLocalFreeSubscriptions(
 }
 
 async function closeOverdueLocalFreeSubscriptions(
-  options: SyncExecutionOptions,
+  options: RenewalRunOptions,
   attemptedSubscriptionIds: Set<string>,
 ): Promise<{
   renewalErrors: number;
@@ -374,9 +390,20 @@ async function closeOverdueLocalFreeSubscriptions(
         }
       } catch (error) {
         renewalErrors += 1;
-        console.error(
-          `${LOG_PREFIX} Failed to renew local free subscription ${subscription.id}:`,
-          error,
+        emitCoreError(
+          {
+            operation: RENEWAL_OPERATION,
+            subscription: {
+              id: subscription.id,
+              referenceId: subscription.referenceId,
+            },
+          },
+          {
+            message: "Could not renew an overdue local free subscription",
+            why: "The transaction that closes the period and starts the next failed",
+            fix: "The next renewal sync retries it. If it fails every run, the cause on this event says why; the workspace stays on its overdue period until it renews.",
+            cause: error,
+          },
         );
       }
     }
@@ -384,7 +411,7 @@ async function closeOverdueLocalFreeSubscriptions(
 }
 
 async function renewLocalFreeSubscriptions(
-  options: SyncExecutionOptions,
+  options: RenewalRunOptions,
 ): Promise<FreeSubscriptionRenewalSyncResult> {
   const attemptedSubscriptionIds = new Set<string>();
 
@@ -419,6 +446,16 @@ export const freeSubscriptionSyncService = {
   async renewLocalFreeSubscriptions(
     options: SyncExecutionOptions,
   ): Promise<FreeSubscriptionRenewalSyncResult> {
-    return await renewLocalFreeSubscriptions(options);
+    // One standalone event for the run: its counts and where it stopped early.
+    const run = { stopped: null as string | null };
+    const log = createCoreLogger({ operation: RENEWAL_OPERATION });
+    let result: FreeSubscriptionRenewalSyncResult | undefined;
+    try {
+      result = await renewLocalFreeSubscriptions({ ...options, run });
+      return result;
+    } finally {
+      log.set({ freeSubscriptionRenewal: { ...result, ...run } });
+      log.emit();
+    }
   },
 };

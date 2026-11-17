@@ -8,6 +8,7 @@ import { publishNotificationRow } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -107,13 +108,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // already holds rather than counting a second one.
     if (notification.isRead) {
       waitUntil(
-        publishNotificationRow(
-          updated,
-          // No email either, and for the same reason as the banner: this
-          // publishes a row the reader has just marked unread again, and
-          // marking something unread is not a new thing to be told about.
-          { inApp: updated.inApp, osBanner: false, email: false },
-          false,
+        runAsBackgroundWork(() =>
+          publishNotificationRow(
+            updated,
+            // No email either, and for the same reason as the banner: this
+            // publishes a row the reader has just marked unread again, and
+            // marking something unread is not a new thing to be told about.
+            { inApp: updated.inApp, osBanner: false, email: false },
+            false,
+          ),
         ),
       );
     }

@@ -13,13 +13,18 @@ const BATCH = 50;
 
 export default function mount(app: Hono) {
   app.get("/image-jobs", async (c) => {
-    return await handleSyncRequest(c, IMAGE_JOBS_SYNC_LOCK_KEY, async () => {
-      const result = await reconcileStaleJobs({
-        olderThanMs: STALE_AFTER_MS,
-        limit: BATCH,
-      });
-      const folders = await moveLegacyStudioFolderTasks(5);
-      console.info("[sync/image-jobs] Completed sync", { ...result, folders });
-    });
+    return await handleSyncRequest(
+      c,
+      IMAGE_JOBS_SYNC_LOCK_KEY,
+      async (context) => {
+        const result = await reconcileStaleJobs({
+          olderThanMs: STALE_AFTER_MS,
+          limit: BATCH,
+        });
+        const folders = await moveLegacyStudioFolderTasks(5);
+        context.log.set({ result: { ...result, folders } });
+      },
+      { errorDetail: "safe-fields" },
+    );
   });
 }
