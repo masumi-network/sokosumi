@@ -1,7 +1,21 @@
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { CMO_BRAND_SECTIONS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
+import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import type { SokoBotSkill } from "./skills.js";
+
+/**
+ * How a piece's picture takes the look of an old print (owner, 2026-11-17).
+ * Only where the reference library's tool exists, so the skill never names a
+ * tool Cuso lacks.
+ */
+const PICTURE_STYLES =
+  "find_style_references" in SOKO_BOT_TOOL_DESCRIPTIONS
+    ? `
+## Picture styles
+A piece with a picture can take the look of an old print: call find_style_references with what the piece is about and the look you want, and pick one whose kind and era suit the brand and the message (infographics for data and how-to, posters for events and announcements, ads and labels for products and offers). Put its id in styleReferenceId and, when the picture should carry words, at most six of them in headline, taken from the piece's hook. Decide per piece: use a style where a striking, on-brand image helps more than a product shot; keep brandPictures for pieces that must show the real product or screens. Never use one reference twice in a month, and vary eras and kinds. Core adds the brand's logo, colours and DESIGN.md and remakes a weak picture.
+`
+    : "";
 
 /** How Cuso writes everything the owner reads: plans, Brand Brain, posts. */
 const OBVIOUS_WRITING = `## How you write
@@ -251,7 +265,7 @@ Each format's shape (length, layout, fields, counts) is in its writing skill in 
 
 ## When you finish
 Check the month as a whole: the mix matches the plan, no two pieces open the same way, every campaign has its pieces, every promotional piece names the same offer. Fix what is off, then report with report_update kind production: pieces made per channel, what is scheduled, and what waits for a connected account.
-`,
+${PICTURE_STYLES}`,
   },
   {
     id: "cmo-daily-watch",

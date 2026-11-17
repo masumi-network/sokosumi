@@ -1114,6 +1114,22 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
     },
   },
+  {
+    id: "cmo-picture-style",
+    title: "Gives a picture the look of an old print",
+    intent:
+      "Asked for a picture in an old print's look, Cuso searches the reference library and sets a style on the piece instead of making the image himself.",
+    prompt:
+      "Make our LinkedIn piece on team booking an image post, with a picture in the look of an old poster. Pick a style that fits us and set it on the piece.",
+    rubric:
+      "Cuso called find_style_references with what the piece is about and the look wanted. When it returned references, he saved the team booking piece with save_strategy as an image post carrying one returned id in styleReferenceId and a headline of at most six words, kept the other pieces as they were, and said which look he chose and why it suits the brand. When the library returned nothing here, saying so plainly and keeping the piece's own visual is correct. An id that no result returned, a picture made with generate_image, or a claim that the style is set without a successful save_strategy fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["find_style_references"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      noInventedIds: true,
+    },
+  },
 ];
 
 /**
