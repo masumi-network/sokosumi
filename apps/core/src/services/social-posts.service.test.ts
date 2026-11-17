@@ -3,7 +3,6 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
 } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   afterEach,
   beforeAll,
@@ -15,6 +14,7 @@ import {
 } from "vitest";
 import * as socialProviders from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
   projectFindFirstMock,
@@ -3366,9 +3366,10 @@ describe("social posts service", () => {
     });
 
     it("treats malformed stored media as none", async () => {
-      const warnCalls = expectConsole(
+      const warnings = expectCoreLogWhys(
         "warn",
-        "[social-post] Ignoring malformed media refs",
+        "A social post's media list was ignored",
+        ["The post's media column does not match the media list schema"],
       );
       socialPostFindManyMock.mockResolvedValue([
         { ...draftPost, media: [{ pathname: 1 }] },
@@ -3381,10 +3382,7 @@ describe("social posts service", () => {
       });
 
       expect(posts[0].media).toEqual([]);
-      expect(warnCalls).toContainEqual([
-        expect.stringContaining("media"),
-        { postId: POST_ID },
-      ]);
+      expect(warnings[0]?.event).toMatchObject({ postId: POST_ID });
     });
 
     it("enforces the media rules when scheduling", async () => {

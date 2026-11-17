@@ -532,10 +532,6 @@ export function attachUploadToLogger(file: CoreLogUpload) {
   });
 }
 
-export function recordCoreRequestError(error: Error) {
-  tryUseLogger()?.error(error);
-}
-
 export interface ImpersonationAuditInput {
   /** Platform admin performing the impersonation. */
   adminId: string;

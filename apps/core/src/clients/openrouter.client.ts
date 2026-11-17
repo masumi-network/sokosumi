@@ -2,6 +2,8 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 
 import { getEnv } from "@/config/env";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
  * `declined` means the model judged the description too thin to summarise.
@@ -55,7 +57,21 @@ async function generateOpenRouterText(
 
     return text || null;
   } catch (error) {
-    console.error(`OpenRouter ${options.failureLogLabel} failed:`, error);
+    // The prompt is user text (a task description, an agent's listing), and
+    // a provider error can quote it: content-free fields only.
+    recordCoreError(
+      { operation: "openrouter_generate_text" },
+      {
+        message: `OpenRouter ${options.failureLogLabel} failed`,
+        why: "The OpenRouter text generation call failed",
+        fix: "The caller falls back to its default. If it repeats, check the OpenRouter key and OpenRouter's status.",
+      },
+      {
+        provider: "openrouter",
+        generation: options.failureLogLabel,
+        failure: messageSafeErrorFields(error),
+      },
+    );
     return null;
   }
 }

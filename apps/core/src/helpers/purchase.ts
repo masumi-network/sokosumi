@@ -13,6 +13,7 @@ import {
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
+import { recordCoreError } from "@/lib/evlog";
 
 type Purchase = PostPurchaseResponses["200"]["data"];
 
@@ -167,7 +168,15 @@ const MAX_REPORTED_UNKNOWN_PURCHASE_VALUES = 256;
 const reportedUnknownPurchaseValues = new Set<string>();
 
 function reportUnknownPurchaseValue(kind: string, value: string): undefined {
-  console.error("[purchase] skipping unknown value", { kind, value });
+  recordCoreError(
+    { operation: "purchase_transform" },
+    {
+      message: "A purchase field from the payment node was skipped",
+      why: "The payment node sent an enum value this Core build does not know",
+      fix: "Regenerate the payment node client; the stored value stays until then.",
+    },
+    { unknownValue: { kind, value } },
+  );
   const dedupeKey = `${kind}:${value}`;
   if (!reportedUnknownPurchaseValues.has(dedupeKey)) {
     if (

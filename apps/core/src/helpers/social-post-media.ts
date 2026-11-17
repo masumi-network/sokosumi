@@ -11,6 +11,7 @@ import {
   DriveFileDownloadError,
   downloadDriveFile,
 } from "@/helpers/drive-file-download";
+import { recordCoreWarning } from "@/lib/evlog";
 import { socialPostMediaRefSchema } from "@/schemas/social-post.schema";
 
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
@@ -45,7 +46,14 @@ export function parseSocialPostMedia(
 ): SocialPostMediaRef[] {
   const refs = parseRefs(value);
   if (refs) return refs;
-  console.warn("[social-post] Ignoring malformed media refs", { postId });
+  recordCoreWarning(
+    { operation: "social_post_media_read", postId },
+    {
+      message: "A social post's media list was ignored",
+      why: "The post's media column does not match the media list schema",
+      fix: "The post shows without media. Re-attach its files to repair it.",
+    },
+  );
   return [];
 }
 
@@ -59,7 +67,14 @@ export function requireSocialPostMedia(
 ): SocialPostMediaRef[] {
   const refs = parseRefs(value);
   if (refs) return refs;
-  console.warn("[social-post] Unreadable media refs", { postId });
+  recordCoreWarning(
+    { operation: "social_post_media_read", postId },
+    {
+      message: "A social post's media could not be read for publishing",
+      why: "The post's media column does not match the media list schema",
+      fix: "The post fails with media_missing. Re-attach its files and publish again.",
+    },
+  );
   throw new SocialPostMediaError(
     "media_missing",
     "The attached media could not be read. Re-attach the files and try again",
