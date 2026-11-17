@@ -385,7 +385,8 @@ button[aria-busy="true"] {
   margin-bottom: 48px;
   aspect-ratio: 1;
   height: auto;
-  padding: 10%;
+  /* A square drawing inside a circle: inset past the circle's corners. */
+  padding: 18%;
   border: var(--line-hero) solid var(--line);
   border-radius: 50%;
   background: var(--stage);
