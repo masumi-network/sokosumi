@@ -128,6 +128,7 @@ import {
 } from "@/services/polar-subscription-end.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
+import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
 import {
   notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
@@ -240,6 +241,7 @@ export interface CreateSokoBotInput {
   name: string;
   avatarSeed?: string | null;
   avatarId?: string | null;
+  avatarCode?: string | null;
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
@@ -1324,6 +1326,11 @@ export class SokoBotControlPlane {
       if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
+    // Outside the transaction: it uploads to Blob.
+    if (!input.avatarId && !created.avatarCode) {
+      const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+      if (look) Object.assign(created, look);
+    }
     const { ensureSystemSchedules } = await import(
       "@/services/soko-bot-proactive.service"
     );

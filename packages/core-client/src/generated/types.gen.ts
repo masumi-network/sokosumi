@@ -672,6 +672,10 @@ export type ChatRoomSokoBotParticipant = {
     image: string | null;
     avatarSeed: string | null;
     /**
+     * Feature code of the live SVG avatar; null until the bot has one.
+     */
+    avatarCode?: string | null;
+    /**
      * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
     ownerUserId: string | null;
@@ -1202,6 +1206,7 @@ export type SokoBot = {
     pendingDecisions?: Array<SokoBotPendingDecision>;
     schedules?: Array<SokoBotSchedule>;
     avatarImageUrl?: string | null;
+    avatarCode?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
     mailAutoRead?: boolean;
@@ -1222,6 +1227,11 @@ export type AdminSokoBotActionRequest = {
 
 export type ClaimSokoBotAvatarRequest = {
     avatarId: string;
+};
+
+export type SokoBotAvatarCode = {
+    avatarCode: string;
+    avatarImageUrl: string;
 };
 
 export type AdminUserOverviewItem = {
@@ -13199,6 +13209,7 @@ export type SokoBotState = {
         pendingDecisions?: Array<SokoBotPendingDecision>;
         schedules?: Array<SokoBotSchedule>;
         avatarImageUrl?: string | null;
+        avatarCode?: string | null;
         versionId?: string | null;
         followWholeBoard?: boolean;
         mailAutoRead?: boolean;
@@ -13222,6 +13233,7 @@ export type SharedSokoBotSummary = {
     projectId: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
+    avatarCode?: string | null;
     status: SokoBotStatus;
     archivedAt: Date | null;
     sharedRoomId: string | null;
@@ -13240,6 +13252,7 @@ export type CreateSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
     avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -13427,6 +13440,7 @@ export type SokoBotTeam = {
             id: string;
             name: string | null;
             avatarImageUrl: string | null;
+            avatarCode?: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
             lastActivityAt: Date | null;
@@ -13571,6 +13585,7 @@ export type CreateScopedSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
     avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -18141,6 +18156,113 @@ export type SetAdminSokoBotAvatarResponses = {
 };
 
 export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
+
+export type SetAdminSokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar-code';
+};
+
+export type SetAdminSokoBotAvatarCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another bot already has this look
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a valid avatar code
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarCodeError = SetAdminSokoBotAvatarCodeErrors[keyof SetAdminSokoBotAvatarCodeErrors];
+
+export type SetAdminSokoBotAvatarCodeResponses = {
+    /**
+     * The bot's new look
+     */
+    200: {
+        data: SokoBotAvatarCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarCodeResponse = SetAdminSokoBotAvatarCodeResponses[keyof SetAdminSokoBotAvatarCodeResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -89069,6 +89191,111 @@ export type ClaimMySokoBotAvatarResponses = {
 
 export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
 
+export type SetMySokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/avatar-code';
+};
+
+export type SetMySokoBotAvatarCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another bot already has this look
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a valid avatar code
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetMySokoBotAvatarCodeError = SetMySokoBotAvatarCodeErrors[keyof SetMySokoBotAvatarCodeErrors];
+
+export type SetMySokoBotAvatarCodeResponses = {
+    /**
+     * The bot's new look
+     */
+    200: {
+        data: SokoBotAvatarCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetMySokoBotAvatarCodeResponse = SetMySokoBotAvatarCodeResponses[keyof SetMySokoBotAvatarCodeResponses];
+
 export type ListSokoBotVersionsData = {
     body?: never;
     path?: never;
@@ -91110,6 +91337,113 @@ export type RenameSokoBotResponses = {
 };
 
 export type RenameSokoBotResponse = RenameSokoBotResponses[keyof RenameSokoBotResponses];
+
+export type SetSokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/avatar-code';
+};
+
+export type SetSokoBotAvatarCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another bot already has this look
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a valid avatar code
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSokoBotAvatarCodeError = SetSokoBotAvatarCodeErrors[keyof SetSokoBotAvatarCodeErrors];
+
+export type SetSokoBotAvatarCodeResponses = {
+    /**
+     * The bot's new look
+     */
+    200: {
+        data: SokoBotAvatarCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetSokoBotAvatarCodeResponse = SetSokoBotAvatarCodeResponses[keyof SetSokoBotAvatarCodeResponses];
 
 export type ResolveSokoBotDecisionData = {
     body?: ResolveSokoBotDecisionRequest;

@@ -20,6 +20,11 @@ import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service"
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
 import { jevRoute } from "@/test/jev-routes";
 
+const assignCodeMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/soko-bot-avatar-code.service", () => ({
+  giveNewSokoBotAvatar: assignCodeMock.mockResolvedValue(null),
+}));
+
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 const newsletterDraftAvailableMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/newsletter-draft.service", () => ({
@@ -1683,6 +1688,26 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     expect(botCreateMock).toHaveBeenCalled();
     expect(coworkerCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("gives a new assistant a random avatar code unless it picked a pool avatar", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000aaaa",
+      ingestTimezone: "UTC",
+      avatarCode: null,
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+    });
+
+    expect(assignCodeMock).toHaveBeenCalledWith(
+      "01960001-0001-7001-8001-00000000aaaa",
+      undefined,
+    );
   });
 
   it("preserves an administrator pause during profile updates", async () => {

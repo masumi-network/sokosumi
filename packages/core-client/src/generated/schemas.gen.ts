@@ -2734,6 +2734,13 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Feature code of the live SVG avatar; null until the bot has one.'
+        },
         ownerUserId: {
             type: [
                 'string',
@@ -4915,6 +4922,12 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         versionId: {
             type: [
                 'string',
@@ -5025,6 +5038,22 @@ export const ClaimSokoBotAvatarRequestSchema = {
     },
     required: [
         'avatarId'
+    ]
+} as const;
+
+export const SokoBotAvatarCodeSchema = {
+    type: 'object',
+    properties: {
+        avatarCode: {
+            type: 'string'
+        },
+        avatarImageUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'avatarCode',
+        'avatarImageUrl'
     ]
 } as const;
 
@@ -52282,6 +52311,12 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
+                avatarCode: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
                 versionId: {
                     type: [
                         'string',
@@ -52413,6 +52448,12 @@ export const SharedSokoBotSummarySchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
@@ -52512,6 +52553,13 @@ export const CreateSokoBotRequestSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
         },
         personalityTone: {
             type: [
@@ -53284,6 +53332,12 @@ export const SokoBotTeamSchema = {
                                     'null'
                                 ]
                             },
+                            avatarCode: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
                             avatarSeed: {
                                 type: [
                                     'string',
@@ -53930,6 +53984,13 @@ export const CreateScopedSokoBotRequestSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
         },
         personalityTone: {
             type: [

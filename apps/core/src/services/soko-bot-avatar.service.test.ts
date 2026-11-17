@@ -332,6 +332,18 @@ describe("claiming a Soko Bot avatar", () => {
     expect(offered.map((one) => one.id)).toEqual([previous.id]);
   });
 
+  it("frees the bot's avatar code when it takes a pool picture again", async () => {
+    store.bots.set(BOT_ID, {
+      avatarImageUrl: "https://blob.test/code.webp",
+      avatarCode: "v1.owl.golden.peach.crimson.l.M.original.original.none.none",
+    });
+    const picked = store.seed();
+
+    await claimAvatar(BOT_ID, picked.id);
+
+    expect(store.bots.get(BOT_ID)?.avatarCode).toBeNull();
+  });
+
   it("works inside the caller's transaction when bot creation passes one", async () => {
     const picked = store.seed();
     // Opening a transaction of its own would fail here.
