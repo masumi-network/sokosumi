@@ -258,12 +258,50 @@ body:has(.ob) .site-header {
   margin-bottom: 12px;
 }
 
+/* A step's scene, framed like the hire hero. */
 .ob-scene {
-  width: 176px;
-  height: 176px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  object-fit: cover;
+  position: relative;
+  width: 220px;
+  height: 280px;
+}
+
+/* What he is doing now, over the panel's lower edge. */
+.ob-scene-now {
+  bottom: 32px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.ob-scene-now .ob-box-dot {
+  flex: none;
+}
+
+/* The wait: a short ink run along a card track, over and over. */
+.ob-scene-bar {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  left: 16px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-mark);
+  background: var(--card);
+}
+
+.ob-scene-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--foreground);
 }
 
 .ob-lead .ob-checklist {
@@ -273,11 +311,44 @@ body:has(.ob) .site-header {
 
 @media (prefers-reduced-motion: no-preference) {
   /* He pops in, then keeps breathing, so the screen never sits still. */
-  .ob-lead .cuso-avatar,
-  .ob-scene {
+  .ob-lead .cuso-avatar {
     animation:
       ob-cuso-in 600ms var(--ob-pop) backwards,
       ob-cuso-idle 3.2s ease-in-out 600ms infinite alternate;
+  }
+
+  /* The scene's clip moves on its own; the panel only pops in. */
+  .ob-scene {
+    animation: ob-cuso-in 600ms var(--ob-pop) backwards;
+  }
+
+  .ob-scene-now {
+    animation: ob-now-in 400ms var(--ob-pop) backwards;
+  }
+
+  .ob-scene-now .ob-box-dot {
+    animation: ob-working 1.2s ease-in-out infinite alternate;
+  }
+
+  .ob-scene-bar::after {
+    animation: ob-scene-run 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes ob-now-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px) rotate(-2deg) scale(0.6);
+  }
+}
+
+@keyframes ob-scene-run {
+  from {
+    translate: -100% 0;
+  }
+
+  to {
+    translate: 250% 0;
   }
 }
 

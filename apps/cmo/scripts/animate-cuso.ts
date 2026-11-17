@@ -88,9 +88,27 @@ const CLIPS: Clip[] = [
     duration: 5,
   },
   {
-    still: "reading-scene.jpg",
-    prompt: `${CUSO} moves his big magnifying glass slowly across the browser window beside him as if reading it, and blinks once. The window stays still. ${LOOP}`,
-    width: 384,
+    still: "research.jpg",
+    prompt: `${CUSO} on the pink round podium moves his big magnifying glass slowly across the browser window beside him as if reading it, leans in, and blinks once. The window stays still and the pink backdrop stays plain. ${LOOP}`,
+    width: 720,
+    duration: 5,
+  },
+  {
+    still: "brand.jpg",
+    prompt: `${CUSO} on the pink round podium lifts his board a little higher and tilts it proudly from side to side, and blinks once. The pink backdrop stays plain. ${LOOP}`,
+    width: 720,
+    duration: 5,
+  },
+  {
+    still: "planning.jpg",
+    prompt: `${CUSO} on the pink round podium draws a circle in a square of the calendar with his big pencil, looks at the viewer and blinks once. The calendar stays still and the pink backdrop stays plain. ${LOOP}`,
+    width: 720,
+    duration: 5,
+  },
+  {
+    still: "launch.jpg",
+    prompt: `${CUSO} on the pink round podium bobs happily, pumps his thumbs up twice, and the cards on his phone scroll up gently. The pink backdrop stays plain. ${LOOP}`,
+    width: 720,
     duration: 5,
   },
   {

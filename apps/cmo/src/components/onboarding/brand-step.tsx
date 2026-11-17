@@ -32,10 +32,10 @@ import {
   Voice,
 } from "../brand-profile";
 import { BusinessMark } from "../business-mark";
-import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
+import { CusoScene } from "./cuso-scene";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -294,7 +294,10 @@ export function BrandStep({
   return (
     <section className="ob-brand">
       <div className="ob-lead">
-        <CusoAvatar pose="reporting" size={176} />
+        <CusoScene
+          scene="brand"
+          now={fixing ? "Updating your Brand Brain" : null}
+        />
         <h1 className="ob-h1">Here's {site} as I see it.</h1>
         <p className="muted">Tap any line to see the source or fix it.</p>
       </div>

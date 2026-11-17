@@ -13,10 +13,10 @@ import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
-import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
+import { CusoScene } from "./cuso-scene";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
 function strategyChannels(overview: CmoOverview): string[] {
@@ -232,7 +232,7 @@ export function LaunchStep({
   return (
     <section className="ob-launch">
       <div className="ob-lead">
-        <CusoAvatar pose="done" size={176} />
+        <CusoScene scene="launch" />
         <h1 className="ob-h1">
           {accounts ? "One thing, then I start." : "Ready when you are."}
         </h1>

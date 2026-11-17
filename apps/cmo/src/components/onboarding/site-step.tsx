@@ -12,7 +12,6 @@ import {
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
-import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
 import { brandTiles, tileSource } from "./brand-step";
@@ -22,7 +21,9 @@ import {
   SkeletonTile,
   useElapsed,
   workChecklist,
+  workNow,
 } from "./checklist";
+import { CusoScene } from "./cuso-scene";
 import {
   type Answer,
   QuestionCard,
@@ -157,15 +158,10 @@ export function SiteStep({
       <div className="ob-lead">
         {failed || asked ? (
           <CusoAvatar pose="needs-you" size={176} />
-        ) : finished ? (
-          <CusoAvatar pose="done" size={176} />
         ) : (
-          <CusoClip
-            className="ob-scene"
-            src="/cuso/reading-scene.jpg"
-            alt={`${AGENT_NAME} reading a site with a magnifier`}
-            width={176}
-            height={176}
+          <CusoScene
+            scene="research"
+            now={running ? workNow(work?.steps ?? [], checklist) : null}
           />
         )}
         <p className="muted">

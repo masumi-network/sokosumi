@@ -167,7 +167,10 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Reading your site");
     expect(html).toContain("Cuso is reading · ");
     expect(html).toContain(" so far");
-    expect(html).toContain("/cuso/reading-scene.jpg");
+    expect(html).toContain("/cuso/research.jpg");
+    // The wait shows: what he is doing now, and the running bar.
+    expect(html).toContain("ob-scene-now");
+    expect(html).toContain("ob-scene-bar");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
     expect(html).toContain("questions come when the read lands");
