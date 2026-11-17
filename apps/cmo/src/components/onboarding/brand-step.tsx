@@ -35,7 +35,9 @@ import { BusinessMark } from "../business-mark";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
+import { BrandLook, type BrandVisual, hasLook } from "./brand-look";
 import { CusoScene } from "./cuso-scene";
+import { MarketMap } from "./market-map";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -71,6 +73,7 @@ export function brandTiles(
   brain: BrandBrain,
   onSave: (brain: BrandBrain) => Promise<void>,
   media: CmoBrandMedia | null = null,
+  visual: BrandVisual | null = null,
 ): TileData[] {
   const tiles: TileData[] = [];
   const offers = brain.offers ?? [];
@@ -121,6 +124,20 @@ export function brandTiles(
       body: <Voice brain={brain} />,
     });
   }
+  if (visual && hasLook(visual)) {
+    tiles.push({
+      id: "look",
+      label: "Your look",
+      value: short(
+        visual.fonts.length > 0
+          ? joinNames(visual.fonts)
+          : `${visual.colors.length} brand colours`,
+      ),
+      detail:
+        visual.colors.length > 0 ? short(visual.colors.join("  ")) : undefined,
+      body: <BrandLook visual={visual} />,
+    });
+  }
   const today = brain.marketingToday;
   if (today) {
     const names = (today.channels ?? []).map((channel) => {
@@ -151,6 +168,9 @@ export function brandTiles(
       section: "competition",
       body: (
         <>
+          {brain.reveal?.map ? (
+            <MarketMap map={brain.reveal.map} companies={rivals} />
+          ) : null}
           {media && media.competitors.length > 0 ? (
             <CompetitorCards brain={brain} media={media} />
           ) : (
@@ -267,7 +287,12 @@ export function BrandStep({
     }
   }
 
-  const tiles = brandTiles(brain, onSave, overview.brandMedia);
+  const tiles = brandTiles(
+    brain,
+    onSave,
+    overview.brandMedia,
+    overview.brandVisual,
+  );
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
 
@@ -313,7 +338,12 @@ export function BrandStep({
       <div className="ob-brand-panel">
         <div className="ob-brand-main">
           <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
-            <PromiseCard brain={brain} site={site} onSave={onSave} />
+            <PromiseCard
+              overview={overview}
+              brain={brain}
+              site={site}
+              onSave={onSave}
+            />
             {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
 
@@ -545,25 +575,22 @@ interface SiteCardProps {
   host: string;
 }
 
-/** The homepage as visitors see it, with the brand's logo and colours. */
+/** The homepage as visitors see it, with the brand's colours. */
 function SiteCard({ overview, host }: SiteCardProps) {
   const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
   return (
     <div className="card ob-sitecard">
       <h2>Your site</h2>
       <SiteShowcase media={overview.brandMedia} host={host} />
-      <div className="ob-brandmark">
-        <BusinessMark overview={overview} size={36} wide />
-        {colors.length > 0 ? (
-          <ul className="ob-swatches" aria-label="Brand colours">
-            {colors.map((color) => (
-              <li key={color} style={{ background: color }}>
-                <span className="ob-sr">{color}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+      {colors.length > 0 ? (
+        <ul className="ob-swatches" aria-label="Brand colours">
+          {colors.map((color) => (
+            <li key={color} style={{ background: color }}>
+              <span className="ob-sr">{color}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -582,13 +609,14 @@ export function tileSource(
 }
 
 interface PromiseCardProps {
+  overview: CmoOverview;
   brain: BrandBrain;
   site: string;
   onSave: (brain: BrandBrain) => Promise<void>;
 }
 
 /** The promise in one line, as Cuso read it, with the owner's edit. */
-function PromiseCard({ brain, site, onSave }: PromiseCardProps) {
+function PromiseCard({ overview, brain, site, onSave }: PromiseCardProps) {
   const reveal = brain.reveal;
   const statement = reveal?.positioning ?? firstSentence(brain.summary);
   const [editing, setEditing] = useState(false);
@@ -596,6 +624,7 @@ function PromiseCard({ brain, site, onSave }: PromiseCardProps) {
   const [failed, setFailed] = useState(false);
   return (
     <div className="card ob-promise">
+      <BusinessMark overview={overview} size={40} wide />
       <div className="ob-promise-head">
         <h2>Your promise, in one line</h2>
         {editing ? null : (

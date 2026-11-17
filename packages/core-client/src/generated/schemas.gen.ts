@@ -29575,7 +29575,7 @@ export const QuestionAnswerRequestSchema = {
         note: {
             type: 'string',
             maxLength: 400,
-            description: 'After a no: what is true instead, in the member\'s words.'
+            description: 'The member\'s own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.'
         }
     },
     required: [

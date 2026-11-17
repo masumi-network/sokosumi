@@ -1166,8 +1166,26 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-.ob-skip {
-  align-self: flex-start;
+.ob-question-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob-question-details {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.ob-question-details:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 /* ── Step 1: Site ── */
@@ -2177,11 +2195,146 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-brandmark {
+.ob-promise > .business-mark {
+  justify-self: start;
+}
+
+/* Your look: the DESIGN.md colours with their codes, fonts, the file. */
+.ob-look {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.ob-look-colors {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-look-colors li {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.ob-look-colors span {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.ob-look-fonts {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* The market map: Cuso's two axes, the business as the Iris dot. */
+.ob-map {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.ob-map-plot {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.ob-map-plot::before,
+.ob-map-plot::after {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.ob-map-plot::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.ob-map-plot::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.ob-map-axis {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.ob-map-axis.top {
+  top: 8px;
+}
+
+.ob-map-axis.bottom {
+  bottom: 8px;
+}
+
+.ob-map-x {
+  display: flex;
   justify-content: space-between;
   gap: 12px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+}
+
+.ob-map-dot {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  translate: -6px 50%;
+  color: var(--foreground);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ob-map-dot i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.ob-map-dot.you {
+  z-index: 2;
+  font-weight: 600;
+  translate: -9px 50%;
+}
+
+.ob-map-dot.you i {
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+}
+
+/* Near the right edge the label sits left of its dot. */
+.ob-map-dot.flip {
+  flex-direction: row-reverse;
+  translate: calc(-100% + 6px) 50%;
+}
+
+.ob-map-dot.you.flip {
+  translate: calc(-100% + 9px) 50%;
 }
 
 .ob-swatches {

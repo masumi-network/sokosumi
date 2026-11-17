@@ -8165,7 +8165,7 @@ export type QuestionAnswerRequest = {
     questionId: string;
     answer: 'yes' | 'no' | 'unsure';
     /**
-     * After a no: what is true instead, in the member's words.
+     * The member's own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.
      */
     note?: string;
 };

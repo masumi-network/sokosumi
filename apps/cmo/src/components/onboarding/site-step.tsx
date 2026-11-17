@@ -207,8 +207,14 @@ export function SiteStep({
           index={index}
           answered={answered}
           onAnswer={async (value, note) => {
-            await answer(question.id, value, note);
+            // The next question shows at once; a failed save comes back to this one.
             setAt(index + 1 < questions.length ? index + 1 : null);
+            try {
+              await answer(question.id, value, note);
+            } catch (error) {
+              setAt(index);
+              throw error;
+            }
           }}
           onSkip={() => {
             setSkipping(true);

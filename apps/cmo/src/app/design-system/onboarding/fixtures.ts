@@ -93,9 +93,9 @@ export function screenOverview(screen: Screen): CmoOverview {
         brandVisual: {
           logoUrl: null,
           colors: ["ff6a00", "1b1b1b", "f4e9d8"].map(hex),
-          fonts: ["Inter"],
+          fonts: ["Inter", "Space Grotesk"],
           siteName: "Acme",
-          designMdUrl: null,
+          designMdUrl: "https://acme.io/DESIGN.md",
           images: [],
         },
       });

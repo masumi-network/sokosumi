@@ -179,7 +179,7 @@ it("takes the answer back and says so when the save fails", async () => {
   expect(text()).toContain("That didn't save.");
 });
 
-it("keeps a no's note behaviour: No opens a line for what is true instead", async () => {
+it("answers No at once, and sends details typed first with the tap", async () => {
   const save = vi.fn(async () => {});
   await act(async () =>
     root.render(
@@ -193,15 +193,16 @@ it("keeps a no's note behaviour: No opens a line for what is true instead", asyn
     ),
   );
   await press("No");
-  expect(save).not.toHaveBeenCalled();
+  expect(save).toHaveBeenLastCalledWith("no", undefined);
+  await press("Add more details");
   typeInto(
     container.querySelector<HTMLInputElement>(
-      'input[aria-label="What\'s true instead"]',
+      'input[aria-label="More details"]',
     ),
     "Businesses",
   );
-  await press("Save");
-  expect(save).toHaveBeenCalledWith("no", "Businesses");
+  await press("Yes");
+  expect(save).toHaveBeenLastCalledWith("yes", "Businesses");
 });
 
 // Site, held until the founder moves on.
@@ -248,12 +249,24 @@ it("keeps a finished Site on screen until See your brand", async () => {
   await press("Yes");
   expect(text()).toContain("2 of 2");
   await press("No");
-  await press("Save");
   // Everything is answered, so Brand is next; the Site waits for the founder.
   expect(text()).toContain("That's all I need.");
   expect(text()).not.toContain("Looks like us");
   await press("See your brand");
   expect(text()).toContain("Looks like us");
+});
+
+it("moves to the next question before the save returns", async () => {
+  const actions = actionsFor({
+    answerBrandQuestion: vi.fn(() => new Promise<CmoOverview>(() => {})),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  await press("Yes");
+  expect(text()).toContain("2 of 2");
 });
 
 it("lets the founder change answers from the finished Site", async () => {

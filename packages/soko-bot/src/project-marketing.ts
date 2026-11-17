@@ -196,7 +196,10 @@ export const cmoBrandQuestionSchema = z.object({
   /** The profile section the answer lands in. */
   section: z.enum(CMO_BRAND_SECTION_KEYS),
   answer: z.enum(CMO_BRAND_ANSWERS).optional(),
-  /** The owner's own words after a no: what is true instead. */
+  /**
+   * The owner's own words: after a no, what is true instead; on a Brand Brain
+   * question, details to any answer.
+   */
   note: shortText.optional(),
   /**
    * Set by Core on a no: false until the section is rewritten to match it,
