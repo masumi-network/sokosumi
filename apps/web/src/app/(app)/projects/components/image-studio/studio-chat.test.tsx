@@ -480,3 +480,73 @@ describe("a message that fails to send", () => {
     expect((box as HTMLTextAreaElement).value).toBe("second thoughts");
   });
 });
+
+describe("Advanced model selection", () => {
+  it("opens the earlier conversation before sending a retry with a different model pin", async () => {
+    const props = {
+      assets: [],
+      labels: TEST_LABELS,
+      onActivity: vi.fn(),
+      onSelectResult: vi.fn(),
+      projectId: "project-1",
+      selectedAsset: null,
+    };
+    const { rerender } = render(
+      <StudioChat {...props} studioModelId="gemini-pro" />,
+    );
+    const box = screen.getByPlaceholderText("placeholder");
+    fireEvent.change(box, { target: { value: "A poster" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+    rerender(<StudioChat {...props} studioModelId="ideogram-v3" />);
+    fireEvent.change(box, { target: { value: "A poster" } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+    expect(prewarmMock).toHaveBeenCalledOnce();
+    expect(sendMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends the latest pin and settings on every turn, and clears it for Auto", () => {
+    const props = {
+      assets: [],
+      labels: TEST_LABELS,
+      onActivity: vi.fn(),
+      onSelectResult: vi.fn(),
+      projectId: "project-1",
+      selectedAsset: null,
+    };
+    const { rerender } = render(
+      <StudioChat
+        {...props}
+        studioModelId="recraft-v3"
+        studioSettings={{
+          aspectRatio: "9:16",
+          resolution: "2K",
+          outputFormat: undefined,
+          seed: null,
+        }}
+      />,
+    );
+    const prepare = latestOptions().prepareSend as (value: object) => unknown;
+    expect(prepare({ message: "A poster" })).toMatchObject({
+      clientContext: {
+        studioModelId: "recraft-v3",
+        studioSettings: { aspectRatio: "9:16", resolution: "2K", seed: null },
+      },
+    });
+    expect(prepare({ message: "A poster" })).toEqual({
+      message: "A poster",
+      clientContext: {
+        studioModelId: "recraft-v3",
+        studioSettings: { aspectRatio: "9:16", resolution: "2K", seed: null },
+      },
+    });
+    rerender(<StudioChat {...props} studioModelId={null} />);
+    expect(prepare({ message: "Another poster" })).toEqual({
+      message: "Another poster",
+      clientContext: { studioModelId: null },
+    });
+  });
+});

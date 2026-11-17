@@ -13,6 +13,8 @@ No Docker or local server is needed: Prisma ships PGlite, an in-memory PostgreSQ
 
 Export both `DATABASE_URL` and `DATABASE_URL_UNPOOLED` as the printed URL (`postgresql://postgres:postgres@127.0.0.1:<port>/postgres?sslmode=disable` for `pglite-server`), then `pnpm prisma:migrate:deploy` and `pnpm prisma:check-drift`. A worktree without `.env` files cannot reach a shared database by accident.
 
+To build a database that matches `main`, move the branch's new folders out of `prisma/migrations`, deploy, then move them back and deploy again. `prisma.config.ts` pins `migrations.path`, so `--schema` pointed at another tree still applies the branch's migrations. Check the migration count in the deploy log, and `git status --porcelain prisma/migrations` after the restore.
+
 The same server runs a Core `*.postgres.test.ts` locally: from `apps/core`, `RUN_DATABASE_INTEGRATION_TESTS=true pnpm exec vitest run <file>` with the URL exported. A race test needs several connections and proves itself only in CI's real PostgreSQL.
 
 ## On production data
@@ -20,6 +22,12 @@ The same server runs a Core `*.postgres.test.ts` locally: from `apps/core`, `RUN
 `pnpm db:up` forks a Neon branch from production and applies the branch's pending migrations ([agent-database.md](./agent-database.md)); use it to time the migration and check invariants before and after. A green Core Preview deployment also ran `migrate deploy` on a production fork, but it is weak evidence, not a dry run.
 
 SQL invariants are not enough: also read back what the app will parse. Any id a migration mints in SQL must pass Core's zod `uuid()` check (RFC 9562: version 1–8, variant `8`–`b`). `md5(…)::uuid` fails it most of the time; set the version and variant nibbles (for example to version 8) and validate every minted id with Core's own zod before merge.
+
+Do not propose an index or a query rewrite from `schema.prisma` alone. The schema shows which indexes exist, not which the planner uses: PostgreSQL can use a non-leading index column, and a small table makes any plan fast. Read row counts from `pg_stat_user_tables` first, then run `EXPLAIN (ANALYZE, BUFFERS)` for each claim.
+
+## A failed migration stays half-applied
+
+A migration file is not one transaction. When a statement fails, the statements before it stay applied and `_prisma_migrations` records a failed row (`P3018`), so a retry does nothing until someone runs `prisma migrate resolve`. Order statements so that no later one can fail on data an earlier one changed. For example, add a CHECK constraint as `NOT VALID` first, convert the data, then `VALIDATE CONSTRAINT` last.
 
 ## CI checks on migration text
 

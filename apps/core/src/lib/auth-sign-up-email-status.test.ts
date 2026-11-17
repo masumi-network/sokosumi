@@ -1,20 +1,22 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLog } from "@/test/core-log";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { CAPTCHA_PASS_IDENTIFIER_PREFIX } from "./auth-captcha-pass.js";
 import {
   SIGN_UP_EMAIL_STATUS_PATH,
   signUpEmailStatus,
 } from "./auth-sign-up-email-status.js";
+import { betterAuthLogger } from "./evlog-library-logs.js";
 
 // A real Better Auth instance with the captcha plugin in front, as in Core.
 function createTestAuth({ rateLimited = false } = {}) {
   const sendEmail = vi.fn();
   const verification: { identifier: string; expiresAt: Date }[] = [];
   const auth = betterAuth({
+    logger: betterAuthLogger,
     baseURL: "https://auth.example.com",
     basePath: "/auth",
     secret: "test-secret-that-is-long-enough-for-better-auth",
@@ -301,10 +303,7 @@ describe("sign-up email status", () => {
   });
 
   it("answers nobody whose captcha token Cloudflare rejects", async () => {
-    expectConsole(
-      "warn",
-      /^\S+ WARN \[Better Auth\]: Cloudflare Turnstile verification failed/,
-    );
+    expectCoreLog("warn", "Cloudflare Turnstile verification failed");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(

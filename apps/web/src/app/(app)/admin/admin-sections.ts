@@ -134,6 +134,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "operations",
   },
   {
+    key: "adEvals",
+    href: "/admin/ad-evals",
+    Icon: FlaskConical,
+    group: "operations",
+  },
+  {
     key: "cmoSpend",
     href: "/admin/cmo-spend",
     Icon: Receipt,
@@ -158,3 +164,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "reference",
   },
 ];
+
+export function getVisibleAdminSections(
+  hasAdEvalsAccess: boolean,
+): AdminSection[] {
+  return ADMIN_SECTIONS.filter(
+    (section) => section.key !== "adEvals" || hasAdEvalsAccess,
+  );
+}

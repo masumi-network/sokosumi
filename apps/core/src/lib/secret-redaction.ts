@@ -33,10 +33,17 @@ const PUBLIC_NAME_PATTERN = /PUBLIC/;
  */
 const MIN_SECRET_LENGTH = 16;
 
-/** How deep to walk a Sentry event. Deeper than any real event nests. */
-const MAX_REDACTION_DEPTH = 8;
+/**
+ * How deep to walk an event. Deeper than any real event nests; anything
+ * below it is replaced with {@link REDACTED_TOO_DEEP}, never passed through,
+ * because an unwalked subtree is exactly where an echoed secret would sit.
+ */
+export const MAX_REDACTION_DEPTH = 16;
 
 export const REDACTED_SECRET = "[redacted:env-secret]";
+
+/** Stands in for an object or array below {@link MAX_REDACTION_DEPTH}. */
+export const REDACTED_TOO_DEEP = "[redacted:too-deep]";
 
 /**
  * Secret values present in `env`, longest first so that a secret containing
@@ -128,7 +135,7 @@ function walk(
     return clone;
   }
   if (depth >= MAX_REDACTION_DEPTH) {
-    return value;
+    return REDACTED_TOO_DEEP;
   }
 
   if (Array.isArray(value)) {

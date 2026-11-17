@@ -111,6 +111,12 @@ one-use Composio session before Core verifies the account against the stored
 provider, auth configuration, and connecting user. Accounts are shared only
 with the Project’s Core executor. Tokens remain in Composio.
 
+A Composio Connect Link is a bearer link: whoever opens it attaches their own
+provider account. Only the `complete_auth` call (`completeComposioAuth` in
+`src/clients/composio.client.ts`) binds the connection to the signed-in user.
+Turning on the Composio project's callback verifier holds every connection
+until that endpoint answers, so deploy Core first and turn the verifier on second.
+
 Account types and setup requirements:
 
 - [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
