@@ -2,17 +2,11 @@
 
 [REPORTED: user request, 2026-09-30] Finish CLI and plugin support for existing agents to accept MPS payments as Sokosumi Coworkers.
 
-[PROPOSED] Status: Planned. Owner: coordinator. This document defines future work. This draft contains no payment implementation or live payment proof.
+[PROPOSED] Status: Planned. Owner: coordinator. This document defines future work. It contains no payment implementation or live payment proof.
 
-[VERIFIED: documentation diff, 2026-09-30] This draft also corrects package instructions and delivery status in the CLI guides. Those corrections describe existing commands and merged receipt reads. They do not implement the future payment commands or complete the acceptance checks below.
+[VERIFIED: GitHub PR read, 2026-11-17] This brief merged on 2026-09-30 as [#5465](https://github.com/masumi-network/sokosumi/pull/5465) (documentation only). The payment code is still unbuilt. The merged brief also corrected package instructions and delivery status in the CLI guides. Those corrections describe existing commands and merged receipt reads. They do not implement the future payment commands or complete the acceptance checks below.
 
-| Field                | Proposed value                                                       |
-| -------------------- | -------------------------------------------------------------------- |
-| Draft PR title       | `docs(cli): correct MPS delivery and installation docs`              |
-| Implementation title | `feat(cli): complete the MPS payment workflow in the bundled plugin` |
-| Branch               | `sok-1132-mps-plugin-flow`                                           |
-| Parent branch        | `sok-1132-mps-paid-runtime`                                          |
-| Related work         | SOK-909, SOK-1132, SOK-1214; receipt PR #5342                        |
+Related work: SOK-909, SOK-1132, SOK-1214; receipt PR #5342.
 
 ## Problem and intended behavior
 
