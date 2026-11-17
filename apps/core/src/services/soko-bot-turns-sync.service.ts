@@ -7,6 +7,8 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
+  databaseNow,
+  PROMPTED_TURN,
   SOKO_BOT_START_RECOVERY_GRACE_MS,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
@@ -116,7 +118,7 @@ export class SokoBotTurnsSyncService {
     // Replay these turns with their immutable turn id instead of expiring the
     // user's message. recoverStartingTurn owns the lease CAS.
     const abandonBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STARTING_ABANDON_MS,
+      (await databaseNow()).getTime() - SOKO_BOT_TURN_STARTING_ABANDON_MS,
     );
     const abandonedStarts = await prisma.sokoBotTurn.findMany({
       where: {
@@ -124,11 +126,35 @@ export class SokoBotTurnsSyncService {
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
         deadlineAt: { gt: now },
-        // A recovery claim, or a start that retained its lease after a failed
-        // acknowledgement, sets the heartbeat; its holder may then have died.
-        OR: [
-          { reconcilerHeartbeatAt: null, createdAt: { lte: abandonBefore } },
-          { reconcilerHeartbeatAt: { lte: abandonBefore } },
+        // Paused turns would hold the batch on every tick; the claim still
+        // checks a pause that lands after this read.
+        sokoBot: {
+          is: {
+            archivedAt: null,
+            adminPausedAt: null,
+            status: { not: "PAUSED" },
+          },
+        },
+        AND: [
+          // A recovery claim, or a start that retained its lease after a
+          // failed acknowledgement, renews the heartbeat while it lives.
+          {
+            OR: [
+              {
+                reconcilerHeartbeatAt: null,
+                createdAt: { lte: abandonBefore },
+              },
+              { reconcilerHeartbeatAt: { lte: abandonBefore } },
+            ],
+          },
+          getEnv().SOKO_BOT_PROACTIVE_PAUSED
+            ? PROMPTED_TURN
+            : {
+                OR: [
+                  PROMPTED_TURN,
+                  { sokoBot: { is: { proactivePaused: false } } },
+                ],
+              },
         ],
       },
       select: { id: true },

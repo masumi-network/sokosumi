@@ -240,6 +240,9 @@ vi.mock("@/services/soko-bot-availability.service", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // Start recovery reads PostgreSQL's clock and renews its lease raw.
+    $queryRaw: vi.fn(async () => [{ now: new Date() }]),
+    $executeRaw: vi.fn(async () => 1),
     $transaction: transactionMock,
     sokoBotIntent: { findMany: intentFindManyMock },
     chatRoomMention: {

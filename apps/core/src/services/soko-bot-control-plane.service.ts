@@ -5,6 +5,7 @@ import {
   type SokoBotTurn,
   SokoBotTurnStatus,
 } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   applyVersionCapabilities,
   capabilitiesForClassification,
@@ -614,14 +615,31 @@ function actionRequested(
   );
 }
 
+const UNPROMPTED_SOURCES = ["SCHEDULE", "EVENT", "INGEST"] as const;
+
 /** A turn the bot decided to take rather than one a person asked for. */
 function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
   return (
-    turn.source === "SCHEDULE" ||
-    turn.source === "EVENT" ||
-    turn.source === "INGEST" ||
+    UNPROMPTED_SOURCES.some((source) => source === turn.source) ||
     turn.chainDepth > 0
   );
+}
+
+/** The turns `unpromptedTurn` is false for, as a query filter. */
+export const PROMPTED_TURN = {
+  source: { notIn: [...UNPROMPTED_SOURCES] },
+  chainDepth: 0,
+} satisfies Prisma.SokoBotTurnWhereInput;
+
+/**
+ * PostgreSQL's clock. Heartbeat age is judged against the clock that wrote
+ * it, so skew between hosts cannot make a live start look abandoned.
+ */
+export async function databaseNow(): Promise<Date> {
+  const [{ now }] = await prisma.$queryRaw<
+    { now: Date }[]
+  >`SELECT clock_timestamp() AS now`;
+  return now;
 }
 
 /** How Jev read a stored turn's relation to its pending proposal, if at all. */
@@ -684,22 +702,46 @@ export class SokoBotControlPlane {
     }
   }
 
+  /**
+   * Stamps a start's lease on PostgreSQL's clock while `leaseToken` holds it.
+   * A renewal (`held`) also needs the heartbeat its holder set: a holder that
+   * hands the turn back clears it, and a late tick must not take it again.
+   */
   private async retainStartLease(
     turnId: string,
     leaseToken: string,
+    held = false,
   ): Promise<boolean> {
-    const retained = await prisma.sokoBotTurn.updateMany({
-      where: {
-        id: turnId,
-        status: { in: ["STARTING", "CANCEL_REQUESTED"] },
-        leaseToken,
-      },
-      data: {
-        leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        reconcilerHeartbeatAt: new Date(),
-      },
-    });
-    return retained.count === 1;
+    const retained = await prisma.$executeRaw`
+      UPDATE "soko_bot_turn"
+      SET "reconcilerHeartbeatAt" = clock_timestamp() AT TIME ZONE 'UTC',
+        "leaseExpiresAt" = (clock_timestamp() AT TIME ZONE 'UTC')
+          + ${TURN_LEASE_MS} * interval '1 millisecond'
+      WHERE "id" = ${turnId}::uuid
+        AND "leaseToken" = ${leaseToken}
+        AND "status" IN ('STARTING', 'CANCEL_REQUESTED')
+        ${held ? PrismaRaw.sql`AND "eveSessionId" IS NULL AND "reconcilerHeartbeatAt" IS NOT NULL` : PrismaRaw.empty}
+    `;
+    return retained === 1;
+  }
+
+  /**
+   * Renews a sessionless start's lease every heartbeat until stopped or lost,
+   * so the watchdog's abandoned-start recovery leaves a live holder alone.
+   */
+  private holdStartLease(turnId: string, leaseToken: string): () => void {
+    const timer = setInterval(() => {
+      void this.retainStartLease(turnId, leaseToken, true).then(
+        (held) => {
+          if (!held) clearInterval(timer);
+        },
+        () => {
+          // The next tick tries again; the watchdog takes over a dead holder.
+        },
+      );
+    }, RECONCILER_HEARTBEAT_MS);
+    timer.unref();
+    return () => clearInterval(timer);
   }
 
   private async bindScheduleReservation(
@@ -1181,10 +1223,11 @@ export class SokoBotControlPlane {
     if (!turn) return null;
     const recoveryActivityAt =
       turn.reconcilerHeartbeatAt ?? turn.createdAt ?? null;
+    const checkedAt = await databaseNow();
     if (
       recoveryActivityAt instanceof Date &&
       recoveryActivityAt.getTime() >
-        Date.now() - SOKO_BOT_START_RECOVERY_GRACE_MS
+        checkedAt.getTime() - SOKO_BOT_START_RECOVERY_GRACE_MS
     ) {
       return null;
     }
@@ -1206,7 +1249,7 @@ export class SokoBotControlPlane {
     }
 
     const leaseToken = randomUUID();
-    const claimedAt = new Date();
+    const claimedAt = checkedAt;
     // The pause is part of the claim rather than a read before it: any check
     // that happens first is stale by the time the row is won, and this turn
     // can spend. A pause committed mid-flight now loses the claim outright.
@@ -1235,6 +1278,7 @@ export class SokoBotControlPlane {
     });
     if (claimed.count !== 1) return null;
 
+    const stopRenewing = this.holdStartLease(turn.id, leaseToken);
     try {
       return await this.resumeAmbiguousStart(turn.sokoBot, {
         ...turn,
@@ -1250,10 +1294,21 @@ export class SokoBotControlPlane {
             errorDetail: safeRuntimeDiagnostic(error.message),
           },
         });
-      } else if (!(error instanceof SokoBotStartAbortedError)) {
+      } else if (error instanceof SokoBotStartAbortedError) {
+        const current = await prisma.sokoBotTurn.findUnique({
+          where: { id: turn.id },
+          select: { leaseToken: true },
+        });
+        // A live successor holds the start now and owns its outcome.
+        if (current?.leaseToken && current.leaseToken !== leaseToken) {
+          return null;
+        }
+      } else {
         await this.failStartedTurn(turn.id, error, leaseToken);
       }
       throw error;
+    } finally {
+      stopRenewing();
     }
   }
 
@@ -3020,6 +3075,9 @@ export class SokoBotControlPlane {
           throw error;
         }
       }
+      const stopRenewing = acceptedRuntime
+        ? this.holdStartLease(turn.id, leaseToken)
+        : () => undefined;
       if (acceptedRuntime?.createdSession) {
         try {
           await this.runtime.resetSession({
@@ -3043,6 +3101,9 @@ export class SokoBotControlPlane {
           );
         }
       }
+      // A tick racing the writes below is fenced out: each changes the status
+      // or clears the heartbeat.
+      stopRenewing();
       if (error instanceof SokoBotStartAbortedError) {
         if (
           currentAfterAcknowledgementFailure?.status === "CANCEL_REQUESTED" &&

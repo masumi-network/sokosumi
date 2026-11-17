@@ -29,6 +29,8 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  databaseNow: async () => new Date(),
+  PROMPTED_TURN: { source: { notIn: ["SCHEDULE"] }, chainDepth: 0 },
   SOKO_BOT_START_RECOVERY_GRACE_MS: 120_000,
   sokoBotControlPlane: {
     expireTurn: expireTurnMock,
@@ -196,9 +198,14 @@ describe("SokoBotTurnsSyncService", () => {
       where: {
         status: string;
         eveSessionId: null;
-        OR: [
-          { reconcilerHeartbeatAt: null; createdAt: { lte: Date } },
-          { reconcilerHeartbeatAt: { lte: Date } },
+        AND: [
+          {
+            OR: [
+              { reconcilerHeartbeatAt: null; createdAt: { lte: Date } },
+              { reconcilerHeartbeatAt: { lte: Date } },
+            ];
+          },
+          unknown,
         ];
       };
     };
@@ -208,7 +215,7 @@ describe("SokoBotTurnsSyncService", () => {
         eveSessionId: null,
       }),
     );
-    const [neverClaimed, staleClaim] = abandonQuery.where.OR;
+    const [neverClaimed, staleClaim] = abandonQuery.where.AND[0].OR;
     expect(neverClaimed.reconcilerHeartbeatAt).toBeNull();
     const abandonCutoff = neverClaimed.createdAt.lte.getTime();
     expect(Date.now() - abandonCutoff).toBeGreaterThanOrEqual(
