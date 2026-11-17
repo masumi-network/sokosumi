@@ -578,3 +578,24 @@ describe("launch videos", () => {
     expect(skill?.content).toContain('workspacePath "video/out/final.mp4"');
   });
 });
+
+describe("picture styles", () => {
+  it("tells Cuso on cmo-v1 to give pictures the look of an old print, once", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content.split("## Picture styles")).toHaveLength(2);
+    expect(skill?.content).toContain("call find_style_references");
+    expect(skill?.content).toContain("Put its id in styleReferenceId");
+    expect(SOKO_BOT_CMO_CAPABILITIES).toContain("find_style_references");
+    expect(
+      composeSystemPrompt(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID)),
+    ).toContain("## Picture styles");
+  });
+
+  it("checks that a styled picture goes through the reference library", () => {
+    const scenario = CMO_SCENARIOS.find(
+      (entry) => entry.id === "cmo-picture-style",
+    );
+    expect(scenario?.expect.tools).toEqual(["find_style_references"]);
+  });
+});
