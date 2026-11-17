@@ -1362,6 +1362,57 @@ describe("a patch", () => {
     ).rejects.toThrow('"16 pieces"');
   });
 
+  it("lets the pieces a change skips move the shares, but never a piece it rewrites", async () => {
+    // 24 pieces, half educational and Setup, half product-led and Proof.
+    const whole = wholePlan();
+    seedStrategy({
+      ...whole,
+      calendar: Array.from({ length: 24 }, (_, index) => ({
+        ...whole.calendar[index % 2]!,
+        id: `e${index + 1}`,
+        date: `2026-11-${String(5 + index).padStart(2, "0")}`,
+        title: `Piece ${index + 1}`,
+      })),
+    });
+    const before = planOf(strategyRows[0]!);
+    const educational = before.calendar.filter(
+      (entry) => entry.approach === "educational",
+    );
+    // "Fewer setup posts": four skipped leave 8 of 20 educational (40%).
+    const skipped = educational
+      .slice(0, 4)
+      .map((entry) => ({ ...entry, status: "skipped" as const }));
+
+    // Moving the shares by rewriting pieces is still refused.
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            ...skipped,
+            ...educational.slice(4, 6).map((entry) => ({
+              ...entry,
+              approach: "product-led" as const,
+            })),
+          ],
+        },
+        { turnId: "turn-2", part: "patch", rules: true },
+      ),
+    ).rejects.toThrow('"shares within 7 points"');
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: skipped },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+    const ids = new Set(skipped.map((entry) => entry.id));
+    expect(
+      planOf(strategyRows.at(-1)!).calendar.filter((entry) =>
+        ids.has(entry.id),
+      ),
+    ).toMatchObject(skipped.map(() => ({ status: "skipped" })));
+  });
+
   it("refuses changes sent only in patched, which is Core's: nothing is saved", async () => {
     const first = await written();
     const before = planOf(first);

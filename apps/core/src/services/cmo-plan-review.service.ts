@@ -74,8 +74,43 @@ export function cmoPlanRuleProblems(strategy: MarketingStrategyPlan): string[] {
     ...mixProblems(strategy.mix, pieces),
     ...pillarProblems(strategy.pillars, pieces),
   ])
-    rule(`shares within ${CMO_SHARE_TOLERANCE} points`, problem);
+    rule(SHARES_RULE, problem);
   return problems;
+}
+
+const SHARES_RULE = `shares within ${CMO_SHARE_TOLERANCE} points`;
+
+/**
+ * The hard rules a save breaks anew. A plan the owner already has keeps the
+ * rules it broke before. The pieces a change skips move the shares of what
+ * is left, and that asks no rewrite of pieces nobody named: asked for
+ * LinkedIn once a week, Cuso once retitled a newsletter and turned a post
+ * into pictures to win the shares back.
+ */
+export function cmoPlanRulesBrokenSince(
+  strategy: MarketingStrategyPlan,
+  before: MarketingStrategyPlan | null,
+): string[] {
+  const broken = cmoPlanRuleProblems(strategy);
+  if (!before || before.calendar.length === 0) return broken;
+  const ruleOf = (problem: string) => problem.match(/^Rule "[^"]+"/)?.[0];
+  const was = new Map(before.calendar.map((entry) => [entry.id, entry]));
+  const unskipped = {
+    ...strategy,
+    calendar: strategy.calendar.map((entry) => {
+      const status = was.get(entry.id)?.status;
+      return entry.status === "skipped" && status && status !== "skipped"
+        ? { ...entry, status }
+        : entry;
+    }),
+  };
+  const had = new Set(cmoPlanRuleProblems(before).map(ruleOf));
+  const withoutSkips = new Set(cmoPlanRuleProblems(unskipped).map(ruleOf));
+  return broken.filter((problem) => {
+    const rule = ruleOf(problem);
+    if (had.has(rule)) return false;
+    return rule !== `Rule "${SHARES_RULE}"` || withoutSkips.has(rule);
+  });
 }
 
 /**

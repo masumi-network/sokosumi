@@ -40,7 +40,7 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
-  cmoPlanRuleProblems,
+  cmoPlanRulesBrokenSince,
   WEEKLY_STRATEGY_SKILL,
 } from "@/services/cmo-plan-review.service";
 import {
@@ -968,9 +968,9 @@ export async function saveCmoStrategy(
     // A plan part saved before its calendar is checked with the calendar.
     const sendsCalendar =
       options.part === "patch" || strategy.calendar !== undefined;
-    // A plan the owner already has keeps the rules it broke before them: a
-    // change is refused only for a rule it breaks anew. The plan as it was
-    // before this turn, never a part this turn saved unchecked.
+    // A change is refused only for a rule it breaks anew, measured against
+    // the plan as it was before this turn, never a part this turn saved
+    // unchecked.
     const earlier = own
       ? parseMarketingPlan(
           (
@@ -988,15 +988,10 @@ export async function saveCmoStrategy(
           )?.plan,
         )
       : before;
-    const ruleOf = (problem: string) => problem.match(/^Rule "[^"]+"/)?.[0];
-    const had = new Set(
-      earlier && earlier.calendar.length > 0
-        ? cmoPlanRuleProblems(earlier).map(ruleOf)
-        : [],
-    );
-    const broken = cmoPlanRuleProblems(
+    const broken = cmoPlanRulesBrokenSince(
       sendsCalendar ? stored : { ...stored, calendar: [] },
-    ).filter((problem) => !had.has(ruleOf(problem)));
+      earlier ?? null,
+    );
     if (broken.length > 0) {
       throw unprocessableEntity(
         [
