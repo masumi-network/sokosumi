@@ -403,15 +403,21 @@ describe("cmoProductionMessage", () => {
       "call find_style_references",
     );
     expect(cmoProductionMessage(input)).not.toContain("find_style_references");
-    const textOnly = [entry({ id: "b" })];
-    expect(
-      cmoProductionMessage({
-        ...input,
-        strategy: strategy(textOnly),
-        pending: textOnly.map((item) => piece(item)),
-        styles: true,
-      }),
-    ).not.toContain("find_style_references");
+    // Text has no picture; a carousel's slides each carry their own words.
+    for (const patch of [
+      { id: "b" },
+      { id: "c", channel: "instagram", format: "carousel" },
+    ]) {
+      const other = [entry(patch)];
+      expect(
+        cmoProductionMessage({
+          ...input,
+          strategy: strategy(other),
+          pending: other.map((item) => piece(item)),
+          styles: true,
+        }),
+      ).not.toContain("find_style_references");
+    }
   });
 
   it("tells a top-up run the month is already made", () => {

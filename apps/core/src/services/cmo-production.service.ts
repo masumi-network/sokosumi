@@ -29,6 +29,7 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
+  cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
   listCmoMediaJobs,
@@ -234,6 +235,15 @@ export function cmoMixLedger(
     .join(", ");
 }
 
+/** A single picture: a styled picture carries one headline, a slide its own words. */
+function takesStyle(piece: CmoPiece): boolean {
+  return (
+    cmoPieceNeedsMedia(piece) &&
+    cmoPieceSlides(piece) === 0 &&
+    !cmoPieceIsVideo(piece)
+  );
+}
+
 function pieceLine(piece: CmoPiece, failed: boolean): string {
   const slides = cmoPieceSlides(piece);
   return [
@@ -334,8 +344,8 @@ export function cmoProductionMessage(input: {
     ),
     "",
     "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
-    input.styles && batch.some(cmoPieceNeedsMedia)
-      ? "Picture styles: before you save the visuals, call find_style_references for the pieces whose picture should stop a reader rather than show the product or a screen (an announcement, an offer, a how-to, a number), and save each with its styleReferenceId and a headline of at most six words in that same call. When a reference fits, give at least one piece with a picture in this run a style, and never the same reference twice."
+    input.styles && batch.some(takesStyle)
+      ? "Picture styles: before you save the visuals, call find_style_references for the single-picture pieces whose picture should stop a reader rather than show the product or a screen (an announcement, an offer, a how-to, a number), and save each with its styleReferenceId and a headline of at most six words in that same call. When a reference fits, give at least one of them in this run a style, and never the same reference twice. A carousel or multi-image post takes no style: each slide carries its own words, and a styled picture may carry only its headline."
       : "",
     "",
     writingSkillsBrief(batch.map((piece) => piece.channel)),
