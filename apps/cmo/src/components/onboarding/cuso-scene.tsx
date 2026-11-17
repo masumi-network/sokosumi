@@ -76,7 +76,7 @@ export function CusoScene({
           aria-hidden="true"
         >
           {calling ? null : <span className="ob-box-dot" />}
-          {now}
+          <span className="ob-scene-text">{now}</span>
         </span>
       ) : null}
       {now && !calling ? (

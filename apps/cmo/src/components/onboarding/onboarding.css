@@ -288,6 +288,13 @@ body:has(.ob) .site-header {
   flex: none;
 }
 
+/* A long label ends in an ellipsis; the flex row itself cannot show one. */
+.ob-scene-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The sidebar's scene: as wide as its column, shorter, a smaller label. */
 .ob-scene-compact {
   width: auto;
