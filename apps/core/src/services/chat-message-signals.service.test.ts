@@ -100,7 +100,7 @@ describe("requeueEditedChatMessageSignal", () => {
     expect(errors[0]?.event).toMatchObject({
       operation: "chat_message_signals",
       chatMessage: { id: "message-1" },
-      failure: { name: "Error" },
+      failure: { errorName: "Error" },
     });
   });
 });

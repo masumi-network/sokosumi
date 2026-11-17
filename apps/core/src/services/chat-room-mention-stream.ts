@@ -5,7 +5,7 @@ import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-
 import { reasoningPartsToMetadata } from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { markMentionFailed } from "./chat-room-mention-state";
 
@@ -182,7 +182,7 @@ export async function publishMentionThoughtPlaceholder(params: {
   } catch (publishError) {
     emitCoreError(
       {
-        failure: describeErrorWithoutContent(publishError),
+        failure: messageSafeErrorFields(publishError),
         operation: "chat_room_mention_dispatch",
         mention: { id: params.mentionId },
       },
@@ -296,7 +296,7 @@ export async function failMentionWithCoworkerShell(params: {
   } catch (publishError) {
     emitCoreError(
       {
-        failure: describeErrorWithoutContent(publishError),
+        failure: messageSafeErrorFields(publishError),
         operation: "chat_room_mention_dispatch",
         mention: { id: params.mentionId },
       },

@@ -1,3 +1,11 @@
+import {
+  APICallError,
+  JSONParseError,
+  NoObjectGeneratedError,
+  NoOutputGeneratedError,
+  RetryError,
+  TypeValidationError,
+} from "ai";
 import { describe, expect, it } from "vitest";
 
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -62,6 +70,75 @@ describe("messageSafeErrorFields", () => {
       code: "ECONNRESET",
       status: 502,
       operation: "GMAIL_FETCH_EMAILS",
+    });
+  });
+
+  it.each([
+    [
+      "AI_APICallError",
+      new APICallError({
+        message: `Gmail said: Re: ${SUBJECT}`,
+        url: "https://example.com/model",
+        requestBodyValues: { prompt: `${SUBJECT} ${KEY}` },
+        responseBody: `${SUBJECT} ${KEY}`,
+        statusCode: 403,
+      }),
+      { status: 403 },
+    ],
+    [
+      "AI_RetryError",
+      new RetryError({
+        message: `${SUBJECT} ${KEY}`,
+        reason: "maxRetriesExceeded",
+        errors: [new Error(KEY)],
+      }),
+      {},
+    ],
+    [
+      "AI_NoObjectGeneratedError",
+      new NoObjectGeneratedError({
+        message: `${SUBJECT} ${KEY}`,
+        text: `${SUBJECT} ${KEY}`,
+        response: { id: "r", timestamp: new Date(0), modelId: "m" },
+        usage: {} as never,
+        finishReason: "stop",
+      }),
+      {},
+    ],
+    [
+      "AI_NoOutputGeneratedError",
+      new NoOutputGeneratedError({ message: `${SUBJECT} ${KEY}` }),
+      {},
+    ],
+    [
+      "AI_TypeValidationError",
+      new TypeValidationError({ value: KEY, cause: new Error(SUBJECT) }),
+      {},
+    ],
+    [
+      "AI_JSONParseError",
+      new JSONParseError({ text: KEY, cause: new Error(SUBJECT) }),
+      {},
+    ],
+  ])(
+    "keeps the AI SDK's %s category and status, never its text",
+    (errorName, error, kept) => {
+      const fields = messageSafeErrorFields(error);
+      expect(fields).toEqual({ errorName, ...kept });
+      expect(leaks(fields, "sk_live", "Confidential")).toEqual([]);
+    },
+  );
+
+  it("keeps a Prisma class, its code and an HTTP status, never the message", () => {
+    const error = Object.assign(new Error(`Gmail said: Re: ${SUBJECT}`), {
+      name: "PrismaClientKnownRequestError",
+      statusCode: 404,
+      code: "P2025",
+    });
+    expect(messageSafeErrorFields(error)).toEqual({
+      errorName: "PrismaClientKnownRequestError",
+      status: 404,
+      code: "P2025",
     });
   });
 

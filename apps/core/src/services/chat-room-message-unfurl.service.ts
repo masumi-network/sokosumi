@@ -18,8 +18,8 @@ import {
 } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
 import { emitCoreWarning } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
 import type { ChatRoomMessageUnfurlCard } from "@/lib/open-graph-html";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export interface ScheduleChatRoomMessageUnfurlsResult {
   messageId: string;
@@ -204,7 +204,7 @@ export async function scheduleChatRoomMessageUnfurls(
     // Runs in waitUntil after the send, so its own event.
     emitCoreWarning(
       {
-        failure: describeErrorWithoutContent(error),
+        failure: messageSafeErrorFields(error),
         operation: "chat_message_unfurl",
         chatMessage: { id: messageId },
       },

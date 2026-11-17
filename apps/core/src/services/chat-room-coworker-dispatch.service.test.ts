@@ -502,7 +502,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(dispatchErrors[0]?.event).toMatchObject({
       operation: "chat_room_mention_dispatch",
       mention: { id: MENTION_ID },
-      failure: { name: "Error" },
+      failure: { errorName: "Error" },
     });
     expect(JSON.stringify(dispatchErrors[0]?.event)).not.toContain(
       "database went away",

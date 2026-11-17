@@ -21,7 +21,7 @@ import {
 } from "@/lib/chat-signals/tags";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
-import { describeErrorWithoutContent } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
 import {
   captureExternalRoomContacts,
@@ -613,7 +613,7 @@ function report(
 ): void {
   emitCoreError(
     {
-      failure: describeErrorWithoutContent(error),
+      failure: messageSafeErrorFields(error),
       operation: "chat_message_signals",
       ...(extra.messageId ? { chatMessage: { id: extra.messageId } } : {}),
       ...(extra.roomId ? { room: { id: extra.roomId } } : {}),

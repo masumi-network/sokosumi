@@ -29,6 +29,13 @@ const KNOWN_ERROR_NAMES: ReadonlySet<string> = new Set([
   "PrismaClientKnownRequestError",
   "PrismaClientUnknownRequestError",
   "PrismaClientValidationError",
+  // The AI SDK's runtime names, not its class names, for the calls Core makes.
+  "AI_APICallError",
+  "AI_JSONParseError",
+  "AI_NoObjectGeneratedError",
+  "AI_NoOutputGeneratedError",
+  "AI_RetryError",
+  "AI_TypeValidationError",
   "ComposioApiError",
   "ComposioToolError",
   "ModelStreamStalledError",
