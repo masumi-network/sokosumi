@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium } from "playwright";
+import { type Browser, chromium, type Page } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
@@ -27,6 +27,18 @@ before(async () => {
 });
 after(() => browser.close());
 
+/**
+ * The step's heading shows once the page has hydrated. A field filled before
+ * then loses its value, as the onboarding spec found.
+ */
+async function expectStep(page: Page, path: RegExp, heading: string) {
+  await page.waitForURL(path);
+  await page
+    .getByRole("main")
+    .getByRole("heading", { name: heading })
+    .waitFor();
+}
+
 for (const { name, ...viewport } of PROJECTS) {
   describe(name, () => {
     test("a new bot's name and memory say what is missing", async () => {
@@ -43,19 +55,31 @@ for (const { name, ...viewport } of PROJECTS) {
 
       await page.goto(`${BASE_URL}/`);
       await page.getByRole("link", { name: "Register" }).click();
-      await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);
-      await page.getByRole("button", { name: "Continue with email" }).click();
+      await expectStep(page, /\/signup/, "Create your account");
+      // The server-rendered heading shows before hydration, and an address
+      // typed before then is dropped. The chip proves React took it.
+      const chip = page.getByRole("button", {
+        name: `${mailbox.address} Change email`,
+      });
+      for (let attempt = 0; !(await chip.isVisible()); attempt++) {
+        assert.ok(attempt < 3, "the email step never took the address");
+        await page
+          .getByRole("textbox", { name: "Email" })
+          .fill(mailbox.address);
+        await page.getByRole("button", { name: "Continue with email" }).click();
+        await chip.waitFor({ timeout: 10_000 }).catch(() => {});
+      }
       await page.getByRole("textbox", { name: "First name" }).fill("Mira");
       await page.getByRole("textbox", { name: "Last name" }).fill(name);
       await page
         .getByRole("textbox", { name: "Code from the email" })
         .pressSequentially(await mailbox.nextCode());
       await page.getByRole("button", { name: "Register" }).click();
-      await page.waitForURL(/\/setup$/);
+      await expectStep(page, /\/setup$/, "How do you want to work?");
       await page.getByRole("button", { name: "Continue" }).click();
 
       // Spaces pass the browser's `required` check, so the step says why.
-      await page.waitForURL(/\/setup\/assistant$/);
+      await expectStep(page, /\/setup\/assistant$/, "Name your Soko Bot");
       const nameField = page.getByRole("textbox", { name: "Name" });
       await nameField.fill("   ");
       await page.getByRole("button", { name: "Continue" }).click();
@@ -69,6 +93,10 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.waitForURL(/\/setup\/assistant\/connect$/);
       await page.getByRole("link", { name: "Skip" }).click();
       await page.waitForURL(/\/chat\/rooms\//);
+      // Wait for the bot's hello. Loaded before it lands, the next page's
+      // server render and the sidebar's client data disagree on its unread
+      // count, and React reports a hydration error (#418).
+      await page.getByRole("main").getByText(`I'm ${BOT}`).waitFor();
 
       await page.goto(`${BASE_URL}/personal-assistant?view=advanced`);
       const main = page.getByRole("main");
