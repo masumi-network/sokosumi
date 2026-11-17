@@ -1,8 +1,12 @@
 import "../../components/onboarding/onboarding.css";
 import "./design-system.css";
 
-import { AVATAR_REPLAY_MS } from "../../components/cuso";
-import { CusoClip } from "../../components/cuso-clip";
+import {
+  type CusoArt,
+  CusoAvatar,
+  type Pose as CusoPose,
+  cusoArt,
+} from "../../components/cuso";
 import { Logo } from "../../components/logo";
 import { StatusDisc } from "../../components/status";
 import { AGENT_NAME } from "../../lib/agent";
@@ -41,7 +45,7 @@ interface Radius {
 }
 
 interface Pose {
-  file: string;
+  file: CusoPose;
   label: string;
 }
 
@@ -89,6 +93,14 @@ const RADII: Radius[] = [
 ];
 
 const SHADOWS = ["Pill", "Hard", "Hero"];
+
+const ART: CusoArt[] = [
+  "walking",
+  "pointing",
+  "thinking",
+  "thumbs-up",
+  "searching",
+];
 
 const POSES: Pose[] = [
   { file: "reading", label: "Reading" },
@@ -294,15 +306,7 @@ function Board({ scheme }: BoardProps) {
         <ul className="ds-poses">
           {POSES.map((pose) => (
             <li key={pose.file}>
-              <span className="ds-avatar">
-                <CusoClip
-                  src={`/cuso/${pose.file}.png`}
-                  alt=""
-                  width={48}
-                  height={48}
-                  replayAfterMs={AVATAR_REPLAY_MS}
-                />
-              </span>
+              <CusoAvatar pose={pose.file} size={48} />
               <span
                 className={`ds-t-small${pose.file === "needs-you" ? " ds-pose-on-iris" : ""}`}
               >
@@ -317,35 +321,24 @@ function Board({ scheme }: BoardProps) {
         <PartsPreview />
       </Section>
 
-      <Section title="Scenes">
+      <Section title="Poses">
         <ul className="ds-scenes">
-          <li>
-            <CusoClip
-              src="/cuso/reading-scene.jpg"
-              alt="Cuso reading a site with a magnifier"
-              width={160}
-              height={160}
-            />
-          </li>
-          <li>
-            <CusoClip
-              src="/cuso/celebration.jpg"
-              alt="Cuso celebrating next to a toy rocket"
-              width={160}
-              height={160}
-            />
-          </li>
+          {ART.map((art) => (
+            <li key={art}>
+              <img src={cusoArt(art)} alt="" width={160} height={160} />
+            </li>
+          ))}
         </ul>
       </Section>
 
       <Section title="Hero stage">
         <div className="ds-stage">
-          <CusoClip
+          <img
             className="ds-stage-art"
-            src="/cuso/hero.jpg"
-            alt="Cuso walking with a megaphone"
+            src={cusoArt("walking")}
+            alt="Cuso walking"
             width={200}
-            height={300}
+            height={200}
           />
           <span className="ob-tilt ob-tilt-a">Reads your site</span>
           <span className="ob-tilt ob-tilt-b">Writes the month</span>

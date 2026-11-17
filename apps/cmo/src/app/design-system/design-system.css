@@ -273,16 +273,6 @@
   flex-direction: column;
 }
 
-.ds-avatar {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border: var(--line-pill) solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-}
-
 /* Only "Needs you" is labelled on Iris; Cuso's circle stays --stage. */
 .ds-pose-on-iris {
   padding: 1px 6px;
@@ -290,15 +280,6 @@
   border-radius: var(--radius-mark);
   background: var(--primary);
   color: var(--primary-foreground);
-}
-
-.ds-avatar :is(img, video) {
-  width: 48px;
-  height: 48px;
-}
-
-.ds-avatar video {
-  border-radius: 50%;
 }
 
 /* The art is painted on light Iris, so it fills the stage in both themes. */
@@ -317,7 +298,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  padding: 24px;
+  object-fit: contain;
   object-position: 50% 100%;
 }
 
@@ -343,12 +325,14 @@
   gap: 16px;
 }
 
-.ds-scenes :is(img, video) {
+.ds-scenes img {
   width: 160px;
   height: 160px;
+  padding: 12px;
   border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-card);
-  object-fit: cover;
+  background: var(--primary-hover);
+  object-fit: contain;
 }
 
 /* The onboarding parts, stacked, each under a small label. */

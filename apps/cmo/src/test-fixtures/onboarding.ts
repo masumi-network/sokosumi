@@ -156,10 +156,10 @@ const shot = (url: string) => ({
 export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   capturedAt: "2026-10-05T09:02:00Z",
   pages: [
-    { ...shot("/cuso/hero.jpg"), label: "Home", device: "desktop" },
-    { ...shot("/cuso/hero.jpg"), label: "Home", device: "mobile" },
+    { ...shot("/cuso/walking.png"), label: "Home", device: "desktop" },
+    { ...shot("/cuso/walking.png"), label: "Home", device: "mobile" },
   ],
-  competitors: [{ ...shot("/cuso/reading-scene.jpg"), name: "Moonshot" }],
+  competitors: [{ ...shot("/cuso/searching.png"), name: "Moonshot" }],
   pictures: [],
 };
 

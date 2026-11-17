@@ -8,15 +8,6 @@ import { expect, it, vi } from "vitest";
 import type { NameFormState } from "../app/name-actions";
 import { NameSetup } from "./name-setup";
 
-// The mascot's separate suite covers WebGL. Keep asset downloads out of form tests.
-vi.mock("three/addons/loaders/GLTFLoader.js", () => ({
-  GLTFLoader: class {
-    async loadAsync() {
-      throw new Error("No WebGL in form tests");
-    }
-  },
-}));
-
 it("asks for the first and last name, with Sign out", () => {
   const html = renderToStaticMarkup(
     <NameSetup saveName={vi.fn()} signOut={vi.fn()} />,

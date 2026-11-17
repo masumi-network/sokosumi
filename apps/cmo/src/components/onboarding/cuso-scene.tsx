@@ -1,5 +1,5 @@
 import { AGENT_NAME } from "../../lib/agent";
-import { CusoClip } from "../cuso-clip";
+import { type CusoArt, cusoArt } from "../cuso";
 
 export type Scene =
   | "research"
@@ -9,13 +9,22 @@ export type Scene =
   | "launch"
   | "hero";
 
+const ART: Record<Scene, CusoArt> = {
+  research: "searching",
+  brand: "pointing",
+  planning: "thinking",
+  subscribe: "thumbs-up",
+  launch: "walking",
+  hero: "pointing",
+};
+
 const ALT: Record<Scene, string> = {
-  research: `${AGENT_NAME} reading a site with a magnifier`,
-  brand: `${AGENT_NAME} holding up a brand board`,
-  planning: `${AGENT_NAME} filling in a calendar`,
-  subscribe: `${AGENT_NAME} holding up a star card, thumbs up`,
-  launch: `${AGENT_NAME} holding up a phone, thumbs up`,
-  hero: `${AGENT_NAME} calling out with a megaphone`,
+  research: `${AGENT_NAME} looking through a magnifier`,
+  brand: `${AGENT_NAME} pointing`,
+  planning: `${AGENT_NAME} thinking`,
+  subscribe: `${AGENT_NAME} giving a thumbs up`,
+  launch: `${AGENT_NAME} walking`,
+  hero: `${AGENT_NAME} pointing at you`,
 };
 
 interface CusoSceneProps {
@@ -29,8 +38,7 @@ interface CusoSceneProps {
 }
 
 /**
- * A step's lead, framed like the hire hero: Cuso's scene loops on its pink
- * panel. While he works, what he is doing pops out as a label and a bar runs
+ * A step's lead, framed like the hire hero: Cuso's pose on the Iris stage. While he works, what he is doing pops out as a label and a bar runs
  * along the bottom.
  */
 export function CusoScene({
@@ -49,13 +57,12 @@ export function CusoScene({
         .filter(Boolean)
         .join(" ")}
     >
-      <CusoClip
+      <img
         className="ob-stage-art"
-        src={`/cuso/${scene}.jpg`}
+        src={cusoArt(ART[scene])}
         alt={ALT[scene]}
         width={640}
-        height={960}
-        replayAfterMs={0}
+        height={640}
       />
       {now ? (
         // A new label pops in again.
