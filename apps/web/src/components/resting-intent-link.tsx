@@ -43,6 +43,20 @@ const APPROACH_REPEAT_MS = 60_000;
 
 type DwellTimer = ReturnType<typeof setTimeout> | null;
 
+/**
+ * A plain primary press opens the link in this tab. A middle click, a
+ * modified click or a context menu leaves the pointer resting on it.
+ */
+function opensInThisTab(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
 interface RestingIntentLinkProps
   extends Omit<ComponentProps<typeof Link>, "href"> {
   href: string;
@@ -92,6 +106,20 @@ export function RestingIntentLink({
   // Hover and focus dwell apart, so leaving one never cancels the other.
   const hoverTimer = useRef<DwellTimer>(null);
   const focusTimer = useRef<DwellTimer>(null);
+  // While a free hover or keyboard focus rests on the link, its content loads
+  // again when a refresh drops it, so the click still opens a loaded page.
+  const hovering = useRef(false);
+  const keyboardFocused = useRef(false);
+  // A reload asks for the page the link leads to now, and only while it
+  // still loads content: a new href or the current page starts over.
+  const loads = useRef({ href, prefetchContent });
+  useEffect(() => {
+    loads.current = { href, prefetchContent };
+  });
+  const keepLoadedFor = (loadedHref: string) => () =>
+    (hovering.current || keyboardFocused.current) &&
+    loads.current.prefetchContent &&
+    loads.current.href === loadedHref;
   // A touch loads only the shared App Shell. A resting hover and focus also
   // load the page's content, a server render each.
   const prefetchShell = () => {
@@ -99,7 +127,7 @@ export function RestingIntentLink({
   };
   const prefetchContentOrShell = () => {
     if (prefetchContent) {
-      prefetchRouteContent(router, href);
+      prefetchRouteContent(router, href, { keepLoaded: keepLoadedFor(href) });
     } else {
       prefetchShell();
     }
@@ -115,7 +143,14 @@ export function RestingIntentLink({
     cancelDwell(hoverTimer);
     cancelDwell(focusTimer);
   }
-  useEffect(() => cancelAllDwells, []);
+  useEffect(
+    () => () => {
+      cancelAllDwells();
+      hovering.current = false;
+      keyboardFocused.current = false;
+    },
+    [],
+  );
 
   function startDwell(timer: RefObject<DwellTimer>, dwellMs: number) {
     cancelDwell(timer);
@@ -171,9 +206,20 @@ export function RestingIntentLink({
     [approachRef, ref],
   );
 
-  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    // The click already loads the page; a later dwell would render it twice.
+  // The click or tap loads the page itself. A later dwell or reload would
+  // render it again.
+  function stopResting() {
     cancelAllDwells();
+    hovering.current = false;
+    keyboardFocused.current = false;
+  }
+
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (opensInThisTab(event)) {
+      stopResting();
+    } else {
+      cancelAllDwells();
+    }
     onClick?.(event);
   }
 
@@ -187,19 +233,25 @@ export function RestingIntentLink({
       event.pointerType !== "touch" &&
       event.buttons === 0
     ) {
+      hovering.current = true;
       startHoverDwell();
     }
   }
 
   function handlePointerLeave(event: PointerEvent<HTMLAnchorElement>) {
     onPointerLeave?.(event);
+    hovering.current = false;
     cancelDwell(hoverTimer);
   }
 
   // A press starts a click, middle click or tap, which loads the page itself.
   function handlePointerDown(event: PointerEvent<HTMLAnchorElement>) {
     onPointerDown?.(event);
-    cancelAllDwells();
+    if (opensInThisTab(event)) {
+      stopResting();
+    } else {
+      cancelAllDwells();
+    }
   }
 
   // Browsers also focus a link on a click or tap. Only keyboard focus, which
@@ -211,12 +263,14 @@ export function RestingIntentLink({
       !event.defaultPrevented &&
       event.currentTarget.matches(":focus-visible")
     ) {
+      keyboardFocused.current = true;
       startDwell(focusTimer, FOCUS_DWELL_MS);
     }
   }
 
   function handleBlur(event: FocusEvent<HTMLAnchorElement>) {
     onBlur?.(event);
+    keyboardFocused.current = false;
     cancelDwell(focusTimer);
   }
 
