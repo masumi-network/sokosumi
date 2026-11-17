@@ -11059,7 +11059,7 @@
         "all": "Alle Kontakte",
         "mine": "Meine Kontakte",
         "recent": "Neu hinzugefügt",
-        "archived": "Archiviert"
+        "archived": "Archivierte Kontakte"
       },
       "emptyViews": {
         "all": "Noch keine Kontakte.",
@@ -11084,7 +11084,8 @@
         "clearCompany": "Alle Firmen zeigen",
         "companyLists": "Firmenlisten",
         "newCompanyList": "Neue Firmenliste",
-        "noCompanyLists": "Noch keine Firmenlisten."
+        "noCompanyLists": "Noch keine Firmenlisten.",
+        "backToContacts": "Zurück zu den Kontakten"
       },
       "columns": {
         "name": "Name",

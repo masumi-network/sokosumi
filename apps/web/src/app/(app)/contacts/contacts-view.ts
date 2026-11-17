@@ -21,9 +21,12 @@ export const CONTACT_PRESETS = {
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
 
-export const CONTACT_PRESET_IDS = Object.keys(
-  CONTACT_PRESETS,
-) as ContactPreset[];
+/** The presets shown as tabs. Archived opens from the More actions menu. */
+export const CONTACT_PRESET_IDS = [
+  "all",
+  "mine",
+  "recent",
+] as const satisfies readonly ContactPreset[];
 
 export function isContactPreset(value: string): value is ContactPreset {
   return value in CONTACT_PRESETS;

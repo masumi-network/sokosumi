@@ -8,9 +8,10 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user's archived contact, end to end: add a contact, archive it from
-// its panel, find it on the Archived tab (read-only: its edit menus stay
-// shut), restore it from its row, and see it back in All contacts. Each size
-// signs up its own disposable mail.tm inbox.
+// its panel, open Archived contacts from the More actions menu (there is no
+// Archived tab), see the panel is read-only (its edit menus stay shut),
+// restore it from its row, and go back to All contacts. Each size signs up
+// its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const NAME = "Mira Testperson";
@@ -77,7 +78,14 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("menuitem", { name: "Archive contact" }).click();
       await page.getByText(`${NAME} archived`).waitFor();
 
-      await page.getByRole("radio", { name: "Archived" }).click();
+      assert.equal(
+        await page.getByRole("radio", { name: /Archived/ }).count(),
+        0,
+        "Archived is a tab",
+      );
+      await page.getByRole("button", { name: "More actions" }).click();
+      await page.getByRole("menuitem", { name: "Archived contacts" }).click();
+      await page.getByRole("heading", { name: "Archived contacts" }).waitFor();
       const row = page.getByRole("button", { name: NAME, exact: true });
       await row.waitFor();
       await shot(page, size, "1-archived");
@@ -95,8 +103,12 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: `Restore ${NAME}` }).click();
       await page.getByText(`${NAME} restored`).waitFor();
-      await page.getByRole("radio", { name: "All contacts" }).click();
+      await page.getByRole("button", { name: "Back to contacts" }).click();
+      await page
+        .getByRole("radio", { name: "All contacts", checked: true })
+        .waitFor();
       await page.getByRole("button", { name: NAME }).first().waitFor();
+      await shot(page, size, "3-back");
 
       const overflow = await page.evaluate(
         () =>

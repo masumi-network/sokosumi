@@ -97,29 +97,12 @@ describe("ContactsPresetTabs and ContactsViewMenus", () => {
 });
 
 describe("ContactsPresetTabs", () => {
-  it("scrolls the selected preset into view, so a phone shows which view is open", () => {
-    const scrolled: Element[] = [];
-    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
-      scrolled.push(this);
-    });
-    const { rerender } = render(
-      <ContactsPresetTabs view="archived" onViewChange={vi.fn()} />,
-    );
-    expect(scrolled.at(-1)).toBe(
-      screen.getByRole("radio", { name: "presets.archived" }),
-    );
-    rerender(<ContactsPresetTabs view="mine" onViewChange={vi.fn()} />);
-    expect(scrolled.at(-1)).toBe(
-      screen.getByRole("radio", { name: "presets.mine" }),
-    );
-    expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({
-      block: "nearest",
-      inline: "nearest",
-    });
-    // A re-render on the same view never moves the page, e.g. while scrolled
-    // down a long list.
-    const calls = scrolled.length;
-    rerender(<ContactsPresetTabs view="mine" onViewChange={vi.fn()} />);
-    expect(scrolled).toHaveLength(calls);
+  it("keeps Archived out of the tabs; it lives in the More actions menu", () => {
+    render(<ContactsPresetTabs view="all" onViewChange={vi.fn()} />);
+    expect(screen.getAllByRole("radio").map((tab) => tab.textContent)).toEqual([
+      "presets.all",
+      "presets.mine",
+      "presets.recent",
+    ]);
   });
 });

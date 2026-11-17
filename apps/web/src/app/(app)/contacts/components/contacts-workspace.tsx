@@ -10,6 +10,8 @@ import type {
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  Archive,
+  ArrowLeft,
   Building2,
   Download,
   FileSpreadsheet,
@@ -58,6 +60,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -396,6 +399,27 @@ export function ContactsWorkspace({
               <h2 className="flex h-10 items-center text-sm font-medium md:h-8">
                 {t("views.companies")}
               </h2>
+            ) : view === "archived" ? (
+              // Archived is a side room, not a tab: name it while it is open
+              // and lead straight back to the live contacts.
+              <div className="flex min-w-0 items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t("views.backToContacts")}
+                  className="size-10 shrink-0 md:size-8"
+                  onClick={() => changeView("all")}
+                >
+                  <ArrowLeft aria-hidden className="size-4" />
+                </Button>
+                <h2 className="flex h-10 min-w-0 items-center gap-2 text-sm font-medium md:h-8">
+                  <Archive
+                    aria-hidden
+                    className="text-muted-foreground size-4 shrink-0"
+                  />
+                  <span className="truncate">{t("presets.archived")}</span>
+                </h2>
+              </div>
             ) : (
               <ContactsPresetTabs view={view} onViewChange={changeView} />
             )}
@@ -471,6 +495,16 @@ export function ContactsWorkspace({
                 <DropdownMenuItem onClick={() => setDialog({ kind: "list" })}>
                   <ListPlus aria-hidden className="size-4" />
                   {t("views.newList")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    void setLayout(null);
+                    changeView("archived");
+                  }}
+                >
+                  <Archive aria-hidden className="size-4" />
+                  {t("presets.archived")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -47,7 +47,7 @@ describe("contactQuery", () => {
   });
 
   it("maps each preset tab to the documented query params", () => {
-    expect(CONTACT_PRESET_IDS).toEqual(["all", "mine", "recent", "archived"]);
+    expect(CONTACT_PRESET_IDS).toEqual(["all", "mine", "recent"]);
     expect(contactQuery({ ...base, view: "mine" })).toMatchObject({
       knownByMe: "true",
     });
@@ -60,7 +60,7 @@ describe("contactQuery", () => {
     });
   });
 
-  it("asks Core for archived contacts only on the Archived tab", () => {
+  it("asks Core for archived contacts only in the Archived view", () => {
     expect(contactQuery({ ...base, view: "archived", search: "ada" })).toEqual({
       archived: "true",
       search: "ada",
@@ -342,7 +342,7 @@ describe("smartFilterOf", () => {
     ).toBeNull();
   });
 
-  it("offers no smart list from the Archived tab, whose filter lists cannot keep", () => {
+  it("offers no smart list from the Archived view, whose filter lists cannot keep", () => {
     expect(
       smartFilterOf({ ...base, view: "archived", search: "ada" }),
     ).toBeNull();

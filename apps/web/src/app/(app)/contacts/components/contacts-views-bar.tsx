@@ -62,15 +62,6 @@ interface Props {
 }
 
 /**
- * Brings the selected preset into view: on a phone the strip scrolls, and the
- * selected pill is the only sign of which view is open. Stable, so React calls
- * it only when the selection moves to another pill, never on a re-render.
- */
-function scrollIntoView(item: HTMLButtonElement | null) {
-  item?.scrollIntoView({ block: "nearest", inline: "nearest" });
-}
-
-/**
  * The presets as a segmented control, at the top of the page. A list or a
  * company menu choice leaves none of them selected.
  */
@@ -91,12 +82,7 @@ export function ContactsPresetTabs({
       className="justify-start overflow-x-auto"
     >
       {CONTACT_PRESET_IDS.map((preset) => (
-        <ToggleGroupItem
-          key={preset}
-          value={preset}
-          ref={preset === view ? scrollIntoView : undefined}
-          className="flex-none"
-        >
+        <ToggleGroupItem key={preset} value={preset} className="flex-none">
           {t(`presets.${preset}`)}
         </ToggleGroupItem>
       ))}

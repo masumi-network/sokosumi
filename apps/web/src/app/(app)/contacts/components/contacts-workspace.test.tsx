@@ -209,29 +209,64 @@ describe("ContactsWorkspace bulk relationship", () => {
   });
 });
 
-describe("ContactsWorkspace Archived tab", () => {
-  function renderArchived() {
+describe("ContactsWorkspace Archived view", () => {
+  function renderAt(searchParams: string) {
+    const onUrlUpdate = vi.fn();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <NuqsTestingAdapter searchParams="?list=archived">
+        <NuqsTestingAdapter
+          searchParams={searchParams}
+          onUrlUpdate={onUrlUpdate}
+          hasMemory
+        >
           <ContactsWorkspace sync={null} />
         </NuqsTestingAdapter>
       </QueryClientProvider>,
     );
+    return onUrlUpdate;
   }
 
+  it("is no tab: it opens from the More actions menu", async () => {
+    renderAt("");
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(
+      screen.queryByRole("radio", { name: "presets.archived" }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+  });
+
+  it("names the open Archived view and leads back to all contacts", async () => {
+    const onUrlUpdate = renderAt("?list=archived");
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "presets.all" })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "views.backToContacts" }),
+    );
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(
+      screen.queryByRole("heading", { name: "presets.archived" }),
+    ).toBeNull();
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBeNull();
+  });
+
   it("lists archived people read-only, without the editable grid or bulk actions", () => {
-    renderArchived();
+    renderAt("?list=archived");
     expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "select all" })).toBeNull();
-    expect(
-      screen.getByRole("radio", { name: "presets.archived" }),
-    ).toBeTruthy();
   });
 
   it("restores a person from their row", async () => {
     unarchive.mockResolvedValue(undefined);
-    renderArchived();
+    renderAt("?list=archived");
     await userEvent.click(
       screen.getByRole("button", { name: "restore Ada Lead" }),
     );
