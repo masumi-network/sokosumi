@@ -97,7 +97,7 @@ interface ProjectsViewProps {
   column?: ReactNode;
   /**
    * The organization's featured Project and whether the reader may change
-   * it. The page passes it for the unfiltered Open view only.
+   * it. The page passes it for the Open view; a search hides only the card.
    */
   featured?: FeaturedProject | null;
 }
@@ -219,7 +219,7 @@ export function ProjectsView({
         <div className={column ? PROJECTS_OPEN_LAYOUT_CLASS : "contents"}>
           {column}
           <div className="flex min-w-0 flex-col gap-5">
-            {featured?.project ? (
+            {featured?.project && !isFiltering ? (
               <FeaturedProjectCard
                 project={featured.project}
                 labels={labels.featured}

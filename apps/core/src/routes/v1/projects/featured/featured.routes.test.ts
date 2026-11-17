@@ -14,12 +14,21 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+const { lockCalendarScopeMock } = vi.hoisted(() => ({
+  lockCalendarScopeMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+}));
+
 vi.mock("@/services/cmo-cuso.service", () => ({
   cmoProjectIds: vi.fn(async () => new Set<string>()),
 }));
 
 const {
   workspaceFindUniqueMock,
+  workspaceFindUniqueOrThrowMock,
   workspaceUpdateMock,
   workspaceUpdateManyMock,
   memberFindUniqueMock,
@@ -27,6 +36,7 @@ const {
   projectHideFindUniqueMock,
 } = vi.hoisted(() => ({
   workspaceFindUniqueMock: vi.fn(),
+  workspaceFindUniqueOrThrowMock: vi.fn(),
   workspaceUpdateMock: vi.fn(),
   workspaceUpdateManyMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -34,18 +44,26 @@ const {
   projectHideFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     workspace: {
       findUnique: workspaceFindUniqueMock,
+      findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
       update: workspaceUpdateMock,
       updateMany: workspaceUpdateManyMock,
     },
     member: { findUnique: memberFindUniqueMock },
-    project: { findFirst: projectFindFirstMock },
+    project: { findFirstOrThrow: projectFindFirstMock },
     projectHide: { findUnique: projectHideFindUniqueMock },
-  },
-}));
+  };
+  return {
+    default: {
+      ...client,
+      $transaction: async (callback: (tx: typeof client) => unknown) =>
+        await callback(client),
+    },
+  };
+});
 
 const USER_ID = "user_123";
 const ORGANIZATION_ID = "org_123";
@@ -136,6 +154,8 @@ beforeEach(() => {
     closedAt: null,
     closingAt: null,
   });
+  lockCalendarScopeMock.mockResolvedValue(true);
+  workspaceFindUniqueOrThrowMock.mockResolvedValue({ featuredProjectId: null });
   workspaceUpdateMock.mockResolvedValue({});
   workspaceUpdateManyMock.mockResolvedValue({ count: 1 });
 });
@@ -232,14 +252,23 @@ describe("PUT /projects/{id}/featured", () => {
 
   it("reads a Project from another workspace as absent", async () => {
     asRole("admin");
-    projectFindFirstMock.mockResolvedValue(null);
+    lockCalendarScopeMock.mockResolvedValue(false);
     const res = await feature();
 
     expect(res.status).toBe(404);
-    expect(projectFindFirstMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      }),
+    expect(workspaceUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the Project under the close's locks, in its order", async () => {
+    asRole("admin");
+    await feature();
+
+    // Actor, Workspace, then Project: the order a close takes them in.
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.anything(),
+      WORKSPACE_ID,
+      [PROJECT_ID],
+      USER_ID,
     );
   });
 
@@ -275,6 +304,19 @@ describe("DELETE /projects/{id}/featured", () => {
     expect(workspaceUpdateManyMock).toHaveBeenCalledWith({
       where: { id: WORKSPACE_ID, featuredProjectId: PROJECT_ID },
       data: { featuredProjectId: null },
+    });
+  });
+
+  it("answers with the Project another admin featured since", async () => {
+    asRole("admin");
+    workspaceUpdateManyMock.mockResolvedValue({ count: 0 });
+    workspaceFindUniqueOrThrowMock.mockResolvedValue({
+      featuredProjectId: "22222222-2222-4222-8222-222222222222",
+    });
+    const res = await unfeature();
+
+    expect((await res.json()).data).toEqual({
+      featuredProjectId: "22222222-2222-4222-8222-222222222222",
     });
   });
 

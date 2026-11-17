@@ -4552,7 +4552,7 @@ export const postProjectsByIdStar = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Stop featuring this Project in the active organization workspace. Owners and admins only. A no-op when another Project is featured by now.
+ * Stop featuring this Project in the active organization workspace. Owners and admins only. A no-op when another Project is featured by now; the answer says which Project is featured after the call.
  */
 export const deleteProjectsByIdFeatured = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdFeaturedData, ThrowOnError>): RequestResult<DeleteProjectsByIdFeaturedResponses, DeleteProjectsByIdFeaturedErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdFeaturedResponses, DeleteProjectsByIdFeaturedErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdFeaturedResponseTransformer,

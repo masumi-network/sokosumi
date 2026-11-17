@@ -26,7 +26,7 @@ describe("loadProjectsPageData", () => {
     getFeaturedProjectMock.mockResolvedValue({ canFeature: false });
   });
 
-  it("reads the featured Project for the unfiltered Open view only", async () => {
+  it("reads the featured Project for the Open view only, searched or not", async () => {
     listProjectsMock.mockResolvedValue(PAGE);
     const featured = { project: { id: "project-2" }, canFeature: true };
     getFeaturedProjectMock.mockResolvedValue(featured);
@@ -34,13 +34,14 @@ describe("loadProjectsPageData", () => {
     expect(
       (await loadProjectsPageData({ query: "", state: "open" })).featured,
     ).toEqual(featured);
+    // A search keeps the badge and the owner's Feature control.
     expect(
       (await loadProjectsPageData({ query: "launch", state: "open" })).featured,
-    ).toBeNull();
+    ).toEqual(featured);
     expect(
       (await loadProjectsPageData({ query: "", state: "closed" })).featured,
     ).toBeNull();
-    expect(getFeaturedProjectMock).toHaveBeenCalledOnce();
+    expect(getFeaturedProjectMock).toHaveBeenCalledTimes(2);
   });
 
   // connection() would drop the page from every link prefetch.

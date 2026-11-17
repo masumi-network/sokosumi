@@ -462,6 +462,24 @@ describe("ProjectsView featured Project", () => {
     ).toHaveAttribute("href", "/projects/project-2");
   });
 
+  it("keeps the badge and Feature control in search results, without the card", async () => {
+    const user = userEvent.setup();
+    renderView({
+      query: "launch",
+      projects: [{ ...project, ...featuredProject }],
+      featured: { project: featuredProject, canFeature: true },
+    });
+
+    expect(
+      screen.queryByRole("region", { name: "Featured by your team" }),
+    ).toBeNull();
+    expect(screen.getByRole("article")).toHaveTextContent("Featured");
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      screen.getByRole("menuitem", { name: "Stop featuring" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows no featured card when nothing is featured", () => {
     renderView({ featured: { canFeature: true } });
 

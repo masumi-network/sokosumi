@@ -17,14 +17,15 @@ export interface ProjectsPageDataInput {
 }
 
 async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
-  // The featured card leads the unfiltered Open view only.
+  // Open view only. A search hides the card but keeps the badge and the
+  // owner's Feature control, so it reads the featured Project too.
   const [projectsPage, featured] = await Promise.all([
     projectService.listProjects({
       limit: PROJECTS_PAGE_LIMIT,
       query,
       ...projectsListStateQuery(state),
     }),
-    state === "open" && !query ? projectService.getFeaturedProject() : null,
+    state === "open" ? projectService.getFeaturedProject() : null,
   ]);
   // An empty Open view reads "No projects yet" only when there is truly
   // nothing; one Closed project is enough to say "all closed" instead.
