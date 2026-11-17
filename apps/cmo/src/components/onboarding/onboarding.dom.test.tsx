@@ -7,7 +7,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { asking, brain, draft, strategy } from "../../test-fixtures/onboarding";
+import {
+  asking,
+  brain,
+  draft,
+  strategy,
+  work,
+} from "../../test-fixtures/onboarding";
 import { Onboarding } from "../onboarding";
 import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
@@ -362,6 +368,54 @@ it("approves the Brand Brain, then asks for the plan", async () => {
   expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
 });
 
+it("lets the founder confirm while Cuso writes the plan he started, and shows its progress", async () => {
+  // The plan starts when the research ends, before the founder confirms.
+  const writing = asking({ botStatus: "RUNNING", work: work("strategy") });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      asking({
+        botStatus: "RUNNING",
+        work: work("strategy"),
+        brandBrainConfirmedAt: new Date(),
+      }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={writing}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  expect(text()).not.toContain("Finishing up");
+  expect(button("Looks like us").disabled).toBe(false);
+  await press("Looks like us");
+  // Core hands the running plan back; nothing new starts.
+  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(text()).toContain("Writing your plan");
+});
+
+it("opens a plan Cuso already wrote on Looks like us, without planning again", async () => {
+  const actions = actionsFor({ approveBrandBrain: vi.fn(async () => draft()) });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ brandBrainConfirmedAt: null })}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Approve plan");
+});
+
 // Brand: a tile opens the side panel.
 
 it("opens a tile into the side panel with a way to say what is off", async () => {
@@ -408,6 +462,151 @@ it("opens a tile into the side panel with a way to say what is off", async () =>
     container.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.click(),
   );
   expect(container.querySelector("aside")).toBeNull();
+});
+
+// Brand during onboarding: Cuso writes the plan meanwhile, so a correction
+// or an edit is a fix on its section, which Core runs after the plan and
+// fits the plan to.
+
+const writingPlan = (offerFix?: { fixed: boolean }) =>
+  draft({
+    brandBrainConfirmedAt: null,
+    strategy: null,
+    botStatus: "RUNNING",
+    work: work("strategy", { change: null }),
+    brandBrain: {
+      ...brain,
+      profile: {
+        offer: {
+          answer: "Rockets for founders",
+          findings: [],
+          ...(offerFix
+            ? {
+                fix: {
+                  note: "Rocket Pro costs $149",
+                  at: "2026-11-16T10:00:00Z",
+                  ...offerFix,
+                },
+              }
+            : {}),
+        },
+      },
+    },
+  });
+
+async function openSell(
+  overview: CmoOverview,
+  onFix = vi.fn(async () => null),
+) {
+  const onCorrect = vi.fn(async () => {});
+  const onSave = vi.fn(async () => {});
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={overview}
+        messages={[]}
+        onCorrect={onCorrect}
+        onFix={onFix}
+        onSave={onSave}
+        onAnswer={noop}
+        onApprove={async () => null}
+      />,
+    ),
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")]
+      .find((tile) => tile.textContent?.startsWith("What you sell"))
+      ?.click(),
+  );
+  return { onCorrect, onSave, onFix };
+}
+
+it("sends a correction made while the plan is written as a fix on its section", async () => {
+  const { onCorrect, onFix } = await openSell(writingPlan());
+  typeInto(
+    container.querySelector<HTMLInputElement>("#ob-tell"),
+    "Rocket Pro costs $149",
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")]
+      .find((candidate) => candidate.textContent === "Send")
+      ?.click(),
+  );
+  expect(onFix).toHaveBeenCalledWith("offer", "Rocket Pro costs $149");
+  expect(onCorrect).not.toHaveBeenCalled();
+});
+
+it("fits the plan to an edit the founder made before Looks like us", async () => {
+  const { onCorrect, onSave, onFix } = await openSell(writingPlan());
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")]
+      .find((candidate) => candidate.textContent === "Edit")
+      ?.click(),
+  );
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(
+        'aside form.bp-editor button[type="submit"]',
+      )
+      ?.click(),
+  );
+  expect(onSave).toHaveBeenCalledTimes(1);
+  expect(onFix).toHaveBeenCalledWith(
+    "offer",
+    expect.stringContaining("edited"),
+  );
+  expect(onCorrect).not.toHaveBeenCalled();
+});
+
+it("says a waiting fix will reach the plan, and lets the founder approve", async () => {
+  await openSell(writingPlan({ fixed: false }));
+  expect(container.querySelector("aside")?.textContent).toContain(
+    "Cuso will fix this and update your plan.",
+  );
+  expect(button("Looks like us").disabled).toBe(false);
+});
+
+it("holds Looks like us while Cuso runs a fix", async () => {
+  await openSell({
+    ...writingPlan({ fixed: false }),
+    work: work("strategy", { change: "fix" }),
+  });
+  expect(container.querySelector("aside")?.textContent).toContain(
+    "Cuso is fixing this now.",
+  );
+  expect(button("Cuso is updating").disabled).toBe(true);
+});
+
+it("wires the Brand step's fixes to Core's fix queue", async () => {
+  const fixBrandSection = vi.fn(async () => null);
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={writingPlan()}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actionsFor({ fixBrandSection })}
+      />,
+    ),
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")]
+      .find((tile) => tile.textContent?.startsWith("What you sell"))
+      ?.click(),
+  );
+  typeInto(
+    container.querySelector<HTMLInputElement>("#ob-tell"),
+    "Rocket Pro costs $149",
+  );
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")]
+      .find((candidate) => candidate.textContent === "Send")
+      ?.click(),
+  );
+  expect(fixBrandSection).toHaveBeenCalledWith(
+    "offer",
+    "Rocket Pro costs $149",
+  );
 });
 
 it("resets the section editor when switching brand tiles", async () => {
@@ -514,6 +713,28 @@ async function renderPlan(
 const planHidden = () =>
   container.querySelector(".ob-plan-body")?.hasAttribute("hidden");
 const replanning = () => text().includes("Cuso is re-planning your month");
+
+it("keeps the plan on screen and says Cuso is changing it while a brand fix patches it", async () => {
+  await act(async () =>
+    root.render(
+      <PlanStep
+        overview={draft({
+          viewerCanApprove: true,
+          work: work("strategy", { change: "fix" }),
+        })}
+        phase="review"
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    ),
+  );
+  expect(planHidden()).toBe(false);
+  expect(text()).toContain("Cuso is changing it");
+});
 
 it("swaps the plan for a re-planning screen the moment a pace is tapped", async () => {
   const core = pending();

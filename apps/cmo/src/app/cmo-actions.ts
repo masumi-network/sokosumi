@@ -21,6 +21,7 @@ import {
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
   finalizeCmoSocialConnectionForProject,
+  fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoOverviewForProject,
@@ -58,6 +59,7 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
+import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
@@ -295,6 +297,24 @@ export async function answerBrandQuestion(
   });
   if (error) throw new Error(errorText(error, "Could not save the answer"));
   return requireOverview(projectId);
+}
+
+/**
+ * The owner corrects one Brand Brain section. Core keeps the fix on it, and
+ * Cuso rewrites the section (and fits the plan to it) now, or once the turn
+ * he is in ends. Core's refusal, or null.
+ */
+export async function fixBrandSection(
+  projectId: string,
+  section: BrandSectionKey,
+  note: string,
+): Promise<string | null> {
+  const { error } = await fixCmoBrandSectionForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { section, note },
+  });
+  return error ? errorText(error, "Could not send that fix") : null;
 }
 
 /** One answer to one of the newest plan's yes/no questions. */

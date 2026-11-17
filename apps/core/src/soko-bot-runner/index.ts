@@ -20,10 +20,22 @@ import { createGateway, stepCountIs, type ToolSet, tool } from "ai";
 // Relative: the runner's own bundle has no `@/` alias.
 import { emitCoreError, initCoreLogger } from "../lib/evlog";
 import {
+  logRunnerDiagnostic,
+  RUNNER_ERROR_NAMES,
+  type RunnerDiagnostic,
+} from "../lib/soko-bot/runner-log-events";
+import {
   MODEL_CALL_MAX_MS,
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
 
+import {
+  partTools,
+  TURN_PART_MAX_MS,
+  TURN_PART_MAX_STEPS,
+  type TurnPart,
+  withPartHandOvers,
+} from "../lib/soko-bot/turn-parts";
 import { searchWeb } from "../lib/soko-bot/web-search";
 import {
   citableSources,
@@ -48,6 +60,8 @@ interface TurnStart {
   maxSteps: number;
   /** A background run: keep working until it reports DONE. */
   background?: boolean;
+  /** Briefs to run side by side before the message; an older Core sends none. */
+  parts?: TurnPart[];
 }
 
 class CoreRejected extends Error {
@@ -179,6 +193,39 @@ async function sandboxTool<T>(
 }
 
 const ACTION_OUTPUT_LIMIT = 8_000;
+
+/**
+ * Logs a runner event here and hands it, as a diagnostic of closed-set
+ * fields and never the error's text, to the supervisor, which carries it to
+ * Core in its failure report. Resolves once the supervisor has it, so the
+ * runner can exit right after; IPC to the parent process is local.
+ */
+async function reportRunnerEvent(
+  event: RunnerDiagnostic["event"],
+  error: unknown,
+): Promise<void> {
+  // Core drops a diagnostic with a kind it does not know.
+  const kind =
+    error instanceof CoreRejected
+      ? Object.values(CORE_API_ERROR_KINDS).find(
+          (known) => known === error.kind,
+        )
+      : undefined;
+  const errorName = RUNNER_ERROR_NAMES.find(
+    (name) => error instanceof Error && error.name === name,
+  );
+  const fields: Omit<RunnerDiagnostic, "event"> = {
+    ...(error instanceof CoreRejected
+      ? { coreResponse: { status: error.status, ...(kind ? { kind } : {}) } }
+      : {}),
+    ...(errorName ? { errorName } : {}),
+  };
+  const diagnostic: RunnerDiagnostic = { event, ...fields };
+  logRunnerDiagnostic({ turnId }, diagnostic, error);
+  await new Promise<void>((resolve) => {
+    if (!process.send?.(diagnostic, () => resolve())) resolve();
+  });
+}
 
 const plan: { step: string; status: string }[] = [];
 
@@ -365,20 +412,10 @@ async function main(): Promise<void> {
   try {
     start = await callCore<TurnStart>("/start", {});
   } catch (error) {
-    // On stderr like any error event, so the supervisor's failure report
-    // still quotes it.
-    emitCoreError(
-      { operation: "soko_bot_runner", turnId },
-      {
-        message: "A Soko Bot turn could not start in its sandbox",
-        why: "Core refused or did not answer the runner's start call",
-        fix: "coreResponse has Core's status and kind; Core's log for the start call has the rest.",
-        cause: error,
-      },
-      error instanceof CoreRejected
-        ? { coreResponse: { status: error.status, kind: error.kind } }
-        : {},
-    );
+    // On the sandbox's stdout, which nothing reads (no NODE_ENV there, so
+    // evlog prints it pretty); the supervisor's failure report carries the
+    // diagnostic to Core instead.
+    await reportRunnerEvent("start_failed", error);
     process.exit(1);
   }
   // The model id header is checked by Core; the key is Core's, not ours.
@@ -396,14 +433,32 @@ async function main(): Promise<void> {
     const tools = buildTools(start.capabilities, gateway, start.model, {
       forSubagent: false,
     });
+    const deadline = Date.now() + budgetMs;
+    const message = await withPartHandOvers(
+      start.message,
+      start.parts ?? [],
+      async (part) =>
+        (
+          await runTurnLoop({
+            model: gateway(start.model),
+            system: start.system,
+            message: part.message,
+            tools: partTools(tools, part),
+            maxSteps: TURN_PART_MAX_STEPS,
+            background: false,
+            deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
+            stopped: stopped.signal,
+          })
+        ).text,
+    );
     const { text, finishReason, steps } = await runTurnLoop({
       model: gateway(start.model),
       system: start.system,
-      message: start.message,
+      message,
       tools,
       maxSteps: start.maxSteps,
       background: Boolean(start.background),
-      deadline: Date.now() + budgetMs,
+      deadline,
       stopped: stopped.signal,
     });
     await callCore("/complete", {
@@ -430,6 +485,8 @@ async function main(): Promise<void> {
 // The first process only watches a second one that runs the turn, so a
 // runner that dies without a word still fails its turn at once.
 if (process.env.SOKO_BOT_RUNNER_CHILD) {
+  // The supervisor's channel must not keep a finished runner alive.
+  process.channel?.unref();
   await main();
 } else {
   const child = spawn(
@@ -437,7 +494,8 @@ if (process.env.SOKO_BOT_RUNNER_CHILD) {
     [...process.execArgv, process.argv[1] ?? ""],
     {
       env: { ...process.env, SOKO_BOT_RUNNER_CHILD: "1" },
-      stdio: ["ignore", "inherit", "pipe"],
+      // IPC: the runner's diagnostic for the failure report.
+      stdio: ["ignore", "inherit", "pipe", "ipc"],
     },
   );
   process.exit(

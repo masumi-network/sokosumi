@@ -4,10 +4,12 @@ export {
   CMO_MEASUREMENT_SOURCES,
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_RESEARCH_GROUPS,
   type CmoMeasurementSource,
   type CmoReportUpdateInput,
   type CmoSaveBrandBrainInput,
   type CmoStrategySave,
+  type CmoStrategySavePart,
   type CmoSystemSchedule,
   cmoBrandQuestionsPatchSchema,
   cmoMayExecute,
@@ -258,6 +260,7 @@ export {
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,
+  networkAudiences,
   renderWritingSkill,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,

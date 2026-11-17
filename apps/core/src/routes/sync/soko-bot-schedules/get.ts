@@ -30,7 +30,6 @@ export default function mount(app: Hono) {
                     emitCoreError(
                       {
                         operation: "soko_bot_schedule_reconciliation",
-                        sync: { runId: context.runId },
                         turn: { id: turnId },
                       },
                       {
@@ -56,13 +55,13 @@ export default function mount(app: Hono) {
 }
 
 /** What the purge removed goes on the run's event, next to its counts. */
-async function purgeSchedules({ log, runId }: SyncRunContext) {
+async function purgeSchedules({ log }: SyncRunContext) {
   try {
     const purged = await purgeSokoBotSchedules();
     log.set({ result: { purged } });
   } catch (error) {
     emitCoreError(
-      { operation: "soko_bot_schedule_purge", sync: { runId } },
+      { operation: "soko_bot_schedule_purge" },
       {
         message: "Could not purge spent Soko Bot schedules",
         why: "The database delete of spent schedules failed",

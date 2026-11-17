@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const {
   getRedisClientMock,
@@ -18,7 +18,7 @@ vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   clearPendingResponseMirror,
   coworkerPendingResponseRedisKey,
@@ -113,11 +113,23 @@ describe("coworker-pending-response-mirror", () => {
   });
 
   it("swallows expire errors without throwing", async () => {
-    expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "[coworker-pending-response-mirror] Failed to renew pending mirror",
+      "A coworker's pending response mirror could not be updated",
+      ["Refreshing the expiry of the pending response mirror in Redis failed"],
     );
-    redisExpireMock.mockRejectedValueOnce(new Error("redis down"));
+    onTestFinished(() => {
+      expect(errors[0]?.cause).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        mirror: { action: "renew" },
+        failure: { errorName: "Error" },
+      });
+      // ioredis quotes the server's or a proxy's reply.
+      expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
+    });
+    redisExpireMock.mockRejectedValueOnce(
+      new Error("ERR proxy reply: 'Ada private note'"),
+    );
     await expect(
       renewPendingResponseMirror(ROOM_SCOPE),
     ).resolves.toBeUndefined();

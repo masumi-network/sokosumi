@@ -148,7 +148,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
       // cards count: the task page stays in the DOM, hidden, and its Auto
       // tags section can say "No tags yet".
       await page
-        .getByRole("button", { name: "Back to tasks" })
+        .getByRole("link", { name: "Back to tasks" })
         .or(page.getByRole("link", { name: "Back", exact: true }))
         .filter({ visible: true })
         .click();

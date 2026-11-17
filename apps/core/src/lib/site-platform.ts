@@ -43,6 +43,11 @@ export async function readHomepage(
   }
 }
 
+/** The homepage's HTML; null when it cannot be read. */
+export async function readHomepageHtml(rawUrl: string): Promise<string | null> {
+  return (await readHomepage(rawUrl))?.html ?? null;
+}
+
 /** Reads the homepage once; null when it cannot be read, so a later try can. */
 export async function detectSitePlatform(
   rawUrl: string,

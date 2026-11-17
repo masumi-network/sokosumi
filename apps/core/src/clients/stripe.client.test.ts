@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
   stripeConstructorMock,
@@ -324,6 +325,44 @@ describe("stripeClient", () => {
       currency: "eur",
     });
   });
+
+  it.each([
+    [
+      "product id",
+      "Stripe did not return a credit price",
+      "Reading the credit product's price from Stripe failed",
+    ],
+    [
+      "lookup key",
+      "Stripe did not return a credit price for a lookup key",
+      "Reading the credit price for a lookup key from Stripe failed",
+    ],
+  ])(
+    "keeps Stripe's answer out of the log for a price by %s",
+    async (by, message, why) => {
+      const errors = expectCoreLogWhys("error", message, [why]);
+      const stripeError = Object.assign(
+        new Error("No such price: 'Ada private pricing note'"),
+        { statusCode: 404 },
+      );
+      stripeProductsRetrieveMock.mockRejectedValue(stripeError);
+      stripePricesListMock.mockRejectedValue(stripeError);
+      const { stripeClient } = await import("./stripe.client");
+
+      await expect(
+        by === "product id"
+          ? stripeClient.getPriceByProductId("prod_credit")
+          : stripeClient.getPriceByLookupKey("credits_100" as never),
+      ).rejects.toBe(stripeError);
+
+      expect(errors[0]?.cause).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        provider: "stripe",
+        failure: { errorName: "Error", status: 404 },
+      });
+      expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
+    },
+  );
 
   it("creates credit checkout sessions with the configured web origin only", async () => {
     stripeCheckoutSessionsCreateMock.mockResolvedValue({
