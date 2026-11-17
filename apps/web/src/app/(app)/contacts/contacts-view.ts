@@ -16,6 +16,7 @@ export const CONTACT_PRESETS = {
   all: {},
   mine: { knownByMe: "true" },
   recent: { createdWithinDays: 14 },
+  archived: { archived: "true" },
 } satisfies Record<string, Partial<ContactQuery>>;
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
@@ -477,8 +478,9 @@ export function smartFilterOf(
   /** The open list's kind, when a list is open. */
   listKind?: "manual" | "smart",
 ) {
-  // A smart list's own filter cannot be combined here; offer nothing.
-  if (listKind === "smart") return null;
+  // A smart list's own filter cannot be combined here, and a list never holds
+  // archived people; offer nothing.
+  if (listKind === "smart" || view.view === "archived") return null;
   const listed = isUuidString(view.view) ? [view.view] : null;
   const filter = {
     ...(view.view === "mine" ? { knownByMe: true } : {}),

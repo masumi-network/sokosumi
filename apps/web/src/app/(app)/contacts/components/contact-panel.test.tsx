@@ -12,12 +12,15 @@ import { ContactPanel } from "./contact-panel";
 
 // The service is a plain delegate, not the spy itself: Vitest fails a test
 // whose spy returned a rejected promise, even when the component catches it.
-const { createList, changeMembers, member, toastError } = vi.hoisted(() => ({
-  createList: vi.fn(),
-  changeMembers: vi.fn(),
-  member: { current: (): Promise<unknown> => Promise.resolve() },
-  toastError: vi.fn(),
-}));
+const { createList, changeMembers, member, toastError, unarchive } = vi.hoisted(
+  () => ({
+    createList: vi.fn(),
+    unarchive: vi.fn(),
+    changeMembers: vi.fn(),
+    member: { current: (): Promise<unknown> => Promise.resolve() },
+    toastError: vi.fn(),
+  }),
+);
 
 const LENA = {
   id: "c-1",
@@ -35,10 +38,16 @@ const LENA = {
   createdAt: "2026-11-12T07:00:00.000Z",
   updatedAt: "2026-11-12T07:00:00.000Z",
 } as unknown as ContactDetail;
+/** The contact Core returns; a test may swap in an archived one. */
+const shown = { current: LENA };
 
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: {
-    get: () => Promise.resolve(LENA),
+    get: () => Promise.resolve(shown.current),
+    unarchive: (id: string) => {
+      unarchive(id);
+      return Promise.resolve();
+    },
     interactions: () => Promise.resolve({ items: [], nextCursor: null }),
     activity: () => Promise.resolve({ items: [], nextCursor: null }),
     duplicates: () => Promise.resolve({ groups: [] }),
@@ -186,5 +195,28 @@ describe("ContactPanel lists menu", () => {
     ).toHaveAttribute("aria-busy", "true");
     answer();
     await waitFor(() => expect(option).not.toHaveAttribute("aria-busy"));
+  });
+});
+
+describe("ContactPanel archived contact", () => {
+  beforeEach(() => {
+    shown.current = LENA;
+    unarchive.mockReset();
+  });
+
+  it("says the contact is archived and restores it in place", async () => {
+    shown.current = {
+      ...LENA,
+      archivedAt: "2026-11-10T07:00:00.000Z",
+    } as unknown as ContactDetail;
+    await renderPanel();
+    expect(screen.getByText("panel.archivedOn")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "panel.restore" }));
+    expect(unarchive).toHaveBeenCalledExactlyOnceWith("c-1");
+  });
+
+  it("shows no archived notice for a live contact", async () => {
+    await renderPanel();
+    expect(screen.queryByText("panel.archivedOn")).toBeNull();
   });
 });

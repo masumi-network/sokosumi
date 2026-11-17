@@ -90,6 +90,7 @@ import { ImportContactsDialog } from "./import-contacts-dialog";
 import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
+import { useContactArchive } from "./use-contact-archive";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
@@ -131,6 +132,7 @@ export function ContactsWorkspace({
   const cache = useQueryClient();
   const update = useContactUpdate();
   const setImportance = useImportanceUpdate();
+  const restore = useContactArchive({ restore: true });
   const [view, setView] = useQueryState(
     "list",
     parseAsString.withDefault("all"),
@@ -671,6 +673,18 @@ export function ContactsWorkspace({
                         </Button>
                       ) : undefined
                     }
+                  />
+                ) : view === "archived" ? (
+                  // Archived people are read-only: no editable grid, no bulk
+                  // actions, one Restore per row.
+                  <ContactsList
+                    contacts={contacts}
+                    onOpen={open}
+                    onRestore={(contact) => void restore(contact, () => {})}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
                   />
                 ) : (
                   <>

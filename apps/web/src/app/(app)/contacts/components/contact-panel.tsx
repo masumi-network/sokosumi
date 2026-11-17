@@ -13,6 +13,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  Archive,
+  ArchiveRestore,
   AtSign,
   Bot,
   Building2,
@@ -306,6 +308,17 @@ function PanelBody({
   }
 
   const archive = useContactArchive();
+  const restore = useContactArchive({ restore: true });
+  const [restoring, setRestoring] = useState(false);
+  async function handleRestore() {
+    setRestoring(true);
+    try {
+      // The panel stays open on the contact, now live again.
+      await restore(contact, () => {});
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   const subtitle = [contact.role, contact.organization]
     .filter(Boolean)
@@ -467,17 +480,50 @@ function PanelBody({
                 ? t("panel.markOrganization")
                 : t("panel.markPerson")}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => void archive(contact, onClose)}
-            >
-              <Trash2 aria-hidden className="size-4" />
-              {t("panel.archive")}
-            </DropdownMenuItem>
+            {contact.archivedAt ? null : (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => void archive(contact, onClose)}
+                >
+                  <Trash2 aria-hidden className="size-4" />
+                  {t("panel.archive")}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      {contact.archivedAt ? (
+        <div className="px-6 pb-5">
+          <Alert className="border-border bg-muted">
+            <Archive aria-hidden className="size-4" />
+            <AlertDescription className="grid gap-2">
+              <p className="text-foreground text-sm">
+                {t("panel.archivedOn", {
+                  date: format.dateTime(new Date(contact.archivedAt), {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  }),
+                })}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-fit"
+                loading={restoring}
+                onClick={() => void handleRestore()}
+              >
+                <ArchiveRestore aria-hidden className="size-4" />
+                {t("panel.restore")}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      ) : null}
 
       {contact.mergeSuggestions.length ? (
         <MergeBanner
