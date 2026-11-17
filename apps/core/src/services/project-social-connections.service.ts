@@ -600,29 +600,33 @@ export async function finalizeProjectSocialConnection(
             data: { socialConnectionId: connection.id },
           });
         }
-        if (currentIntent.action === "connect") {
-          // Disconnecting retires the row for good, so connecting the same
-          // account again makes a new one. Unsent posts follow the account
-          // there, or they stay flagged for a reconnect that cannot happen.
-          await tx.socialPost.updateMany({
-            where: {
-              projectId: input.projectId,
-              status: { in: [...RECONNECT_SENSITIVE_POST_STATUSES] },
-              socialConnection: {
-                status: "disconnected",
-                provider: currentIntent.provider,
-                externalAccountId: {
-                  in: externalAccountIdVariants(
-                    currentIntent.provider,
-                    identity.id,
-                  ),
-                },
-              },
-            },
-            data: { socialConnectionId: connection.id },
-          });
-        }
       }
+
+      // Disconnecting retires a row for good, so the same account comes back
+      // on a new row, or on another row that a reconnect just activated.
+      // Unsent posts follow the account there, or they stay flagged for a
+      // reconnect that cannot happen. The revision bump makes a publisher
+      // that read the retired connection lose its claim.
+      await tx.socialPost.updateMany({
+        where: {
+          projectId: input.projectId,
+          status: { in: [...RECONNECT_SENSITIVE_POST_STATUSES] },
+          socialConnection: {
+            status: "disconnected",
+            provider: currentIntent.provider,
+            externalAccountId: {
+              in: externalAccountIdVariants(
+                currentIntent.provider,
+                identity.id,
+              ),
+            },
+          },
+        },
+        data: {
+          socialConnectionId: connection.id,
+          revision: { increment: 1 },
+        },
+      });
 
       await tx.projectSocialConnectionAudit.create({
         data: {

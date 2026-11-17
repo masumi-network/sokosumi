@@ -1765,7 +1765,7 @@ describe("project social connections service", () => {
       connectionId: CONNECTION_ID,
     });
 
-    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(2);
     expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
       where: {
         projectId: PROJECT_ID,
@@ -1828,7 +1828,53 @@ describe("project social connections service", () => {
           externalAccountId: { in: ["123"] },
         },
       },
-      data: { socialConnectionId: newConnectionId },
+      data: {
+        socialConnectionId: newConnectionId,
+        revision: { increment: 1 },
+      },
+    });
+  });
+
+  it("moves unsent posts off a retired row when a reconnect activates the account's newer row", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionFindFirstMock.mockResolvedValue(socialConnection);
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...socialConnection,
+      composioConnectedAccountId: CONNECTION_ID,
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        status: {
+          in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"],
+        },
+        socialConnection: {
+          status: "disconnected",
+          provider: "x",
+          externalAccountId: { in: ["123"] },
+        },
+      },
+      data: {
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        revision: { increment: 1 },
+      },
     });
   });
 
