@@ -13,6 +13,7 @@ import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { linkText } from "@/lib/soko-bot/action-response-targets";
+import { startTaskSummaryTurn } from "@/services/task-interest-summary";
 
 /**
  * How far back each tick looks for moments. The ledger, not a cursor, makes
@@ -69,6 +70,8 @@ export interface TaskMoment {
   /** When it happened. Null for overdue, which reaches anyone following. */
   at: Date | null;
   actorUserId: string | null;
+  /** The Soko Bot that wrote a status event, if one did. */
+  actorSokoBotId?: string | null;
   writerName?: string | null;
   from?: Date;
   to?: Date;
@@ -78,6 +81,8 @@ export interface TaskMoment {
 export interface TaskInterestSyncResult {
   moments: number;
   sent: number;
+  /** Summaries held back by the daily cap, credits or a busy bot. */
+  deferred: number;
   failed: number;
 }
 
@@ -136,6 +141,7 @@ async function statusMoments(
         taskId: true,
         status: true,
         userId: true,
+        sokoBotId: true,
         createdAt: true,
         user: { select: { name: true } },
         coworker: { select: { name: true } },
@@ -153,6 +159,7 @@ async function statusMoments(
         eventId: event.id,
         at: event.createdAt,
         actorUserId: event.userId,
+        actorSokoBotId: event.sokoBotId,
         writerName:
           event.sokoBot?.name ?? event.coworker?.name ?? event.user?.name,
       });
@@ -350,6 +357,7 @@ async function sendSokoBotNotice(
 async function deliverMoment(
   moment: TaskMoment,
   now: Date,
+  abortSignal: AbortSignal,
   result: TaskInterestSyncResult,
 ): Promise<void> {
   const task = await prisma.task.findUnique({
@@ -440,15 +448,42 @@ async function deliverMoment(
     });
     if (count === 0) continue;
 
+    const release = () =>
+      prisma.taskMomentDelivery.deleteMany({
+        where: { userId: recipient.userId, momentKey: moment.key },
+      });
     try {
-      const botPosted = followingBot
-        ? await sendSokoBotNotice(
-            moment,
-            task,
-            recipient.userId,
-            followingBot.id,
-          )
-        : false;
+      let botPosted = false;
+      if (followingBot && moment.kind === "completed") {
+        const outcome = await startTaskSummaryTurn({
+          momentKey: moment.key,
+          task: {
+            id: task.id,
+            workspaceId: task.workspaceId,
+            identifier: formatTaskIdentifier(
+              task.project?.identifier,
+              task.number,
+            ),
+          },
+          userId: recipient.userId,
+          sokoBotId: followingBot.id,
+          completedBySokoBotId: moment.actorSokoBotId ?? null,
+          abortSignal,
+        });
+        if (outcome === "deferred") {
+          await release();
+          result.deferred += 1;
+          continue;
+        }
+        botPosted = outcome !== "gone";
+      } else if (followingBot) {
+        botPosted = await sendSokoBotNotice(
+          moment,
+          task,
+          recipient.userId,
+          followingBot.id,
+        );
+      }
       if (!botPosted) {
         if (followingBot) {
           // The bot went away between the read and the post.
@@ -462,9 +497,7 @@ async function deliverMoment(
       result.sent += 1;
     } catch (error) {
       // Release the claim so the next tick tries again.
-      await prisma.taskMomentDelivery.deleteMany({
-        where: { userId: recipient.userId, momentKey: moment.key },
-      });
+      await release();
       result.failed += 1;
       Sentry.captureException(error, {
         extra: {
@@ -518,11 +551,17 @@ async function openMoments(moments: TaskMoment[]): Promise<TaskMoment[]> {
  */
 export async function syncTaskInterest(input: {
   shouldContinue: () => boolean;
+  abortSignal: AbortSignal;
   now?: Date;
 }): Promise<TaskInterestSyncResult> {
   const now = input.now ?? new Date();
   const since = new Date(now.getTime() - LOOKBACK_MS);
-  const result: TaskInterestSyncResult = { moments: 0, sent: 0, failed: 0 };
+  const result: TaskInterestSyncResult = {
+    moments: 0,
+    sent: 0,
+    deferred: 0,
+    failed: 0,
+  };
 
   const moments = await openMoments([
     ...(await statusMoments(await participantTaskIds(since), since)),
@@ -536,7 +575,7 @@ export async function syncTaskInterest(input: {
     if (!input.shouldContinue()) break;
     result.moments += 1;
     try {
-      await deliverMoment(moment, now, result);
+      await deliverMoment(moment, now, input.abortSignal, result);
     } catch (error) {
       result.failed += 1;
       Sentry.captureException(error, {

@@ -88,6 +88,7 @@ export {
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotSystemSchedule,
   sokoBotSystemSchedulePrompt,
+  sokoBotTaskSummaryPrompt,
   upcomingFollowUps,
 } from "./proactive.js";
 export {

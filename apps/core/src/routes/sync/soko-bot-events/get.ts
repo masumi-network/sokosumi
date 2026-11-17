@@ -28,6 +28,7 @@ export default function mount(app: Hono) {
           console.info("[sync/soko-bot-events] Checked waits", watches);
         if (!context.shouldContinue()) return;
         const interest = await syncTaskInterest({
+          abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
         if (interest.moments)

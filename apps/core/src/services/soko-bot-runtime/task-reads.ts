@@ -1,5 +1,6 @@
 import { type Prisma } from "@sokosumi/database";
 import { sokoBotListTasksInputSchema as listTasksInputSchema } from "@sokosumi/soko-bot";
+import { formatTaskIdentifier } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
@@ -13,6 +14,10 @@ import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { readSokoBotTaskOutcome } from "@/services/soko-bot-task-outcome.service";
 import { type AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
+
+/** A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day. */
+const calendarDay = (date: Date | null) =>
+  date ? date.toISOString().slice(0, 10) : null;
 
 /** The owner's board, filtered; `readTask` gives one Task in full. */
 export async function listTasks(
@@ -79,12 +84,14 @@ export async function listTasks(
         name: true,
         status: true,
         updatedAt: true,
+        dueOn: true,
+        number: true,
         ownerId: true,
         owner: { select: { name: true } },
         assignee: { select: { name: true } },
         assigneeUser: { select: { name: true } },
         assigneeSokoBot: { select: { name: true } },
-        project: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true, identifier: true } },
         events: {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
@@ -107,8 +114,10 @@ export async function listTasks(
       const latest = task.events[0];
       return {
         id: task.id,
+        identifier: formatTaskIdentifier(task.project?.identifier, task.number),
         name: task.name,
         status: task.status,
+        dueOn: calendarDay(task.dueOn),
         owner: taskOwnerLabel(task, authorized.turn.actingUserId),
         assignee: task.assignee
           ? { kind: "coworker", name: task.assignee.name }
@@ -117,7 +126,9 @@ export async function listTasks(
             : task.assigneeSokoBot
               ? { kind: "assistant", name: task.assigneeSokoBot.name }
               : null,
-        project: task.project,
+        project: task.project
+          ? { id: task.project.id, name: task.project.name }
+          : null,
         idleDays: Math.floor((now - task.updatedAt.getTime()) / DAY_MS),
         updatedAt: task.updatedAt.toISOString(),
         ...(charged.has(task.id)
@@ -176,10 +187,12 @@ export async function readTask(
       status: true,
       archivedAt: true,
       updatedAt: true,
+      dueOn: true,
+      number: true,
       owner: { select: { name: true } },
       assignee: { select: { id: true, name: true } },
       assigneeSokoBot: { select: { id: true, name: true } },
-      project: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true, identifier: true } },
       events: {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 8,
@@ -252,6 +265,7 @@ export async function readTask(
           : "system";
   return {
     id: task.id,
+    identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
     ownerId: task.ownerId,
     owner: taskOwnerLabel(task, ownerId),
@@ -263,8 +277,11 @@ export async function readTask(
     archivedAt: task.archivedAt,
     description: task.description,
     assignee: task.assignee ?? task.assigneeSokoBot,
-    project: task.project,
+    project: task.project
+      ? { id: task.project.id, name: task.project.name }
+      : null,
     updatedAt: task.updatedAt,
+    dueOn: calendarDay(task.dueOn),
     creditsCharged: roundCredits(
       (await taskCreditsCharged([task.id])).get(task.id) ?? 0,
     ),

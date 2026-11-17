@@ -14,17 +14,22 @@ import prisma from "@/lib/db/prisma";
 
 import { syncTaskInterest } from "./task-interest-delivery.service";
 
-// Outbound side effects only: the row, the push and the chat post. Selection,
-// channel choice and the ledger run against the real database.
+// Outbound side effects only: the row, the push, the chat post and the
+// model turn. Selection, channel choice and the ledger run against the real
+// database.
 const mocks = vi.hoisted(() => ({
   createNotification: vi.fn(),
   postSokoBotOwnerNotice: vi.fn(),
+  startTaskSummaryTurn: vi.fn(),
 }));
 vi.mock("@/helpers/notifications", () => ({
   createNotification: mocks.createNotification,
 }));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   postSokoBotOwnerNotice: mocks.postSokoBotOwnerNotice,
+}));
+vi.mock("@/services/task-interest-summary", () => ({
+  startTaskSummaryTurn: mocks.startTaskSummaryTurn,
 }));
 
 const enabled =
@@ -44,7 +49,12 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const followerBotId = randomUUID();
 const archivedBotId = randomUUID();
-const shouldContinue = () => true;
+const tick = (now?: Date) =>
+  syncTaskInterest({
+    shouldContinue: () => true,
+    abortSignal: new AbortController().signal,
+    now,
+  });
 
 const bellUsers = () =>
   mocks.createNotification.mock.calls.map(([input]) => input.userId).sort();
@@ -135,6 +145,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     vi.clearAllMocks();
     mocks.createNotification.mockResolvedValue({ created: true });
     mocks.postSokoBotOwnerNotice.mockResolvedValue({ messageId: "msg" });
+    mocks.startTaskSummaryTurn.mockResolvedValue("started");
   });
 
   afterAll(async () => {
@@ -179,11 +190,15 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
       joinedAt: new Date(Date.now() + 60_000),
     });
 
-    await syncTaskInterest({ shouldContinue });
+    await tick();
 
-    expect(botUsers()).toEqual([followerBotId]);
-    expect(mocks.postSokoBotOwnerNotice.mock.calls[0]?.[0]).toMatchObject({
-      osBannerDefaultOn: true,
+    // Completed is the one moment the bot writes up as a summary.
+    expect(botUsers()).toEqual([]);
+    expect(mocks.startTaskSummaryTurn).toHaveBeenCalledTimes(1);
+    expect(mocks.startTaskSummaryTurn.mock.calls[0]?.[0]).toMatchObject({
+      userId: users.follower,
+      sokoBotId: followerBotId,
+      momentKey: `status:${event.id}`,
     });
     // The Owner's row shares the status dispatch's event id, so it is one row.
     expect(bellUsers()).toEqual(
@@ -211,9 +226,41 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     });
 
     vi.clearAllMocks();
-    await syncTaskInterest({ shouldContinue });
+    await tick();
     expect(mocks.createNotification).not.toHaveBeenCalled();
-    expect(mocks.postSokoBotOwnerNotice).not.toHaveBeenCalled();
+    expect(mocks.startTaskSummaryTurn).not.toHaveBeenCalled();
+  });
+
+  it("holds a summary the bot cannot start yet and starts it on a later tick", async () => {
+    const task = await createTask("Ship the report");
+    await follow(task.id, users.follower, {
+      subscribed: true,
+      joinedAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.COMPLETED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.COMPLETED },
+    });
+    mocks.startTaskSummaryTurn.mockResolvedValue("deferred");
+
+    expect((await tick()).deferred).toBe(1);
+    expect(
+      await prisma.taskMomentDelivery.count({ where: { taskId: task.id } }),
+    ).toBe(0);
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+
+    mocks.startTaskSummaryTurn.mockResolvedValue("started");
+    await tick();
+    expect(mocks.startTaskSummaryTurn).toHaveBeenCalledTimes(2);
+    expect(
+      await prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { channel: true },
+      }),
+    ).toEqual([{ channel: "SOKO_BOT" }]);
   });
 
   it("falls back to the bell when the bot is gone at post time, and retries a failed send", async () => {
@@ -237,7 +284,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
       return { created: true };
     });
 
-    await syncTaskInterest({ shouldContinue });
+    await tick();
 
     expect(bellUsers()).toEqual([users.follower, users.plain].sort());
     const afterFirst = await prisma.taskMomentDelivery.findMany({
@@ -249,7 +296,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
 
     vi.clearAllMocks();
     mocks.createNotification.mockResolvedValue({ created: true });
-    await syncTaskInterest({ shouldContinue });
+    await tick();
     expect(bellUsers()).toEqual([users.plain]);
   });
 
@@ -273,7 +320,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
       });
     }
 
-    await syncTaskInterest({ shouldContinue });
+    await tick();
 
     expect(
       mocks.createNotification.mock.calls.map(([input]) => [
@@ -295,21 +342,19 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     }).then((done) => follow(done.id, users.plain));
 
     // 13:45 UTC: 08:45 in New York, 14:45 in Berlin (the fallback).
-    await syncTaskInterest({
-      shouldContinue,
-      now: new Date("2026-11-17T13:45:00.000Z"),
-    });
+    await tick(new Date("2026-11-17T13:45:00.000Z"));
     expect(bellUsers()).toEqual([users.plain]);
     expect(botUsers()).toEqual([]);
 
     vi.clearAllMocks();
     mocks.postSokoBotOwnerNotice.mockResolvedValue({ messageId: "msg" });
     // 14:00 UTC is 09:00 in New York.
-    await syncTaskInterest({
-      shouldContinue,
-      now: new Date("2026-11-17T14:00:00.000Z"),
-    });
+    await tick(new Date("2026-11-17T14:00:00.000Z"));
     expect(botUsers()).toEqual([followerBotId]);
+    // Pushes like a Direct the follower never turned off.
+    expect(mocks.postSokoBotOwnerNotice.mock.calls[0]?.[0]).toMatchObject({
+      osBannerDefaultOn: true,
+    });
     expect(mocks.createNotification).not.toHaveBeenCalled();
   });
 });
