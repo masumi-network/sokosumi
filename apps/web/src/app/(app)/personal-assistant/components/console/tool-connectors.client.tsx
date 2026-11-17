@@ -37,6 +37,8 @@ const POPULAR_SHOWN = 6;
 /** A phone stacks one per row, so it shows fewer. */
 const POPULAR_SHOWN_ON_PHONE = 3;
 const SEARCH_DELAY_MS = 250;
+/** `searchSokoBotIntegrationCatalogAction` refuses a longer search. */
+const SEARCH_MAX_LENGTH = 100;
 
 interface Connector {
   provider: string;
@@ -50,7 +52,8 @@ interface Connector {
 /**
  * Composio's apps for a search; the empty search is the most used ones. Each
  * search keeps its own answer, so a slow one never lands on a newer search.
- * `settling` is true until the answer for what is typed now is in.
+ * `phase` is about what is typed now: an older or stale answer never stands
+ * in for it, and a failed search stays failed while Try again runs.
  */
 function useCatalog(query: string, enabled: boolean) {
   const [debounced, setDebounced] = useState(query);
@@ -70,12 +73,23 @@ function useCatalog(query: string, enabled: boolean) {
     },
     enabled,
     retry: false,
+    refetchOnWindowFocus: false,
     staleTime: 5 * 60_000,
   });
-  const settling =
-    query.trim() !== debounced.trim() ||
-    (catalog.isPending && catalog.fetchStatus !== "idle");
-  return { ...catalog, settling };
+  // A retry with no answer yet puts the query back to pending; its last
+  // outcome is still the failure.
+  const failed =
+    catalog.isError ||
+    (catalog.isFetching && catalog.errorUpdatedAt > catalog.dataUpdatedAt);
+  const phase: "searching" | "failed" | "done" =
+    query.trim() !== debounced.trim()
+      ? "searching"
+      : failed
+        ? "failed"
+        : catalog.isFetching
+          ? "searching"
+          : "done";
+  return { ...catalog, phase };
 }
 
 /**
@@ -101,6 +115,7 @@ export function ToolConnectors({
   const [query, setQuery] = useState(focusProvider ?? "");
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
@@ -161,7 +176,9 @@ export function ToolConnectors({
             className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
           />
           <Input
+            ref={searchInput}
             type="search"
+            maxLength={SEARCH_MAX_LENGTH}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("searchPlaceholder")}
@@ -170,8 +187,13 @@ export function ToolConnectors({
           />
         </div>
       )}
-      {searching && (catalog.settling || !catalog.data?.length) ? (
-        <SearchOutcome query={query.trim()} catalog={catalog} />
+      {searching && (catalog.phase !== "done" || !catalog.data?.length) ? (
+        <SearchOutcome
+          query={query.trim()}
+          catalog={catalog}
+          // The results replace Try again, so focus goes back to the search.
+          onFound={() => searchInput.current?.focus()}
+        />
       ) : (
         <ul
           className={cn(
@@ -231,13 +253,15 @@ export function ToolConnectors({
 function SearchOutcome({
   query,
   catalog,
+  onFound,
 }: {
   query: string;
   catalog: ReturnType<typeof useCatalog>;
+  onFound: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
-  if (catalog.settling) return <SearchPlaceholder query={query} />;
-  if (catalog.isError)
+  if (catalog.phase === "searching") return <SearchPlaceholder query={query} />;
+  if (catalog.phase === "failed")
     return (
       <LoadErrorState
         data-testid="app-search-error"
@@ -246,7 +270,9 @@ function SearchOutcome({
         retryLabel={t("tryAgain")}
         title={t("searchFailed")}
         variant="banner"
-        onRetry={() => void catalog.refetch()}
+        onRetry={async () => {
+          if (!(await catalog.refetch()).isError) onFound();
+        }}
       />
     );
   return (

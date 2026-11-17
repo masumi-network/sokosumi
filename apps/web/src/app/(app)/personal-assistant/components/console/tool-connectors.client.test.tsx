@@ -64,9 +64,10 @@ function renderConnectors(
   focusProvider: string | null = null,
   readOnly = false,
   onError?: (error: Error) => void,
+  client = new QueryClient(),
 ) {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <NextIntlClientProvider
         locale="en"
         timeZone="UTC"
@@ -248,6 +249,85 @@ describe("ToolConnectors", () => {
     expect(
       await screen.findByRole("button", { name: "Connect figma" }),
     ).toBeTruthy();
+    expect(screen.queryByTestId("app-search-error")).toBeNull();
+  });
+
+  it("shows a failed refresh of an old search, not its old cards", async () => {
+    const user = userEvent.setup();
+    const client = new QueryClient();
+    renderConnectors([], null, false, undefined, client);
+    const search = screen.getByRole("searchbox");
+    await user.type(search, "fig");
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+    await user.clear(search);
+    await screen.findByText("slack");
+    // Five minutes later the old answer is stale and Core is down.
+    await client.invalidateQueries();
+    let fail = (_value: unknown) => {};
+    searchCatalog.mockImplementation(
+      () => new Promise((resolve) => (fail = resolve)),
+    );
+
+    searchCatalog.mockClear();
+    await user.type(search, "fig");
+    await waitFor(() =>
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "fig" }),
+    );
+    // The refresh is running: the old cards wait behind the placeholder.
+    expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+    expect(screen.queryByText("figma")).toBeNull();
+    fail({ ok: false, error: "down" });
+
+    expect(await screen.findByTestId("app-search-error")).toBeTruthy();
+    expect(screen.queryByText("figma")).toBeNull();
+  });
+
+  it("keeps keyboard focus on Try again while it runs, then moves it to the search", async () => {
+    const user = userEvent.setup();
+    renderConnectors([]);
+    searchCatalog.mockResolvedValue({ ok: false, error: "down" });
+    await user.type(screen.getByRole("searchbox"), "fig");
+    const retry = within(
+      await screen.findByTestId("app-search-error"),
+    ).getByRole("button", { name: "Try again" });
+    let answer = (_value: unknown) => {};
+    searchCatalog.mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+
+    retry.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(retry).toHaveAttribute("aria-busy", "true"));
+    expect(retry).toBeInTheDocument();
+    expect(retry).toHaveFocus();
+    answer({ ok: false, error: "down" });
+    await waitFor(() => expect(retry).not.toHaveAttribute("aria-busy"));
+    expect(retry).toBeInTheDocument();
+    expect(retry).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    answer({ ok: true, value: catalog.filter((e) => e.provider === "figma") });
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("searchbox")).toHaveFocus());
+  });
+
+  it("takes no more than the 100 characters a search allows", async () => {
+    const user = userEvent.setup();
+    renderConnectors([]);
+    const search = screen.getByRole("searchbox");
+
+    await user.click(search);
+    await user.paste("a".repeat(101));
+
+    expect(search).toHaveValue("a".repeat(100));
+    await waitFor(() =>
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "a".repeat(100) }),
+    );
+    expect(await screen.findByText("Nothing found.")).toBeTruthy();
     expect(screen.queryByTestId("app-search-error")).toBeNull();
   });
 
