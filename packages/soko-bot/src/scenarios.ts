@@ -1127,6 +1127,8 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["find_style_references"],
       forbiddenTools: ["create_task", "hire_agent"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
       noInventedIds: true,
     },
   },
