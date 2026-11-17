@@ -245,7 +245,7 @@ export function FunnelPlan({
 }
 
 /** The funnel narrows from full width to this share at its last stage's end. */
-const FUNNEL_END = 40;
+const FUNNEL_END = 55;
 
 function funnelWidth(edge: number, stages: number): number {
   return 100 - (edge * (100 - FUNNEL_END)) / Math.max(stages, 1);

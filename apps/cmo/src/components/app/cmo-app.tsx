@@ -440,9 +440,15 @@ export function CmoApp({
           <div className="scroll">
             <div
               className={
-                view === "strategy" || view === "brain" ? undefined : "panel"
+                view === "strategy" || view === "brain" ? undefined : "page"
               }
             >
+              {PAGE_LEADS[view] ? (
+                <PageLead
+                  title={PAGE_LEADS[view].title}
+                  line={PAGE_LEADS[view].line}
+                />
+              ) : null}
               {view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
@@ -533,6 +539,35 @@ export function CmoApp({
         )}
       </main>
     </div>
+  );
+}
+
+/** The head of a page, as onboarding's steps lead: what it is, in one line. */
+const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
+  calendar: {
+    title: "Your month",
+    line: `Every piece ${AGENT_NAME} makes. Each one opens once it is made.`,
+  },
+  results: {
+    title: "How it's going",
+    line: "Real numbers from your accounts, checked every Monday.",
+  },
+  channels: {
+    title: "Where I post",
+    line: "Connect a network and I post there on your plan's schedule.",
+  },
+  settings: {
+    title: "Settings",
+    line: `Your plan, your credits and when ${AGENT_NAME} works.`,
+  },
+};
+
+function PageLead({ title, line }: { title: string; line: string }) {
+  return (
+    <header className="page-lead">
+      <h1 className="ob-h1">{title}</h1>
+      <p className="muted">{line}</p>
+    </header>
   );
 }
 

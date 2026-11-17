@@ -67,7 +67,7 @@
   justify-items: center;
   gap: 2px;
   min-height: 88px;
-  padding: 12px calc(var(--sc-in-bottom) + 12px);
+  padding: 12px calc(var(--sc-in-bottom) + 4px);
   background: var(--foreground);
   color: var(--background);
   text-align: center;

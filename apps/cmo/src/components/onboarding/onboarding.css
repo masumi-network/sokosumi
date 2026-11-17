@@ -283,6 +283,25 @@ body:has(.ob) .site-header {
   flex: none;
 }
 
+/* The sidebar's scene: as wide as its column, shorter, a smaller label. */
+.ob-scene-compact {
+  width: auto;
+  height: 176px;
+}
+
+.ob-scene-compact .ob-scene-now {
+  bottom: 24px;
+  max-width: calc(100% - 16px);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+/* He needs the owner: the label calls out on Iris. */
+.ob-scene-call {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
 /* The wait: a short ink run along a card track, over and over. */
 .ob-scene-bar {
   position: absolute;

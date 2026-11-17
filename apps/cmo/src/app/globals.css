@@ -851,13 +851,15 @@ textarea {
 }
 
 /* Cuso's status card, above the person row. */
+/* Cuso, always in view: his scene loops on the pink stage. */
 .cuso-status {
-  display: flex;
+  display: grid;
   flex: none;
-  align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0 12px 12px;
-  padding: 10px 12px;
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
 button.cuso-status {
@@ -871,19 +873,8 @@ button.cuso-status {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 0 4px;
   line-height: 1.3;
-}
-
-/* Needs you: the one pose labelled on Iris. */
-.cuso-status-iris {
-  align-self: flex-start;
-  padding: 0 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-mark);
-  background: var(--primary);
-  color: var(--primary-foreground);
-  font-size: 0.75rem;
-  font-weight: 500;
 }
 
 .cuso-status-name {
@@ -1497,6 +1488,54 @@ button.cuso-status {
 .page-body > .alert {
   border: 1px solid var(--line);
   background: var(--card);
+}
+
+/*
+ * An app page, as the onboarding steps look: one centred column under a lead,
+ * sections on the soft surface, and a white card only where the owner acts.
+ */
+.page {
+  display: grid;
+  gap: 24px;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.page-lead {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.page-lead h1,
+.page-lead p {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.page h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.page .page-body {
+  gap: 16px;
+}
+
+.page .page-body > .card:not(.card-focus),
+.page .cal-head,
+.page .kpi {
+  border-color: transparent;
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.page .page-body > .card {
+  padding: 20px 24px;
 }
 
 /* A section of an app page: one card on the panel. */
@@ -2891,7 +2930,7 @@ button.cuso-status {
   height: 100%;
   overflow: hidden;
   padding: 8px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--card);
   color: inherit;
@@ -2899,6 +2938,10 @@ button.cuso-status {
   text-align: left;
   cursor: pointer;
   transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+button.cal-card:hover {
+  border-color: var(--line);
 }
 
 .cal-thumb {
@@ -2984,7 +3027,7 @@ button.cuso-status {
 .cal-making-lines span {
   height: 8px;
   border-radius: var(--radius-mark);
-  background: var(--surface);
+  background: var(--border);
 }
 
 .cal-making-lines span:last-child {
