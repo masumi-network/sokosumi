@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BackLink } from "./back-link";
@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
-const FULL = { kind: "full" };
+const FULL = expect.objectContaining({ kind: "full" });
 
 // happy-dom does no layout: a link counts as rendered unless an ancestor has
 // `display: none` inline.
@@ -72,5 +72,60 @@ describe("BackLink", () => {
       ["/tasks?view=list", FULL],
       ["/tasks?view=board&assignee=me", FULL],
     ]);
+  });
+
+  describe("after a refresh drops the loaded parent", () => {
+    function dropLoad(call: number) {
+      const [, options] = routerPrefetchMock.mock.calls[call];
+      (options.onInvalidate as () => void)();
+    }
+
+    // The detail page refreshes itself right after a navigation, which drops
+    // the parent this link loaded as it showed.
+    it("loads it again while the link shows it", () => {
+      render(<BackLink href="/tasks?view=list">Back</BackLink>);
+
+      dropLoad(0);
+
+      expect(routerPrefetchMock.mock.calls).toEqual([
+        ["/tasks?view=list", FULL],
+        ["/tasks?view=list", FULL],
+      ]);
+    });
+
+    it("does not load it again once the link is gone", () => {
+      const { unmount } = render(<BackLink href="/tasks">Back</BackLink>);
+
+      unmount();
+      dropLoad(0);
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
+
+    // A resize can hand back to the other breakpoint's link.
+    it("does not load it again once the link is hidden", () => {
+      render(
+        <div data-testid="breakpoint">
+          <BackLink href="/tasks">Back</BackLink>
+        </div>,
+      );
+
+      screen.getByTestId("breakpoint").style.display = "none";
+      dropLoad(0);
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("does not load the old target again after the href changes", () => {
+      const { rerender } = render(<BackLink href="/tasks">Back</BackLink>);
+      rerender(<BackLink href="/tasks?view=list">Back</BackLink>);
+
+      dropLoad(0);
+
+      expect(routerPrefetchMock.mock.calls).toEqual([
+        ["/tasks", FULL],
+        ["/tasks?view=list", FULL],
+      ]);
+    });
   });
 });

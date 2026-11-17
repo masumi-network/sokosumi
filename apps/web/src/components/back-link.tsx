@@ -32,12 +32,19 @@ export function BackLink({ prefetchOnMount = true, ...props }: BackLinkProps) {
   const prefetchContent = canPrefetchRouteContent(href);
   const loadOnShow = prefetchContent && prefetchOnMount;
 
-  // A new `href` is a new ref, so each target loads once.
+  // A new `href` is a new ref, so each target loads as the link shows it. The
+  // page's own refresh after a navigation drops that load, so it loads again,
+  // up to a few times, while this link still shows the same target.
   const showRef = useCallback(
     (element: HTMLAnchorElement | null) => {
-      if (element && loadOnShow && isRendered(element)) {
-        prefetchRouteContent(router, href);
-      }
+      if (!element || !loadOnShow || !isRendered(element)) return;
+      let shown = true;
+      prefetchRouteContent(router, href, {
+        keepLoaded: () => shown && isRendered(element),
+      });
+      return () => {
+        shown = false;
+      };
     },
     [router, href, loadOnShow],
   );

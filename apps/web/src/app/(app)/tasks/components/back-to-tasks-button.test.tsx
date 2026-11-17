@@ -58,7 +58,7 @@ describe("BackToTasksButton", () => {
       expect(routerPrefetchMock).toHaveBeenCalled();
     });
     expect(routerPrefetchMock.mock.calls).toEqual([
-      ["/tasks?view=list", { kind: "full" }],
+      ["/tasks?view=list", expect.objectContaining({ kind: "full" })],
     ]);
   });
 
