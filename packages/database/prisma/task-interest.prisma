@@ -1,0 +1,72 @@
+/// A person on a Task's participant list: added by an @ in comment activity,
+/// or by subscribing themselves. Distinct from Chat Participant. Unique per
+/// Task and user. createdAt is join time.
+model TaskParticipant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Set when the person subscribed themselves: their personal Soko Bot
+  /// reports the Task's moments to them. Null for a plain participant, such
+  /// as one added by an @. An @ never sets it.
+  subscribedAt DateTime?
+
+  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
+  @@index([userId], map: "task_participant_userId_idx")
+  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
+  @@map("task_participant")
+}
+
+/// A Task's due date moved to a later day. Written by every route that
+/// changes `dueOn`, inside its transaction; an earlier date writes nothing.
+/// Read by the Task interest delivery as the "due date moved later" moment.
+model TaskDueDateChange {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  fromDueOn DateTime @db.Date
+  toDueOn   DateTime @db.Date
+
+  /// The person who moved it; null when nobody signed in did.
+  actorUserId String?
+
+  @@index([createdAt, id])
+  @@index([taskId])
+  @@map("task_due_date_change")
+}
+
+/// One Task moment sent to one participant, on whichever channel. The unique
+/// key makes a delivery happen once, however often the sync re-reads it.
+model TaskMomentDelivery {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation("TaskMomentDeliveryUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  /// `status:<taskEventId>`, `due-later:<changeId>` or `overdue:<taskId>:<dueOn>`.
+  momentKey String
+  /// `SOKO_BOT`, `BELL`, `NONE` for a participant the moment skipped (the
+  /// actor, someone who cannot see the Task, or who joined after it), or
+  /// `DEFERRED` for a completion summary the bot could not start yet.
+  channel   String
+  /// When a `DEFERRED` summary is tried again; null on every other channel.
+  retryAt   DateTime?
+
+  @@unique([userId, momentKey])
+  @@index([momentKey])
+  @@index([taskId])
+  @@index([retryAt])
+  @@map("task_moment_delivery")
+}

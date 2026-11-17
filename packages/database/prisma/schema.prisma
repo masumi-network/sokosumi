@@ -3514,7 +3514,9 @@ model Task {
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
   /// Humans added by @ in Task comment activity. Not owner or assignee.
-  participants TaskParticipant[]
+  participants     TaskParticipant[]
+  dueDateChanges   TaskDueDateChange[]
+  momentDeliveries TaskMomentDelivery[]
 
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -3557,6 +3559,7 @@ model Task {
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
+  @@index([dueOn])
   @@index([status, runAt])
   @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")
@@ -3677,22 +3680,6 @@ model TaskIdentifierAlias {
   @@id([projectId, number])
   @@index([taskId])
   @@map("task_identifier_alias")
-}
-
-model TaskParticipant {
-  id        String   @id @default(uuid(7))
-  createdAt DateTime @default(now())
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  userId String
-  user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
-  @@index([userId], map: "task_participant_userId_idx")
-  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
-  @@map("task_participant")
 }
 
 /// Idempotency ledger for Task Schedule create. A key is scoped to the active
@@ -4070,6 +4057,7 @@ model TaskEvent {
   @@index([transactionId])
   @@index([sokoBotId])
   @@index([taskId, createdAt])
+  @@index([createdAt])
   @@map("taskEvent")
 }
 

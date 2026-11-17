@@ -13339,6 +13339,8 @@
         "completed": "{coworkerName} completed {taskName}",
         "failed": "{coworkerName} failed to complete {taskName}",
         "canceled": "{taskName} was canceled",
+        "overdue": "{taskName} is past its due date",
+        "dueDateMovedLater": "The due date of {taskName} moved later",
         "scheduleRepaired": "The schedule for {taskName} was repaired",
         "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
         "scheduleUpdatedByMember": "A teammate updated the schedule for {taskName}",

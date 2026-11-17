@@ -13339,6 +13339,8 @@
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen",
+        "overdue": "{taskName} ist überfällig",
+        "dueDateMovedLater": "Das Fälligkeitsdatum von {taskName} wurde nach hinten verschoben",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
         "scheduleUpdatedByMember": "Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert",
