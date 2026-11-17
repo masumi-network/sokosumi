@@ -17,7 +17,7 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
-import { emitCoreError, recordCoreError } from "@/lib/evlog";
+import { recordCoreError } from "@/lib/evlog";
 import {
   messageSafeErrorFields,
   type SafeErrorFields,
@@ -362,15 +362,16 @@ async function startNextCase(
   return "started";
 }
 
+/** Whether the run completed, and why its regression email failed if it did. */
 async function completeIfDone(run: {
   id: string;
   repeats: number;
   trigger: EvalRunTrigger;
-}) {
+}): Promise<{ completed: boolean; emailFailure?: SafeErrorFields }> {
   const open = await prisma.evalResult.count({
     where: { runId: run.id, status: { in: ["PENDING", "RUNNING"] } },
   });
-  if (open > 0) return false;
+  if (open > 0) return { completed: false };
   await prisma.evalRun.update({
     where: { id: run.id },
     data: { status: "COMPLETED", finishedAt: new Date() },
@@ -379,21 +380,54 @@ async function completeIfDone(run: {
   if (run.trigger === "DAILY") {
     // Loaded here: the email reads this module's report.
     const { sendEvalRegressionEmail } = await import("./eval-report-email");
-    await sendEvalRegressionEmail(run.id).catch((error: unknown) => {
-      // Its own event: a lane failure may already hold the tick's error.
-      emitCoreError(
-        { operation: "eval_regression_email", evalRun: { id: run.id } },
-        {
-          message: "Could not send the daily eval regression email",
-          why: "Sending the report email failed",
-          fix: "The run is complete; read its report in the admin evals page.",
-        },
-        // Only provider metadata: a mail error can quote the report.
-        { failure: messageSafeErrorFields(error) },
-      );
-    });
+    try {
+      await sendEvalRegressionEmail(run.id);
+    } catch (error) {
+      // Only provider metadata: a mail error can quote the report.
+      return { completed: true, emailFailure: messageSafeErrorFields(error) };
+    }
   }
-  return true;
+  return { completed: true };
+}
+
+const REGRESSION_EMAIL_FIX =
+  "The run is complete; read its report in the admin evals page.";
+
+/**
+ * The tick's failures on one error, since an event holds one: on the admin
+ * tick's request event while it is live, else a standalone event (the cron).
+ */
+function recordEvalTickFailures(
+  runId: string,
+  laneFailures: ({ lane: number } & SafeErrorFields)[],
+  emailFailure: SafeErrorFields | undefined,
+) {
+  const fields = {
+    evalRun: { id: runId },
+    ...(laneFailures.length > 0 ? { evalLaneFailures: laneFailures } : {}),
+    ...(emailFailure ? { evalRegressionEmailFailure: emailFailure } : {}),
+  };
+  if (laneFailures.length > 0) {
+    recordCoreError(
+      { operation: "eval_tick" },
+      {
+        message: "Could not move an eval run's lanes on",
+        why: "A lane's step threw",
+        fix: `The next tick retries each lane. If one fails every tick, check evalLaneFailures[].errorName and status.${emailFailure ? ` The regression email failed too (evalRegressionEmailFailure). ${REGRESSION_EMAIL_FIX}` : ""}`,
+      },
+      fields,
+    );
+  } else if (emailFailure) {
+    recordCoreError(
+      { operation: "eval_tick" },
+      {
+        message: "Could not send the daily eval regression email",
+        why: "Sending the report email failed",
+        fix: REGRESSION_EMAIL_FIX,
+      },
+      fields,
+    );
+  }
 }
 
 /**
@@ -419,22 +453,14 @@ export async function tickEvalRuns(
       }),
     ),
   );
-  if (laneFailures.length > 0) {
-    // One error per event, so every failed lane is listed on it.
-    recordCoreError(
-      { operation: "eval_tick" },
-      {
-        message: "Could not move an eval run's lanes on",
-        why: "A lane's step threw",
-        fix: "The next tick retries each lane. If one fails every tick, check evalLaneFailures[].errorName and status.",
-      },
-      { evalRun: { id: run.id }, evalLaneFailures: laneFailures },
-    );
+  let completion: Awaited<ReturnType<typeof completeIfDone>> | undefined;
+  try {
+    completion = await completeIfDone(run);
+  } finally {
+    // Also when completing throws, so the lanes' failures are not lost.
+    recordEvalTickFailures(run.id, laneFailures, completion?.emailFailure);
   }
-  return {
-    runId: run.id,
-    completed: await completeIfDone(run),
-  };
+  return { runId: run.id, completed: completion.completed };
 }
 
 /** One invocation's worth: Vercel ends Core at 300 seconds. */

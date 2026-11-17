@@ -268,13 +268,9 @@ describe("project close sync", () => {
   });
 
   it("backs off transient failures and names the failed schedule after exhaustion", async () => {
-    const errors = expectCoreLogWhys(
-      "error",
-      "A project close batch failed",
-      ["Scheduled work could not be closed"],
-      // The schedule's own error wraps the failure.
-      ["Scheduled work could not be closed"],
-    );
+    const errors = expectCoreLogWhys("error", "A project close batch failed", [
+      "Scheduled work could not be closed",
+    ]);
     taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
     taskScheduleFindUniqueOrThrowMock.mockRejectedValue(new Error("boom"));
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -309,7 +305,31 @@ describe("project close sync", () => {
     expect(errors[0]?.event).toMatchObject({
       operation: "project_close_sync",
       projectClose: { attempts: 3, failed: true },
+      failure: { errorName: "Error" },
     });
+    expect(errors[0]?.cause).toBeUndefined();
+  });
+
+  it("logs a failed batch without the task text its error can quote", async () => {
+    const errors = expectCoreLog("error", "A project close batch failed");
+    taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
+    // Releasing a schedule writes its task; a write error can quote it.
+    taskScheduleFindUniqueOrThrowMock.mockRejectedValue(
+      new Error(
+        'Invalid `task.create()`: name "Private launch plan for Acme" sk_live_abc123',
+      ),
+    );
+    projectCloseOperationFindFirstMock.mockResolvedValue({
+      attempts: 0,
+      projectId: PROJECT_ID,
+    });
+
+    await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(errors[0]?.event).toMatchObject({ failure: { errorName: "Error" } });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Private launch plan");
+    expect(drained).not.toContain("sk_live");
   });
 
   it("retries a failed batch later without notifying", async () => {

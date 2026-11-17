@@ -1,6 +1,8 @@
 import { CMO_PRODUCTION_TURN_PREFIX } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { expectCoreLogWhys } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 
 const boundary = vi.hoisted(() => ({
   advance: vi.fn(),
@@ -14,13 +16,18 @@ const boundary = vi.hoisted(() => ({
   resultCount: vi.fn(),
   finish: vi.fn(),
   finishRun: vi.fn(),
+  email: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     marketingStrategy: { findUniqueOrThrow: boundary.strategy },
     sokoBotTurn: { findMany: boundary.turns },
     socialPost: { updateMany: boundary.cancelPosts },
-    evalLane: { findUniqueOrThrow: boundary.lane },
+    evalLane: {
+      findUniqueOrThrow: boundary.lane,
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    sokoBot: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     evalRun: { findFirst: boundary.run, update: boundary.finishRun },
     evalResult: {
       findFirst: boundary.result,
@@ -28,6 +35,9 @@ vi.mock("@/lib/db/prisma", () => ({
       update: boundary.finish,
     },
   },
+}));
+vi.mock("./eval-report-email", () => ({
+  sendEvalRegressionEmail: boundary.email,
 }));
 vi.mock("@/services/cmo-production.service", () => ({
   advanceCmoProduction: boundary.advance,
@@ -334,6 +344,80 @@ describe("monthly eval hard-budget guard", () => {
     const drained = JSON.stringify(errors[0]?.event);
     expect(drained).not.toContain("Confidential merger");
     expect(drained).not.toContain("sk_live");
+  });
+
+  describe("a daily run's regression email", () => {
+    const EMAIL_WHY = "Sending the report email failed";
+
+    beforeEach(() => {
+      boundary.run.mockResolvedValue({
+        id: "run",
+        repeats: 1,
+        trigger: "DAILY",
+      });
+      boundary.resultCount.mockResolvedValue(0);
+      // A mail error can quote the report: prompts and model output.
+      boundary.email.mockRejectedValue(
+        new Error('report "Confidential merger with Acme" sk_live_abc123'),
+      );
+    });
+
+    it("logs a failed send once from the cron, without the report", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not send the daily eval regression email",
+        [EMAIL_WHY],
+      );
+
+      expect(await runAsBackgroundWork(() => tickEvalRuns())).toEqual({
+        runId: "run",
+        completed: true,
+      });
+
+      expect(errors[0]?.event).toMatchObject({
+        operation: "eval_tick",
+        evalRun: { id: "run" },
+        evalRegressionEmailFailure: { errorName: "Error" },
+      });
+      expect(errors[0]?.cause).toBeUndefined();
+      const drained = JSON.stringify(errors[0]?.event);
+      expect(drained).not.toContain("Confidential merger");
+      expect(drained).not.toContain("sk_live");
+    });
+
+    it("logs a failed send on the admin tick's request event", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not send the daily eval regression email",
+        [EMAIL_WHY],
+      );
+
+      await inRequest(() => tickEvalRuns());
+
+      // The request's own event: no standalone operation, the route's method.
+      expect(errors[0]?.event.operation).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        method: "GET",
+        evalRegressionEmailFailure: { errorName: "Error" },
+      });
+    });
+
+    it("keeps a lane failure and the email failure on one error", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not move an eval run's lanes on",
+        ["A lane's step threw"],
+      );
+      boundary.lane.mockRejectedValue(new Error("lane down"));
+
+      await inRequest(() => tickEvalRuns());
+
+      expect(errors[0]?.event).toMatchObject({
+        evalLaneFailures: [{ lane: 1, errorName: "Error" }],
+        evalRegressionEmailFailure: { errorName: "Error" },
+      });
+      expect(errors[0]?.fix).toContain("regression email failed too");
+    });
   });
 
   it.each(["expiry", "post cleanup"] as const)(

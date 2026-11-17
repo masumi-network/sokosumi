@@ -191,19 +191,15 @@ export async function retryOwedPolarRevokes(
       await revokePolarSubscription(subscription.polarSubscriptionId);
     } catch (error) {
       result.errors += 1;
-      const { revokeFailures } = await prisma.polarSubscription.update({
-        where: { id: subscription.id },
-        data: { revokeFailures: { increment: 1 } },
-        select: { revokeFailures: true },
-      });
-      // The polar-yearly-grants cron, after its response.
+      // The polar-yearly-grants cron, after its response. Logged before the
+      // counter update, so a failing update cannot hide that Polar may go on
+      // charging.
       emitCoreError(
         {
           operation: "polar_owed_revoke_retry",
           polarSubscription: {
             subscriptionRowId: subscription.id,
             polarSubscriptionId: subscription.polarSubscriptionId,
-            revokeFailures,
           },
         },
         {
@@ -213,6 +209,11 @@ export async function retryOwedPolarRevokes(
           cause: error,
         },
       );
+      const { revokeFailures } = await prisma.polarSubscription.update({
+        where: { id: subscription.id },
+        data: { revokeFailures: { increment: 1 } },
+        select: { revokeFailures: true },
+      });
       if (revokeFailures === REVOKE_FAILURES_REPORTED) {
         Sentry.captureMessage(
           "CMO subscription revoke still owed: Polar may go on charging",

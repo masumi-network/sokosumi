@@ -383,7 +383,26 @@ describe("retryOwedPolarRevokes", () => {
       polarSubscription: {
         subscriptionRowId: "row_1",
         polarSubscriptionId: "sub_1",
-        revokeFailures: 2,
+      },
+    });
+  });
+
+  it("keeps a failed revoke on record when counting the failure fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not revoke a CMO subscription at Polar again",
+      ["Polar refused or did not answer the owed revoke"],
+      ["polar is down"],
+    );
+    m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
+    m.prisma.polarSubscription.update.mockRejectedValue(new Error("db down"));
+
+    await expect(retryOwedPolarRevokes(always)).rejects.toThrow("db down");
+
+    expect(errors[0]?.event).toMatchObject({
+      polarSubscription: {
+        subscriptionRowId: "row_1",
+        polarSubscriptionId: "sub_1",
       },
     });
   });

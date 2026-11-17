@@ -417,8 +417,8 @@ describe("claimCoupon validation", () => {
   it("reuses the promotion code a concurrent claim created, on the request's event", async () => {
     const warnings = expectCoreLogWhys(
       "warn",
-      "Creating a coupon's promotion code failed, so the existing one is reused",
-      ["A concurrent claim most likely created the code first"],
+      "Reused an existing promotion code after creating one at Stripe failed",
+      ["Creating the promotion code at Stripe failed"],
       ["promotion code already exists"],
     );
     getCouponByIdMock.mockResolvedValue({
@@ -450,6 +450,67 @@ describe("claimCoupon validation", () => {
     });
     // On the request's event, not a standalone one.
     expect(warnings[0]?.event.operation).toBeUndefined();
+  });
+
+  it("keeps the create failure when looking up an existing code fails too", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not create a coupon's promotion code at Stripe",
+      [
+        "Creating the promotion code failed, and looking up an existing one failed too",
+      ],
+      ["stripe create refused"],
+    );
+    getCouponByIdMock.mockResolvedValue({
+      id: "coupon_1",
+      percent_off: 100,
+      metadata: { credits: "100" },
+    });
+    createPromotionCodeMock.mockRejectedValueOnce(
+      new Error("stripe create refused"),
+    );
+    const lookupFailure = new Error("stripe lookup down");
+    getPromotionCodeMock
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(lookupFailure);
+
+    // The request's error handler records the lookup error itself.
+    await expect(
+      stripeBillingService.claimCoupon({
+        userId: "user_1",
+        organizationId: null,
+        couponId: "coupon_1",
+      }),
+    ).rejects.toBe(lookupFailure);
+  });
+
+  it("records a claim Stripe answered without a promotion code", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not claim a coupon, because Stripe created no promotion code",
+      [
+        "Stripe answered the create without a promotion code, and none exists for this customer",
+      ],
+    );
+    getCouponByIdMock.mockResolvedValue({
+      id: "coupon_1",
+      percent_off: 100,
+      metadata: { credits: "100" },
+    });
+    createPromotionCodeMock.mockResolvedValueOnce(null);
+
+    // A 400 the error handler treats as expected, so this is its only record.
+    await expect(
+      stripeBillingService.claimCoupon({
+        userId: "user_1",
+        organizationId: null,
+        couponId: "coupon_1",
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(errors[0]?.event).toMatchObject({
+      coupon: { id: "coupon_1" },
+      stripeCustomer: { id: "cus_123" },
+    });
   });
 
   it("rethrows a failed promotion code create when none exists", async () => {

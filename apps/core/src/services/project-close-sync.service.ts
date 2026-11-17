@@ -14,6 +14,7 @@ import {
 } from "@/helpers/project-close-notifications";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   getPendingProjectAdRevocation,
   revokeProjectAdConnectionForClose,
@@ -442,10 +443,12 @@ async function recordProjectCloseFailure(
       message: "A project close batch failed",
       why: failureSummary.message,
       fix: failed
-        ? `The close stopped after ${PROJECT_CLOSE_MAX_FAILURES} failed batches and the project's owner was told; the cause on this event says what to fix before closing it again.`
+        ? `The close stopped after ${PROJECT_CLOSE_MAX_FAILURES} failed batches and the project's owner was told; Sentry has the error to fix before closing it again.`
         : "The next project-closes sync retries the batch.",
-      cause: error,
     },
+    // Only safe fields: releasing scheduled work writes the schedule's task
+    // name and description, and a write error can quote them.
+    { failure: messageSafeErrorFields(error) },
   );
   return failed;
 }
