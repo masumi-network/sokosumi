@@ -93,6 +93,7 @@ import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 import { recordStudioAdEvent } from "@/services/image-studio-events.service";
+import { readReferenceImage } from "@/services/reference-library.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -168,6 +169,11 @@ export interface CreateImageJobInput {
   referenceFileIds?: string[];
   /** The REST caller, whose file access must be checked for new requests. */
   referenceFileActor?: FileActor;
+  /**
+   * Reference library images sent first, as the style to borrow. Core only:
+   * Cuso's media maker sets them, no route does.
+   */
+  referenceLibraryIds?: string[];
   /** Keep the source ad's product photo when an assistant edit can use it. */
   reuseParentPhotoIfAvailable?: boolean;
   /** Keep a source ad's currently approved headline on a visual refinement. */
@@ -530,6 +536,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
+        referenceLibraryIds: input.referenceLibraryIds ?? [],
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -660,12 +667,15 @@ async function buildReferenceUrls(
     idempotencyKey: string;
     referenceAssetIds: string[];
     referenceFileIds: string[];
+    referenceLibraryIds?: string[];
     useProductCutout?: boolean;
   },
   organizationId: string | null,
 ): Promise<string[]> {
   const providerFileIds = job.useProductCutout ? [] : job.referenceFileIds;
-  const count = job.referenceAssetIds.length + providerFileIds.length;
+  const libraryIds = job.referenceLibraryIds ?? [];
+  const count =
+    libraryIds.length + job.referenceAssetIds.length + providerFileIds.length;
   if (count === 0) return [];
   if (count > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
     throw unprocessableEntity(
@@ -695,6 +705,18 @@ async function buildReferenceUrls(
   }
 
   const urls: string[] = [];
+  // The style reference goes first: the prompt names it as the first image.
+  for (const id of libraryIds) {
+    const reference = await readReferenceImage(id);
+    if (!reference) throw notFound("A style reference was not found.");
+    urls.push(
+      await uploadReference({
+        bytes: reference.bytes,
+        contentType: reference.contentType,
+        fileName: `style-${id}.${reference.contentType.split("/")[1] ?? "jpg"}`,
+      }),
+    );
+  }
   // Order matters to the model, so follow the caller's order rather than the
   // order the database happened to return.
   for (const assetId of job.referenceAssetIds) {
