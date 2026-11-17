@@ -423,6 +423,26 @@ describe("monthly eval hard-budget guard", () => {
     });
   });
 
+  it("keeps a lane failure a standalone error in the cron when completing the run throws", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not move an eval run's lanes on",
+      ["A lane's step threw"],
+    );
+    boundary.lane.mockRejectedValue(new Error("lane down"));
+    boundary.resultCount.mockRejectedValue(new Error("count failed"));
+
+    // No request event carries the thrown error here, so nothing to make room for.
+    await expect(runAsBackgroundWork(() => tickEvalRuns())).rejects.toThrow(
+      "count failed",
+    );
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "eval_tick",
+      evalLaneFailures: [{ lane: 1, errorName: "Error" }],
+    });
+  });
+
   it("keeps a lane failure beside an error thrown while completing the run", async () => {
     const warnings = expectCoreLogWhys(
       "warn",

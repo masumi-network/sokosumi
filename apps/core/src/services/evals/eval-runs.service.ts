@@ -17,7 +17,11 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
-import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
+import {
+  recordCoreError,
+  recordCoreWarning,
+  tryUseLiveLogger,
+} from "@/lib/evlog";
 import {
   messageSafeErrorFields,
   type SafeErrorFields,
@@ -461,9 +465,15 @@ export async function tickEvalRuns(
   try {
     completion = await completeIfDone(run);
   } catch (error) {
-    // The thrown error becomes the request's error; the lanes' failures stay
-    // on the same event as a warning.
-    recordEvalTickFailures(run.id, laneFailures, undefined, "warn");
+    // In a live request the thrown error becomes its event's error, so the
+    // lanes' failures stay beside it as a warning. Elsewhere (the cron) they
+    // are their own standalone error.
+    recordEvalTickFailures(
+      run.id,
+      laneFailures,
+      undefined,
+      tryUseLiveLogger() ? "warn" : "error",
+    );
     throw error;
   }
   recordEvalTickFailures(
