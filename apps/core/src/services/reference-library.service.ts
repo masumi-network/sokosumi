@@ -9,12 +9,9 @@
 import type { REFERENCE_KINDS, REFERENCE_PURPOSES } from "@sokosumi/soko-bot";
 import { get } from "@vercel/blob";
 import { getEnv } from "@/config/env";
-import {
-  type EmbedTexts,
-  embedContactTexts,
-  vectorLiteral,
-} from "@/lib/contacts/embeddings";
+import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
+import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
 
 /** References below this are blank, damaged or mostly text. */
 const MIN_USABLE = 3;
@@ -52,7 +49,7 @@ export async function findStyleReferences(
     purpose?: ReferencePurpose;
     limit?: number;
   },
-  embed: EmbedTexts = embedContactTexts,
+  embed: EmbedTexts = embedTexts,
 ): Promise<StyleReference[]> {
   const [embedding] = (await embed([input.about])).embeddings;
   if (!embedding) return [];

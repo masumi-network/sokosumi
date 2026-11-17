@@ -24,6 +24,12 @@ export interface WritingSkill {
   name: string;
   /** When to use it, in one line. */
   description: string;
+  /**
+   * A network's skill: who is there and what it is worth for which business,
+   * main channel or side. cmo-v3 reads it when it plans the channels, so a
+   * restaurant's LinkedIn serves its catering buyers, not its diners.
+   */
+  audience?: string;
   /** The channels it covers; a foundation covers every piece. */
   channels: readonly CmoChannelKey[];
   /** The skill in Markdown: what works, the shape of each format, examples. */

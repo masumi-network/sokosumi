@@ -10,6 +10,7 @@ import {
   vi,
 } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
@@ -307,11 +308,8 @@ function expectDeadlineWarning() {
   onTestFinished(() => {
     expect(warnings[0]?.event).toMatchObject({
       operation: "cron_sync",
-      sync: {
-        lockKey: "lock-key",
-        timeoutMs: SYNC_DEADLINE_MS,
-        runId: expect.any(String),
-      },
+      sync: { lockKey: "lock-key", timeoutMs: SYNC_DEADLINE_MS },
+      syncRunId: expect.any(String),
     });
   });
   return warnings;
@@ -339,9 +337,9 @@ function expectSyncFailure(cause?: string) {
   return errors;
 }
 
-/** The `sync.runId` of a drained event. */
+/** The `syncRunId` of a drained event. */
 function runIdOf(event: Record<string, unknown> | undefined) {
-  return (event?.sync as { runId?: unknown } | undefined)?.runId;
+  return event?.syncRunId;
 }
 
 /** Returns a promise and its resolver so tests can resolve the promise when needed. */
@@ -1504,10 +1502,37 @@ describe("sync routes", () => {
         outcome: "completed",
         lock: "released",
         durationMs: expect.any(Number),
-        runId: expect.any(String),
       },
+      syncRunId: expect.any(String),
       result: { pendingBlobs: 3 },
     });
+  });
+
+  it("ties a service's event during the run to that run", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A source import item was skipped",
+      ["The example item failed"],
+    );
+    syncSourceImportMock.mockImplementation(async () => {
+      recordCoreWarning(
+        { operation: "source_import_item" },
+        {
+          message: "A source import item was skipped",
+          why: "The example item failed",
+        },
+      );
+      return 1;
+    });
+    const app = createApp();
+
+    await app.request("http://localhost/sync/source-import", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    await flushMicrotasks();
+    expect(runIdOf(warnings[0]?.event)).toEqual(expect.any(String));
+    expect(runIdOf(warnings[0]?.event)).toEqual(runIdOf(runEvent()));
   });
 
   it("puts each part of a multi-step sync on the same run event", async () => {
