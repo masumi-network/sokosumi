@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,18 +14,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SeoField, SeoSelect } from "./seo-form-fields";
+import { seoDefaultMarket } from "./seo-analysis-market-model";
+import { SeoField, SeoSelect, seoFieldHelpId } from "./seo-form-fields";
 import {
+  SEO_COUNTRIES,
+  SEO_LANGUAGES,
   SEO_NO_RELATED_PAGE,
   SEO_NO_TARGET_PAGE,
   seoKeywordTargetPageId,
   seoMainPageId,
 } from "./seo-form-model";
+import { seoMarketName } from "./seo-shared";
 import { useSeoEdit } from "./use-seo-edit";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
+  const locale = useLocale();
   const form = useSeoEdit(model);
   const kind = model.dialog;
   if (
@@ -45,6 +51,13 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
   const group = kind === "scope" || kind === "edit_scope";
   const keywordForm = kind === "keyword" || kind === "edit_keyword";
   const editingKeyword = kind === "edit_keyword" ? form.keyword : null;
+  // A saved keyword keeps its market; a new one opens on the market a check would.
+  const market = editingKeyword
+    ? {
+        countryCode: editingKeyword.countryCode,
+        languageCode: editingKeyword.languageCode,
+      }
+    : seoDefaultMarket(form.workspace);
   const title =
     kind === "page"
       ? t("addPage")
@@ -89,7 +102,9 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
               <Input
                 id="seo-edit-url"
                 name="url"
-                type="url"
+                // Not type="url": it refuses "example.com", which the command completes to https://.
+                inputMode="url"
+                autoComplete="url"
                 defaultValue={
                   kind === "page"
                     ? (form.workspace.websiteUrl ?? undefined)
@@ -176,28 +191,34 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                 />
               </SeoField>
               <div className="grid gap-3 sm:grid-cols-2">
-                <SeoField id="seo-edit-country" label={t("keywords.country")}>
-                  <Input
-                    id="seo-edit-country"
-                    name="countryCode"
-                    required
-                    pattern="[A-Za-z]{2}"
-                    maxLength={2}
-                    defaultValue={editingKeyword?.countryCode}
-                    readOnly={!!editingKeyword}
-                  />
-                </SeoField>
-                <SeoField id="seo-edit-language" label={t("keywords.language")}>
-                  <Input
-                    id="seo-edit-language"
-                    name="languageCode"
-                    required
-                    pattern="[a-z]{2,3}(-[A-Z]{2})?"
-                    maxLength={6}
-                    defaultValue={editingKeyword?.languageCode}
-                    readOnly={!!editingKeyword}
-                  />
-                </SeoField>
+                <SeoMarketField
+                  id="seo-edit-country"
+                  name="countryCode"
+                  label={t("analysis.country")}
+                  codeLabel={t("keywords.country")}
+                  codeHelp={t("keywords.countryHelp")}
+                  otherLabel={t("keywords.otherCode")}
+                  codes={SEO_COUNTRIES}
+                  current={market.countryCode}
+                  nameOf={(code) => seoMarketName(locale, code, null)}
+                  disabled={!!editingKeyword}
+                  pattern="[A-Za-z]{2}"
+                  maxLength={2}
+                />
+                <SeoMarketField
+                  id="seo-edit-language"
+                  name="languageCode"
+                  label={t("analysis.language")}
+                  codeLabel={t("keywords.language")}
+                  codeHelp={t("keywords.languageHelp")}
+                  otherLabel={t("keywords.otherCode")}
+                  codes={SEO_LANGUAGES}
+                  current={market.languageCode}
+                  nameOf={(code) => seoMarketName(locale, "", code)}
+                  disabled={!!editingKeyword}
+                  pattern="[a-z]{2,3}(-[A-Z]{2})?"
+                  maxLength={6}
+                />
               </div>
               <SeoField id="seo-edit-target" label={t("keywords.target")}>
                 <SeoSelect
@@ -252,5 +273,76 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Not a code: the picker's way to a typed code. */
+const SEO_OTHER_CODE = "other";
+
+/**
+ * A market part picked by name; the form saves its code. "Other code" opens a code field for a market off the
+ * list, so every code the field took before still saves. A saved code off the list stays as its own option.
+ */
+function SeoMarketField({
+  id,
+  name,
+  label,
+  codeLabel,
+  codeHelp,
+  otherLabel,
+  codes,
+  current,
+  nameOf,
+  disabled,
+  pattern,
+  maxLength,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  codeLabel: string;
+  codeHelp: string;
+  otherLabel: string;
+  codes: readonly string[];
+  current: string;
+  nameOf: (code: string) => string;
+  disabled: boolean;
+  pattern: string;
+  maxLength: number;
+}) {
+  const [other, setOther] = useState(false);
+  const codeId = `${id}-code`;
+  const listed =
+    !current || codes.includes(current) ? codes : [current, ...codes];
+  return (
+    <div className="space-y-2">
+      <SeoField id={id} label={label}>
+        <SeoSelect
+          id={id}
+          // The typed code is the value while "Other code" is chosen.
+          name={other ? undefined : name}
+          required
+          defaultValue={current}
+          onValueChange={(value) => setOther(value === SEO_OTHER_CODE)}
+          disabled={disabled}
+          options={[
+            ...listed.map((value) => ({ value, label: nameOf(value) })),
+            ...(disabled ? [] : [{ value: SEO_OTHER_CODE, label: otherLabel }]),
+          ]}
+        />
+      </SeoField>
+      {other ? (
+        <SeoField id={codeId} label={codeLabel} help={codeHelp}>
+          <Input
+            id={codeId}
+            aria-describedby={seoFieldHelpId(codeId)}
+            name={name}
+            required
+            pattern={pattern}
+            maxLength={maxLength}
+          />
+        </SeoField>
+      ) : null}
+    </div>
   );
 }

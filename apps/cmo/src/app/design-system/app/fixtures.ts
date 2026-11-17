@@ -18,7 +18,7 @@ export function isView(value: string): value is View {
 type Plan = NonNullable<CmoOverview["strategy"]>;
 type Entry = Plan["calendar"][number];
 
-const PICTURE = "/mascot.webp";
+const PICTURE = "/cuso/walking.png";
 
 function entry(
   day: number,

@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 // The follow-up runs after the response; each test awaits it so its import
 // cannot finish in the next file, without this file's mocks.
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => mocks.pending.push(work),
+  waitUntil: vi.fn((work: Promise<unknown>) => mocks.pending.push(work)),
 }));
 vi.mock("@/services/soko-bot-watches.service", () => ({
   followUpConnectedApp: mocks.followUpConnectedApp,
@@ -77,6 +77,7 @@ vi.mock("@/config/env", () => ({
 import { composioLogger } from "@/lib/evlog-library-logs";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
+  integrationToolSearchResult,
   listIntegrationTools,
   runIntegrationTool,
   SokoBotIntegrationError,
@@ -1204,6 +1205,132 @@ describe("Composio 401/5xx vs not-found", () => {
     await expect(
       listIntegrationTools(githubIntegration, { limit: 10 }),
     ).rejects.toMatchObject({ kind: "NOT_FOUND" });
+  });
+});
+
+describe("GitHub pull request reads", () => {
+  const tool = (slug: string, readOnly = true) => ({
+    slug,
+    name: slug,
+    description: null,
+    inputParameters: {},
+    tags: readOnly ? ["readOnlyHint"] : [],
+  });
+  const pullRequestTools = [
+    "GITHUB_LIST_PULL_REQUESTS",
+    "GITHUB_FIND_PULL_REQUESTS",
+    "GITHUB_GET_A_PULL_REQUEST",
+  ];
+  // Composio returns a tool only when it has every word of the search.
+  const composioSearch = (query: { tools?: string[]; search?: string }) =>
+    Promise.resolve(
+      query.tools
+        ? query.tools.map((slug) => tool(slug))
+        : query.search?.includes("merged")
+          ? []
+          : [
+              tool("GITHUB_GENERATE_RELEASE_NOTES"),
+              tool("GITHUB_LIST_PULL_REQUESTS"),
+            ],
+    );
+
+  it("lists the pull request read tools when the search matches nothing", async () => {
+    mocks.getRawComposioTools.mockImplementation(composioSearch);
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "pull request merged list repository",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual(pullRequestTools);
+    expect(tools.every((entry) => entry.readOnly)).toBe(true);
+  });
+
+  it("lists them first, once, ahead of what the search found", async () => {
+    mocks.getRawComposioTools.mockImplementation(composioSearch);
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "list PRs",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual([
+      ...pullRequestTools,
+      "GITHUB_GENERATE_RELEASE_NOTES",
+    ]);
+  });
+
+  it("leaves out a pinned tool Composio no longer marks read-only", async () => {
+    mocks.getRawComposioTools.mockImplementation(
+      (query: { tools?: string[] }) =>
+        Promise.resolve(
+          (query.tools ?? []).map((slug) =>
+            tool(slug, slug !== "GITHUB_FIND_PULL_REQUESTS"),
+          ),
+        ),
+    );
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "merged pull requests",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual([
+      "GITHUB_LIST_PULL_REQUESTS",
+      "GITHUB_GET_A_PULL_REQUEST",
+    ]);
+  });
+
+  it("keeps the search when Composio cannot fetch the pinned tools", async () => {
+    mocks.getRawComposioTools.mockImplementation(
+      (query: { tools?: string[] }) =>
+        query.tools
+          ? Promise.reject(new ComposioToolNotFoundError("Tool not found"))
+          : Promise.resolve([tool("GITHUB_LIST_PULL_REQUESTS")]),
+    );
+    const tools = await listIntegrationTools(githubIntegration, {
+      query: "pull requests",
+      limit: 50,
+    });
+    expect(tools.map((entry) => entry.slug)).toEqual([
+      "GITHUB_LIST_PULL_REQUESTS",
+    ]);
+  });
+
+  it("asks Composio only for the search when the query is about something else", async () => {
+    mocks.getRawComposioTools.mockResolvedValue([]);
+    await listIntegrationTools(githubIntegration, {
+      query: "create issue",
+      limit: 20,
+    });
+    await listIntegrationTools(
+      {
+        ...githubIntegration,
+        provider: { ...githubIntegration.provider, id: "slack" },
+      },
+      { query: "pull request", limit: 20 },
+    );
+    expect(
+      mocks.getRawComposioTools.mock.calls.map(([query]) => query),
+    ).toEqual([
+      { toolkits: ["github"], search: "create issue", limit: 20 },
+      { toolkits: ["slack"], search: "pull request", limit: 20 },
+    ]);
+  });
+
+  it("says an empty search is not a missing tool", () => {
+    expect(
+      integrationToolSearchResult([], "recent commits by me").note,
+    ).toMatch(/search again with one or two words/);
+    expect(integrationToolSearchResult([], undefined)).toEqual({ tools: [] });
+    expect(
+      integrationToolSearchResult(
+        [
+          {
+            slug: "GITHUB_LIST_COMMITS",
+            name: "List commits",
+            description: null,
+            inputSchema: {},
+            readOnly: true,
+          },
+        ],
+        "commits",
+      ).note,
+    ).toBeUndefined();
   });
 });
 

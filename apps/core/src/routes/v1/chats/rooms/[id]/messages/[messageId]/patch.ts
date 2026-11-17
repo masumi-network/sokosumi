@@ -7,6 +7,7 @@ import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -134,8 +135,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         roomId: message.roomId,
         messageId: message.id,
       });
-      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
-      waitUntil(requeueEditedChatMessageSignal(message.id));
+      waitUntil(
+        runAsBackgroundWork(() => scheduleChatRoomMessageUnfurls(message.id)),
+      );
+      waitUntil(
+        runAsBackgroundWork(() => requeueEditedChatMessageSignal(message.id)),
+      );
     }
 
     return ok(

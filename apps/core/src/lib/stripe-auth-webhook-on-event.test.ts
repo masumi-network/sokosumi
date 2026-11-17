@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 
 const handleEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
@@ -300,22 +302,21 @@ describe("handleStripeAuthWebhookOnEvent", () => {
   );
 
   it("leaves an event it does not handle out of billing", async () => {
-    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-
-    try {
-      await handleStripeAuthWebhookOnEvent({
+    await inRequest(() =>
+      handleStripeAuthWebhookOnEvent({
         id: "evt_customer_updated",
         type: "customer.updated",
         data: { object: { id: "cus_123" } },
-      } as never);
+      } as never),
+    );
 
-      expect(handleEventMock).not.toHaveBeenCalled();
-      expect(infoSpy).toHaveBeenCalledWith(
-        "Unhandled Stripe event type: customer.updated",
-      );
-    } finally {
-      infoSpy.mockRestore();
-    }
+    expect(handleEventMock).not.toHaveBeenCalled();
+    // Routine, so a field on the webhook's request event.
+    expect(coreLogEvents()).toEqual([
+      expect.objectContaining({
+        stripeWebhook: { unhandledEventType: "customer.updated" },
+      }),
+    ]);
   });
 
   it("handles checkout.session.completed", async () => {

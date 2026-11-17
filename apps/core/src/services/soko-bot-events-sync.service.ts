@@ -650,7 +650,13 @@ export class SokoBotEventsSyncService {
           })),
         });
         result.woken += 1;
+        // A duplicate that only observed lost the race to another sync, which
+        // drains the turn under the lease it shares. A duplicate this call
+        // acknowledged (a resumed or recovered start, a lost acknowledgement
+        // response) owns the drain: the watchdog would reach it only after
+        // its heartbeat is 45 s stale, and not at all past the deadline.
         if (
+          (!started.duplicate || started.acknowledgedByCaller) &&
           started.reconciliationLeaseToken &&
           (started.status === "STARTING" || started.status === "RUNNING")
         ) {

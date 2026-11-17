@@ -167,7 +167,7 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Reading your site");
     expect(html).toContain("Cuso is reading · ");
     expect(html).toContain(" so far");
-    expect(html).toContain("/cuso/research.jpg");
+    expect(html).toContain("/cuso/searching.png");
     // The wait shows: what he is doing now, and the running bar.
     expect(html).toContain("ob-scene-now");
     expect(html).toContain("ob-scene-bar");
@@ -544,7 +544,7 @@ describe("Plan", () => {
     expect(html).toContain("Do you ship every month?");
     expect(html).toContain("Every quarter");
     expect(html).toContain("Pace:");
-    expect(html).toContain("about one a day");
+    expect(html).toContain("two a day on each network");
     expect(html).toContain("€200 a month for ads");
     for (const live of [
       "Ask for a change",

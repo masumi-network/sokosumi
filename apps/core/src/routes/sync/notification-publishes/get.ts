@@ -14,8 +14,9 @@ export default function mount(app: Hono) {
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/notification-publishes] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

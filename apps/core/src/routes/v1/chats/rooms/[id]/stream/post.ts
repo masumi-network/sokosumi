@@ -51,7 +51,12 @@ import {
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
 import prisma from "@/lib/db/prisma";
-import { tryUseLogger } from "@/lib/evlog";
+import {
+  emitCoreError,
+  recordCoreError,
+  runAsBackgroundWork,
+  tryUseLogger,
+} from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -60,6 +65,7 @@ import {
   getResumableUiStreamContext,
   isUiStreamResumptionConfigured,
 } from "@/lib/resumable-ui-stream-context";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { throwCoworkerRemoteConversationHttpError } from "@/routes/v1/chats/stream/coworker-conversation";
@@ -305,6 +311,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       roomId: room.id,
       parentMessageId,
     };
+    // What every event below names; most of them come after the response.
+    // Each of them can follow an error that quotes the prompt or the reply
+    // (stream metadata, Redis, the remote conversation): content-free fields
+    // only, never `cause`.
+    const streamLogContext = {
+      operation: "chat_room_coworker_stream",
+      roomId: room.id,
+      coworkerId: coworker.id,
+      ...(parentMessageId ? { parentMessageId } : {}),
+    };
 
     const stopHeartbeat = streamLockOwnerToken
       ? startStreamLockHeartbeat(room.id, streamLockOwnerToken, {
@@ -321,13 +337,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
     const finalizeCoworkerStreamLock = () => {
-      waitUntil(clearPendingResponseMirror(pendingResponseScope));
+      waitUntil(
+        runAsBackgroundWork(() =>
+          clearPendingResponseMirror(pendingResponseScope),
+        ),
+      );
       const release = releaseOwnedCoworkerStreamLock;
       if (!release) {
         return;
       }
       releaseOwnedCoworkerStreamLock = null;
-      waitUntil(release());
+      waitUntil(runAsBackgroundWork(() => release()));
     };
 
     try {
@@ -421,9 +441,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
           });
         } catch (error) {
-          console.error(
-            "Failed to clear active UI stream id before new room stream:",
-            error,
+          recordCoreError(
+            streamLogContext,
+            {
+              message: "Could not clear a chat room's previous stream id",
+              why: "Writing the room's stream metadata failed before the new stream",
+              fix: "A reconnecting client may resume the previous stream until this one registers. If it repeats, check the database.",
+            },
+            { failure: messageSafeErrorFields(error) },
           );
         }
       }
@@ -473,9 +498,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               requireNotDeleted: false,
             });
           } catch (error) {
-            console.error(
-              "Failed to clear thread providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
-              error,
+            // Runs while the reply streams, after the response.
+            emitCoreError(
+              streamLogContext,
+              {
+                message: "Could not reset a thread's coworker conversation",
+                why: "Clearing the invalid conversation id on the thread failed",
+                fix: "The thread's next turn fails the same way until the id is cleared; delete providerConversationId from the parent message's metadata.",
+              },
+              { failure: messageSafeErrorFields(error) },
             );
           }
           return;
@@ -486,9 +517,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             data: { providerConversationId: null },
           });
         } catch (error) {
-          console.error(
-            "Failed to clear providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
-            error,
+          // Runs while the reply streams, after the response.
+          emitCoreError(
+            streamLogContext,
+            {
+              message: "Could not reset a chat room's coworker conversation",
+              why: "Clearing the invalid conversation id on the room failed",
+              fix: "The room's next turn fails the same way until the id is cleared; set the room's providerConversationId to null.",
+            },
+            { failure: messageSafeErrorFields(error) },
           );
         }
       };
@@ -567,9 +604,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               return;
             } catch (error) {
               lastError = error;
-              console.error(
-                `Failed to persist assistant message (POST /rooms/{id}/stream) attempt ${attempt + 1}:`,
-                error,
+              // The write carries the reply's text, which a database
+              // error quotes: content-free fields only.
+              emitCoreError(
+                streamLogContext,
+                {
+                  message: "Could not save a coworker's streamed reply",
+                  why: "Writing the reply to the room failed",
+                  fix: "The attempt is repeated up to three times; if every attempt fails, the reply is lost after a refresh. Look up the error name and code under failure.",
+                },
+                {
+                  attempt: attempt + 1,
+                  failure: messageSafeErrorFields(error),
+                },
               );
             }
           }
@@ -591,9 +638,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : {}),
         },
         onError: (error: unknown) => {
-          console.error(
-            "Coworker chat UI stream error (POST /rooms/{id}/stream):",
-            error,
+          // The stream's error can quote the prompt or the reply:
+          // content-free fields only.
+          emitCoreError(
+            streamLogContext,
+            {
+              message: "A coworker's chat reply stream failed",
+              why: "The UI message stream reported an error",
+              fix: "The user sees an error in place of the reply. If it repeats, check the coworker's Responses API; look up the error name and code under failure.",
+            },
+            { failure: messageSafeErrorFields(error) },
           );
           finalizeCoworkerStreamLock();
           return "An error occurred.";
@@ -613,9 +667,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     });
                     uiStreamResumptionRegistered = true;
                   } catch (error) {
-                    console.error(
-                      "Failed to register resumable UI message stream:",
-                      error,
+                    // Registration copies the stream, so its error can
+                    // quote the reply: content-free fields only.
+                    emitCoreError(
+                      streamLogContext,
+                      {
+                        message: "Could not make a chat reply stream resumable",
+                        why: "Registering the stream for resumption failed",
+                        fix: "A client that reconnects mid-reply waits for the saved message instead. If it repeats, check Redis.",
+                      },
+                      { failure: messageSafeErrorFields(error) },
                     );
                   }
                 })();
@@ -637,16 +698,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 try {
                   await clearActiveUiStreamIdForRoom(clearParams);
                 } catch (error) {
-                  console.error(
-                    "Failed to clear active UI stream id on stream finish:",
-                    error,
+                  emitCoreError(
+                    streamLogContext,
+                    {
+                      message:
+                        "Could not clear a finished chat stream's id on the first try",
+                      why: "Writing the room's stream metadata failed",
+                      fix: "The clear is tried once more right away; a second error follows only if that fails too. If it repeats, check the database.",
+                    },
+                    { failure: messageSafeErrorFields(error) },
                   );
                   try {
                     await clearActiveUiStreamIdForRoom(clearParams);
                   } catch (retryError) {
-                    console.error(
-                      "Retry failed to clear active UI stream id on stream finish:",
-                      retryError,
+                    emitCoreError(
+                      streamLogContext,
+                      {
+                        message: "Gave up clearing a finished chat stream's id",
+                        why: "Writing the room's stream metadata failed twice",
+                        fix: "Clients may try to resume the finished stream until the next one replaces the id. If it repeats, check the database.",
+                      },
+                      { failure: messageSafeErrorFields(retryError) },
                     );
                   }
                 }
@@ -665,9 +737,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         try {
           await release();
         } catch (releaseError) {
-          console.error(
-            "Failed to release coworker stream lock (POST /rooms/{id}/stream):",
-            releaseError,
+          recordCoreError(
+            streamLogContext,
+            {
+              message: "Could not release a chat room's coworker stream lock",
+              why: "Releasing the lock in Redis failed while the request was failing",
+              fix: "New replies in this room answer 409 until the lock expires. If it repeats, check Redis.",
+            },
+            { failure: messageSafeErrorFields(releaseError) },
           );
         }
       }

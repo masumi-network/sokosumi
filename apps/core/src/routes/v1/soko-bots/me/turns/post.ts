@@ -3,7 +3,9 @@ import { waitUntil } from "@vercel/functions";
 import type { Context } from "hono";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
 import type { EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -68,19 +70,27 @@ async function handle(
       result.reconciliationLeaseToken &&
       (result.status === "STARTING" || result.status === "RUNNING")
     ) {
+      const { turnId, reconciliationLeaseToken } = result;
       waitUntil(
-        sokoBotControlPlane
-          .reconcileTurn(
-            result.turnId,
+        runAsBackgroundWork(() =>
+          sokoBotControlPlane.reconcileTurn(
+            turnId,
             undefined,
-            result.reconciliationLeaseToken,
-          )
-          .catch((error) => {
-            console.error("Soko Bot turn reconciliation failed", {
-              turnId: result.turnId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
-          }),
+            reconciliationLeaseToken,
+          ),
+        ).catch((error) => {
+          // A turn's error can quote what the member asked: content-free
+          // fields only.
+          emitCoreError(
+            { operation: "soko_bot_turn_reconcile", turnId },
+            {
+              message: "Could not reconcile a new Soko Bot turn",
+              why: "Reconciling the turn after the response failed",
+              fix: "If the turn stays STARTING or RUNNING, look up the error name and code under failure.",
+            },
+            { failure: messageSafeErrorFields(error) },
+          );
+        }),
       );
     }
     return created(c, startSokoBotTurnResponseSchema.parse(result));

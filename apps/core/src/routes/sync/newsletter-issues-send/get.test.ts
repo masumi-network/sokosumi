@@ -41,6 +41,8 @@ describe("GET /sync/newsletter-issues-send", () => {
       expect.anything(),
       "newsletter-issues-send-sync",
       expect.any(Function),
+      // Mail: a failed send keeps only the safe fields.
+      { errorDetail: "safe-fields" },
     );
     expect(m.sendDue).toHaveBeenCalledExactlyOnceWith({
       shouldContinue: m.shouldContinue,

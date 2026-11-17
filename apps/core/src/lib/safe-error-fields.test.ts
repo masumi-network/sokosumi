@@ -142,6 +142,112 @@ describe("messageSafeErrorFields", () => {
     });
   });
 
+  describe("an error that wraps another through cause", () => {
+    it("keeps the known code and status beneath a wrapper, never its text", () => {
+      const prismaError = Object.assign(
+        new Error(`Transaction failed: name "${SUBJECT}"`),
+        { name: "PrismaClientKnownRequestError", code: "P2028" },
+      );
+      const wrapper = new Error("Scheduled work could not be closed", {
+        cause: new Error(`release ${SUBJECT}`, { cause: prismaError }),
+      });
+      wrapper.name = "ProjectCloseScheduleError";
+
+      const fields = messageSafeErrorFields(wrapper);
+
+      expect(fields).toEqual({
+        errorName: "ProjectCloseScheduleError",
+        code: "P2028",
+      });
+      expect(JSON.stringify(fields)).not.toContain(SUBJECT);
+    });
+
+    it("prefers the outermost known code", () => {
+      const error = Object.assign(new Error("outer"), {
+        code: "ECONNRESET",
+        cause: Object.assign(new Error("inner"), { code: "P2028" }),
+      });
+      expect(messageSafeErrorFields(error).code).toBe("ECONNRESET");
+    });
+
+    it("reads at most five links below the error", () => {
+      const wrapped = (links: number) => {
+        let error: Error = Object.assign(new Error("deep"), { code: "P2028" });
+        for (let link = 0; link < links; link++) {
+          error = new Error("wrapper", { cause: error });
+        }
+        return error;
+      };
+      expect(messageSafeErrorFields(wrapped(5)).code).toBe("P2028");
+      expect(messageSafeErrorFields(wrapped(6)).code).toBeUndefined();
+    });
+
+    it("stops at a cycle and at a cause that throws when read", () => {
+      const cyclic = new Error("a") as Error & { cause?: unknown };
+      cyclic.cause = new Error("b", { cause: cyclic });
+      expect(messageSafeErrorFields(cyclic)).toEqual({ errorName: "Error" });
+
+      const throwing = new Error("c");
+      Object.defineProperty(throwing, "cause", {
+        get() {
+          throw new Error(SUBJECT);
+        },
+      });
+      expect(messageSafeErrorFields(throwing)).toEqual({ errorName: "Error" });
+    });
+  });
+
+  it("keeps a ComposioToolError's validated providerStatus, never its text", async () => {
+    const { ComposioToolError } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    const error = new ComposioToolError({
+      message: `X refused ${SUBJECT}`,
+      providerMessage: `Duplicate: ${SUBJECT} ${KEY}`,
+      providerStatus: 403,
+    });
+    expect(messageSafeErrorFields(error)).toEqual({
+      errorName: "ComposioToolError",
+      status: 403,
+    });
+    // A plain Error that only claims the name is not that class.
+    expect(
+      messageSafeErrorFields(
+        Object.assign(new Error("body"), {
+          name: "ComposioToolError",
+          providerStatus: 401,
+        }),
+      ),
+    ).toEqual({ errorName: "ComposioToolError" });
+    // Only that class carries it, and only as an HTTP status integer.
+    for (const providerStatus of [403.5, 99, 600, "403"])
+      expect(
+        messageSafeErrorFields(
+          new ComposioToolError({
+            message: "body",
+            providerStatus: providerStatus as number,
+          }),
+        ),
+      ).toEqual({ errorName: "ComposioToolError" });
+    expect(
+      messageSafeErrorFields(
+        Object.assign(new Error("body"), { providerStatus: 403 }),
+      ),
+    ).toEqual({ errorName: "Error" });
+    const throwing = Object.defineProperty(
+      new ComposioToolError({ message: "body", providerStatus: 403 }),
+      "providerStatus",
+      {
+        get() {
+          throw new Error("getter threw");
+        },
+      },
+    );
+    expect(messageSafeErrorFields(throwing)).toEqual({
+      errorName: "ComposioToolError",
+    });
+  });
+
   it("names anything that is not an Error by a fixed category", () => {
     expect(messageSafeErrorFields(`${SUBJECT} ${KEY}`)).toEqual({
       errorName: "Error",

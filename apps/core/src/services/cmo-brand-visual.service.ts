@@ -7,6 +7,7 @@ import {
   readDesignMdContent,
   uploadDesignMdContent,
 } from "@/lib/design-md-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import { decodeEntities } from "@/lib/open-graph-html";
 import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { Cuso } from "@/services/cmo-cuso.service";
@@ -131,10 +132,24 @@ async function generateProjectDesignMd(
     result = await client.pollJob(result.value.jobId);
   }
   if (result.isErr() || result.value.status !== "done") {
-    console.warn("CMO DESIGN.md not generated", {
-      projectId,
-      reason: result.isErr() ? result.error.type : result.value.status,
-    });
+    recordCoreWarning(
+      { operation: "cmo_brand_visual", project: { id: projectId } },
+      {
+        message: "Could not generate the brand's DESIGN.md",
+        why: result.isErr()
+          ? "The DESIGN.md service returned an error"
+          : result.value.status === "queued" ||
+              result.value.status === "running"
+            ? "The DESIGN.md job did not finish in time"
+            : "The DESIGN.md job did not succeed",
+        fix: "The Brand Brain shows no DESIGN.md; retrying Cuso's onboarding asks again. If it repeats, check the DESIGN.md service with the reason under designMd.",
+      },
+      {
+        designMd: {
+          reason: result.isErr() ? result.error.type : result.value.status,
+        },
+      },
+    );
     return null;
   }
   const done = result.value;

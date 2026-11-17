@@ -14,6 +14,7 @@ import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import {
   adToolkitRefusal,
+  integrationToolSearchResult,
   listIntegrationTools,
   readIntegrationTool,
   runIntegrationTool,
@@ -161,12 +162,13 @@ export async function dispatchIntegrationsTools(
           `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
         );
       }
-      return {
-        tools: await listIntegrationTools(integration, {
+      return integrationToolSearchResult(
+        await listIntegrationTools(integration, {
           query: parsed.query,
           limit: parsed.limit ?? 20,
         }),
-      };
+        parsed.query,
+      );
     }
 
     case "read_integration_tool":

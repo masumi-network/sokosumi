@@ -204,6 +204,18 @@ describe("SEO form intent", () => {
     expect(alone).not.toHaveProperty("relatedToPageId");
   });
 
+  it("adds a page or competitor typed without https://", () => {
+    const workspace = seoTestWorkspace();
+    const form = new FormData();
+    form.set("url", " example.com/pricing ");
+    expect(editSeoCommand("page", form, workspace).body).toMatchObject({
+      url: "https://example.com/pricing",
+    });
+    expect(editSeoCommand("competitor", form, workspace).body).toMatchObject({
+      url: "https://example.com/pricing",
+    });
+  });
+
   it("takes the first page that stands alone as the main page", () => {
     const workspace = seoTestWorkspace();
     const [first] = workspace.pages;

@@ -30,7 +30,7 @@ import {
   type BlobUploadGrant,
   createBlobUploadGrant,
 } from "@/lib/blob-upload-grant";
-import { attachUploadToLogger } from "@/lib/evlog";
+import { attachUploadToLogger, recordCoreWarning } from "@/lib/evlog";
 import type { BlobFile } from "@/schemas/blob-file.schema";
 import type { TaskFileWorkerBinding } from "@/schemas/task-worker-context.schema";
 import type { UserFileUploadSession } from "@/schemas/user-file-upload.schema";
@@ -292,6 +292,26 @@ export async function listUserUploads(
     );
 }
 
+/** A skipped upload, on the request's event or its own background event. */
+function warnBlobStorageUnset(
+  upload:
+    | "profile_image"
+    | "organization_logo"
+    | "project_logo"
+    | "coworker_image",
+) {
+  recordCoreWarning(
+    { operation: "blob_upload" },
+    {
+      message:
+        "Skipped an image upload, because blob storage is not configured",
+      why: "BLOB_READ_WRITE_TOKEN is unset",
+      fix: "Set BLOB_READ_WRITE_TOKEN to the read-write token of the Vercel Blob store.",
+    },
+    { skippedUpload: { kind: upload } },
+  );
+}
+
 /**
  * Uploads an image to Vercel Blob storage
  * Uses hash-based filename for automatic deduplication
@@ -311,9 +331,7 @@ export async function uploadProfileImage(
   }
 
   if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping image upload",
-    );
+    warnBlobStorageUnset("profile_image");
     return null;
   }
 
@@ -372,9 +390,7 @@ export async function uploadOrganizationLogoBytes(params: {
 }): Promise<string | null> {
   const env = getEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping org logo upload",
-    );
+    warnBlobStorageUnset("organization_logo");
     return null;
   }
 
@@ -421,9 +437,7 @@ export async function uploadProjectLogoBytes(params: {
 }): Promise<string | null> {
   const env = getEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping project logo upload",
-    );
+    warnBlobStorageUnset("project_logo");
     return null;
   }
 
@@ -533,9 +547,7 @@ export async function uploadCoworkerImage(params: {
 }): Promise<string | null> {
   const env = getEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping coworker image upload",
-    );
+    warnBlobStorageUnset("coworker_image");
     return null;
   }
 

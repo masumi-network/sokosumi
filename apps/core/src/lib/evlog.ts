@@ -18,7 +18,7 @@ import {
   getEnvSecrets,
   MAX_REDACTION_DEPTH,
   REDACTED_TOO_DEEP,
-  redactDeep,
+  redactSecrets,
 } from "./secret-redaction.js";
 
 const OPENAPI_SPEC_PATH = "/v1/openapi.json";
@@ -39,22 +39,127 @@ export function initCoreLogger(options: InitCoreLoggerOptions = {}) {
 
 /**
  * Redaction before console output and every drain, in every environment, so
- * tests see what Sentry sees. evlog's default built-ins mask emails, JWTs,
- * bearer tokens, and values under keys ending in password, secret or token;
- * env secrets by value are added here, as `beforeSend` does for Sentry events.
+ * tests see what Sentry sees. Values under keys ending in password, passwd,
+ * secret or token are replaced by evlog's `secrets` built-in; env secrets are
+ * masked by value, as `beforeSend` does for Sentry events.
  *
  * `transform` runs first, on evlog's copy of the event. It turns the event
  * into bounded, acyclic JSON data, so evlog's own recursive built-ins and the
  * JSON output after them cannot overflow the stack on a cyclic or very deep
  * field: logging must not throw in place of the failure it reports.
+ *
+ * It also runs evlog's value maskers itself, because evlog's `iban`,
+ * `creditCard` and `phone` match digit runs inside UUIDs
+ * (`01960001-0001-7001-8001-000000000001` drained as `****7001-****0001`), and
+ * evlog 2.35.1 has no hook to exempt a match. The policy: a UUID stays whole
+ * only in the value of an id field ({@link ID_KEY}, arrays and composites such
+ * as `task_<uuid>` included) and only when RFC 9562-valid; everywhere else,
+ * messages, `why` and `fix` included, every masker runs, so a card number in
+ * UUID shape is still masked. Even in an id field the exemption covers only
+ * the UUID-damaging maskers, and only a match that lies inside the UUID: the
+ * others see the whole value, so `Bearer <uuid>` or `alice+<uuid>@example.com`
+ * is still masked, and a match that crosses the UUID's edge is masked.
+ * Accepted trade-off: an RFC-valid UUID whose digits also form a card number
+ * (`41111111-1111-4115-8111-111111111111`) stays whole in an id field, so an
+ * id field must never carry anything but an ID. Put IDs in id-named fields.
+ * Upstream ask:
+ * ~/notes/core-logging/evlog-uuid-upstream-issue.md. A built-in evlog adds
+ * later is off until copied here.
  */
 const CORE_REDACT: RedactConfig = {
+  builtins: ["secrets"],
   transform: (event) => {
-    const safe = redactDeep(toLogData(event, 0, new Set()), getEnvSecrets());
+    const secrets = getEnvSecrets();
+    const safe = toLogData(event, 0, new Set(), (text, key) =>
+      maskPii(
+        redactSecrets(text, secrets),
+        key !== undefined && ID_KEY.test(key),
+      ),
+    );
     for (const key of Object.keys(event)) delete event[key];
     Object.assign(event, safe);
   },
 };
+
+/** `id`, `taskId`, `taskIds`, `workspace_id`. */
+const ID_KEY = /^id$|Ids?$|_id$/;
+
+/** An RFC 9562 UUID: version nibble 1-8, variant nibble 8, 9, a or b. */
+const RFC_UUID =
+  /(?<![0-9a-f])[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![0-9a-f])/gi;
+
+/**
+ * evlog 2.35.1's default value built-ins, copied in its order. `true` marks
+ * the ones that match digit runs inside UUIDs.
+ */
+const PII_MASKERS: [RegExp, (match: string) => string, boolean?][] = [
+  [/\bBearer\s+[\w\-.~+/]{8,}=*/gi, () => "Bearer ***"],
+  [
+    /\b[A-Z]{2}\d{2}[\s-]?[\dA-Z]{4}[\s-]?[\dA-Z]{4}[\s-]?[\dA-Z]{4}[\s-]?[\dA-Z]{0,4}[\s-]?[\dA-Z]{0,4}[\s-]?[\dA-Z]{0,4}\b/g,
+    (match) => {
+      const clean = match.replace(/[\s-]/g, "");
+      return `${clean.slice(0, 4)}****${clean.slice(-3)}`;
+    },
+    true,
+  ],
+  [
+    /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
+    (match) => `****${match.replace(/[\s-]/g, "").slice(-4)}`,
+    true,
+  ],
+  [
+    /[\w.+-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63})*\.[a-zA-Z]{2,63}\b/g,
+    (match) =>
+      match.indexOf("@") < 1
+        ? "***@***"
+        : `${match[0]}***@***${match.slice(match.lastIndexOf("."))}`,
+  ],
+  [
+    /\b(?!0\.0\.0\.0\b)(?!127\.0\.0\.1\b)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+    (match) => `***.***.***.${match.split(".").pop()}`,
+  ],
+  [
+    /(?:\+\d{1,3}[\s.-]?\(?\d{1,4}\)?|\(\d{1,4}\))(?:[\s.-]?\d{2,4}){2,4}\b/g,
+    (match) => {
+      const digits = match.replace(/[^\d]/g, "");
+      if (match.startsWith("+") && digits.length > 4) {
+        return `${match.match(/^\+\d{1,3}/)?.[0] ?? "+"}******${digits.slice(-2)}`;
+      }
+      if (digits.length > 2) {
+        return `${"*".repeat(digits.length - 2)}${digits.slice(-2)}`;
+      }
+      return "***";
+    },
+    true,
+  ],
+  [/\beyJ(?:(?!-eyJ)[\w-])*\.[\w-]*\.[\w-]*\b/g, () => "eyJ***.***"],
+];
+
+/**
+ * `text` with every masker applied in order. With `keepUuids`, a UUID-damaging
+ * masker skips a match that lies inside one of the RFC UUIDs in the text.
+ */
+function maskPii(text: string, keepUuids: boolean): string {
+  return PII_MASKERS.reduce((masked, [pattern, mask, damagesUuids]) => {
+    if (!keepUuids || !damagesUuids) return masked.replace(pattern, mask);
+    const uuids = Array.from(masked.matchAll(RFC_UUID), (uuid) => [
+      uuid.index,
+      uuid.index + uuid[0].length,
+    ]);
+    // Matches and UUID spans both come in order: one forward cursor keeps
+    // this linear in the number of UUIDs.
+    let next = 0;
+    return masked.replace(pattern, (match: string, offset: number) => {
+      while (next < uuids.length && uuids[next][1] <= offset) next += 1;
+      const uuid = uuids[next];
+      const inside =
+        uuid !== undefined &&
+        uuid[0] <= offset &&
+        offset + match.length <= uuid[1];
+      return inside ? match : mask(match);
+    });
+  }, text);
+}
 
 const LOG_CIRCULAR = "[circular]";
 
@@ -62,16 +167,20 @@ const LOG_CIRCULAR = "[circular]";
  * `value` as JSON would serialize it, cut at {@link MAX_REDACTION_DEPTH} and
  * at cycles: an unwalked subtree is replaced, never passed through. An Error
  * keeps its own fields (`code`, `cause`, …). `text`, when given, rewrites
- * every string on the way.
+ * every string on the way; `key` is the field it sits under, an array's for
+ * its items.
  */
 export function toLogData(
   value: unknown,
   depth = 0,
   ancestors = new Set<object>(),
-  text?: (value: string) => string,
+  text?: (value: string, key: string | undefined) => string,
+  key?: string,
 ): unknown {
-  if (typeof value === "string") return text ? text(value) : value;
-  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "string") return text ? text(value, key) : value;
+  if (typeof value === "bigint") {
+    return text ? text(value.toString(), key) : value.toString();
+  }
   if (value === null || typeof value !== "object") {
     return typeof value === "function" || typeof value === "symbol"
       ? undefined
@@ -93,11 +202,13 @@ export function toLogData(
       } catch {
         return "[unserializable]";
       }
-      if (json !== value) return toLogData(json, depth + 1, ancestors, text);
+      if (json !== value) {
+        return toLogData(json, depth + 1, ancestors, text, key);
+      }
     }
     if (Array.isArray(value)) {
       return value.map(
-        (item) => toLogData(item, depth + 1, ancestors, text) ?? null,
+        (item) => toLogData(item, depth + 1, ancestors, text, key) ?? null,
       );
     }
     const source: Record<string, unknown> =
@@ -111,10 +222,10 @@ export function toLogData(
           }
         : (value as Record<string, unknown>);
     const out: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(source)) {
-      if (key === "toJSON") continue;
-      const data = toLogData(item, depth + 1, ancestors, text);
-      if (data !== undefined) out[key] = data;
+    for (const [field, item] of Object.entries(source)) {
+      if (field === "toJSON") continue;
+      const data = toLogData(item, depth + 1, ancestors, text, field);
+      if (data !== undefined) out[field] = data;
     }
     return out;
   } finally {
@@ -134,6 +245,11 @@ export interface CoreWarning {
    * Redaction runs on it before the drain.
    */
   cause?: unknown;
+  /**
+   * Fields of this warning alone, kept on its own `warnings` entry: event
+   * fields merge, so two warnings on one event would share them.
+   */
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -165,11 +281,39 @@ export function logCoreWarning(
   });
 }
 
-/** Standalone logger for non-HTTP work (mention dispatch). Uses the global drain. */
+/** Fields every standalone event started inside the background work carries. */
+export interface BackgroundWorkContext {
+  /** The cron run the work belongs to, set by `handleSyncRequest`. */
+  syncRunId?: string;
+}
+
+const backgroundWork = new AsyncLocalStorage<BackgroundWorkContext>();
+
+/**
+ * Runs `work` as known background work (a cron's sync): `recordCore*` inside
+ * it emit standalone events. Such work starts in `waitUntil` before the
+ * response, while the request's event is still live, and must not land on it.
+ * `context` goes on every standalone event started inside `work`, background
+ * work it starts included; nested work keeps the outer context.
+ */
+export function runAsBackgroundWork<T>(
+  work: () => T,
+  context: BackgroundWorkContext = {},
+): T {
+  return backgroundWork.run({ ...backgroundWork.getStore(), ...context }, work);
+}
+
+/**
+ * Standalone logger for non-HTTP work (mention dispatch). Uses the global
+ * drain. Inside `runAsBackgroundWork` the event also carries its context.
+ */
 export function createCoreLogger(initialContext: Record<string, unknown> = {}) {
-  return createLogger(initialContext, {
-    waitUntil: process.env.VERCEL ? waitUntil : undefined,
-  });
+  return createLogger(
+    { ...backgroundWork.getStore(), ...initialContext },
+    {
+      waitUntil: process.env.VERCEL ? waitUntil : undefined,
+    },
+  );
 }
 
 /**
@@ -223,17 +367,6 @@ export function emitCoreError(
   const log = createCoreLogger(context);
   writeCoreError(log, error, fields);
   log.emit();
-}
-
-const backgroundWork = new AsyncLocalStorage<true>();
-
-/**
- * Runs `work` as known background work (a cron's sync): `recordCore*` inside
- * it emit standalone events. Such work starts in `waitUntil` before the
- * response, while the request's event is still live, and must not land on it.
- */
-export function runAsBackgroundWork<T>(work: () => T): T {
-  return backgroundWork.run(true, work);
 }
 
 /** `context` without `operation`, which names standalone work, not a request. */
@@ -419,10 +552,6 @@ export function attachUploadToLogger(file: CoreLogUpload) {
       mimeType: file.mimeType,
     },
   });
-}
-
-export function recordCoreRequestError(error: Error) {
-  tryUseLogger()?.error(error);
 }
 
 export interface ImpersonationAuditInput {

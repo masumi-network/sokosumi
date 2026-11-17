@@ -7616,6 +7616,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -7629,6 +7634,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -7642,6 +7652,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -7655,6 +7670,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -7668,6 +7688,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -7681,6 +7706,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -7694,6 +7724,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -7707,6 +7742,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -7720,6 +7760,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -7733,6 +7778,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -7746,6 +7796,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -7759,6 +7814,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -7772,6 +7832,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -7785,6 +7850,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -7798,6 +7868,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -7811,6 +7886,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -7947,6 +8027,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -7960,6 +8045,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -7973,6 +8063,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -7986,6 +8081,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -7999,6 +8099,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -8012,6 +8117,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -8025,6 +8135,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -8038,6 +8153,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -8051,6 +8171,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -8064,6 +8189,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -8077,6 +8207,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -8090,6 +8225,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -8103,6 +8243,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -8116,6 +8261,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -8129,6 +8279,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -8142,6 +8297,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -8251,6 +8411,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8478,6 +8640,53 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             body: string;
         }>;
         changes?: Array<string>;
+        patched?: Array<{
+            id: string;
+            was: {
+                id: string;
+                date: string;
+                time?: string;
+                channel: string;
+                title: string;
+                format: string;
+                status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+                hook?: string;
+                brief?: string;
+                draft?: string;
+                why?: string;
+                socialPostId?: string;
+                visual?: string;
+                visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
+                slides?: Array<string>;
+                story?: string;
+                imageFileId?: string;
+                slideFileIds?: Array<string>;
+                fileId?: string;
+                searchAd?: {
+                    keywords: Array<string>;
+                    headlines: Array<string>;
+                    descriptions: Array<string>;
+                    negativeKeywords?: Array<string>;
+                    maxCpc?: number;
+                    finalUrl: string;
+                    path1?: string;
+                    path2?: string;
+                    location?: string;
+                    language?: string;
+                    callouts?: Array<string>;
+                };
+                adCampaign?: {
+                    accountId: string;
+                    campaignId: string;
+                };
+                taskId?: string;
+                campaignId?: string;
+                approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+                pillar?: string;
+            } | null;
+        }>;
     };
 };
 
@@ -8502,6 +8711,8 @@ export type MarketingStrategyRequest = {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8729,6 +8940,53 @@ export type MarketingStrategyRequest = {
             body: string;
         }>;
         changes?: Array<string>;
+        patched?: Array<{
+            id: string;
+            was: {
+                id: string;
+                date: string;
+                time?: string;
+                channel: string;
+                title: string;
+                format: string;
+                status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+                hook?: string;
+                brief?: string;
+                draft?: string;
+                why?: string;
+                socialPostId?: string;
+                visual?: string;
+                visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
+                slides?: Array<string>;
+                story?: string;
+                imageFileId?: string;
+                slideFileIds?: Array<string>;
+                fileId?: string;
+                searchAd?: {
+                    keywords: Array<string>;
+                    headlines: Array<string>;
+                    descriptions: Array<string>;
+                    negativeKeywords?: Array<string>;
+                    maxCpc?: number;
+                    finalUrl: string;
+                    path1?: string;
+                    path2?: string;
+                    location?: string;
+                    language?: string;
+                    callouts?: Array<string>;
+                };
+                adCampaign?: {
+                    accountId: string;
+                    campaignId: string;
+                };
+                taskId?: string;
+                campaignId?: string;
+                approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+                pillar?: string;
+            } | null;
+        }>;
     };
 };
 
@@ -12313,6 +12571,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -12326,6 +12589,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -12339,6 +12607,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -12352,6 +12625,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -12365,6 +12643,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -12378,6 +12661,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -12391,6 +12679,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -12404,6 +12697,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -12417,6 +12715,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -12430,6 +12733,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -12443,6 +12751,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -12456,6 +12769,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -12469,6 +12787,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -12482,6 +12805,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -12495,6 +12823,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -12508,6 +12841,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -12656,6 +12994,10 @@ export type CmoOverview = {
 
 export type CmoWork = {
     kind: 'research' | 'strategy';
+    /**
+     * A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.
+     */
+    change?: 'fix' | 'patch' | null;
     status: 'running' | 'failed' | 'done';
     startedAt: Date;
     steps: Array<CmoWorkStep>;
@@ -12754,6 +13096,8 @@ export type CmoPlan = {
         channel: string;
         cadence: string;
         why?: string;
+        role?: 'main' | 'side';
+        buyer?: string;
     }>;
     idea?: {
         who: string;
@@ -12981,6 +13325,53 @@ export type CmoPlan = {
         body: string;
     }>;
     changes?: Array<string>;
+    patched?: Array<{
+        id: string;
+        was: {
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
+            slides?: Array<string>;
+            story?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            fileId?: string;
+            searchAd?: {
+                keywords: Array<string>;
+                headlines: Array<string>;
+                descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
+                finalUrl: string;
+                path1?: string;
+                path2?: string;
+                location?: string;
+                language?: string;
+                callouts?: Array<string>;
+            };
+            adCampaign?: {
+                accountId: string;
+                campaignId: string;
+            };
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        } | null;
+    }>;
 };
 
 export type CmoUpdate = {
@@ -13165,6 +13556,22 @@ export type CmoStrategyRequest = {
 
 export type CmoTopUpCheckout = {
     url: string;
+};
+
+export type CmoBrandFixStarted = {
+    turnId: string | null;
+    /**
+     * Cuso is busy: the fix is kept on its section and starts when his current turn ends.
+     */
+    queued: boolean;
+};
+
+export type CmoBrandFixRequest = {
+    section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+    /**
+     * What is true instead, in the owner's words.
+     */
+    note: string;
 };
 
 export type SokoBotApiKey = {
@@ -85667,7 +86074,7 @@ export type RequestCmoStrategyForProjectErrors = {
         };
     };
     /**
-     * The Brand Brain is not ready yet
+     * The Brand Brain is not ready yet, or Cuso is still writing the plan or finishing a change
      */
     409: {
         error: string;
@@ -86119,6 +86526,21 @@ export type AnswerCmoBrandBrainQuestionForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * A no whose fix does not fit beside the corrections already waiting on its section
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectError = AnswerCmoBrandBrainQuestionForProjectErrors[keyof AnswerCmoBrandBrainQuestionForProjectErrors];
@@ -86138,6 +86560,96 @@ export type AnswerCmoBrandBrainQuestionForProjectResponses = {
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectResponse = AnswerCmoBrandBrainQuestionForProjectResponses[keyof AnswerCmoBrandBrainQuestionForProjectResponses];
+
+export type FixCmoBrandSectionForProjectData = {
+    body?: CmoBrandFixRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand/fix';
+};
+
+export type FixCmoBrandSectionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such section
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectError = FixCmoBrandSectionForProjectErrors[keyof FixCmoBrandSectionForProjectErrors];
+
+export type FixCmoBrandSectionForProjectResponses = {
+    /**
+     * Cuso is fixing the section, or will once his current turn ends
+     */
+    201: {
+        data: CmoBrandFixStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectResponse = FixCmoBrandSectionForProjectResponses[keyof FixCmoBrandSectionForProjectResponses];
 
 export type ApproveCmoMarketingStrategyForProjectData = {
     body?: never;

@@ -6,7 +6,6 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
-
 import {
   getAgentDescription,
   getAgentIcon,
@@ -15,6 +14,7 @@ import {
 } from "@/helpers/agent";
 import { getAgentCost } from "@/helpers/agent-cost";
 import { calculateAgentRatings } from "@/helpers/agent-rating";
+import { recordCoreWarning } from "@/lib/evlog";
 import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
@@ -56,8 +56,14 @@ export async function buildAgentSummaries(
         (!agent.pricing.fixedPricing ||
           agent.pricing.fixedPricing.amounts.length === 0)
       ) {
-        console.warn(
-          `[agents] Skipping agent ${agent.id} during transient pricing rewrite`,
+        recordCoreWarning(
+          { operation: "agent_summaries", agentId: agent.id },
+          {
+            message:
+              "An agent was left out of a listing while its pricing is rewritten",
+            why: "The agent has fixed pricing without amounts, as a registry replay leaves it for a moment",
+            fix: "Nothing, unless the same agent keeps being skipped: then check its pricing rows.",
+          },
         );
         return null;
       }

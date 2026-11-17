@@ -11,6 +11,7 @@ import { BlobNotFoundError } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { driveHead, driveRead } from "@/lib/drive-blob";
+import { createCoreLogger } from "@/lib/evlog";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import type { ExtractedChunk } from "@/lib/files/extraction";
 import {
@@ -405,14 +406,16 @@ export async function processFileIndexJobs(input: {
       // Deliberately before the lease, not after. A job leased here would
       // run past the lock's expiry and let the next tick start the same
       // pipeline beside it.
-      console.info(
-        "[files] extraction stopped early to stay inside the sync window",
-        {
+      // Extraction runs in the cron or after a response: its own event.
+      createCoreLogger({
+        operation: "files_extraction",
+        fileExtraction: {
+          stoppedEarly: "to stay inside the sync window",
           processed: result.processed,
           msRemaining: input.msRemaining?.() ?? null,
           reserveMs: EXTRACTION_JOB_WORST_CASE_MS + SYNC_TAIL_RESERVE_MS,
         },
-      );
+      }).emit();
       break;
     }
 

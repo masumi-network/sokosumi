@@ -32,10 +32,12 @@ import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { mapTaskTags, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -336,9 +338,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           grantId: task.pendingVendorGrantId,
         });
       } catch (error) {
-        console.error(
-          "Failed to notify approvers of pending vendor grant after task create",
-          error,
+        // The notice is a mail naming the task: content-free fields only.
+        recordCoreError(
+          {
+            operation: "task_create",
+            taskId: task.id,
+            grantId: task.pendingVendorGrantId,
+          },
+          {
+            message: "Could not notify workspace approvers of a pending grant",
+            why: "Sending the approval request failed after the task was created",
+            fix: "The task waits in GRANT_PENDING until someone approves; tell the workspace's approvers. Look up the error name and code under failure.",
+          },
+          { failure: messageSafeErrorFields(error) },
         );
         Sentry.captureException(error, {
           extra: {

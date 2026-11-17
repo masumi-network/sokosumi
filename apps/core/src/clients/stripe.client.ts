@@ -5,8 +5,9 @@ import {
   getCreditTopUpTotalMinorUnits,
 } from "@sokosumi/utils";
 import Stripe from "stripe";
-
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   emptyStripeCustomerBillingDetails,
   type StripeCustomerBillingAddress,
@@ -527,7 +528,16 @@ export const stripeClient = {
 
       return validatePrice(fallbackPrice);
     } catch (error) {
-      console.error("Error retrieving price", error);
+      // Stripe's answer is untrusted text: content-free fields only.
+      recordCoreError(
+        { operation: "stripe_get_credit_price" },
+        {
+          message: "Stripe did not return a credit price",
+          why: "Reading the credit product's price from Stripe failed",
+          fix: "Check the credit product and its active prices in Stripe; the caller reports the error.",
+        },
+        { provider: "stripe", failure: messageSafeErrorFields(error) },
+      );
       throw error;
     }
   },
@@ -551,7 +561,20 @@ export const stripeClient = {
 
       return validatePrice(matchedPrice);
     } catch (error) {
-      console.error("Error retrieving price by lookup key", error);
+      // Stripe's answer is untrusted text: content-free fields only.
+      recordCoreError(
+        { operation: "stripe_get_credit_price_by_lookup_key" },
+        {
+          message: "Stripe did not return a credit price for a lookup key",
+          why: "Reading the credit price for a lookup key from Stripe failed",
+          fix: "Check that an active price of the credit product carries the lookup key; the caller reports the error.",
+        },
+        {
+          provider: "stripe",
+          lookupKey,
+          failure: messageSafeErrorFields(error),
+        },
+      );
       throw error;
     }
   },

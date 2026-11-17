@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   coreEvlogMiddleware,
   createCoreLogger,
+  emitCoreWarning,
   logCoreWarning,
+  recordCoreError,
   runAsBackgroundWork,
   tryUseLiveLogger,
 } from "@/lib/evlog";
@@ -74,5 +76,131 @@ describe("runAsBackgroundWork", () => {
     expect(warnings[0]?.event).toMatchObject({
       operation: "background_example",
     });
+  });
+});
+
+describe("a sync run's id", () => {
+  const RUN_A = "01960001-0001-7001-8001-00000000000a";
+  const RUN_B = "01960001-0001-7001-8001-00000000000b";
+
+  function failInService(message: string) {
+    recordCoreError(
+      { operation: "service_example" },
+      { message, why: "The example failed" },
+    );
+  }
+
+  it("is on a service event emitted inside the run", async () => {
+    const errors = expectCoreLog("error", "Service failed");
+
+    await runAsBackgroundWork(async () => failInService("Service failed"), {
+      syncRunId: RUN_A,
+    });
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "service_example",
+      syncRunId: RUN_A,
+    });
+  });
+
+  it("stays with its own run when two runs overlap", async () => {
+    const errors = expectCoreLog("error", "Service failed in run", 2);
+    let releaseA: () => void = () => {};
+    const runA = runAsBackgroundWork(
+      async () => {
+        await new Promise<void>((resolve) => {
+          releaseA = resolve;
+        });
+        failInService("Service failed in run A");
+      },
+      { syncRunId: RUN_A },
+    );
+    // Run B starts and ends while run A is still waiting.
+    await runAsBackgroundWork(
+      async () => failInService("Service failed in run B"),
+      { syncRunId: RUN_B },
+    );
+    releaseA();
+    await runA;
+
+    expect(errors.map((entry) => entry.event.syncRunId)).toEqual([
+      RUN_B,
+      RUN_A,
+    ]);
+  });
+
+  it("is kept by background work the run starts", async () => {
+    const warnings = expectCoreLog("warn", "Nested work failed");
+
+    await runAsBackgroundWork(
+      () =>
+        runAsBackgroundWork(async () =>
+          emitCoreWarning(
+            { operation: "nested_example" },
+            { message: "Nested work failed", why: "The example failed" },
+          ),
+        ),
+      { syncRunId: RUN_A },
+    );
+
+    expect(warnings[0]?.event).toMatchObject({ syncRunId: RUN_A });
+  });
+
+  it("is kept by detached work the run starts, after the run ends", async () => {
+    const warnings = expectCoreLog("warn", "Detached work failed");
+    let release: () => void = () => {};
+    let detached: Promise<void> | undefined;
+
+    await runAsBackgroundWork(
+      async () => {
+        // Started without await, as `waitUntil` work is.
+        detached = new Promise<void>((resolve) => {
+          release = resolve;
+        }).then(() =>
+          emitCoreWarning(
+            { operation: "detached_example" },
+            { message: "Detached work failed", why: "The example failed" },
+          ),
+        );
+      },
+      { syncRunId: RUN_A },
+    );
+    release();
+    await detached;
+
+    expect(warnings[0]?.event).toMatchObject({ syncRunId: RUN_A });
+  });
+
+  it("is on no event after the run ends", async () => {
+    const errors = expectCoreLog("error", "Service failed", 4);
+    await runAsBackgroundWork(
+      async () => failInService("Service failed in run"),
+      {
+        syncRunId: RUN_A,
+      },
+    );
+    const app = createApp();
+    app.get("/v1/example", (c) => {
+      failInService("Service failed in a later request");
+      return c.json({ ok: true });
+    });
+
+    failInService("Service failed outside");
+    await app.request("http://localhost/v1/example");
+    await runAsBackgroundWork(async () =>
+      failInService("Service failed in plain background work"),
+    );
+
+    expect(errors.map((entry) => entry.event.syncRunId)).toEqual([
+      RUN_A,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    const request = coreLogEvents().find(
+      (event) => event.path === "/v1/example",
+    );
+    expect(request).toBeDefined();
+    expect(request).not.toHaveProperty("syncRunId");
   });
 });
