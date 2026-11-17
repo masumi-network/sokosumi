@@ -1,7 +1,15 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { Hono } from "hono";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import prisma from "@/lib/db/prisma";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
   acquireLockMock,
@@ -96,6 +104,23 @@ vi.mock("@/services/social-account-sync", () => ({
   scheduleSocialAccountRefresh: vi.fn(),
   requestSocialAccountRefresh: vi.fn(),
 }));
+
+const refreshSkillCatalogMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/skill-catalog.service", () => ({
+  refreshSkillCatalog: refreshSkillCatalogMock,
+}));
+
+/**
+ * What Prisma throws for an invalid write: the message quotes the call's
+ * arguments, here external text with a private sentinel and a secret.
+ */
+function prismaValidationError() {
+  const error = new Error(
+    'Invalid `prisma.skill.upsert()` invocation:\n{ data: { name: "PRIVATE-SENTINEL notes", description: "key sk_live_abc123", installs: 99999999999999999999 } }\nArgument `installs`: Value out of range for the type.',
+  );
+  error.name = "PrismaClientValidationError";
+  return error;
+}
 
 vi.mock("@/services/notification-publish-sync.service", () => ({
   retryNotificationPublishes: vi
@@ -257,6 +282,65 @@ async function flushMicrotasks() {
 async function flushPromises() {
   await Promise.resolve();
   await Promise.resolve();
+}
+
+/** The run's own event, sent when the run ends. */
+function runEvent() {
+  return coreLogEvents().find(
+    (event) =>
+      event.operation === "cron_sync" &&
+      typeof (event.sync as { outcome?: unknown } | undefined)?.outcome ===
+        "string",
+  );
+}
+
+/** The deadline warning, with the lock and the budget it names. */
+function expectDeadlineWarning() {
+  const warnings = expectCoreLogWhys(
+    "warn",
+    "A scheduled sync reached its deadline and was asked to stop",
+    [
+      "It ran longer than its time budget, LOCK_TIMEOUT minus LOCK_TIMEOUT_BUFFER",
+    ],
+  );
+  onTestFinished(() => {
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cron_sync",
+      sync: {
+        lockKey: "lock-key",
+        timeoutMs: SYNC_DEADLINE_MS,
+        runId: expect.any(String),
+      },
+    });
+  });
+  return warnings;
+}
+
+/**
+ * A sync that threw: an error on the run's event. A content-free route keeps
+ * the error as `cause`; any other keeps only the safe fields.
+ */
+function expectSyncFailure(cause?: string) {
+  const errors = expectCoreLogWhys(
+    "error",
+    "A scheduled sync failed",
+    ["The sync threw before it finished"],
+    cause === undefined ? undefined : [cause],
+  );
+  onTestFinished(() => {
+    expect(errors[0]?.event).toMatchObject({
+      operation: "cron_sync",
+      sync: { lockKey: "lock-key", outcome: "failed", lock: "released" },
+      failure: { errorName: expect.any(String) },
+    });
+    if (cause === undefined) expect(errors[0]?.cause).toBeUndefined();
+  });
+  return errors;
+}
+
+/** The `sync.runId` of a drained event. */
+function runIdOf(event: Record<string, unknown> | undefined) {
+  return (event?.sync as { runId?: unknown } | undefined)?.runId;
 }
 
 /** Returns a promise and its resolver so tests can resolve the promise when needed. */
@@ -575,9 +659,11 @@ describe("sync routes", () => {
   });
 
   it("still runs the registry sync when x402 readiness throws", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[sync/agents] x402 buy-side readiness sync failed; continuing registry sync",
+      "The x402 buy-side readiness sync failed; the registry sync continues",
+      ["The readiness sync threw outside its own failure handling"],
+      ["node timeout"],
     );
     // x402 readiness is advisory; the registry sync is this route's primary
     // job. An unhandled throw from the readiness refresh (e.g. its 10s abort
@@ -594,6 +680,11 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+    // On the run's event, which the registry sync then finishes.
+    expect(warnings[0]?.event).toBe(runEvent());
+    expect(runEvent()).toMatchObject({
+      sync: { lockKey: "lock-key", outcome: "completed" },
+    });
   });
 
   it("does not request a cursor reset on the recurring agents sync", async () => {
@@ -698,7 +789,8 @@ describe("sync routes", () => {
   });
 
   it("retries owed revokes even when the CMO yearly grants fail", async () => {
-    expectConsole("error", "Error in sync operation");
+    // Safe fields: Polar's errors can quote customer data.
+    expectSyncFailure();
     syncPolarYearlyGrantsMock.mockRejectedValue(new Error("catalog down"));
     const app = createApp();
 
@@ -824,10 +916,7 @@ describe("sync routes", () => {
   });
 
   it("releases source import lock when sync exceeds timeout budget", async () => {
-    expectConsole(
-      "warn",
-      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
-    );
+    expectDeadlineWarning();
     vi.useFakeTimers();
 
     try {
@@ -865,10 +954,7 @@ describe("sync routes", () => {
   });
 
   it("releases jobs lock when sync exceeds timeout budget", async () => {
-    expectConsole(
-      "warn",
-      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
-    );
+    expectDeadlineWarning();
     vi.useFakeTimers();
 
     try {
@@ -1055,10 +1141,7 @@ describe("sync routes", () => {
    * is not enough, because a fresh AbortController has the right shape.
    */
   it("hands the follow-up run the deadline its lock is held under", async () => {
-    expectConsole(
-      "warn",
-      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
-    );
+    expectDeadlineWarning();
     vi.useFakeTimers();
 
     try {
@@ -1233,10 +1316,7 @@ describe("sync routes", () => {
   });
 
   it("does not release guest invitation expiry lock when sync ignores cancellation", async () => {
-    expectConsole(
-      "warn",
-      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
-    );
+    expectDeadlineWarning();
     vi.useFakeTimers();
 
     try {
@@ -1273,9 +1353,12 @@ describe("sync routes", () => {
   it("warns when guest invitation expiry lock ownership changed on release", async () => {
     expireStalePendingInvitationsMock.mockResolvedValue(1);
     releaseLockMock.mockResolvedValue(false);
-    const warnings = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[sync/lock-key] Lock not released because ownership changed",
+      "A scheduled sync's lock was not released",
+      [
+        "Another run owns the lock now: it expired while this run was still going",
+      ],
     );
 
     const app = createApp();
@@ -1291,16 +1374,18 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-    expect(warnings).toContainEqual([
-      expect.stringContaining("ownership changed"),
-    ]);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cron_sync",
+      sync: {
+        lockKey: "lock-key",
+        outcome: "completed",
+        lock: "ownership_changed",
+      },
+    });
   });
 
   it("does not release lock when a long-running sync ignores cancellation", async () => {
-    expectConsole(
-      "warn",
-      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
-    );
+    expectDeadlineWarning();
     vi.useFakeTimers();
 
     try {
@@ -1332,10 +1417,7 @@ describe("sync routes", () => {
   });
 
   it("releases lock when a long-running sync cooperatively cancels", async () => {
-    expectConsole(
-      "warn",
-      "[sync/lock-key] Deadline reached after 4000ms; requesting cancellation",
-    );
+    const deadline = expectDeadlineWarning();
     vi.useFakeTimers();
 
     try {
@@ -1364,6 +1446,12 @@ describe("sync routes", () => {
 
       expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
       expect(releaseLockMock).toHaveBeenCalledTimes(1);
+      // The run event follows the release.
+      await flushPromises();
+      expect(runEvent()).toMatchObject({
+        sync: { outcome: "cancelled", lock: "released" },
+      });
+      expect(runIdOf(deadline[0]?.event)).toEqual(runIdOf(runEvent()));
     } finally {
       vi.useRealTimers();
     }
@@ -1371,7 +1459,7 @@ describe("sync routes", () => {
 
   it("clears background timers when sync fails", async () => {
     vi.useFakeTimers();
-    expectConsole("error", "Error in sync operation");
+    expectSyncFailure();
 
     try {
       syncRegistryAgentsMock.mockRejectedValue(new Error("sync failed fast"));
@@ -1391,5 +1479,179 @@ describe("sync routes", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("sends one run event with the outcome, the lock and the sync's counts", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/sync/source-import", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(coreLogEvents()).toHaveLength(1);
+    expect(runEvent()).toMatchObject({
+      level: "info",
+      operation: "cron_sync",
+      sync: {
+        lockKey: "lock-key",
+        outcome: "completed",
+        lock: "released",
+        durationMs: expect.any(Number),
+        runId: expect.any(String),
+      },
+      result: { pendingBlobs: 3 },
+    });
+  });
+
+  it("puts each part of a multi-step sync on the same run event", async () => {
+    const app = createApp();
+
+    await app.request("http://localhost/sync/polar-yearly-grants", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    await flushMicrotasks();
+    expect(coreLogEvents()).toHaveLength(1);
+    expect(runEvent()).toMatchObject({
+      result: {
+        grants: { errors: 0, granted: 0, stoppedEarly: false },
+        revokes: { errors: 0, revoked: 0, stoppedEarly: false },
+      },
+    });
+  });
+
+  it.each([
+    ["skill-catalog", () => refreshSkillCatalogMock],
+    ["agents", () => syncRegistryAgentsMock],
+  ])(
+    "keeps a Prisma validation error's quoted text off the %s run event",
+    async (route, mock) => {
+      const errors = expectSyncFailure();
+      mock().mockRejectedValue(prismaValidationError());
+      const app = createApp();
+
+      await app.request(`http://localhost/sync/${route}`, {
+        headers: { Authorization: "Bearer test-cron-secret" },
+      });
+
+      await flushMicrotasks();
+      expect(errors[0]?.event).toMatchObject({
+        failure: { errorName: "PrismaClientValidationError" },
+      });
+      const drained = JSON.stringify(coreLogEvents());
+      expect(drained).not.toContain("PRIVATE-SENTINEL");
+      expect(drained).not.toContain("sk_live_abc123");
+    },
+  );
+
+  it("keeps a content-bearing sync's error text and secrets off its event", async () => {
+    // A job's state carries what its agent returned.
+    const errors = expectSyncFailure();
+    syncJobsMock.mockRejectedValue(
+      new Error(
+        "Reply to alice@example.com: our private plan, key sk_live_abc123",
+      ),
+    );
+    const app = createApp();
+
+    await app.request("http://localhost/sync/jobs", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    await flushMicrotasks();
+    const drained = JSON.stringify(coreLogEvents());
+    expect(errors).toHaveLength(1);
+    expect(drained).not.toContain("private plan");
+    expect(drained).not.toContain("alice@example.com");
+    expect(drained).not.toContain("sk_live_abc123");
+  });
+
+  it("keeps a content-free sync's error as the cause on its event", async () => {
+    expectSyncFailure("connection to the database was lost");
+    purgeExpiredVerificationsMock.mockRejectedValue(
+      new Error("connection to the database was lost"),
+    );
+    const app = createApp();
+
+    await app.request("http://localhost/sync/expired-verifications-purge", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    await flushMicrotasks();
+  });
+
+  it("ties each overlapping run's events to that run", async () => {
+    const releaseError = expectCoreLogWhys(
+      "error",
+      "Could not release a scheduled sync's lock",
+      ["The database update that frees the lock failed"],
+      ["db down"],
+    );
+    let finishFirst: (count: number) => void = () => {};
+    syncSourceImportMock
+      .mockImplementationOnce(
+        () =>
+          new Promise<number>((resolve) => {
+            finishFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(5);
+    releaseLockMock
+      .mockResolvedValueOnce(true)
+      .mockRejectedValueOnce(new Error("db down"));
+    const app = createApp();
+    const request = () =>
+      app.request("http://localhost/sync/source-import", {
+        headers: { Authorization: "Bearer test-cron-secret" },
+      });
+
+    // The second run starts and ends while the first is still going.
+    await request();
+    await flushMicrotasks();
+    await request();
+    await flushMicrotasks();
+    finishFirst(1);
+    await flushMicrotasks();
+
+    const runs = coreLogEvents().filter(
+      (event) => runIdOf(event) && "result" in event,
+    );
+    expect(runs.map((event) => event.result)).toEqual([
+      { pendingBlobs: 5 },
+      { pendingBlobs: 1 },
+    ]);
+    const [second, first] = runs;
+    expect(runIdOf(first)).not.toEqual(runIdOf(second));
+    expect(second).toMatchObject({ sync: { lock: "released" } });
+    expect(first).toMatchObject({ sync: { lock: "release_failed" } });
+    expect(runIdOf(releaseError[0]?.event)).toEqual(runIdOf(first));
+  });
+
+  it("logs a lock release that throws as its own error and marks the run", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Could not release a scheduled sync's lock",
+      ["The database update that frees the lock failed"],
+      ["db down"],
+    );
+    releaseLockMock.mockRejectedValue(new Error("db down"));
+    const app = createApp();
+
+    await app.request("http://localhost/sync/source-import", {
+      headers: { Authorization: "Bearer test-cron-secret" },
+    });
+
+    await flushMicrotasks();
+    expect(coreLogEvents()).toHaveLength(2);
+    expect(runEvent()).toMatchObject({
+      level: "info",
+      sync: {
+        lockKey: "lock-key",
+        outcome: "completed",
+        lock: "release_failed",
+      },
+    });
   });
 });

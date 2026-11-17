@@ -15,9 +15,9 @@ export default function mount(app: Hono) {
         const result = await moveDataRoomFiles({
           shouldContinue: context.shouldContinue,
         });
-        if (result.rooms > 0)
-          console.info("[sync/data-rooms] Moved data room files", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

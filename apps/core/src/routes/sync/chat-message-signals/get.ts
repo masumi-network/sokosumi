@@ -12,8 +12,11 @@ const CHAT_MESSAGE_SIGNALS_SYNC_LOCK_KEY = "chat-message-signals-sync";
  */
 export default function mount(app: Hono) {
   app.get("/chat-message-signals", (c) =>
-    handleSyncRequest(c, CHAT_MESSAGE_SIGNALS_SYNC_LOCK_KEY, (context) =>
-      sweepChatMessageSignals(context),
+    handleSyncRequest(
+      c,
+      CHAT_MESSAGE_SIGNALS_SYNC_LOCK_KEY,
+      (context) => sweepChatMessageSignals(context),
+      { errorDetail: "safe-fields" },
     ),
   );
 }

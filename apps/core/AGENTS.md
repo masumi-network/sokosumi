@@ -471,6 +471,8 @@ Put IDs in id-named fields (`id`, `taskId`, `taskIds`, `workspace_id`): redactio
 
 One standalone event per operation: a run's counts go on one event at its end; a failure that the run survives is its own error event with the context of that item (`src/services/stripe-customer-sync.service.ts`).
 
+Every cron run sends one such event from `handleSyncRequest` (`operation: "cron_sync"`): its lock key, `runId`, outcome, duration and lock release, and the error a sync throws. Each route declares that error's detail: `{ errorDetail: "cause" }` only when every call it makes carries ids, counts, dates and enum values (a Prisma validation error quotes its call's arguments, so a write of registry, catalog, customer or other external text rules it out), else `{ errorDetail: "safe-fields" }` (the default). A cron route puts its counts there with `context.log.set({ result })` and a warning it survives with `logCoreWarning(context.log, …)`, and puts `sync: { runId: context.runId }` on any event of its own; it never logs a "started" or "completed" line.
+
 ### Understandable events
 
 Every warning or error Core logs answers three questions, built on evlog's structured error:
