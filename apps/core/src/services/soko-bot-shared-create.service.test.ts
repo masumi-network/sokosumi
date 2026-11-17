@@ -20,6 +20,11 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   getDefaultSokoBotVersionId: vi.fn().mockResolvedValue("v1"),
 }));
 
+const { assignCodeMock } = vi.hoisted(() => ({ assignCodeMock: vi.fn() }));
+vi.mock("@/services/soko-bot-avatar-code.service", () => ({
+  assignRandomAvatarCode: assignCodeMock.mockResolvedValue(undefined),
+}));
+
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   ensureSystemSchedules: vi.fn().mockResolvedValue(undefined),
 }));
@@ -116,6 +121,21 @@ describe("createSharedSokoBot", () => {
     });
 
     expect(avatars.avatars[0]?.claimedBySokoBotId).toBe(BOT_ID);
+    expect(assignCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("gives the bot a random avatar code when no avatar was picked", async () => {
+    const tx = recordingTx(["caller"]);
+    transactionMock.mockImplementation(async (run) => await run(tx));
+
+    await createSharedSokoBot({
+      callerUserId: "caller",
+      workspaceId: "workspace_1",
+      projectId: null,
+      name: "Team",
+    });
+
+    expect(assignCodeMock).toHaveBeenCalledWith(BOT_ID);
   });
 
   it("refuses a workspace without an organization before any transaction", async () => {

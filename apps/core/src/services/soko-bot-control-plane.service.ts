@@ -128,6 +128,7 @@ import {
 } from "@/services/polar-subscription-end.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
+import { assignRandomAvatarCode } from "@/services/soko-bot-avatar-code.service";
 import {
   notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
@@ -1324,6 +1325,16 @@ export class SokoBotControlPlane {
       if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
+    if (!input.avatarId && !created.avatarCode) {
+      // Outside the transaction: it uploads to Blob. A failure leaves the bot
+      // faceless until its owner picks one, which beats failing the create.
+      await assignRandomAvatarCode(created.id).catch((error) => {
+        console.error("Soko Bot avatar code failed", {
+          sokoBotId: created.id,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+      });
+    }
     const { ensureSystemSchedules } = await import(
       "@/services/soko-bot-proactive.service"
     );

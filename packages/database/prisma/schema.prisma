@@ -2630,6 +2630,8 @@ model SokoBot {
   /// Picked mascot image (see SokoBotAvatar); null → generative orb.
   avatarImageUrl String?
   avatar         SokoBotAvatar?
+  /// Feature code of the live SVG avatar (see @sokosumi/soko-bot avatar); unique, so no two bots look alike.
+  avatarCode     String?        @unique
 
   /// User-chosen display name for their personal assistant. Null until named.
   name String?

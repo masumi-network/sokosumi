@@ -2734,6 +2734,13 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Feature code of the live SVG avatar; null until the bot has one.'
+        },
         ownerUserId: {
             type: [
                 'string',
@@ -4915,6 +4922,12 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         versionId: {
             type: [
                 'string',
@@ -5025,6 +5038,22 @@ export const ClaimSokoBotAvatarRequestSchema = {
     },
     required: [
         'avatarId'
+    ]
+} as const;
+
+export const SokoBotAvatarCodeSchema = {
+    type: 'object',
+    properties: {
+        avatarCode: {
+            type: 'string'
+        },
+        avatarImageUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'avatarCode',
+        'avatarImageUrl'
     ]
 } as const;
 
@@ -30864,6 +30893,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 3
                                     },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
                                     slides: {
                                         type: 'array',
                                         items: {
@@ -32308,6 +32346,15 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
                             },
                             slides: {
                                 type: 'array',
@@ -38559,6 +38606,15 @@ export const SocialPostSchema = {
                         maxLength: 100
                     },
                     maxItems: 3
+                },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
                 },
                 slides: {
                     type: 'array',
@@ -50869,6 +50925,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 3
                     },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
+                    },
                     slides: {
                         type: 'array',
                         items: {
@@ -52042,6 +52107,12 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
+                avatarCode: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
                 versionId: {
                     type: [
                         'string',
@@ -53039,6 +53110,12 @@ export const SokoBotTeamSchema = {
                                 ]
                             },
                             avatarImageUrl: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            avatarCode: {
                                 type: [
                                     'string',
                                     'null'

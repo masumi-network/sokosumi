@@ -131,6 +131,7 @@ const SOKO_BOT_MEMBER = {
     name: "Soko",
     avatarImageUrl: null,
     avatarSeed: null,
+    avatarCode: null,
     userId: USER_ID,
     projectId: null,
     sharedRoomId: null,

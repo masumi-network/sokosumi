@@ -11,6 +11,7 @@ import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
+import { assignRandomAvatarCode } from "@/services/soko-bot-avatar-code.service";
 import {
   memoryHash,
   SokoBotNotFoundError,
@@ -212,6 +213,16 @@ export async function createSharedSokoBot(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
   );
+  if (!input.avatarId) {
+    // Outside the transaction: it uploads to Blob. A failure leaves the bot
+    // faceless until a manager picks one, which beats failing the create.
+    await assignRandomAvatarCode(created.id).catch((error) => {
+      console.error("Soko Bot avatar code failed", {
+        sokoBotId: created.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
+  }
   // Shared bots get their built-in rhythms switched off; a member turns them on.
   const { ensureSystemSchedules } = await import(
     "@/services/soko-bot-proactive.service"

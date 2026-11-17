@@ -138,6 +138,7 @@ function bot(
       name,
       avatarImageUrl: null,
       avatarSeed: null,
+      avatarCode: null,
       userId: ownerUserId,
       projectId: shared.projectId ?? null,
       sharedRoomId: shared.sharedRoomId ?? null,
