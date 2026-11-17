@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectEnvSecrets,
   REDACTED_SECRET,
+  REDACTED_TOO_DEEP,
   redactDeep,
   redactSecrets,
 } from "./secret-redaction.js";
@@ -212,5 +213,34 @@ describe("redactDeep", () => {
     const result = redactDeep({ stamp }, ["paykey_secret1"]);
 
     expect(result.stamp).toBe(stamp);
+  });
+
+  it("replaces a subtree beyond the depth limit instead of passing it through", () => {
+    let deep: Record<string, unknown> = { message: "paykey_secret1" };
+    for (let level = 0; level < 40; level += 1) deep = { next: deep };
+
+    const result = redactDeep({ deep }, ["paykey_secret1"]);
+
+    expect(JSON.stringify(result)).not.toContain("paykey_secret1");
+    expect(JSON.stringify(result)).toContain(REDACTED_TOO_DEEP);
+  });
+
+  it("masks a secret in a nested error cause", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            value: "outer",
+            data: {
+              cause: { cause: { cause: { message: "echo paykey_secret1" } } },
+            },
+          },
+        ],
+      },
+    };
+
+    const result = redactDeep(event, ["paykey_secret1"]);
+
+    expect(JSON.stringify(result)).not.toContain("paykey_secret1");
   });
 });
