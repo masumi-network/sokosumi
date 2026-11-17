@@ -10189,7 +10189,7 @@
           "answered": "Antwort gespeichert",
           "answerFailed": "Antwort konnte nicht gespeichert werden",
           "shareLabel": "Allen im Datenraum zeigen",
-          "shareHint": "Alle, die dieses Dokument öffnen können, sehen die Frage und deine Antwort, aber nicht, wer gefragt hat.",
+          "shareHint": "Alle, die dieses Dokument öffnen können, sehen die Frage im Wortlaut und deine Antwort, aber nicht, wer gefragt hat. Die Frage kannst du nicht ändern.",
           "answeredShared": "Antwort gespeichert und mit dem Datenraum geteilt"
         },
         "Contents": {
@@ -13275,7 +13275,10 @@
       "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
       "openFirst": "{name} öffnen",
       "sharedTitle": "Für alle beantwortet",
-      "sharedNote": "Für alle im Datenraum beantwortet"
+      "sharedNote": "Für alle im Datenraum beantwortet",
+      "sharedLoading": "Für alle geteilte Antworten werden geladen…",
+      "sharedFailed": "Die für alle geteilten Antworten konnten nicht geladen werden. Prüf deine Verbindung und versuch es noch einmal.",
+      "retry": "Noch einmal versuchen"
     }
   },
   "NotFound": {

@@ -172,7 +172,7 @@ function RoomWelcome({
   const files = room.rows.filter((row) => row.kind === "file");
   const folders = room.rows.length - files.length;
   const first = files[0];
-  const [questions] = useRoomQuestions(`${base}/questions`);
+  const { questions, status, retry } = useRoomQuestions(`${base}/questions`);
   const shared = questions.flatMap((question) => {
     const row = room.rows.find((r) => r.path === question.path);
     return question.shared && question.answer && row ? [{ question, row }] : [];
@@ -212,7 +212,22 @@ function RoomWelcome({
           </Button>
         ) : null}
       </div>
-      {shared.length > 0 ? (
+      <p role="status" className="sr-only">
+        {status === "loading" ? t("sharedLoading") : ""}
+      </p>
+      {status === "failed" ? (
+        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+          <p
+            role="alert"
+            className="text-muted-foreground min-w-0 flex-1 text-sm"
+          >
+            {t("sharedFailed")}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={retry}>
+            {t("retry")}
+          </Button>
+        </div>
+      ) : shared.length > 0 ? (
         <section className="grid gap-3 border-t pt-4">
           <h3 className="text-sm font-medium">{t("sharedTitle")}</h3>
           <ul className="grid gap-4">
@@ -373,7 +388,7 @@ function RoomQuestions({
 }) {
   const t = useTranslations("Share.Room");
   const questionId = useId();
-  const [questions, setQuestions] = useRoomQuestions(
+  const { questions, setQuestions } = useRoomQuestions(
     `${base}/questions?resourceId=${encodeURIComponent(resourceId)}`,
   );
   const [body, setBody] = useState("");
@@ -451,21 +466,42 @@ function RoomQuestions({
   );
 }
 
-/** The viewer's own questions and the room's shared answers at `url`. */
+/**
+ * The viewer's own questions and the room's shared answers at `url`, with
+ * whether they are still loading or failed to, and a way to load them again.
+ */
 function useRoomQuestions(url: string) {
-  const state = useState<DataRoomViewerQuestion[]>([]);
-  const setQuestions = state[1];
+  const [questions, setQuestions] = useState<DataRoomViewerQuestion[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">(
+    "loading",
+  );
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let current = true;
-    fetch(url)
-      .then((response) => (response.ok ? response.json() : []))
-      .then((loaded: DataRoomViewerQuestion[]) => {
-        if (current) setQuestions(loaded);
+    fetch(url, attempt > 0 ? { cache: "no-store" } : undefined)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Questions ${response.status}`);
+        return response.json();
       })
-      .catch(() => {});
+      .then((loaded: DataRoomViewerQuestion[]) => {
+        if (!current) return;
+        setQuestions(loaded);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (current) setStatus("failed");
+      });
     return () => {
       current = false;
     };
-  }, [url, setQuestions]);
-  return state;
+  }, [url, attempt]);
+  return {
+    questions,
+    setQuestions,
+    status,
+    retry: () => {
+      setStatus("loading");
+      setAttempt((count) => count + 1);
+    },
+  };
 }

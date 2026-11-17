@@ -10189,7 +10189,7 @@
           "answered": "Answer saved",
           "answerFailed": "Could not save the answer",
           "shareLabel": "Show to everyone in the room",
-          "shareHint": "Everyone who can open this document sees the question and your answer, not who asked.",
+          "shareHint": "Everyone who can open this document sees the question word for word and your answer, not who asked. You can't edit the question.",
           "answeredShared": "Answer saved and shared with the room"
         },
         "Contents": {
@@ -13275,7 +13275,10 @@
       "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
       "openFirst": "Open {name}",
       "sharedTitle": "Answered for everyone",
-      "sharedNote": "Answered for everyone in the room"
+      "sharedNote": "Answered for everyone in the room",
+      "sharedLoading": "Loading answers shared with everyone…",
+      "sharedFailed": "Could not load the answers shared with everyone. Check your connection and try again.",
+      "retry": "Try again"
     }
   },
   "NotFound": {

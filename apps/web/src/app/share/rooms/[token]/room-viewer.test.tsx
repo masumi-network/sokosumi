@@ -141,7 +141,7 @@ describe("RoomViewer", () => {
     expect(await screen.findByText("Question q_shared?")).toBeDefined();
     expect(screen.getByText("Answer q_shared.")).toBeDefined();
     expect(screen.queryByText("Question q_private?")).toBeNull();
-    expect(fetchMock).toHaveBeenCalledWith("/share/rooms/tok/questions");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/share/rooms/tok/questions");
 
     fireEvent.click(screen.getByRole("button", { name: /2\.1\.1/ }));
     expect(
@@ -159,4 +159,52 @@ describe("RoomViewer", () => {
     expect(await screen.findByText("Question q_shared?")).toBeDefined();
     expect(screen.getByText("sharedNote")).toBeDefined();
   });
+
+  it("says while shared answers load, then nothing when there are none", async () => {
+    let resolve: (value: unknown) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(new Promise((r) => (resolve = r))),
+    );
+    render(<RoomViewer token="tok" room={room} />);
+
+    expect(screen.getByRole("status").textContent).toBe("sharedLoading");
+    resolve({ ok: true, json: async () => [] });
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe(""),
+    );
+    expect(screen.queryByText("sharedTitle")).toBeNull();
+    expect(screen.queryByText("sharedFailed")).toBeNull();
+  });
+
+  it.each([
+    [
+      "the server refuses",
+      () => Promise.resolve({ ok: false, json: async () => ({}) }),
+    ],
+    ["the network fails", () => Promise.reject(new TypeError("offline"))],
+  ])(
+    "says shared answers failed to load when %s, and tries again",
+    async (_, fail) => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementationOnce(fail)
+        .mockResolvedValue({
+          ok: true,
+          json: async () => [
+            viewerQuestion("q_shared", "Introduction/Deck.pdf", false, true),
+          ],
+        });
+      vi.stubGlobal("fetch", fetchMock);
+      render(<RoomViewer token="tok" room={room} />);
+
+      expect((await screen.findByRole("alert")).textContent).toContain(
+        "sharedFailed",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "retry" }));
+
+      expect(await screen.findByText("Question q_shared?")).toBeDefined();
+      expect(screen.queryByRole("alert")).toBeNull();
+    },
+  );
 });
