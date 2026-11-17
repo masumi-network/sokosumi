@@ -12,6 +12,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Enums**: Avoid enums; use maps instead
 - **Components**: Use functional components with TypeScript interfaces
 - **Inference**: Leverage Prisma type inference when possible
+- **Nested Prisma keys**: `tsc` does not flag a removed or misspelled key inside `select`, `include`, `omit` or `data` while a valid key sits beside it, because the literal becomes the method's type argument and skips the excess-property check. Add `satisfies Prisma.<Model>FindManyArgs` (or the matching `…Args`) where it matters, and after dropping or renaming a column `git grep` its name across `apps/core`, test mocks included; mocked-Prisma tests never run Prisma's runtime validation either.
 - **Type assertions**: Avoid `as unknown as X` double casts and `as any`; they discard type safety and hide bugs. Prefer typed APIs, type guards, or schema validation. Reach for a single `as` only to narrow a known-safe type (e.g. auth context).
 
 ### Naming & Patterns
@@ -72,6 +73,8 @@ function handler(_req, res) {
 - **Migrations run under the previous release.** For a PR that adds a migration, check its timing against Migrations in [`packages/database/AGENTS.md`](../../packages/database/AGENTS.md).
 - **Lock what you checked.** A write that depends on another row's state (a grant only while a Soko Bot is live, a refund only while its Project has one) checks and writes in one transaction that locks that row first. Name the writers it races (archive, delete, version change) and show both orderings: the check wins, or the other writer wins and the write sees it. When the other writer is `serializableTransaction`, write the row (a no-op `UPDATE … SET "updatedAt" = "updatedAt"`) rather than only `SELECT … FOR UPDATE`, so a writer holding an older snapshot fails and retries.
 - **Prove money races on PostgreSQL.** For a credit or billing race, add a `*.postgres.test.ts` in `apps/core` beside the mocked route test, running both orderings on separate connections; Test Core PostgreSQL runs these against a real PostgreSQL. PGlite takes one connection and cannot run the race.
+- **`null` means not given.** Store a missing value as `null`, and keep `""` out of use as a second marker beside it (new row vs legacy row): any writer that trims empty input to `null` silently moves a row between the two. When rows need different treatment, derive it from real data or add an explicit field.
+- **`skipDuplicates` is idempotent, not free.** PostgreSQL runs BEFORE INSERT row triggers for every proposed row, including the ones `ON CONFLICT DO NOTHING` (`createMany({ skipDuplicates: true })`) then skips. On a table with row triggers (`task_schedule_occurrence` enqueues a calendar invalidation per row), insert only the missing rows instead of resending the whole set.
 
 ## Testing Guidelines
 

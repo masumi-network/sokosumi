@@ -22,6 +22,8 @@ Commands and backticked paths are relative to the repository root unless stated 
 4. Bootstrap database: `pnpm prisma:migrate:dev`, or with a Neon key `pnpm db:up` for a branch of production per worktree ([`agent-database.md`](./agent-database.md))
 5. Generate Prisma clients: `pnpm prisma:generate`
 
+A fresh git worktree has no `node_modules`. Until steps 1 and 5 have run there, Core tests fail with `Failed to resolve entry for package "@sokosumi/database"` and the husky hook exits 127; both read like a broken package, not a missing setup step. Web tests alias the source and need neither.
+
 ## Commands
 
 Full list is in root `package.json`. Agents typically need:
@@ -54,4 +56,6 @@ Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A f
 - **OAuth / email code:** Google and Microsoft do **not** work with placeholder credentials, and no email is sent. Sign-up needs the emailed code, with or without a password ([ADR 0050](../adr/0050-password-sign-up-proves-the-address.md)). In development Core also prints every code to its console as `[email code] <address>: <code>`, so `/signup` and code sign-in work locally — sign up only when testing signup itself.
 - **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
+- **Turnstile:** `pnpm env:bootstrap` fills in Cloudflare's always-pass test keys only where no key is set, so a `TURNSTILE_SECRET_KEY` reused from the primary checkout stays real and rejects test-key tokens. Set the pair together (keys in the two `.env.example` files; web `3x…FF` forces the interactive checkbox) and restart Core after editing its `.env`. The widget renders in a closed shadow root, so the DOM shows only its container and the hidden `cf-turnstile-response` input.
+- **Open dev servers on `localhost`, not `127.0.0.1`.** Next dev blocks its resources for other origins (Web allows only `localhost` and `*.localhost`), so on `127.0.0.1` the CMO sign-in form posts twice and the OAuth hand-back fails with `state_mismatch`.
 - Lint (`pnpm check`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.

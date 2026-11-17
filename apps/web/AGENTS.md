@@ -202,6 +202,8 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Mock external APIs with colocated `vi.mock` (there is no `__mocks__/` directory)
 - Test both server and client components appropriately
 - Use Testing Library for component testing
+- **cmdk rows** (`@/components/ui/command`): every `CommandItem` carries `data-disabled` and `aria-disabled` as `"true"` or `"false"`, so assert the value (`toHaveAttribute("aria-disabled", "true")`), never the attribute's presence. A row with a `CommandShortcut` has the digit in its accessible name (`"Queued 2"`): match it by prefix (`{ name: /^Queued/ }`). Stub `Element.prototype.scrollIntoView = vi.fn()`, which happy-dom lacks and cmdk calls.
+- **Stale typecheck**: `tsconfig.json` is incremental. Before calling a type error pre-existing on `main`, delete `tsconfig.tsbuildinfo` or run `tsc --noEmit --incremental false`; an old build-info file keeps reporting errors a fix removed.
 
 ### Test files share a worker
 
@@ -506,7 +508,7 @@ export function MyComponent() {
 
 ## Browser Automation
 
-Use `agent-browser` for web automation. Run `agent-browser --help` for all commands.
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands. It runs Lightpanda, which has no layout or CSS: for screenshots, measurements and phone layout, follow [Verifying Web UI](docs/verification.md).
 
 Core workflow:
 
