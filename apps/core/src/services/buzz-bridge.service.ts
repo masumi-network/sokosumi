@@ -1,0 +1,4801 @@
+import { createHash, randomUUID } from "node:crypto";
+import { type BuzzIdentity, Prisma as PrismaNull } from "@sokosumi/database";
+import { chatMessageTextWithNames, readChatMentionKeys } from "@sokosumi/utils";
+import { npubEncode } from "nostr-tools/nip19";
+import type { Event } from "nostr-tools/pure";
+import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
+import { getEnv } from "@/config/env";
+import { readMessageResultSnapshots } from "@/helpers/chat-result-metadata";
+import { failOpenChatRoomMentions } from "@/helpers/chat-room-mention-status";
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
+import {
+  forceRevokeCoworkerWorkspaceAccessByPair,
+  notifyWorkspaceApproversOfPendingCoworkerAccess,
+} from "@/helpers/coworker-workspace-access";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  bridgeReplayActor,
+  bridgeReplayToken,
+} from "@/lib/buzz/bridge-replay";
+import {
+  BUZZ_AGENT_URL_PREFIX,
+  BUZZ_KIND,
+  channelIdOf,
+  channelMembersDraft,
+  communityBanDraft,
+  communityMemberDraft,
+  communityUnbanDraft,
+  contentHash,
+  createChannelDraft,
+  deletionDraft,
+  type EventDraft,
+  editDraft,
+  isBuzzAgentBaseUrl,
+  MAX_DIRECT_MESSAGE_PEOPLE,
+  messageDraft,
+  openDirectMessageDraft,
+  openedDirectMessageChannelId,
+  profileDraft,
+  reactionDraft,
+  readableContent,
+  readInbound,
+  tagValues,
+} from "@/lib/buzz/events";
+import {
+  type BuzzAttachments,
+  type CopiedFile,
+  fitToSokosumi,
+  type MediaOwner,
+  withRelayMedia,
+  withSokosumiMedia,
+} from "@/lib/buzz/media";
+import { attestedOwner, authTagOwner } from "@/lib/buzz/owner-attestation";
+import {
+  BuzzRelayRejectedError,
+  nip98Header,
+  operatorRequest,
+  publishSignedEvent,
+  queryAllEvents,
+  queryEvents,
+  relayHttpOrigin,
+  signEvent,
+} from "@/lib/buzz/relay-client";
+import {
+  deleteDirectMessage,
+  deleteEventInRelay,
+} from "@/lib/buzz/relay-database";
+import { checkpoint } from "@/lib/buzz/run-scope";
+import { openSecret, sealSecret } from "@/lib/buzz/secret-box";
+import {
+  COWORKER_API_KEY_START_LENGTH,
+  generateCoworkerApiKeyToken,
+  hashApiKey,
+} from "@/lib/coworker-api-key";
+import prisma from "@/lib/db/prisma";
+import { isActiveUser } from "@/middleware/auth-active-user";
+import { publishChannelMembershipEffects } from "@/routes/v1/chats/rooms/channel-membership";
+import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
+import { isReadOnlyChatRoom } from "@/routes/v1/chats/rooms/read-only-room";
+import type { ChatResultAvailable } from "@/schemas/chat-result-preview.schema";
+
+/**
+ * Buzz bridge: every chat room of an organization on Buzz is also a Buzz
+ * channel, so its members can chat from Sokosumi or from any Buzz client.
+ *
+ * Out: Core records which messages changed ({@link enqueueBuzzSync}); the
+ * bridge worker brings each one's Buzz copy up to date
+ * ({@link reconcileMessage}), signed by the person, bot or coworker who wrote
+ * it.
+ * In: the worker reads the relay and replays what Buzz users did through
+ * Core's own chat routes as them ({@link applyInboundEvent}), so a message
+ * from Buzz gets mentions, bot replies and notifications like any other.
+ *
+ * Links are written before an event is sent, so the bridge always knows its
+ * own echo.
+ */
+
+export interface BuzzConfig {
+  communityUrlTemplate: string;
+  operatorSecretKey: Uint8Array;
+  operatorPubkey: string;
+  encryptionSecret: string;
+}
+
+export function buzzConfig(): BuzzConfig | null {
+  const env = getEnv();
+  if (
+    !env.BUZZ_COMMUNITY_URL_TEMPLATE ||
+    !env.BUZZ_OPERATOR_SECRET_KEY ||
+    !env.BUZZ_KEY_ENCRYPTION_SECRET
+  ) {
+    return null;
+  }
+  const operatorSecretKey = Uint8Array.from(
+    Buffer.from(env.BUZZ_OPERATOR_SECRET_KEY, "hex"),
+  );
+  return {
+    communityUrlTemplate: env.BUZZ_COMMUNITY_URL_TEMPLATE,
+    operatorSecretKey,
+    operatorPubkey: getPublicKey(operatorSecretKey),
+    encryptionSecret: env.BUZZ_KEY_ENCRYPTION_SECRET,
+  };
+}
+
+function requireConfig(): BuzzConfig {
+  const config = buzzConfig();
+  if (!config) throw new Error("Buzz bridge is not configured");
+  return config;
+}
+
+/** Event outcomes that mean "the relay already has this state". */
+function isAlreadyDone(error: unknown): boolean {
+  return (
+    error instanceof BuzzRelayRejectedError &&
+    /duplicate|already|exists/i.test(error.reason)
+  );
+}
+
+/** Every event the bridge sends: only while its run may still write. */
+function sendEvent(input: Parameters<typeof publishSignedEvent>[0]) {
+  checkpoint();
+  return publishSignedEvent(input);
+}
+
+async function publish(
+  relayUrl: string,
+  secretKey: Uint8Array,
+  draft: EventDraft,
+): Promise<Event> {
+  const event = signEvent(draft, secretKey);
+  await sendEvent({ relayUrl, event, secretKey });
+  return event;
+}
+
+// ---------------------------------------------------------------- identities
+
+export async function isPersonalAgent(coworkerId: string) {
+  const coworker = await prisma.coworker.findUnique({
+    where: { id: coworkerId },
+    select: { baseURL: true },
+  });
+  return isBuzzAgentBaseUrl(coworker?.baseURL);
+}
+
+type IdentityOwner =
+  | { userId: string }
+  | { sokoBotId: string }
+  | { coworkerId: string };
+
+export async function ensureIdentity(
+  owner: IdentityOwner,
+): Promise<BuzzIdentity> {
+  const existing = await prisma.buzzIdentity.findUnique({ where: owner });
+  if (existing) return existing;
+  // A personal agent's key is in its owner's Buzz app: Sokosumi never makes
+  // one for it (one whose owner is gone stays without).
+  if ("coworkerId" in owner && (await isPersonalAgent(owner.coworkerId))) {
+    throw new Error("A personal agent has no key without its owner");
+  }
+  const secretKey = generateSecretKey();
+  try {
+    return await prisma.buzzIdentity.create({
+      data: {
+        ...owner,
+        pubkey: getPublicKey(secretKey),
+        encryptedSecretKey: sealSecret(
+          Buffer.from(secretKey).toString("hex"),
+          requireConfig().encryptionSecret,
+        ),
+      },
+    });
+  } catch (error) {
+    if (!isPrismaUniqueViolation(error)) throw error;
+    return prisma.buzzIdentity.findUniqueOrThrow({ where: owner });
+  }
+}
+
+/** Every key that speaks for this identity on Buzz: Sokosumi's, then their own app's. */
+export function keysOf(identity: {
+  pubkey: string;
+  appPubkey: string | null;
+}): string[] {
+  return identity.appPubkey
+    ? [identity.pubkey, identity.appPubkey]
+    : [identity.pubkey];
+}
+
+export function identitySecretKey(identity: BuzzIdentity): Uint8Array {
+  if (!identity.encryptedSecretKey) {
+    throw new Error(`No secret key for ${identity.pubkey.slice(0, 8)}`);
+  }
+  return Uint8Array.from(
+    Buffer.from(
+      openSecret(identity.encryptedSecretKey, requireConfig().encryptionSecret),
+      "hex",
+    ),
+  );
+}
+
+/**
+ * A draft carrying the person's own Buzz key's authorization of this key
+ * (Buzz: Settings → Security → Authorize external identity), when they gave
+ * one: their Buzz agents take only their owner's word, and take an event so
+ * authorized as the owner's.
+ */
+export function vouched(identity: BuzzIdentity, draft: EventDraft): EventDraft {
+  const tag = authTagOf(identity);
+  return tag ? { ...draft, tags: [...draft.tags, tag] } : draft;
+}
+
+/** Their authorization of Sokosumi's key, while it is from their linked key. */
+function authTagOf(
+  identity: Pick<BuzzIdentity, "appAuthTag" | "appPubkey">,
+): string[] | null {
+  const tag = identity.appAuthTag;
+  return Array.isArray(tag) &&
+    identity.appPubkey !== null &&
+    tag[1] === identity.appPubkey
+    ? (tag as string[])
+    : null;
+}
+
+/** Metadata of a personal agent's "I only answer my owner" message. */
+export const PERSONAL_AGENT_REFUSAL = "buzz_personal_agent_refusal";
+export const PERSONAL_AGENT_REFUSAL_NOTICE = "buzz_personal_agent_notice";
+
+function isRefusal(metadata: unknown): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    (metadata as Record<string, unknown>)[PERSONAL_AGENT_REFUSAL] === true
+  );
+}
+
+/**
+ * The owner of a personal agent (a Buzz agent made a Coworker), or null for
+ * any other Coworker.
+ */
+export async function personalAgentOwnerOf(coworkerId: string) {
+  const identity = await prisma.buzzIdentity.findUnique({
+    where: { coworkerId },
+    select: {
+      ownerIdentity: {
+        select: { userId: true, user: { select: { name: true } } },
+      },
+    },
+  });
+  const owner = identity?.ownerIdentity;
+  return owner?.userId
+    ? { userId: owner.userId, name: owner.user?.name ?? "its owner" }
+    : null;
+}
+
+/**
+ * Says on Buzz, as Sokosumi, in the thread of the message that asked, that a
+ * personal agent only answers its owner; the agent itself cannot be made to
+ * say it, its key is in its owner's Buzz app.
+ */
+async function tellRefusalOnBuzz(
+  message: {
+    id: string;
+    parentMessageId: string | null;
+    content: string;
+    metadata: unknown;
+  },
+  channelId: string,
+  relayUrl: string,
+): Promise<ReconcileResult> {
+  const notice = (message.metadata as Record<string, unknown>)[
+    PERSONAL_AGENT_REFUSAL_NOTICE
+  ];
+  const text = typeof notice === "string" ? notice : message.content;
+  const root = message.parentMessageId
+    ? await prisma.buzzMessageLink.findUnique({
+        where: { messageId: message.parentMessageId },
+      })
+    : null;
+  if (message.parentMessageId && !root) {
+    // A root deleted before it reached Buzz never will: post on its own.
+    const parent = await prisma.chatRoomMessage.findUnique({
+      where: { id: message.parentMessageId },
+      select: { deletedAt: true },
+    });
+    if (parent && !parent.deletedAt) {
+      throw new Error("Thread root is not on Buzz yet");
+    }
+  }
+  await ensureOperatorProfile(relayUrl);
+  const config = requireConfig();
+  const event = signEvent(
+    messageDraft({
+      channelId,
+      content: text,
+      threadRootEventId: root?.eventId ?? null,
+      mentionPubkeys: [],
+      messageId: message.id,
+    }),
+    config.operatorSecretKey,
+  );
+  await prisma.buzzMessageLink.create({
+    data: {
+      messageId: message.id,
+      eventId: event.id,
+      contentHash: contentHash(message.content),
+      channelId,
+      signerPubkey: config.operatorPubkey,
+      pendingEvent: event as unknown as object,
+    },
+  });
+  const sent = await deliver(relayUrl, event, (fresh) =>
+    prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
+    }),
+  );
+  await prisma.buzzMessageLink.update({
+    where: { messageId: message.id },
+    data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+  });
+  return "published";
+}
+
+/** A key Sokosumi cannot sign with: a person's own Buzz agent. */
+export function isExternal(identity: BuzzIdentity): boolean {
+  return !identity.encryptedSecretKey;
+}
+
+/**
+ * The communities a person belongs to on Buzz: their organizations', plus
+ * communities reached only through a room (a guest in another organization's
+ * external channel is admitted there too).
+ */
+async function communitiesOf(userId: string) {
+  const memberships = await prisma.member.findMany({
+    where: { userId },
+    select: {
+      role: true,
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          buzzCommunity: {
+            select: { id: true, relayUrl: true, allowPersonalAgents: true },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  // Organizations on Buzz, plus communities reached only through a room: a
+  // guest in another organization's external channel is admitted there too.
+  const viaRooms = await prisma.buzzCommunity.findMany({
+    where: {
+      channels: { some: { room: { userMembers: { some: { userId } } } } },
+    },
+    select: {
+      id: true,
+      relayUrl: true,
+      allowPersonalAgents: true,
+      organization: { select: { id: true, name: true } },
+    },
+  });
+  const byOrganization = new Map<
+    string,
+    {
+      communityId: string;
+      organizationId: string;
+      organizationName: string;
+      relayUrl: string;
+      allowPersonalAgents: boolean;
+    }
+  >();
+  for (const { organization } of memberships) {
+    if (!organization.buzzCommunity) continue;
+    byOrganization.set(organization.id, {
+      communityId: organization.buzzCommunity.id,
+      organizationId: organization.id,
+      organizationName: organization.name,
+      relayUrl: organization.buzzCommunity.relayUrl,
+      allowPersonalAgents: organization.buzzCommunity.allowPersonalAgents,
+    });
+  }
+  for (const { organization, ...community } of viaRooms) {
+    if (!organization || byOrganization.has(organization.id)) continue;
+    byOrganization.set(organization.id, {
+      communityId: community.id,
+      allowPersonalAgents: community.allowPersonalAgents,
+      organizationId: organization.id,
+      organizationName: organization.name,
+      relayUrl: community.relayUrl,
+    });
+  }
+  return { memberships, communities: [...byOrganization.values()] };
+}
+
+/** What a person needs to sign in to their organizations from a Buzz client. */
+export async function buzzConnectionFor(userId: string) {
+  const config = buzzConfig();
+  if (!config) return null;
+  const { memberships, communities } = await communitiesOf(userId);
+  // Owners and admins can put an organization that is not on Buzz yet on it.
+  const canEnable = memberships.flatMap(({ role, organization }) =>
+    !organization.buzzCommunity && (role === "owner" || role === "admin")
+      ? [
+          {
+            organizationId: organization.id,
+            organizationName: organization.name,
+          },
+        ]
+      : [],
+  );
+  if (communities.length === 0) {
+    return {
+      identity: null,
+      app: null,
+      agents: [],
+      lastActiveOnBuzzAt: null,
+      communities: [],
+      canEnable,
+    };
+  }
+  const identity = await ensureIdentity({ userId });
+  const managed = new Set(
+    memberships
+      .filter(({ role }) => role === "owner" || role === "admin")
+      .map(({ organization }) => organization.id),
+  );
+  const agents = await agentsOf(identity.id);
+  return {
+    identity: { pubkey: identity.pubkey, npub: npubEncode(identity.pubkey) },
+    app: identity.appPubkey
+      ? {
+          npub: npubEncode(identity.appPubkey),
+          authorized: authTagOf(identity) !== null,
+        }
+      : null,
+    agents,
+    lastActiveOnBuzzAt: identity.lastActiveOnBuzzAt,
+    communities: communities.map((community) => ({
+      organizationId: community.organizationId,
+      organizationName: community.organizationName,
+      relayUrl: community.relayUrl,
+      allowPersonalAgents: community.allowPersonalAgents,
+      canManage: managed.has(community.organizationId),
+    })),
+    canEnable,
+  };
+}
+
+// ---------------------------------------------------------------- app keys
+
+export class BuzzAppLinkError extends Error {}
+
+/** A single-use invite to one community, issued by the relay owner. */
+async function mintInvite(relayUrl: string) {
+  const url = `${relayHttpOrigin(relayUrl)}/api/invites`;
+  const body = JSON.stringify({ max_uses: 1, ttl_secs: 24 * 60 * 60 });
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: nip98Header({
+        secretKey: requireConfig().operatorSecretKey,
+        url,
+        method: "POST",
+        body,
+      }),
+    },
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(`Buzz relay refused an invite: ${response.status}`);
+  }
+  const { code } = (await response.json()) as { code: string };
+  return code;
+}
+
+/**
+ * Single-use invites to the person's communities, one per relay
+ * (organizations can share one in local setups), so their Buzz app finds them.
+ */
+async function invitesTo(
+  communities: { organizationName: string; relayUrl: string }[],
+) {
+  const byRelay = new Map(communities.map((c) => [c.relayUrl, c]));
+  const invites = [];
+  for (const community of byRelay.values()) {
+    const code = await mintInvite(community.relayUrl);
+    invites.push({
+      organizationName: community.organizationName,
+      relayUrl: community.relayUrl,
+      joinUrl: `buzz://join?relay=${encodeURIComponent(community.relayUrl)}&code=${encodeURIComponent(code)}`,
+      inviteUrl: `${relayHttpOrigin(community.relayUrl)}/invite/${code}`,
+    });
+  }
+  return invites;
+}
+
+/** Rooms the person is in that are on Buzz get their members pushed again. */
+async function resyncRoomsOf(userId: string) {
+  // A DM keeps its hash: syncing it compares its keys and retires it if
+  // they changed.
+  const channels = await prisma.buzzChannel.findMany({
+    where: {
+      room: { userMembers: { some: { userId } } },
+    },
+    select: { id: true, roomId: true },
+  });
+  await prisma.buzzChannel.updateMany({
+    where: {
+      id: { in: channels.map((c) => c.id) },
+      NOT: { membersHash: { startsWith: DIRECT } },
+    },
+    data: { membersHash: null },
+  });
+  if (channels.length > 0) {
+    await prisma.buzzOutbox.createMany({
+      data: channels.flatMap((c) =>
+        c.roomId ? [{ roomId: c.roomId, messageId: null }] : [],
+      ),
+    });
+  }
+}
+
+// ---------------------------------------------------------------- agents
+
+const HEX_64 = /^[0-9a-f]{64}$/;
+
+/** How a Buzz agent's Coworker name says it is one. */
+const PERSONAL_AGENT_SUFFIX = " (personal agent)";
+
+type FoundAgent = { name: string; picture: string | null; relayUrl: string };
+
+/**
+ * The agents these owner keys have on one relay, per the owners' kind 30177
+ * records, kept only when the agent's newest profile carries an owner
+ * attestation from that same key: a record alone proves nothing.
+ */
+async function ownedAgents(relayUrl: string, ownerKeys: string[]) {
+  const secretKey = requireConfig().operatorSecretKey;
+  const found = new Map<string, FoundAgent & { ownerKey: string }>();
+  // Every page: an agent missed here would be taken for deleted.
+  const records = await queryAllEvents({
+    relayUrl,
+    secretKey,
+    filter: { kinds: [BUZZ_KIND.agentRecord], authors: ownerKeys },
+  });
+  // Per agent, each owner key that claims it: anyone can claim a key, so the
+  // claim that counts is the one the agent's own profile attests.
+  const claims = new Map<string, Map<string, string | undefined>>();
+  for (const record of records) {
+    const pubkey = record.tags.find((tag) => tag[0] === "d")?.[1];
+    if (!pubkey || !HEX_64.test(pubkey)) continue;
+    const owners = claims.get(pubkey) ?? new Map();
+    owners.set(record.pubkey, readJson(record.content).name);
+    claims.set(pubkey, owners);
+  }
+  if (claims.size === 0) return found;
+  const profiles = await queryAllEvents({
+    relayUrl,
+    secretKey,
+    filter: { kinds: [BUZZ_KIND.profile], authors: [...claims.keys()] },
+  });
+  const newest = new Map<string, Event>();
+  for (const profile of profiles) {
+    const seen = newest.get(profile.pubkey);
+    if (!seen || profile.created_at > seen.created_at) {
+      newest.set(profile.pubkey, profile);
+    }
+  }
+  for (const [pubkey, profile] of newest) {
+    if (!verifyEvent(profile)) continue;
+    const ownerKey = attestedOwner(profile);
+    const owners = claims.get(pubkey);
+    if (!ownerKey || !owners?.has(ownerKey)) continue;
+    const content = readJson(profile.content);
+    found.set(pubkey, {
+      name: content.name ?? owners.get(ownerKey) ?? "Buzz agent",
+      picture: content.picture ?? null,
+      relayUrl,
+      ownerKey,
+    });
+  }
+  return found;
+}
+
+function readJson(content: string): { name?: string; picture?: string } {
+  try {
+    const value: unknown = JSON.parse(content);
+    if (!value || typeof value !== "object") return {};
+    const { name, picture } = value as Record<string, unknown>;
+    return {
+      name: typeof name === "string" && name.trim() ? name.trim() : undefined,
+      picture:
+        typeof picture === "string" && picture.startsWith("https://")
+          ? picture
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Where a person's agent may be used: their own workspace and each of their
+ * organizations on Buzz. It is granted where the organization lets members
+ * bring personal agents (or the person administers it); elsewhere requested.
+ */
+async function agentAccessOf(
+  userId: string,
+  memberships: { role: string; organization: { id: string } }[],
+  communities: { organizationId: string; allowPersonalAgents: boolean }[],
+) {
+  const admin = new Set(
+    memberships
+      .filter(({ role }) => role === "owner" || role === "admin")
+      .map(({ organization }) => organization.id),
+  );
+  const open = new Set(
+    communities
+      .filter((community) => community.allowPersonalAgents)
+      .map((community) => community.organizationId),
+  );
+  const workspaces = await prisma.workspace.findMany({
+    where: {
+      OR: [
+        { userId },
+        { organizationId: { in: communities.map((c) => c.organizationId) } },
+      ],
+    },
+    select: { id: true, userId: true, organizationId: true },
+  });
+  return workspaces.map((workspace) => ({
+    workspaceId: workspace.id,
+    granted:
+      workspace.userId === userId ||
+      (workspace.organizationId !== null &&
+        (open.has(workspace.organizationId) ||
+          admin.has(workspace.organizationId))),
+  }));
+}
+
+/**
+ * Makes each Buzz agent a person owns a private Coworker: usable in their
+ * workspaces, managed by them, posting through Core with its own key. An
+ * agent that is gone is archived, and one that is back is restored.
+ */
+export async function syncBuzzAgents(
+  scope: {
+    identityId?: string;
+    /**
+     * A sweep goes through people a slice at a time: it starts after
+     * `progress.after` and leaves there the last person it reached, or null
+     * once it went past the last.
+     */
+    progress?: { after: string | null };
+    limit?: number;
+    /** Relays not read in time count as unread: their people keep agents. */
+    shouldContinue?: () => boolean;
+    /**
+     * False once the run must stop (its end, or the lease gone): what was
+     * read is seen to until then, so every sweep gets somewhere.
+     */
+    mayWrite?: () => boolean;
+  } = {},
+) {
+  // An agent's owner is the key the person's Buzz app signs in with: the one
+  // Sokosumi keeps for them, or their own app key when they linked one.
+  const owners = await prisma.buzzIdentity.findMany({
+    where: {
+      userId: { not: null },
+      ...(scope.identityId ? { id: scope.identityId } : {}),
+      ...(scope.progress?.after ? { id: { gt: scope.progress.after } } : {}),
+    },
+    include: { user: { select: { name: true } } },
+    orderBy: { id: "asc" },
+    ...(scope.limit ? { take: scope.limit } : {}),
+  });
+
+  const people = await Promise.all(
+    owners.map(async (owner) => ({
+      owner,
+      ...(await communitiesOf(owner.userId as string)),
+    })),
+  );
+  // One read per relay for everyone on it.
+  const keysByRelay = new Map<string, Set<string>>();
+  for (const { owner, communities } of people) {
+    for (const { relayUrl } of communities) {
+      const keys = keysByRelay.get(relayUrl) ?? new Set<string>();
+      for (const key of keysOf(owner)) keys.add(key);
+      keysByRelay.set(relayUrl, keys);
+    }
+  }
+  const agentsByOwnerKey = new Map<string, Map<string, FoundAgent>>();
+  // A relay that cannot be read leaves the others to go on; its people keep
+  // the agents they have until it can be read again.
+  const unread = new Set<string>();
+  // Left for lack of time (a relay that failed was tried: the sweep goes on).
+  const notReached = new Set<string>();
+  // Eight relays at a time, in people's order: one person in many
+  // communities does not hold the sweep for long.
+  const relays = [...keysByRelay];
+  let next = 0;
+  const readRelays = async () => {
+    for (;;) {
+      const entry = relays[next++];
+      if (!entry) return;
+      const [relayUrl, keys] = entry;
+      if (scope.shouldContinue?.() === false) {
+        unread.add(relayUrl);
+        notReached.add(relayUrl);
+        continue;
+      }
+      let agents: Map<string, FoundAgent & { ownerKey: string }>;
+      try {
+        agents = await ownedAgents(relayUrl, [...keys]);
+      } catch (error) {
+        // Asked for one person (say for an invite naming a new agent): they
+        // need it to work, so it fails for them, to be retried.
+        if (scope.identityId) throw error;
+        unread.add(relayUrl);
+        console.error(`Buzz agents on ${relayUrl} not read`, error);
+        continue;
+      }
+      for (const [pubkey, agent] of agents) {
+        const owned = agentsByOwnerKey.get(agent.ownerKey) ?? new Map();
+        owned.set(pubkey, agent);
+        agentsByOwnerKey.set(agent.ownerKey, owned);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, readRelays));
+  const changed: string[] = [];
+  const applied = new Set<string>();
+  for (const { owner, memberships, communities } of people) {
+    // Stopped (out of time, or the lease is gone): the rest is the next
+    // sweep's.
+    if (scope.mayWrite?.() === false) break;
+    // Checked only between people, so one begun is seen to the end.
+    applied.add(owner.id);
+    const userId = owner.userId as string;
+    const found = new Map<string, FoundAgent>(
+      keysOf(owner).flatMap((key) => [
+        ...(agentsByOwnerKey.get(key)?.entries() ?? []),
+      ]),
+    );
+    const access = await agentAccessOf(userId, memberships, communities);
+    // One vendor per owner: Core lets a vendor's Coworkers see each other's
+    // work, which must not cross from one person's agents to another's.
+    // Made only for someone with agents.
+    let vendorId: string | undefined;
+    const vendorOf = async () => {
+      vendorId ??= (
+        await prisma.vendor.upsert({
+          where: { slug: `buzz-agents-${owner.id}` },
+          create: {
+            slug: `buzz-agents-${owner.id}`,
+            name: `Buzz agents · ${owner.user?.name ?? "someone"}`,
+            listed: false,
+          },
+          update: {},
+        })
+      ).id;
+      return vendorId;
+    };
+    for (const [pubkey, agent] of found) {
+      checkpoint();
+      const existing = await prisma.buzzIdentity.findUnique({
+        where: { pubkey },
+        include: { coworker: true },
+      });
+      // A key Sokosumi already knows as someone else stays theirs.
+      if (existing && existing.ownerIdentityId !== owner.id) continue;
+      const details = {
+        name: `${agent.name}${PERSONAL_AGENT_SUFFIX}`,
+        image: agent.picture,
+        caption: `Personal agent via Buzz · ${owner.user?.name ?? "someone"}`,
+        baseURL: `${BUZZ_AGENT_URL_PREFIX}${new URL(agent.relayUrl).host}`,
+      };
+      let coworkerId = existing?.coworkerId ?? null;
+      if (!coworkerId) {
+        const coworker = await prisma.coworker.create({
+          data: {
+            ...details,
+            slug: `buzz-${pubkey.slice(0, 16)}`,
+            description:
+              "A personal agent: it runs in its owner's Buzz app, only its owner can add it to a room, and it answers there.",
+            capabilities: ["chat"],
+            isWhitelisted: false,
+            vendorId: await vendorOf(),
+            assignments: { create: { userId } },
+            buzzIdentity: {
+              create: { pubkey, ownerIdentityId: owner.id },
+            },
+          },
+        });
+        coworkerId = coworker.id;
+        changed.push(coworkerId);
+      } else if (
+        existing?.coworker &&
+        (existing.coworker.archivedAt ||
+          existing.coworker.vendorId !== (await vendorOf()) ||
+          existing.coworker.name !== details.name ||
+          existing.coworker.image !== details.image)
+      ) {
+        await prisma.coworker.update({
+          where: { id: coworkerId },
+          data: { ...details, vendorId: await vendorOf(), archivedAt: null },
+        });
+        changed.push(coworkerId);
+      }
+      // Granted where the owner may grant (their own workspace, organizations
+      // they own or administer); elsewhere requested, and that workspace's
+      // owners and admins are notified to approve it.
+      for (const { workspaceId, granted } of access) {
+        checkpoint();
+        const where = {
+          coworkerId_workspaceId: {
+            coworkerId: coworkerId as string,
+            workspaceId,
+          },
+        };
+        const existingAccess = await prisma.coworkerWorkspaceAccess.findUnique({
+          where,
+        });
+        if (existingAccess) {
+          // Granted by the switch only while it is as the switch left it: a
+          // decision a person made later (even one whose account is gone
+          // since) is theirs, and the switch never undoes it.
+          const auto = await prisma.buzzAutoAccess.findUnique({
+            where: {
+              coworkerId_workspaceId: {
+                coworkerId: coworkerId as string,
+                workspaceId,
+              },
+            },
+          });
+          const bySwitch = auto
+            ? existingAccess.resolvedAt?.getTime() === auto.decidedAt.getTime()
+            : false;
+          if (granted && existingAccess.status === "PENDING") {
+            // Only while it is still as read: a person who decided meanwhile
+            // (an admin denying it) keeps their decision.
+            // The grant and its record together: one without the other could
+            // never be undone by the switch.
+            const decidedAt = new Date();
+            await prisma.$transaction(async (tx) => {
+              const grantedNow = await tx.coworkerWorkspaceAccess.updateMany({
+                where: {
+                  coworkerId: coworkerId as string,
+                  workspaceId,
+                  status: "PENDING",
+                  resolvedById: existingAccess.resolvedById,
+                },
+                data: {
+                  status: "GRANTED",
+                  resolvedById: null,
+                  resolvedAt: decidedAt,
+                },
+              });
+              if (grantedNow.count > 0) {
+                await rememberAutoAccess(
+                  tx,
+                  coworkerId as string,
+                  workspaceId,
+                  decidedAt,
+                );
+              }
+            });
+          } else if (
+            !granted &&
+            existingAccess.status === "GRANTED" &&
+            bySwitch
+          ) {
+            // Granted by the switch that is now off: the agent leaves, and
+            // waits for approval like a new one (approval takes a pending
+            // request, not a revoked one).
+            const outcome = await prisma.$transaction(async (tx) => {
+              // Locked, and still the switch's own grant (an admin may
+              // have revoked and granted it again since it was read).
+              const [locked] = await tx.$queryRaw<
+                { resolvedAt: Date | null; status: string }[]
+              >`SELECT "resolvedAt", status::text AS status
+                    FROM coworker_workspace_access
+                   WHERE "coworkerId" = ${coworkerId as string}
+                     AND "workspaceId" = ${workspaceId}::uuid
+                   FOR UPDATE`;
+              if (
+                locked?.status !== "GRANTED" ||
+                locked.resolvedAt?.getTime() !== auto?.decidedAt.getTime()
+              ) {
+                return null;
+              }
+              const revoked = await forceRevokeCoworkerWorkspaceAccessByPair(
+                {
+                  coworkerId: coworkerId as string,
+                  workspaceId,
+                  resolvedById: userId,
+                },
+                tx,
+              );
+              const pending = await tx.coworkerWorkspaceAccess.update({
+                where,
+                data: {
+                  status: "PENDING",
+                  resolvedById: null,
+                  resolvedAt: null,
+                },
+              });
+              return {
+                pending,
+                membershipStatusMessages: revoked.membershipStatusMessages,
+              };
+            });
+            if (!outcome) continue;
+            const { pending, membershipStatusMessages } = outcome;
+            // Committed: open chats learn the agent left its rooms.
+            await publishChatRoomMembershipStatusMessagesBestEffort(
+              membershipStatusMessages,
+              {
+                logContext:
+                  "chat membership status after Buzz agent access switch",
+              },
+            );
+            await notifyWorkspaceApproversOfPendingCoworkerAccess({
+              coworkerId: pending.coworkerId,
+              workspaceId,
+              accessId: pending.id,
+            });
+            await resyncRoomsWithCoworkers([coworkerId as string]);
+            changed.push(`pending:${coworkerId}`);
+          }
+          continue;
+        }
+        const decidedAt = new Date();
+        const created = await prisma.$transaction(async (tx) => {
+          const access = await tx.coworkerWorkspaceAccess.create({
+            data: {
+              coworkerId: coworkerId as string,
+              workspaceId,
+              requestedByUserId: userId,
+              ...(granted
+                ? {
+                    status: "GRANTED" as const,
+                    resolvedById: null,
+                    resolvedAt: decidedAt,
+                  }
+                : { status: "PENDING" as const }),
+            },
+          });
+          if (granted) {
+            await rememberAutoAccess(
+              tx,
+              coworkerId as string,
+              workspaceId,
+              decidedAt,
+            );
+          }
+          return access;
+        });
+        if (!granted) {
+          await notifyWorkspaceApproversOfPendingCoworkerAccess({
+            coworkerId: created.coworkerId,
+            workspaceId,
+            accessId: created.id,
+          });
+        }
+      }
+    }
+    // An agent no longer found is archived and leaves its rooms on Buzz,
+    // unless a relay of this person's could not be read just now.
+    if (communities.some((community) => unread.has(community.relayUrl))) {
+      continue;
+    }
+    const gone = await prisma.coworker.findMany({
+      where: {
+        archivedAt: null,
+        buzzIdentity: {
+          ownerIdentityId: owner.id,
+          pubkey: { notIn: [...found.keys()] },
+        },
+      },
+      select: { id: true },
+    });
+    if (gone.length > 0) {
+      await prisma.coworker.updateMany({
+        where: { id: { in: gone.map((agent) => agent.id) } },
+        data: { archivedAt: new Date() },
+      });
+      await resyncRoomsWithCoworkers(gone.map((agent) => agent.id));
+      changed.push(`archived:${gone.length}`);
+    }
+  }
+  // The sweep goes on after the last person whose relays were all read and
+  // whose agents were all seen to (relays are read in people's order); a
+  // page done whole goes on to the next one, or starts over after the last.
+  if (scope.progress) {
+    let reached: string | null = null;
+    let whole = true;
+    for (const { owner, communities } of people) {
+      if (
+        !applied.has(owner.id) ||
+        communities.some(({ relayUrl }) => notReached.has(relayUrl))
+      ) {
+        whole = false;
+        break;
+      }
+      reached = owner.id;
+    }
+    scope.progress.after = whole
+      ? scope.limit && owners.length === scope.limit
+        ? reached
+        : null
+      : (reached ?? scope.progress.after);
+  }
+  return changed;
+}
+
+/**
+ * A personal agent is in a room only with its owner: one whose owner left
+ * (or was removed) leaves too.
+ */
+export async function removeAgentsWithoutOwner() {
+  // An owner's account deleted takes the agents' identities with it: their
+  // Coworkers are archived, which takes them out of rooms here and on Buzz.
+  const ownerless = await prisma.coworker.findMany({
+    where: {
+      archivedAt: null,
+      baseURL: { startsWith: BUZZ_AGENT_URL_PREFIX },
+      OR: [{ buzzIdentity: null }, { buzzIdentity: { ownerIdentityId: null } }],
+    },
+    select: { id: true },
+  });
+  if (ownerless.length > 0) {
+    await prisma.coworker.updateMany({
+      where: { id: { in: ownerless.map((agent) => agent.id) } },
+      data: { archivedAt: new Date() },
+    });
+    await resyncRoomsWithCoworkers(ownerless.map((agent) => agent.id));
+  }
+  const memberships = await prisma.chatRoomCoworkerMember.findMany({
+    where: { coworker: { buzzIdentity: { ownerIdentityId: { not: null } } } },
+    select: {
+      roomId: true,
+      coworkerId: true,
+      room: { select: { userMembers: { select: { userId: true } } } },
+      coworker: {
+        select: {
+          buzzIdentity: {
+            select: { ownerIdentity: { select: { userId: true } } },
+          },
+        },
+      },
+    },
+  });
+  const orphaned = memberships.filter(
+    (membership) =>
+      !membership.room.userMembers.some(
+        (member) =>
+          member.userId ===
+          membership.coworker.buzzIdentity?.ownerIdentity?.userId,
+      ),
+  );
+  for (const { roomId, coworkerId } of orphaned) {
+    // Its open mentions fail with it, as when someone removes a Coworker,
+    // so a queued one cannot post there after it left.
+    const mentionMessageIds = await prisma.$transaction(async (tx) => {
+      const failed = await failOpenChatRoomMentions(
+        {
+          where: { coworkerId, message: { roomId } },
+          error: "Coworker is no longer a member of this room",
+        },
+        tx,
+      );
+      await tx.chatRoomCoworkerMember.deleteMany({
+        where: { roomId, coworkerId },
+      });
+      return failed;
+    });
+    await publishChannelMembershipEffects({
+      roomId,
+      statusMessages: [],
+      mentionMessageIds,
+    });
+  }
+  await resyncRoomsWithCoworkers([
+    ...new Set(orphaned.map((membership) => membership.coworkerId)),
+  ]);
+  return orphaned.length;
+}
+
+/** The person's Buzz agents Sokosumi knows, for Connections. */
+/** Records a grant the personal-agents switch made, by its decision time. */
+function rememberAutoAccess(
+  tx: Pick<typeof prisma, "buzzAutoAccess">,
+  coworkerId: string,
+  workspaceId: string,
+  decidedAt: Date,
+) {
+  return tx.buzzAutoAccess.upsert({
+    where: { coworkerId_workspaceId: { coworkerId, workspaceId } },
+    create: { coworkerId, workspaceId, decidedAt },
+    update: { decidedAt },
+  });
+}
+
+async function agentsOf(identityId: string) {
+  const agents = await prisma.buzzIdentity.findMany({
+    where: { ownerIdentityId: identityId, coworker: { archivedAt: null } },
+    select: { pubkey: true, coworker: { select: { name: true, image: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return agents.map((agent) => ({
+    name:
+      agent.coworker?.name.replace(PERSONAL_AGENT_SUFFIX, "") ?? "Buzz agent",
+    image: agent.coworker?.image ?? null,
+    npub: npubEncode(agent.pubkey),
+  }));
+}
+
+/**
+ * Links the person's own Buzz identity from the proof their Buzz app signed
+ * for Sokosumi's key (Settings → Buzz → Security → Authorize external
+ * identity). Only that identity can sign it, so the proof names their Buzz
+ * key and shows they hold it. It is sent on what Sokosumi signs for them, so
+ * their Buzz agents take it as theirs. A newly linked key is admitted to their
+ * communities and gets invites, so their Buzz app finds them.
+ */
+export async function linkBuzzApp(userId: string, input: string) {
+  const { communities } = await communitiesOf(userId);
+  if (communities.length === 0) {
+    throw new BuzzAppLinkError("None of your organizations is on Buzz yet.");
+  }
+  const identity = await ensureIdentity({ userId });
+  let tag: unknown;
+  try {
+    tag = JSON.parse(input.trim());
+  } catch {
+    throw new BuzzAppLinkError(
+      'Paste the whole proof Buzz shows, ["auth", …].',
+    );
+  }
+  const owner =
+    Array.isArray(tag) &&
+    tag.length === 4 &&
+    tag.every((part) => typeof part === "string") &&
+    tag[2] === ""
+      ? authTagOwner(identity.pubkey, tag as string[])
+      : null;
+  if (!owner) {
+    throw new BuzzAppLinkError(
+      "This proof is not for your Sokosumi key. Authorize the key shown here, then copy the new proof.",
+    );
+  }
+  const otherLinked = new BuzzAppLinkError(
+    "This proof is from another Buzz identity than the one linked. Unlink it first.",
+  );
+  if (identity.appPubkey && identity.appPubkey !== owner) throw otherLinked;
+  if (identity.appPubkey === owner) {
+    // Linked already: new invites, so a join that was interrupted resumes.
+    const invites = await invitesTo(communities);
+    await prisma.$transaction([
+      prisma.buzzIdentity.update({
+        where: { id: identity.id },
+        data: { appAuthTag: tag as string[] },
+      }),
+      ...replaceBridgeKey(identity),
+    ]);
+    return invites;
+  }
+  const taken = await prisma.buzzIdentity.findFirst({
+    where: {
+      id: { not: identity.id },
+      OR: [{ pubkey: owner }, { appPubkey: owner }],
+    },
+  });
+  if (taken) {
+    throw new BuzzAppLinkError(
+      "That Buzz identity belongs to another account.",
+    );
+  }
+  // Invites first, so a relay that refuses them leaves nothing linked.
+  const invites = await invitesTo(communities);
+  const [linked] = await prisma.$transaction([
+    // Only onto no key: two links at once cannot both win.
+    prisma.buzzIdentity.updateMany({
+      where: { id: identity.id, appPubkey: null },
+      data: { appPubkey: owner, appAuthTag: tag as string[] },
+    }),
+    // Re-admit both keys to every community the person is in.
+    prisma.buzzCommunityMember.deleteMany({
+      where: { identityId: identity.id },
+    }),
+    ...replaceBridgeKey(identity),
+  ]);
+  if (linked.count === 0) throw otherLinked;
+  await resyncRoomsOf(userId);
+  await syncBuzzAgents({ identityId: identity.id }).catch((error) =>
+    console.error("Buzz agent sync failed", error),
+  );
+  return invites;
+}
+
+/**
+ * Connecting (again) replaces the key the bridge posts with: one the person
+ * deleted under API keys is not kept failing, and is replaced only when they
+ * ask for it by connecting.
+ */
+function replaceBridgeKey(identity: BuzzIdentity) {
+  return [
+    prisma.apikey.deleteMany({
+      where: {
+        referenceId: identity.userId as string,
+        metadata: { contains: '"purpose":"buzz-bridge"' },
+      },
+    }),
+    prisma.buzzIdentity.update({
+      where: { id: identity.id },
+      data: { encryptedApiKey: null },
+    }),
+  ];
+}
+
+/** Forgets the person's own app key; their channels drop it within a minute. */
+export async function unlinkBuzzApp(userId: string) {
+  const identity = await prisma.buzzIdentity.findUnique({ where: { userId } });
+  if (!identity) return;
+  await prisma.buzzIdentity.update({
+    where: { id: identity.id },
+    data: { appPubkey: null, appAuthTag: PrismaNull.DbNull },
+  });
+  // Their name loses "(via Sokosumi)" again in every community.
+  await prisma.buzzCommunityMember.updateMany({
+    where: { identityId: identity.id },
+    data: { profileHash: null },
+  });
+  // Its agents were theirs through that key.
+  const agents = await prisma.coworker.findMany({
+    where: { archivedAt: null, buzzIdentity: { ownerIdentityId: identity.id } },
+    select: { id: true },
+  });
+  await prisma.coworker.updateMany({
+    where: { id: { in: agents.map((agent) => agent.id) } },
+    data: { archivedAt: new Date() },
+  });
+  await resyncRoomsOf(userId);
+  await resyncRoomsWithCoworkers(agents.map((agent) => agent.id));
+}
+
+/** Rooms an agent is in get their members pushed again. */
+async function resyncRoomsWithCoworkers(coworkerIds: string[]) {
+  if (coworkerIds.length === 0) return;
+  const channels = await prisma.buzzChannel.findMany({
+    where: {
+      room: { coworkerMembers: { some: { coworkerId: { in: coworkerIds } } } },
+    },
+    select: { id: true, roomId: true },
+  });
+  await prisma.buzzChannel.updateMany({
+    where: {
+      id: { in: channels.map((c) => c.id) },
+      NOT: { membersHash: { startsWith: DIRECT } },
+    },
+    data: { membersHash: null },
+  });
+  if (channels.length > 0) {
+    await prisma.buzzOutbox.createMany({
+      data: channels.flatMap((c) =>
+        c.roomId ? [{ roomId: c.roomId, messageId: null }] : [],
+      ),
+    });
+  }
+}
+
+// ---------------------------------------------------------------- enabling
+
+/**
+ * The community's DNS label: the organization's slug when it is one (slugs
+ * are unique), else a cleaned-up slug made unique with a hash of the
+ * organization id.
+ */
+export function communityLabelFor(organization: {
+  id: string;
+  slug: string;
+}): string {
+  const cleaned = organization.slug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40)
+    .replace(/-$/, "");
+  if (cleaned && cleaned === organization.slug) return cleaned;
+  const suffix = organizationHostSuffix(organization.id);
+  return cleaned ? `${cleaned}-${suffix}` : `org-${suffix}`;
+}
+
+/** Part of a host only this organization has (from its whole id: a UUIDv7's
+ * first characters are its creation time). */
+function organizationHostSuffix(organizationId: string): string {
+  return createHash("sha256").update(organizationId).digest("hex").slice(0, 12);
+}
+
+/** Whether this host is the organization's own (carries its suffix). */
+function isOwnHost(
+  community: { organizationId: string | null },
+  host: string,
+): boolean {
+  const own = organizationHostSuffix(community.organizationId ?? "");
+  return Boolean(host.split(".")[0]?.endsWith(own));
+}
+
+/** Moves a community to a host only its organization can have. */
+async function moveToOwnHost(
+  community: { id: string; organizationId: string | null },
+  host: string,
+) {
+  const label = host.split(".")[0]?.slice(0, 40) ?? "org";
+  const own = organizationHostSuffix(community.organizationId ?? community.id);
+  await prisma.buzzCommunity.update({
+    where: { id: community.id },
+    data: {
+      relayUrl: communityUrlFor(
+        label.endsWith(own) ? `${label}-x` : `${label}-${own}`,
+      ),
+    },
+  });
+}
+
+export function communityUrlFor(label: string): string {
+  return requireConfig().communityUrlTemplate.replaceAll("{slug}", label);
+}
+
+/**
+ * Whether members may bring their personal agents into this organization's
+ * rooms without approval. The worker applies it within a minute: agents
+ * granted by it are granted or revoked (and leave their rooms) to match.
+ */
+export async function setAllowPersonalAgents(
+  organizationId: string,
+  allowPersonalAgents: boolean,
+) {
+  return prisma.buzzCommunity.update({
+    where: { organizationId },
+    data: { allowPersonalAgents },
+  });
+}
+
+export async function enableBuzzForOrganization(organizationId: string) {
+  const organization = await prisma.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    select: { id: true, slug: true },
+  });
+  return prisma.buzzCommunity.upsert({
+    where: { organizationId },
+    create: {
+      organizationId,
+      relayUrl: communityUrlFor(communityLabelFor(organization)),
+      // Nothing before this is read; everything after it is, even after an
+      // outage that starts right away.
+      inboundCursor: Math.floor(Date.now() / 1000),
+      // A relay with one community has it already.
+      provisionedAt: getEnv().BUZZ_OPERATOR_API_ORIGIN ? null : new Date(),
+    },
+    update: {},
+  });
+}
+
+/** The organizations that go on Buzz by themselves; null for every one. */
+function autoOrganizationSlugs(): string[] | null {
+  const value = getEnv().BUZZ_AUTO_ORGANIZATIONS;
+  if (!value) return null;
+  return value
+    .split(",")
+    .map((slug) => slug.trim())
+    .filter(Boolean);
+}
+
+/** Which deployment's relays this database's Buzz state is for. */
+const DEPLOYMENT_KEY = "buzz-deployment";
+
+/** Whether a community's address is one this deployment's template makes. */
+function ofThisDeployment(relayUrl: string, template: string): boolean {
+  const [head = "", tail = ""] = template.toLowerCase().split("{slug}");
+  const url = relayUrl.toLowerCase();
+  return url.startsWith(head) && url.endsWith(tail);
+}
+
+/**
+ * A database copied from another deployment (a preview made from production)
+ * holds that deployment's Buzz state: its communities on another relay, keys
+ * sealed with another secret. Acting on it would fail, or, with the same
+ * keys, reach that deployment's relay. The state records whose it is; a test
+ * deployment (one that names its organizations) that finds another's clears
+ * its copy and starts over, and any other deployment stops instead, so a
+ * production change of address never clears production.
+ */
+export async function claimBuzzState(
+  log: (message: string) => void = () => {},
+): Promise<boolean> {
+  const template = requireConfig().communityUrlTemplate;
+  const mark = await prisma.syncMetadata.findUnique({
+    where: { key: DEPLOYMENT_KEY },
+  });
+  if (mark?.cursorId === template) return true;
+  const foreign =
+    mark !== null ||
+    (await prisma.buzzCommunity.findMany({ select: { relayUrl: true } })).some(
+      (community) => !ofThisDeployment(community.relayUrl, template),
+    );
+  if (foreign) {
+    if (!autoOrganizationSlugs()) {
+      log(
+        `Buzz state here is for ${mark?.cursorId ?? "another deployment"}, not ${template}; not running`,
+      );
+      return false;
+    }
+    await prisma.$transaction([
+      prisma.buzzOutbox.deleteMany(),
+      prisma.buzzUndoneEvent.deleteMany(),
+      prisma.buzzReactionLink.deleteMany(),
+      prisma.buzzMessageLink.deleteMany(),
+      prisma.buzzAutoAccess.deleteMany(),
+      prisma.buzzChannel.deleteMany(),
+      prisma.buzzCommunityMember.deleteMany(),
+      prisma.buzzIdentity.deleteMany(),
+      prisma.buzzCommunity.deleteMany(),
+      // Personal agents came with the copy; archived, their slugs freed, so
+      // the same agent found again here is created afresh.
+      prisma.$executeRaw`
+        UPDATE coworker
+           SET slug = slug || '-copied-' || substr(md5(id), 1, 8),
+               "archivedAt" = coalesce("archivedAt", now())
+         WHERE "baseURL" LIKE ${`${BUZZ_AGENT_URL_PREFIX}%`}
+           AND slug NOT LIKE '%-copied-%'`,
+      prisma.syncMetadata.deleteMany({ where: { key: "buzz-agent-sweep" } }),
+    ]);
+    log("Buzz state copied from another deployment cleared");
+  }
+  await prisma.syncMetadata.upsert({
+    where: { key: DEPLOYMENT_KEY },
+    create: {
+      key: DEPLOYMENT_KEY,
+      lastSyncedAt: new Date(),
+      cursorId: template,
+    },
+    update: { lastSyncedAt: new Date(), cursorId: template },
+  });
+  return true;
+}
+
+/**
+ * Every organization chats on Buzz (or only those `BUZZ_AUTO_ORGANIZATIONS` names): gives each one without a community its
+ * own (a batch at a time), then creates up to `limit` of those not yet on the
+ * relay. Returns how many it created there.
+ */
+export async function provisionBuzzCommunities(
+  limit = 25,
+  shouldContinue: () => boolean = () => true,
+): Promise<number> {
+  const config = requireConfig();
+  const only = autoOrganizationSlugs();
+  const missing = await prisma.organization.findMany({
+    where: { buzzCommunity: null, ...(only ? { slug: { in: only } } : {}) },
+    select: { id: true },
+    take: 200,
+  });
+  for (const organization of missing) {
+    await enableBuzzForOrganization(organization.id);
+  }
+  const origin = getEnv().BUZZ_OPERATOR_API_ORIGIN;
+  if (!origin) return 0;
+  const pending = await prisma.buzzCommunity.findMany({
+    where: { provisionedAt: null, organizationId: { not: null } },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  let created = 0;
+  for (const community of pending) {
+    if (!shouldContinue()) break;
+    const host = new URL(community.relayUrl).host;
+    // The relay answers "exists" for a host someone else has as well: never
+    // give one organization another's community.
+    const sharing = await prisma.buzzCommunity.count({
+      where: { relayUrl: community.relayUrl, id: { not: community.id } },
+    });
+    if (sharing > 0) {
+      // Another organization has it (say after a slug change): this one
+      // moves to a host of its own, created on the next sweep.
+      await moveToOwnHost(community, host);
+      continue;
+    }
+    checkpoint();
+    const response = await operatorRequest({
+      origin,
+      secretKey: config.operatorSecretKey,
+      method: "POST",
+      path: "/operator/communities",
+      body: {
+        host,
+        initial_owner_pubkey: config.operatorPubkey,
+        create_only: true,
+      },
+    });
+    const exists =
+      response.status === 409 &&
+      /already exists/i.test(
+        String(response.body.message ?? response.body.error ?? ""),
+      );
+    if (response.status >= 300 && !exists) {
+      throw new Error(
+        `Buzz relay refused community ${host}: ${response.status} ${JSON.stringify(response.body).slice(0, 200)}`,
+      );
+    }
+    // It exists: ours only if its host is this organization's own (made on
+    // an earlier try). A slug a deleted organization had leaves a community
+    // with its people: never adopted, this one moves to its own host.
+    if (exists && !isOwnHost(community, host)) {
+      await moveToOwnHost(community, host);
+      continue;
+    }
+    await prisma.buzzCommunity.update({
+      where: { id: community.id },
+      data: { provisionedAt: new Date() },
+    });
+    created++;
+  }
+  return created;
+}
+
+// ---------------------------------------------------------------- outbound
+
+/**
+ * Note that a message's Buzz copy may be stale. Cheap and never throws: a
+ * chat write must not fail because Buzz is unreachable.
+ */
+export async function enqueueBuzzSync(input: {
+  roomId: string;
+  messageId: string | null;
+}): Promise<void> {
+  try {
+    if (!buzzConfig()) return;
+    if (!(await buzzCommunityForRoom(input.roomId))) return;
+    await prisma.buzzOutbox.create({
+      data: { roomId: input.roomId, messageId: input.messageId },
+    });
+  } catch (error) {
+    console.error("Failed to enqueue Buzz sync", error);
+  }
+}
+
+/**
+ * The community a room lives in on Buzz: its organization's, or for a Direct
+ * (which belongs to no organization), the oldest Buzz community all its people
+ * are members of. Null when the room stays Sokosumi-only.
+ */
+export async function buzzCommunityForRoom(roomId: string) {
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: {
+      kind: true,
+      buzzChannel: { select: { community: true } },
+      organization: { select: { buzzCommunity: true } },
+      userMembers: { select: { userId: true } },
+    },
+  });
+  if (!room) return null;
+  if (room.buzzChannel) return room.buzzChannel.community;
+  // Nothing goes to a community the relay does not have yet.
+  if (room.organization) {
+    const community = room.organization.buzzCommunity;
+    return community?.provisionedAt ? community : null;
+  }
+  if (room.kind !== "direct" || room.userMembers.length === 0) return null;
+  const shared = await prisma.buzzCommunity.findFirst({
+    where: {
+      provisionedAt: { not: null },
+      AND: room.userMembers.map((member) => ({
+        organization: { members: { some: { userId: member.userId } } },
+      })),
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  if (shared) return shared;
+  // People of different organizations: the oldest community one of them is
+  // in, where the others join as guests (as in an external channel).
+  return prisma.buzzCommunity.findFirst({
+    where: {
+      provisionedAt: { not: null },
+      organization: {
+        members: {
+          some: {
+            userId: { in: room.userMembers.map((member) => member.userId) },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+const roomForSync = {
+  id: true,
+  name: true,
+  topic: true,
+  kind: true,
+  archivedAt: true,
+  directKey: true,
+  sharedSokoBot: { select: { archivedAt: true, deletedAt: true } },
+  buzzChannel: true,
+  userMembers: {
+    select: {
+      userId: true,
+      user: {
+        select: { name: true, image: true, banned: true, banExpires: true },
+      },
+    },
+  },
+  sokoBotMembers: {
+    select: {
+      sokoBotId: true,
+      sokoBot: { select: { name: true, avatarImageUrl: true } },
+    },
+  },
+  coworkerMembers: {
+    // An archived coworker (a person's Buzz agent they removed) leaves Buzz.
+    where: { coworker: { archivedAt: null } },
+    select: {
+      coworkerId: true,
+      coworker: {
+        select: {
+          name: true,
+          image: true,
+          baseURL: true,
+          buzzIdentity: {
+            select: {
+              ownerIdentity: {
+                select: {
+                  user: { select: { banned: true, banExpires: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+async function ensureCommunityMember(
+  communityId: string,
+  relayUrl: string,
+  identity: BuzzIdentity,
+) {
+  const known = await prisma.buzzCommunityMember.findUnique({
+    where: {
+      communityId_identityId: { communityId, identityId: identity.id },
+    },
+  });
+  if (known) return;
+  for (const pubkey of keysOf(identity)) {
+    try {
+      await publish(
+        relayUrl,
+        requireConfig().operatorSecretKey,
+        communityMemberDraft(pubkey),
+      );
+    } catch (error) {
+      if (!isAlreadyDone(error)) throw error;
+    }
+  }
+  await prisma.buzzCommunityMember.upsert({
+    where: {
+      communityId_identityId: { communityId, identityId: identity.id },
+    },
+    create: { communityId, identityId: identity.id },
+    update: {},
+  });
+}
+
+/**
+ * A person Sokosumi banned is banned from their Buzz communities too, with
+ * their app key and their own agents: leaving them out of rooms is not enough,
+ * since a retired Direct keeps its people on Buzz. Lifted with their ban.
+ */
+export async function syncBuzzBans(): Promise<number> {
+  const config = requireConfig();
+  const bannedPerson = { banned: true };
+  const members = await prisma.buzzCommunityMember.findMany({
+    where: {
+      OR: [
+        { bannedAt: { not: null } },
+        { identity: { user: bannedPerson } },
+        { identity: { ownerIdentity: { user: bannedPerson } } },
+      ],
+    },
+    select: {
+      communityId: true,
+      identityId: true,
+      bannedAt: true,
+      community: { select: { relayUrl: true } },
+      identity: {
+        select: {
+          pubkey: true,
+          appPubkey: true,
+          user: { select: { banned: true, banExpires: true } },
+          ownerIdentity: {
+            select: { user: { select: { banned: true, banExpires: true } } },
+          },
+        },
+      },
+    },
+  });
+  let changed = 0;
+  for (const member of members) {
+    const person = member.identity.user ?? member.identity.ownerIdentity?.user;
+    const banned = person != null && !isActiveUser(person);
+    if (banned === Boolean(member.bannedAt)) continue;
+    for (const pubkey of keysOf(member.identity)) {
+      try {
+        await publish(
+          member.community.relayUrl,
+          config.operatorSecretKey,
+          banned ? communityBanDraft(pubkey) : communityUnbanDraft(pubkey),
+        );
+      } catch (error) {
+        // Lifted already, say by hand on Buzz.
+        const lifted =
+          !banned &&
+          error instanceof BuzzRelayRejectedError &&
+          /not banned/i.test(error.reason);
+        if (!lifted && !isAlreadyDone(error)) throw error;
+      }
+    }
+    await prisma.buzzCommunityMember.update({
+      where: {
+        communityId_identityId: {
+          communityId: member.communityId,
+          identityId: member.identityId,
+        },
+      },
+      data: { bannedAt: banned ? new Date() : null },
+    });
+    changed++;
+  }
+  return changed;
+}
+
+async function ensureProfile(
+  community: { id: string; relayUrl: string },
+  identity: BuzzIdentity,
+  profile: { name: string; picture?: string | null; bot?: boolean },
+) {
+  // A Buzz agent's profile is its owner's app's to publish.
+  if (isExternal(identity)) return;
+  const draft = profileDraft(profile);
+  const hash = contentHash(draft.content);
+  // Per community: each has the profile as it was last published there.
+  const membership = await prisma.buzzCommunityMember.findUnique({
+    where: {
+      communityId_identityId: {
+        communityId: community.id,
+        identityId: identity.id,
+      },
+    },
+    select: { profileHash: true },
+  });
+  if (membership?.profileHash === hash) return;
+  await publish(community.relayUrl, identitySecretKey(identity), draft);
+  await prisma.buzzCommunityMember.updateMany({
+    where: { communityId: community.id, identityId: identity.id },
+    data: { profileHash: hash },
+  });
+}
+
+const DIRECT = "direct";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isDirect(channel: { membersHash: string | null }): boolean {
+  return Boolean(channel.membersHash?.startsWith(DIRECT));
+}
+
+/**
+ * Lets a DM go whose people changed (a key unlinked, a member removed): a
+ * Buzz DM's people are fixed, so the next message opens a new one. Messages
+ * already in it stay linked there and get nothing more; what was still to be
+ * sent there is dropped.
+ */
+async function retireDirectMessage(
+  roomId: string,
+  channel: { id: string; channelId: string },
+) {
+  const linked = await prisma.buzzMessageLink.findMany({
+    where: { message: { roomId } },
+    select: { messageId: true },
+  });
+  await prisma.$transaction([
+    prisma.buzzMessageLink.updateMany({
+      where: { message: { roomId }, channelId: null },
+      data: { channelId: channel.channelId },
+    }),
+    prisma.buzzMessageLink.updateMany({
+      where: { channelId: channel.channelId },
+      data: { pendingEvent: PrismaNull.DbNull },
+    }),
+    prisma.buzzReactionLink.updateMany({
+      where: { messageId: { in: linked.map((link) => link.messageId) } },
+      data: { pendingEvent: PrismaNull.DbNull },
+    }),
+    prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { roomId: null, retiredFromRoomId: roomId },
+    }),
+  ]);
+}
+
+function channelName(room: { name: string }): string {
+  return room.name.trim() || "Chat";
+}
+
+const operatorProfiles = new Set<string>();
+
+/** The relay owner signs channel administration; Buzz shows it as Sokosumi. */
+async function ensureOperatorProfile(relayUrl: string) {
+  if (operatorProfiles.has(relayUrl)) return;
+  await publish(
+    relayUrl,
+    requireConfig().operatorSecretKey,
+    profileDraft({ name: "Sokosumi", bot: true }),
+  );
+  operatorProfiles.add(relayUrl);
+}
+
+/**
+ * Makes the room's Buzz channel match the room: it exists, everyone in the
+ * room is a community member with a profile, and the channel's members are
+ * the room's members.
+ */
+export async function syncRoomChannel(roomId: string) {
+  const config = requireConfig();
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: roomForSync,
+  });
+  // Deleted meanwhile: nothing to sync; its channel goes with the sweep.
+  if (!room) return null;
+  const community = await buzzCommunityForRoom(room.id);
+  if (!community) return null;
+  const relayUrl = community.relayUrl;
+
+  const members: { identity: BuzzIdentity; role: "member" | "bot" }[] = [];
+  for (const member of room.userMembers) {
+    // Banned: Core turns them away, so Buzz must not keep showing them the
+    // room either (a ban leaves memberships in place).
+    if (!isActiveUser(member.user)) continue;
+    const identity = await ensureIdentity({ userId: member.userId });
+    await ensureCommunityMember(community.id, relayUrl, identity);
+    await ensureProfile(community, identity, {
+      // Their own app key carries their Buzz profile; this one is Sokosumi's.
+      name: identity.appPubkey
+        ? `${member.user.name} (via Sokosumi)`
+        : member.user.name,
+      picture: member.user.image,
+    });
+    members.push({ identity, role: "member" });
+  }
+  for (const member of room.sokoBotMembers) {
+    const identity = await ensureIdentity({ sokoBotId: member.sokoBotId });
+    await ensureCommunityMember(community.id, relayUrl, identity);
+    await ensureProfile(community, identity, {
+      name: sokoBotDisplayName(member.sokoBot),
+      picture: member.sokoBot.avatarImageUrl,
+      bot: true,
+    });
+    members.push({ identity, role: "bot" });
+  }
+  for (const member of room.coworkerMembers) {
+    // A personal agent of a banned person: its key is in their Buzz app, so
+    // it would read on for them. Back when the ban ends.
+    const owner = member.coworker.buzzIdentity?.ownerIdentity;
+    if (owner && !isActiveUser(owner.user)) continue;
+    // One whose owner's account is gone (its identity went with it) is not
+    // given a new one: the sweep archives it.
+    if (isBuzzAgentBaseUrl(member.coworker.baseURL) && !owner) continue;
+    const identity = await ensureIdentity({ coworkerId: member.coworkerId });
+    await ensureCommunityMember(community.id, relayUrl, identity);
+    await ensureProfile(community, identity, {
+      name: member.coworker.name,
+      picture: member.coworker.image,
+      bot: true,
+    });
+    members.push({ identity, role: "bot" });
+  }
+
+  // A Direct of up to nine is a Buzz DM, so Buzz lists it with the DMs. Its
+  // people are fixed: the participant set is what identifies a Buzz DM.
+  const directKeys = members.flatMap((member) => keysOf(member.identity));
+  const asDirectMessage =
+    room.kind === "direct" &&
+    members.length >= 2 &&
+    directKeys.length <= MAX_DIRECT_MESSAGE_PEOPLE;
+
+  const directHash = `${DIRECT}:${contentHash([...directKeys].sort().join(","))}`;
+  let channel = room.buzzChannel;
+  if (
+    channel &&
+    isDirect(channel) &&
+    (!asDirectMessage || channel.membersHash !== directHash)
+  ) {
+    await retireDirectMessage(room.id, channel);
+    channel = null;
+  }
+  if (!channel && asDirectMessage) {
+    const [opener] = members;
+    const event = signEvent(
+      vouched(
+        opener.identity,
+        openDirectMessageDraft(
+          directKeys.filter((pubkey) => pubkey !== opener.identity.pubkey),
+        ),
+      ),
+      identitySecretKey(opener.identity),
+    );
+    const { message } = await sendEvent({
+      relayUrl,
+      event,
+      secretKey: identitySecretKey(opener.identity),
+    });
+    const channelId = openedDirectMessageChannelId(message);
+    if (!channelId) throw new Error(`Buzz did not open the DM: ${message}`);
+    // A Buzz DM is its people: a second Direct between the same ones (say a
+    // personal and an organization one) gets a private channel instead.
+    const taken = await prisma.buzzChannel.findUnique({
+      where: { channelId },
+    });
+    if (taken?.roomId === room.id) {
+      channel = taken;
+    } else if (!taken) {
+      channel = await prisma.buzzChannel.create({
+        data: {
+          roomId: room.id,
+          communityId: community.id,
+          channelId,
+          membersHash: directHash,
+        },
+      });
+    }
+  }
+  if (!channel) {
+    await ensureOperatorProfile(relayUrl);
+    const channelId = randomUUID();
+    await publish(
+      relayUrl,
+      config.operatorSecretKey,
+      createChannelDraft({
+        channelId,
+        name: channelName(room),
+        about: room.topic,
+      }),
+    );
+    channel = await prisma.buzzChannel.create({
+      data: { roomId: room.id, communityId: community.id, channelId },
+    });
+  }
+  if (isDirect(channel)) return { channel, relayUrl };
+
+  const wanted = new Map(
+    members.flatMap((member) =>
+      keysOf(member.identity).map((pubkey) => [pubkey, member.role] as const),
+    ),
+  );
+  const membersHash = contentHash(
+    [...wanted.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([pubkey, role]) => `${pubkey}:${role}`)
+      .join(","),
+  );
+  if (channel.membersHash !== membersHash) {
+    const current = await channelMemberPubkeys(relayUrl, channel.channelId);
+    const toAdd = [...wanted.entries()]
+      .filter(([pubkey]) => !current.has(pubkey))
+      .map(([pubkey, role]) => ({ pubkey, role }));
+    const toRemove = [...current]
+      .filter(
+        (pubkey) => !wanted.has(pubkey) && pubkey !== config.operatorPubkey,
+      )
+      .map((pubkey) => ({ pubkey }));
+    const channelId = channel.channelId;
+    await whileOpen(relayUrl, channelId, async () => {
+      // The relay takes at most 100 members per event.
+      for (let i = 0; i < toAdd.length; i += 100) {
+        await publish(
+          relayUrl,
+          config.operatorSecretKey,
+          channelMembersDraft({
+            channelId,
+            kind: BUZZ_KIND.addMember,
+            members: toAdd.slice(i, i + 100),
+          }),
+        );
+      }
+      for (const member of toRemove) {
+        await publish(
+          relayUrl,
+          config.operatorSecretKey,
+          channelMembersDraft({
+            channelId,
+            kind: BUZZ_KIND.removeMember,
+            members: [member],
+          }),
+        );
+      }
+    });
+    // Saved only once the relay shows that roster: it can take an event and
+    // still refuse some of its members, which the next sweep then retries.
+    const after =
+      toAdd.length + toRemove.length > 0
+        ? await channelMemberPubkeys(relayUrl, channelId)
+        : current;
+    const synced =
+      [...wanted.keys()].every((pubkey) => after.has(pubkey)) &&
+      toRemove.every(({ pubkey }) => !after.has(pubkey));
+    if (synced) {
+      channel = await prisma.buzzChannel.update({
+        where: { id: channel.id },
+        data: { membersHash },
+      });
+    }
+  }
+  // Name, topic and archiving follow the room, after its members. An
+  // archived channel takes no edits on Buzz, so it gets only that; reopening
+  // sends the rest again.
+  // Read-only in Sokosumi (say a retired shared Soko Bot's room) is archived
+  // on Buzz too: Core would refuse what Buzz took.
+  const archived = room.archivedAt !== null || isReadOnlyChatRoom(room);
+  const about = room.topic ?? "";
+  const metadataHash = contentHash(
+    `${channelName(room)}\n${about}\n${archived}`,
+  );
+  if (channel.metadataHash !== metadataHash) {
+    const channelId = channel.channelId;
+    const edit = (tags: string[][]) =>
+      publish(relayUrl, config.operatorSecretKey, {
+        kind: BUZZ_KIND.editChannel,
+        content: "",
+        tags: [["h", channelId], ...tags],
+      });
+    await setArchived(relayUrl, channelId, archived);
+    if (!archived) {
+      // Empty clears a topic that was removed.
+      await edit([
+        ["name", channelName(room)],
+        ["about", about],
+      ]);
+    }
+    channel = await prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { metadataHash },
+    });
+  }
+  return { channel, relayUrl };
+}
+
+function isArchivedRefusal(error: unknown): boolean {
+  return (
+    error instanceof BuzzRelayRejectedError &&
+    /channel is archived/i.test(error.reason)
+  );
+}
+
+/** Archives or reopens a channel on Buzz; already so is fine. */
+async function setArchived(
+  relayUrl: string,
+  channelId: string,
+  archived: boolean,
+) {
+  try {
+    await publish(relayUrl, requireConfig().operatorSecretKey, {
+      kind: BUZZ_KIND.editChannel,
+      content: "",
+      tags: [
+        ["h", channelId],
+        ["archived", String(archived)],
+        // Archiving again within the same second (after reopening it for a
+        // change) would otherwise be the same event, which the relay takes
+        // for a duplicate and drops.
+        ["alt", `${archived ? "Archived" : "Reopened"} (${randomUUID()})`],
+      ],
+    });
+  } catch (error) {
+    // The relay refuses a change that changes nothing.
+    const already =
+      error instanceof BuzzRelayRejectedError &&
+      /channel is (not )?archived/i.test(error.reason);
+    if (!already) throw error;
+  }
+}
+
+/**
+ * Makes changes to a channel the relay refuses while it is archived (members,
+ * deletion): reopened for them, then archived again unless it is gone.
+ */
+async function whileOpen<T>(
+  relayUrl: string,
+  channelId: string,
+  change: () => Promise<T>,
+  { reArchive = true }: { reArchive?: boolean } = {},
+): Promise<T> {
+  try {
+    return await change();
+  } catch (error) {
+    if (!isArchivedRefusal(error)) throw error;
+  }
+  // Should archiving it again not happen (the run stops, the relay fails),
+  // the next sync sees the state unknown and archives it again.
+  await prisma.buzzChannel.updateMany({
+    where: { channelId },
+    data: { metadataHash: null },
+  });
+  await setArchived(relayUrl, channelId, false);
+  if (!reArchive) return change();
+  try {
+    return await change();
+  } finally {
+    await setArchived(relayUrl, channelId, true);
+  }
+}
+
+async function channelMemberPubkeys(
+  relayUrl: string,
+  channelId: string,
+): Promise<Set<string>> {
+  const [list] = await queryEvents({
+    relayUrl,
+    secretKey: requireConfig().operatorSecretKey,
+    filters: [{ kinds: [39002], "#d": [channelId], limit: 1 }],
+  });
+  return new Set(
+    (list?.tags ?? [])
+      .filter((tag) => tag[0] === "p" && typeof tag[1] === "string")
+      .map((tag) => tag[1] as string),
+  );
+}
+
+const messageForSync = {
+  id: true,
+  roomId: true,
+  parentMessageId: true,
+  content: true,
+  createdAt: true,
+  deletedAt: true,
+  clientMessageId: true,
+  metadata: true,
+  senderUserId: true,
+  senderSokoBotId: true,
+  senderCoworkerId: true,
+  buzzLink: true,
+  reactions: { select: { userId: true, emoji: true } },
+  agentReactions: { select: { coworkerId: true, emoji: true } },
+  userMentionsAsSource: { select: { userId: true } },
+  mentionsAsSource: { select: { sokoBotId: true, coworkerId: true } },
+  attachedSkills: { select: { name: true }, orderBy: { position: "asc" } },
+} as const;
+
+export function authorOf(message: {
+  senderUserId: string | null;
+  senderSokoBotId: string | null;
+  senderCoworkerId: string | null;
+}): IdentityOwner | null {
+  if (message.senderUserId) return { userId: message.senderUserId };
+  if (message.senderSokoBotId) return { sokoBotId: message.senderSokoBotId };
+  if (message.senderCoworkerId) return { coworkerId: message.senderCoworkerId };
+  return null;
+}
+
+export type ReconcileResult =
+  | "delivered"
+  | "published"
+  | "edited"
+  | "deleted"
+  | "linked"
+  | "unchanged"
+  | "skipped";
+
+type PendingEvent = Event;
+
+function asPending(value: unknown): PendingEvent | null {
+  return value && typeof value === "object" ? (value as PendingEvent) : null;
+}
+
+/**
+ * Sends a stored, signed event. It is kept on its link until the relay has
+ * it, so a crash or outage between "decided" and "delivered" is resent, not
+ * lost. Sending the same event twice is harmless: same id, the relay keeps one.
+ */
+async function deliver(
+  relayUrl: string,
+  event: PendingEvent,
+  /** Records a re-signed event's new id before it is sent, so its echo is known. */
+  recordResigned: (fresh: PendingEvent) => Promise<unknown> = async () => {},
+): Promise<PendingEvent> {
+  const config = requireConfig();
+  // Sokosumi's own notices are signed by the relay owner.
+  const signer =
+    event.pubkey === config.operatorPubkey
+      ? null
+      : await prisma.buzzIdentity.findUnique({
+          where: { pubkey: event.pubkey },
+        });
+  if (event.pubkey !== config.operatorPubkey && !signer) {
+    throw new Error(`No key for ${event.pubkey.slice(0, 8)}`);
+  }
+  const secretKey = signer
+    ? identitySecretKey(signer)
+    : config.operatorSecretKey;
+  // A change decided before its channel was archived still goes out: the
+  // channel is reopened for it.
+  const channelId = event.tags.find((tag) => tag[0] === "h")?.[1];
+  const send = (signed: PendingEvent) =>
+    channelId
+      ? whileOpen(relayUrl, channelId, () =>
+          sendEvent({ relayUrl, event: signed, secretKey }),
+        )
+      : sendEvent({ relayUrl, event: signed, secretKey });
+  try {
+    await send(event);
+    return event;
+  } catch (error) {
+    if (isAlreadyDone(error)) return event;
+    // Held through a long outage, it is now too old for the relay: sign it
+    // again with the current time (a new id; the caller records it).
+    if (
+      error instanceof BuzzRelayRejectedError &&
+      /timestamp/i.test(error.reason)
+    ) {
+      const fresh = signEvent(
+        { kind: event.kind, tags: event.tags, content: event.content },
+        secretKey,
+      );
+      await recordResigned(fresh);
+      await send(fresh);
+      return fresh;
+    }
+    throw error;
+  }
+}
+
+/**
+ * What a message link records of an event signed again (a new id and time):
+ * the message's id if it is the message, and an edit's order, so its echo
+ * stays one.
+ */
+function resignedLinkData(fresh: PendingEvent) {
+  return {
+    pendingEvent: fresh as unknown as object,
+    ...(fresh.kind === BUZZ_KIND.message ? { eventId: fresh.id } : {}),
+    ...(fresh.kind === BUZZ_KIND.edit
+      ? { lastEditAt: fresh.created_at, lastEditEventId: fresh.id }
+      : {}),
+  };
+}
+
+/** Brings one message's Buzz copy (and its reactions) up to date. */
+/**
+ * The keys of the personal agents in a Direct (whatever it is on Buzz),
+ * other than its author; none for any other room.
+ */
+async function personalAgentKeysIn(roomId: string, author: BuzzIdentity) {
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: { kind: true },
+  });
+  if (room?.kind !== "direct") return [];
+  const agents = await prisma.buzzIdentity.findMany({
+    where: {
+      encryptedSecretKey: null,
+      coworker: { chatRoomMemberships: { some: { roomId } } },
+      id: { not: author.id },
+    },
+    select: { pubkey: true },
+  });
+  return agents.map((agent) => agent.pubkey);
+}
+
+/** Messages this close before their channel was made go out live. */
+export const LIVE_BEFORE_CHANNEL_MS = 60_000;
+
+/**
+ * Writes a message whose author has left the room straight into the relay's
+ * database (the relay would refuse it from them); false when it cannot.
+ */
+export type BuzzBackfill = (
+  messageId: string,
+  channel: { channelId: string; relayUrl: string },
+) => Promise<boolean>;
+
+export async function reconcileMessage(
+  messageId: string,
+  depth = 0,
+  backfill?: BuzzBackfill,
+): Promise<ReconcileResult> {
+  const message = await prisma.chatRoomMessage.findUnique({
+    where: { id: messageId },
+    select: messageForSync,
+  });
+  if (!message) return "skipped";
+  // First, so a membership notice ("X joined") brings the members along.
+  const synced = await syncRoomChannel(message.roomId);
+  if (!synced) return "skipped";
+  const author = authorOf(message);
+  // Timeline notices have no author; Buzz posts its own.
+  if (!author) return "skipped";
+  const { channel, relayUrl } = synced;
+  // A personal agent whose owner's account is gone has no key any more; the
+  // sweep archives it.
+  if (
+    "coworkerId" in author &&
+    (await isPersonalAgent(author.coworkerId)) &&
+    !(await prisma.buzzIdentity.findUnique({ where: author }))
+  ) {
+    return "skipped";
+  }
+  const authorIdentity = await ensureIdentity(author);
+  let link = message.buzzLink;
+  // A Buzz agent's messages start on Buzz and are linked as they come in;
+  // Sokosumi cannot sign for it, but people's reactions to them are theirs.
+  // Linked in a DM since retired: it stays as it was there.
+  if (link?.channelId && link.channelId !== channel.channelId) {
+    return "skipped";
+  }
+  if (isExternal(authorIdentity)) {
+    if (!link && !message.deletedAt && isRefusal(message.metadata)) {
+      return tellRefusalOnBuzz(message, channel.channelId, relayUrl);
+    }
+    // A refusal Sokosumi decided but could not deliver yet.
+    const unsent = asPending(link?.pendingEvent);
+    if (link && unsent) {
+      const messageLinkId = message.id;
+      // A copy signed afresh (too old for the relay) is recorded first, so a
+      // lost answer from the relay never sends a second one.
+      const sent = await deliver(relayUrl, unsent, (fresh) =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: messageLinkId },
+          data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
+        }),
+      );
+      link = await prisma.buzzMessageLink.update({
+        where: { messageId: message.id },
+        data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+      });
+    }
+    if (!link || message.deletedAt) return "skipped";
+    await reconcileReactions({
+      messageId: message.id,
+      eventId: link.eventId,
+      authorPubkey: authorIdentity.pubkey,
+      channelId: channel.channelId,
+      relayUrl,
+      reactions: message.reactions,
+      agentReactions: message.agentReactions,
+    });
+    return "unchanged";
+  }
+  const authorKey = identitySecretKey(authorIdentity);
+  const text = buzzTextOf(message);
+  const hash = buzzHashOf(message.content, text);
+  let result: ReconcileResult = "unchanged";
+
+  // Finish what an earlier attempt decided but could not deliver.
+  const unfinished = asPending(link?.pendingEvent);
+  if (link && unfinished) {
+    const messageLinkId = message.id;
+    const sent = await deliver(relayUrl, unfinished, (fresh) =>
+      prisma.buzzMessageLink.update({
+        where: { messageId: messageLinkId },
+        data: resignedLinkData(fresh),
+      }),
+    );
+    link = await prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: {
+        pendingEvent: PrismaNull.DbNull,
+        ...(sent.kind === BUZZ_KIND.message ? { eventId: sent.id } : {}),
+      },
+    });
+    result = "delivered";
+  }
+
+  /** Records the change with its event, then delivers it. */
+  const decideAndDeliver = async (
+    event: PendingEvent,
+    data: {
+      contentHash?: string;
+      lastEditAt?: number;
+      lastEditEventId?: string;
+      deleted?: boolean;
+    },
+  ) => {
+    link = await prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: { ...data, pendingEvent: event as unknown as object },
+    });
+    await deliver(relayUrl, event, (fresh) =>
+      prisma.buzzMessageLink.update({
+        where: { messageId: message.id },
+        data: resignedLinkData(fresh),
+      }),
+    );
+    link = await prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: { pendingEvent: PrismaNull.DbNull },
+    });
+  };
+
+  if (!link) {
+    if (message.deletedAt) return "skipped";
+    // History (well before the room got its channel) is the import's to send,
+    // which also finds a copy an interrupted import left; the messages that
+    // brought the channel about go out live.
+    if (
+      !channel.historyImportedAt &&
+      getEnv().BUZZ_RELAY_DATABASE_URL &&
+      message.createdAt.getTime() <
+        channel.createdAt.getTime() - LIVE_BEFORE_CHANNEL_MS
+    ) {
+      return "skipped";
+    }
+    if (message.clientMessageId?.startsWith("buzz:")) {
+      // Posted from Buzz: the event already exists. Inbound usually linked
+      // it already; this covers a worker that stopped in between. Who
+      // signed it decides whether Sokosumi may change it there.
+      const eventId = message.clientMessageId.slice("buzz:".length);
+      const [original] = await queryEvents({
+        relayUrl,
+        secretKey: authorKey,
+        filters: [{ ids: [eventId] }],
+      });
+      if (!original)
+        throw new Error(`Buzz event ${eventId.slice(0, 8)} not found`);
+      // Only the author's own message in this channel (the id is checked
+      // when it is set, too).
+      if (
+        original.kind !== BUZZ_KIND.message ||
+        !original.tags.some(
+          (tag) => tag[0] === "h" && tag[1] === channel.channelId,
+        ) ||
+        !keysOf(authorIdentity).includes(original.pubkey)
+      ) {
+        throw new Error(
+          `Buzz event ${eventId.slice(0, 8)} is not this author's message`,
+        );
+      }
+      link = await prisma.buzzMessageLink.upsert({
+        where: { messageId: message.id },
+        create: {
+          messageId: message.id,
+          eventId,
+          contentHash: hash,
+          channelId: channel.channelId,
+          signerPubkey:
+            original.pubkey === authorIdentity.pubkey ? null : original.pubkey,
+        },
+        update: {},
+      });
+      result = "linked";
+    } else {
+      // A reply still streaming has no text yet; its next update brings it.
+      if (!message.content.trim()) return "skipped";
+      // Its author left the room since: the relay no longer takes it from
+      // them, and they are not let back in for it.
+      if ("userId" in author && backfill) {
+        const member = await prisma.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: { roomId: message.roomId, userId: author.userId },
+          },
+          select: { userId: true },
+        });
+        if (
+          !member &&
+          (await backfill(message.id, {
+            channelId: channel.channelId,
+            relayUrl,
+          }))
+        ) {
+          return "published";
+        }
+      }
+      let threadRootEventId: string | null = null;
+      if (message.parentMessageId) {
+        if (depth === 0) {
+          await reconcileMessage(message.parentMessageId, depth + 1);
+        }
+        const parentLink = await prisma.buzzMessageLink.findUnique({
+          where: { messageId: message.parentMessageId },
+        });
+        if (parentLink) {
+          // A thread started in a DM since retired: its start is not in this
+          // conversation, so the reply stands on its own here.
+          threadRootEventId =
+            parentLink.channelId && parentLink.channelId !== channel.channelId
+              ? null
+              : parentLink.eventId;
+        } else {
+          // Never post a reply as a new thread while its root is on its way;
+          // the outbox retries it. A root deleted before it reached Buzz
+          // never will, so the reply stands on its own.
+          const root = await prisma.chatRoomMessage.findUnique({
+            where: { id: message.parentMessageId },
+            select: { deletedAt: true },
+          });
+          if (root && !root.deletedAt) {
+            throw new Error("Thread root is not on Buzz yet");
+          }
+        }
+      }
+      const event = signEvent(
+        vouched(
+          authorIdentity,
+          messageDraft({
+            channelId: channel.channelId,
+            ...(await buzzMessageOf(text, relayUrl, authorKey)),
+            threadRootEventId,
+            mentionPubkeys: [
+              ...(await mentionPubkeysOf(message)),
+              // A personal agent answers an untagged message only in a DM of
+              // two keys; a linked person brings a third, so it is tagged.
+              ...(await personalAgentKeysIn(message.roomId, authorIdentity)),
+            ],
+            messageId: message.id,
+          }),
+        ),
+        authorKey,
+      );
+      link = await prisma.buzzMessageLink.create({
+        data: {
+          messageId: message.id,
+          eventId: event.id,
+          contentHash: hash,
+          channelId: channel.channelId,
+          pendingEvent: event as unknown as object,
+        },
+      });
+      const sent = await deliver(relayUrl, event, (fresh) =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: message.id },
+          data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
+        }),
+      );
+      link = await prisma.buzzMessageLink.update({
+        where: { messageId: message.id },
+        data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+      });
+      result = "published";
+    }
+  } else if (
+    link.signerPubkey &&
+    (message.deletedAt ? !link.deleted : link.contentHash !== hash)
+  ) {
+    // Written with the person's own app key: only they can edit it on Buzz
+    // (Core refuses edits to it from Sokosumi), but a channel admin may
+    // take it down.
+    if (message.deletedAt && !link.deleted) {
+      await adminDeleteOnBuzz(relayUrl, channel, link.eventId);
+    }
+    link = await prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: { contentHash: hash, deleted: Boolean(message.deletedAt) },
+    });
+    if (message.deletedAt) return "deleted";
+    result = "edited";
+  } else if (message.deletedAt && !link.deleted) {
+    await decideAndDeliver(
+      signEvent(
+        vouched(
+          authorIdentity,
+          deletionDraft({
+            channelId: channel.channelId,
+            eventId: link.eventId,
+          }),
+        ),
+        authorKey,
+      ),
+      { deleted: true },
+    );
+    return "deleted";
+  } else if (!message.deletedAt && link.contentHash !== hash) {
+    // Always after the last edit it sent, even one re-signed in this very
+    // second after an outage: Buzz orders edits by time, then id.
+    const event = signEvent(
+      {
+        ...vouched(
+          authorIdentity,
+          editDraft({
+            channelId: channel.channelId,
+            eventId: link.eventId,
+            ...(await buzzMessageOf(text, relayUrl, authorKey)),
+          }),
+        ),
+        created_at: Math.max(
+          Math.floor(Date.now() / 1000),
+          link.lastEditAt + 1,
+        ),
+      },
+      authorKey,
+    );
+    await decideAndDeliver(event, {
+      contentHash: hash,
+      lastEditAt: event.created_at,
+      lastEditEventId: event.id,
+    });
+    result = "edited";
+  }
+
+  if (!message.deletedAt) {
+    await reconcileReactions({
+      messageId: message.id,
+      eventId: link.eventId,
+      authorPubkey: link.signerPubkey ?? authorIdentity.pubkey,
+      channelId: channel.channelId,
+      relayUrl,
+      reactions: message.reactions,
+      agentReactions: message.agentReactions,
+    });
+  }
+  return result;
+}
+
+/**
+ * What a link records of a message: its text's hash, plus that of what Buzz
+ * shows when it adds a quote, skills or cards. The repair sweep compares the
+ * first part alone, in SQL.
+ */
+export function buzzHashOf(content: string, text: string): string {
+  return text === content
+    ? contentHash(content)
+    : `${contentHash(content)}:${contentHash(text)}`;
+}
+
+const RESULT_LABEL: Record<ChatResultAvailable["kind"], string> = {
+  task: "Task",
+  task_schedule: "Schedule",
+  bot_schedule: "Schedule",
+  social_post: "Social post",
+  studio_job: "Studio",
+  job: "Agent job",
+  file: "File",
+  decision: "Decision",
+  project_selection: "Projects",
+  cmo_report: "Report",
+};
+
+/**
+ * What Buzz has no place for, in the text: the quoted message above, the
+ * attached skills and the result cards below. A card is a link without its
+ * title, which not every reader may see; Sokosumi checks the link.
+ */
+export function buzzTextOf(message: {
+  content: string;
+  metadata: unknown;
+  attachedSkills?: { name: string }[];
+}): string {
+  const quote = readQuoteFromMetadata(message.metadata);
+  const skills = message.attachedSkills ?? [];
+  const results = readMessageResultSnapshots(message.metadata);
+  return [
+    quote &&
+      `> **${quote.authorName}:** ${quote.snippet || "(attachment)"}`.replace(
+        /\n/g,
+        "\n> ",
+      ),
+    message.content,
+    skills.length > 0 &&
+      `Skills: ${skills.map((skill) => skill.name).join(", ")}`,
+    results
+      .flatMap(({ data }) =>
+        data.state === "available"
+          ? [`[${RESULT_LABEL[data.kind]} ↗](${data.sourceHref})`]
+          : [],
+      )
+      .join(" · "),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * A message as the Buzz app writes it, with Sokosumi's chat files uploaded to
+ * the relay as the author's attachments.
+ */
+export async function buzzMessageOf(
+  text: string,
+  relayUrl: string,
+  authorKey: Uint8Array,
+): Promise<BuzzAttachments> {
+  return withRelayMedia({
+    content: await buzzContentOf(text, relayUrl),
+    relayUrl,
+    secretKey: authorKey,
+  });
+}
+
+/**
+ * The name Buzz shows for each of these keys: its newest profile on the
+ * relay. A mention binds to a key only when written with that name.
+ */
+async function relayProfileNames(
+  relayUrl: string,
+  pubkeys: string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const now = Date.now();
+  const wanted: string[] = [];
+  for (const pubkey of new Set(pubkeys)) {
+    const known = shownNames.get(`${relayUrl} ${pubkey}`);
+    if (known && known.until > now) {
+      if (known.name) names.set(pubkey, known.name);
+    } else {
+      wanted.push(pubkey);
+    }
+  }
+  if (wanted.length === 0) return names;
+  const profiles = await queryEvents({
+    relayUrl,
+    secretKey: requireConfig().operatorSecretKey,
+    filters: [{ kinds: [BUZZ_KIND.profile], authors: wanted }],
+  });
+  const newest = new Map<string, Event>();
+  for (const profile of profiles) {
+    const seen = newest.get(profile.pubkey);
+    if (!seen || profile.created_at > seen.created_at) {
+      newest.set(profile.pubkey, profile);
+    }
+  }
+  for (const pubkey of wanted) {
+    const profile = newest.get(pubkey);
+    const read = profile ? readJson(profile.content).name : undefined;
+    const name = read && !/[\r\n]/.test(read) ? read : undefined;
+    if (name) names.set(pubkey, name);
+    shownNames.set(`${relayUrl} ${pubkey}`, { name, until: now + 60_000 });
+  }
+  return names;
+}
+
+/** Names read from the relay, for a minute: an import names the same people often. */
+const shownNames = new Map<string, { name?: string; until: number }>();
+
+/**
+ * A message as Buzz shows it: Sokosumi's mention tokens (`@<id>:<slug>`)
+ * become Buzz mentions, `@` and the name Buzz shows for the key the event
+ * tags (the person's own app key when linked); someone with no Buzz key keeps
+ * their name as text.
+ */
+export async function buzzContentOf(
+  original: string,
+  relayUrl?: string,
+): Promise<string> {
+  // Links within Sokosumi (a shared Task: `/tasks/<id>`) point there.
+  const origin = getEnv().WEB_APP_BASE_URL?.replace(/\/$/, "");
+  const content = origin
+    ? original.replace(/\]\((\/(?!\/)[^)\s]*)\)/g, `](${origin}$1)`)
+    : original;
+  const keys = readChatMentionKeys(content).filter((key) => key !== "all");
+  if (keys.length === 0) return everyoneOf(content);
+  // People may have 32-character auth ids; Soko Bot ids are uuids.
+  const uuidKeys = keys.filter((key) => UUID.test(key));
+  const identities = await prisma.buzzIdentity.findMany({
+    where: {
+      OR: [
+        { userId: { in: keys } },
+        { coworkerId: { in: keys } },
+        { sokoBotId: { in: uuidKeys } },
+      ],
+    },
+    select: {
+      pubkey: true,
+      appPubkey: true,
+      userId: true,
+      coworkerId: true,
+      sokoBotId: true,
+      user: { select: { name: true } },
+      coworker: { select: { name: true } },
+      sokoBot: { select: { name: true } },
+    },
+  });
+  const shown = relayUrl
+    ? await relayProfileNames(
+        relayUrl,
+        identities.map((identity) => identity.appPubkey ?? identity.pubkey),
+      )
+    : new Map<string, string>();
+  let text = content;
+  for (const identity of identities) {
+    const key = identity.userId ?? identity.coworkerId ?? identity.sokoBotId;
+    if (!key) continue;
+    const pubkey = identity.appPubkey ?? identity.pubkey;
+    const name =
+      shown.get(pubkey) ??
+      identity.user?.name ??
+      (identity.sokoBot ? sokoBotDisplayName(identity.sokoBot) : null) ??
+      identity.coworker?.name;
+    const token = new RegExp(
+      `@${key.replace(/[^A-Za-z0-9-]/g, "")}(?::[\\p{L}\\p{N}_-]*)?(?![\\p{L}\\p{N}_-])`,
+      "giu",
+    );
+    // `$` in a name is not a replacement pattern.
+    text = text.replace(token, () =>
+      name ? `@${name}` : `nostr:${npubEncode(pubkey)}`,
+    );
+  }
+  // Whoever is left has no Buzz key: their name, which Buzz shows as text.
+  const [users, coworkers, sokoBots] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: keys } },
+      select: { id: true, name: true },
+    }),
+    prisma.coworker.findMany({
+      where: { id: { in: keys } },
+      select: { id: true, name: true },
+    }),
+    prisma.sokoBot.findMany({
+      where: { id: { in: uuidKeys } },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const names = new Map<string, string>(
+    [...users, ...coworkers, ...sokoBots].map((owner) => [
+      owner.id.includes("-") ? owner.id.toLowerCase() : owner.id,
+      owner.name ?? "",
+    ]),
+  );
+  return everyoneOf(chatMessageTextWithNames(text, names));
+}
+
+/** Sokosumi's room-wide mention, which Buzz has no mention for, as words. */
+function everyoneOf(text: string): string {
+  return text.replace(
+    /(^|[^\p{L}\p{N}_@])@all(?::[\p{L}\p{N}_-]*)?(?![\p{L}\p{N}_-])/giu,
+    "$1@everyone",
+  );
+}
+
+export async function mentionPubkeysOf(message: {
+  userMentionsAsSource: { userId: string }[];
+  mentionsAsSource: { sokoBotId: string | null; coworkerId: string | null }[];
+}): Promise<string[]> {
+  const owners: IdentityOwner[] = [
+    ...message.userMentionsAsSource.map((m) => ({ userId: m.userId })),
+    ...message.mentionsAsSource.flatMap((m): IdentityOwner[] =>
+      m.sokoBotId
+        ? [{ sokoBotId: m.sokoBotId }]
+        : m.coworkerId
+          ? [{ coworkerId: m.coworkerId }]
+          : [],
+    ),
+  ];
+  const pubkeys: string[] = [];
+  for (const owner of owners) {
+    // A personal agent whose owner's account is gone has no key: not named.
+    if ("coworkerId" in owner && (await isPersonalAgent(owner.coworkerId))) {
+      const agent = await prisma.buzzIdentity.findUnique({ where: owner });
+      if (agent) pubkeys.push(...keysOf(agent));
+      continue;
+    }
+    pubkeys.push(...keysOf(await ensureIdentity(owner)));
+  }
+  return pubkeys;
+}
+
+/**
+ * A reaction link with a pending kind:5 is being taken back; one with a
+ * pending kind:7 is being added. Either way the row stays until delivered.
+ */
+function isBeingRemoved(link: { pendingEvent: unknown }) {
+  return asPending(link.pendingEvent)?.kind === BUZZ_KIND.deletion;
+}
+
+async function reconcileReactions(input: {
+  messageId: string;
+  eventId: string;
+  authorPubkey: string;
+  channelId: string;
+  relayUrl: string;
+  reactions: { userId: string; emoji: string }[];
+  agentReactions: { coworkerId: string; emoji: string }[];
+}) {
+  let links = await prisma.buzzReactionLink.findMany({
+    where: { messageId: input.messageId },
+    include: { identity: true },
+  });
+
+  // Finish what an earlier attempt decided but could not deliver.
+  for (const link of links) {
+    const pending = asPending(link.pendingEvent);
+    if (!pending) continue;
+    const sent = await deliver(input.relayUrl, pending, (fresh) =>
+      prisma.buzzReactionLink.update({
+        where: { id: link.id },
+        data: {
+          pendingEvent: fresh as unknown as object,
+          ...(fresh.kind === BUZZ_KIND.reaction ? { eventId: fresh.id } : {}),
+        },
+      }),
+    );
+    if (pending.kind === BUZZ_KIND.deletion) {
+      await finishReactionRemoval(link, tagValues(pending, "e")[0] ?? "");
+    } else {
+      await prisma.buzzReactionLink.update({
+        where: { id: link.id },
+        data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+      });
+    }
+  }
+  links = await prisma.buzzReactionLink.findMany({
+    where: { messageId: input.messageId },
+    include: { identity: true },
+  });
+
+  const key = (actorId: string | null, emoji: string) => `${actorId}\n${emoji}`;
+  const linked = new Set(
+    links.map((l) => key(l.identity.userId ?? l.identity.coworkerId, l.emoji)),
+  );
+  const wanted = new Set([
+    ...input.reactions.map((r) => key(r.userId, r.emoji)),
+    ...input.agentReactions.map((r) => key(r.coworkerId, r.emoji)),
+  ]);
+
+  // A Coworker whose key Sokosumi holds reacts on Buzz through Sokosumi; one
+  // with its own key (a person's agent) reacts on Buzz itself.
+  const toSend = [
+    ...input.reactions.map((r) => ({ actor: { userId: r.userId }, ...r })),
+    ...input.agentReactions.map((r) => ({
+      actor: { coworkerId: r.coworkerId },
+      ...r,
+    })),
+  ];
+  for (const { actor, emoji } of toSend) {
+    if (
+      linked.has(
+        key("userId" in actor ? actor.userId : actor.coworkerId, emoji),
+      )
+    )
+      continue;
+    if ("coworkerId" in actor && (await isPersonalAgent(actor.coworkerId)))
+      continue;
+    const identity = await ensureIdentity(actor);
+    const event = signEvent(
+      vouched(
+        identity,
+        reactionDraft({
+          channelId: input.channelId,
+          eventId: input.eventId,
+          authorPubkey: input.authorPubkey,
+          emoji,
+        }),
+      ),
+      identitySecretKey(identity),
+    );
+    let linkId: string;
+    try {
+      linkId = (
+        await prisma.buzzReactionLink.create({
+          data: {
+            messageId: input.messageId,
+            identityId: identity.id,
+            emoji,
+            eventId: event.id,
+            pendingEvent: event as unknown as object,
+          },
+        })
+      ).id;
+    } catch (error) {
+      if (isPrismaUniqueViolation(error)) continue;
+      throw error;
+    }
+    const sent = await deliver(input.relayUrl, event, (fresh) =>
+      prisma.buzzReactionLink.update({
+        where: { id: linkId },
+        data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
+      }),
+    );
+    await prisma.buzzReactionLink.update({
+      where: { id: linkId },
+      data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
+    });
+  }
+
+  for (const link of links) {
+    if (
+      wanted.has(
+        key(link.identity.userId ?? link.identity.coworkerId, link.emoji),
+      )
+    ) {
+      continue;
+    }
+    // Their own app key's reaction: only they can take it back on Buzz. Its
+    // event stays there, so it is remembered as undone, for good.
+    if (link.signerPubkey) {
+      await prisma.$transaction([
+        rememberUndone([link.eventId, ...link.duplicateEventIds]),
+        prisma.buzzReactionLink.delete({ where: { id: link.id } }),
+      ]);
+      continue;
+    }
+    const event = signEvent(
+      vouched(
+        link.identity,
+        deletionDraft({ channelId: input.channelId, eventId: link.eventId }),
+      ),
+      identitySecretKey(link.identity),
+    );
+    await prisma.buzzReactionLink.update({
+      where: { id: link.id },
+      data: { pendingEvent: event as unknown as object },
+    });
+    await deliver(input.relayUrl, event, (fresh) =>
+      prisma.buzzReactionLink.update({
+        where: { id: link.id },
+        data: { pendingEvent: fresh as unknown as object },
+      }),
+    );
+    await finishReactionRemoval(link, link.eventId);
+  }
+}
+
+/**
+ * Ends a reaction taken back on Buzz. A copy signed with their other key
+ * cannot be, so it is remembered as undone. One added again on Buzz while
+ * this was pending has replaced the link's event: it stays.
+ */
+async function finishReactionRemoval(
+  link: { id: string; eventId: string; duplicateEventIds: string[] },
+  removedEventId: string,
+) {
+  await prisma.$transaction([
+    rememberUndone(
+      link.eventId === removedEventId ? link.duplicateEventIds : [],
+    ),
+    prisma.buzzReactionLink.deleteMany({
+      where: { id: link.id, eventId: removedEventId },
+    }),
+    prisma.buzzReactionLink.updateMany({
+      where: { id: link.id },
+      data: { pendingEvent: PrismaNull.DbNull },
+    }),
+  ]);
+}
+
+function rememberUndone(eventIds: string[]) {
+  return prisma.buzzUndoneEvent.createMany({
+    data: eventIds.map((eventId) => ({ eventId })),
+    skipDuplicates: true,
+  });
+}
+
+/** How long a message must be quiet before it is sent, so a streaming reply goes out once. */
+export const OUTBOX_SETTLE_MS = 2_000;
+
+/** Backoff between attempts at one message: 5 s doubling, at most 10 min. */
+export function outboxRetryDelayMs(attempts: number): number {
+  return Math.min(5_000 * 2 ** attempts, 10 * 60_000);
+}
+
+/**
+ * Works through the outbox: each message whose last change is older than
+ * {@link OUTBOX_SETTLE_MS} is reconciled once, then its rows are dropped. A
+ * failure keeps the rows and waits ({@link outboxRetryDelayMs}); the rows
+ * are the only record of work Buzz has not seen, so they are never dropped
+ * unfinished.
+ */
+export async function drainBuzzOutbox(
+  options: {
+    limit?: number;
+    now?: Date;
+    /** False once the run must stop: what is left waits for the next one. */
+    shouldContinue?: () => boolean;
+    backfill?: BuzzBackfill;
+  } = {},
+) {
+  const now = options.now ?? new Date();
+  const rows = await prisma.buzzOutbox.findMany({
+    where: { nextAttemptAt: { lte: now } },
+    orderBy: { createdAt: "asc" },
+    take: options.limit ?? 200,
+  });
+  const latest = new Map<
+    string,
+    { createdAt: Date; ids: string[]; roomId: string; attempts: number }
+  >();
+  for (const row of rows) {
+    const key = row.messageId ?? `room:${row.roomId}`;
+    const entry = latest.get(key) ?? {
+      createdAt: row.createdAt,
+      ids: [],
+      roomId: row.roomId,
+      attempts: 0,
+    };
+    entry.ids.push(row.id);
+    entry.attempts = Math.max(entry.attempts, row.attempts);
+    if (row.createdAt > entry.createdAt) entry.createdAt = row.createdAt;
+    latest.set(key, entry);
+  }
+
+  // A busy message can have newer rows beyond this page: settle on its newest.
+  const newest = await prisma.buzzOutbox.groupBy({
+    by: ["messageId"],
+    where: {
+      messageId: {
+        in: [...latest.keys()].filter((key) => !key.startsWith("room:")),
+      },
+    },
+    _max: { createdAt: true },
+  });
+  for (const row of newest) {
+    const entry = row.messageId ? latest.get(row.messageId) : undefined;
+    if (entry && row._max.createdAt && row._max.createdAt > entry.createdAt) {
+      entry.createdAt = row._max.createdAt;
+    }
+  }
+
+  const outcomes: { key: string; result: string }[] = [];
+  for (const [key, entry] of latest) {
+    if (options.shouldContinue?.() === false) break;
+    if (now.getTime() - entry.createdAt.getTime() < OUTBOX_SETTLE_MS) {
+      // Not quiet yet: wait out the rest, so the page reaches other work.
+      await prisma.buzzOutbox.updateMany({
+        where: { id: { in: entry.ids } },
+        data: {
+          nextAttemptAt: new Date(entry.createdAt.getTime() + OUTBOX_SETTLE_MS),
+        },
+      });
+      continue;
+    }
+    try {
+      const result = key.startsWith("room:")
+        ? (await syncRoomChannel(entry.roomId))
+          ? "synced"
+          : "skipped"
+        : await reconcileMessage(key, 0, options.backfill);
+      await prisma.buzzOutbox.deleteMany({ where: { id: { in: entry.ids } } });
+      outcomes.push({ key, result });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await prisma.buzzOutbox.updateMany({
+        where: { id: { in: entry.ids } },
+        data: {
+          attempts: entry.attempts + 1,
+          lastError: reason.slice(0, 500),
+          nextAttemptAt: new Date(
+            now.getTime() + outboxRetryDelayMs(entry.attempts),
+          ),
+        },
+      });
+      outcomes.push({ key, result: `error: ${reason}` });
+    }
+  }
+  return outcomes;
+}
+
+/**
+ * Messages whose change never reached the outbox (its write failed after
+ * the chat change committed): new ones never linked, edits newer than their
+ * link, deletions their link does not have. Queued again; returns how many.
+ * Looks back a day, which the sweep covers many times over.
+ */
+export async function repairBuzzOutbox(limit = 200): Promise<number> {
+  // Only the real gaps, so a page is never filled with messages that are
+  // fine: unlinked authored ones since just before the channel, deletions
+  // the link lacks, edits whose text differs from what Buzz has.
+  const due = await prisma.$queryRaw<{ id: string; roomId: string }[]>`
+    SELECT m.id::text AS id, m."roomId"::text AS "roomId"
+      FROM chat_room_message m
+      JOIN buzz_channel c ON c."roomId" = m."roomId"
+      LEFT JOIN buzz_message_link l ON l."messageId" = m.id
+     WHERE greatest(m."createdAt", coalesce(m."editedAt", m."createdAt"),
+                    coalesce(m."deletedAt", m."createdAt"))
+             BETWEEN now() - interval '1 day' AND now() - interval '1 minute'
+       AND NOT EXISTS (SELECT 1 FROM buzz_outbox o WHERE o."messageId" = m.id)
+       AND (
+         (l."messageId" IS NULL AND m."deletedAt" IS NULL
+           AND m.content <> ''
+           AND (m."senderUserId" IS NOT NULL OR m."senderSokoBotId" IS NOT NULL
+                OR m."senderCoworkerId" IS NOT NULL)
+           AND m."createdAt" >= c."createdAt" - ${LIVE_BEFORE_CHANNEL_MS} * interval '1 millisecond')
+         OR (l."messageId" IS NOT NULL AND NOT l.deleted AND m."deletedAt" IS NOT NULL)
+         OR (l."messageId" IS NOT NULL AND NOT l.deleted AND m."deletedAt" IS NULL
+           AND split_part(l."contentHash", ':', 1)
+               <> encode(sha256(convert_to(m.content, 'UTF8')), 'hex'))
+       )
+     LIMIT ${limit}`;
+  // Reactions change no message: added ones Buzz has no link for, and a
+  // person's or a Coworker's links whose reaction is gone, whichever key signed it (one their
+  // own app key signed is tombstoned, so a re-add from Buzz counts again).
+  const reactions = await prisma.$queryRaw<{ id: string; roomId: string }[]>`
+    SELECT DISTINCT m.id::text AS id, m."roomId"::text AS "roomId"
+      FROM chat_room_message m
+      JOIN buzz_channel c ON c."roomId" = m."roomId"
+      JOIN buzz_message_link ml ON ml."messageId" = m.id AND NOT ml.deleted
+     WHERE m."deletedAt" IS NULL
+       AND NOT EXISTS (SELECT 1 FROM buzz_outbox o WHERE o."messageId" = m.id)
+       AND (
+         EXISTS (
+           SELECT 1 FROM chat_room_reaction r
+             JOIN buzz_identity i ON i."userId" = r."userId"
+            WHERE r."messageId" = m.id
+              AND r."createdAt" BETWEEN now() - interval '1 day' AND now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM buzz_reaction_link rl
+                 WHERE rl."messageId" = m.id AND rl."identityId" = i.id
+                   AND rl.emoji = r.emoji
+              )
+         )
+         OR EXISTS (
+           SELECT 1 FROM buzz_reaction_link rl
+             JOIN buzz_identity i ON i.id = rl."identityId"
+            WHERE rl."messageId" = m.id
+              AND i."userId" IS NOT NULL AND rl."pendingEvent" IS NULL
+              AND rl."createdAt" < now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM chat_room_reaction r
+                 WHERE r."messageId" = m.id AND r."userId" = i."userId"
+                   AND r.emoji = rl.emoji
+              )
+         )
+         OR EXISTS (
+           SELECT 1 FROM chat_room_agent_reaction r
+             JOIN buzz_identity i ON i."coworkerId" = r."coworkerId"
+            WHERE r."messageId" = m.id
+              AND r."createdAt" BETWEEN now() - interval '1 day' AND now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM buzz_reaction_link rl
+                 WHERE rl."messageId" = m.id AND rl."identityId" = i.id
+                   AND rl.emoji = r.emoji
+              )
+         )
+         OR EXISTS (
+           SELECT 1 FROM buzz_reaction_link rl
+             JOIN buzz_identity i ON i.id = rl."identityId"
+            WHERE rl."messageId" = m.id
+              AND i."coworkerId" IS NOT NULL AND rl."pendingEvent" IS NULL
+              AND rl."createdAt" < now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM chat_room_agent_reaction r
+                 WHERE r."messageId" = m.id AND r."coworkerId" = i."coworkerId"
+                   AND r.emoji = rl.emoji
+              )
+         )
+       )
+     LIMIT ${limit}`;
+  const queued = new Set(due.map((message) => message.id));
+  for (const message of reactions) {
+    if (!queued.has(message.id)) due.push(message);
+  }
+  if (due.length > 0) {
+    await prisma.buzzOutbox.createMany({
+      data: due.map((message) => ({
+        roomId: message.roomId,
+        messageId: message.id,
+      })),
+    });
+  }
+  return due.length;
+}
+
+// ---------------------------------------------------------------- inbound
+
+/**
+ * A person added or removed their own personal agent in a Buzz channel: the
+ * same change in Sokosumi, as them, under the same rules (only its owner,
+ * only where the organization allows it). Anything else on Buzz is put back
+ * by the next member sync, since Sokosumi's rooms decide who is in.
+ */
+async function applyMemberChange(
+  event: Event,
+  change: { added: boolean; pubkeys: string[] },
+  author: BuzzIdentity,
+  core: CoreRequest,
+): Promise<InboundResult> {
+  if (!author.userId) return "ignored";
+  const channelId = channelIdOf(event);
+  const channel = channelId
+    ? await prisma.buzzChannel.findUnique({
+        where: { channelId },
+        include: { community: { select: { relayUrl: true } } },
+      })
+    : null;
+  // A channel whose room was deleted is on its way out.
+  if (!channel?.roomId || isDirect(channel)) return "ignored";
+  // An agent made a moment ago is added before the agent sweep has seen it:
+  // look for this person's agents now, or the member sync below removes it.
+  if (change.added) {
+    const known = await prisma.buzzIdentity.count({
+      where: { pubkey: { in: change.pubkeys } },
+    });
+    if (known < change.pubkeys.length) {
+      await syncBuzzAgents({ identityId: author.id });
+    }
+  }
+  // Once Sokosumi has decided, the room's members are checked against Buzz
+  // again: a change it does not take (someone else invited, an agent not
+  // allowed) is put back instead of lingering. Not while Core is merely
+  // unreachable: putting it back then would lose the change on the retry.
+  const roomId = channel.roomId;
+  const recheck = async () => {
+    await prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { membersHash: null },
+    });
+    await prisma.buzzOutbox.create({ data: { roomId, messageId: null } });
+  };
+  try {
+    const result = await applyAgentMembership(change, author, core, {
+      roomId,
+      relayUrl: channel.community.relayUrl,
+      channelId: channel.channelId,
+    });
+    await recheck();
+    return result;
+  } catch (error) {
+    if (error instanceof CoreRejectedError && error.terminal) await recheck();
+    // A 403 is Core's answer too (say a guest bringing an agent): put Buzz
+    // back and be done; retrying cannot change it.
+    if (error instanceof CoreRejectedError && error.status === 403) {
+      await recheck();
+      return "ignored";
+    }
+    throw error;
+  }
+}
+
+/** Adds or removes the author's own agents named in a Buzz member change. */
+async function applyAgentMembership(
+  change: { added: boolean; pubkeys: string[] },
+  author: BuzzIdentity,
+  core: CoreRequest,
+  channel: { roomId: string; relayUrl: string; channelId: string },
+): Promise<InboundResult> {
+  const agents = await prisma.buzzIdentity.findMany({
+    where: {
+      pubkey: { in: change.pubkeys },
+      ownerIdentityId: author.id,
+      coworkerId: { not: null },
+    },
+    select: { pubkey: true, coworkerId: true },
+  });
+  if (agents.length === 0) return "ignored";
+  // A replayed invite or removal (the worker reads back after a restart)
+  // must not undo a later change: only what the channel still shows applies.
+  const current = await channelMemberPubkeys(
+    channel.relayUrl,
+    channel.channelId,
+  );
+  const coworkerIds = agents.flatMap((agent) =>
+    agent.coworkerId && current.has(agent.pubkey) === change.added
+      ? [agent.coworkerId]
+      : [],
+  );
+  if (coworkerIds.length === 0) return "ignored";
+  if (change.added) {
+    await sendAs(core, author, {
+      method: "POST",
+      path: `/v1/chats/rooms/${channel.roomId}/members`,
+      body: { coworkerIds },
+    });
+    return "members";
+  }
+  for (const coworkerId of coworkerIds) {
+    checkpoint();
+    const response = await core({
+      method: "DELETE",
+      path: `/v1/chats/rooms/${channel.roomId}/coworkers/${coworkerId}`,
+      apiKey: await bridgeApiKeyFor(author),
+    });
+    if (response.status === 401) await dropBridgeKey(author);
+    // Already gone is what was asked.
+    if (response.status >= 400 && response.status !== 404) {
+      throw new CoreRejectedError(
+        response.status,
+        `Core DELETE coworker → ${response.status}`,
+        errorKindOf(response.body),
+      );
+    }
+  }
+  return "members";
+}
+
+/** A Direct of just this person and one Coworker that answers over HTTP. */
+async function isCoworkerDirect(roomId: string, author: BuzzIdentity) {
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: {
+      kind: true,
+      userMembers: { select: { userId: true } },
+      coworkerMembers: { select: { coworker: { select: { baseURL: true } } } },
+      sokoBotMembers: { select: { sokoBotId: true } },
+    },
+  });
+  return (
+    room?.kind === "direct" &&
+    room.userMembers.length === 1 &&
+    room.userMembers[0]?.userId === author.userId &&
+    room.sokoBotMembers.length === 0 &&
+    room.coworkerMembers.length === 1 &&
+    !isBuzzAgentBaseUrl(room.coworkerMembers[0]?.coworker.baseURL)
+  );
+}
+
+/**
+ * The event's own message is a question in a Direct with a Coworker that has
+ * no answer yet: the message got linked (on the way out, or as the turn
+ * started), but the turn failed, so the event is not done.
+ */
+async function unansweredDirectQuestion(messageId: string, eventId: string) {
+  const message = await prisma.chatRoomMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      roomId: true,
+      parentMessageId: true,
+      createdAt: true,
+      deletedAt: true,
+      clientMessageId: true,
+      room: {
+        select: {
+          kind: true,
+          coworkerMembers: { select: { coworkerId: true } },
+        },
+      },
+    },
+  });
+  if (
+    message?.clientMessageId !== `buzz:${eventId}` ||
+    // Deleted since: nobody wants its answer any more.
+    message.deletedAt ||
+    message.room.kind !== "direct" ||
+    message.room.coworkerMembers.length === 0
+  ) {
+    return false;
+  }
+  return !(await isAnswered({ id: messageId, ...message }));
+}
+
+/**
+ * A Direct takes one turn at a time, so the message right after a question in
+ * its thread, if the Coworker's, is its answer. Not the only evidence: an
+ * answer that came after a retry is recorded on the link instead.
+ */
+async function isAnswered(question: {
+  id: string;
+  roomId: string;
+  parentMessageId: string | null;
+  createdAt: Date;
+}) {
+  const next = await prisma.chatRoomMessage.findFirst({
+    where: {
+      roomId: question.roomId,
+      parentMessageId: question.parentMessageId,
+      id: { not: question.id },
+      createdAt: { gte: question.createdAt },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { senderCoworkerId: true },
+  });
+  return Boolean(next?.senderCoworkerId);
+}
+
+/** The Coworker's answer to this Buzz question ended well. */
+/**
+ * Counts one more failed answer to a Buzz question, across runs; once it
+ * reaches `limit` the question counts as answered (given up), so no later
+ * run asks again. Returns the count.
+ */
+export async function recordFailedBuzzAnswer(eventId: string, limit: number) {
+  const link = await prisma.buzzMessageLink.update({
+    where: { eventId },
+    data: { failedAnswers: { increment: 1 } },
+    select: { failedAnswers: true },
+  });
+  if (link.failedAnswers >= limit) await markBuzzQuestionAnswered(eventId);
+  return link.failedAnswers;
+}
+
+export async function markBuzzQuestionAnswered(eventId: string) {
+  await prisma.buzzMessageLink.updateMany({
+    where: { eventId },
+    data: { answeredAt: new Date() },
+  });
+}
+
+/**
+ * Asks the Coworker of a one-on-one Direct, as the person, through the
+ * room's stream: Core stores the message and the Coworker's answer, which
+ * then goes out to Buzz like any message. One turn per Buzz message: a
+ * retry finds the message stored and only links it.
+ */
+async function postToCoworkerDirect(input: {
+  core: CoreRequest;
+  author: BuzzIdentity;
+  roomId: string;
+  clientMessageId: string;
+  content: string;
+  /** Files it carried, which the Coworker takes as files, not links. */
+  files?: CopiedFile[];
+  parentMessageId: string | undefined;
+  eventId: string;
+  signerPubkey: string | null;
+  channelId: string;
+  onTurnStarted?: (finished: Promise<boolean>) => void;
+}): Promise<InboundResult> {
+  const stored = () =>
+    prisma.chatRoomMessage.findFirst({
+      where: {
+        roomId: input.roomId,
+        clientMessageId: input.clientMessageId,
+        senderUserId: input.author.userId,
+      },
+      select: {
+        id: true,
+        roomId: true,
+        parentMessageId: true,
+        createdAt: true,
+        deletedAt: true,
+      },
+    });
+  let message = await stored();
+  // Deleted since it was asked: no answer to start.
+  if (message?.deletedAt) return "ignored";
+  // Answered already (a worker that stopped before linking): only link.
+  const answered =
+    message &&
+    ((
+      await prisma.buzzMessageLink.findUnique({
+        where: { messageId: message.id },
+        select: { answeredAt: true },
+      })
+    )?.answeredAt ||
+      (await isAnswered(message)));
+  if (!answered) {
+    // Core stores the message (once: same client id) and starts the turn;
+    // the call returns when the answer has begun streaming. A turn that
+    // does not start throws, so the event is retried, not lost.
+    try {
+      const response = await sendAs(input.core, input.author, {
+        method: "POST",
+        path: `/v1/chats/rooms/${input.roomId}/stream`,
+        timeoutMs: 15 * 60_000,
+        streamed: true,
+        body: {
+          messages: [
+            {
+              id: input.clientMessageId,
+              role: "user",
+              parts: [
+                { type: "text", text: input.content },
+                ...(input.files ?? []).map((file) => ({
+                  type: "file",
+                  url: file.url,
+                  mediaType: file.mediaType,
+                  filename: file.filename,
+                })),
+              ],
+            },
+          ],
+          ...(input.parentMessageId
+            ? { parentMessageId: input.parentMessageId }
+            : {}),
+        },
+      });
+      // The answer can still fail once it has started: the event is done
+      // only when it ends well, and a replay of it is not an echo while its
+      // question has no answer.
+      if (response.finished) input.onTurnStarted?.(response.finished);
+    } catch (error) {
+      // Another answer is still streaming in this room: ask again later.
+      if (error instanceof CoreRejectedError && error.status === 409) {
+        throw new CoreRejectedError(503, error.message, error.kind);
+      }
+      throw error;
+    }
+    message = await stored();
+    if (!message) throw new Error("Core did not store the Direct message");
+  }
+  if (message) {
+    await prisma.buzzMessageLink.upsert({
+      where: { messageId: message.id },
+      create: {
+        messageId: message.id,
+        eventId: input.eventId,
+        contentHash: contentHash(input.content),
+        signerPubkey: input.signerPubkey,
+        channelId: input.channelId,
+      },
+      update: {},
+    });
+  }
+  return "posted";
+}
+
+/**
+ * How Sokosumi writes a mention of this identity: `@<id>`, with the slug a
+ * Coworker is known by. Sokosumi shows it as their name and links it.
+ */
+function mentionTokenOf(identity: {
+  userId: string | null;
+  sokoBotId: string | null;
+  coworkerId: string | null;
+  coworker: { slug: string } | null;
+}): string | undefined {
+  if (identity.userId) return identity.userId;
+  if (identity.sokoBotId) return identity.sokoBotId;
+  if (identity.coworkerId) {
+    return identity.coworker
+      ? `${identity.coworkerId}:${identity.coworker.slug}`
+      : identity.coworkerId;
+  }
+  return undefined;
+}
+
+/** The names Sokosumi gave this identity's profile on Buzz. */
+function sokosumiNamesOf(identity: {
+  user: { name: string | null } | null;
+  sokoBot: { name: string | null } | null;
+  coworker: { name: string } | null;
+}): string[] {
+  if (identity.user?.name) {
+    return [identity.user.name, `${identity.user.name} (via Sokosumi)`];
+  }
+  if (identity.sokoBot) return [sokoBotDisplayName(identity.sokoBot)];
+  return identity.coworker ? [identity.coworker.name] : [];
+}
+
+/**
+ * The Buzz app writes a mention as `@` and the name it shows for the person,
+ * with their key tagged. Each such name of someone the event tags becomes
+ * Sokosumi's mention of them; the longest name first, so "Ann Lee" is not
+ * read as "Ann".
+ */
+export function sokosumiMentions(
+  content: string,
+  people: { token: string | undefined; names: (string | undefined)[] }[],
+): string {
+  const byName = new Map<string, string>();
+  for (const person of people) {
+    if (!person.token) continue;
+    for (const name of person.names) {
+      const trimmed = name?.trim();
+      if (trimmed && !byName.has(trimmed.toLowerCase())) {
+        byName.set(trimmed.toLowerCase(), person.token);
+      }
+    }
+  }
+  if (byName.size === 0) return content;
+  const names = [...byName.keys()].sort((a, b) => b.length - a.length);
+  const pattern = new RegExp(
+    `(^|[^\\p{L}\\p{N}_@/\\\\])@(${names
+      .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("|")})(?![\\p{L}\\p{N}_:-])`,
+    "giu",
+  );
+  return content.replace(pattern, (whole, before: string, name: string) => {
+    const token = byName.get(name.toLowerCase());
+    return token ? `${before}@${token}` : whole;
+  });
+}
+
+/**
+ * An edit's text with its mentions as Sokosumi writes them: each
+ * `nostr:npub…`, and each `@Name` of someone the edit tags.
+ */
+async function namedContent(content: string, event: Event): Promise<string> {
+  const pubkeys = tagValues(event, "p");
+  readableContent(content, (pubkey) => {
+    pubkeys.push(pubkey);
+    return undefined;
+  });
+  if (pubkeys.length === 0) return content;
+  const identities = await prisma.buzzIdentity.findMany({
+    where: {
+      OR: [{ pubkey: { in: pubkeys } }, { appPubkey: { in: pubkeys } }],
+    },
+    select: {
+      pubkey: true,
+      appPubkey: true,
+      userId: true,
+      sokoBotId: true,
+      coworkerId: true,
+      user: { select: { name: true } },
+      sokoBot: { select: { name: true } },
+      coworker: { select: { name: true, slug: true } },
+    },
+  });
+  const channelId = channelIdOf(event);
+  const channel = channelId
+    ? await prisma.buzzChannel.findUnique({
+        where: { channelId },
+        select: { community: { select: { relayUrl: true } } },
+      })
+    : null;
+  const relayUrl = channel?.community?.relayUrl;
+  const shown = relayUrl
+    ? await relayProfileNames(relayUrl, pubkeys)
+    : new Map<string, string>();
+  const tokens = new Map(
+    identities.flatMap((identity) => {
+      const token = mentionTokenOf(identity);
+      return token
+        ? keysOf(identity).map((pubkey) => [pubkey, token] as const)
+        : [];
+    }),
+  );
+  return readableContent(
+    sokosumiMentions(
+      content,
+      identities.map((identity) => ({
+        token: mentionTokenOf(identity),
+        names: [
+          ...keysOf(identity).map((pubkey) => shown.get(pubkey)),
+          ...sokosumiNamesOf(identity),
+        ],
+      })),
+    ),
+    (pubkey) => tokens.get(pubkey),
+  );
+}
+
+/** Calls a Core route as a person, with their bridge API key. */
+export type CoreRequest = (input: {
+  method: "POST" | "PATCH" | "DELETE" | "PUT";
+  path: string;
+  apiKey: string;
+  body?: unknown;
+  /** How long to wait; a Coworker's streamed answer can take minutes. */
+  timeoutMs?: number;
+  /** Answer as soon as a streamed response has started. */
+  streamed?: boolean;
+  headers?: Record<string, string>;
+}) => Promise<{
+  status: number;
+  body: unknown;
+  /** For a stream: settles true once it ended without an error. */
+  finished?: Promise<boolean>;
+}>;
+
+export async function bridgeApiKeyFor(identity: BuzzIdentity) {
+  const config = requireConfig();
+  if (identity.encryptedApiKey) {
+    return openSecret(identity.encryptedApiKey, config.encryptionSecret);
+  }
+  if (identity.coworkerId && isExternal(identity)) {
+    // A Buzz agent posts through Core as its Coworker.
+    const token = generateCoworkerApiKeyToken();
+    await prisma.$transaction([
+      prisma.coworkerApiKey.create({
+        data: {
+          coworkerId: identity.coworkerId,
+          name: "Buzz bridge",
+          keyHash: await hashApiKey(token),
+          keyStart: token.slice(0, COWORKER_API_KEY_START_LENGTH),
+        },
+      }),
+      prisma.buzzIdentity.update({
+        where: { id: identity.id },
+        data: { encryptedApiKey: sealSecret(token, config.encryptionSecret) },
+      }),
+    ]);
+    return token;
+  }
+  if (!identity.userId) throw new Error("Only people post through Core");
+  const { auth } = await import("@/lib/auth");
+  const created = await auth.api.createApiKey({
+    body: {
+      configId: "default",
+      userId: identity.userId,
+      name: "Buzz bridge",
+      metadata: { purpose: "buzz-bridge" },
+    },
+  });
+  await prisma.buzzIdentity.update({
+    where: { id: identity.id },
+    data: {
+      encryptedApiKey: sealSecret(created.key, config.encryptionSecret),
+    },
+  });
+  return created.key;
+}
+
+export type InboundResult =
+  | "members"
+  | "posted"
+  | "edited"
+  | "deleted"
+  | "reacted"
+  | "unreacted"
+  | "echo"
+  | "ignored";
+
+/** Core refused a replayed change; a client error will not change on retry. */
+export class CoreRejectedError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+    /** Core's error kind, e.g. `concurrency_conflict` (a 409 worth retrying). */
+    readonly kind?: string,
+  ) {
+    super(message);
+  }
+
+  get terminal(): boolean {
+    if (this.kind === "concurrency_conflict") return false;
+    return (
+      this.status >= 400 &&
+      this.status < 500 &&
+      ![401, 403, 408, 429].includes(this.status)
+    );
+  }
+}
+
+function errorKindOf(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const record = body as Record<string, unknown>;
+  const kind =
+    record.kind ??
+    (record.error && typeof record.error === "object"
+      ? (record.error as Record<string, unknown>).kind
+      : undefined);
+  return typeof kind === "string" ? kind : undefined;
+}
+
+/**
+ * A bridge key Core no longer takes: the next try mints a new one, unless the
+ * agent itself may no longer act (archived, its owner banned or gone), when
+ * no new key would be taken either and the change is given up for good.
+ */
+async function dropBridgeKey(identity: BuzzIdentity) {
+  if (identity.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: identity.userId },
+      select: { banned: true, banExpires: true },
+    });
+    // Banned (or gone): a new key would be refused too, so this change is
+    // given up instead of holding everyone's later ones back.
+    if (!user || !isActiveUser(user)) {
+      throw new CoreRejectedError(410, "This person can no longer post");
+    }
+  }
+  if (identity.coworkerId) {
+    const agent = await prisma.coworker.findUnique({
+      where: { id: identity.coworkerId },
+      select: {
+        archivedAt: true,
+        buzzIdentity: {
+          select: {
+            ownerIdentity: {
+              select: { user: { select: { banned: true, banExpires: true } } },
+            },
+          },
+        },
+      },
+    });
+    const owner = agent?.buzzIdentity?.ownerIdentity?.user;
+    if (
+      !agent ||
+      agent.archivedAt ||
+      (isExternal(identity) && (!owner || !isActiveUser(owner)))
+    ) {
+      throw new CoreRejectedError(
+        410,
+        "This agent can no longer post to Sokosumi",
+      );
+    }
+  }
+  await prisma.buzzIdentity.update({
+    where: { id: identity.id },
+    data: { encryptedApiKey: null },
+  });
+  identity.encryptedApiKey = null;
+}
+
+async function sendAs(
+  core: CoreRequest,
+  identity: BuzzIdentity,
+  request: Omit<Parameters<CoreRequest>[0], "apiKey">,
+) {
+  checkpoint();
+  const replay = identity.userId
+    ? bridgeReplayToken(identity.userId)
+    : identity.coworkerId
+      ? bridgeReplayToken(
+          bridgeReplayActor({ coworkerId: identity.coworkerId }),
+        )
+      : null;
+  const response = await core({
+    ...request,
+    apiKey: await bridgeApiKeyFor(identity),
+    ...(replay ? { headers: { [BUZZ_BRIDGE_REPLAY_HEADER]: replay } } : {}),
+  });
+  // The key is gone (revoked, or deleted with the account's keys): the next
+  // try mints a new one.
+  if (response.status === 401) await dropBridgeKey(identity);
+  // A 409 on a message means its clientMessageId is someone else's.
+  if (response.status >= 400) {
+    throw new CoreRejectedError(
+      response.status,
+      `Core ${request.method} ${request.path} → ${response.status}: ${JSON.stringify(response.body).slice(0, 300)}`,
+      errorKindOf(response.body),
+    );
+  }
+  return response;
+}
+
+/**
+ * The event points at a message the bridge has not linked yet (it may still be
+ * on its way in). Retry it; on the last attempt the caller passes
+ * `finalAttempt` and the event is applied as well as it can be.
+ */
+export class BuzzTargetPendingError extends Error {
+  constructor(readonly targetEventId: string) {
+    super(`Waiting for ${targetEventId.slice(0, 8)} to be linked`);
+  }
+}
+
+/**
+ * The message's text with the files it carries on the relay copied into
+ * Sokosumi. They are read as the operator, or in a DM with the keys Sokosumi
+ * keeps of its people, and become the author's chat files.
+ */
+async function withMediaCopied(
+  content: string,
+  event: Event,
+  input: { channelId: string; roomId: string; author: BuzzIdentity },
+  copied?: CopiedFile[],
+) {
+  const owner: MediaOwner = input.author.userId
+    ? { kind: "user", userId: input.author.userId }
+    : { kind: "coworker", coworkerId: input.author.coworkerId ?? "" };
+  const fit = (text: string) =>
+    fitToSokosumi({
+      content: text,
+      eventId: event.id,
+      owner,
+      roomId: input.roomId,
+    });
+  if (
+    !/\/media\/[0-9a-f]{64}/i.test(event.content) &&
+    !event.tags.some((tag) => tag[0] === "imeta")
+  ) {
+    return fit(content);
+  }
+  const channel = await prisma.buzzChannel.findUnique({
+    where: { channelId: input.channelId },
+    select: { membersHash: true, community: { select: { relayUrl: true } } },
+  });
+  if (!channel) return fit(content);
+  const relayUrl = channel.community.relayUrl;
+  const withMedia = await withSokosumiMedia({
+    copied,
+    content,
+    event,
+    relayUrl,
+    roomId: input.roomId,
+    // In a DM the operator is no member: the room's people read for it.
+    readerKeys: [
+      requireConfig().operatorSecretKey,
+      ...(isDirect(channel) ? await memberKeysOfRoom(input.roomId) : []),
+    ],
+    owner,
+  });
+  return fit(withMedia);
+}
+
+/**
+ * Who a change to a message is replayed as: its author, or for a message of
+ * the author's own personal agent (Buzz lets its owner edit and delete what
+ * it wrote), that agent, which Core lets change its own messages.
+ */
+async function actingFor(
+  author: BuzzIdentity,
+  message: { senderCoworkerId: string | null },
+): Promise<BuzzIdentity> {
+  if (!message.senderCoworkerId || author.coworkerId) return author;
+  const agent = await prisma.buzzIdentity.findUnique({
+    where: { coworkerId: message.senderCoworkerId },
+  });
+  return agent && agent.ownerIdentityId === author.id ? agent : author;
+}
+
+/** Replays one Buzz event as the person who wrote it. */
+export async function applyInboundEvent(
+  event: Event,
+  core: CoreRequest,
+  options: {
+    finalAttempt?: boolean;
+    /**
+     * A Coworker's answer to this event has started streaming; it settles
+     * true once it ended well. Until then the event is not done.
+     */
+    onTurnStarted?: (finished: Promise<boolean>) => void;
+  } = {},
+): Promise<InboundResult> {
+  const config = requireConfig();
+  // The relay checks signatures too; a bridge that acts as people does not
+  // take that on trust.
+  if (!verifyEvent(event)) return "ignored";
+  if (event.pubkey === config.operatorPubkey) return "echo";
+  const channelId = channelIdOf(event);
+  const change = readInbound(event);
+  if (change.type === "ignore") return "ignored";
+
+  // Our own events are linked before they are sent.
+  const [messageEcho, reactionEcho, undone] = await Promise.all([
+    prisma.buzzMessageLink.findUnique({ where: { eventId: event.id } }),
+    prisma.buzzReactionLink.findUnique({ where: { eventId: event.id } }),
+    prisma.buzzUndoneEvent.findUnique({ where: { eventId: event.id } }),
+  ]);
+  if (reactionEcho || undone) return "echo";
+  if (
+    messageEcho &&
+    (messageEcho.answeredAt ||
+      !(await unansweredDirectQuestion(messageEcho.messageId, event.id)))
+  ) {
+    return "echo";
+  }
+
+  const author = await prisma.buzzIdentity.findFirst({
+    where: { OR: [{ pubkey: event.pubkey }, { appPubkey: event.pubkey }] },
+  });
+  // Bots and coworkers speak only through Sokosumi, except a person's own
+  // Buzz agent; strangers are not members.
+  if (!author) return "ignored";
+  const agent = Boolean(author.coworkerId) && isExternal(author);
+  if (!author.userId && !agent) return "ignored";
+  // An agent posts, edits, deletes and reacts; Core keeps membership to
+  // people.
+  if (agent && change.type === "members") return "ignored";
+  // Seen on Buzz: the person is connected (refreshed at most every minute).
+  // Not from an edit or deletion signed with the key Sokosumi keeps: those
+  // are Sokosumi's own, coming back.
+  const fromSokosumi =
+    event.pubkey === author.pubkey &&
+    (change.type === "edit" || change.type === "delete");
+  if (
+    author.userId &&
+    !fromSokosumi &&
+    (!author.lastActiveOnBuzzAt ||
+      Date.now() - author.lastActiveOnBuzzAt.getTime() > 60_000)
+  ) {
+    await prisma.buzzIdentity.update({
+      where: { id: author.id },
+      data: { lastActiveOnBuzzAt: new Date() },
+    });
+  }
+  if (change.type === "members") {
+    return applyMemberChange(event, change, author, core);
+  }
+  const signerPubkey =
+    event.pubkey === author.pubkey && !agent ? null : event.pubkey;
+
+  switch (change.type) {
+    case "message": {
+      const channel = channelId
+        ? await prisma.buzzChannel.findUnique({ where: { channelId } })
+        : null;
+      if (!channel?.roomId) return "ignored";
+      let parentMessageId: string | undefined;
+      if (change.replyToEventIds.length > 0) {
+        const links = await prisma.buzzMessageLink.findMany({
+          where: { eventId: { in: change.replyToEventIds } },
+          select: {
+            eventId: true,
+            message: { select: { id: true, parentMessageId: true } },
+          },
+        });
+        // The nearest one linked; a missing reply falls back to its root.
+        const parent = change.replyToEventIds
+          .map((id) => links.find((link) => link.eventId === id))
+          .find((link) => link !== undefined);
+        if (!parent && !options.finalAttempt) {
+          throw new BuzzTargetPendingError(change.replyToEventIds[0] as string);
+        }
+        // Sokosumi threads are one level deep: answer the thread's root.
+        parentMessageId = parent
+          ? (parent.message.parentMessageId ?? parent.message.id)
+          : undefined;
+      }
+      const mentioned = await prisma.buzzIdentity.findMany({
+        where: {
+          OR: [
+            { pubkey: { in: change.mentionPubkeys } },
+            { appPubkey: { in: change.mentionPubkeys } },
+          ],
+        },
+        select: {
+          pubkey: true,
+          appPubkey: true,
+          userId: true,
+          sokoBotId: true,
+          coworkerId: true,
+          user: { select: { name: true } },
+          sokoBot: { select: { name: true } },
+          coworker: { select: { name: true, slug: true } },
+        },
+      });
+      const community = await prisma.buzzCommunity.findUnique({
+        where: { id: channel.communityId },
+        select: { relayUrl: true },
+      });
+      const shown = community
+        ? await relayProfileNames(community.relayUrl, change.mentionPubkeys)
+        : new Map<string, string>();
+      const tokens = new Map(
+        mentioned.flatMap((identity) => {
+          const token = mentionTokenOf(identity);
+          return token
+            ? keysOf(identity).map((pubkey) => [pubkey, token] as const)
+            : [];
+        }),
+      );
+      const files: CopiedFile[] = [];
+      const content = await withMediaCopied(
+        readableContent(
+          sokosumiMentions(
+            change.content,
+            mentioned.map((identity) => ({
+              token: mentionTokenOf(identity),
+              names: [
+                ...keysOf(identity).map((pubkey) => shown.get(pubkey)),
+                ...sokosumiNamesOf(identity),
+              ],
+            })),
+          ),
+          (pubkey) => tokens.get(pubkey),
+        ),
+        event,
+        { channelId: channel.channelId, roomId: channel.roomId, author },
+        files,
+      );
+      const clientMessageId = `buzz:${event.id}`;
+      // A one-on-one Direct with a Coworker is answered through the room's
+      // stream (what Sokosumi's own clients call); a plain post would sit
+      // there unanswered.
+      if (!agent && (await isCoworkerDirect(channel.roomId, author))) {
+        return postToCoworkerDirect({
+          core,
+          author,
+          roomId: channel.roomId,
+          clientMessageId,
+          content,
+          files,
+          parentMessageId,
+          eventId: event.id,
+          signerPubkey,
+          channelId: channel.channelId,
+          onTurnStarted: options.onTurnStarted,
+        });
+      }
+      const response = await sendAs(core, author, {
+        method: "POST",
+        path: `/v1/chats/rooms/${channel.roomId}/messages`,
+        body: {
+          content,
+          clientMessageId,
+          ...(parentMessageId ? { parentMessageId } : {}),
+          mentionedUserIds: mentioned.flatMap((m) =>
+            m.userId ? [m.userId] : [],
+          ),
+          mentionedSokoBotIds: mentioned.flatMap((m) =>
+            m.sokoBotId ? [m.sokoBotId] : [],
+          ),
+          mentionedCoworkerIds: mentioned.flatMap((m) =>
+            m.coworkerId ? [m.coworkerId] : [],
+          ),
+        },
+      });
+      // Link now, not when the outbox settles: a reply, edit or reaction to
+      // this message may be the very next event.
+      const created = (response.body as { data?: { id?: unknown } } | null)
+        ?.data?.id;
+      const messageId =
+        typeof created === "string"
+          ? created
+          : (
+              await prisma.chatRoomMessage.findFirst({
+                where: agent
+                  ? {
+                      roomId: channel.roomId,
+                      clientMessageId,
+                      senderCoworkerId: author.coworkerId,
+                    }
+                  : {
+                      roomId: channel.roomId,
+                      clientMessageId,
+                      senderUserId: author.userId,
+                    },
+                select: { id: true },
+              })
+            )?.id;
+      if (messageId) {
+        await prisma.buzzMessageLink.upsert({
+          where: { messageId },
+          create: {
+            messageId,
+            eventId: event.id,
+            contentHash: contentHash(content),
+            signerPubkey,
+            channelId: channel.channelId,
+          },
+          update: {},
+        });
+      }
+      return "posted";
+    }
+    // Each change goes to Core first and is recorded after: a worker that
+    // stops in between replays the event and does it again (Core takes the
+    // same edit, delete or reaction twice harmlessly), never drops it.
+    case "edit": {
+      const link = await prisma.buzzMessageLink.findUnique({
+        where: { eventId: change.targetEventId },
+        select: {
+          messageId: true,
+          contentHash: true,
+          lastEditAt: true,
+          lastEditEventId: true,
+          deleted: true,
+          channelId: true,
+          message: {
+            select: { roomId: true, deletedAt: true, senderCoworkerId: true },
+          },
+        },
+      });
+      if (!link) {
+        if (options.finalAttempt) return "ignored";
+        throw new BuzzTargetPendingError(change.targetEventId);
+      }
+      // Gone in Sokosumi: nothing left to edit (Core would refuse for good).
+      if (link.deleted || link.message.deletedAt) return "ignored";
+      // The newest edit wins; on a tie the lower id, as Nostr orders
+      // replaceable events. A replayed or late edit never undoes a newer one.
+      const newer =
+        event.created_at > link.lastEditAt ||
+        (event.created_at === link.lastEditAt &&
+          (link.lastEditEventId === null || event.id < link.lastEditEventId));
+      if (!newer) return "echo";
+      const content = await withMediaCopied(
+        await namedContent(change.content, event),
+        event,
+        {
+          channelId: link.channelId ?? channelId ?? "",
+          roomId: link.message.roomId,
+          author,
+        },
+      );
+      const hash = contentHash(content);
+      if (link.contentHash !== hash) {
+        await sendAs(core, await actingFor(author, link.message), {
+          method: "PATCH",
+          path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
+          body: { content },
+        });
+      }
+      await prisma.buzzMessageLink.update({
+        where: { messageId: link.messageId },
+        data: {
+          contentHash: hash,
+          lastEditAt: event.created_at,
+          lastEditEventId: event.id,
+        },
+      });
+      return link.contentHash === hash ? "echo" : "edited";
+    }
+    case "delete": {
+      let result: InboundResult = "ignored";
+      for (const targetEventId of change.targetEventIds) {
+        const messageLink = await prisma.buzzMessageLink.findUnique({
+          where: { eventId: targetEventId },
+          select: {
+            messageId: true,
+            deleted: true,
+            message: { select: { roomId: true, senderCoworkerId: true } },
+          },
+        });
+        if (messageLink) {
+          if (messageLink.deleted) continue;
+          await sendAs(core, await actingFor(author, messageLink.message), {
+            method: "DELETE",
+            path: `/v1/chats/rooms/${messageLink.message.roomId}/messages/${messageLink.messageId}`,
+          });
+          await prisma.buzzMessageLink.update({
+            where: { messageId: messageLink.messageId },
+            data: { deleted: true },
+          });
+          result = "deleted";
+          continue;
+        }
+        // The reaction, by its own event or a copy signed with the other key.
+        const reactionLink =
+          (await prisma.buzzReactionLink.findUnique({
+            where: { eventId: targetEventId },
+          })) ??
+          (await prisma.buzzReactionLink.findFirst({
+            where: { duplicateEventIds: { has: targetEventId } },
+          }));
+        if (!reactionLink) {
+          // Undone in Sokosumi already: taking it back on Buzz changes nothing.
+          const undoneTarget = await prisma.buzzUndoneEvent.findUnique({
+            where: { eventId: targetEventId },
+          });
+          if (!undoneTarget && !options.finalAttempt) {
+            throw new BuzzTargetPendingError(targetEventId);
+          }
+          continue;
+        }
+        // Our own take-back of a reaction Sokosumi already removed.
+        if (isBeingRemoved(reactionLink)) continue;
+        if (reactionLink.identityId !== author.id) continue;
+        const message = await prisma.chatRoomMessage.findUnique({
+          where: { id: reactionLink.messageId },
+          select: { roomId: true },
+        });
+        if (message) {
+          await sendAs(core, author, {
+            method: "DELETE",
+            path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
+          });
+        }
+        // Its other copies Sokosumi's key signed come off Buzz too before the
+        // link goes (a failure retries the whole event). Who signed each is
+        // read from the relay: one an app key signed (the person's, or a
+        // Buzz agent's, whose key Sokosumi never holds) is theirs to take back.
+        const otherCopies = [
+          reactionLink.eventId,
+          ...reactionLink.duplicateEventIds,
+        ].filter((id) => id !== targetEventId);
+        if (otherCopies.length > 0 && channelId && !isExternal(author)) {
+          const channel = await prisma.buzzChannel.findUnique({
+            where: { channelId },
+            select: { community: { select: { relayUrl: true } } },
+          });
+          if (channel) {
+            const secretKey = identitySecretKey(author);
+            const copies = await queryEvents({
+              relayUrl: channel.community.relayUrl,
+              secretKey,
+              filters: [{ ids: otherCopies }],
+            });
+            for (const copy of copies) {
+              if (copy.pubkey !== author.pubkey) continue;
+              await publish(
+                channel.community.relayUrl,
+                secretKey,
+                deletionDraft({ channelId, eventId: copy.id }),
+              ).catch((error) => {
+                if (!isAlreadyDone(error)) throw error;
+              });
+            }
+          }
+        }
+        // Taking back one copy takes the reaction back: whichever of its
+        // events is still on Buzz is undone too.
+        await prisma.$transaction([
+          rememberUndone([
+            reactionLink.eventId,
+            ...reactionLink.duplicateEventIds,
+          ]),
+          prisma.buzzReactionLink.deleteMany({
+            where: { id: reactionLink.id },
+          }),
+        ]);
+        result = "unreacted";
+      }
+      return result;
+    }
+    case "reaction": {
+      const link = await prisma.buzzMessageLink.findUnique({
+        where: { eventId: change.targetEventId },
+        select: { messageId: true, message: { select: { roomId: true } } },
+      });
+      if (!link) {
+        if (options.finalAttempt) return "ignored";
+        throw new BuzzTargetPendingError(change.targetEventId);
+      }
+      const existing = await prisma.buzzReactionLink.findUnique({
+        where: {
+          messageId_identityId_emoji: {
+            messageId: link.messageId,
+            identityId: author.id,
+            emoji: change.emoji,
+          },
+        },
+      });
+      const known =
+        existing &&
+        (existing.eventId === event.id ||
+          existing.duplicateEventIds.includes(event.id));
+      const beingRemoved =
+        asPending(existing?.pendingEvent)?.kind === BUZZ_KIND.deletion;
+      if (existing && (known || !beingRemoved)) {
+        // The same reaction signed with their other key: remembered, so
+        // taking it back covers this one too.
+        await rememberDuplicate(existing, event.id);
+        return "echo";
+      }
+      // Added again on Buzz while Sokosumi takes the old one back: that
+      // finishes first, so the link only ever stands for the new one.
+      const oldRemoval = existing ? asPending(existing.pendingEvent) : null;
+      if (existing && oldRemoval) {
+        const channel = channelId
+          ? await prisma.buzzChannel.findUnique({
+              where: { channelId },
+              select: { community: { select: { relayUrl: true } } },
+            })
+          : null;
+        if (!channel) return "ignored";
+        await deliver(channel.community.relayUrl, oldRemoval, (fresh) =>
+          prisma.buzzReactionLink.update({
+            where: { id: existing.id },
+            data: { pendingEvent: fresh as unknown as object },
+          }),
+        );
+      }
+      await sendAs(core, author, {
+        method: "PUT",
+        path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
+      });
+      if (existing) {
+        // The old ones stay undone; the new event is the reaction now.
+        await prisma.$transaction([
+          rememberUndone([existing.eventId, ...existing.duplicateEventIds]),
+          prisma.buzzReactionLink.update({
+            where: { id: existing.id },
+            data: {
+              eventId: event.id,
+              signerPubkey,
+              duplicateEventIds: [],
+              pendingEvent: PrismaNull.DbNull,
+            },
+          }),
+        ]);
+        return "reacted";
+      }
+      try {
+        await prisma.buzzReactionLink.create({
+          data: {
+            messageId: link.messageId,
+            identityId: author.id,
+            emoji: change.emoji,
+            eventId: event.id,
+            signerPubkey,
+          },
+        });
+      } catch (error) {
+        if (!isPrismaUniqueViolation(error)) throw error;
+        const raced = await prisma.buzzReactionLink.findUnique({
+          where: {
+            messageId_identityId_emoji: {
+              messageId: link.messageId,
+              identityId: author.id,
+              emoji: change.emoji,
+            },
+          },
+        });
+        if (raced) await rememberDuplicate(raced, event.id);
+      }
+      return "reacted";
+    }
+  }
+}
+
+async function rememberDuplicate(
+  link: { id: string; eventId: string; duplicateEventIds: string[] },
+  eventId: string,
+) {
+  if (link.eventId === eventId || link.duplicateEventIds.includes(eventId)) {
+    return;
+  }
+  await prisma.buzzReactionLink.update({
+    where: { id: link.id },
+    data: { duplicateEventIds: { push: eventId } },
+  });
+}
+
+/**
+ * What the worker reads, per community: one reader per key. The operator owns
+ * every channel; a DM holds only its people, so one of them reads it.
+ */
+export async function buzzSubscriptions() {
+  const communities = await prisma.buzzCommunity.findMany({
+    where: { provisionedAt: { not: null } },
+    select: {
+      id: true,
+      relayUrl: true,
+      inboundCursor: true,
+      channels: {
+        select: {
+          channelId: true,
+          membersHash: true,
+          room: {
+            select: {
+              userMembers: {
+                select: {
+                  user: {
+                    select: {
+                      buzzIdentity: true,
+                      banned: true,
+                      banExpires: true,
+                    },
+                  },
+                },
+                orderBy: { createdAt: "asc" },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  return communities.map((community) => {
+    const readers = new Map<
+      string,
+      { readerId: string; channelIds: string[] }
+    >();
+    for (const channel of community.channels) {
+      if (!channel.room) continue;
+      // Someone who is in the DM (a banned person was left out of it),
+      // preferably one already reading others: each reader is a connection.
+      const candidates = isDirect(channel)
+        ? channel.room.userMembers.flatMap((m) =>
+            m.user.buzzIdentity && isActiveUser(m.user)
+              ? [m.user.buzzIdentity.id]
+              : [],
+          )
+        : [];
+      const readerId = isDirect(channel)
+        ? (candidates.find((id) => readers.has(id)) ?? candidates[0] ?? null)
+        : "operator";
+      if (!readerId) continue;
+      const reader = readers.get(readerId) ?? { readerId, channelIds: [] };
+      reader.channelIds.push(channel.channelId);
+      readers.set(readerId, reader);
+    }
+    return {
+      communityId: community.id,
+      relayUrl: community.relayUrl,
+      inboundCursor: community.inboundCursor,
+      readers: [...readers.values()],
+    };
+  });
+}
+
+/** The key a reader subscribes with: the operator's, or a DM member's. */
+export async function readerSecretKey(readerId: string): Promise<Uint8Array> {
+  if (readerId === "operator") return requireConfig().operatorSecretKey;
+  return identitySecretKey(
+    await prisma.buzzIdentity.findUniqueOrThrow({ where: { id: readerId } }),
+  );
+}
+
+/** Everything up to `cursor` (unix seconds) has been applied; never moves back. */
+export async function saveInboundCursor(communityId: string, cursor: number) {
+  await prisma.buzzCommunity.updateMany({
+    where: { id: communityId, inboundCursor: { lt: cursor } },
+    data: { inboundCursor: cursor },
+  });
+}
+
+/**
+ * Every linked room, for the worker's periodic member check: a membership can
+ * change (someone leaves the organization) without any message to carry it.
+ */
+export async function linkedBuzzRooms() {
+  const channels = await prisma.buzzChannel.findMany({
+    where: { roomId: { not: null } },
+    select: { roomId: true },
+  });
+  return channels.flatMap(({ roomId }) => (roomId ? [{ roomId }] : []));
+}
+
+/**
+ * Deletes the Buzz group of each room deleted in Sokosumi, alone or with its
+ * organization (the channel and community outlive them for this), so what
+ * was said there leaves Buzz too. The channel is forgotten only once the
+ * relay took the deletion.
+ */
+export async function deleteChannelsOfDeletedRooms(
+  shouldContinue: () => boolean = () => true,
+) {
+  // Gone with its room, or a retired DM whose room is gone now too.
+  const retired = await prisma.buzzChannel.findMany({
+    where: { roomId: null, retiredFromRoomId: { not: null } },
+    select: { retiredFromRoomId: true },
+  });
+  const rooms = new Set(
+    (
+      await prisma.chatRoom.findMany({
+        where: {
+          id: {
+            in: retired.flatMap((channel) =>
+              channel.retiredFromRoomId ? [channel.retiredFromRoomId] : [],
+            ),
+          },
+        },
+        select: { id: true },
+      })
+    ).map((room) => room.id),
+  );
+  const orphaned = await prisma.buzzChannel.findMany({
+    where: {
+      roomId: null,
+      OR: [
+        { retiredFromRoomId: null },
+        { retiredFromRoomId: { notIn: [...rooms] } },
+      ],
+    },
+    orderBy: { updatedAt: "asc" },
+    take: 50,
+    select: {
+      id: true,
+      channelId: true,
+      membersHash: true,
+      community: { select: { relayUrl: true } },
+    },
+  });
+  let deleted = 0;
+  for (const channel of orphaned) {
+    if (!shouldContinue()) break;
+    const relayUrl = channel.community.relayUrl;
+    try {
+      // The relay lets no one delete a DM, so ours is deleted in its
+      // database (messages too); a channel, the operator owns and deletes.
+      let deletedInDatabase: boolean | null = null;
+      if (isDirect(channel)) {
+        checkpoint();
+        deletedInDatabase = await deleteDirectMessage(
+          new URL(relayUrl).host,
+          channel.channelId,
+        );
+      }
+      if (!deletedInDatabase) {
+        const signers = isDirect(channel)
+          ? await directMessageSigners(relayUrl, channel.channelId)
+          : [requireConfig().operatorSecretKey];
+        await deleteGroup(relayUrl, channel.channelId, signers);
+      }
+      await prisma.buzzChannel.delete({ where: { id: channel.id } });
+      deleted += 1;
+    } catch (error) {
+      // Kept, and tried again after the others (to the back of the queue).
+      await prisma.buzzChannel
+        .update({ where: { id: channel.id }, data: { updatedAt: new Date() } })
+        .catch(() => {});
+      console.error(
+        `Buzz channel ${channel.channelId.slice(0, 8)} of a deleted room not deleted`,
+        error,
+      );
+    }
+  }
+  // An organization's community goes once its channels are gone from Buzz.
+  await prisma.buzzCommunity.deleteMany({
+    where: { organizationId: null, channels: { none: {} } },
+  });
+  return deleted;
+}
+
+/** Secret keys Sokosumi keeps of a room's people. */
+async function memberKeysOfRoom(roomId: string) {
+  const identities = await prisma.buzzIdentity.findMany({
+    where: {
+      encryptedSecretKey: { not: null },
+      user: { chatRoomMemberships: { some: { roomId } } },
+    },
+  });
+  return identities.map((identity) => identitySecretKey(identity));
+}
+
+/** Secret keys Sokosumi keeps of a DM's people, who may delete it. */
+async function directMessageSigners(relayUrl: string, channelId: string) {
+  const members = await channelMemberPubkeys(relayUrl, channelId);
+  const identities = await prisma.buzzIdentity.findMany({
+    where: { pubkey: { in: [...members] }, encryptedSecretKey: { not: null } },
+  });
+  return identities.map((identity) => identitySecretKey(identity));
+}
+
+/** Deletes a group with the first of these keys the relay lets do it. */
+function deleteGroup(
+  relayUrl: string,
+  channelId: string,
+  signers: Uint8Array[],
+) {
+  // A deleted group is not archived again.
+  return publishWithFirstAllowed(
+    relayUrl,
+    channelId,
+    signers,
+    { kind: BUZZ_KIND.deleteChannel, content: "", tags: [["h", channelId]] },
+    { reArchive: false },
+  );
+}
+
+/**
+ * Takes down a message someone wrote with their own Buzz app: in a channel
+ * as its owner (Sokosumi's operator), in a DM (which has no admins) in the
+ * relay's database.
+ */
+async function adminDeleteOnBuzz(
+  relayUrl: string,
+  channel: { channelId: string; membersHash: string | null },
+  eventId: string,
+) {
+  // A DM has no admins: taken down in the relay's database.
+  if (isDirect(channel)) {
+    checkpoint();
+    if (await deleteEventInRelay(new URL(relayUrl).host, eventId)) return;
+    throw new Error(
+      "A message in a Buzz DM needs the relay's database to delete",
+    );
+  }
+  // A channel's owner, which Sokosumi's operator is.
+  await publishWithFirstAllowed(
+    relayUrl,
+    channel.channelId,
+    [requireConfig().operatorSecretKey],
+    {
+      kind: BUZZ_KIND.adminDelete,
+      content: "",
+      tags: [
+        ["h", channel.channelId],
+        ["e", eventId],
+      ],
+    },
+  );
+}
+
+/** Publishes with the first of these keys the relay accepts it from. */
+async function publishWithFirstAllowed(
+  relayUrl: string,
+  channelId: string,
+  signers: Uint8Array[],
+  draft: EventDraft,
+  options: { reArchive?: boolean } = {},
+) {
+  let refusal: unknown = new Error("No key that may do this in the channel");
+  for (const secretKey of signers) {
+    try {
+      await whileOpen(
+        relayUrl,
+        channelId,
+        () => publish(relayUrl, secretKey, draft),
+        options,
+      );
+      return;
+    } catch (error) {
+      if (isAlreadyDone(error)) return;
+      refusal = error;
+    }
+  }
+  throw refusal;
+}
+
+/** Rooms of Buzz organizations that have no channel yet. */
+export async function unlinkedBuzzRooms(
+  limit = 50,
+  /** Rooms that just failed, so the next ones get their turn. */
+  skip: string[] = [],
+) {
+  // In no fixed order: Directs whose people share no community yet stay
+  // unlinked, and must never keep the rest from their turn.
+  return prisma.$queryRaw<{ id: string }[]>`
+    SELECT r.id::text AS id
+      FROM chat_room r
+      LEFT JOIN buzz_channel c ON c."roomId" = r.id
+      LEFT JOIN buzz_community bc ON bc."organizationId" = r."organizationId"
+     WHERE c.id IS NULL
+       AND r."archivedAt" IS NULL
+       AND NOT (r.id::text = ANY(${skip}))
+       AND (
+         bc."provisionedAt" IS NOT NULL
+         OR (r.kind = 'direct' AND r."organizationId" IS NULL)
+       )
+     ORDER BY random()
+     LIMIT ${limit}`;
+}

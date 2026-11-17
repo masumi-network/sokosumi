@@ -129,6 +129,8 @@ describe("authMiddleware", () => {
       coworker: {
         archivedAt: null,
         vendorId: "01960001-0001-7001-8001-000000000001",
+        baseURL: null,
+        buzzIdentity: null,
       },
     });
 
@@ -158,6 +160,17 @@ describe("authMiddleware", () => {
           select: {
             archivedAt: true,
             vendorId: true,
+            baseURL: true,
+            buzzIdentity: {
+              select: {
+                encryptedSecretKey: true,
+                ownerIdentity: {
+                  select: {
+                    user: { select: { banned: true, banExpires: true } },
+                  },
+                },
+              },
+            },
           },
         },
         sokoBot: {

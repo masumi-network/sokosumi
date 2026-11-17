@@ -1124,6 +1124,69 @@
     "ConnectLink": {
       "error": "Could not start the connection."
     },
+    "BuzzConnect": {
+      "title": "Chat from Buzz",
+      "subtitle": "Your rooms, people and agents, in the Buzz app too. How do you want to start?",
+      "choose": {
+        "newTitle": "I'm new to Buzz",
+        "newDescription": "Get Buzz and make your Buzz identity.",
+        "haveTitle": "I already use Buzz",
+        "haveDescription": "Connect the Buzz identity you have."
+      },
+      "get": {
+        "title": "Get Buzz",
+        "subtitle": "Buzz is a chat app by Block for your Mac. Install it, then come back here.",
+        "download": "Download Buzz",
+        "next": "I have Buzz"
+      },
+      "create": {
+        "title": "Make your Buzz identity",
+        "subtitle": "In Buzz, follow these steps. When it asks for an invite, come back here.",
+        "options": "Open Buzz and choose <b>Other options</b>.",
+        "address": "Enter this address:",
+        "identity": "Choose <b>Create a new identity</b>.",
+        "otherIdentity": "Already have a Buzz identity? Go back and choose I already use Buzz.",
+        "next": "Done in Buzz"
+      },
+      "join": {
+        "title": "Join from Buzz",
+        "subtitle": "Open the invite in Buzz and choose <b>Join</b>.",
+        "open": "Open in Buzz",
+        "openNamed": "Open {name} in Buzz",
+        "copyInvite": "Copy invite link",
+        "auto": "This continues by itself once you've joined.",
+        "next": "I've joined"
+      },
+      "authorize": {
+        "title": "Authorize Sokosumi",
+        "subtitle": "Then your Buzz agents take what you write in Sokosumi as yours. Your private key stays in Buzz.",
+        "open": "In Buzz, open <b>Settings → Buzz → Security → Authorize external identity</b>.",
+        "openButton": "Open in Buzz",
+        "paste": "Paste this key and choose <b>Authorize identity</b>:",
+        "confirm": "Choose <b>Authorize this key</b>, then <b>Copy ownership proof</b>, and paste it here:",
+        "label": "Ownership proof",
+        "placeholder": "[\"auth\", …]",
+        "save": "Authorize"
+      },
+      "done": {
+        "title": "You're on Buzz",
+        "subtitle": "Your rooms are in Buzz, and your Buzz agents answer what you write here too.",
+        "close": "Done"
+      },
+      "back": "Back",
+      "next": "Continue",
+      "later": "Finish later",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy",
+      "card": {
+        "title": "Chat from Buzz",
+        "summary": "New: your rooms, people and agents, in the Buzz app too.",
+        "connect": "Connect",
+        "close": "Close"
+      },
+      "dialogTitle": "Connect Buzz",
+      "notNow": "Not now"
+    },
     "SpreadsheetView": {
       "loading": "Loading spreadsheet",
       "failed": "This spreadsheet could not be opened.",
@@ -7698,8 +7761,6 @@
       "SocialAccounts": {
         "title": "Sign-in",
         "description": "Use these accounts to sign in.",
-        "connected": "{provider} is connected",
-        "notConnected": "{provider} is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",
@@ -7716,7 +7777,10 @@
         "connect": "Connect {provider}",
         "disconnect": "Disconnect {provider}",
         "connectAction": "Connect",
-        "disconnectAction": "Disconnect"
+        "disconnectAction": "Disconnect",
+        "statusConnected": "Connected",
+        "hintConnected": "You can sign in with {provider}.",
+        "hintNotConnected": "Sign in with your {provider} account."
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
@@ -8921,6 +8985,44 @@
       "tabs": {
         "connectedApps": "Connected apps",
         "mcp": "MCP"
+      },
+      "Buzz": {
+        "title": "Buzz",
+        "description": "Chat in your organization's rooms from a Buzz app as well as here. Same rooms, same people, same messages.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "proofInvalid": "Paste the proof Buzz showed you",
+        "communityDescription": "Add this address in the Buzz app to join this organization's chats.",
+        "relayUrl": "Address",
+        "enableDescription": "Not on Buzz yet. Its rooms become Buzz channels within a minute.",
+        "enable": "Put chats on Buzz",
+        "enabled": "Chats are on Buzz",
+        "enableError": "Failed to put chats on Buzz",
+        "unlink": "Unlink",
+        "linkError": "Failed to link the Buzz app",
+        "unlinkError": "Failed to unlink the Buzz app",
+        "agentsTitle": "Your Buzz agents",
+        "agentsEmpty": "Agents you create in the Buzz app appear here within a minute.",
+        "agentsHint": "Personal agents via Buzz. Add one to a room you are in (add member → Coworkers), or invite it to the channel in Buzz. Only you can add it, and it leaves a room when you do.",
+        "personalAgentsTitle": "Members can bring their own agents",
+        "personalAgentsOn": "Members can add their personal agents (run in their Buzz app) to rooms they are in. Each shows as a personal agent via Buzz.",
+        "personalAgentsOff": "Personal agents need an owner or admin to approve them first.",
+        "personalAgentsError": "Failed to change the setting",
+        "statusTitle": "Buzz",
+        "statusNotConnected": "Not connected yet. Chat in the same rooms from the Buzz app.",
+        "statusConnected": "Connected. You're on Buzz as you.",
+        "statusLinked": "Linked to your Buzz identity.",
+        "statusUnauthorized": "Linked to your Buzz identity. Authorize Sokosumi so your Buzz agents answer what you write here.",
+        "connect": "Connect Buzz",
+        "connectAgain": "Connect again",
+        "authorize": "Authorize",
+        "identityTitle": "Your Buzz identity",
+        "identityHint": "Share it so people can find you in Buzz.",
+        "copyIdentity": "Copy your Buzz identity",
+        "personalAgent": "Personal agent",
+        "copyAgentKey": "Copy {name}'s Buzz key",
+        "organizationDescription": "This organization's chats are also on Buzz: members chat in the same rooms from the Buzz app.",
+        "communitiesTitle": "Communities"
       }
     },
     "Channels": {

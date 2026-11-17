@@ -144,6 +144,8 @@ model Organization {
 
   enterpriseContracts EnterpriseContract[]
 
+  buzzCommunity BuzzCommunity?
+
   @@unique([slug])
   @@unique([stripeCustomerId])
   @@map("organization")
@@ -2330,7 +2332,10 @@ model Coworker {
   chatRoomMemberships     ChatRoomCoworkerMember[]
   chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
   chatRoomMentions        ChatRoomMention[]
+  chatRoomReactions       ChatRoomAgentReaction[]
   scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByCoworker")
+
+  buzzIdentity BuzzIdentity?
 
   @@index([archivedAt])
   @@index([vendorId])
@@ -2685,6 +2690,8 @@ model SokoBot {
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
   // let a tombstone block its owner from ever creating a new bot.
+  buzzIdentity BuzzIdentity?
+
   @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
   @@index([archivedAt])
   @@index([lastPolledAt])
@@ -4514,6 +4521,8 @@ model ChatRoom {
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
+  buzzChannel BuzzChannel?
+
   @@unique([organizationId, slug], map: "chat_room_organizationId_channel_slug_key", where: { kind: "channel", slug: { not: null } })
   // Postgres UNIQUE treats NULL organizationId as distinct, so org-less
   // matched Channels need their own slug unique.
@@ -4679,6 +4688,7 @@ model ChatRoomMessage {
   mentionResponseFor   ChatRoomMention?          @relation("ChatRoomMentionResponse")
   userMentionsAsSource ChatRoomUserMention[]     @relation("ChatRoomUserMentionSource")
   reactions            ChatRoomReaction[]
+  agentReactions       ChatRoomAgentReaction[]
   pins                 ChatRoomPinnedMessage[]
   saves                ChatRoomSavedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
@@ -4687,6 +4697,8 @@ model ChatRoomMessage {
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
+  buzzLink BuzzMessageLink?
+
   @@unique([roomId, clientMessageId])
   @@unique([roomId, responsesApiResponseId])
   @@index([roomId, createdAt])
@@ -4751,6 +4763,23 @@ model ChatRoomReaction {
   @@index([messageId, emoji])
   @@index([userId])
   @@map("chat_room_reaction")
+}
+
+/// A Coworker's reaction, made on Buzz (people's are ChatRoomReaction).
+model ChatRoomAgentReaction {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, coworkerId, emoji])
+  @@index([coworkerId])
+  @@map("chat_room_agent_reaction")
 }
 
 model ChatRoomReadState {

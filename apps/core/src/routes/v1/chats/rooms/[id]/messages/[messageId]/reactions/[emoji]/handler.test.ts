@@ -23,8 +23,12 @@ const {
   messageFindUniqueOrThrowMock,
   reactionCreateManyMock,
   reactionDeleteManyMock,
+  agentReactionCreateManyMock,
+  agentReactionDeleteManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
+  agentReactionCreateManyMock: vi.fn(),
+  agentReactionDeleteManyMock: vi.fn(),
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -63,6 +67,10 @@ const tx = {
   chatRoomReaction: {
     createMany: reactionCreateManyMock,
     deleteMany: reactionDeleteManyMock,
+  },
+  chatRoomAgentReaction: {
+    createMany: agentReactionCreateManyMock,
+    deleteMany: agentReactionDeleteManyMock,
   },
 };
 
@@ -273,9 +281,20 @@ describe("PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}", () => {
     },
   );
 
-  it.each(["PUT", "DELETE"] as const)(
-    "rejects coworker actors on %s",
-    async (method) => {
+  it.each([
+    ["PUT", true],
+    ["DELETE", false],
+  ] as const)(
+    "sets a Coworker's own reaction on %s (a Buzz agent reacting on Buzz)",
+    async (method, reacted) => {
+      agentReactionCreateManyMock.mockResolvedValue({ count: 1 });
+      agentReactionDeleteManyMock.mockResolvedValue({ count: 1 });
+      messageFindUniqueOrThrowMock.mockResolvedValue({
+        ...storedMessage([]),
+        agentReactions: [
+          { emoji: "👍", coworker: { id: "cow_1", name: "Bee" } },
+        ],
+      });
       const response = await createApp({
         actor: "coworker",
         coworkerId: "cow_1",
@@ -283,10 +302,42 @@ describe("PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}", () => {
         context: { userId: USER_ID, organizationId: ORG_ID },
       }).request(reactionPath("👍"), { method });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
+      const where = { messageId: MESSAGE_ID, emoji: "👍", coworkerId: "cow_1" };
+      if (reacted) {
+        expect(agentReactionCreateManyMock).toHaveBeenCalledWith({
+          data: where,
+          skipDuplicates: true,
+        });
+      } else {
+        expect(agentReactionDeleteManyMock).toHaveBeenCalledWith({ where });
+      }
       expect(reactionCreateManyMock).not.toHaveBeenCalled();
+      expect(reactionDeleteManyMock).not.toHaveBeenCalled();
+      const body = await response.json();
+      expect(body.data.reactions).toEqual([
+        {
+          emoji: "👍",
+          count: 1,
+          reactedByCurrentUser: false,
+          reactors: [{ id: "cow_1", name: "Bee" }],
+        },
+      ]);
     },
   );
+
+  it("refuses a Coworker that is not in the room", async () => {
+    roomFindFirstMock.mockResolvedValue(null);
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "cow_2",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: USER_ID, organizationId: ORG_ID },
+    }).request(reactionPath("👍"), { method: "PUT" });
+
+    expect(response.status).toBe(404);
+    expect(agentReactionCreateManyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}", () => {

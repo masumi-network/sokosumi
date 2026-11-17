@@ -2,6 +2,7 @@ import {
   buildSokoBotKeyAuthContext,
   sokoBotKeyWorkspaceWhere,
 } from "@/helpers/soko-bot-auth-context";
+import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
@@ -12,7 +13,10 @@ import type {
   CoworkerAuthenticationContext,
   SokoBotAuthenticationContext,
 } from "@/middleware/auth";
-import { BEARER_USER_SELECT } from "@/middleware/auth-active-user";
+import {
+  BEARER_USER_SELECT,
+  isActiveUser,
+} from "@/middleware/auth-active-user";
 
 /**
  * Resolves a dedicated agent API key to the context it may act in, or `null`
@@ -47,6 +51,17 @@ export async function resolveAgentApiKeyAuthContext(
         select: {
           archivedAt: true,
           vendorId: true,
+          baseURL: true,
+          buzzIdentity: {
+            select: {
+              encryptedSecretKey: true,
+              ownerIdentity: {
+                select: {
+                  user: { select: { banned: true, banExpires: true } },
+                },
+              },
+            },
+          },
         },
       },
       sokoBot: {
@@ -76,6 +91,17 @@ export async function resolveAgentApiKeyAuthContext(
 
   if (apiKey.coworkerId && apiKey.coworker) {
     if (apiKey.coworker.archivedAt) {
+      return null;
+    }
+    // A personal agent via Buzz acts for its owner: not once that owner is
+    // banned or gone (their account deleted takes the ownership with it).
+    // Known by its key, which Sokosumi never holds, not by its URL, which
+    // its owner can edit.
+    const identity = apiKey.coworker.buzzIdentity;
+    const personalAgent =
+      isBuzzAgentBaseUrl(apiKey.coworker.baseURL) ||
+      (identity != null && !identity.encryptedSecretKey);
+    if (personalAgent && !isActiveUser(identity?.ownerIdentity?.user)) {
       return null;
     }
 

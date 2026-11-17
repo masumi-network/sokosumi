@@ -164,6 +164,10 @@
     {
       "path": "/sync/social-posts-publish",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/buzz",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -1,0 +1,354 @@
+import { createRoute, z } from "@hono/zod-openapi";
+
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import { joinedWithInvites } from "@/lib/buzz/relay-database";
+import prisma from "@/lib/db/prisma";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  requireInteractiveUserAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
+import {
+  BuzzAppLinkError,
+  buzzConfig,
+  buzzConnectionFor,
+  enableBuzzForOrganization,
+  linkBuzzApp,
+  setAllowPersonalAgents,
+  unlinkBuzzApp,
+} from "@/services/buzz-bridge.service";
+
+/**
+ * Buzz: chat from a Buzz client in the same rooms as in Sokosumi. A person
+ * signs in to Buzz with the Nostr key Sokosumi keeps for them.
+ */
+
+const connectionSchema = z
+  .object({
+    available: z.boolean().openapi({
+      description: "Whether this Sokosumi can put chats on Buzz at all.",
+    }),
+    identity: z
+      .object({
+        pubkey: z.string().openapi({ description: "Hex public key." }),
+        npub: z.string(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "The caller's Buzz identity; null until one of their organizations is on Buzz.",
+      }),
+    app: z
+      .object({
+        npub: z.string(),
+        authorized: z.boolean().openapi({
+          description:
+            "Whether the caller's Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.",
+        }),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "The caller's own Buzz app key, when they linked one instead of importing Sokosumi's.",
+      }),
+    agents: z
+      .array(
+        z.object({
+          name: z.string(),
+          image: z.union([z.string(), z.null()]).openapi({
+            description: "The agent's Buzz profile picture.",
+          }),
+          npub: z.string(),
+        }),
+      )
+      .openapi({
+        description:
+          "The caller's Buzz agents, usable as Coworkers in their rooms.",
+      }),
+    lastActiveOnBuzzAt: z.union([z.date(), z.null()]).openapi({
+      description:
+        "When the caller last did something from a Buzz app; null until they have.",
+    }),
+    canEnable: z
+      .array(
+        z.object({ organizationId: z.string(), organizationName: z.string() }),
+      )
+      .openapi({
+        description:
+          "Organizations the caller owns or administers that are not on Buzz yet.",
+      }),
+    communities: z.array(
+      z.object({
+        organizationId: z.string(),
+        organizationName: z.string(),
+        relayUrl: z.string().openapi({
+          description: "The address to add in a Buzz client.",
+          example: "wss://acme.chat.sokosumi.com",
+        }),
+        allowPersonalAgents: z.boolean().openapi({
+          description:
+            "Members may bring their personal agents (run in their Buzz app) into rooms without approval.",
+        }),
+        canManage: z.boolean().openapi({
+          description: "The caller owns or administers this organization.",
+        }),
+      }),
+    ),
+  })
+  .openapi("BuzzConnection");
+
+const getConnection = createRoute({
+  method: "get",
+  path: "/connection",
+  tags: ["Buzz"],
+  description:
+    "The caller's Buzz identity and the communities (one per organization on Buzz) they can sign in to from a Buzz client.",
+  responses: {
+    200: jsonSuccessResponse(connectionSchema, "Buzz connection"),
+    401: jsonErrorResponse("Unauthorized"),
+  },
+});
+
+const communitySchema = z
+  .object({ organizationId: z.string(), relayUrl: z.string() })
+  .openapi("BuzzCommunity");
+
+const enableOrganization = createRoute({
+  method: "post",
+  path: "/organizations/{organizationId}",
+  tags: ["Buzz"],
+  description:
+    "Put an organization's chats on Buzz. Owners and admins only. Its rooms become Buzz channels within a minute.",
+  request: {
+    params: z.object({ organizationId: z.string() }),
+  },
+  responses: {
+    200: jsonSuccessResponse(communitySchema, "Organization is on Buzz"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
+const appKeyInvitesSchema = z
+  .object({
+    invites: z.array(
+      z.object({
+        organizationName: z.string(),
+        relayUrl: z.string(),
+        joinUrl: z.string().openapi({
+          description: "Opens the Buzz app and joins with a single-use invite.",
+          example:
+            "buzz://join?relay=wss%3A%2F%2Facme.chat.sokosumi.com&code=v2.…",
+        }),
+        inviteUrl: z.string().openapi({
+          description: "The same invite as a web page, for another device.",
+        }),
+      }),
+    ),
+  })
+  .openapi("BuzzAppKeyInvites");
+
+const linkAppKey = createRoute({
+  method: "post",
+  path: "/app-key",
+  tags: ["Buzz"],
+  description:
+    "Link the caller's own Buzz identity with the proof their Buzz app signed for their Sokosumi key (Settings → Buzz → Security → Authorize external identity). Returns single-use invites while that key is not linked yet; it is linked once it joins a community with one. Interactive sessions only.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            proof: z.string().openapi({
+              description:
+                'The NIP-OA auth tag Buzz shows, ["auth", owner, "", signature].',
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(appKeyInvitesSchema, "Invites to open in Buzz"),
+    400: jsonErrorResponse("Not a proof for this key"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
+const appKeyJoined = createRoute({
+  method: "post",
+  path: "/app-key/joined",
+  tags: ["Buzz"],
+  description:
+    "Whether the caller's linked Buzz app has joined the community of every one of these invites, so the Connect dialog can move on by itself. `joined` is null when Sokosumi cannot tell. Interactive sessions only.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ codes: z.array(z.string().min(1)).max(50) }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ joined: z.union([z.boolean(), z.null()]) }),
+      "Whether the app joined",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+const unlinkAppKey = createRoute({
+  method: "delete",
+  path: "/app-key",
+  tags: ["Buzz"],
+  description:
+    "Forget the caller's own Buzz app key. Interactive sessions only.",
+  responses: {
+    200: jsonSuccessResponse(z.object({ unlinked: z.boolean() }), "Unlinked"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
+const updateOrganization = createRoute({
+  method: "patch",
+  path: "/organizations/{organizationId}",
+  tags: ["Buzz"],
+  description:
+    "Change an organization's Buzz settings. Owners and admins only.",
+  request: {
+    params: z.object({ organizationId: z.string() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ allowPersonalAgents: z.boolean() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ allowPersonalAgents: z.boolean() }),
+      "Saved",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not on Buzz"),
+    503: jsonErrorResponse("Buzz is not configured"),
+  },
+});
+
+const app = new OpenAPIHonoWithAuth();
+
+app.openapi(getConnection, async (c) => {
+  const { userId } = requireUserAuthContext(c.var.authContext);
+  const connection = await buzzConnectionFor(userId);
+  return ok(
+    c,
+    connectionSchema.parse(
+      connection
+        ? { available: true, ...connection }
+        : {
+            available: false,
+            identity: null,
+            app: null,
+            agents: [],
+            lastActiveOnBuzzAt: null,
+            communities: [],
+            canEnable: [],
+          },
+    ),
+  );
+});
+
+app.openapi(linkAppKey, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const { proof } = c.req.valid("json");
+  try {
+    return ok(c, { invites: await linkBuzzApp(userId, proof) });
+  } catch (error) {
+    if (error instanceof BuzzAppLinkError) throw badRequest(error.message);
+    throw error;
+  }
+});
+
+app.openapi(appKeyJoined, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  const { codes } = c.req.valid("json");
+  const identity = await prisma.buzzIdentity.findUnique({
+    where: { userId },
+    select: { appPubkey: true },
+  });
+  return ok(c, {
+    joined: identity?.appPubkey
+      ? await joinedWithInvites(codes, identity.appPubkey)
+      : false,
+  });
+});
+
+app.openapi(unlinkAppKey, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  await unlinkBuzzApp(userId);
+  return ok(c, { unlinked: true });
+});
+
+app.openapi(updateOrganization, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  const { organizationId } = c.req.valid("param");
+  const { allowPersonalAgents } = c.req.valid("json");
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const member = await prisma.member.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: {
+      role: true,
+      organization: { select: { buzzCommunity: { select: { id: true } } } },
+    },
+  });
+  if (member?.role !== "owner" && member?.role !== "admin") {
+    throw forbidden("Only owners and admins can change Buzz settings");
+  }
+  if (!member.organization.buzzCommunity) {
+    throw notFound("This organization is not on Buzz");
+  }
+  const community = await setAllowPersonalAgents(
+    organizationId,
+    allowPersonalAgents,
+  );
+  return ok(c, { allowPersonalAgents: community.allowPersonalAgents });
+});
+
+app.openapi(enableOrganization, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  const { organizationId } = c.req.valid("param");
+  if (!buzzConfig()) throw serviceUnavailable("Buzz is not configured");
+  const member = await prisma.member.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { role: true },
+  });
+  if (member?.role !== "owner" && member?.role !== "admin") {
+    throw forbidden("Only owners and admins can put an organization on Buzz");
+  }
+  const community = await enableBuzzForOrganization(organizationId);
+  return ok(c, {
+    organizationId: community.organizationId,
+    relayUrl: community.relayUrl,
+  });
+});
+
+export default app;

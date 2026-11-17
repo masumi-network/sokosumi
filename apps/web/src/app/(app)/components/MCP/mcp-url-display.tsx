@@ -29,19 +29,22 @@ export function McpUrlDisplay({ url, className }: McpUrlDisplayProps) {
   };
 
   return (
-    <div className={cn("relative", className)}>
-      <div className="bg-muted rounded-md p-3 pr-12 font-mono text-xs break-all">
-        {url}
-      </div>
+    <div
+      className={cn(
+        "bg-background flex items-center gap-3 rounded-lg border py-1 pr-1 pl-3",
+        className,
+      )}
+    >
+      <span className="min-w-0 flex-1 font-mono text-sm break-all">{url}</span>
       <Button
         size="icon"
         variant="ghost"
-        className="absolute top-1/2 right-2 size-10 md:size-8 -translate-y-1/2"
+        className="size-10 shrink-0 md:size-8"
         onClick={handleCopy}
         aria-label={t("copyUrl")}
       >
         {copied ? (
-          <Check className="check-pop size-4 text-foreground" />
+          <Check className="check-pop text-foreground size-4" />
         ) : (
           <Copy className="size-4" />
         )}

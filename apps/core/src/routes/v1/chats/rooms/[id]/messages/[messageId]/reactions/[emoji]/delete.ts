@@ -6,11 +6,11 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 
 import {
   chatRoomMessageReactionParamsSchema,
+  reactorOf,
   setChatRoomMessageReaction,
 } from "./handler";
 
@@ -38,13 +38,12 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
     const { id, messageId, emoji } = c.req.valid("param");
 
     const message = await setChatRoomMessageReaction({
       roomId: id,
       messageId,
-      userId: userContext.userId,
+      reactor: reactorOf(c.var.authContext),
       emoji,
       reacted: false,
     });

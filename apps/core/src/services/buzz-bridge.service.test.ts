@@ -1,0 +1,2556 @@
+import { createHash } from "node:crypto";
+import { npubEncode } from "nostr-tools/nip19";
+import {
+  finalizeEvent,
+  generateSecretKey,
+  getPublicKey,
+} from "nostr-tools/pure";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const OPERATOR_KEY = "1".repeat(64);
+const env = vi.hoisted(() => ({
+  value: {} as Record<string, string | undefined>,
+}));
+vi.mock("@/config/env", () => ({ getEnv: () => env.value }));
+
+const db = vi.hoisted(() => {
+  const model = () => ({
+    findUnique: vi.fn(),
+    findUniqueOrThrow: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    upsert: vi.fn(),
+    updateMany: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+    count: vi.fn(),
+    createMany: vi.fn(),
+    groupBy: vi.fn(async (): Promise<unknown[]> => []),
+  });
+  return {
+    chatRoom: model(),
+    organization: model(),
+    buzzCommunity: model(),
+    buzzOutbox: model(),
+    buzzMessageLink: model(),
+    buzzReactionLink: model(),
+    buzzIdentity: model(),
+    buzzChannel: model(),
+    chatRoomMessage: model(),
+    buzzCommunityMember: model(),
+    buzzUndoneEvent: model(),
+    buzzAutoAccess: model(),
+    apikey: model(),
+    coworker: model(),
+    vendor: model(),
+    workspace: model(),
+    coworkerWorkspaceAccess: model(),
+    coworkerApiKey: model(),
+    member: model(),
+    user: model(),
+    sokoBot: model(),
+    syncMetadata: model(),
+    $queryRaw: vi.fn(async (): Promise<unknown[]> => []),
+    $executeRaw: vi.fn(async (): Promise<number> => 0),
+    // Both forms: a list of operations, or a function given the client.
+    $transaction: vi.fn(
+      async (operations: unknown): Promise<unknown> =>
+        typeof operations === "function"
+          ? operations(db)
+          : Promise.all(operations as unknown[]),
+    ),
+  };
+});
+vi.mock("@/lib/db/prisma", () => ({ default: db }));
+const approvers = vi.hoisted(() => ({ notify: vi.fn() }));
+vi.mock("@/helpers/coworker-workspace-access", () => ({
+  notifyWorkspaceApproversOfPendingCoworkerAccess: approvers.notify,
+  forceRevokeCoworkerWorkspaceAccessByPair: vi.fn(async () => ({
+    membershipStatusMessages: [{ roomId: "room" }],
+  })),
+}));
+const realtime = vi.hoisted(() => ({ publish: vi.fn() }));
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMembershipStatusMessagesBestEffort: realtime.publish,
+}));
+const relay = vi.hoisted(() => ({
+  queryEvents: vi.fn(),
+  operatorRequest: vi.fn(),
+}));
+vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/buzz/relay-client")>()),
+  queryEvents: relay.queryEvents,
+  operatorRequest: relay.operatorRequest,
+  // One page here: paging itself is the relay client's to test.
+  queryAllEvents: (input: {
+    relayUrl: string;
+    secretKey: Uint8Array;
+    filter: object;
+  }) =>
+    relay.queryEvents({
+      relayUrl: input.relayUrl,
+      secretKey: input.secretKey,
+      filters: [input.filter],
+    }),
+}));
+
+import { contentHash } from "@/lib/buzz/events";
+import { ownerAuthTag } from "@/lib/buzz/owner-attestation";
+import { sealSecret } from "@/lib/buzz/secret-box";
+import { expectConsole } from "@/test/console";
+import {
+  applyInboundEvent,
+  BuzzTargetPendingError,
+  buzzContentOf,
+  buzzHashOf,
+  buzzTextOf,
+  CoreRejectedError,
+  type CoreRequest,
+  claimBuzzState,
+  communityLabelFor,
+  drainBuzzOutbox,
+  enqueueBuzzSync,
+  linkBuzzApp,
+  OUTBOX_SETTLE_MS,
+  provisionBuzzCommunities,
+  sokosumiMentions,
+  syncBuzzAgents,
+  syncRoomChannel,
+  vouched,
+} from "./buzz-bridge.service";
+
+const CHANNEL = "6f7c1b2e-0000-4000-8000-000000000001";
+const BOB_KEY = generateSecretKey();
+const BOB_PUBKEY = getPublicKey(BOB_KEY);
+const BOT_PUBKEY = "c".repeat(64);
+const SECRET = "s".repeat(32);
+
+/** A signed event, as the relay delivers it. */
+function nostrEvent(
+  overrides: Partial<{ kind: number; tags: string[][]; content: string }>,
+  secretKey: Uint8Array = BOB_KEY,
+) {
+  return finalizeEvent(
+    {
+      created_at: 0,
+      kind: 9,
+      tags: [["h", CHANNEL]],
+      content: "",
+      ...overrides,
+    },
+    secretKey,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Each test sets the room it needs; none inherits another's.
+  db.chatRoom.findUnique.mockReset();
+  env.value = {
+    BUZZ_COMMUNITY_URL_TEMPLATE: "ws://relay",
+    BUZZ_OPERATOR_SECRET_KEY: OPERATOR_KEY,
+    BUZZ_KEY_ENCRYPTION_SECRET: SECRET,
+  };
+});
+
+describe("enqueueBuzzSync", () => {
+  it("does nothing while Buzz is not configured", async () => {
+    env.value = {};
+    await enqueueBuzzSync({ roomId: "room", messageId: "m" });
+    expect(db.chatRoom.findUnique).not.toHaveBeenCalled();
+    expect(db.buzzOutbox.create).not.toHaveBeenCalled();
+  });
+
+  it("queues a change in a room of an organization on Buzz", async () => {
+    db.chatRoom.findUnique.mockResolvedValue({
+      kind: "channel",
+      buzzChannel: null,
+      organization: {
+        buzzCommunity: { id: "community", provisionedAt: new Date() },
+      },
+      userMembers: [],
+    });
+    await enqueueBuzzSync({ roomId: "room", messageId: "m" });
+    expect(db.buzzOutbox.create).toHaveBeenCalledWith({
+      data: { roomId: "room", messageId: "m" },
+    });
+  });
+
+  it("queues nothing for a community the relay does not have yet", async () => {
+    db.chatRoom.findUnique.mockResolvedValue({
+      kind: "channel",
+      buzzChannel: null,
+      organization: {
+        buzzCommunity: { id: "community", provisionedAt: null },
+      },
+      userMembers: [],
+    });
+    await enqueueBuzzSync({ roomId: "room", messageId: "m" });
+    expect(db.buzzOutbox.create).not.toHaveBeenCalled();
+  });
+
+  it("never lets a Buzz failure fail the chat write", async () => {
+    db.chatRoom.findUnique.mockRejectedValue(new Error("db down"));
+    expectConsole("error", "Failed to enqueue Buzz sync");
+    await expect(
+      enqueueBuzzSync({ roomId: "room", messageId: "m" }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("applyInboundEvent", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 201, body: {} }));
+  const bob = {
+    id: "identity-bob",
+    pubkey: BOB_PUBKEY,
+    userId: "user-bob",
+    encryptedApiKey: sealSecret("bob-api-key", SECRET),
+  };
+
+  beforeEach(() => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+  });
+
+  it("ignores an event whose signature does not check out", async () => {
+    const forged = { ...nostrEvent({ content: "x" }), content: "changed" };
+    await expect(applyInboundEvent(forged, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("treats events the bridge sent itself as echoes", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValueOnce({ messageId: "m" });
+    await expect(
+      applyInboundEvent(nostrEvent({ content: "x" }), core),
+    ).resolves.toBe("echo");
+    await expect(
+      applyInboundEvent(
+        nostrEvent({}, Uint8Array.from(Buffer.from(OPERATOR_KEY, "hex"))),
+        core,
+      ),
+    ).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("ignores people Sokosumi does not know and bots, who speak only through Sokosumi", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      applyInboundEvent(nostrEvent({ content: "x" }), core),
+    ).resolves.toBe("ignored");
+    db.buzzIdentity.findFirst.mockResolvedValueOnce({
+      ...bob,
+      userId: null,
+      sokoBotId: "bot",
+    });
+    await expect(
+      applyInboundEvent(nostrEvent({ content: "x" }), core),
+    ).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("drops a bridge key Core no longer takes, so the next try mints a new one", async () => {
+    db.user.findUnique.mockResolvedValueOnce({
+      banned: false,
+      banExpires: null,
+    });
+    db.buzzIdentity.findFirst.mockResolvedValueOnce({ ...bob });
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    core.mockResolvedValueOnce({ status: 401, body: {} });
+    const attempt = applyInboundEvent(nostrEvent({ content: "hi" }), core);
+    await expect(attempt).rejects.toMatchObject({ terminal: false });
+    expect(db.buzzIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-bob" },
+      data: { encryptedApiKey: null },
+    });
+  });
+
+  it("takes a reaction back when Buzz deletes its copy signed with the other key", async () => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findFirst.mockResolvedValue({
+      id: "link",
+      eventId: "first",
+      duplicateEventIds: ["copy"],
+      identityId: "identity-bob",
+      messageId: "message",
+      emoji: "👍",
+      pendingEvent: null,
+    });
+    db.chatRoomMessage.findUnique.mockResolvedValue({ roomId: "room" });
+    const deletion = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "copy"],
+      ],
+    });
+    await expect(applyInboundEvent(deletion, core)).resolves.toBe("unreacted");
+    expect(db.buzzReactionLink.findFirst).toHaveBeenCalledWith({
+      where: { duplicateEventIds: { has: "copy" } },
+    });
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "DELETE",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    // Both events stay undone, so neither brings it back.
+    expect(db.buzzUndoneEvent.createMany).toHaveBeenCalledWith({
+      data: [{ eventId: "first" }, { eventId: "copy" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("takes a Buzz agent's reaction back without deleting anything as it, since Sokosumi holds no agent key", async () => {
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "first"
+          ? {
+              id: "link",
+              eventId: "first",
+              duplicateEventIds: ["copy"],
+              identityId: "identity-bob",
+              messageId: "message",
+              emoji: "👍",
+              signerPubkey: BOB_PUBKEY,
+              pendingEvent: null,
+            }
+          : null,
+    );
+    db.chatRoomMessage.findUnique.mockResolvedValue({ roomId: "room" });
+    db.buzzChannel.findUnique.mockResolvedValue({
+      community: { relayUrl: "ws://relay" },
+    });
+    relay.queryEvents.mockClear();
+    const deletion = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "first"],
+      ],
+    });
+    // bob here has no key Sokosumi keeps, like a person's Buzz agent.
+    await expect(applyInboundEvent(deletion, core)).resolves.toBe("unreacted");
+    expect(relay.queryEvents).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the copies Sokosumi's own key signed, read from the relay", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      ...bob,
+      encryptedSecretKey: sealSecret(
+        Buffer.from(BOB_KEY).toString("hex"),
+        SECRET,
+      ),
+    });
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findFirst.mockResolvedValue({
+      id: "link",
+      eventId: "first",
+      duplicateEventIds: ["copy", "app-copy"],
+      identityId: "identity-bob",
+      messageId: "message",
+      emoji: "👍",
+      signerPubkey: "a".repeat(64),
+      pendingEvent: null,
+    });
+    db.chatRoomMessage.findUnique.mockResolvedValue({ roomId: "room" });
+    db.buzzChannel.findUnique.mockResolvedValue({
+      community: { relayUrl: "ws://relay" },
+    });
+    relay.queryEvents.mockResolvedValue([
+      { id: "copy", pubkey: BOB_PUBKEY },
+      { id: "app-copy", pubkey: "a".repeat(64) },
+    ]);
+    const sent: { tags: string[][] }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)));
+        return Response.json({ accepted: true });
+      }),
+    );
+    const deletion = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "first"],
+      ],
+    });
+    try {
+      await expect(applyInboundEvent(deletion, core)).resolves.toBe(
+        "unreacted",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(relay.queryEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: [{ ids: ["copy", "app-copy"] }],
+      }),
+    );
+    const deleted = sent.flatMap((event) =>
+      event.tags.filter((tag) => tag[0] === "e").map((tag) => tag[1]),
+    );
+    expect(deleted).toEqual(["copy"]);
+  });
+
+  it("remembers the same reaction signed with the person's other key", async () => {
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "f".repeat(64)
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId
+          ? null
+          : { id: "link", eventId: "first", duplicateEventIds: [] },
+    );
+    const again = nostrEvent({
+      kind: 7,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "f".repeat(64)],
+      ],
+      content: "👍",
+    });
+    await expect(applyInboundEvent(again, core)).resolves.toBe("echo");
+    expect(db.buzzReactionLink.update).toHaveBeenCalledWith({
+      where: { id: "link" },
+      data: { duplicateEventIds: { push: again.id } },
+    });
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("applies a reaction added again on Buzz while Sokosumi still takes the old one back", async () => {
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "f".repeat(64)
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId
+          ? null
+          : {
+              id: "link",
+              eventId: "old",
+              duplicateEventIds: ["old-copy"],
+              pendingEvent: oldRemoval,
+            },
+    );
+    db.buzzChannel.findUnique.mockResolvedValue({
+      community: { relayUrl: "ws://relay" },
+    });
+    const oldRemoval = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "old"],
+      ],
+    });
+    // Sokosumi holds the key that signed the old removal.
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      ...bob,
+      encryptedSecretKey: sealSecret(
+        Buffer.from(BOB_KEY).toString("hex"),
+        SECRET,
+      ),
+    });
+    const sent: { id: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)));
+        return Response.json({ accepted: true });
+      }),
+    );
+    const again = nostrEvent({
+      kind: 7,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "f".repeat(64)],
+      ],
+      content: "👍",
+    });
+    try {
+      await expect(applyInboundEvent(again, core)).resolves.toBe("reacted");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    // The old one comes off Buzz first, so the link only stands for the new.
+    expect(sent.map((event) => event.id)).toEqual([oldRemoval.id]);
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PUT",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    expect(db.buzzUndoneEvent.createMany).toHaveBeenCalledWith({
+      data: [{ eventId: "old" }, { eventId: "old-copy" }],
+      skipDuplicates: true,
+    });
+    expect(db.buzzReactionLink.update).toHaveBeenCalledWith({
+      where: { id: "link" },
+      data: {
+        eventId: again.id,
+        signerPubkey: null,
+        duplicateEventIds: [],
+        pendingEvent: expect.anything(),
+      },
+    });
+  });
+
+  it("ignores replays of a reaction undone in Sokosumi, however often it was added again", async () => {
+    const reaction = (more: string[][] = []) =>
+      nostrEvent({
+        kind: 7,
+        tags: [["h", CHANNEL], ["e", "f".repeat(64)], ...more],
+        content: "👍",
+      });
+    const first = reaction();
+    db.buzzUndoneEvent.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId: string } }) =>
+        where.eventId === first.id ? { eventId: first.id } : null,
+    );
+    await expect(applyInboundEvent(first, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+
+    // The same emoji again, a new event: applied.
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "f".repeat(64)
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    await expect(
+      applyInboundEvent(reaction([["p", BOB_PUBKEY]]), core),
+    ).resolves.toBe("reacted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PUT",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    // The first one replayed after that: still undone.
+    core.mockClear();
+    await expect(applyInboundEvent(first, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("posts a Buzz reply as its author into the thread's root, with mentions", async () => {
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzMessageLink.findUnique.mockResolvedValueOnce(null);
+    // The parent is itself a reply: Sokosumi threads have one level.
+    db.buzzMessageLink.findMany.mockResolvedValueOnce([
+      {
+        eventId: "f".repeat(64),
+        message: { id: "reply-1", parentMessageId: "root-1" },
+      },
+    ]);
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        userId: null,
+        sokoBotId: "bot-1",
+        coworkerId: null,
+        user: null,
+        sokoBot: { name: "Joey" },
+        coworker: null,
+      },
+    ]);
+    const parentEventId = "f".repeat(64);
+    const reply = nostrEvent({
+      tags: [
+        ["h", CHANNEL],
+        ["e", parentEventId, "", "reply"],
+        ["p", BOT_PUBKEY],
+      ],
+      content: "what is 2 + 2?",
+    });
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "new-message" } },
+    });
+    await expect(applyInboundEvent(reply, core)).resolves.toBe("posted");
+    // Linked at once, so a reply or reaction to it right after finds it.
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { messageId: "new-message" },
+        create: expect.objectContaining({ eventId: reply.id }),
+      }),
+    );
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/v1/chats/rooms/room/messages",
+        apiKey: "bob-api-key",
+        body: {
+          content: "what is 2 + 2?",
+          clientMessageId: `buzz:${reply.id}`,
+          parentMessageId: "root-1",
+          mentionedUserIds: [],
+          mentionedSokoBotIds: ["bot-1"],
+          mentionedCoworkerIds: [],
+        },
+      }),
+    );
+  });
+
+  it("takes no edit signed with the key Sokosumi keeps for a sign of being on Buzz", async () => {
+    // Sokosumi's own edit coming back, signed with Bob's Sokosumi key. (It
+    // waits for its message here; being on Buzz is decided before that.)
+    await applyInboundEvent(
+      nostrEvent({
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content: "fixed",
+      }),
+      core,
+    ).catch(() => undefined);
+    expect(db.buzzIdentity.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { lastActiveOnBuzzAt: expect.any(Date) },
+      }),
+    );
+  });
+
+  it("records an edit only after Core has it, so a crash in between replays it", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "old",
+        lastEditAt: 0,
+        lastEditEventId: null,
+        message: { roomId: "room" },
+      });
+    await expect(
+      applyInboundEvent(
+        nostrEvent({
+          kind: 40003,
+          tags: [
+            ["h", CHANNEL],
+            ["e", "f".repeat(64)],
+          ],
+          content: "fixed",
+        }),
+        core,
+      ),
+    ).resolves.toBe("edited");
+    const linkUpdate = db.buzzMessageLink.update.mock.invocationCallOrder[0];
+    const patch = core.mock.invocationCallOrder[0];
+    expect(patch).toBeLessThan(linkUpdate);
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PATCH",
+        path: "/v1/chats/rooms/room/messages/m1",
+        body: { content: "fixed" },
+      }),
+    );
+  });
+});
+
+describe("applyInboundEvent edits", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: {} }));
+  const editOf = (createdAt: number, content: string) =>
+    finalizeEvent(
+      {
+        created_at: createdAt,
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content,
+      },
+      BOB_KEY,
+    );
+
+  beforeEach(() => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+  });
+
+  it("ignores an edit older than the newest one applied, as on a replay", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "newer",
+        lastEditAt: 200,
+        lastEditEventId: "f".repeat(64),
+        message: { roomId: "room" },
+      });
+    await expect(applyInboundEvent(editOf(100, "older"), core)).resolves.toBe(
+      "echo",
+    );
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("names the people an edit mentions, as a new message does", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "before",
+        lastEditAt: 0,
+        lastEditEventId: null,
+        message: { roomId: "room" },
+      });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        appPubkey: null,
+        userId: "alice-user-id-0000000000000000000",
+        sokoBotId: null,
+        coworkerId: null,
+        user: { name: "Alice" },
+        sokoBot: null,
+        coworker: null,
+      },
+    ]);
+    await expect(
+      applyInboundEvent(
+        editOf(100, `ask nostr:${npubEncode(BOT_PUBKEY)} please`),
+        core,
+      ),
+    ).resolves.toBe("edited");
+    // Sokosumi's own mention of her, which it shows as her name.
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PATCH",
+        body: { content: "ask @alice-user-id-0000000000000000000 please" },
+      }),
+    );
+  });
+
+  it("records nothing when Core refuses the edit, so a retry applies it", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: "old",
+        lastEditAt: 0,
+        lastEditEventId: null,
+        message: { roomId: "room" },
+      });
+    core.mockResolvedValueOnce({ status: 503, body: {} });
+    await expect(
+      applyInboundEvent(editOf(300, "fixed"), core),
+    ).rejects.toThrow();
+    expect(db.buzzMessageLink.update).not.toHaveBeenCalled();
+  });
+
+  it("settles two edits in the same second on the lower id, whichever arrives first", async () => {
+    const a = editOf(300, "first");
+    const b = editOf(300, "second");
+    const [lower, higher] = a.id < b.id ? [a, b] : [b, a];
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: contentHash(lower.content),
+        lastEditAt: 300,
+        lastEditEventId: lower.id,
+        message: { roomId: "room" },
+      });
+    await expect(applyInboundEvent(higher, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyInboundEvent ordering", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 201, body: {} }));
+
+  beforeEach(() => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzMessageLink.findMany.mockResolvedValue([]);
+  });
+
+  it("waits for a reply's parent instead of starting a new thread", async () => {
+    const reply = nostrEvent({
+      tags: [
+        ["h", CHANNEL],
+        ["e", "f".repeat(64), "", "reply"],
+      ],
+      content: "too early",
+    });
+    await expect(applyInboundEvent(reply, core)).rejects.toBeInstanceOf(
+      BuzzTargetPendingError,
+    );
+    expect(core).not.toHaveBeenCalled();
+    // The last try posts it anyway, so nothing is lost.
+    await expect(
+      applyInboundEvent(reply, core, { finalAttempt: true }),
+    ).resolves.toBe("posted");
+  });
+
+  it("answers a reply's thread root when the reply it answers never arrived", async () => {
+    const root = "d".repeat(64);
+    db.buzzMessageLink.findMany.mockResolvedValueOnce([
+      { eventId: root, message: { id: "root-1", parentMessageId: null } },
+    ]);
+    const reply = nostrEvent({
+      tags: [
+        ["h", CHANNEL],
+        ["e", root, "", "root"],
+        ["e", "f".repeat(64), "", "reply"],
+      ],
+      content: "the reply before me was deleted",
+    });
+    await expect(applyInboundEvent(reply, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ parentMessageId: "root-1" }),
+      }),
+    );
+  });
+
+  it("remembers a newer edit that matches the text, so an older one cannot win later", async () => {
+    db.buzzMessageLink.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        messageId: "m1",
+        contentHash: contentHash("same"),
+        lastEditAt: 100,
+        lastEditEventId: null,
+        message: { roomId: "room" },
+      });
+    const edit = finalizeEvent(
+      {
+        created_at: 200,
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content: "same",
+      },
+      BOB_KEY,
+    );
+    await expect(applyInboundEvent(edit, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+    expect(db.buzzMessageLink.update).toHaveBeenCalledWith({
+      where: { messageId: "m1" },
+      data: {
+        contentHash: contentHash("same"),
+        lastEditAt: 200,
+        lastEditEventId: edit.id,
+      },
+    });
+  });
+});
+
+describe("drainBuzzOutbox", () => {
+  it("waits until a message has been quiet, so a streaming reply goes out once", async () => {
+    const now = new Date("2026-11-11T00:00:10Z");
+    db.buzzOutbox.findMany.mockResolvedValue([
+      {
+        id: "1",
+        roomId: "room",
+        messageId: "streaming",
+        attempts: 0,
+        createdAt: new Date(now.getTime() - OUTBOX_SETTLE_MS - 5_000),
+      },
+      {
+        id: "2",
+        roomId: "room",
+        messageId: "streaming",
+        attempts: 0,
+        createdAt: new Date(now.getTime() - 100),
+      },
+    ]);
+    await expect(drainBuzzOutbox({ now })).resolves.toEqual([]);
+    expect(db.chatRoomMessage.findUnique).not.toHaveBeenCalled();
+    expect(db.buzzOutbox.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("waits on a message's newest change even when it lies beyond the page read", async () => {
+    const now = new Date("2026-11-11T00:00:10Z");
+    db.buzzOutbox.findMany.mockResolvedValue([
+      {
+        id: "1",
+        roomId: "room",
+        messageId: "streaming",
+        attempts: 0,
+        createdAt: new Date(now.getTime() - 60_000),
+      },
+    ]);
+    db.buzzOutbox.groupBy.mockResolvedValueOnce([
+      {
+        messageId: "streaming",
+        _max: { createdAt: new Date(now.getTime() - 100) },
+      },
+    ]);
+    await expect(drainBuzzOutbox({ now })).resolves.toEqual([]);
+    expect(db.chatRoomMessage.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed message for later instead of dropping it", async () => {
+    const now = new Date("2026-11-11T00:00:10Z");
+    db.buzzOutbox.findMany.mockResolvedValue([
+      {
+        id: "1",
+        roomId: "room",
+        messageId: "m1",
+        attempts: 9,
+        createdAt: new Date(now.getTime() - 60_000),
+      },
+    ]);
+    db.chatRoomMessage.findUnique.mockRejectedValue(new Error("relay down"));
+    const outcomes = await drainBuzzOutbox({ now });
+    expect(outcomes).toEqual([{ key: "m1", result: "error: relay down" }]);
+    expect(db.buzzOutbox.deleteMany).not.toHaveBeenCalled();
+    expect(db.buzzOutbox.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["1"] } },
+      data: expect.objectContaining({
+        attempts: 10,
+        nextAttemptAt: new Date(now.getTime() + 10 * 60_000),
+      }),
+    });
+  });
+});
+
+describe("own Buzz app key", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 201, body: {} }));
+  const APP_KEY = generateSecretKey();
+  const APP_PUBKEY = getPublicKey(APP_KEY);
+  const bob = {
+    id: "identity-bob",
+    pubkey: BOB_PUBKEY,
+    appPubkey: APP_PUBKEY,
+    userId: "user-bob",
+    encryptedApiKey: sealSecret("bob-api-key", SECRET),
+  };
+
+  beforeEach(() => {
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: { relayUrl: "ws://relay" },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+  });
+
+  it("posts what the app key writes as its person, and remembers Sokosumi cannot change it", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "new-message" } },
+    });
+    const event = nostrEvent({ content: "from my own key" }, APP_KEY);
+    await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
+    expect(db.buzzIdentity.findFirst).toHaveBeenCalledWith({
+      where: { OR: [{ pubkey: APP_PUBKEY }, { appPubkey: APP_PUBKEY }] },
+    });
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "bob-api-key" }),
+    );
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          eventId: event.id,
+          signerPubkey: APP_PUBKEY,
+        }),
+      }),
+    );
+  });
+
+  it("drops a Buzz post whose client id Core says belongs to someone else", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    core.mockResolvedValueOnce({ status: 409, body: { error: "Conflict" } });
+    const rejected = applyInboundEvent(
+      nostrEvent({ content: "x" }, APP_KEY),
+      core,
+    );
+    await expect(rejected).rejects.toBeInstanceOf(CoreRejectedError);
+    await expect(rejected).rejects.toMatchObject({ terminal: true });
+    expect(db.buzzMessageLink.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("a person's own Buzz agents", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 201, body: {} }));
+  const OWNER_KEY = generateSecretKey();
+  const OWNER_PUBKEY = getPublicKey(OWNER_KEY);
+  const AGENT_KEY = generateSecretKey();
+  const AGENT_PUBKEY = getPublicKey(AGENT_KEY);
+  const agentIdentity = {
+    id: "identity-agent",
+    pubkey: AGENT_PUBKEY,
+    appPubkey: null,
+    userId: null,
+    sokoBotId: null,
+    coworkerId: "coworker-agent",
+    encryptedSecretKey: null,
+    encryptedApiKey: sealSecret("coworker_agent-key", SECRET),
+    ownerIdentityId: "identity-bob",
+  };
+
+  beforeEach(() => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+  });
+
+  it("posts what an agent writes as its Coworker", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "agent-message" } },
+    });
+    const event = nostrEvent({ content: "done: tests pass" }, AGENT_KEY);
+    await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "coworker_agent-key" }),
+    );
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ signerPubkey: AGENT_PUBKEY }),
+      }),
+    );
+  });
+
+  it("writes a person an agent mentions as their user token, which Core reads from a Coworker", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOB_PUBKEY,
+        appPubkey: null,
+        userId: "user-bob",
+        user: { name: "Bob Builder" },
+      },
+    ]);
+    core.mockResolvedValueOnce({
+      status: 201,
+      body: { data: { id: "agent-message" } },
+    });
+    await applyInboundEvent(
+      nostrEvent(
+        {
+          content: `hi nostr:${npubEncode(BOB_PUBKEY)}`,
+          tags: [
+            ["h", CHANNEL],
+            ["p", BOB_PUBKEY],
+          ],
+        },
+        AGENT_KEY,
+      ),
+      core,
+    );
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ content: "hi @user-bob" }),
+      }),
+    );
+  });
+
+  it("carries an agent's edits and deletions of its own messages to Sokosumi", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    db.chatRoomMessage.findUnique.mockReset();
+    const target = "e".repeat(64);
+    // Only the agent's message is linked; its edit and deletion are new.
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === target
+          ? {
+              messageId: "agent-message",
+              contentHash: "old",
+              lastEditAt: 0,
+              lastEditEventId: null,
+              deleted: false,
+              message: { roomId: "room", deletedAt: null },
+            }
+          : null,
+    );
+    const edit = nostrEvent(
+      {
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", target],
+        ],
+        content: "done: all tests pass",
+      },
+      AGENT_KEY,
+    );
+    await expect(applyInboundEvent(edit, core)).resolves.toBe("edited");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "PATCH",
+        path: "/v1/chats/rooms/room/messages/agent-message",
+        body: { content: "done: all tests pass" },
+      }),
+    );
+    const deletion = nostrEvent(
+      {
+        kind: 5,
+        tags: [
+          ["h", CHANNEL],
+          ["e", target],
+        ],
+        content: "",
+      },
+      AGENT_KEY,
+    );
+    await expect(applyInboundEvent(deletion, core)).resolves.toBe("deleted");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "DELETE",
+        path: "/v1/chats/rooms/room/messages/agent-message",
+      }),
+    );
+  });
+
+  it("replays an owner's edit of their agent's message as the agent", async () => {
+    const bob = {
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      appPubkey: null,
+      userId: "user-bob",
+      sokoBotId: null,
+      coworkerId: null,
+      encryptedSecretKey: "x",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+      ownerIdentityId: null,
+    };
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzIdentity.findUnique.mockResolvedValueOnce(agentIdentity);
+    db.user.findUnique.mockResolvedValue({ banned: false, banExpires: null });
+    const target = "e".repeat(64);
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === target
+          ? {
+              messageId: "agent-message",
+              contentHash: "old",
+              lastEditAt: 0,
+              lastEditEventId: null,
+              deleted: false,
+              channelId: CHANNEL,
+              message: {
+                roomId: "room",
+                deletedAt: null,
+                senderCoworkerId: "coworker-agent",
+              },
+            }
+          : null,
+    );
+    const edit = nostrEvent({
+      kind: 40003,
+      tags: [
+        ["h", CHANNEL],
+        ["e", target],
+      ],
+      content: "fixed by its owner",
+    });
+    await expect(applyInboundEvent(edit, core)).resolves.toBe("edited");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "PATCH",
+      }),
+    );
+  });
+
+  it("carries an agent's reactions to Sokosumi as the agent's", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    const target = "f".repeat(64);
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === target
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    const reaction = nostrEvent(
+      {
+        kind: 7,
+        tags: [
+          ["h", CHANNEL],
+          ["e", target],
+        ],
+        content: "👍",
+      },
+      AGENT_KEY,
+    );
+    await expect(applyInboundEvent(reaction, core)).resolves.toBe("reacted");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "PUT",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    // Signed with the agent's own key: Sokosumi never takes it back on Buzz.
+    expect(db.buzzReactionLink.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        identityId: agentIdentity.id,
+        signerPubkey: reaction.pubkey,
+      }),
+    });
+  });
+
+  it("keeps a person's agents while their relay cannot be read", async () => {
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        appPubkey: OWNER_PUBKEY,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: {
+            relayUrl: "wss://acme.example",
+            allowPersonalAgents: true,
+          },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    db.coworker.findMany.mockResolvedValue([{ id: "cw-agent" }]);
+    relay.queryEvents.mockRejectedValue(new Error("relay down"));
+    expectConsole("error", "Buzz agents on wss://acme.example not read");
+    await expect(syncBuzzAgents()).resolves.toEqual([]);
+    expect(db.coworker.updateMany).not.toHaveBeenCalled();
+    // Asked for Bob alone (an invite naming a new agent): it fails for him,
+    // so the invite is retried instead of taken for a stranger's.
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      { id: "identity-bob", userId: "user-bob", appPubkey: OWNER_PUBKEY },
+    ]);
+    await expect(
+      syncBuzzAgents({ identityId: "identity-bob" }),
+    ).rejects.toThrow("relay down");
+  });
+
+  it("goes on after the people whose relays it read, and holds where time ran out", async () => {
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        id: "identity-a",
+        userId: "user-a",
+        appPubkey: null,
+        user: { name: "A" },
+      },
+      {
+        id: "identity-b",
+        userId: "user-b",
+        appPubkey: null,
+        user: { name: "B" },
+      },
+    ]);
+    db.member.findMany.mockImplementation(
+      async ({ where }: { where: { userId: string } }) => [
+        {
+          role: "member",
+          organization: {
+            id: `org-${where.userId}`,
+            name: "Org",
+            buzzCommunity: {
+              relayUrl: `wss://${where.userId}.example`,
+              allowPersonalAgents: true,
+            },
+          },
+        },
+      ],
+    );
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([]);
+    db.coworker.findMany.mockResolvedValue([]);
+    relay.queryEvents.mockResolvedValue([]);
+    // Time to read one relay (A's), not B's, and that time does not come
+    // back: what was read is still seen to, and the sweep goes on after A.
+    let reads = 1;
+    const progress = { after: "identity-0" as string | null };
+    await syncBuzzAgents({
+      progress,
+      limit: 2,
+      shouldContinue: () => reads-- > 0,
+    });
+    expect(progress.after).toBe("identity-a");
+    // The run must stop before seeing to anyone: it stays where it was.
+    await syncBuzzAgents({ progress, limit: 2, mayWrite: () => false });
+    expect(progress.after).toBe("identity-a");
+    // All read on a full page: on to the next page.
+    await syncBuzzAgents({ progress, limit: 2, shouldContinue: () => true });
+    expect(progress.after).toBe("identity-b");
+    // All read on the last page: start over.
+    await syncBuzzAgents({ progress, limit: 3, shouldContinue: () => true });
+    expect(progress.after).toBeNull();
+    db.member.findMany.mockReset();
+    db.buzzIdentity.findMany.mockReset();
+  });
+
+  it("asks for approval again when an organization stops letting agents in by itself", async () => {
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        appPubkey: OWNER_PUBKEY,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: {
+            relayUrl: "wss://acme.example",
+            allowPersonalAgents: false,
+          },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([
+      { id: "org-workspace", userId: null, organizationId: "org" },
+    ]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    // Bob's agent, let in while the switch was on.
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      pubkey: AGENT_PUBKEY,
+      ownerIdentityId: "identity-bob",
+      coworkerId: "cw-agent",
+      coworker: {
+        name: "Claude Code (personal agent)",
+        image: null,
+        vendorId: "vendor",
+        archivedAt: null,
+      },
+    });
+    // Granted by the switch: its record matches the grant's decision.
+    const decidedAt = new Date("2026-11-01T00:00:00Z");
+    db.coworkerWorkspaceAccess.findUnique.mockResolvedValue({
+      status: "GRANTED",
+      resolvedById: null,
+      resolvedAt: decidedAt,
+    });
+    db.buzzAutoAccess.findUnique.mockResolvedValue({ decidedAt });
+    db.$queryRaw.mockResolvedValue([
+      { status: "GRANTED", resolvedAt: decidedAt },
+    ]);
+    db.coworkerWorkspaceAccess.update.mockResolvedValue({
+      id: "access",
+      coworkerId: "cw-agent",
+    });
+    db.coworker.findMany.mockResolvedValue([]);
+    db.buzzChannel.findMany.mockResolvedValue([]);
+    relay.queryEvents
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 30177,
+            created_at: 1,
+            tags: [["d", AGENT_PUBKEY]],
+            content: "{}",
+          },
+          OWNER_KEY,
+        ),
+      ])
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 0,
+            created_at: 2,
+            tags: [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)],
+            content: '{"name":"Claude Code"}',
+          },
+          AGENT_KEY,
+        ),
+      ]);
+    await expect(syncBuzzAgents()).resolves.toContain("pending:cw-agent");
+    // Out of its rooms, and waiting for an owner or admin, who is told.
+    expect(db.coworkerWorkspaceAccess.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "PENDING", resolvedById: null, resolvedAt: null },
+      }),
+    );
+    expect(approvers.notify).toHaveBeenCalledWith({
+      coworkerId: "cw-agent",
+      workspaceId: "org-workspace",
+      accessId: "access",
+    });
+    // Open chats learn it left.
+    expect(realtime.publish).toHaveBeenCalledWith(
+      [{ roomId: "room" }],
+      expect.anything(),
+    );
+  });
+
+  it("makes a Coworker only of an agent whose profile its owner signed", async () => {
+    const STRANGER_KEY = generateSecretKey();
+    const STRANGER = getPublicKey(STRANGER_KEY);
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        appPubkey: OWNER_PUBKEY,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          // An organization that asks for approval of personal agents.
+          buzzCommunity: {
+            relayUrl: "wss://acme.example",
+            allowPersonalAgents: false,
+          },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([
+      { id: "workspace", userId: "user-bob", organizationId: null },
+      { id: "org-workspace", userId: null, organizationId: "org" },
+    ]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    db.buzzIdentity.findUnique.mockResolvedValue(null);
+    db.coworker.create.mockResolvedValue({ id: "coworker-new" });
+    db.coworkerWorkspaceAccess.findUnique.mockResolvedValue(null);
+    db.coworkerWorkspaceAccess.create.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: { coworkerId: string; workspaceId: string };
+      }) => ({
+        id: `access-${data.workspaceId}`,
+        coworkerId: data.coworkerId,
+      }),
+    );
+    db.coworker.findMany.mockResolvedValue([]);
+    const record = (pubkey: string) =>
+      finalizeEvent(
+        {
+          kind: 30177,
+          created_at: 1,
+          tags: [["d", pubkey]],
+          content: JSON.stringify({ name: "Claude Code" }),
+        },
+        OWNER_KEY,
+      );
+    const profile = (key: Uint8Array, tags: string[][]) =>
+      finalizeEvent(
+        { kind: 0, created_at: 2, tags, content: '{"name":"Claude Code"}' },
+        key,
+      );
+    // Someone else claims Bob's agent too, after him: a claim alone is
+    // nothing, and must not hide the one the agent's profile attests.
+    const counterClaim = finalizeEvent(
+      {
+        kind: 30177,
+        created_at: 2,
+        tags: [["d", AGENT_PUBKEY]],
+        content: JSON.stringify({ name: "Mine" }),
+      },
+      STRANGER_KEY,
+    );
+    relay.queryEvents
+      .mockResolvedValueOnce([
+        record(AGENT_PUBKEY),
+        record(STRANGER),
+        counterClaim,
+      ])
+      .mockResolvedValueOnce([
+        profile(AGENT_KEY, [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)]),
+        // Claims Bob as owner with a signature for another key.
+        profile(STRANGER_KEY, [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)]),
+      ]);
+    await expect(syncBuzzAgents()).resolves.toEqual(["coworker-new"]);
+    // Bob's agents have a vendor of their own: Core lets a vendor's Coworkers
+    // see each other's work.
+    expect(db.vendor.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: "buzz-agents-identity-bob" } }),
+    );
+    expect(db.coworker.create).toHaveBeenCalledTimes(1);
+    expect(db.coworker.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "Claude Code (personal agent)",
+        caption: "Personal agent via Buzz · Bob",
+        baseURL: "buzz://acme.example",
+        capabilities: ["chat"],
+        assignments: { create: { userId: "user-bob" } },
+      }),
+    });
+    expect(db.coworker.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        buzzIdentity: {
+          create: { pubkey: AGENT_PUBKEY, ownerIdentityId: "identity-bob" },
+        },
+      }),
+    });
+    // Bob's own workspace: his to grant.
+    expect(db.coworkerWorkspaceAccess.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "workspace",
+        status: "GRANTED",
+      }),
+    });
+    // An organization he is only a member of: requested, and its admins told.
+    expect(db.coworkerWorkspaceAccess.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "org-workspace",
+        status: "PENDING",
+      }),
+    });
+    expect(approvers.notify).toHaveBeenCalledTimes(1);
+    expect(approvers.notify).toHaveBeenCalledWith({
+      coworkerId: "coworker-new",
+      workspaceId: "org-workspace",
+      accessId: "access-org-workspace",
+    });
+  });
+});
+
+describe("agents of a person signed in to Buzz with Sokosumi's key", () => {
+  it("finds an agent the Sokosumi key owns, with no app key linked", async () => {
+    const SOKOSUMI_KEY = generateSecretKey();
+    const SOKOSUMI_PUBKEY = getPublicKey(SOKOSUMI_KEY);
+    const AGENT_KEY = generateSecretKey();
+    const AGENT_PUBKEY = getPublicKey(AGENT_KEY);
+    db.buzzIdentity.findMany.mockResolvedValueOnce([
+      {
+        id: "identity-bob",
+        userId: "user-bob",
+        pubkey: SOKOSUMI_PUBKEY,
+        appPubkey: null,
+        user: { name: "Bob" },
+      },
+    ]);
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "owner",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: { relayUrl: "wss://acme.example" },
+        },
+      },
+    ]);
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([]);
+    db.vendor.upsert.mockResolvedValue({ id: "vendor" });
+    db.buzzIdentity.findUnique.mockResolvedValue(null);
+    db.coworker.create.mockResolvedValue({ id: "coworker-sokosumi-owned" });
+    db.coworker.findMany.mockResolvedValue([]);
+    relay.queryEvents
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 30177,
+            created_at: 1,
+            tags: [["d", AGENT_PUBKEY]],
+            content: '{"name":"Claude Code"}',
+          },
+          SOKOSUMI_KEY,
+        ),
+      ])
+      .mockResolvedValueOnce([
+        finalizeEvent(
+          {
+            kind: 0,
+            created_at: 2,
+            tags: [ownerAuthTag(SOKOSUMI_KEY, AGENT_PUBKEY)],
+            content: '{"name":"Claude Code"}',
+          },
+          AGENT_KEY,
+        ),
+      ]);
+    await expect(syncBuzzAgents()).resolves.toEqual([
+      "coworker-sokosumi-owned",
+    ]);
+    expect(relay.queryEvents).toHaveBeenNthCalledWith(1, {
+      relayUrl: "wss://acme.example",
+      secretKey: expect.any(Uint8Array),
+      filters: [{ kinds: [30177], authors: [SOKOSUMI_PUBKEY] }],
+    });
+  });
+});
+
+describe("personal agents", () => {
+  const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: {} }));
+  const AGENT = getPublicKey(generateSecretKey());
+  const bob = {
+    id: "identity-bob",
+    pubkey: BOB_PUBKEY,
+    appPubkey: null,
+    userId: "user-bob",
+    coworkerId: null,
+    encryptedSecretKey: "x",
+    encryptedApiKey: sealSecret("bob-api-key", SECRET),
+  };
+
+  it("adds to the Sokosumi room the agent its owner invited on Buzz", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      { pubkey: AGENT, coworkerId: "cw-agent" },
+    ]);
+    // The channel shows the agent as a member now.
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [["p", AGENT]] },
+    ]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("members");
+    expect(db.buzzIdentity.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ ownerIdentityId: "identity-bob" }),
+      }),
+    );
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/v1/chats/rooms/room/members",
+        apiKey: "bob-api-key",
+        body: { coworkerIds: ["cw-agent"] },
+      }),
+    );
+  });
+
+  it("puts Buzz back when Core refuses an agent invite, and only once Core has answered", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      id: "channel",
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      { pubkey: AGENT, coworkerId: "cw-agent" },
+    ]);
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [["p", AGENT]] },
+    ]);
+    const invite = () =>
+      nostrEvent({
+        kind: 9000,
+        tags: [
+          ["h", CHANNEL],
+          ["p", AGENT],
+        ],
+      });
+    // Core unreachable: Buzz is left as it is, so the retry still applies it.
+    core.mockResolvedValueOnce({ status: 503, body: {} });
+    await expect(applyInboundEvent(invite(), core)).rejects.toBeInstanceOf(
+      CoreRejectedError,
+    );
+    expect(db.buzzOutbox.create).not.toHaveBeenCalled();
+    // A guest's agent: Core says no for good, and Buzz is put back.
+    core.mockResolvedValueOnce({ status: 403, body: {} });
+    await expect(applyInboundEvent(invite(), core)).resolves.toBe("ignored");
+    expect(db.buzzChannel.update).toHaveBeenCalledWith({
+      where: { id: "channel" },
+      data: { membersHash: null },
+    });
+    expect(db.buzzOutbox.create).toHaveBeenCalledWith({
+      data: { roomId: "room", messageId: null },
+    });
+  });
+
+  it("looks for the owner's agents first when an invite names a key it does not know yet", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    // Made in Buzz a moment ago: no identity for it yet.
+    db.buzzIdentity.count.mockResolvedValueOnce(0);
+    db.buzzIdentity.findMany
+      // The agent sweep, for Bob only (finding nothing new to make here).
+      .mockResolvedValueOnce([])
+      // Then the invite's lookup finds the agent the sweep made.
+      .mockResolvedValueOnce([{ pubkey: AGENT, coworkerId: "cw-agent" }]);
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [["p", AGENT]] },
+    ]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("members");
+    expect(db.buzzIdentity.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { userId: { not: null }, id: "identity-bob" },
+      }),
+    );
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/v1/chats/rooms/room/members",
+        body: { coworkerIds: ["cw-agent"] },
+      }),
+    );
+  });
+
+  it("does not let a replayed invite undo a later removal", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([
+      { pubkey: AGENT, coworkerId: "cw-agent" },
+    ]);
+    // Removed since: the channel no longer has the agent.
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [] },
+    ]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("leaves Buzz invites of anything but one's own agent to the member sync", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("ignored");
+    expect(core).not.toHaveBeenCalled();
+  });
+});
+
+describe("one-on-one Direct with a Coworker", () => {
+  it("asks the Coworker through the room's stream, as the person", async () => {
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: "" }));
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      coworkerId: null,
+      encryptedSecretKey: "x",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "direct",
+      channelId: CHANNEL,
+    });
+    db.chatRoom.findUnique.mockResolvedValue({
+      kind: "direct",
+      userMembers: [{ userId: "user-bob" }],
+      coworkerMembers: [{ coworker: { baseURL: "https://agent.example" } }],
+      sokoBotMembers: [],
+    });
+    db.chatRoomMessage.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: "stored" });
+    const event = nostrEvent({ content: "summarize this" });
+    await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/v1/chats/rooms/direct/stream",
+        apiKey: "bob-api-key",
+        body: {
+          messages: [
+            {
+              id: `buzz:${event.id}`,
+              role: "user",
+              parts: [{ type: "text", text: "summarize this" }],
+            },
+          ],
+        },
+      }),
+    );
+    expect(db.buzzMessageLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          messageId: "stored",
+          eventId: event.id,
+        }),
+      }),
+    );
+  });
+});
+
+describe("a Direct question whose answer failed", () => {
+  const setUpDirect = () => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      userId: "user-bob",
+      coworkerId: null,
+      encryptedSecretKey: "x",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "direct",
+      channelId: CHANNEL,
+    });
+    db.chatRoom.findUnique.mockResolvedValue({
+      kind: "direct",
+      userMembers: [{ userId: "user-bob" }],
+      coworkerMembers: [{ coworker: { baseURL: "https://agent.example" } }],
+      sokoBotMembers: [],
+    });
+  };
+  const storedQuestion = (eventId: string) => ({
+    roomId: "direct",
+    createdAt: new Date(),
+    clientMessageId: `buzz:${eventId}`,
+    room: { kind: "direct", coworkerMembers: [{ coworkerId: "coworker" }] },
+  });
+
+  it("hands the worker the answer that is still streaming", async () => {
+    setUpDirect();
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.chatRoomMessage.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: "stored" });
+    const core = vi.fn<CoreRequest>(async () => ({
+      status: 200,
+      body: null,
+      finished: Promise.resolve(false),
+    }));
+    const onTurnStarted = vi.fn<(finished: Promise<boolean>) => void>();
+    await expect(
+      applyInboundEvent(nostrEvent({ content: "hi" }), core, { onTurnStarted }),
+    ).resolves.toBe("posted");
+    expect(onTurnStarted).toHaveBeenCalledOnce();
+    await expect(onTurnStarted.mock.calls[0]?.[0]).resolves.toBe(false);
+  });
+
+  it("asks again for a linked question whose next message is not its answer", async () => {
+    setUpDirect();
+    const event = nostrEvent({ content: "hi" });
+    const question = {
+      id: "stored",
+      ...storedQuestion(event.id),
+      parentMessageId: null,
+    };
+    db.buzzMessageLink.findUnique.mockResolvedValue({ messageId: "stored" });
+    db.chatRoomMessage.findUnique.mockResolvedValue(question);
+    // Next after it: the person's next question (a later answer is that
+    // one's); then the stored question itself, still with no answer.
+    db.chatRoomMessage.findFirst
+      .mockResolvedValueOnce({ senderCoworkerId: null })
+      .mockResolvedValueOnce(question)
+      .mockResolvedValueOnce({ senderCoworkerId: null })
+      .mockResolvedValue(question);
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
+    await expect(applyInboundEvent(event, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/v1/chats/rooms/direct/stream" }),
+    );
+    expect(db.chatRoomMessage.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          parentMessageId: null,
+          id: { not: "stored" },
+        }),
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }),
+    );
+
+    core.mockClear();
+    db.chatRoomMessage.findFirst.mockReset();
+    db.chatRoomMessage.findFirst.mockResolvedValue({
+      senderCoworkerId: "coworker",
+    });
+    await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("does not ask again for a question deleted since", async () => {
+    setUpDirect();
+    const event = nostrEvent({ content: "hi" });
+    db.buzzMessageLink.findUnique.mockResolvedValue({ messageId: "stored" });
+    db.chatRoomMessage.findUnique.mockResolvedValue({
+      ...storedQuestion(event.id),
+      parentMessageId: null,
+      deletedAt: new Date(),
+    });
+    db.chatRoomMessage.findFirst.mockResolvedValue({ senderCoworkerId: null });
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
+    await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it("does not ask again for a question answered after a retry", async () => {
+    setUpDirect();
+    const event = nostrEvent({ content: "hi" });
+    db.buzzMessageLink.findUnique.mockResolvedValue({
+      messageId: "stored",
+      answeredAt: new Date(),
+    });
+    // The next message is another question: its answer came later.
+    db.chatRoomMessage.findFirst.mockResolvedValue({ senderCoworkerId: null });
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
+    await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncRoomChannel", () => {
+  it("skips a room deleted since its sync was queued, so the job ends", async () => {
+    db.chatRoom.findUnique.mockResolvedValue(null);
+    await expect(syncRoomChannel("gone")).resolves.toBeNull();
+  });
+});
+
+describe("buzzContentOf", () => {
+  it("turns Sokosumi mention tokens into Buzz mentions, and names whoever has no key", async () => {
+    const agent = "01a1cbc4-a52c-70e5-a792-d2b71db65927";
+    const alice = "01a1cbc4-0000-70e5-a792-d2b71db65927";
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        appPubkey: null,
+        userId: null,
+        coworkerId: agent,
+        sokoBotId: null,
+      },
+    ]);
+    db.user.findMany.mockResolvedValue([{ id: alice, name: "Alice" }]);
+    db.coworker.findMany.mockResolvedValue([]);
+    db.sokoBot.findMany.mockResolvedValue([]);
+    const text = await buzzContentOf(
+      `@${agent}:buzz-d64f20d52d985e4c hi, ask @${alice} too`,
+    );
+    expect(text).toBe(`nostr:${npubEncode(BOT_PUBKEY)} hi, ask @Alice too`);
+  });
+
+  it("writes a mention the way the Buzz app does: @ and the name Buzz shows for the tagged key", async () => {
+    const patrick = "PatrickUserId0000000000000000000";
+    const appKey = "a".repeat(64);
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        pubkey: BOT_PUBKEY,
+        appPubkey: appKey,
+        userId: patrick,
+        coworkerId: null,
+        sokoBotId: null,
+        user: { name: "Patrick Tobler" },
+        coworker: null,
+        sokoBot: null,
+      },
+    ]);
+    db.user.findMany.mockResolvedValue([]);
+    db.coworker.findMany.mockResolvedValue([]);
+    db.sokoBot.findMany.mockResolvedValue([]);
+    relay.queryEvents.mockResolvedValue([
+      {
+        pubkey: appKey,
+        kind: 0,
+        created_at: 1,
+        content: JSON.stringify({ name: "PatrickMac" }),
+      },
+    ]);
+    await expect(
+      buzzContentOf(`hi @${patrick}, $& stays`, "wss://names.chat.example"),
+    ).resolves.toBe("hi @PatrickMac, $& stays");
+    // Without a profile on the relay: the name Sokosumi knows.
+    relay.queryEvents.mockResolvedValue([]);
+    await expect(
+      buzzContentOf(`hi @${patrick}`, "wss://other.chat.example"),
+    ).resolves.toBe("hi @Patrick Tobler");
+  });
+
+  it("points links within Sokosumi at Sokosumi", async () => {
+    env.value = { ...env.value, WEB_APP_BASE_URL: "https://app.example.org/" };
+    await expect(
+      buzzContentOf(
+        "Shared [SOK-1 Fix login](/tasks/abc) and [x](https://y.z)",
+      ),
+    ).resolves.toBe(
+      "Shared [SOK-1 Fix login](https://app.example.org/tasks/abc) and [x](https://y.z)",
+    );
+    env.value = { ...env.value, WEB_APP_BASE_URL: undefined };
+  });
+
+  it("writes Sokosumi's room-wide mention as words, since Buzz has none", async () => {
+    await expect(
+      buzzContentOf("@all:all video model, and @allison stays, a@all too"),
+    ).resolves.toBe("@everyone video model, and @allison stays, a@all too");
+  });
+
+  it("leaves a message without mentions alone", async () => {
+    await expect(buzzContentOf("plain")).resolves.toBe("plain");
+    expect(db.buzzIdentity.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("sokosumiMentions", () => {
+  const alice = { token: "alice-id", names: ["Alice", "Alice (via Sokosumi)"] };
+  it("turns a Buzz @Name of a tagged person into Sokosumi's mention", () => {
+    expect(
+      sokosumiMentions("hello @Alice (via Sokosumi) and @alice!", [alice]),
+    ).toBe("hello @alice-id and @alice-id!");
+  });
+
+  it("reads the longest name first and leaves addresses and other words alone", () => {
+    const ann = { token: "ann-id", names: ["Ann"] };
+    const annLee = { token: "ann-lee-id", names: ["Ann Lee"] };
+    expect(
+      sokosumiMentions("@Ann Lee, @Ann, mail ann@Ann.io, @Annette", [
+        ann,
+        annLee,
+      ]),
+    ).toBe("@ann-lee-id, @ann-id, mail ann@Ann.io, @Annette");
+  });
+
+  it("names no one it has no mention for", () => {
+    expect(
+      sokosumiMentions("@Bob hi", [{ token: undefined, names: ["Bob"] }]),
+    ).toBe("@Bob hi");
+  });
+});
+
+describe("buzzTextOf", () => {
+  it("puts the quote above, skills and result cards below, cards without titles", () => {
+    const text = buzzTextOf({
+      content: "Agreed",
+      metadata: {
+        quote: {
+          messageId: "550e8400-e29b-41d4-a716-446655440000",
+          authorName: "Alice",
+          snippet: "Ship it?\nFriday",
+        },
+        result_preview_snapshots: [
+          {
+            workspaceId: "w",
+            reference: { kind: "task", id: "t1" },
+            data: {
+              id: "550e8400-e29b-41d4-a716-446655440001",
+              state: "available",
+              capturedAt: "2026-11-15T00:00:00.000Z",
+              kind: "task",
+              title: "Private title",
+              status: null,
+              sourceHref: "/tasks/t1",
+            },
+          },
+        ],
+      },
+      attachedSkills: [{ name: "Copywriting" }],
+    });
+    expect(text).toBe(
+      "> **Alice:** Ship it?\n> Friday\n\nAgreed\n\nSkills: Copywriting\n\n[Task ↗](/tasks/t1)",
+    );
+    expect(text).not.toContain("Private title");
+  });
+
+  it("leaves a plain message as it is", () => {
+    expect(buzzTextOf({ content: "hi", metadata: null })).toBe("hi");
+  });
+
+  it("drops a result card whose resource the turn removed", () => {
+    expect(
+      buzzTextOf({
+        content: "Done",
+        metadata: {
+          result_preview_snapshots: [
+            {
+              workspaceId: "w",
+              reference: { kind: "task", id: "t1" },
+              data: {
+                id: "550e8400-e29b-41d4-a716-446655440001",
+                state: "unavailable",
+                capturedAt: "2026-11-15T00:00:00.000Z",
+                kind: "task",
+              },
+            },
+          ],
+        },
+      }),
+    ).toBe("Done");
+  });
+
+  it("hashes a decorated message so the repair sweep can compare its text alone", () => {
+    const plain = buzzHashOf("hi", "hi");
+    expect(plain).toMatch(/^[0-9a-f]{64}$/);
+    expect(buzzHashOf("hi", "> **A:** x\n\nhi").split(":")[0]).toBe(plain);
+  });
+});
+
+describe("linkBuzzApp", () => {
+  const APP_KEY = generateSecretKey();
+  const APP_PUBKEY = getPublicKey(APP_KEY);
+  const SOKOSUMI_PUBKEY = BOB_PUBKEY;
+  const identity = {
+    id: "identity-bob",
+    pubkey: SOKOSUMI_PUBKEY,
+    appPubkey: APP_PUBKEY,
+    userId: "user-bob",
+  };
+
+  beforeEach(() => {
+    db.member.findMany.mockResolvedValue([
+      {
+        role: "member",
+        organization: {
+          id: "org",
+          name: "Acme",
+          buzzCommunity: { id: "community", relayUrl: "ws://relay" },
+        },
+      },
+    ]);
+    db.buzzChannel.findMany.mockResolvedValue([]);
+    db.buzzIdentity.findFirst.mockResolvedValue(null);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ code: "invite-code" })),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("links a new Buzz identity from its proof and invites its app", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      ...identity,
+      appPubkey: null,
+    });
+    db.buzzIdentity.updateMany.mockResolvedValue({ count: 1 });
+    const tag = ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY);
+    const invites = await linkBuzzApp("user-bob", JSON.stringify(tag));
+    expect(invites).toEqual([
+      expect.objectContaining({
+        organizationName: "Acme",
+        joinUrl: expect.stringContaining("code=invite-code"),
+      }),
+    ]);
+    expect(db.buzzIdentity.updateMany).toHaveBeenCalledWith({
+      where: { id: "identity-bob", appPubkey: null },
+      data: { appPubkey: APP_PUBKEY, appAuthTag: tag },
+    });
+    expect(db.buzzCommunityMember.deleteMany).toHaveBeenCalledWith({
+      where: { identityId: "identity-bob" },
+    });
+    // Connecting replaces the key the bridge posts with (one deleted under
+    // API keys would otherwise keep failing).
+    expect(db.apikey.deleteMany).toHaveBeenCalledWith({
+      where: {
+        referenceId: "user-bob",
+        metadata: { contains: '"purpose":"buzz-bridge"' },
+      },
+    });
+    expect(db.buzzIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-bob" },
+      data: { encryptedApiKey: null },
+    });
+  });
+
+  it("refuses when another link landed first, or the identity is someone else's", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue({
+      ...identity,
+      appPubkey: null,
+    });
+    const tag = JSON.stringify(ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY));
+    db.buzzIdentity.updateMany.mockResolvedValue({ count: 0 });
+    await expect(linkBuzzApp("user-bob", tag)).rejects.toThrow(
+      "another Buzz identity",
+    );
+    db.buzzIdentity.findFirst.mockResolvedValue({ id: "identity-alice" });
+    db.buzzIdentity.updateMany.mockClear();
+    await expect(linkBuzzApp("user-bob", tag)).rejects.toThrow(
+      "belongs to another account",
+    );
+    expect(db.buzzIdentity.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps the linked Buzz identity's proof, with new invites to resume joining", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue(identity);
+    const tag = ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY);
+    await expect(linkBuzzApp("user-bob", JSON.stringify(tag))).resolves.toEqual(
+      [expect.objectContaining({ organizationName: "Acme" })],
+    );
+    expect(db.buzzIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-bob" },
+      data: { appAuthTag: tag },
+    });
+  });
+
+  it("refuses a proof for another key, with conditions, or that is not one", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue(identity);
+    const stranger = generateSecretKey();
+    for (const tag of [
+      ownerAuthTag(APP_KEY, getPublicKey(stranger)),
+      ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY, "kind=9"),
+    ]) {
+      await expect(
+        linkBuzzApp("user-bob", JSON.stringify(tag)),
+      ).rejects.toThrow("not for your Sokosumi key");
+    }
+    await expect(linkBuzzApp("user-bob", "nope")).rejects.toThrow(
+      "Paste the whole proof",
+    );
+    expect(db.buzzIdentity.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses another Buzz identity's proof while one is linked", async () => {
+    db.buzzIdentity.findUnique.mockResolvedValue(identity);
+    const other = ownerAuthTag(generateSecretKey(), SOKOSUMI_PUBKEY);
+    await expect(
+      linkBuzzApp("user-bob", JSON.stringify(other)),
+    ).rejects.toThrow("another Buzz identity");
+    expect(db.buzzIdentity.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("vouched", () => {
+  const draft = { kind: 9, content: "hi", tags: [["h", CHANNEL]] };
+  const identity = {
+    id: "identity-bob",
+    pubkey: BOB_PUBKEY,
+    appPubkey: "a".repeat(64),
+    appAuthTag: ["auth", "a".repeat(64), "", "b".repeat(128)],
+  } as unknown as Parameters<typeof vouched>[0];
+
+  it("carries the person's Buzz authorization on what Sokosumi signs for them", () => {
+    expect(vouched(identity, draft).tags).toEqual([
+      ["h", CHANNEL],
+      ["auth", "a".repeat(64), "", "b".repeat(128)],
+    ]);
+  });
+
+  it("sends nothing extra without an authorization from the linked key", () => {
+    expect(vouched({ ...identity, appAuthTag: null }, draft)).toBe(draft);
+    expect(vouched({ ...identity, appPubkey: null }, draft)).toBe(draft);
+    expect(vouched({ ...identity, appPubkey: "c".repeat(64) }, draft)).toBe(
+      draft,
+    );
+  });
+});
+
+describe("communities", () => {
+  it("names a community after its organization's slug, or a clean one made unique", () => {
+    const id = "01a1c865-d785-712c-83f6-041298fd1fce";
+    expect(communityLabelFor({ id, slug: "acme" })).toBe("acme");
+    const hashed = createHash("sha256").update(id).digest("hex").slice(0, 12);
+    expect(communityLabelFor({ id, slug: "Acme_Inc." })).toBe(
+      `acme-inc-${hashed}`,
+    );
+    expect(communityLabelFor({ id, slug: "___" })).toBe(`org-${hashed}`);
+    // Two ids made in the same second share their first characters.
+    expect(
+      communityLabelFor({
+        id: "01a1c865-0000-7000-8000-000000000001",
+        slug: "x".repeat(60),
+      }),
+    ).not.toBe(
+      communityLabelFor({
+        id: "01a1c865-0000-7000-8000-000000000002",
+        slug: "x".repeat(60),
+      }),
+    );
+    const long = communityLabelFor({ id, slug: "a".repeat(60) });
+    expect(long.length).toBeLessThanOrEqual(63);
+    expect(long).toMatch(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/);
+  });
+
+  it("gives every organization a community and creates it on the relay once", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_OPERATOR_API_ORIGIN: "https://operator.chat.example",
+    };
+    db.organization.findMany.mockResolvedValueOnce([{ id: "org-new" }]);
+    db.organization.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "org-new",
+      slug: "new-co",
+    });
+    db.buzzCommunity.upsert.mockResolvedValue({});
+    db.buzzCommunity.findMany.mockResolvedValueOnce([
+      {
+        id: "c-new",
+        organizationId: "org-new",
+        relayUrl: "wss://new-co.chat.example",
+      },
+      {
+        id: "c-old",
+        organizationId: "org-old",
+        relayUrl: `wss://old-co-${createHash("sha256").update("org-old").digest("hex").slice(0, 12)}.chat.example`,
+      },
+    ]);
+    relay.operatorRequest
+      .mockResolvedValueOnce({ status: 201, body: { status: "created" } })
+      .mockResolvedValueOnce({
+        status: 409,
+        body: { error: "community already exists" },
+      });
+    await expect(provisionBuzzCommunities()).resolves.toBe(2);
+    expect(db.buzzCommunity.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          relayUrl: expect.stringContaining("new-co"),
+          provisionedAt: null,
+        }),
+      }),
+    );
+    expect(relay.operatorRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/operator/communities",
+        body: expect.objectContaining({
+          host: "new-co.chat.example",
+          create_only: true,
+        }),
+      }),
+    );
+    expect(db.buzzCommunity.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("puts only the named organizations on Buzz by themselves when a deployment names them", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_OPERATOR_API_ORIGIN: undefined,
+      BUZZ_AUTO_ORGANIZATIONS: "test-co, other-test",
+    };
+    db.organization.findMany.mockResolvedValueOnce([]);
+    await provisionBuzzCommunities();
+    expect(db.organization.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          buzzCommunity: null,
+          slug: { in: ["test-co", "other-test"] },
+        },
+      }),
+    );
+    env.value = { ...env.value, BUZZ_AUTO_ORGANIZATIONS: undefined };
+  });
+
+  it("never adopts a community someone else left on the relay: moves to its own host", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_OPERATOR_API_ORIGIN: "https://operator.chat.example",
+    };
+    db.organization.findMany.mockResolvedValueOnce([]);
+    db.buzzCommunity.findMany.mockResolvedValueOnce([
+      {
+        id: "c-new",
+        organizationId: "org-new",
+        relayUrl: "wss://acme.chat.example",
+      },
+    ]);
+    relay.operatorRequest.mockResolvedValueOnce({
+      status: 409,
+      body: { error: "community already exists" },
+    });
+    await expect(provisionBuzzCommunities()).resolves.toBe(0);
+    const own = createHash("sha256")
+      .update("org-new")
+      .digest("hex")
+      .slice(0, 12);
+    expect(db.buzzCommunity.update).toHaveBeenCalledWith({
+      where: { id: "c-new" },
+      data: { relayUrl: `wss://acme-${own}.chat.example` },
+    });
+  });
+
+  it("stops at a community the relay refuses, leaving it for the next sweep", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_OPERATOR_API_ORIGIN: "https://operator.chat.example",
+    };
+    db.organization.findMany.mockResolvedValueOnce([]);
+    db.buzzCommunity.findMany.mockResolvedValueOnce([
+      {
+        id: "c-new",
+        organizationId: "org-new",
+        relayUrl: "wss://new-co.chat.example",
+      },
+    ]);
+    relay.operatorRequest.mockResolvedValueOnce({
+      status: 403,
+      body: { error: "community_creation_disabled" },
+    });
+    await expect(provisionBuzzCommunities()).rejects.toThrow(/refused/);
+    expect(db.buzzCommunity.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("claimBuzzState", () => {
+  const preview = {
+    BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat-preview.example",
+    BUZZ_AUTO_ORGANIZATIONS: "test-org",
+  };
+  beforeEach(() => {
+    db.syncMetadata.findUnique.mockResolvedValue(null);
+    db.syncMetadata.upsert.mockResolvedValue({});
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    for (const model of [
+      db.buzzOutbox,
+      db.buzzUndoneEvent,
+      db.buzzReactionLink,
+      db.buzzMessageLink,
+      db.buzzAutoAccess,
+      db.buzzChannel,
+      db.buzzCommunityMember,
+      db.buzzIdentity,
+      db.buzzCommunity,
+      db.syncMetadata,
+    ]) {
+      model.deleteMany.mockClear().mockResolvedValue({ count: 0 });
+    }
+  });
+  afterEach(() => {
+    env.value = { ...env.value, BUZZ_AUTO_ORGANIZATIONS: undefined };
+  });
+
+  it("claims state that is this deployment's, and keeps it", async () => {
+    env.value = { ...env.value, ...preview };
+    db.buzzCommunity.findMany.mockResolvedValue([
+      { relayUrl: "wss://test-org.chat-preview.example" },
+    ]);
+    await expect(claimBuzzState()).resolves.toBe(true);
+    expect(db.buzzCommunity.deleteMany).not.toHaveBeenCalled();
+    expect(db.syncMetadata.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          cursorId: "wss://{slug}.chat-preview.example",
+        }),
+      }),
+    );
+  });
+
+  it("clears a test deployment's copy of another deployment's state", async () => {
+    env.value = { ...env.value, ...preview };
+    db.buzzCommunity.findMany.mockResolvedValue([
+      { relayUrl: "wss://acme.chat.example" },
+    ]);
+    await expect(claimBuzzState()).resolves.toBe(true);
+    expect(db.buzzIdentity.deleteMany).toHaveBeenCalled();
+    expect(db.buzzCommunity.deleteMany).toHaveBeenCalled();
+    // The copied personal agents are archived with their slugs freed.
+    expect(db.$executeRaw).toHaveBeenCalled();
+  });
+
+  it("never clears anything where no organizations are named, and does not run", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_AUTO_ORGANIZATIONS: undefined,
+    };
+    db.syncMetadata.findUnique.mockResolvedValue({
+      cursorId: "wss://{slug}.chat-old.example",
+    });
+    await expect(claimBuzzState()).resolves.toBe(false);
+    expect(db.buzzCommunity.deleteMany).not.toHaveBeenCalled();
+    expect(db.syncMetadata.upsert).not.toHaveBeenCalled();
+  });
+});

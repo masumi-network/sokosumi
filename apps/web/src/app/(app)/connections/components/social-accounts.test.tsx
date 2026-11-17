@@ -32,8 +32,11 @@ describe("SocialAccounts", () => {
   it("names each provider in the row", () => {
     setup([googleAccount]);
 
-    expect(screen.getByText("Google is connected")).toBeVisible();
-    expect(screen.getByText("Microsoft is not connected")).toBeVisible();
+    expect(screen.getByText("You can sign in with Google.")).toBeVisible();
+    expect(screen.getByText("Connected")).toBeVisible();
+    expect(
+      screen.getByText("Sign in with your Microsoft account."),
+    ).toBeVisible();
   });
 
   it("labels Connect and Disconnect in words, naming the provider", () => {

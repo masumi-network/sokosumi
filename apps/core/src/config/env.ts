@@ -477,6 +477,42 @@ const baseEnvSchema = z.object({
    */
   DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Buzz (Nostr) chat bridge. All three are needed before any organization
+   * can be put on Buzz; absent, chat stays Sokosumi-only.
+   * - BUZZ_COMMUNITY_URL_TEMPLATE: relay URL for an organization's community,
+   *   `{slug}` replaced by the organization slug (one relay, one host per
+   *   community), e.g. `wss://{slug}.chat.sokosumi.com` or `ws://localhost:3400`.
+   * - BUZZ_OPERATOR_SECRET_KEY: hex Nostr key of the relay owner; signs
+   *   community membership and channel administration.
+   * - BUZZ_KEY_ENCRYPTION_SECRET: encrypts the per-member Nostr keys and bridge
+   *   API keys at rest.
+   * Optional, for a multi-community relay (production):
+   * - BUZZ_OPERATOR_API_ORIGIN: the relay's operator API origin
+   *   (`RELAY_OPERATOR_API_ORIGIN` there); set, every organization gets its
+   *   community created on the relay. Unset, communities already exist.
+   * - BUZZ_RELAY_DATABASE_URL: the relay's Postgres, for the one-time import
+   *   of each room's history (the relay takes no event older than 15 minutes).
+   * - BUZZ_RELAY_DATABASE_CA: that Postgres's root certificate (PEM). Railway
+   *   signs each database's certificate with a root of its own, for host
+   *   `localhost`; with it set, the connection trusts that root alone.
+   */
+  BUZZ_COMMUNITY_URL_TEMPLATE: z.string().min(1).optional(),
+  /**
+   * Comma-separated organization slugs that go on Buzz by themselves. Unset,
+   * every organization does. Test deployments name their test organizations,
+   * so a copy of production's chats never reaches a test relay. Owners and
+   * admins can still put any other organization on Buzz.
+   */
+  BUZZ_AUTO_ORGANIZATIONS: z.string().min(1).optional(),
+  BUZZ_OPERATOR_API_ORIGIN: z.url().optional(),
+  BUZZ_RELAY_DATABASE_URL: z.string().min(1).optional(),
+  BUZZ_RELAY_DATABASE_CA: z.string().min(1).optional(),
+  BUZZ_OPERATOR_SECRET_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
+  BUZZ_KEY_ENCRYPTION_SECRET: z.string().min(32).optional(),
+  /**
    * The private reference library store: old ads, posters and covers Cuso
    * takes a style from (`services/reference-library.service.ts`). Unset, his
    * pictures are made from the brand's own pictures only.

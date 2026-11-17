@@ -33,6 +33,9 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope", () => ({
 vi.mock("@/app/components/sidebar/components/menu-items", () => ({
   default: () => <nav aria-label="menuItems" />,
 }));
+vi.mock("@/app/components/sidebar/components/buzz-connect-card", () => ({
+  BuzzConnectCard: () => null,
+}));
 vi.mock("@/app/components/sidebar/components/announcement-cards", () => ({
   default: () => null,
 }));

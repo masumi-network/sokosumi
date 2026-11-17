@@ -1,8 +1,13 @@
 import { z } from "@hono/zod-openapi";
-
+import type { Prisma } from "@sokosumi/database";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import {
   type ChatRoomMessage,
   chatRoomMessageSchema,
@@ -11,6 +16,7 @@ import {
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  requireChatRoomCoworkerAccess,
   withChatRoomReplyCount,
 } from "../../../../../helpers";
 import { assertChatRoomContentMessage } from "../../../../../membership-status";
@@ -43,23 +49,36 @@ export const chatRoomMessageReactionParamsSchema = z.object({
     }),
 });
 
+/** Who reacts: a person, or a Coworker reacting on Buzz. */
+export type ChatRoomReactor = { userId: string } | { coworkerId: string };
+
+export function reactorOf(authContext: AuthenticationContext): ChatRoomReactor {
+  return isCoworkerAuthContext(authContext)
+    ? { coworkerId: authContext.coworkerId }
+    : { userId: requireUserAuthContext(authContext).userId };
+}
+
 /**
- * Set whether the current user has one emoji Reaction on a message, then read
- * the message back as they now see it. Both directions share this: only the
- * flag differs. Repeating a call changes nothing and publishes nothing, so a
- * retry can never flip the Reaction back (ADR 0032).
+ * Set whether the current user (or Coworker) has one emoji Reaction on a
+ * message, then read the message back as they now see it. Both directions
+ * share this: only the flag differs. Repeating a call changes nothing and
+ * publishes nothing, so a retry can never flip the Reaction back (ADR 0032).
  */
 export async function setChatRoomMessageReaction(params: {
   roomId: string;
   messageId: string;
-  userId: string;
+  reactor: ChatRoomReactor;
   emoji: string;
   reacted: boolean;
 }): Promise<ChatRoomMessage> {
-  const { roomId, messageId, userId, emoji, reacted } = params;
+  const { roomId, messageId, reactor, emoji, reacted } = params;
 
   const { message, changed } = await prisma.$transaction(async (tx) => {
-    await requireWritableChatRoom(roomId, userId, tx);
+    if ("coworkerId" in reactor) {
+      await requireChatRoomCoworkerAccess(roomId, reactor.coworkerId, tx);
+    } else {
+      await requireWritableChatRoom(roomId, reactor.userId, tx);
+    }
 
     const target = await tx.chatRoomMessage.findFirst({
       where: { id: messageId, roomId },
@@ -73,13 +92,17 @@ export async function setChatRoomMessageReaction(params: {
     }
     assertChatRoomContentMessage(target.metadata);
 
-    const where = { messageId, userId, emoji };
-    const { count } = reacted
-      ? await tx.chatRoomReaction.createMany({
-          data: where,
-          skipDuplicates: true,
-        })
-      : await tx.chatRoomReaction.deleteMany({ where });
+    const { count } =
+      "coworkerId" in reactor
+        ? await setAgentReaction(tx, { messageId, emoji, ...reactor }, reacted)
+        : reacted
+          ? await tx.chatRoomReaction.createMany({
+              data: { messageId, emoji, ...reactor },
+              skipDuplicates: true,
+            })
+          : await tx.chatRoomReaction.deleteMany({
+              where: { messageId, emoji, ...reactor },
+            });
 
     return {
       changed: count > 0,
@@ -95,6 +118,19 @@ export async function setChatRoomMessageReaction(params: {
   }
 
   return chatRoomMessageSchema.parse(
-    mapChatRoomMessage(await withChatRoomReplyCount(prisma, message), userId),
+    mapChatRoomMessage(
+      await withChatRoomReplyCount(prisma, message),
+      "userId" in reactor ? reactor.userId : undefined,
+    ),
   );
+}
+
+function setAgentReaction(
+  tx: Prisma.TransactionClient,
+  where: { messageId: string; coworkerId: string; emoji: string },
+  reacted: boolean,
+) {
+  return reacted
+    ? tx.chatRoomAgentReaction.createMany({ data: where, skipDuplicates: true })
+    : tx.chatRoomAgentReaction.deleteMany({ where });
 }

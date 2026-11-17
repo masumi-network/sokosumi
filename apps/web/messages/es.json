@@ -1124,6 +1124,69 @@
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
     },
+    "BuzzConnect": {
+      "title": "Chatea desde Buzz",
+      "subtitle": "Tus salas, personas y agentes, también en la app de Buzz. ¿Cómo quieres empezar?",
+      "choose": {
+        "newTitle": "Soy nuevo en Buzz",
+        "newDescription": "Consigue Buzz y crea tu identidad de Buzz.",
+        "haveTitle": "Ya uso Buzz",
+        "haveDescription": "Conecta la identidad de Buzz que ya tienes."
+      },
+      "get": {
+        "title": "Consigue Buzz",
+        "subtitle": "Buzz es una app de chat de Block para tu Mac. Instálala y vuelve aquí.",
+        "download": "Descargar Buzz",
+        "next": "Ya tengo Buzz"
+      },
+      "create": {
+        "title": "Crea tu identidad de Buzz",
+        "subtitle": "En Buzz, sigue estos pasos. Cuando te pida una invitación, vuelve aquí.",
+        "options": "Abre Buzz y elige <b>Other options</b>.",
+        "address": "Introduce esta dirección:",
+        "identity": "Elige <b>Create a new identity</b>.",
+        "otherIdentity": "¿Ya tienes una identidad de Buzz? Vuelve y elige Ya uso Buzz.",
+        "next": "Listo en Buzz"
+      },
+      "join": {
+        "title": "Únete desde Buzz",
+        "subtitle": "Abre la invitación en Buzz y elige <b>Join</b>.",
+        "open": "Abrir en Buzz",
+        "openNamed": "Abrir {name} en Buzz",
+        "copyInvite": "Copiar enlace de invitación",
+        "auto": "Continúa solo en cuanto te hayas unido.",
+        "next": "Ya me uní"
+      },
+      "authorize": {
+        "title": "Autoriza a Sokosumi",
+        "subtitle": "Así tus agentes de Buzz toman lo que escribes en Sokosumi como tuyo. Tu clave privada se queda en Buzz.",
+        "open": "En Buzz, abre <b>Settings → Buzz → Security → Authorize external identity</b>.",
+        "openButton": "Abrir en Buzz",
+        "paste": "Pega esta clave y elige <b>Authorize identity</b>:",
+        "confirm": "Elige <b>Authorize this key</b>, luego <b>Copy ownership proof</b>, y pégala aquí:",
+        "label": "Prueba de propiedad",
+        "placeholder": "[\"auth\", …]",
+        "save": "Autorizar"
+      },
+      "done": {
+        "title": "Ya estás en Buzz",
+        "subtitle": "Tus salas están en Buzz, y tus agentes de Buzz responden también a lo que escribes aquí.",
+        "close": "Listo"
+      },
+      "back": "Atrás",
+      "next": "Continuar",
+      "later": "Terminar más tarde",
+      "copied": "Copiado",
+      "copyFailed": "No se pudo copiar",
+      "card": {
+        "title": "Chatea desde Buzz",
+        "summary": "Nuevo: tus salas, personas y agentes, también en la app de Buzz.",
+        "connect": "Conectar",
+        "close": "Cerrar"
+      },
+      "dialogTitle": "Conectar Buzz",
+      "notNow": "Ahora no"
+    },
     "SpreadsheetView": {
       "loading": "Cargando hoja de cálculo",
       "failed": "No se pudo abrir esta hoja de cálculo.",
@@ -7662,8 +7725,6 @@
       "SocialAccounts": {
         "title": "Inicio de sesión",
         "description": "Usa estas cuentas para iniciar sesión.",
-        "connected": "{provider} está conectado",
-        "notConnected": "{provider} no está conectado",
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
@@ -7680,7 +7741,10 @@
         "connect": "Conectar {provider}",
         "disconnect": "Desconectar {provider}",
         "connectAction": "Conectar",
-        "disconnectAction": "Desconectar"
+        "disconnectAction": "Desconectar",
+        "statusConnected": "Conectado",
+        "hintConnected": "Puedes iniciar sesión con {provider}.",
+        "hintNotConnected": "Inicia sesión con tu cuenta de {provider}."
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
@@ -8876,6 +8940,44 @@
       "tabs": {
         "connectedApps": "Apps conectadas",
         "mcp": "MCP"
+      },
+      "Buzz": {
+        "title": "Buzz",
+        "description": "Chatea en las salas de tu organización también desde una app de Buzz. Mismas salas, mismas personas, mismos mensajes.",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "proofInvalid": "Pega la prueba que te mostró Buzz",
+        "communityDescription": "Añade esta dirección en la app de Buzz para unirte a los chats de esta organización.",
+        "relayUrl": "Dirección",
+        "enableDescription": "Aún no está en Buzz. Sus salas serán canales de Buzz en menos de un minuto.",
+        "enable": "Llevar los chats a Buzz",
+        "enabled": "Los chats están en Buzz",
+        "enableError": "No se pudieron llevar los chats a Buzz",
+        "unlink": "Desvincular",
+        "linkError": "No se pudo vincular la app de Buzz",
+        "unlinkError": "No se pudo desvincular la app de Buzz",
+        "agentsTitle": "Tus agentes de Buzz",
+        "agentsEmpty": "Los agentes que crees en la app de Buzz aparecen aquí en un minuto.",
+        "agentsHint": "Agentes personales vía Buzz. Añade uno a una sala en la que estés (añadir miembro → Coworkers) o invítalo al canal en Buzz. Solo tú puedes añadirlo, y sale de una sala cuando tú sales.",
+        "personalAgentsTitle": "Los miembros pueden traer sus propios agentes",
+        "personalAgentsOn": "Los miembros pueden añadir sus agentes personales (de su app de Buzz) a las salas en las que están. Cada uno aparece como agente personal vía Buzz.",
+        "personalAgentsOff": "Los agentes personales necesitan primero la aprobación de un propietario o administrador.",
+        "personalAgentsError": "No se pudo cambiar el ajuste",
+        "statusTitle": "Buzz",
+        "statusNotConnected": "Aún sin conectar. Chatea en las mismas salas desde la app de Buzz.",
+        "statusConnected": "Conectado. Estás en Buzz como tú.",
+        "statusLinked": "Vinculado a tu identidad de Buzz.",
+        "statusUnauthorized": "Vinculado a tu identidad de Buzz. Autoriza a Sokosumi para que tus agentes de Buzz respondan a lo que escribes aquí.",
+        "connect": "Conectar Buzz",
+        "connectAgain": "Conectar de nuevo",
+        "authorize": "Autorizar",
+        "identityTitle": "Tu identidad de Buzz",
+        "identityHint": "Compártela para que te encuentren en Buzz.",
+        "copyIdentity": "Copiar tu identidad de Buzz",
+        "personalAgent": "Agente personal",
+        "copyAgentKey": "Copiar la clave de Buzz de {name}",
+        "organizationDescription": "Los chats de esta organización también están en Buzz: los miembros chatean en las mismas salas desde la app de Buzz.",
+        "communitiesTitle": "Comunidades"
       }
     },
     "Coworkers": {

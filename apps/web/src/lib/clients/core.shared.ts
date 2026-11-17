@@ -217,6 +217,7 @@ import {
   deleteAdminBadgeCampaign as coreDeleteAdminBadgeCampaign,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
+  deleteBuzzAppKey as coreDeleteBuzzAppKey,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdCoworkersByCoworkerId as coreDeleteChatsRoomsByIdCoworkersByCoworkerId,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
@@ -267,6 +268,7 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
+  getBuzzConnection as coreGetBuzzConnection,
   getCategories as coreGetCategories,
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
@@ -431,6 +433,7 @@ import {
   markUserBadgeCampaignSeen as coreMarkUserBadgeCampaignSeen,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
+  patchBuzzOrganizationsByOrganizationId as corePatchBuzzOrganizationsByOrganizationId,
   patchChatsRoomsById as corePatchChatsRoomsById,
   patchChatsRoomsByIdMessagesByMessageId as corePatchChatsRoomsByIdMessagesByMessageId,
   patchCoworkersById as corePatchCoworkersById,
@@ -450,6 +453,9 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postBuzzAppKey as corePostBuzzAppKey,
+  postBuzzAppKeyJoined as corePostBuzzAppKeyJoined,
+  postBuzzOrganizationsByOrganizationId as corePostBuzzOrganizationsByOrganizationId,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
   postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
   postChatsInvitationsByIdDecline as corePostChatsInvitationsByIdDecline,
@@ -1016,6 +1022,78 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to preview newsletter issue",
+    );
+  }
+
+  async function getBuzzConnection() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetBuzzConnection({ client, cache: "no-store" }),
+      "Failed to read the Buzz connection",
+    );
+  }
+
+  async function postBuzzAppKey(proof: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzAppKey({
+          client,
+          body: { proof },
+          cache: "no-store",
+        }),
+      "Failed to link the Buzz app",
+    );
+  }
+
+  async function postBuzzAppKeyJoined(codes: string[]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzAppKeyJoined({
+          client,
+          body: { codes },
+          cache: "no-store",
+        }),
+      "Failed to read whether the Buzz app joined",
+    );
+  }
+
+  async function deleteBuzzAppKey() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteBuzzAppKey({ client, cache: "no-store" }),
+      "Failed to unlink the Buzz app",
+    );
+  }
+
+  async function patchBuzzOrganization(
+    organizationId: string,
+    allowPersonalAgents: boolean,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchBuzzOrganizationsByOrganizationId({
+          client,
+          path: { organizationId },
+          body: { allowPersonalAgents },
+          cache: "no-store",
+        }),
+      "Failed to change Buzz settings",
+    );
+  }
+
+  async function postBuzzOrganization(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzOrganizationsByOrganizationId({
+          client,
+          path: { organizationId },
+          cache: "no-store",
+        }),
+      "Failed to put the organization on Buzz",
     );
   }
 
@@ -7448,6 +7526,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPublicNewslettersByPublicSlugIssues,
     getPublicNewslettersByPublicSlugIssuesByIssueSlug,
     getNewsletterAvailability,
+    getBuzzConnection,
+    postBuzzAppKey,
+    postBuzzAppKeyJoined,
+    deleteBuzzAppKey,
+    postBuzzOrganization,
+    patchBuzzOrganization,
     getProjectsByIdNewsletterSendingDomain,
     putProjectsByIdNewsletterSendingDomain,
     deleteProjectsByIdNewsletterSendingDomain,

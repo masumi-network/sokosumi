@@ -6,26 +6,35 @@ import { useTranslations } from "next-intl";
 
 import { getMcpUrl } from "@/app/components/MCP/mcp-url";
 import { McpUrlDisplay } from "@/app/components/MCP/mcp-url-display";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function McpActiveKeyView() {
   const t = useTranslations("App.MCP");
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{t("urlLabel")}</p>
-      <McpUrlDisplay url={getMcpUrl()} />
-      <div className="text-muted-foreground text-sm">
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("urlLabel")}</CardTitle>
+        <CardDescription>{t("existingKeyNote")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <McpUrlDisplay url={getMcpUrl()} />
         <Link
           href="https://www.masumi.network/dev/sokosumi/mcp"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-foreground inline-flex items-center gap-1 underline underline-offset-4"
+          className="text-foreground inline-flex items-center gap-1 text-sm underline underline-offset-4"
         >
           {t("docsLink")}
-          <ExternalLink className="size-3" />
+          <ExternalLink className="size-3" aria-hidden />
         </Link>
-      </div>
-      <p className="text-muted-foreground text-xs">{t("existingKeyNote")}</p>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "@/helpers/persist-assistant-to-chat-room";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
+import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -23,6 +24,11 @@ import {
   resolveWorkspaceIdForChatRoom,
 } from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
+import {
+  PERSONAL_AGENT_REFUSAL,
+  PERSONAL_AGENT_REFUSAL_NOTICE,
+  personalAgentOwnerOf,
+} from "@/services/buzz-bridge.service";
 import { withMessageSkills } from "@/services/chat-message-skills.service";
 
 import {
@@ -153,6 +159,55 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   });
 
   if (!mention || mention.status === "responded") {
+    return;
+  }
+
+  // A person's own Buzz agent hears the mention on Buzz (the bridge sends it
+  // with its key tagged) and answers there; its reply comes back as a message.
+  // It answers only its owner, so anyone else is told so instead of silence.
+  if (mention.coworker && isBuzzAgentBaseUrl(mention.coworker.baseURL)) {
+    // Same rules as any dispatch: nothing for a deleted message, and one
+    // dispatch at a time, so a refusal is never posted twice.
+    if (mention.message.deletedAt != null) {
+      await markMentionFailed(mentionId, "Source message was deleted");
+      return;
+    }
+    if (!(await claimMentionForDispatch(mentionId))) return;
+    const agent = mention.coworker;
+    const owner = await personalAgentOwnerOf(agent.id);
+    const refuse = owner && mention.message.senderUserId !== owner.userId;
+    // Finished only while still claimed: deleting the message or removing
+    // the agent meanwhile fails the mention, and then nothing is posted.
+    const responseMessageId = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.chatRoomMention.updateMany({
+        where: { id: mention.id, status: "sent" },
+        data: { status: "responded" },
+      });
+      if (claimed.count === 0 || !refuse || !owner) return undefined;
+      const refusal = await tx.chatRoomMessage.create({
+        data: {
+          roomId: mention.message.room.id,
+          parentMessageId:
+            mention.message.parentMessageId ?? mention.message.id,
+          senderCoworkerId: agent.id,
+          content: `I'm ${owner.name}'s personal agent, so I only take requests from ${owner.name}. Ask ${owner.name}, or mention a shared Coworker instead.`,
+          metadata: {
+            [PERSONAL_AGENT_REFUSAL]: true,
+            // What Sokosumi says on Buzz, where the agent cannot speak for itself.
+            [PERSONAL_AGENT_REFUSAL_NOTICE]: `${agent.name} is ${owner.name}'s personal agent and only takes requests from ${owner.name}. Ask ${owner.name}, or mention a shared Coworker instead.`,
+          },
+        },
+        select: { id: true },
+      });
+      await tx.chatRoomMention.update({
+        where: { id: mention.id },
+        data: { responseMessageId: refusal.id },
+      });
+      return refusal.id;
+    });
+    if (responseMessageId) {
+      await publishChatRoomMessageRealtimeById(responseMessageId, "create");
+    }
     return;
   }
 

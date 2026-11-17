@@ -1,11 +1,19 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { cn } from "@/lib/utils";
 
 import { OAuthAuthorizedClients } from "./authorized-clients";
+import { BuzzSection } from "./buzz-section";
 import { ConnectionsTabs } from "./connections-tabs";
 import { McpActiveKeyView } from "./mcp-active-key-view";
 import { SocialAccounts } from "./social-accounts";
@@ -43,15 +51,18 @@ export async function ConnectionsPage() {
               {tPage("description")}
             </p>
           </header>
-          <section className="space-y-3" data-testid="connections-sign-in">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">{t("title")}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t("description")}
-              </p>
-            </div>
-            {socialAccountsSection}
-          </section>
+          <Card data-testid="connections-sign-in">
+            <CardHeader>
+              <CardTitle>
+                <h2>{t("title")}</h2>
+              </CardTitle>
+              <CardDescription>{t("description")}</CardDescription>
+            </CardHeader>
+            <CardContent>{socialAccountsSection}</CardContent>
+          </Card>
+          <Suspense fallback={null}>
+            <BuzzSection />
+          </Suspense>
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
             mcpContent={

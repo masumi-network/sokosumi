@@ -11075,6 +11075,215 @@ export const AgentRatingRequestSchema = {
     ]
 } as const;
 
+export const BuzzConnectionSchema = {
+    type: 'object',
+    properties: {
+        available: {
+            type: 'boolean',
+            description: 'Whether this Sokosumi can put chats on Buzz at all.'
+        },
+        identity: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                pubkey: {
+                    type: 'string',
+                    description: 'Hex public key.'
+                },
+                npub: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'pubkey',
+                'npub'
+            ],
+            description: 'The caller\'s Buzz identity; null until one of their organizations is on Buzz.'
+        },
+        app: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                npub: {
+                    type: 'string'
+                },
+                authorized: {
+                    type: 'boolean',
+                    description: 'Whether the caller\'s Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.'
+                }
+            },
+            required: [
+                'npub',
+                'authorized'
+            ],
+            description: 'The caller\'s own Buzz app key, when they linked one instead of importing Sokosumi\'s.'
+        },
+        agents: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    image: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The agent\'s Buzz profile picture.'
+                    },
+                    npub: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'image',
+                    'npub'
+                ]
+            },
+            description: 'The caller\'s Buzz agents, usable as Coworkers in their rooms.'
+        },
+        lastActiveOnBuzzAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the caller last did something from a Buzz app; null until they have.'
+        },
+        canEnable: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    organizationId: {
+                        type: 'string'
+                    },
+                    organizationName: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'organizationId',
+                    'organizationName'
+                ]
+            },
+            description: 'Organizations the caller owns or administers that are not on Buzz yet.'
+        },
+        communities: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    organizationId: {
+                        type: 'string'
+                    },
+                    organizationName: {
+                        type: 'string'
+                    },
+                    relayUrl: {
+                        type: 'string',
+                        description: 'The address to add in a Buzz client.',
+                        example: 'wss://acme.chat.sokosumi.com'
+                    },
+                    allowPersonalAgents: {
+                        type: 'boolean',
+                        description: 'Members may bring their personal agents (run in their Buzz app) into rooms without approval.'
+                    },
+                    canManage: {
+                        type: 'boolean',
+                        description: 'The caller owns or administers this organization.'
+                    }
+                },
+                required: [
+                    'organizationId',
+                    'organizationName',
+                    'relayUrl',
+                    'allowPersonalAgents',
+                    'canManage'
+                ]
+            }
+        }
+    },
+    required: [
+        'available',
+        'identity',
+        'app',
+        'agents',
+        'lastActiveOnBuzzAt',
+        'canEnable',
+        'communities'
+    ]
+} as const;
+
+export const BuzzAppKeyInvitesSchema = {
+    type: 'object',
+    properties: {
+        invites: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    organizationName: {
+                        type: 'string'
+                    },
+                    relayUrl: {
+                        type: 'string'
+                    },
+                    joinUrl: {
+                        type: 'string',
+                        description: 'Opens the Buzz app and joins with a single-use invite.',
+                        example: 'buzz://join?relay=wss%3A%2F%2Facme.chat.sokosumi.com&code=v2.…'
+                    },
+                    inviteUrl: {
+                        type: 'string',
+                        description: 'The same invite as a web page, for another device.'
+                    }
+                },
+                required: [
+                    'organizationName',
+                    'relayUrl',
+                    'joinUrl',
+                    'inviteUrl'
+                ]
+            }
+        }
+    },
+    required: [
+        'invites'
+    ]
+} as const;
+
+export const BuzzCommunitySchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: 'string'
+        },
+        relayUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'organizationId',
+        'relayUrl'
+    ]
+} as const;
+
 export const ChatRoomInvitationSchema = {
     type: 'object',
     properties: {
@@ -30864,6 +31073,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 3
                                     },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
+                                    },
                                     slides: {
                                         type: 'array',
                                         items: {
@@ -32308,6 +32526,15 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
                             },
                             slides: {
                                 type: 'array',
@@ -38559,6 +38786,15 @@ export const SocialPostSchema = {
                         maxLength: 100
                     },
                     maxItems: 3
+                },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
                 },
                 slides: {
                     type: 'array',
@@ -50868,6 +51104,15 @@ export const CmoPlanSchema = {
                             maxLength: 100
                         },
                         maxItems: 3
+                    },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
                     },
                     slides: {
                         type: 'array',

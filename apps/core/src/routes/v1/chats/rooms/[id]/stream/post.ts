@@ -4,6 +4,8 @@ import { isOwnedUserChatRoomFileUrl } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   generateId,
   type ModelMessage,
   streamText,
@@ -50,6 +52,11 @@ import {
   ensureThreadProviderConversation,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
+import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  mayUseClientMessageId,
+} from "@/lib/buzz/bridge-replay";
+import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
 import {
@@ -68,6 +75,7 @@ import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
   roomStreamRequestSchema,
 } from "@/schemas/chat-request.schema.js";
+import { buzzCommunityForRoom } from "@/services/buzz-bridge.service";
 
 import {
   mergeChatRoomMessageMetadata,
@@ -241,6 +249,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireOwnedRoomStreamFileParts(uiMessages, userContext.userId, room.id);
 
     const lastMessage = messages[messages.length - 1]!;
+    if (
+      !mayUseClientMessageId(
+        typeof lastMessage.id === "string" ? lastMessage.id : null,
+        { userId: userContext.userId },
+        c.req.header(BUZZ_BRIDGE_REPLAY_HEADER),
+      )
+    ) {
+      throw badRequest("Client message ids starting with buzz: are reserved");
+    }
     const lastUserMessageText =
       lastMessage.role === "user" || lastMessage.role === "system"
         ? (() => {
@@ -273,6 +290,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest(
         "Coworker chat requires a user or system message with text to respond to.",
       );
+    }
+
+    // A person's own Buzz agent has no Responses API: the message goes to it
+    // through the Buzz bridge, and its answer comes back as a room message.
+    if (isBuzzAgentBaseUrl(coworker.baseURL)) {
+      // It answers only on Buzz: a Direct that cannot reach Buzz would wait
+      // for ever.
+      if (!(await buzzCommunityForRoom(room.id))) {
+        throw unprocessableEntity(
+          "This personal agent answers on Buzz, and this Direct is not on Buzz. Talk to it in a room of an organization on Buzz.",
+        );
+      }
+      if (lastMessage.role === "user" || lastMessage.role === "system") {
+        // The bridge reads files from the text, as Sokosumi writes them: a
+        // link on a line of its own, for each one the text does not hold.
+        const fileLinks = lastUserFileParts
+          .filter((part) => !lastUserMessageText.includes(part.url))
+          .map(
+            (part) =>
+              `[${(part.filename ?? "file").replace(/[[\]\r\n]/g, " ")}](${part.url})`,
+          );
+        await persistUserMessageToChatRoom({
+          roomId: room.id,
+          senderUserId: userContext.userId,
+          contentText: [lastUserMessageText, ...fileLinks].join("\n"),
+          clientMessageId:
+            typeof lastMessage.id === "string" ? lastMessage.id : null,
+          parentMessageId,
+          ...(userMessageMetadata ? { metadata: userMessageMetadata } : {}),
+        });
+      }
+      return createUIMessageStreamResponse({
+        stream: createUIMessageStream({ execute: () => {} }),
+      });
     }
 
     // Acquire before persist so concurrent POSTs cannot duplicate turns.

@@ -24,7 +24,7 @@ function unauthorizedResponse(message: string): Response {
   });
 }
 
-function authenticateCronSecret(c: Context): Response | null {
+export function authenticateCronSecret(c: Context): Response | null {
   const authHeader = c.req.header("authorization");
 
   if (!authHeader) {

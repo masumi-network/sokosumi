@@ -51,30 +51,49 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
   };
 
   return (
-    <div className="flex flex-col divide-y rounded-xl border py-2">
+    <div className="grid gap-3 md:grid-cols-2">
       {SOCIAL_PROVIDERS.map((provider) => {
         const account = socialAccounts.find(
           (account) => account.providerId === provider,
         );
+        const name = SOCIAL_PROVIDER_NAMES[provider];
 
         return (
-          <div key={provider} className="flex items-center gap-2 px-4 py-4">
-            {SOCIAL_PROVIDER_ICONS[provider]}
-            <p className="min-w-0 flex-1">
-              {account
-                ? t("connected", { provider: SOCIAL_PROVIDER_NAMES[provider] })
-                : t("notConnected", {
-                    provider: SOCIAL_PROVIDER_NAMES[provider],
-                  })}
-            </p>
+          <div
+            key={provider}
+            className="flex items-center gap-3 rounded-lg border p-3"
+          >
+            <span className="bg-background flex size-10 shrink-0 items-center justify-center rounded-lg border [&>svg]:size-5">
+              {SOCIAL_PROVIDER_ICONS[provider]}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                {name}
+                {account ? (
+                  <span className="bg-muted text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium">
+                    <span
+                      aria-hidden
+                      className="bg-status-success size-1.5 rounded-full"
+                    />
+                    {t("statusConnected")}
+                  </span>
+                ) : null}
+              </p>
+              <p className="text-muted-foreground truncate text-xs">
+                {t(account ? "hintConnected" : "hintNotConnected", {
+                  provider: name,
+                })}
+              </p>
+            </div>
             {/* Bordered Connect, quiet Disconnect: a filled button marks a
                 view's one primary action, and two providers would share it. */}
             <Button
               disabled={loading}
-              variant={account ? "ghost" : "default"}
+              variant={account ? "ghost" : "outline"}
+              size="sm"
               className={cn("shrink-0", loading && "animate-pulse")}
               aria-label={t(account ? "disconnect" : "connect", {
-                provider: SOCIAL_PROVIDER_NAMES[provider],
+                provider: name,
               })}
               onClick={() => {
                 if (account) {
