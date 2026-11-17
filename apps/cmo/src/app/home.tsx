@@ -323,15 +323,23 @@ export async function Home({ searchParams, view }: HomeProps) {
       />
     );
   }
+  // "Your Cusos" leads somewhere only when there is another Cuso to open.
+  const [messages, manyCusos] = await Promise.all([
+    loadMessages(projectId).catch(() => []),
+    loadCusos()
+      .then(({ cusos }) => cusos.length > 1)
+      .catch(() => false),
+  ]);
   return (
     <CmoApp
       overview={overview}
+      manyCusos={manyCusos}
       plans={
         overview.billing.viewerCanManage && overview.billing.tier
           ? await loadPlans().catch(() => [])
           : []
       }
-      messages={await loadMessages(projectId).catch(() => [])}
+      messages={messages}
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
