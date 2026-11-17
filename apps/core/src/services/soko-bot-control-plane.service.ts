@@ -1327,8 +1327,10 @@ export class SokoBotControlPlane {
       return bot;
     });
     // Outside the transaction: it uploads to Blob.
-    if (!input.avatarId && !created.avatarCode)
-      await giveNewSokoBotAvatar(created.id, input.avatarCode);
+    if (!input.avatarId && !created.avatarCode) {
+      const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+      if (look) Object.assign(created, look);
+    }
     const { ensureSystemSchedules } = await import(
       "@/services/soko-bot-proactive.service"
     );

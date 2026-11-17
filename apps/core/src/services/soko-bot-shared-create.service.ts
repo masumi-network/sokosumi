@@ -215,7 +215,10 @@ export async function createSharedSokoBot(
     { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
   );
   // Outside the transaction: it uploads to Blob.
-  if (!input.avatarId) await giveNewSokoBotAvatar(created.id, input.avatarCode);
+  if (!input.avatarId) {
+    const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+    if (look) Object.assign(created, look);
+  }
   // Shared bots get their built-in rhythms switched off; a member turns them on.
   const { ensureSystemSchedules } = await import(
     "@/services/soko-bot-proactive.service"
