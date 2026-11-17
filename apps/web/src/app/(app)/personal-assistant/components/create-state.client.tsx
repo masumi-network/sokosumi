@@ -22,10 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import {
-  createSokoBotAction,
-  setSokoBotAvatarCodeAction,
-} from "@/lib/actions/soko-bot/action";
+import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -69,6 +66,7 @@ export function CreateState({
   const [created, setCreated] = useState<{
     name: string;
     avatarCode: string | null;
+    imageUrl: string | null;
     orbSeed: string;
   } | null>(null);
   const [step, setStep] = useState<"name" | "picture">("name");
@@ -110,6 +108,8 @@ export function CreateState({
       const result = await createSokoBotAction({
         input: {
           name: trimmed,
+          // Core keeps this look, or draws a random one if another bot took it meanwhile.
+          avatarCode: code,
           // Its stand-up and wraps run on this clock, not Core's Berlin default.
           timezone: getDefaultTimezone(),
         },
@@ -118,9 +118,6 @@ export function CreateState({
         toast.error(result.error.message ?? t("error"));
         return;
       }
-      // A look another bot took meanwhile leaves the random one Core drew; the
-      // owner can change it in the console.
-      const look = await setSokoBotAvatarCodeAction({ code });
       // Both paths end in the bot's room, so it says hello before either.
       await openNewSokoBotRoom(result.value.id);
       if (onCreated) {
@@ -129,7 +126,8 @@ export function CreateState({
       }
       setCreated({
         name: result.value.name ?? trimmed,
-        avatarCode: look.ok ? look.value.avatarCode : null,
+        avatarCode: result.value.avatarCode ?? null,
+        imageUrl: result.value.avatarImageUrl ?? null,
         orbSeed: botFaceSeed(result.value, result.value.userId),
       });
       // Let the reveal play, then the last step: mail and calendar.
@@ -148,7 +146,7 @@ export function CreateState({
           )}
         >
           <BotFace
-            imageUrl={null}
+            imageUrl={created.imageUrl}
             seed={created.orbSeed}
             orbSize={128}
             avatarCode={created.avatarCode}

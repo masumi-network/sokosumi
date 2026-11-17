@@ -50,6 +50,13 @@ export default function LiveBotAvatar({
   const [failed, setFailed] = useState(false);
   const gaze = interactive && size >= GAZE_MIN_SIZE;
 
+  // A lost context unmounts the canvas: leave the shared loop too, so it stops drawing for nobody.
+  useEffect(() => {
+    if (!failed) return;
+    handleRef.current?.destroy();
+    handleRef.current = null;
+  }, [failed]);
+
   useEffect(() => {
     stateRef.current = state;
     handleRef.current?.setState(state);

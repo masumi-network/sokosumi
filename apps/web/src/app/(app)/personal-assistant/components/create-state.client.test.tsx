@@ -9,7 +9,6 @@ import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 
 const pushMock = vi.fn();
 const createMock = vi.fn();
-const setCodeMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: vi.fn() }),
@@ -17,7 +16,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/actions/soko-bot/action", () => ({
   createSokoBotAction: (...args: unknown[]) => createMock(...args),
-  setSokoBotAvatarCodeAction: (...args: unknown[]) => setCodeMock(...args),
 }));
 
 // Whether the mocked studio reports its first look on mount.
@@ -189,17 +187,17 @@ describe("CreateState", () => {
     expect(createButton).not.toBeDisabled();
   });
 
-  it("creates the bot, then gives it the look picked in the studio", async () => {
+  it("creates the bot with the look picked in the studio", async () => {
     // The reveal holds the transition for 1.5s; run it out before the end.
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     createMock.mockResolvedValue({
       ok: true,
-      value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
-    });
-    setCodeMock.mockResolvedValue({
-      ok: true,
       value: {
+        id: "bot-1",
+        name: "Atlas",
+        userId: "u1",
+        avatarSeed: null,
         avatarCode: "v1-owl",
         avatarImageUrl: "https://blob.test/o.png",
       },
@@ -213,35 +211,14 @@ describe("CreateState", () => {
     expect(createMock).toHaveBeenCalledWith({
       input: {
         name: "Atlas",
+        avatarCode: "v1-owl",
         // Its stand-up and wraps run on the browser's clock, not Core's default.
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
     });
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
-    expect(setCodeMock).toHaveBeenCalledWith({ code: "v1-owl" });
     // Opened from Soko Bots, not setup: the bot still says hello in its room.
     expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
-    await act(() => vi.advanceTimersByTimeAsync(1500));
-    expect(pushMock).toHaveBeenCalled();
-  });
-
-  it("still creates the bot when its look was taken meanwhile", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    createMock.mockResolvedValue({
-      ok: true,
-      value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
-    });
-    setCodeMock.mockResolvedValue({
-      ok: false,
-      error: { code: "CONFLICT", kind: "avatar_code_taken" },
-    });
-    renderCreate();
-
-    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
-    await user.click(screen.getByRole("button", { name: "Create Atlas" }));
-
-    expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     await act(() => vi.advanceTimersByTimeAsync(1500));
     expect(pushMock).toHaveBeenCalled();
   });
