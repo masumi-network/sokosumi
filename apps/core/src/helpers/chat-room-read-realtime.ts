@@ -3,9 +3,10 @@ import {
   CHAT_ROOM_READ_EVENT_NAME,
   makeChatRoomChannelName,
 } from "@sokosumi/utils";
-
 import { getRestClient } from "@/lib/ably/client";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export interface PublishChatRoomReadRealtimeInput {
   roomId: string;
@@ -40,7 +41,20 @@ export async function publishChatRoomReadRealtime(
       extras: { ephemeral: true },
     });
   } catch (error) {
-    console.error("Failed to publish room read event over Ably:", error);
+    // Ably's answer is untrusted text: content-free fields only.
+    recordCoreError(
+      {
+        operation: "ably_publish_chat_room_read",
+        roomId: input.roomId,
+        userId: input.userId,
+      },
+      {
+        message: "A room read event was not published over Ably",
+        why: "The Ably publish of the read event failed",
+        fix: "Open clients catch up on their next refresh. If it repeats, check Ably's status; Sentry has the error.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       extra: {
         roomId: input.roomId,
