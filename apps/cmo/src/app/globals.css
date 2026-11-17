@@ -237,7 +237,8 @@ p {
 }
 
 /* Pressed: pushed flat, the shadow gone. */
-.button:active:not(:disabled) {
+.button:active:not(:disabled),
+.button-down {
   transform: translate(var(--offset-hard), var(--offset-hard));
   box-shadow: none;
 }

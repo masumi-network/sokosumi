@@ -14,7 +14,7 @@ import { BrandStep } from "./brand-step";
 import { OnboardingFlow } from "./flow";
 import { LaunchStep } from "./launch-step";
 import { PlanStep } from "./plan-step";
-import { QuestionCard, useAnswers } from "./questions";
+import { PRESS_MS, QuestionCard, useAnswers } from "./questions";
 
 // happy-dom cannot run Web Animations; motion's would reject on unmount.
 MotionGlobalConfig.skipAnimations = true;
@@ -42,7 +42,18 @@ function button(text: string): HTMLButtonElement {
   return found;
 }
 
-const press = (text: string) => act(async () => button(text).click());
+/** Clicks, and lets a tapped answer's press run out (PRESS_MS). */
+async function press(text: string) {
+  vi.useFakeTimers();
+  try {
+    await act(async () => {
+      button(text).click();
+      vi.advanceTimersByTime(PRESS_MS);
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+}
 const text = () => container.textContent ?? "";
 
 /** A Core call the test answers when it chooses. */

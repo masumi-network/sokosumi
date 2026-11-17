@@ -192,6 +192,8 @@ export const richBrain: Brain = {
       players: [
         { name: "Acme", x: 68, y: 72, you: true },
         { name: "Moonshot", x: 30, y: 35 },
+        // On Moonshot's spot: the map moves it clear.
+        { name: "Orbit Labs", x: 30, y: 35 },
         { name: "LaunchPad", x: 82, y: 40 },
       ],
     },
