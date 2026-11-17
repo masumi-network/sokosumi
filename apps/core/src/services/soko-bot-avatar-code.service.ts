@@ -9,6 +9,7 @@ import {
   randomAvatarLook,
 } from "@sokosumi/soko-bot";
 import { put } from "@vercel/blob";
+import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
 import { getEnv } from "@/config/env";
 import { conflict, unprocessableEntity } from "@/helpers/error";
@@ -141,10 +142,9 @@ export async function assignRandomAvatarCode(
   throw new Error("No free avatar look found");
 }
 
-function isTaken(error: unknown): boolean {
-  const cause = (error as { cause?: { kind?: string } }).cause;
-  return cause?.kind === "avatar_code_taken";
-}
+// The service's only 409 is "taken".
+const isTaken = (error: unknown) =>
+  error instanceof HTTPException && error.status === 409;
 
 /**
  * One code per bot for the conversion script. A bot with a recognised pool

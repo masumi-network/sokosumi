@@ -32,9 +32,16 @@ const held = new Set(
     })
   ).map((bot) => bot.avatarCode as string),
 );
+// A fixed seed, so the dry run shows exactly the codes --apply writes.
+let seed = 271;
+const seeded = () => {
+  seed = (seed * 16807) % 2147483647;
+  return seed / 2147483647;
+};
 const plan = planAvatarCodes(
   bots.map((bot) => ({ id: bot.id, ...bot.avatar })),
   held,
+  seeded,
 );
 
 const queue = bots.map((bot) => ({ bot, code: plan.get(bot.id) as string }));
