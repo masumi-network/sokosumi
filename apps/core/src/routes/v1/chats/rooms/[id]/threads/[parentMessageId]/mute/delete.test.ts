@@ -2,8 +2,13 @@ import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountDeleteChatRoomThreadMute from "./delete";
 
@@ -74,8 +79,12 @@ const PARENT_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_unmute_chat_room_thread");
@@ -187,6 +196,24 @@ beforeEach(() => {
 });
 
 describe("DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute", () => {
+  it("publishes the cleared rows and takes back their mail as background work, so a failure inside either is not put on the request's event", async () => {
+    expectBackgroundProbe("publishClearedNotifications");
+    expectBackgroundProbe("cancelNotificationEmails");
+    publishClearedNotificationsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishClearedNotifications"),
+    );
+    cancelNotificationEmailsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("cancelNotificationEmails"),
+    );
+
+    const response = await createApp(userAuthContext, { evlog: true }).request(
+      `/${ROOM_ID}/threads/${PARENT_ID}/mute`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("unmutes the thread for the caller and answers with it", async () => {
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/threads/${PARENT_ID}/mute`,

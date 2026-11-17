@@ -5,6 +5,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import mountRemoveAdminMatchedChannelParticipant from "./delete";
 
@@ -145,5 +146,30 @@ describe("DELETE /admin/matched-channels/{roomId}/participants/{userId}", () => 
       roomId: ROOM_ID,
       reason: "removed",
     });
+  });
+
+  it("still removes when both publishes fail, naming each on one event", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish every effect of a channel membership change",
+      ["A realtime publish failed after the membership change was saved"],
+    );
+    // A status message names the member; the publish error can quote it.
+    publishChatRoomMembershipStatusMessagesBestEffortMock.mockRejectedValueOnce(
+      new Error('Payload "Dana left the channel" rejected'),
+    );
+    publishChatMembershipRevokedMock.mockRejectedValueOnce(
+      new Error("ably down"),
+    );
+
+    const response = await del();
+
+    expect(response.status).toBe(200);
+    expect(errors[0]?.event.failures).toEqual([
+      { effect: "status_messages", failure: { errorName: "Error" } },
+      { effect: "membership_revoked", failure: { errorName: "Error" } },
+    ]);
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Dana left");
   });
 });

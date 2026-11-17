@@ -2,7 +2,9 @@ import { createRoute } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { emitCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { evalTickSchema } from "@/schemas/eval.schema";
 import { EVAL_TICK_LOCK_KEY } from "@/services/evals/eval-cron";
 import {
@@ -37,14 +39,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const tick = await tickEvalRuns();
       // No cron reads the lanes' turns on here; a turn another tick is
       // already reading is left to it.
-      if (tick.runId && !tick.completed)
+      const { runId } = tick;
+      if (runId && !tick.completed)
         waitUntil(
-          syncEvalLaneTurns(tick.runId).catch((error: unknown) => {
-            console.warn("Eval lane turns could not be read on", {
-              runId: tick.runId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
-          }),
+          runAsBackgroundWork(() => syncEvalLaneTurns(runId)).catch(
+            (error: unknown) => {
+              // Lane turns carry eval prompts and answers: content-free
+              // fields only.
+              emitCoreWarning(
+                { operation: "admin_eval_tick", runId },
+                {
+                  message: "Could not read on an eval run's lane turns",
+                  why: "Syncing the lanes' Soko Bot turns failed after the tick",
+                  fix: "The next tick reads them again. If it repeats, look up the error name and code under failure.",
+                },
+                { failure: messageSafeErrorFields(error) },
+              );
+            },
+          ),
         );
       return ok(c, { ...tick, busy: false });
     } finally {

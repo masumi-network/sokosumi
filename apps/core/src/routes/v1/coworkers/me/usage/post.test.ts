@@ -2,7 +2,12 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostCoworkerMeUsage from "./post";
@@ -112,8 +117,9 @@ function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
   };
 }
 
-function createApp() {
+function createApp(options: { evlog?: boolean } = {}) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -266,6 +272,47 @@ describe("POST /me/usage", () => {
       userId: TARGET_USER_ID,
       organizationId: ORGANIZATION_ID,
     });
+  });
+
+  it("checks the balance as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("notifyLowBalanceAfterCharge");
+    notifyLowBalanceAfterChargeMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("notifyLowBalanceAfterCharge"),
+    );
+    mockTransaction({
+      member: {
+        findUnique: vi.fn().mockResolvedValue({ userId: TARGET_USER_ID }),
+      },
+      coworkerUsage: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi
+          .fn()
+          .mockResolvedValue(createUsage({ userId: TARGET_USER_ID })),
+      },
+      transaction: {
+        create: vi.fn().mockResolvedValue({ id: "txn_123" }),
+      },
+    });
+    prepareConsumptionMock.mockResolvedValue([
+      { bucketId: "bucket_123", amount: 25000000000n },
+    ]);
+
+    const response = await createApp({ evlog: true }).request(
+      "http://localhost/me/usage",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idempotencyKey: "usage_probe",
+          credits: 2.5,
+          userId: TARGET_USER_ID,
+          organizationId: ORGANIZATION_ID,
+        }),
+      },
+    );
+    await Promise.all(waitUntilCapturedPromises);
+
+    expect(response.status).toBe(201);
   });
 
   it("returns 403 and debits nothing when the coworker is not bound to the user", async () => {

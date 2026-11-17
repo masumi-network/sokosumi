@@ -5,6 +5,7 @@ import { markNotificationsRead } from "@/helpers/notification-read";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -55,7 +56,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Scheduled rather than awaited, for the same reason the single-row route
     // schedules it: a failed publish must not cost the reader the read.
-    waitUntil(publishClearedNotifications(clearedRoomIds));
+    waitUntil(
+      runAsBackgroundWork(() => publishClearedNotifications(clearedRoomIds)),
+    );
 
     return ok(c, responseSchema.parse({ count }));
   });

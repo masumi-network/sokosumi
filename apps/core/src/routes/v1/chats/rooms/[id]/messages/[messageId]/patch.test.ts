@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountPatchChatRoomMessage from "./patch";
 
@@ -91,8 +96,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -188,6 +197,29 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     });
     waitUntilMock.mockImplementation(() => {});
   });
+
+  it.each([
+    { target: "scheduleChatRoomMessageUnfurls", mock: scheduleUnfurlsMock },
+    { target: "requeueEditedChatMessageSignal", mock: requeueSignalMock },
+  ])(
+    "runs an edit's $target as background work, off the request's event",
+    async ({ target, mock }) => {
+      expectBackgroundProbe(target);
+      // Shared code behind it calls `recordCoreError`, which would otherwise
+      // find this request still live.
+      mock.mockImplementationOnce(async () => probeBackgroundFailure(target));
+
+      const response = await createApp(userAuthContext, {
+        evlog: true,
+      }).request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "hello fixed" }),
+      });
+
+      expect(response.status).toBe(200);
+    },
+  );
 
   it("updates content and sets editedAt when content changes", async () => {
     const response = await patchMessage({ content: "hello fixed" });

@@ -1,4 +1,3 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { createMiddleware } from "hono/factory";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
@@ -6,6 +5,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS } from "@/schemas/admin.schema";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mountAddAdminMatchedChannelParticipantsFromOrganization from "./post";
 
 const {
@@ -166,17 +166,25 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
   });
 
   it("does not fail the request when realtime publish rejects after commit", async () => {
-    expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "Failed to publish chat membership status after org snapshot",
+      "Could not publish every effect of a channel membership change",
+      ["A realtime publish failed after the membership change was saved"],
     );
+    // A status message names the member; the publish error can quote it.
     publishChatRoomMembershipStatusMessagesBestEffortMock.mockRejectedValueOnce(
-      new Error("ably down"),
+      new Error('Payload "Dana joined the channel" rejected'),
     );
 
     const response = await post({ organizationId: "org_1" });
     expect(response.status).toBe(200);
     expect((await response.json()).data.added).toBe(2);
+    // One entry per status message that failed, the other published.
+    expect(errors[0]?.event.failures).toEqual([
+      { effect: "status_messages", failure: { errorName: "Error" } },
+    ]);
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Dana joined");
   });
 
   it("resolves the organization by slug", async () => {

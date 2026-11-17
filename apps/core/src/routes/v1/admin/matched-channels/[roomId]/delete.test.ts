@@ -5,6 +5,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import mountDeleteAdminMatchedChannel from "./delete";
 
@@ -135,6 +136,24 @@ describe("DELETE /admin/matched-channels/{roomId}", () => {
       [USER_A, USER_B],
       "removed",
     );
+  });
+
+  it("still deletes when the revoke publish fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish every effect of a channel membership change",
+      ["A realtime publish failed after the membership change was saved"],
+    );
+    publishChatMembershipRevokedToUsersMock.mockRejectedValueOnce(
+      new Error("ably down"),
+    );
+
+    const response = await remove();
+
+    expect(response.status).toBe(204);
+    expect(errors[0]?.event.failures).toEqual([
+      { effect: "membership_revoked", failure: { errorName: "Error" } },
+    ]);
   });
 
   it("deletes an empty archived matched channel without revoking anyone", async () => {

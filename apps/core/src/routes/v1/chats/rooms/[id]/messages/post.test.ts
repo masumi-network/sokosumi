@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountPostRoomMessage from "./post";
 
@@ -242,8 +247,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -2545,5 +2554,112 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
     });
+  });
+
+  describe("background work", () => {
+    // Each start below reaches shared code whose `recordCoreError` would
+    // otherwise find this request still live and write on its event.
+    it.each([
+      {
+        target: "emitChatHumanMentionNotifications",
+        mock: emitChatHumanMentionNotificationsMock,
+      },
+      { target: "scheduleChatRoomMessageUnfurls", mock: scheduleUnfurlsMock },
+      {
+        target: "emitChatDirectMessageNotifications",
+        mock: emitChatDirectMessageNotificationsMock,
+      },
+      {
+        target: "emitChatRoomMessageCreatedEffects",
+        mock: emitChatRoomMessageCreatedEffectsMock,
+      },
+    ])(
+      "runs a coworker post's $target as background work, off the request's event",
+      async ({ target, mock }) => {
+        expectBackgroundProbe(target);
+        mock.mockImplementationOnce(async () => probeBackgroundFailure(target));
+        roomFindFirstMock.mockResolvedValue({
+          id: ROOM_ID,
+          name: "Hannah",
+          kind: "direct",
+          organizationId: "org_1",
+        });
+        membershipFindManyMock.mockResolvedValue([
+          { userId: ALICE_ID },
+          { userId: BOB_ID },
+        ]);
+        persistChatHumanMentionsMock.mockResolvedValueOnce([ALICE_ID]);
+        messageCreateMock.mockResolvedValue(
+          createdMessage({
+            content: `@${ALICE_ID} please check`,
+            senderCoworkerId: COWORKER_ID,
+          }),
+        );
+
+        const response = await createApp(coworkerAuthContext, {
+          evlog: true,
+        }).request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: `@${ALICE_ID} please check` }),
+        });
+
+        expect(response.status).toBe(201);
+      },
+    );
+
+    it.each([
+      {
+        target: "emitChatMentionNotifications",
+        mock: emitChatMentionNotificationsMock,
+      },
+      {
+        target: "emitChatDirectMessageNotifications",
+        mock: emitChatDirectMessageNotificationsMock,
+      },
+      {
+        target: "emitChatRoomMessageCreatedEffects",
+        mock: emitChatRoomMessageCreatedEffectsMock,
+      },
+      { target: "scheduleChatRoomMessageUnfurls", mock: scheduleUnfurlsMock },
+      {
+        target: "enqueueChatMessageSignal",
+        mock: enqueueChatMessageSignalMock,
+      },
+    ])(
+      "runs a person's post's $target as background work, off the request's event",
+      async ({ target, mock }) => {
+        expectBackgroundProbe(target);
+        mock.mockImplementationOnce(async () => probeBackgroundFailure(target));
+        roomFindFirstMock.mockResolvedValue(
+          roomWithMembers({
+            kind: "direct",
+            name: "Alice",
+            userMembers: [
+              { userId: USER_ID, user: { name: "Patrick" } },
+              { userId: ALICE_ID, user: { name: "Alice" } },
+            ],
+            coworkerMembers: [],
+            sokoBotMembers: [],
+          }),
+        );
+        messageCreateMock.mockResolvedValue(
+          createdMessage({ senderUserId: USER_ID }),
+        );
+
+        const response = await createApp(userAuthContext, {
+          evlog: true,
+        }).request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "ping",
+            mentionedUserIds: [ALICE_ID],
+          }),
+        });
+
+        expect(response.status).toBe(201);
+      },
+    );
   });
 });

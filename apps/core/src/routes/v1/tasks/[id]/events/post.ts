@@ -48,9 +48,16 @@ import {
 } from "@/helpers/task-worker-context";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { runAsBackgroundWork } from "@/lib/evlog";
+import {
+  createCoreLogger,
+  emitCoreError,
+  emitCoreWarning,
+  recordCoreError,
+  runAsBackgroundWork,
+  tryUseLiveLogger,
+} from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
@@ -429,11 +436,17 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
         runAsBackgroundWork(() =>
           projectMemoryService.refreshAfterTaskCompleted({ projectId, taskId }),
         ).catch((error) => {
-          console.error("Project memory refresh failed", {
-            projectId,
-            taskId,
-            error,
-          });
+          // The memory is written from the task's text, which a database
+          // error can quote: content-free fields only.
+          emitCoreError(
+            { operation: "project_memory_refresh", projectId, taskId },
+            {
+              message: "Could not refresh a project's memory after a task",
+              why: "Refreshing the memory from the completed task failed",
+              fix: "The project's memory misses this task until its next refresh. If it repeats, look up the error name and code under failure.",
+            },
+            { failure: messageSafeErrorFields(error) },
+          );
           Sentry.captureException(error, {
             tags: { error_type: "project_memory_refresh_failed" },
             extra: { projectId, taskId },
@@ -448,7 +461,7 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
 
     if (event.status || addedParticipantUserIds.length > 0) {
       waitUntil(
-        (async () => {
+        runAsBackgroundWork(async () => {
           if (addedParticipantUserIds.length > 0) {
             await notifyTaskParticipantsAdded(
               taskId,
@@ -464,23 +477,35 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
               event.userId,
             );
           }
-        })(),
+        }),
       );
     }
 
     if (charged) {
-      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
+      waitUntil(
+        runAsBackgroundWork(() =>
+          notifyLowBalanceAfterCharge({ userId, organizationId }),
+        ),
+      );
     }
 
     // Unreachable by construction (a charged payment always writes its claim
     // in the same transaction). Never throw on it: the event and its debit are
     // already committed, so throwing would answer 500 for work that succeeded.
     if (masumiPayment != null && !taskPaymentClaimId) {
-      console.error("[tasks] masumi task payment: no durable claim", {
-        taskId,
-        taskEventId: event.id,
-        blockchainIdentifier: masumiPayment.blockchainIdentifier,
-      });
+      recordCoreError(
+        {
+          operation: "task_event_create",
+          taskId,
+          taskEventId: event.id,
+          blockchainIdentifier: masumiPayment.blockchainIdentifier,
+        },
+        {
+          message: "A Masumi task payment has no durable claim",
+          why: "The charged event was saved without its payment claim, which the transaction should make impossible",
+          fix: "No purchase is made for this payment. Find the payment by its blockchainIdentifier and buy or refund it by hand.",
+        },
+      );
       Sentry.captureMessage("Masumi task payment has no durable claim", {
         level: "error",
         tags: { error_type: "task_payment_claim_missing" },
@@ -506,23 +531,27 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
         },
       });
 
-      console.info("[tasks] masumi task payment: scheduling async purchase", {
-        taskId,
-        taskEventId,
-        blockchainIdentifier: masumiPayment.blockchainIdentifier,
-        agentIdentifier: masumiPayment.agentIdentifier,
+      tryUseLiveLogger()?.set({
+        taskPurchase: { scheduled: true, taskEventId },
       });
 
-      const masumiPurchasePromise = (async () => {
+      const purchaseContext = {
+        operation: "task_masumi_purchase",
+        taskId,
+        taskEventId,
+        claimId: taskPaymentClaimId,
+        blockchainIdentifier: masumiPayment.blockchainIdentifier,
+      };
+      // Starts before the response: background work, so nothing it logs
+      // lands on this request's event.
+      const masumiPurchasePromise = runAsBackgroundWork(async () => {
         try {
           const result = await processTaskPaymentClaim(taskPaymentClaimId);
           if (result.status === "purchased") {
-            console.info("[tasks] masumi task payment: purchase created", {
-              taskId,
-              taskEventId,
+            createCoreLogger({
+              ...purchaseContext,
               purchaseId: result.purchaseId,
-              blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            });
+            }).emit();
             Sentry.addBreadcrumb({
               category: "task_masumi_purchase",
               message: "Task purchase created",
@@ -551,37 +580,35 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
             return;
           }
           if (result.status === "retry_scheduled") {
-            // The processor returns the full reason. Redact it before applying
-            // the stdout cap; the database cap does not protect this log.
-            console.warn(
-              "[tasks] masumi task payment: retry scheduled",
-              redactDeep(
-                {
-                  taskId,
-                  taskEventId,
-                  claimId: taskPaymentClaimId,
-                  reason: formatUpstreamErrorForLog(result.reason),
-                },
-                getEnvSecrets(),
-              ),
-            );
+            // The processor returns the payment node's full reason: capped,
+            // and only in `cause`, where redaction runs.
+            emitCoreWarning(purchaseContext, {
+              message: "Scheduled a retry of a Masumi task purchase",
+              why: "The payment node did not accept the purchase yet",
+              fix: "The task-payment-claims sync retries it. If it keeps retrying, read the payment node's reason in cause.",
+              cause: formatUpstreamErrorForLog(result.reason),
+            });
           }
         } catch (error) {
           // Durable PENDING claim remains recoverable by cron. Never refund an
           // ambiguous branch: remote purchase may already exist.
-          console.error("[tasks] masumi task payment: processor failed", {
-            taskId,
-            taskEventId,
-            claimId: taskPaymentClaimId,
-            blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            error,
-          });
+          // Scheduling a retry writes the payment node's reason, and a Prisma
+          // validation error quotes it: content-free fields only.
+          emitCoreError(
+            purchaseContext,
+            {
+              message: "A Masumi task purchase failed before it finished",
+              why: "Processing the payment claim threw",
+              fix: "The claim stays PENDING and the task-payment-claims sync recovers it; never refund it by hand, the purchase may exist. Look up the error name and code under failure.",
+            },
+            { failure: messageSafeErrorFields(error) },
+          );
           Sentry.captureException(error, {
             tags: { error_type: "task_purchase_processor_failed" },
             extra: { taskId, taskEventId, claimId: taskPaymentClaimId },
           });
         }
-      })();
+      });
 
       waitUntil(masumiPurchasePromise);
     }

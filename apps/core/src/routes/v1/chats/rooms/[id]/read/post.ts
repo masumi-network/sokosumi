@@ -16,6 +16,7 @@ import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -129,9 +130,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return room;
     });
 
-    waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        publishClearedNotifications(clearedRows.map((row) => row.id)),
+      ),
+    );
     // The reader is in the room, so the email about it is no longer needed.
-    waitUntil(cancelNotificationEmails(clearedRows));
+    waitUntil(runAsBackgroundWork(() => cancelNotificationEmails(clearedRows)));
     // Seen by: the room hears about this reader within a moment, so the other
     // side is not left waiting on a poll. Best effort — the publisher swallows
     // its own failures and the next room payload carries the same mark.
@@ -148,11 +153,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     if (!roomHasGuest) {
       waitUntil(
-        publishChatRoomReadRealtime({
-          roomId: room.id,
-          userId: userContext.userId,
-          lastReadAt: readAt,
-        }),
+        runAsBackgroundWork(() =>
+          publishChatRoomReadRealtime({
+            roomId: room.id,
+            userId: userContext.userId,
+            lastReadAt: readAt,
+          }),
+        ),
       );
     }
 
