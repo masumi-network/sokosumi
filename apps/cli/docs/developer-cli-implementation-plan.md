@@ -14,9 +14,9 @@
 
 [VERIFIED: git history at `c2271e441`] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) merged the Core receipt route and CLI reader. [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:113-122`] The reader reports MPS settlement state after checking stored purchase terms. A settled result can have a null transaction hash. This source behavior does not prove a live Coworker payment.
 
-[VERIFIED: draft branch contents, 2026-09-30] These open draft PRs contain planning documents and corrections to existing guides. Each draft uses the preceding branch, with #5463 based on `main`.
+[VERIFIED: GitHub PR read, 2026-11-17] [#5463](https://github.com/masumi-network/sokosumi/pull/5463), [#5464](https://github.com/masumi-network/sokosumi/pull/5464), and [#5465](https://github.com/masumi-network/sokosumi/pull/5465) merged on 2026-09-30 as documentation only. The payment code those briefs describe is still unbuilt.
 
-| Draft                                                         | Proposed implementation                                        | Brief                                                                |
+| Brief                                                         | Proposed implementation                                        | Document                                                             |
 | ------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [#5463](https://github.com/masumi-network/sokosumi/pull/5463) | Seller binding and customer Task approval                      | [Seller authorization](mps-payment-stack/01-seller-authorization.md) |
 | [#5464](https://github.com/masumi-network/sokosumi/pull/5464) | Funding, execution, result submission, collection and recovery | [Paid runtime](mps-payment-stack/02-paid-runtime.md)                 |
