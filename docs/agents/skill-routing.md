@@ -86,7 +86,7 @@ To create, update, link, or move Sokosumi Tasks, read a Task spec, or drive the 
 
 ### Verify Sokosumi
 
-End-to-end launch, doctor, and browser proof for web + Core. First-party skill lives at [`.cursor/skills/verify-sokosumi/`](../../.cursor/skills/verify-sokosumi/) (not under `skills/`). Use `verify-sokosumi launch` / `doctor` / `sign-in` instead of inventing a local stack.
+End-to-end launch, doctor, and browser proof for web + Core. First-party skill lives at [`.cursor/skills/verify-sokosumi/`](../../.cursor/skills/verify-sokosumi/) (not under `skills/`). Use `verify-sokosumi launch` / `doctor` / `sign-in` instead of inventing a local stack. Codex and Claude Code see it through `.agents/skills/verify-sokosumi` and `.claude/skills/verify-sokosumi` (symlinks). Quickest proof on any machine: `bin/local-stack up`, then `node bin/drive.mjs <journey>` for screenshots and a video.
 
 ### Issue tracker
 

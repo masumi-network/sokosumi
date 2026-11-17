@@ -4,6 +4,8 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 
 ## Baseline preconditions
 
+- Fast path: `local-stack up` then `drive.mjs <journey>` (see SKILL.md). Its Web URL is `http://localhost:3100` and Alice is seeded. The bullets below are for the portless/agent-browser path.
+
 - Launch with `verify-sokosumi launch` (portless HTTPS named URLs). Read `web_url=` / `core_url=` from `verify-sokosumi doctor` — do not guess `:3000` / `:8787`. Record pids in `.cursor/verify-sokosumi-artifacts/state/dev.pids`.
 - Run `.cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor` and require `doctor ok` with `owned_by_verify=yes`.
 - Export the named URLs before driving recipes:
@@ -56,6 +58,8 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Contacts](./contacts.md) — `/contacts` team contacts (All / My / Recently added), including the empty state.
 - [Calendar](./calendar.md) — `/calendar` Work sidebar row after Schedules; Month / Week / Agenda with a Show filter.
 - [Content Studio](./studio.md) — `/studio` image studio (named styles with no `?projectId=`; picker only for a missing project).
+- [Studio ad generation](./studio-ad-generation.md): brief to ads in a project; Auto model routing; needs provider keys.
+- [Studio ad ratings](./studio-ratings.md): thumbs, reasons, comment on a generated ad; must survive reload.
 - [Social posts](./social.md) — `/social` post calendar (Marketing group; sidebar label **Social posts**).
 - [SEO](./seo.md) — `/seo` Marketing row. An empty workspace shows **Start your first SEO audit**; otherwise the audit list.
 - [Ads](./ads.md) — `/ads` Marketing row. With no project in scope, sample ads and **Pick a project**.

@@ -5,9 +5,31 @@ description: Drive the Sokosumi web app (and Core API) the way a user does — l
 
 # Verify Sokosumi
 
+Start with the **Fast path** below. The portless and agent-browser sections after it are the cloud-agent path.
+
 Project-local verification for agents that have never seen this app. Primary surface is the **web UI** at the portless named HTTPS URL (`web_url=` from doctor). Secondary surface is the **Core API** (`core_url=` — OpenAPI / curl). Web never talks to Postgres directly — Core owns the DB.
 
 Read `features/README.md` before driving. Use a matching feature file as the recipe. Prefer `agent-browser` over inventing selectors.
+
+## Fast path: local stack + recorded drive (no secrets, no sudo)
+
+Works on any Mac or Linux box, including a worktree for a PR branch. Needs Node 26, `pnpm install` and Chrome (or `VERIFY_SOKOSUMI_CHANNEL=chromium`).
+
+```bash
+S=.cursor/skills/verify-sokosumi/bin
+$S/local-stack up        # PGlite DB + migrations + fixtures, Core :8788, Web :3100; prints web_url=
+$S/local-stack doctor    # require "doctor ok" (fixture_auth=ok)
+node $S/drive.mjs list   # journeys
+node $S/drive.mjs studio-composer          # sign in as alice, drive, record
+node $S/drive.mjs route --path /projects   # screenshot any route
+$S/local-stack down      # stops only what `up` started; evidence stays
+```
+
+- Evidence per run: `.cursor/verify-sokosumi-artifacts/<journey>/<timestamp>/` with `NN-step.png`, `video.webm` and `summary.json` (steps, notes, console errors, 5xx responses). Read the screenshots before claiming a result.
+- `up` refuses when a port is taken. Pick other ports with `VERIFY_LOCAL_WEB_PORT`, `VERIFY_LOCAL_CORE_PORT`, `VERIFY_LOCAL_PG_PORT`; never drive an instance you did not start.
+- The DB is empty apart from the auth fixtures: no projects, no generated ads, no provider keys. Journeys that need those report it in `summary.json`; see the feature files.
+- To verify a PR: `git worktree add ../sokosumi-wt-pr-<n> origin/<branch>`, `pnpm install`, then the same five commands there. One stack at a time.
+- Ad-hoc exploration: Codex and Claude Code have the `chrome-devtools` MCP (isolated headless Chrome). Use it to look around, then turn a repeatable path into a `drive.mjs` journey.
 
 ## Launch
 
