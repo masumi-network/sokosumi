@@ -35,6 +35,9 @@ const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
 }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/projects/p/studio",
@@ -367,7 +370,10 @@ describe("a gallery with work in it", () => {
 
     mount([{ ...ASSET, projectId: "p" }]);
     fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
-    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    // Opening the preview and each download start async transitions.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    });
 
     const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
     const select = await preview.findByLabelText("approvedHeadline");
@@ -380,7 +386,9 @@ describe("a gallery with work in it", () => {
       expect(select).toHaveValue(removed);
       expect(download).toBeEnabled();
     });
-    fireEvent.click(download);
+    await act(async () => {
+      fireEvent.click(download);
+    });
     await waitFor(() =>
       expect(
         preview.queryByRole("option", { name: removed }),
@@ -393,7 +401,9 @@ describe("a gallery with work in it", () => {
       expect(select).toHaveValue(active);
       expect(download).toBeEnabled();
     });
-    fireEvent.click(download);
+    await act(async () => {
+      fireEvent.click(download);
+    });
     await waitFor(() =>
       expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
         expect.any(Blob),
@@ -445,7 +455,12 @@ describe("a gallery with work in it", () => {
     mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
     fireEvent.click(download);
     await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(download).toBeEnabled());
+    // A loading Button stays enabled but ignores clicks (aria-busy), so wait
+    // for the first attempt to finish, not only for the button to enable.
+    await waitFor(() => {
+      expect(download).toBeEnabled();
+      expect(download).not.toHaveAttribute("aria-busy");
+    });
     expect(mocks.createArchive).not.toHaveBeenCalled();
 
     fireEvent.click(download);

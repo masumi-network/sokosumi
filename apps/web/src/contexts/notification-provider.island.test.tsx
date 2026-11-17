@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render as renderComponent, screen } from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   NotificationProvider,
   useNotifications,
@@ -431,9 +431,7 @@ describe("NotificationProvider island", () => {
     lazyAblyProviderMock.mockImplementation((): ReactNode => null);
     getNotificationsMock.mockRejectedValue(new Error("network down"));
 
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to fetch notifications");
 
     render(
       <NotificationProvider userId="user-1">
@@ -449,8 +447,6 @@ describe("NotificationProvider island", () => {
     expect(screen.getByTestId("fetch-error")).toHaveTextContent("true");
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
     expect(useNotificationRealtimeMock).not.toHaveBeenCalled();
-
-    consoleError.mockRestore();
   });
 
   it("refetches after attachment and reconnection so REST-before-subscribe gaps close", async () => {
@@ -801,9 +797,7 @@ describe("NotificationProvider read state", () => {
   });
 
   it("refetches when putting a row back fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to mark notification as unread");
     await renderLoaded();
     const fetchCallsBefore = getNotificationsMock.mock.calls.length;
     patchNotificationUnreadMock.mockRejectedValueOnce(new Error("offline"));
@@ -817,7 +811,6 @@ describe("NotificationProvider read state", () => {
     expect(getNotificationsMock.mock.calls.length).toBeGreaterThan(
       fetchCallsBefore,
     );
-    consoleError.mockRestore();
   });
 });
 
@@ -918,9 +911,7 @@ describe("NotificationProvider paging", () => {
   });
 
   it("holds a failed page on the row instead of asking again", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to load older notifications");
     await renderLoaded();
     const callsBefore = getNotificationsMock.mock.calls.length;
     getNotificationsMock.mockRejectedValue(new Error("offline"));
@@ -945,7 +936,6 @@ describe("NotificationProvider paging", () => {
 
     expect(currentNotifications.olderStatus).toBe("idle");
     expect(currentNotifications.notifications).toHaveLength(3);
-    consoleError.mockRestore();
   });
 
   it("runs one page request at a time", async () => {
@@ -1104,9 +1094,14 @@ describe("NotificationProvider paging", () => {
   });
 
   it("drops a row Core no longer lists when it refuses it as a cursor", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole(
+      "error",
+      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+    );
+    expectConsole(
+      "error",
+      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+    );
     await renderLoaded();
     getNotificationsMock.mockRejectedValue(
       new CoreApiRequestError("Invalid pagination cursor", { status: 400 }),
@@ -1135,13 +1130,21 @@ describe("NotificationProvider paging", () => {
     });
     expect(currentNotifications.notifications).toHaveLength(1);
     expect(currentNotifications.olderStatus).toBe("failed");
-    consoleError.mockRestore();
   });
 
   it("lets a reader's retry drop one more row Core refuses", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole(
+      "error",
+      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+    );
+    expectConsole(
+      "error",
+      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+    );
+    expectConsole(
+      "error",
+      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+    );
     getNotificationsMock.mockResolvedValue({
       data: [NEWEST, OLDEST_LOADED, OLDER],
       meta: { pagination: { nextCursor: OLDER.id } },
@@ -1172,13 +1175,10 @@ describe("NotificationProvider paging", () => {
       NEWEST.id,
     ]);
     expect(currentNotifications.olderStatus).toBe("idle");
-    consoleError.mockRestore();
   });
 
   it("stays failed through a refresh until the reader retries", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to load older notifications");
     await renderLoaded();
     getNotificationsMock.mockRejectedValueOnce(new Error("offline"));
     await act(async () => {
@@ -1192,7 +1192,6 @@ describe("NotificationProvider paging", () => {
     });
 
     expect(currentNotifications.olderStatus).toBe("failed");
-    consoleError.mockRestore();
   });
 });
 
@@ -1252,9 +1251,8 @@ describe("NotificationProvider failed read writes", () => {
   }
 
   it("puts a row back to unread when marking it read fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to fetch notifications");
+    expectConsole("error", "Failed to mark notification as read");
     await renderOffline();
     patchNotificationReadMock.mockRejectedValue(new Error("offline"));
 
@@ -1269,13 +1267,11 @@ describe("NotificationProvider failed read writes", () => {
         ?.isRead,
     ).toBe(false);
     expect(currentNotifications.unreadCount).toBe(1);
-    consoleError.mockRestore();
   });
 
   it("puts a row back to read when marking it unread fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to fetch notifications");
+    expectConsole("error", "Failed to mark notification as unread");
     await renderOffline();
     patchNotificationUnreadMock.mockRejectedValue(new Error("offline"));
 
@@ -1290,13 +1286,11 @@ describe("NotificationProvider failed read writes", () => {
         ?.isRead,
     ).toBe(true);
     expect(currentNotifications.unreadCount).toBe(1);
-    consoleError.mockRestore();
   });
 
   it("leaves a row alone when a failed read never changed it", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to fetch notifications");
+    expectConsole("error", "Failed to mark notification as read");
     await renderOffline();
     patchNotificationReadMock.mockRejectedValue(new Error("offline"));
 
@@ -1310,6 +1304,5 @@ describe("NotificationProvider failed read writes", () => {
         ?.isRead,
     ).toBe(true);
     expect(currentNotifications.unreadCount).toBe(1);
-    consoleError.mockRestore();
   });
 });

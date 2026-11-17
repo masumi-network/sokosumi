@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 
 /** Done (green, check), working (dashed, dot) or not yet (hairline). */
-interface ChecklistItem {
+export interface ChecklistItem {
   label: string;
   state: "done" | "working" | "next";
 }

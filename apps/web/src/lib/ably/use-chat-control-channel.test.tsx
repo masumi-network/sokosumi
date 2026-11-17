@@ -30,6 +30,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyState.client,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { useChatControlChannel } from "./use-chat-control-channel";
 
 function handlerFor(eventName: string) {
@@ -100,9 +101,10 @@ describe("useChatControlChannel", () => {
 
   it("ignores a malformed rooms-changed payload", () => {
     const onRoomsChanged = vi.fn();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Failed to parse chat_rooms_changed event",
+    );
     renderHook(() =>
       useChatControlChannel({
         currentUserId: "user_1",
@@ -116,8 +118,7 @@ describe("useChatControlChannel", () => {
     });
 
     expect(onRoomsChanged).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalled();
-    consoleError.mockRestore();
+    expect(consoleError).not.toHaveLength(0);
   });
 
   it("does not subscribe without a current user id", () => {

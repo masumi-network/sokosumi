@@ -92,7 +92,6 @@ model User {
   sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
   sokoBotAskedTurns       SokoBotTurn[]            @relation("SokoBotTurnAskedBy")
-  sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
   sokoBotLegacyMessages   SokoBotLegacyMessage[]

@@ -33,6 +33,12 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
+import {
+  emitCoreWarning,
+  recordCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   type ProjectAccess,
@@ -88,6 +94,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
@@ -237,8 +244,7 @@ interface ReserveImageJobInput
  * all read the same count, all pass the limit, and each then buys an image — the
  * cap would bound a serial loop and not a burst. And a debit outside the insert
  * is a charge with no job to point at, or a job nobody paid for, depending on
- * which half failed. This is the same reasoning, and the same helper, that
- * `soko-bot-avatar.service.ts` uses for its generation cap.
+ * which half failed.
  */
 async function reserveJob(input: ReserveImageJobInput) {
   try {
@@ -912,8 +918,11 @@ export async function createImageJob(input: CreateImageJobInput) {
   const startsLettering =
     lettering === "ideogram" && input.modelId !== "ideogram-v3";
   const requestedModelId = startsLettering ? "gemini-pro" : input.modelId;
+  // A library style is a reference too: without it the job takes the model's
+  // generate endpoint, which refuses the reference it is then sent.
   const references =
     input.referenceAssetIds.length +
+    (input.referenceLibraryIds?.length ?? 0) +
     (input.useProductCutout ? 0 : (input.referenceFileIds?.length ?? 0));
   let settings: ImageJobSettings;
   try {
@@ -1271,11 +1280,24 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       variationIndex: job.variationIndex ?? null,
     };
   } catch (error) {
-    console.warn("[image-studio] a generation could not be prepared", {
-      jobId: job.id,
-      reason: preflightReason,
-      detail: error instanceof Error ? error.message : "unknown",
-    });
+    // The error can quote the prompt it was building, so no cause.
+    recordCoreWarning(
+      {
+        operation: "image_job_submit",
+        imageJobs: [
+          {
+            id: job.id,
+            failureReason: preflightReason,
+            failure: messageSafeErrorFields(error),
+          },
+        ],
+      },
+      {
+        message: "An image generation failed before it was sent",
+        why: "Preparing the request for the image provider threw",
+        fix: "Nothing was sent or charged and the job is marked failed. If this repeats, look up failureReason and the error name under failure.",
+      },
+    );
     // Nothing to give back: the charge happens on delivery, and there was none.
     return await prisma.projectImageJob.update({
       where: { id: job.id },
@@ -1291,18 +1313,26 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
 
   // Track the write through response completion without holding up the paid call.
   waitUntil(
-    (async () => {
+    runAsBackgroundWork(async () => {
       const { jobId: snapshotJobId, ...data } = snapshot;
       await prisma.projectImagePromptSnapshot.upsert({
         where: { jobId: snapshotJobId },
         create: snapshot,
         update: data,
       });
-    })().catch((error: unknown) => {
-      console.warn("[image-studio] could not save a prompt snapshot", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+    }).catch((error: unknown) => {
+      // The write carries the prompt, which a database error can quote.
+      emitCoreWarning(
+        {
+          operation: "image_prompt_snapshot",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not save the prompt snapshot of an image generation",
+          why: "The database write of the snapshot failed",
+          fix: "The generation goes on without it; only the record of the prompt sent is missing.",
+        },
+      );
     }),
   );
 
@@ -1325,11 +1355,20 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     case "rejected": {
       // fal answered and refused, so it enqueued nothing and charged nothing.
-      console.warn("[image-studio] provider refused a submission", {
-        jobId: job.id,
-        status: outcome.status,
-        providerDetail: outcome.message.slice(0, 500),
-      });
+      // The provider's message can quote the prompt, so only its status.
+      recordCoreWarning(
+        {
+          operation: "image_job_submit",
+          imageJobs: [
+            { id: job.id, provider: { name: "fal", status: outcome.status } },
+          ],
+        },
+        {
+          message: "The image provider refused a generation",
+          why: "fal answered the submission with a rejection",
+          fix: "Nothing was queued or charged and the job is marked failed. Look up the status under provider.",
+        },
+      );
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
@@ -1342,10 +1381,15 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       });
     }
     case "uncertain":
-      console.warn("[image-studio] submission outcome unknown", {
-        jobId: job.id,
-        providerDetail: outcome.message.slice(0, 500),
-      });
+      recordCoreWarning(
+        { operation: "image_job_submit", imageJobs: [{ id: job.id }] },
+        {
+          message:
+            "Could not tell whether the image provider received a generation",
+          why: "The submission to fal ended without a clear answer",
+          fix: "The job is marked uncertain and is never refunded on its own; reconciling it asks fal for the outcome.",
+        },
+      );
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
@@ -1696,11 +1740,18 @@ export async function failImageJob(
     // Where a raw transport string belongs. "Unexpected status code: 422" is
     // useful to whoever is debugging the job and useless to whoever was waiting
     // for the image.
-    console.warn("[image-studio] provider failed a generation", {
-      jobId,
-      reason,
-      providerDetail: providerDetail.slice(0, 500),
-    });
+    // Its text can quote the prompt, so only that it came with one.
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [{ id: jobId, failureReason: reason }],
+      },
+      {
+        message: "The image provider failed a generation",
+        why: "fal reported the generation as failed",
+        fix: "The job is marked failed and nothing is charged. Look up failureReason; the provider's own text is not logged because it can quote the prompt.",
+      },
+    );
   }
   await prisma.projectImageJob.updateMany({
     where: {
@@ -1724,7 +1775,7 @@ export async function failImageJob(
  */
 function nudgeCmoMonth(jobId: string): void {
   waitUntil(
-    (async () => {
+    runAsBackgroundWork(async () => {
       const job = await prisma.projectImageJob.findUnique({
         where: { id: jobId },
         select: { projectId: true, idempotencyKey: true },
@@ -1734,11 +1785,19 @@ function nudgeCmoMonth(jobId: string): void {
         "@/services/cmo-cuso.service"
       );
       await startCmoProductionForProject(job.projectId);
-    })().catch((error: unknown) => {
-      console.warn("[image-studio] could not move a CMO month on", {
-        jobId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+    }).catch((error: unknown) => {
+      // CMO production writes generated text, which its errors can quote.
+      emitCoreWarning(
+        {
+          operation: "image_job_cmo_nudge",
+          imageJobs: [{ id: jobId, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not move a CMO month on after an image settled",
+          why: "Starting CMO production for the project threw",
+          fix: "Nothing is lost: the CMO production sync moves the month on within ten minutes.",
+        },
+      );
     }),
   );
 }
@@ -1756,6 +1815,28 @@ export async function settleWithMedia(
 ): Promise<void> {
   await storeMedia(jobId, sourceUrl, providerSize);
   nudgeCmoMonth(jobId);
+}
+
+/** Media types a log may name; the rest of a Content-Type is the provider's text. */
+const LOGGABLE_MEDIA_TYPES: ReadonlySet<string> = new Set([
+  "image/avif",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/jpeg",
+  "image/png",
+  "image/svg+xml",
+  "image/tiff",
+  "image/webp",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+
+/** The provider's Content-Type cut to a known media type, else `unrecognized`. */
+function loggableMediaType(contentType: string | null | undefined): string {
+  const type = contentType?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  return LOGGABLE_MEDIA_TYPES.has(type) ? type : "unrecognized";
 }
 
 /**
@@ -1861,9 +1942,13 @@ async function storeMedia(
   // image published by accident is not.
   const studioBlobToken = readStudioBlobToken();
   if (!studioBlobToken) {
-    console.error(
-      "[image-studio] settlement deferred: IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the generated image has nowhere private to go.",
-      { jobId: job.id },
+    recordCoreError(
+      { operation: "image_job_settle", imageJobs: [{ id: job.id }] },
+      {
+        message: "Deferred storing a generated image",
+        why: "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set, so the image has nowhere private to go",
+        fix: "Set IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN for this deployment; the job stays live and settles on the next reconcile.",
+      },
     );
     await releaseSettlementLease(job.id, lease);
     // An outage, not a verdict. `failImageJob` was wrong here: fal has already
@@ -1954,11 +2039,25 @@ async function storeMedia(
     // Not a failure: the column holds 0 and the client falls back to the rendered
     // image's intrinsic size. Logged because a format nothing can read is worth
     // knowing about.
-    console.warn("[image-studio] stored an image with no readable dimensions", {
-      jobId: job.id,
-      contentType: downloaded.contentType,
-      bytes: downloaded.bytes.byteLength,
-    });
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [
+          {
+            id: job.id,
+            media: {
+              contentType: loggableMediaType(downloaded.contentType),
+              bytes: downloaded.bytes.byteLength,
+            },
+          },
+        ],
+      },
+      {
+        message: "Stored a generated image without dimensions",
+        why: "Neither the provider nor the image header gave a width and height",
+        fix: "The image works; clients use its rendered size. If one content type repeats, teach readImageDimensionsFromBytes that format.",
+      },
+    );
   }
 
   // Private, and into the studio's own store — `studioBlobToken`, never
@@ -2238,13 +2337,24 @@ async function insertAsset(input: {
         // serialization failure — is transient, and rethrowing lets the settler
         // retry the whole thing rather than silently giving an image away.
         if (!isInsufficientBalanceError(error)) throw error;
-        console.error(
-          "[image-studio] delivered an image free: the balance no longer covered the quote",
+        recordCoreError(
           {
-            jobId: input.job.id,
-            quotedCents: chargedCents.toString(),
-            userId: input.job.requestedByUserId,
-            organizationId: input.job.organizationId,
+            operation: "image_job_settle",
+            // The requester lives on the job entry: a poll's own user.id is
+            // the reader, and several jobs can settle on one event.
+            imageJobs: [
+              {
+                id: input.job.id,
+                quotedCents: chargedCents.toString(),
+                requestedByUserId: input.job.requestedByUserId,
+                organizationId: input.job.organizationId,
+              },
+            ],
+          },
+          {
+            message: "Delivered a generated image without charging for it",
+            why: "The balance no longer covered the quote when the image was stored",
+            fix: "The image was kept and the charge dropped. If this repeats, check why reservations no longer hold the quoted credits.",
           },
         );
         chargedCents = 0n;
@@ -2375,9 +2485,19 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   // Deployments without a reachable webhook settle here, so this is also where
   // a reservation stranded by a crashed request gets picked back up.
   await recoverUnclaimedReservations({ projectId }).catch((error) => {
-    console.warn("[image-studio] reservation recovery failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Recovery sends prompts to the provider, whose errors can quote them.
+    recordCoreWarning(
+      {
+        operation: "image_job_reconcile",
+        project: { id: projectId },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "Could not recover stranded image reservations for a project",
+        why: "Recovering unclaimed reservations threw",
+        fix: "Nothing is lost: the next poll or the image-jobs sync tries again.",
+      },
+    );
   });
   const pending = await prisma.projectImageJob.findMany({
     where: { projectId, ...recoverableSelection() },
@@ -2391,10 +2511,20 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
     try {
       await reconcileJob(job.id);
     } catch (error) {
-      console.warn("[image-studio] reconcile failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Provider reads and settlement errors can quote the prompt.
+      // An array: evlog appends it, so each failed job keeps its own entry
+      // when one poll fails several on the request's event.
+      recordCoreWarning(
+        {
+          operation: "image_job_reconcile",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not reconcile an image job",
+          why: "Asking the provider for the job's outcome or settling it threw",
+          fix: "The job stays live; the next poll or the image-jobs sync tries again.",
+        },
+      );
     }
   }
 }
@@ -2458,10 +2588,17 @@ export async function reconcileStaleJobs(options: {
       await reconcileJob(job.id);
       reconciled += 1;
     } catch (error) {
-      console.warn("[image-studio] stale reconcile failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      recordCoreWarning(
+        {
+          operation: "image_job_reconcile",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not reconcile a stale image job",
+          why: "Asking the provider for the job's outcome or settling it threw",
+          fix: "The job stays live; the next image-jobs sync tries again.",
+        },
+      );
     }
   }
   return {
@@ -2649,10 +2786,20 @@ export async function recoverUnclaimedReservations(
       if (!isAccessDenied(error)) {
         // Could not ask. Leave the row alone and try on the next sweep;
         // failing to check is not the same as being refused.
-        console.warn("[image-studio] recovery access check unavailable", {
-          jobId: job.id,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        // The failure rides on the job's own entry: a cause in warnings[]
+        // could not be matched to its job once a poll logs several.
+        recordCoreWarning(
+          {
+            operation: "image_job_recovery",
+            imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+          },
+          {
+            message:
+              "Could not check access before recovering an image reservation",
+            why: "The project access check failed without an answer",
+            fix: "The reservation is left alone and the next sweep checks again. If it repeats, look up the error name and code on its imageJobs entry.",
+          },
+        );
         continue;
       }
     }
@@ -2680,10 +2827,18 @@ export async function recoverUnclaimedReservations(
       await sendClaimedJob(job.id, access.organizationId);
       submitted += 1;
     } catch (error) {
-      console.warn("[image-studio] recovery submit failed", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Sending builds the prompt, which its errors can quote.
+      recordCoreWarning(
+        {
+          operation: "image_job_recovery",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not send a recovered image reservation",
+          why: "Submitting the claimed job to the provider threw",
+          fix: "The job keeps its claim and the stalled-submission sweep resolves it. If this repeats, look up the error name and code under failure.",
+        },
+      );
     }
   }
   return { submitted, abandoned, denied };

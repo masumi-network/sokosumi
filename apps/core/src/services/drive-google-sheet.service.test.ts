@@ -17,7 +17,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeOwnerDriveFile,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import {
   googleSpreadsheetId,
   readGoogleSheet,
@@ -197,7 +197,11 @@ describe("refreshGoogleSheetLink", () => {
   });
 
   it("keeps the copy and records why when the sheet is no longer shared", async () => {
-    expectConsole("warn", "[drive-google-sheet] Refresh failed");
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not refresh a linked Google Sheet",
+      ["Exporting the sheet from Google or storing its copy failed"],
+    );
     await linkedTo("<v>1</v>");
     respondWith("<html>Sign in</html>", { "content-type": "text/html" });
 
@@ -205,6 +209,36 @@ describe("refreshGoogleSheetLink", () => {
 
     expect(writeOwnerDriveFile).not.toHaveBeenCalled();
     expect(link?.error).toBe("not_shared");
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "drive_google_sheet_refresh",
+      googleSheetRefreshFailures: [
+        { reason: "not_shared", errorName: "Error" },
+      ],
+    });
+  });
+
+  it("logs a failed copy without the error text, which can quote the sheet", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not refresh a linked Google Sheet",
+      ["Exporting the sheet from Google or storing its copy failed"],
+    );
+    await linkedTo("<v>1</v>");
+    sheetResponse(await workbook("<v>2</v>", "2026-11-12T12:00:00Z"));
+    pdfResponse();
+    writeOwnerDriveFile.mockRejectedValue(
+      new Error('upload "Confidential payroll Q3" sk_live_abc123 failed'),
+    );
+
+    const link = await refreshGoogleSheetLink("file");
+
+    expect(link?.error).toBe("failed");
+    expect(warnings[0]?.event).toMatchObject({
+      googleSheetRefreshFailures: [{ reason: "failed", errorName: "Error" }],
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential payroll");
+    expect(drained).not.toContain("sk_live");
   });
 
   it("does not bring back a file deleted while Google answered", async () => {

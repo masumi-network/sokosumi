@@ -27,11 +27,9 @@ import { put } from "@vercel/blob";
 import { gateway, generateText, Output } from "ai";
 import pLimit from "p-limit";
 import sharp from "sharp";
-import {
-  embedContactTexts,
-  vectorLiteral,
-} from "../src/lib/contacts/embeddings";
+import { vectorLiteral } from "../src/lib/contacts/embeddings";
 import prisma from "../src/lib/db/prisma";
+import { embedTexts } from "../src/lib/embeddings";
 import type { ReferenceDescription } from "../src/lib/reference-library/description";
 import {
   clipDescription,
@@ -298,11 +296,12 @@ async function load(root: string): Promise<void> {
     await readJsonl<Described>(path.join(root, "_meta", "descriptions.jsonl"))
   ).filter((row) => uploaded.has(row.path) && !existing.has(row.path));
   console.log(`${existing.size} loaded, ${rows.length} to go`);
-  const BATCH = 100;
+  // The embedding model takes at most 20,000 input tokens a request; 100 descriptions ran over.
+  const BATCH = 25;
   let costUsd = 0;
   for (let at = 0; at < rows.length; at += BATCH) {
     const batch = rows.slice(at, at + BATCH);
-    const { embeddings, costUsd: cost } = await embedContactTexts(
+    const { embeddings, costUsd: cost } = await embedTexts(
       batch.map(searchText),
     );
     costUsd += cost;

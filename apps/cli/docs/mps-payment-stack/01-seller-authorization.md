@@ -1,18 +1,14 @@
 # MPS seller setup and Task authorization
 
-[PROPOSED] Draft title: `docs(cli): plan MPS seller setup and Task authorization`.
+[VERIFIED: GitHub PR read, 2026-11-17] This brief merged on 2026-09-30 as [#5463](https://github.com/masumi-network/sokosumi/pull/5463) (documentation only). The payment code is still unbuilt.
 
-[PROPOSED] Later implementation title: `feat(coworkers): configure MPS sellers and authorize Task payments`.
-
-[PROPOSED] Implementation status: **Planned**. Owner: coordinator. This documentation PR defines the implementation. It contains no payment code.
+[PROPOSED] Implementation status: **Planned**. Owner: coordinator.
 
 [REPORTED: coordinator task, 2026-09-30] The user requested three draft implementation briefs. MPS is required.
 
 ## Dependency and outcome
 
-[PROPOSED] Branch: `sok-1132-mps-seller-authorization`. Base: `main`.
-
-[VERIFIED: GitHub PR read, 2026-09-30] #5342 merged at `2026-09-30T07:43:45Z` as `c2271e4418faae9f8cae527bc1e29354975c8fa5`. This draft starts after that receipt change.
+[VERIFIED: GitHub PR read, 2026-09-30] #5342 merged at `2026-09-30T07:43:45Z` as `c2271e4418faae9f8cae527bc1e29354975c8fa5`. This brief follows that receipt change.
 
 [PROPOSED] A Vendor admin connects a verified MPS seller. A customer approves fixed terms for one Task. CLI reports readiness and approved amounts. Setup alone must not enable incomplete payments.
 

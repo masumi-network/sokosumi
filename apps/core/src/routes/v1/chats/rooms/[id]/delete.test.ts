@@ -1,6 +1,12 @@
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountDeleteChatRoom from "./delete";
 
@@ -50,8 +56,19 @@ vi.mock("@/clients/email.client", () => ({
   sendEmail: vi.fn(),
 }));
 
+vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/helpers/notification-email-dispatch")
+    >();
+  return {
+    ...actual,
+    cancelNotificationEmails: vi.fn(actual.cancelNotificationEmails),
+  };
+});
+
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => background.push(work),
+  waitUntil: vi.fn((work: Promise<unknown>) => background.push(work)),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -81,8 +98,9 @@ function member(id: string, access: "member" | "guest" = "member") {
   };
 }
 
-function createApp(userId = SELF_ID) {
+function createApp(userId = SELF_ID, options: { evlog?: boolean } = {}) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
@@ -223,6 +241,22 @@ describe("DELETE /chats/rooms/{id}", () => {
       },
       select: { id: true, emailId: true, emailScheduledAt: true },
     });
+  });
+
+  it("cancels the room's mail as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("cancelNotificationEmails");
+    vi.mocked(cancelNotificationEmails).mockImplementationOnce(async () =>
+      probeBackgroundFailure("cancelNotificationEmails"),
+    );
+    roomFindFirstMock.mockResolvedValue(archivedRoom());
+
+    const response = await createApp(SELF_ID, { evlog: true }).request(
+      `/${ROOM_ID}`,
+      { method: "DELETE" },
+    );
+    await Promise.all(background);
+
+    expect(response.status).toBe(204);
   });
 
   it("rejects a plain member who is not the creator", async () => {

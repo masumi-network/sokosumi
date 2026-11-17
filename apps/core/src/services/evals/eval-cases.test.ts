@@ -48,7 +48,6 @@ const NOT_YET_COVERED = new Set([
   "export_contacts_to_table",
   "find_ad_targeting",
   "find_contact_duplicates",
-  "find_style_references",
   "find_integrations",
   "generate_image",
   "generate_video",
@@ -201,5 +200,17 @@ describe("eval cases", () => {
         (evalCase) => evalCase.id,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("CMO chat setup", () => {
+  it("seeds the change request's plan and the comment case's post", () => {
+    const prepared = (id: string) => {
+      const found = EVAL_CASES.find((evalCase) => evalCase.id === id);
+      return found?.kind === "scenario" ? found.prepare : undefined;
+    };
+    expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
+    expect(prepared("cmo-brand-fit")).toBe("cmo-brand");
   });
 });

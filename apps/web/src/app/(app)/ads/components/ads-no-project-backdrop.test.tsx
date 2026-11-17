@@ -3,11 +3,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import messages from "@/../messages/en.json";
 
 import { AdsNoProjectBackdrop } from "./ads-no-project-backdrop";
+
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
 
 const SAMPLES = messages.App.Ads.backdrop;
 const here = dirname(fileURLToPath(import.meta.url));

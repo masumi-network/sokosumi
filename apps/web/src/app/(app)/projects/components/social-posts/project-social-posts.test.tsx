@@ -53,6 +53,9 @@ import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import { loadMoreSocialPosts, loadSocialPostQuoteCandidates } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdSocialConnections: (...args: unknown[]) =>

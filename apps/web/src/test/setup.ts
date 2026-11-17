@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TextDecoder, TextEncoder } from "node:util";
-
+import { installConsoleGuard } from "@sokosumi/utils/test-console";
 import { createElement } from "react";
 import { afterAll, vi } from "vitest";
 
@@ -31,7 +31,6 @@ afterAll(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
   vi.restoreAllMocks();
-  console.error = originalConsoleError;
   restoreGlobals();
 });
 
@@ -61,20 +60,7 @@ if (typeof globalThis.TextDecoder === "undefined") {
   globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
 }
 
-const originalConsoleError = console.error;
-
-console.error = (...args: unknown[]) => {
-  const [firstArg] = args;
-
-  if (
-    typeof firstArg === "string" &&
-    firstArg.includes("ReactDOMTestUtils.act")
-  ) {
-    return;
-  }
-
-  originalConsoleError(...args);
-};
+installConsoleGuard();
 
 if (typeof globalThis.__dirname === "undefined") {
   globalThis.__dirname = process.cwd();

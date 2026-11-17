@@ -8,7 +8,6 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import {
   humanProjectReaderVisibility,
   resolveProjectReaderAccess,
-  resolveProjectReaderVisibility,
 } from "./project";
 
 vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
@@ -123,20 +122,6 @@ describe("resolveProjectReaderAccess", () => {
         }),
       ),
     );
-  });
-
-  it("keeps the Prisma-only wrapper on the same grant lookup", async () => {
-    vi.mocked(hasGrantedWorkspaceAccess).mockResolvedValue(true);
-
-    const visibility = await resolveProjectReaderVisibility(
-      COWORKER_AUTH,
-      WORKSPACE_ID,
-    );
-
-    expect(hasGrantedWorkspaceAccess).toHaveBeenCalledOnce();
-    expect(visibility.taskWhere).toMatchObject({
-      status: { not: TaskStatus.DRAFT },
-    });
   });
 });
 

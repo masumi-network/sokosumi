@@ -2,9 +2,19 @@ import type {
   CmoCalendarEntry,
   MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { waitUntil } from "@vercel/functions";
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+
+import { coreEvlogMiddleware, recordCoreWarning } from "@/lib/evlog";
+import { findCusoForBot } from "@/services/cmo-cuso.service";
 
 import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 
 const {
   turnFindMany,
@@ -105,6 +115,7 @@ import {
   cmoProductionSteps,
   cmoReadyPieceIds,
   cmoSyncOrder,
+  kickCmoProduction,
   readCmoProduction,
   syncCmoProduction,
 } from "./cmo-production.service";
@@ -375,6 +386,64 @@ describe("cmoProductionMessage", () => {
     expect(message).toContain("DONE:");
     expect(cmoMixLedger(strategy(calendar))).toBe(
       "educational 1 of 2 (plan 60%), promotional 1 of 2 (plan 40%)",
+    );
+  });
+
+  it("asks for picture styles only where the reference library is set up and a piece has a picture", () => {
+    const withPicture = [entry({ id: "a", format: "image" })];
+    const input = {
+      businessName: "Acme",
+      strategy: strategy(withPicture),
+      pending: withPicture.map((item) => piece(item)),
+      connected: new Set<string>(),
+      attempt: 1,
+      topUp: false,
+    };
+    expect(cmoProductionMessage({ ...input, styles: true })).toContain(
+      "call find_style_references",
+    );
+    expect(cmoProductionMessage(input)).not.toContain("find_style_references");
+    // Text has no picture; a carousel's slides each carry their own words.
+    for (const patch of [
+      { id: "b" },
+      { id: "c", channel: "instagram", format: "carousel" },
+    ]) {
+      const other = [entry(patch)];
+      expect(
+        cmoProductionMessage({
+          ...input,
+          strategy: strategy(other),
+          pending: other.map((item) => piece(item)),
+          styles: true,
+        }),
+      ).not.toContain("find_style_references");
+    }
+  });
+
+  it("makes the whole month from a short plan: titled weeks like week one", () => {
+    // The first plan writes week one in full and weeks two to four as titles.
+    const calendar = Array.from({ length: 16 }, (_, index) =>
+      entry({
+        id: `e${index + 1}`,
+        date: `2026-11-${String(5 + index).padStart(2, "0")}`,
+        title: `Piece ${index + 1}`,
+        ...(index < 4 ? { brief: `What piece ${index + 1} shows.` } : {}),
+      }),
+    );
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+
+    expect(message).toContain("Pieces (16):");
+    for (const item of calendar) expect(message).toContain(`- ${item.id} ·`);
+    expect(message).toContain("brief: What piece 1 shows.");
+    expect(message).toContain(
+      '"Piece 16" · (no brief: write it from its title, approach and pillar)',
     );
   });
 
@@ -708,6 +777,97 @@ describe("advanceCmoProduction", () => {
     expect(started.message).not.toContain("- e1 ·");
   });
 
+  it("still starts the run when the pictures fail, logging no prompt", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "CMO pictures did not move on this round",
+      ["Advancing the month's pictures threw"],
+    );
+    advanceMedia.mockRejectedValue(
+      new Error("Image job failed for SENTINEL-PROMPT a sunlit bookshop"),
+    );
+    await advanceCmoProduction(
+      cuso(
+        [post({ draft: "Done." }), post({ id: "news" })],
+        [
+          {
+            clientTurnId: `${RUN}:1:0`,
+            status: "COMPLETED",
+            createdAt: hoursAgo(48),
+          },
+        ],
+      ),
+      NOW,
+    );
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_media",
+      sokoBot: { id: "bot-1" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("logs a kicked run's warnings on their own event, not the request's", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "CMO pictures did not move on this round",
+      ["Advancing the month's pictures threw"],
+    );
+    advanceMedia.mockRejectedValue(new Error("image studio down"));
+    vi.mocked(findCusoForBot).mockResolvedValue(
+      cuso([post({ draft: "Done." })], []) as never,
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/kick", async (c) => {
+      kickCmoProduction("bot-1");
+      // waitUntil work can log while the request's event is still live.
+      await vi.mocked(waitUntil).mock.calls[0]?.[0];
+      return c.json({ ok: true });
+    });
+    await app.request("http://localhost/kick", { method: "POST" });
+    expect(warnings[0]?.event).toMatchObject({ operation: "cmo_media" });
+    expect(warnings[0]?.event.method).toBeUndefined();
+    expect(warnings[0]?.event.path).toBeUndefined();
+  });
+
+  it("keeps a kicked run's turn-start warnings off the live request", async () => {
+    const warnings = expectCoreLog("warn", "Turn start cleanup stand-in");
+    // Stands in for the control plane's own cleanup warning while a turn
+    // starts: mixed-context code, so it follows the background marker.
+    startTurn.mockImplementation(async () => {
+      recordCoreWarning(
+        { operation: "soko_bot_turn_start" },
+        { message: "Turn start cleanup stand-in", why: "A test stand-in" },
+      );
+      return { turnId: "run-1", status: "QUEUED" };
+    });
+    // The kick reads the clock; the fixtures are dated against NOW.
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    vi.mocked(findCusoForBot).mockResolvedValue(
+      cuso([post({ id: "a" }), post({ id: "b" })]) as never,
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/approve", async (c) => {
+      kickCmoProduction("bot-1");
+      // The work logs while the request's event is still live.
+      await vi.mocked(waitUntil).mock.calls[0]?.[0];
+      return c.json({ ok: true });
+    });
+    await app.request("http://localhost/approve", { method: "POST" });
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "soko_bot_turn_start",
+    });
+    expect(warnings[0]?.event.method).toBeUndefined();
+    expect(warnings[0]?.event.path).toBeUndefined();
+  });
+
   it("stops after four runs in a day and tries again the next", async () => {
     const runs = [1, 2, 3, 4].map((n) => ({
       clientTurnId: `${RUN}:${5 - n}:0`,
@@ -815,5 +975,32 @@ describe("syncCmoProduction", () => {
       }),
       data: { requestedByUserId: "owner-2" },
     });
+  });
+
+  it("logs each Cuso it skipped as its own event, without the error text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "CMO production sync skipped a Cuso",
+      [
+        "Advancing this Cuso's production threw",
+        "Advancing this Cuso's production threw",
+      ],
+    );
+    const hire = (sokoBotId: string) => ({
+      sokoBotId,
+      projectId: `project-${sokoBotId}`,
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+      businessName: "acme.io",
+    });
+    listCusos.mockResolvedValue([hire("bot-1"), hire("bot-2")]);
+    cmoRunnerUserId.mockRejectedValue(
+      new Error("Plan SENTINEL-PLAN launch week could not be read"),
+    );
+    await expect(syncCmoProduction()).resolves.toEqual({ checked: 0 });
+    expect(warnings.map((warning) => warning.event.sokoBot)).toEqual(
+      expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
+    );
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PLAN");
   });
 });

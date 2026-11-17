@@ -4,6 +4,7 @@ import type {
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
 import {
+  normalizeWebsiteUrl,
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
@@ -37,6 +38,17 @@ export const SEO_COUNTRIES = [
   "NL",
   "BR",
   "PT",
+] as const;
+
+/** The search languages of the markets above. */
+export const SEO_LANGUAGES = [
+  "en",
+  "de",
+  "fr",
+  "es",
+  "it",
+  "nl",
+  "pt",
 ] as const;
 export const SEO_ANALYSIS_KINDS = [
   "page_check",
@@ -94,6 +106,12 @@ export function defaultFullAuditSeconds(pageCount: number) {
     SEO_FULL_AUDIT_FIRST_PAGE_SECONDS +
       Math.max(0, pageCount - 1) * SEO_FULL_AUDIT_RELATED_PAGE_SECONDS,
   );
+}
+
+/** A typed page address: "example.com" means https://example.com/; Core checks the rest. */
+function formUrl(form: FormData) {
+  const typed = formText(form, "url");
+  return normalizeWebsiteUrl(typed) ?? typed;
 }
 
 export function formText(form: FormData, name: string) {
@@ -174,7 +192,7 @@ export function editSeoCommand(
     return {
       kind: "add_page",
       body: {
-        url: formText(form, "url"),
+        url: formUrl(form),
         label: formText(form, "label"),
         relationship: relatedToPageId ? "related" : "primary",
         ...(relatedToPageId ? { relatedToPageId } : {}),
@@ -198,7 +216,7 @@ export function editSeoCommand(
     return { kind: "create_scope", body };
   }
   if (kind === "competitor") {
-    const url = formText(form, "url");
+    const url = formUrl(form);
     const current = workspace.competitors.find(
       (row) => row.url === url && row.version > 0,
     );

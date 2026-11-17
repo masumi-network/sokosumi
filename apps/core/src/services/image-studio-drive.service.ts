@@ -6,7 +6,9 @@ import {
 
 import prisma from "@/lib/db/prisma";
 import { drivePut } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
@@ -247,10 +249,20 @@ export async function publishStudioAssetToFiles(input: {
       });
     }
   } catch (error) {
-    console.warn("[image-studio] could not add the asset to Files", {
-      jobId: input.jobId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // The file name is made from the prompt, which the error can quote.
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [
+          { id: input.jobId, failure: messageSafeErrorFields(error) },
+        ],
+      },
+      {
+        message: "Could not add a generated image to Files",
+        why: "Writing the image into the Content Studio folder failed",
+        fix: "The image stays in the studio; attaching it anywhere adds it to Files again.",
+      },
+    );
   }
 }
 
@@ -328,10 +340,18 @@ export async function moveLegacyStudioFolderTasks(
         where: { id: task.id },
         data: { updatedAt: new Date() },
       });
-      console.warn("[image-studio] could not move a folder Task to Files", {
-        taskId: task.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // The error can name the person's files, so no cause.
+      recordCoreWarning(
+        {
+          operation: "image_studio_legacy_folder_move",
+          tasks: [{ id: task.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not move an old studio folder Task to Files",
+          why: "Copying its files into the Content Studio folder failed",
+          fix: "The Task is kept and the next image-jobs sync tries the others first, then this one again.",
+        },
+      );
     }
   }
   return { moved, failed };

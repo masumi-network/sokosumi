@@ -6,7 +6,7 @@ Content Studio lets a signed-in user open `/studio` and generate images. With no
 
 - `studio-open` loads `/studio` while authenticated.
 - `studio-workspace` shows the image studio with no `?projectId=` — heading **Create your first ad**, the floating ad preview canvas, the prompt composer with an **Ad templates** menu, **Choose what to make**, and a **Select project** button (`data-testid="studio-no-project"`). When the catalog includes video models, the composer also shows **Image** / **Video**. Fixture users with no projects land here. That button is not the headings **Pick a project** / **Choose a project**.
-- `studio-project-picker` is the same **Select project** control when `?projectId=` is present but Core returns 404 for that id (`pickUnavailable` body, still `data-testid="studio-no-project"`). `ProjectScopeGuard` often then clears the unknown id and lands on `studio-workspace`. Invalid UUIDs error (422) rather than picker.
+- `studio-project-picker` is the same **Select project** control when `?projectId=` is present but Core returns 404 for that id (still `data-testid="studio-no-project"`). The `pickUnavailable` sentence is the selector's reason when **Select project** is used, not copy painted on the page. `ProjectScopeGuard` often then clears the unknown id and lands on `studio-workspace`. Invalid UUIDs error (422) rather than picker.
 - `studio-gated` is covered by the shared app auth gate (anonymous users bounce to sign-in).
 
 ## How to get to it (user POV)

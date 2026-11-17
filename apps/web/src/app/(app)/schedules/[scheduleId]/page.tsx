@@ -33,6 +33,7 @@ import {
   taskScheduleZoneName,
 } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
+import { BackLink } from "@/components/back-link";
 import { Badge } from "@/components/ui/badge";
 import {
   HOLDER_CLASS,
@@ -171,13 +172,13 @@ async function TaskScheduleDetailContent({
           <div className={TASK_DETAIL_MAIN_CLASS}>
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <Link
+                <BackLink
                   href={TASK_SCHEDULES_PATH}
                   className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
                 >
                   <ArrowLeft className="size-4" aria-hidden />
                   {t("Detail.back")}
-                </Link>
+                </BackLink>
                 {schedule.canWrite ? (
                   <TaskScheduleActions
                     schedule={schedule}

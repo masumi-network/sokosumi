@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
 import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
@@ -34,6 +35,10 @@ import {
   sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
+import {
+  logRunnerDiagnostic,
+  type RunnerDiagnostic,
+} from "@/lib/soko-bot/runner-log-events";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
@@ -702,10 +707,15 @@ export async function completeSandboxTurn(
   await settleAndStop(log);
 }
 
-/** The loop failed inside the sandbox. */
+/**
+ * The loop failed inside the sandbox. A runner's `diagnostic` reaches Core's
+ * drain once per turn: the report that claims the live turn's
+ * `runnerDiagnosticAt` logs it, before the sandbox is stopped.
+ */
 export async function failSandboxTurn(
   claims: TurnTokenClaims,
   error: { code: string; message: string },
+  diagnostic?: RunnerDiagnostic,
 ): Promise<void> {
   // A turn that was cancelled or expired meanwhile is settled elsewhere.
   await authorizeTurn(claims);
@@ -725,11 +735,52 @@ export async function failSandboxTurn(
   }
   // A runner that died after its answer reached Core changes nothing: the
   // outcome already recorded stands, and only its settling is finished here.
-  await log
-    .appendUnless(runtimeEvent("turn.failed", { ...error }), [
-      "turn.completed",
-      "turn.failed",
-    ])
-    .catch(() => undefined);
+  const failure = runtimeEvent("turn.failed", { ...error });
+  // Not turn.cancelled: deadline cleanup appends it too, without the owner
+  // asking, and an expired turn keeps its failure. An owner's cancellation
+  // always commits the row first, so the row below decides it.
+  const outcomes = ["turn.completed", "turn.failed"];
+  // Authorization passed before the lock, so a cancellation can commit in
+  // between. Writing the row waits for a cancellation in flight; one that
+  // committed first leaves the turn to settle CANCELLED.
+  const live = async (tx: Prisma.TransactionClient) => {
+    const { count } = await tx.sokoBotTurn.updateMany({
+      where: {
+        id: claims.turnId,
+        status: { in: ["STARTING", "RUNNING"] },
+        cancellationRequestedAt: null,
+      },
+      data: { updatedAt: new Date() },
+    });
+    return count === 1;
+  };
+  // The diagnostic's claim commits with the failure, so the report that
+  // failed the turn owns it before anyone can settle the turn. The claim is
+  // on the turn's row, which outlives the session's events, and holds only
+  // while the turn is live and not being cancelled.
+  let claimed = false;
+  const liveAndClaim = async (tx: Prisma.TransactionClient) => {
+    if (!(await live(tx))) return false;
+    const { count } = await tx.sokoBotTurn.updateMany({
+      where: { id: claims.turnId, runnerDiagnosticAt: null },
+      data: { runnerDiagnosticAt: new Date() },
+    });
+    claimed = count === 1;
+    return true;
+  };
+  const failed = await log
+    .appendUnless(failure, outcomes, diagnostic ? liveAndClaim : live)
+    .catch(() => {
+      // A claim that broke the write must not keep the turn from failing.
+      claimed = false;
+      return diagnostic
+        ? log.appendUnless(failure, outcomes, live).catch(() => false)
+        : false;
+    });
+  if (failed && claimed && diagnostic)
+    logRunnerDiagnostic(
+      { turnId: claims.turnId, sessionId: claims.sessionId },
+      diagnostic,
+    );
   await settleAndStop(log);
 }

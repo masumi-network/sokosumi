@@ -10,11 +10,13 @@ import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
@@ -115,7 +117,10 @@ export function cmoPieceSlides(
   return Math.min(range[1], Math.max(range[0], entry.slides?.length ?? 0));
 }
 
-function isVideo(entry: Pick<CmoCalendarEntry, "channel" | "format">) {
+/** Whether the piece is a video Core animates from a still. */
+export function cmoPieceIsVideo(
+  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+) {
   return Boolean(formatOf(entry)?.video);
 }
 
@@ -239,7 +244,7 @@ export function cmoSlotAction(
       sourceAssetId,
     };
   };
-  if (!isVideo(piece)) return next("image", null);
+  if (!cmoPieceIsVideo(piece)) return next("image", null);
   // A video animates a still made from the brand's own pictures: the still
   // first, then the video from it, each retried on its own.
   const still = next("still", null);
@@ -335,7 +340,8 @@ export async function listCmoMediaJobs(
 
 /** The aspect ratio a network shows this piece at. */
 function aspectRatio(piece: CmoMediaPiece): string {
-  if (isVideo(piece) || /story|reel|short/.test(piece.format)) return "9:16";
+  if (cmoPieceIsVideo(piece) || /story|reel|short/.test(piece.format))
+    return "9:16";
   if (piece.channel === "instagram" || piece.channel === "facebook")
     return piece.format === "carousel_ad" ? "1:1" : "4:5";
   if (piece.channel === "linkedin") return "4:5";
@@ -364,7 +370,7 @@ export function cmoImagePrompt(input: {
     slides > 0
       ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.${slide ? ` This slide: ${slide}` : ""}`
       : "",
-    isVideo(piece)
+    cmoPieceIsVideo(piece)
       ? "A vertical still with one clear subject and room to move: it becomes a five-second video."
       : "",
     input.references > 0
@@ -629,11 +635,20 @@ async function start(
     return true;
   } catch (error) {
     if (!(error instanceof HTTPException)) throw error;
-    console.warn("CMO media could not start", {
-      sokoBotId: context.cuso.sokoBotId,
-      pieceId: piece.id,
-      error: error.message,
-    });
+    // The refusal can name the prompt, so only its status and name.
+    recordCoreWarning(
+      {
+        operation: "cmo_media",
+        sokoBot: { id: context.cuso.sokoBotId },
+      },
+      {
+        message: "The image studio refused to start a CMO picture",
+        why: "Image studio refused the generation",
+        fix: "The piece waits for its picture; the next production sync asks again. If it repeats, check the status on its cmoPieces entry (429 is the hourly limit, 402 the balance).",
+      },
+      // One entry per piece: a month can refuse several on one event.
+      { cmoPieces: [{ id: piece.id, failure: messageSafeErrorFields(error) }] },
+    );
     return false;
   }
 }
@@ -857,10 +872,19 @@ async function schedule(
     scheduledAt: post.scheduledAt,
   }).catch((error: unknown) => {
     if (!(error instanceof HTTPException)) throw error;
-    console.warn("CMO media could not schedule a post", {
-      postId: post.id,
-      error: error.message,
-    });
+    // A post's refusal can quote its text, so only its status and name.
+    recordCoreWarning(
+      { operation: "cmo_media" },
+      {
+        message: "Could not schedule a CMO Social post",
+        why: "Social publishing refused the schedule",
+        fix: "The post stays a draft; the next production sync tries again. If it repeats, check the status on its socialPosts entry.",
+      },
+      // One entry per post: a month can refuse several on one event.
+      {
+        socialPosts: [{ id: post.id, failure: messageSafeErrorFields(error) }],
+      },
+    );
   });
 }
 

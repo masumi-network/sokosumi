@@ -1,11 +1,10 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import Stripe from "stripe";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { expectConsole } from "@/test/console";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();

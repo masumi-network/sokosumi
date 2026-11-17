@@ -69,7 +69,7 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import {
   ContactCaptureService,
   scheduleContactCapture,
@@ -479,7 +479,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("resumes an interrupted backfill on the page it did not finish, and completes it once", async () => {
-    expectConsole("error", "Contact capture source failed");
+    const sourceErrors = expectCoreLog(
+      "error",
+      "Could not read a contact capture source",
+    );
     const bot = await addBot(backfillWorkspaceId, ["gmail"]);
     const sentCalls: string[] = [];
     let failOnCall = 3;
@@ -525,6 +528,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     expect(cursor["mail.sent"]?.backfillUntil).not.toBeNull();
     expect(afterFailure.lastError).toMatch(/Composio timeout/);
     expect(afterFailure.backfillCompletedAt).toBeNull();
+    // The provider's error can quote a mail: the log carries only its name.
+    expect(sourceErrors[0]).toMatchObject({
+      why: "Reading the source from its provider failed",
+    });
+    expect(sourceErrors[0]?.cause).toBeUndefined();
+    expect(sourceErrors[0]?.event).toMatchObject({
+      contactCaptureSource: { provider: "gmail", source: "mail.sent" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Composio timeout");
     expect(
       await prisma.contactInteraction.count({
         where: { workspaceId: backfillWorkspaceId },
@@ -919,7 +932,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("leaves contacts queued when the model fails or the money is spent", async () => {
-    expectConsole("warn", "Contact enrichment model call failed");
+    const modelWarnings = expectCoreLog("warn", "Could not classify a contact");
     const actor: ContactActor = {
       workspaceId: mergeWorkspaceId,
       userId: bob,
@@ -941,6 +954,9 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       shouldContinue: () => true,
     });
     expect(stats.modelFailures).toBe(1);
+    expect(modelWarnings[0]).toMatchObject({
+      why: "The enrichment model call failed",
+    });
     expect(
       (
         await prisma.contact.findUniqueOrThrow({

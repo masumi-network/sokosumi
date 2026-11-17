@@ -8,8 +8,7 @@ import type {
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
-import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
-import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
+import { recordCoreWarning } from "@/lib/evlog";
 
 /**
  * How many times the hire path posts the purchase before it gives up.
@@ -137,20 +136,29 @@ export async function registerJobPurchase(
   }
 
   // `failure.message` is built with `extractNodeErrorMessage`, which dumps
-  // whatever the far side sent. A gateway answering for the payment node can
-  // echo the request headers, and those carry PAYMENT_API_KEY. The Sentry
-  // calls above are covered by `beforeSend`; stdout has no such hook.
-  console.warn(
-    "[registerJobPurchase] purchase registration failed",
-    redactDeep(
-      {
-        jobId: params.jobId,
-        agentId: params.agentId,
+  // whatever the far side sent: a gateway answering for the payment node can
+  // echo the request, whose metadata holds the job's input and whose headers
+  // carry PAYMENT_API_KEY. The log keeps the failure's kind and status only.
+  recordCoreWarning(
+    {
+      operation: "job_purchase_registration",
+      jobId: params.jobId,
+      agentId: params.agentId,
+    },
+    {
+      message: "A job's purchase was not registered with the payment node",
+      why:
+        failure.kind === "permanent"
+          ? "The payment node rejected the purchase, most likely because on-chain pricing drifted from the synced pricing"
+          : "Every attempt to register the purchase failed",
+      fix: "The job follows the payment-failed credit refund path; Sentry has the node's answer.",
+    },
+    {
+      purchaseRegistration: {
         attempts: attemptsMade,
         kind: failure.kind,
-        error: formatUpstreamErrorForLog(failure.message),
+        ...(failure.status === undefined ? {} : { status: failure.status }),
       },
-      getEnvSecrets(),
-    ),
+    },
   );
 }

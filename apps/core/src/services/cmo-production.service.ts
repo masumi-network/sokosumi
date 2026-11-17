@@ -10,6 +10,12 @@ import {
 import { waitUntil } from "@vercel/functions";
 
 import prisma from "@/lib/db/prisma";
+import {
+  emitCoreWarning,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
@@ -23,6 +29,7 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
+  cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
   listCmoMediaJobs,
@@ -45,6 +52,7 @@ import {
   withMarketingFiles,
   withSocialPostCalendar,
 } from "@/services/marketing-strategy.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 
 /**
  * After the owner approves the strategy and pays, Cuso makes the whole month
@@ -227,6 +235,15 @@ export function cmoMixLedger(
     .join(", ");
 }
 
+/** A single picture: a styled picture carries one headline, a slide its own words. */
+function takesStyle(piece: CmoPiece): boolean {
+  return (
+    cmoPieceNeedsMedia(piece) &&
+    cmoPieceSlides(piece) === 0 &&
+    !cmoPieceIsVideo(piece)
+  );
+}
+
 function pieceLine(piece: CmoPiece, failed: boolean): string {
   const slides = cmoPieceSlides(piece);
   return [
@@ -237,7 +254,10 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     piece.pillar ?? "",
     piece.campaignId ? `campaign ${piece.campaignId}` : "",
     `"${piece.title}"`,
-    piece.brief ? `brief: ${piece.brief}` : "",
+    // The first plan writes weeks two to four as titles only.
+    piece.brief
+      ? `brief: ${piece.brief}`
+      : "(no brief: write it from its title, approach and pillar)",
     piece.story ? `story: ${piece.story}` : "",
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
@@ -292,6 +312,8 @@ export function cmoProductionMessage(input: {
   proof?: readonly string[];
   /** Pieces whose picture failed twice for its visual. */
   failedMedia?: ReadonlySet<string>;
+  /** The reference library is set up here: pictures can take an old print's look. */
+  styles?: boolean;
 }): string {
   const { strategy, pending } = input;
   const batch = pending.slice(0, PIECES_PER_RUN);
@@ -325,6 +347,9 @@ export function cmoProductionMessage(input: {
     ),
     "",
     "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
+    input.styles && batch.some(takesStyle)
+      ? "Picture styles: before you save the visuals, call find_style_references for the single-picture pieces whose picture should stop a reader rather than show the product or a screen (an announcement, an offer, a how-to, a number), and save each with its styleReferenceId and a headline of at most six words in that same call. When a reference fits, give at least one of them in this run a style, and never the same reference twice. A carousel or multi-image post takes no style: each slide carries its own words, and a styled picture may carry only its headline."
+      : "",
     "",
     writingSkillsBrief(batch.map((piece) => piece.channel)),
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
@@ -423,18 +448,29 @@ async function startProductionRun(
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
-      sokoBotControlPlane
-        .reconcileTurn(
-          started.turnId,
-          undefined,
-          started.reconciliationLeaseToken,
-        )
-        .catch((error: unknown) => {
-          console.warn("CMO production run reconciliation stopped", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
-        }),
+      runAsBackgroundWork(() =>
+        sokoBotControlPlane
+          .reconcileTurn(
+            started.turnId,
+            undefined,
+            started.reconciliationLeaseToken,
+          )
+          .catch((error: unknown) => {
+            // A turn's error can quote its prompt, so only its name and code.
+            emitCoreWarning(
+              {
+                operation: "cmo_production_run",
+                sokoBotTurn: { id: started.turnId },
+                failure: messageSafeErrorFields(error),
+              },
+              {
+                message: "Stopped following a CMO production run",
+                why: "Reconciling the production turn threw",
+                fix: "The turn's own reconciliation picks it up again. If it repeats, look up the error name and code under failure.",
+              },
+            );
+          }),
+      ),
     );
   return started.turnId;
 }
@@ -670,10 +706,16 @@ export async function advanceCmoProduction(
       { cuso, versionId: version.id, connected },
       pieces,
     ).catch((error: unknown) => {
-      console.warn("CMO media could not move on", {
-        sokoBotId: cuso.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Media errors can quote a prompt or a post, so only name and code.
+      recordCoreWarning(
+        { operation: "cmo_media", sokoBot: { id: cuso.sokoBotId } },
+        {
+          message: "CMO pictures did not move on this round",
+          why: "Advancing the month's pictures threw",
+          fix: "The next production sync tries again. If it repeats, look up the error name and code under failure.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     });
   if (!strategy || !approvedAt || working) return current;
   // A made month is reviewed for its pillars, skills and voice, and the
@@ -716,6 +758,7 @@ export async function advanceCmoProduction(
         parseBrandBrain((await getBrandBrain(cuso.projectId))?.body),
       ),
       failedMedia,
+      styles: referenceLibraryAvailable(),
     }),
     `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
   );
@@ -725,14 +768,25 @@ export async function advanceCmoProduction(
 /** Starts production in the background; the caller's request does not wait. */
 export function kickCmoProduction(sokoBotId: string): void {
   waitUntil(
-    findCusoForBot(sokoBotId)
-      .then((cuso) => (cuso ? advanceCmoProduction(cuso) : null))
-      .catch((error: unknown) => {
-        console.warn("CMO production could not start", {
-          sokoBotId,
-          error: error instanceof Error ? error.message : "unknown",
-        });
-      }),
+    runAsBackgroundWork(() =>
+      findCusoForBot(sokoBotId)
+        .then((cuso) => (cuso ? advanceCmoProduction(cuso) : null))
+        .catch((error: unknown) => {
+          // Production errors can quote the plan or a prompt: name and code.
+          emitCoreWarning(
+            {
+              operation: "cmo_production",
+              sokoBot: { id: sokoBotId },
+              failure: messageSafeErrorFields(error),
+            },
+            {
+              message: "CMO production did not start",
+              why: "Advancing production threw",
+              fix: "The next CMO production sync, every 10 minutes, tries again. If it repeats, look up the error name and code under failure.",
+            },
+          );
+        }),
+    ),
   );
 }
 
@@ -782,10 +836,16 @@ export async function syncCmoProduction(
       await advanceCmoProduction(cuso);
       checked += 1;
     } catch (error) {
-      console.warn("CMO production sync skipped a Cuso", {
-        sokoBotId: cuso.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // One event per Cuso skipped; the error can quote the plan or a prompt.
+      recordCoreWarning(
+        { operation: "cmo_production_sync", sokoBot: { id: cuso.sokoBotId } },
+        {
+          message: "CMO production sync skipped a Cuso",
+          why: "Advancing this Cuso's production threw",
+          fix: "The next sync tries again. If it repeats, look up the error name and code under failure.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
   }
   return { checked };

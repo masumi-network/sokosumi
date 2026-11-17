@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import adEvalsRouter from "./ad-evals/index.js";
 import agentsRouter from "./agents/index.js";
 import badgeCampaignsRouter from "./badge-campaigns/index.js";
 import creditsRouter from "./credits/index.js";
@@ -39,6 +40,7 @@ app.route("/organizations", organizationsRouter);
 app.route("/invoices", invoicesRouter);
 app.route("/credits", creditsRouter);
 app.route("/evals", evalsRouter);
+app.route("/ad-evals", adEvalsRouter);
 app.route("/tasks", tasksRouter);
 app.route("/task-payment-claims", taskPaymentClaimsRouter);
 app.route("/task-x402-payments", taskX402PaymentsRouter);

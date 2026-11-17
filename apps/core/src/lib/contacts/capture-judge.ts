@@ -1,3 +1,5 @@
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "@/lib/soko-bot/jev";
 
 const TIMEOUT_MS = 8_000;
@@ -44,9 +46,16 @@ export async function judgeRoleInboxes(
     });
     return samples.map((_, index) => answers.get(`address${index}`) ?? 0);
   } catch (error) {
-    console.warn("Contact capture role inbox check failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only safe fields: a model error can quote the contact data it was sent.
+    recordCoreWarning(
+      { operation: "contact_capture_judge" },
+      {
+        message: "Could not check whether role inboxes are read by a person",
+        why: "Jev, the judging model, failed or timed out",
+        fix: "Nothing: those role inboxes are left out of contacts this time, and the next capture asks again.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
 }

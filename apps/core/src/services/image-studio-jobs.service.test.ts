@@ -157,7 +157,7 @@ import {
   recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 /**
  * The default model's endpoints, taken from the catalog rather than written out.
@@ -284,6 +284,30 @@ describe("image studio job submission", () => {
     );
   });
 
+  it("takes the edit endpoint for a job whose only reference is a library style", async () => {
+    // The generate endpoint refuses the style reference it is then sent.
+    // This row has no library store to read from, so sending stops early.
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+    ]);
+    const stored = jobRow({ model: "google/nano-banana-2.1/edit" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    await createImageJob({
+      ...BASE_INPUT,
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "EDIT",
+          model: "google/nano-banana-2.1/edit",
+        }),
+      }),
+    );
+  });
+
   it("sends only the provider fields the chosen endpoint declares", async () => {
     // `num_images` and `limit_generations` are Gemini's fields. Sending them to
     // a model that never declared them is a 422 on a generation that would
@@ -324,14 +348,26 @@ describe("image studio job submission", () => {
   );
 
   it("classifies a definite provider refusal as failed and therefore retryable", async () => {
-    expectConsole("warn", "[image-studio] provider refused a submission");
+    const refusals = expectCoreLogWhys(
+      "warn",
+      "The image provider refused a generation",
+      ["fal answered the submission with a rejection"],
+    );
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
-      message: "prompt rejected",
+      message: "prompt rejected: SECRET-PROMPT-SENTINEL",
     });
 
     const job = await createImageJob(BASE_INPUT);
+
+    // The provider's message can quote the prompt: only its status is logged.
+    expect(refusals[0]?.event).toMatchObject({
+      imageJobs: [{ id: "job-1", provider: { name: "fal", status: 422 } }],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
 
     expect(job.status).toBe("FAILED");
     expect(jobUpdateMock).toHaveBeenCalledWith(
@@ -342,13 +378,20 @@ describe("image studio job submission", () => {
   });
 
   it("classifies a lost answer as uncertain, never as failed", async () => {
-    expectConsole("warn", "[image-studio] submission outcome unknown");
+    expectCoreLogWhys(
+      "warn",
+      "Could not tell whether the image provider received a generation",
+      ["The submission to fal ended without a clear answer"],
+    );
     submitToQueueMock.mockResolvedValue({
       kind: "uncertain",
-      message: "The operation timed out",
+      message: "The operation timed out: SECRET-PROMPT-SENTINEL",
     });
 
     const job = await createImageJob(BASE_INPUT);
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
 
     // The distinction is the whole point: a retry here could be a second
     // charge, so it must not look like an ordinary failure.
@@ -570,9 +613,10 @@ describe("image studio job submission", () => {
   ])(
     "blocks a recovered job without photo access ($idempotencyKey)",
     async ({ idempotencyKey, kind }) => {
-      expectConsole(
+      expectCoreLogWhys(
         "warn",
-        "[image-studio] a generation could not be prepared",
+        "An image generation failed before it was sent",
+        ["Preparing the request for the image provider threw"],
       );
       const now = new Date("2026-11-10T12:00:00Z");
       const pending = jobRow({
@@ -649,9 +693,12 @@ describe("image studio job submission", () => {
   });
 
   it("refuses to generate before spending anything when there is no private store", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[image-studio] IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set. The studio needs its own",
+      "Refused an image studio request, because its private storage is not configured",
+      [
+        "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is unset, and the studio never falls back to the shared public store named by BLOB_READ_WRITE_TOKEN",
+      ],
     );
     // Checked ahead of the reservation and the provider call, because the
     // alternative is paying fal for an image the studio is not allowed to
@@ -1064,33 +1111,52 @@ describe("image studio job submission", () => {
   });
 
   it("queues the job and logs a snapshot failure", async () => {
-    const warning = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[image-studio] could not save a prompt snapshot",
+      "Could not save the prompt snapshot of an image generation",
+      ["The database write of the snapshot failed"],
     );
-    snapshotUpsertMock.mockRejectedValueOnce(new Error("snapshot unavailable"));
+    snapshotUpsertMock.mockRejectedValueOnce(
+      new Error("snapshot unavailable: SECRET-PROMPT-SENTINEL"),
+    );
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
     await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
       status: "QUEUED",
     });
     await Promise.all(waitUntilMock.mock.calls.map(([work]) => work));
-    expect(warning).toContainEqual([
-      "[image-studio] could not save a prompt snapshot",
-      { jobId: "job-1", error: "snapshot unavailable" },
-    ]);
+    // Its own event, after the response; the write's error can quote the prompt.
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_prompt_snapshot",
+      imageJobs: [{ id: "job-1", failure: { errorName: "Error" } }],
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
   });
 
   it("does not wait for a snapshot write before submitting or returning the job", async () => {
-    snapshotUpsertMock.mockReturnValueOnce(new Promise(() => {}));
+    // Held open while the job is created and returned, then settled, so the
+    // drain after the test finishes it even when an assertion fails.
+    let finishSnapshot = () => {};
+    snapshotUpsertMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishSnapshot = resolve;
+      }),
+    );
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
-      status: "QUEUED",
-    });
-    expect(snapshotUpsertMock).toHaveBeenCalledOnce();
-    expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
-    expect(submitToQueueMock).toHaveBeenCalledOnce();
+    try {
+      await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+        status: "QUEUED",
+      });
+      expect(snapshotUpsertMock).toHaveBeenCalledOnce();
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      expect(submitToQueueMock).toHaveBeenCalledOnce();
+    } finally {
+      finishSnapshot();
+    }
   });
 
   it("still sends the brief when Design cannot be read", async () => {

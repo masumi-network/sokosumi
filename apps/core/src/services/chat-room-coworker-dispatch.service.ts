@@ -16,7 +16,8 @@ import {
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import {
   readQuoteFromMetadata,
@@ -62,7 +63,19 @@ export async function dispatchChatRoomMention(
   try {
     await runChatRoomMentionDispatch(mentionId);
   } catch (error) {
-    console.error("Room coworker dispatch failed:", { mentionId, error });
+    // Runs in waitUntil (or the effect outbox), so its own event.
+    emitCoreError(
+      {
+        failure: messageSafeErrorFields(error),
+        operation: "chat_room_mention_dispatch",
+        mention: { id: mentionId },
+      },
+      {
+        message: "Could not answer a chat mention",
+        why: "The dispatch threw before the mention was answered",
+        fix: "The mention is marked failed, so the asker can retry it. If this repeats, look up the error name and code under failure.",
+      },
+    );
     // Marking the row failed unpins the poller but says nothing to the person
     // watching the bubble. Anything that escaped after a placeholder was
     // opened — a thread lookup, a provider update, a room read — would leave
@@ -89,7 +102,19 @@ export async function dispatchChatRoomMention(
         sourceMessageId: linked.message.id,
         mentionId,
       }).catch((cleanupError) => {
-        console.error("Failed to end the assistant bubble:", cleanupError);
+        emitCoreError(
+          {
+            failure: messageSafeErrorFields(cleanupError),
+            operation: "chat_room_mention_dispatch",
+            mention: { id: mentionId },
+          },
+          {
+            message:
+              "Could not end the thinking reply of a failed chat mention",
+            why: "Writing the failed state of the reply threw",
+            fix: "The reply may keep showing as thinking until the room is reloaded; the mention is still marked failed.",
+          },
+        );
       });
     }
     await markMentionFailed(mentionId, error);
@@ -366,10 +391,18 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         thoughtStartedAtMs: generationStartedAtMs,
       });
     } catch (publishError) {
-      console.error("Mention Thought placeholder create failed:", {
-        mentionId,
-        error: publishError,
-      });
+      emitCoreError(
+        {
+          failure: messageSafeErrorFields(publishError),
+          operation: "chat_room_mention_dispatch",
+          mention: { id: mentionId },
+        },
+        {
+          message: "Could not open the thinking reply for a chat mention",
+          why: "Writing or publishing the reply placeholder threw",
+          fix: "The Coworker still answers; the room shows the reply once it is written.",
+        },
+      );
     }
 
     // A Soko Bot asking is named as one, so the Coworker knows who it answers.
@@ -522,10 +555,19 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               });
             })
             .catch((publishError) => {
-              console.error("Mention Thought placeholder publish failed:", {
-                mentionId,
-                error: publishError,
-              });
+              emitCoreError(
+                {
+                  failure: messageSafeErrorFields(publishError),
+                  operation: "chat_room_mention_dispatch",
+                  mention: { id: mentionId },
+                },
+                {
+                  message:
+                    "Could not update the thinking reply of a chat mention",
+                  why: "Publishing the reply update threw",
+                  fix: "The next update or the final answer replaces it.",
+                },
+              );
             });
         });
       await thoughtPublishQueue;

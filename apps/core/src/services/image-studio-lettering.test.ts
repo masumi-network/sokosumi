@@ -134,7 +134,7 @@ import {
   setResolvedImageCatalog,
 } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
 import {
   createImageJob,
@@ -381,7 +381,9 @@ describe("optional two-step lettering", () => {
   });
 
   it("delivers the backdrop even if Ideogram leaves the catalog between steps", async () => {
-    expectConsole("warn", "[image-studio] a generation could not be prepared");
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+    ]);
     await createImageJob({ ...INPUT, lettering: "ideogram" });
     const catalog = getImageCatalog();
     setResolvedImageCatalog(
