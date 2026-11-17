@@ -13,21 +13,26 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: mocks.gate,
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
-  SokoBotBillingAccessError: class extends Error {},
+  SokoBotBillingAccessError: class SokoBotBillingAccessError extends Error {},
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => {
   class SokoBotNoDestinationError extends Error {}
   return {
-    SokoBotBusyError: class extends Error {},
+    SokoBotBusyError: class SokoBotBusyError extends Error {},
     SokoBotDisabledError: class extends Error {},
-    SokoBotIdempotencyConflictError: class extends Error {},
+    SokoBotIdempotencyConflictError: class SokoBotIdempotencyConflictError extends Error {},
     SokoBotNoDestinationError,
     SokoBotNotFoundError: class extends Error {},
     sokoBotControlPlane: { startTurn: mocks.startTurn },
   };
 });
 
-import { SokoBotNoDestinationError } from "@/services/soko-bot-control-plane.service";
+import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
+import {
+  SokoBotBusyError,
+  SokoBotIdempotencyConflictError,
+  SokoBotNoDestinationError,
+} from "@/services/soko-bot-control-plane.service";
 
 import { startTaskSummaryTurn } from "./task-interest-summary";
 
@@ -77,6 +82,25 @@ describe("startTaskSummaryTurn", () => {
       reconciliationLeaseToken: null,
     });
     expect(await summarize(null)).toBe("gone");
+  });
+
+  it("holds the summary for later at the daily cap or without credits, and for the next tick while busy", async () => {
+    mocks.findDelegation.mockResolvedValue(null);
+    mocks.gate.mockResolvedValue({ ok: false });
+    expect(await summarize(null)).toBe("deferred");
+    mocks.gate.mockResolvedValue({ ok: true });
+    mocks.startTurn.mockRejectedValue(
+      new SokoBotBillingAccessError("no credits"),
+    );
+    expect(await summarize(null)).toBe("deferred");
+    mocks.startTurn.mockRejectedValue(new SokoBotBusyError());
+    expect(await summarize(null)).toBe("busy");
+  });
+
+  it("counts a summary turn that already started as started", async () => {
+    mocks.findDelegation.mockResolvedValue(null);
+    mocks.startTurn.mockRejectedValue(new SokoBotIdempotencyConflictError());
+    expect(await summarize(null)).toBe("started");
   });
 
   it("hands the moment to the bell when the bot has no 1:1 room", async () => {

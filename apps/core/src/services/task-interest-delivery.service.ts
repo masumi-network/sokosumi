@@ -3,43 +3,46 @@ import { NotificationKind, type Prisma, TaskStatus } from "@sokosumi/database";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { createNotification } from "@/helpers/notifications";
-import {
-  isOverdueMomentDue,
-  TASK_INTEREST_FALLBACK_TIMEZONE,
-} from "@/helpers/task-interest-clock";
+import { isOverdueMomentDue } from "@/helpers/task-interest-clock";
 import { taskNotificationPayload } from "@/helpers/task-notifications";
 import { isFollowingSokoBot } from "@/helpers/task-participant-rows";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { linkText } from "@/lib/soko-bot/action-response-targets";
-import { startTaskSummaryTurn } from "@/services/task-interest-summary";
+import {
+  day,
+  deferredMoments,
+  dueDateMovedLaterMoments,
+  dueNow,
+  interestTimeZone,
+  type MomentKind,
+  openMoments,
+  overdueMoments,
+  PERSONAL_BOT_WHERE,
+  STATUS_MOMENTS,
+  statusMoments,
+  TASK_MOMENT_CHANNEL,
+  type TaskMoment,
+} from "@/services/task-interest-moments";
+import {
+  delegationWakeCovers,
+  startTaskSummaryTurn,
+} from "@/services/task-interest-summary";
 
 /**
  * How far back each tick looks for moments. The ledger, not a cursor, makes
  * each delivery happen once, so a send that failed is tried again on the
- * next tick for as long as its moment is inside this window.
+ * next tick for as long as its moment is inside this window. A deferred
+ * summary is tried again from its ledger row, outside it.
  */
 const LOOKBACK_MS = 48 * 60 * 60 * 1_000;
-const DAY_MS = 24 * 60 * 60 * 1_000;
 /** Moments delivered per tick; the rest wait for the next one. */
 const MOMENT_BATCH = 200;
-/** Upper bound on rows one scan reads, delivered or not. */
-const SCAN_CAP = 5_000;
-const PARTICIPANT_TASK_CHUNK = 500;
+/** How long a deferred summary waits before it is tried again. */
+const SUMMARY_RETRY_MS = 60 * 60 * 1_000;
 /** The overdue sweep runs once per this many minutes, not every tick. */
 const OVERDUE_SWEEP_MINUTES = 15;
-
-const STATUS_MOMENTS = {
-  [TaskStatus.COMPLETED]: "completed",
-  [TaskStatus.FAILED]: "failed",
-  [TaskStatus.CANCELED]: "canceled",
-} as const;
-
-type MomentKind =
-  | (typeof STATUS_MOMENTS)[keyof typeof STATUS_MOMENTS]
-  | "overdue"
-  | "dueDateMovedLater";
 
 const MESSAGE_KEYS: Record<MomentKind, string> = {
   completed: "Notifications.Task.completed",
@@ -48,35 +51,6 @@ const MESSAGE_KEYS: Record<MomentKind, string> = {
   overdue: "Notifications.Task.overdue",
   dueDateMovedLater: "Notifications.Task.dueDateMovedLater",
 };
-
-export const TASK_MOMENT_CHANNEL = {
-  sokoBot: "SOKO_BOT",
-  bell: "BELL",
-  /** Recorded for a participant the moment skips, so it is decided once. */
-  none: "NONE",
-} as const;
-
-export interface TaskMoment {
-  kind: MomentKind;
-  taskId: string;
-  /** Ledger key: one delivery per person and key. */
-  key: string;
-  /**
-   * The Notification row's event id. A status moment uses its Task event, so
-   * an Owner who also follows as a plain participant gets the one row the
-   * status dispatch writes, not two.
-   */
-  eventId: string;
-  /** When it happened. Null for overdue, which reaches anyone following. */
-  at: Date | null;
-  actorUserId: string | null;
-  /** The Soko Bot that wrote a status event, if one did. */
-  actorSokoBotId?: string | null;
-  writerName?: string | null;
-  from?: Date;
-  to?: Date;
-  dueOn?: Date;
-}
 
 export interface TaskInterestSyncResult {
   moments: number;
@@ -104,124 +78,16 @@ const MOMENT_TASK_SELECT = {
   participants: {
     select: { userId: true, subscribedAt: true, createdAt: true },
   },
+  // The latest settling event: a status moment holds only while it is this.
+  events: {
+    where: { status: { in: [...SETTLED_TASK_STATUSES] } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 1,
+    select: { id: true },
+  },
 } as const satisfies Prisma.TaskSelect;
 
 type MomentTask = Prisma.TaskGetPayload<{ select: typeof MOMENT_TASK_SELECT }>;
-
-const day = (date: Date) => date.toISOString().slice(0, 10);
-
-/** Tasks with participants that changed inside the window. */
-async function participantTaskIds(since: Date): Promise<string[]> {
-  const rows = await prisma.taskParticipant.findMany({
-    distinct: ["taskId"],
-    where: { task: { archivedAt: null, updatedAt: { gte: since } } },
-    select: { taskId: true },
-  });
-  return rows.map((row) => row.taskId);
-}
-
-async function statusMoments(
-  taskIds: readonly string[],
-  since: Date,
-): Promise<TaskMoment[]> {
-  const moments: TaskMoment[] = [];
-  for (let i = 0; i < taskIds.length; i += PARTICIPANT_TASK_CHUNK) {
-    const events = await prisma.taskEvent.findMany({
-      where: {
-        taskId: { in: taskIds.slice(i, i + PARTICIPANT_TASK_CHUNK) },
-        createdAt: { gte: since },
-        status: {
-          in: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
-        },
-      },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      take: SCAN_CAP,
-      select: {
-        id: true,
-        taskId: true,
-        status: true,
-        userId: true,
-        sokoBotId: true,
-        createdAt: true,
-        user: { select: { name: true } },
-        coworker: { select: { name: true } },
-        sokoBot: { select: { name: true } },
-      },
-    });
-    for (const event of events) {
-      const kind =
-        STATUS_MOMENTS[event.status as keyof typeof STATUS_MOMENTS] ?? null;
-      if (!kind) continue;
-      moments.push({
-        kind,
-        taskId: event.taskId,
-        key: `status:${event.id}`,
-        eventId: event.id,
-        at: event.createdAt,
-        actorUserId: event.userId,
-        actorSokoBotId: event.sokoBotId,
-        writerName:
-          event.sokoBot?.name ?? event.coworker?.name ?? event.user?.name,
-      });
-    }
-  }
-  return moments;
-}
-
-async function dueDateMovedLaterMoments(since: Date): Promise<TaskMoment[]> {
-  const changes = await prisma.taskDueDateChange.findMany({
-    where: {
-      createdAt: { gte: since },
-      task: { archivedAt: null, participants: { some: {} } },
-    },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    take: SCAN_CAP,
-  });
-  return changes.map((change) => ({
-    kind: "dueDateMovedLater",
-    taskId: change.taskId,
-    key: `due-later:${change.id}`,
-    eventId: change.id,
-    at: change.createdAt,
-    actorUserId: change.actorUserId,
-    from: change.fromDueOn,
-    to: change.toDueOn,
-  }));
-}
-
-/**
- * Tasks whose first day after the due date can be today somewhere: due one
- * or two days before today (UTC), or today itself for zones ahead of UTC.
- */
-async function overdueMoments(now: Date): Promise<TaskMoment[]> {
-  const today = new Date(`${day(now)}T00:00:00.000Z`);
-  const tasks = await prisma.task.findMany({
-    where: {
-      archivedAt: null,
-      dueOn: { gte: new Date(today.getTime() - 2 * DAY_MS), lte: today },
-      status: { notIn: [...SETTLED_TASK_STATUSES] },
-      participants: { some: {} },
-    },
-    orderBy: { id: "asc" },
-    take: SCAN_CAP,
-    select: { id: true, dueOn: true },
-  });
-  return tasks.flatMap((task) =>
-    task.dueOn
-      ? [
-          {
-            kind: "overdue" as const,
-            taskId: task.id,
-            key: `overdue:${task.id}:${day(task.dueOn)}`,
-            eventId: `overdue:${day(task.dueOn)}`,
-            at: null,
-            actorUserId: null,
-            dueOn: task.dueOn,
-          },
-        ]
-      : [],
-  );
-}
 
 /** The moment still holds for the Task as it is now. */
 function momentStillHolds(moment: TaskMoment, task: MomentTask): boolean {
@@ -240,7 +106,11 @@ function momentStillHolds(moment: TaskMoment, task: MomentTask): boolean {
       task.dueOn.getTime() >= moment.to.getTime()
     );
   }
-  return true;
+  // Reopened, or settled again since: this event is no longer the news.
+  return (
+    STATUS_MOMENTS[task.status as keyof typeof STATUS_MOMENTS] ===
+      moment.kind && task.events[0]?.id === moment.eventId
+  );
 }
 
 /**
@@ -357,7 +227,7 @@ async function sendSokoBotNotice(
 async function deliverMoment(
   moment: TaskMoment,
   now: Date,
-  abortSignal: AbortSignal,
+  input: { abortSignal: AbortSignal; shouldContinue: () => boolean },
   result: TaskInterestSyncResult,
 ): Promise<void> {
   const task = await prisma.task.findUnique({
@@ -366,29 +236,54 @@ async function deliverMoment(
   });
   if (!task) return;
 
-  const delivered = await prisma.taskMomentDelivery.findMany({
+  const ledger = await prisma.taskMomentDelivery.findMany({
     where: { taskId: task.id, momentKey: moment.key },
-    select: { userId: true },
+    select: { userId: true, channel: true, retryAt: true },
   });
-  const decided = new Set(delivered.map((row) => row.userId));
+  // A deferred summary that is due again is open, like one never tried.
+  const decided = new Set(
+    ledger
+      .filter(
+        (row) =>
+          row.channel !== TASK_MOMENT_CHANNEL.deferred ||
+          (row.retryAt !== null && row.retryAt > now),
+      )
+      .map((row) => row.userId),
+  );
+  const participantIds = new Set(task.participants.map((p) => p.userId));
   const open = task.participants.filter((p) => !decided.has(p.userId));
+
+  const record = (userId: string, channel: string, retryAt: Date | null) =>
+    prisma.taskMomentDelivery.upsert({
+      where: { userId_momentKey: { userId, momentKey: moment.key } },
+      create: {
+        userId,
+        taskId: task.id,
+        momentKey: moment.key,
+        channel,
+        retryAt,
+      },
+      update: { channel, retryAt },
+    });
+
+  // A deferred summary for someone who left: closed, so it stops coming due.
+  for (const row of ledger) {
+    if (!decided.has(row.userId) && !participantIds.has(row.userId)) {
+      await record(row.userId, TASK_MOMENT_CHANNEL.none, null);
+    }
+  }
   if (open.length === 0) return;
 
   const reached = momentStillHolds(moment, task)
     ? await reachedParticipants(moment, task)
     : [];
   const reachedIds = new Set(reached.map((r) => r.userId));
-  const skipped = open.filter((p) => !reachedIds.has(p.userId));
-  if (skipped.length > 0 && moment.kind !== "overdue") {
-    await prisma.taskMomentDelivery.createMany({
-      data: skipped.map((p) => ({
-        userId: p.userId,
-        taskId: task.id,
-        momentKey: moment.key,
-        channel: TASK_MOMENT_CHANNEL.none,
-      })),
-      skipDuplicates: true,
-    });
+  // Not reached now is final, for overdue too: it reached no one who is
+  // not a member or cannot see the Task, and a Task that moved on is over.
+  for (const participant of open) {
+    if (!reachedIds.has(participant.userId)) {
+      await record(participant.userId, TASK_MOMENT_CHANNEL.none, null);
+    }
   }
 
   const recipients = reached.filter((r) => !decided.has(r.userId));
@@ -396,8 +291,7 @@ async function deliverMoment(
   const bots = await prisma.sokoBot.findMany({
     where: {
       userId: { in: recipients.map((r) => r.userId) },
-      projectId: null,
-      deletedAt: null,
+      ...PERSONAL_BOT_WHERE,
     },
     select: {
       id: true,
@@ -412,16 +306,27 @@ async function deliverMoment(
     },
   });
 
+  // Send first, record after. The cron lock keeps ticks apart, and every
+  // send is idempotent (the notice key, the Notification's unique key, the
+  // summary's client turn id), so a crash before the record only repeats a
+  // send that already landed.
   for (const recipient of recipients) {
-    const own = bots.filter((bot) => bot.userId === recipient.userId);
-    const inWorkspace = own.find((bot) => bot.workspaceId === task.workspaceId);
+    if (!input.shouldContinue()) return;
+    const inWorkspace = bots.find(
+      (bot) =>
+        bot.userId === recipient.userId && bot.workspaceId === task.workspaceId,
+    );
 
-    if (moment.kind === "overdue" && moment.dueOn) {
-      const timeZone =
-        inWorkspace?.ingestTimezone ??
-        own[0]?.ingestTimezone ??
-        TASK_INTEREST_FALLBACK_TIMEZONE;
-      if (!isOverdueMomentDue(moment.dueOn, now, timeZone)) continue;
+    if (
+      moment.kind === "overdue" &&
+      moment.dueOn &&
+      !isOverdueMomentDue(
+        moment.dueOn,
+        now,
+        interestTimeZone(bots, recipient.userId, task.workspaceId),
+      )
+    ) {
+      continue;
     }
 
     const followingBot =
@@ -430,28 +335,7 @@ async function deliverMoment(
       isFollowingSokoBot(inWorkspace)
         ? inWorkspace
         : null;
-    const channel = followingBot
-      ? TASK_MOMENT_CHANNEL.sokoBot
-      : TASK_MOMENT_CHANNEL.bell;
 
-    // Claim first: a concurrent tick that lost the claim sends nothing.
-    const { count } = await prisma.taskMomentDelivery.createMany({
-      data: [
-        {
-          userId: recipient.userId,
-          taskId: task.id,
-          momentKey: moment.key,
-          channel,
-        },
-      ],
-      skipDuplicates: true,
-    });
-    if (count === 0) continue;
-
-    const release = () =>
-      prisma.taskMomentDelivery.deleteMany({
-        where: { userId: recipient.userId, momentKey: moment.key },
-      });
     try {
       let botPosted = false;
       if (followingBot && moment.kind === "completed") {
@@ -468,36 +352,67 @@ async function deliverMoment(
           userId: recipient.userId,
           sokoBotId: followingBot.id,
           completedBySokoBotId: moment.actorSokoBotId ?? null,
-          abortSignal,
+          abortSignal: input.abortSignal,
+        }).catch((error) => {
+          // An unexpected failure must not hold the moment until it leaves
+          // the window: the bell takes it now.
+          Sentry.captureException(error, {
+            extra: { taskId: task.id, momentKey: moment.key },
+          });
+          return "gone" as const;
         });
+        // Nothing recorded: the next tick tries again.
+        if (outcome === "busy") {
+          result.deferred += 1;
+          continue;
+        }
         if (outcome === "deferred") {
-          await release();
+          await record(
+            recipient.userId,
+            TASK_MOMENT_CHANNEL.deferred,
+            new Date(now.getTime() + SUMMARY_RETRY_MS),
+          );
           result.deferred += 1;
           continue;
         }
         botPosted = outcome !== "gone";
       } else if (followingBot) {
-        botPosted = await sendSokoBotNotice(
-          moment,
-          task,
-          recipient.userId,
-          followingBot.id,
-        );
+        // A bot that delegated the Task hears of a failure or a cancel from
+        // its own wake; a second, fixed notice would repeat it.
+        const covered =
+          (moment.kind === "failed" || moment.kind === "canceled") &&
+          (await delegationWakeCovers({
+            taskId: task.id,
+            sokoBotId: followingBot.id,
+            changedBySokoBotId: moment.actorSokoBotId ?? null,
+          }));
+        botPosted =
+          covered ||
+          (await sendSokoBotNotice(
+            moment,
+            task,
+            recipient.userId,
+            followingBot.id,
+          ));
       }
-      if (!botPosted) {
-        if (followingBot) {
-          // The bot went away between the read and the post.
-          await prisma.taskMomentDelivery.updateMany({
-            where: { userId: recipient.userId, momentKey: moment.key },
-            data: { channel: TASK_MOMENT_CHANNEL.bell },
-          });
-        }
-        await sendBell(moment, task, recipient.userId);
-      }
+      // The bot went away between the read and the post: the bell takes it.
+      if (!botPosted) await sendBell(moment, task, recipient.userId);
+      await record(
+        recipient.userId,
+        botPosted ? TASK_MOMENT_CHANNEL.sokoBot : TASK_MOMENT_CHANNEL.bell,
+        null,
+      );
       result.sent += 1;
     } catch (error) {
-      // Release the claim so the next tick tries again.
-      await release();
+      // Nothing recorded: the next tick tries again. A deferred summary that
+      // failed waits its interval again, so it cannot hold the retry queue.
+      if (ledger.some((row) => row.userId === recipient.userId)) {
+        await record(
+          recipient.userId,
+          TASK_MOMENT_CHANNEL.deferred,
+          new Date(now.getTime() + SUMMARY_RETRY_MS),
+        ).catch(() => undefined);
+      }
       result.failed += 1;
       Sentry.captureException(error, {
         extra: {
@@ -509,37 +424,6 @@ async function deliverMoment(
       });
     }
   }
-}
-
-/**
- * Moments some participant has no ledger row for yet. Cheap enough to run
- * every tick: one count per Task and one grouped count per key.
- */
-async function openMoments(moments: TaskMoment[]): Promise<TaskMoment[]> {
-  if (moments.length === 0) return [];
-  const [participants, ledger] = await Promise.all([
-    prisma.taskParticipant.groupBy({
-      by: ["taskId"],
-      where: { taskId: { in: [...new Set(moments.map((m) => m.taskId))] } },
-      _count: { _all: true },
-    }),
-    prisma.taskMomentDelivery.groupBy({
-      by: ["momentKey"],
-      where: { momentKey: { in: moments.map((m) => m.key) } },
-      _count: { _all: true },
-    }),
-  ]);
-  const participantCount = new Map(
-    participants.map((row) => [row.taskId, row._count._all]),
-  );
-  const ledgerCount = new Map(
-    ledger.map((row) => [row.momentKey, row._count._all]),
-  );
-  return moments.filter(
-    (moment) =>
-      (ledgerCount.get(moment.key) ?? 0) <
-      (participantCount.get(moment.taskId) ?? 0),
-  );
 }
 
 /**
@@ -563,19 +447,35 @@ export async function syncTaskInterest(input: {
     failed: 0,
   };
 
-  const moments = await openMoments([
-    ...(await statusMoments(await participantTaskIds(since), since)),
-    ...(await dueDateMovedLaterMoments(since)),
-    ...(now.getUTCMinutes() % OVERDUE_SWEEP_MINUTES === 0
-      ? await overdueMoments(now)
-      : []),
-  ]);
+  // Fresh moments first, so fixed notices go out within the tick; deferred
+  // summaries after, outside the batch. Their rows count as decided, so the
+  // window scan never offers them twice. Overdue goes first: it is only
+  // valid on one local morning, and status moments may spend the tick on
+  // summaries.
+  const fresh = (
+    await dueNow(
+      await openMoments([
+        ...(now.getUTCMinutes() % OVERDUE_SWEEP_MINUTES === 0
+          ? await overdueMoments(now)
+          : []),
+        ...(await dueDateMovedLaterMoments(since)),
+        ...(await statusMoments(since)),
+      ]),
+      now,
+    )
+  ).slice(0, MOMENT_BATCH);
+  const retries = await deferredMoments(now);
+  const freshKeys = new Set(fresh.map((moment) => moment.key));
+  const moments = [
+    ...fresh,
+    ...retries.filter((moment) => !freshKeys.has(moment.key)),
+  ];
 
-  for (const moment of moments.slice(0, MOMENT_BATCH)) {
+  for (const moment of moments) {
     if (!input.shouldContinue()) break;
     result.moments += 1;
     try {
-      await deliverMoment(moment, now, input.abortSignal, result);
+      await deliverMoment(moment, now, input, result);
     } catch (error) {
       result.failed += 1;
       Sentry.captureException(error, {

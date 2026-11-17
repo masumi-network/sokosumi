@@ -16,6 +16,9 @@ export default function mount(app: Hono) {
       c,
       SOKO_BOT_EVENTS_SYNC_LOCK_KEY,
       async (context) => {
+        // The tick's own minute, not the minute the Task interest step
+        // reaches: its overdue sweep runs on quarter-hour ticks.
+        const tickStartedAt = new Date();
         const adopted = await adoptCoworkerSubtasks();
         if (adopted)
           console.info("[sync/soko-bot-events] Adopted Coworker sub-tasks", {
@@ -27,18 +30,21 @@ export default function mount(app: Hono) {
         if (watches.checked)
           console.info("[sync/soko-bot-events] Checked waits", watches);
         if (!context.shouldContinue()) return;
-        const interest = await syncTaskInterest({
-          abortSignal: context.abortSignal,
-          shouldContinue: context.shouldContinue,
-        });
-        if (interest.moments)
-          console.info("[sync/soko-bot-events] Task interest", interest);
-        if (!context.shouldContinue()) return;
         const result = await sokoBotEventsSyncService.syncDelegatedWork({
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
         console.info("[sync/soko-bot-events] Completed sync", result);
+        // After delegated work: a burst of completion summaries must not
+        // hold back the wakes that bots asked for.
+        if (!context.shouldContinue()) return;
+        const interest = await syncTaskInterest({
+          abortSignal: context.abortSignal,
+          shouldContinue: context.shouldContinue,
+          now: tickStartedAt,
+        });
+        if (interest.moments)
+          console.info("[sync/soko-bot-events] Task interest", interest);
         if (!context.shouldContinue()) return;
         const taskboard = await sokoBotTaskboardSyncService.syncTaskboard({
           abortSignal: context.abortSignal,

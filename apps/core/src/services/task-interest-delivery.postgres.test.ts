@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   createNotification: vi.fn(),
   postSokoBotOwnerNotice: vi.fn(),
   startTaskSummaryTurn: vi.fn(),
+  delegationWakeCovers: vi.fn(),
 }));
 vi.mock("@/helpers/notifications", () => ({
   createNotification: mocks.createNotification,
@@ -30,6 +31,7 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 }));
 vi.mock("@/services/task-interest-summary", () => ({
   startTaskSummaryTurn: mocks.startTaskSummaryTurn,
+  delegationWakeCovers: mocks.delegationWakeCovers,
 }));
 
 const enabled =
@@ -49,11 +51,18 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const followerBotId = randomUUID();
 const archivedBotId = randomUUID();
+/** The real clock off a quarter hour: only cases that ask run the overdue sweep. */
+function offQuarterHour(): Date {
+  const now = new Date();
+  return now.getUTCMinutes() % 15 === 0
+    ? new Date(now.getTime() + 60_000)
+    : now;
+}
 const tick = (now?: Date) =>
   syncTaskInterest({
     shouldContinue: () => true,
     abortSignal: new AbortController().signal,
-    now,
+    now: now ?? offQuarterHour(),
   });
 
 const bellUsers = () =>
@@ -146,6 +155,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     mocks.createNotification.mockResolvedValue({ created: true });
     mocks.postSokoBotOwnerNotice.mockResolvedValue({ messageId: "msg" });
     mocks.startTaskSummaryTurn.mockResolvedValue("started");
+    mocks.delegationWakeCovers.mockResolvedValue(false);
   });
 
   afterAll(async () => {
@@ -231,7 +241,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     expect(mocks.startTaskSummaryTurn).not.toHaveBeenCalled();
   });
 
-  it("holds a summary the bot cannot start yet and starts it on a later tick", async () => {
+  it("holds a summary the bot cannot start yet and starts it later, even past the lookback window", async () => {
     const task = await createTask("Ship the report");
     await follow(task.id, users.follower, {
       subscribed: true,
@@ -248,19 +258,109 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
 
     expect((await tick()).deferred).toBe(1);
     expect(
-      await prisma.taskMomentDelivery.count({ where: { taskId: task.id } }),
-    ).toBe(0);
+      await prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { channel: true },
+      }),
+    ).toEqual([{ channel: "DEFERRED" }]);
     expect(mocks.createNotification).not.toHaveBeenCalled();
 
+    // Not due again yet: a deferred summary does not retry every tick.
+    await tick();
+    expect(mocks.startTaskSummaryTurn).toHaveBeenCalledTimes(1);
+
     mocks.startTaskSummaryTurn.mockResolvedValue("started");
+    // 49 hours on: the completion is outside the window, the retry is not.
+    await tick(new Date(Date.now() + 49 * 60 * 60 * 1_000 + 7 * 60 * 1_000));
+    expect(mocks.startTaskSummaryTurn).toHaveBeenCalledTimes(2);
+    expect(
+      await prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { channel: true, retryAt: true },
+      }),
+    ).toEqual([{ channel: "SOKO_BOT", retryAt: null }]);
+  });
+
+  it("rings the bell when the summary throws, and leaves a busy bot for the next tick", async () => {
+    const task = await createTask("Close the books");
+    await follow(task.id, users.follower, {
+      subscribed: true,
+      joinedAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.COMPLETED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.COMPLETED },
+    });
+    const ledger = () =>
+      prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { channel: true },
+      });
+
+    mocks.startTaskSummaryTurn.mockResolvedValue("busy");
+    expect((await tick()).deferred).toBe(1);
+    expect(await ledger()).toEqual([]);
+
+    mocks.startTaskSummaryTurn.mockRejectedValue(new Error("sandbox down"));
     await tick();
     expect(mocks.startTaskSummaryTurn).toHaveBeenCalledTimes(2);
+    expect(bellUsers()).toEqual([users.follower]);
+    expect(await ledger()).toEqual([{ channel: "BELL" }]);
+  });
+
+  it("closes nothing for the others when a participant who was told leaves", async () => {
+    const task = await createTask("Book the venue");
+    const before = new Date(Date.now() - 60_000);
+    await follow(task.id, users.follower, {
+      subscribed: true,
+      joinedAt: before,
+    });
+    await follow(task.id, users.plain, { joinedAt: before });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.CANCELED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.CANCELED },
+    });
+    mocks.postSokoBotOwnerNotice.mockRejectedValue(new Error("chat down"));
+
+    await tick();
+    expect(bellUsers()).toEqual([users.plain]);
+    await prisma.taskParticipant.deleteMany({
+      where: { taskId: task.id, userId: users.plain },
+    });
+
+    vi.clearAllMocks();
+    mocks.postSokoBotOwnerNotice.mockResolvedValue({ messageId: "msg" });
+    await tick();
+    expect(botUsers()).toEqual([followerBotId]);
+  });
+
+  it("sends nothing for a Task reopened before the tick", async () => {
+    const task = await createTask("Reopened report");
+    await follow(task.id, users.plain, {
+      joinedAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.COMPLETED },
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.RUNNING },
+    });
+
+    await tick();
+
+    expect(mocks.createNotification).not.toHaveBeenCalled();
     expect(
       await prisma.taskMomentDelivery.findMany({
         where: { taskId: task.id },
         select: { channel: true },
       }),
-    ).toEqual([{ channel: "SOKO_BOT" }]);
+    ).toEqual([{ channel: "NONE" }]);
   });
 
   it("falls back to the bell when the bot is gone at post time, and retries a failed send", async () => {
@@ -319,15 +419,40 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
         },
       });
     }
+    // Moved twice before the tick: only the latest move is news.
+    const twice = await createTask("Moved twice", {
+      dueOn: new Date("2026-12-10T00:00:00.000Z"),
+    });
+    await follow(twice.id, users.plain, { joinedAt: before });
+    const moves: string[] = [];
+    for (const [from, to, at] of [
+      ["2026-11-20", "2026-11-30", before],
+      ["2026-11-30", "2026-12-10", new Date()],
+    ] as const) {
+      const move = await prisma.taskDueDateChange.create({
+        data: {
+          taskId: twice.id,
+          fromDueOn: new Date(`${from}T00:00:00.000Z`),
+          toDueOn: new Date(`${to}T00:00:00.000Z`),
+          actorUserId: users.owner,
+          createdAt: at,
+        },
+      });
+      moves.push(move.id);
+    }
 
     await tick();
 
     expect(
-      mocks.createNotification.mock.calls.map(([input]) => [
-        input.referenceId,
-        input.messageKey,
-      ]),
-    ).toEqual([[kept.id, "Notifications.Task.dueDateMovedLater"]]);
+      mocks.createNotification.mock.calls
+        .map(([input]) => [input.referenceId, input.eventId, input.messageKey])
+        .sort(),
+    ).toEqual(
+      [
+        [kept.id, expect.any(String), "Notifications.Task.dueDateMovedLater"],
+        [twice.id, moves[1], "Notifications.Task.dueDateMovedLater"],
+      ].sort(),
+    );
   });
 
   it("sends overdue at 09:00 in the follower's bot timezone on the first day after the due date", async () => {
@@ -356,5 +481,116 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
       osBannerDefaultOn: true,
     });
     expect(mocks.createNotification).not.toHaveBeenCalled();
+  });
+
+  it("closes the deferred summary of a follower who left, so it holds no retry place", async () => {
+    const task = await createTask("Draft the brief");
+    await follow(task.id, users.follower, {
+      subscribed: true,
+      joinedAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.COMPLETED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.COMPLETED },
+    });
+    mocks.startTaskSummaryTurn.mockResolvedValue("deferred");
+    await tick();
+    await prisma.taskParticipant.deleteMany({ where: { taskId: task.id } });
+
+    await tick(new Date(Date.now() + 2 * 60 * 60 * 1_000));
+
+    expect(
+      await prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { channel: true, retryAt: true },
+      }),
+    ).toEqual([{ channel: "NONE", retryAt: null }]);
+  });
+
+  it("puts a deferred summary that fails on retry back to wait", async () => {
+    const task = await createTask("Plan the offsite");
+    await follow(task.id, users.follower, {
+      subscribed: true,
+      joinedAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.COMPLETED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.COMPLETED },
+    });
+    mocks.startTaskSummaryTurn.mockResolvedValue("deferred");
+    await tick();
+    // The summary turn cannot start and the bell fallback fails too.
+    mocks.startTaskSummaryTurn.mockResolvedValue("gone");
+    mocks.createNotification.mockRejectedValue(new Error("bell down"));
+    const retryTick = new Date(Date.now() + 2 * 60 * 60 * 1_000);
+
+    expect((await tick(retryTick)).failed).toBe(1);
+
+    const [row] = await prisma.taskMomentDelivery.findMany({
+      where: { taskId: task.id },
+    });
+    expect(row?.channel).toBe("DEFERRED");
+    expect(row?.retryAt?.getTime()).toBeGreaterThan(retryTick.getTime());
+    // Its retry would come due in later ticks of this file.
+    await prisma.task.delete({ where: { id: task.id } });
+  });
+
+  it("counts an overdue Task only once someone's morning has come, and closes it for a non-member", async () => {
+    const task = await createTask("Overdue audit", {
+      dueOn: new Date("2026-12-01T00:00:00.000Z"),
+    });
+    await follow(task.id, users.follower, { subscribed: true });
+    await follow(task.id, users.leaver);
+
+    // 05:00 UTC: 00:00 in New York, 06:00 in Berlin (the leaver's fallback).
+    expect((await tick(new Date("2026-12-02T05:00:00.000Z"))).moments).toBe(0);
+
+    // 08:00 UTC is 09:00 in Berlin: the leaver's morning, but not a member.
+    await tick(new Date("2026-12-02T08:00:00.000Z"));
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+    expect(
+      await prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { userId: true, channel: true },
+      }),
+    ).toEqual([{ userId: users.leaver, channel: "NONE" }]);
+  });
+
+  it("leaves a cancel to the wake of the bot that delegated the Task", async () => {
+    const task = await createTask("Order the badges");
+    await follow(task.id, users.follower, {
+      subscribed: true,
+      joinedAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.CANCELED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.CANCELED },
+    });
+    mocks.delegationWakeCovers.mockResolvedValue(true);
+
+    await tick();
+
+    expect(mocks.delegationWakeCovers).toHaveBeenCalledWith({
+      taskId: task.id,
+      sokoBotId: followerBotId,
+      changedBySokoBotId: null,
+    });
+    expect(botUsers()).toEqual([]);
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+    expect(
+      await prisma.taskMomentDelivery.findMany({
+        where: { taskId: task.id },
+        select: { channel: true },
+      }),
+    ).toEqual([{ channel: "SOKO_BOT" }]);
   });
 });

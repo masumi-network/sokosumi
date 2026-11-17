@@ -21,10 +21,16 @@ import { proactiveGate } from "@/services/soko-bot-proactive.service";
  * `started`: the bot writes the summary. `covered`: the bot delegated this
  * Task and someone else completed it, so the events sync wakes the bot to
  * report the completion itself. `deferred`: the
- * daily cap, missing credits or a running turn; try again next tick.
+ * daily cap or missing credits; try again later. `busy`: a turn is running;
+ * try again next tick.
  * `gone`: the bot cannot run; the bell takes the moment.
  */
-export type TaskSummaryOutcome = "started" | "covered" | "deferred" | "gone";
+export type TaskSummaryOutcome =
+  | "started"
+  | "covered"
+  | "deferred"
+  | "busy"
+  | "gone";
 
 /**
  * Whether the events sync wakes this bot itself for a settled status on the
@@ -110,11 +116,8 @@ export async function startTaskSummaryTurn(input: {
   } catch (error) {
     // The same client turn id already started: this summary exists.
     if (error instanceof SokoBotIdempotencyConflictError) return "started";
-    if (
-      error instanceof SokoBotBusyError ||
-      error instanceof SokoBotBillingAccessError
-    )
-      return "deferred";
+    if (error instanceof SokoBotBusyError) return "busy";
+    if (error instanceof SokoBotBillingAccessError) return "deferred";
     // No 1:1 room to write the summary in: the bell takes the moment.
     if (
       error instanceof SokoBotNotFoundError ||
