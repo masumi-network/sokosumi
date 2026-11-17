@@ -17,6 +17,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeOwnerDriveFile,
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   googleSpreadsheetId,
   readGoogleSheet,
@@ -196,6 +197,7 @@ describe("refreshGoogleSheetLink", () => {
   });
 
   it("keeps the copy and records why when the sheet is no longer shared", async () => {
+    expectConsole("warn", "[drive-google-sheet] Refresh failed");
     await linkedTo("<v>1</v>");
     respondWith("<html>Sign in</html>", { "content-type": "text/html" });
 

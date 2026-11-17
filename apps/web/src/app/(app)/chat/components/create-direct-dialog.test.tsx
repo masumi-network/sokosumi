@@ -4,7 +4,7 @@ import type {
   Coworker,
   Member,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { toast } from "sonner";
@@ -378,9 +378,8 @@ describe("CreateDirectDialog", () => {
   });
 
   it("keeps the search composer visible while the roster loads", async () => {
-    loadChatComposeRosterActionMock.mockImplementation(
-      () => new Promise(() => {}),
-    );
+    const roster = Promise.withResolvers();
+    loadChatComposeRosterActionMock.mockReturnValue(roster.promise);
     const user = userEvent.setup();
     renderSeated(<CreateDirectDialog />);
 
@@ -394,6 +393,13 @@ describe("CreateDirectDialog", () => {
         .getByTestId("direct-recipient-composer")
         .contains(screen.getByPlaceholderText("Draft.searchPlaceholder")),
     ).toBe(true);
+    // A load left pending holds every later transition in this worker.
+    await act(async () =>
+      roster.resolve({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "Roster down" },
+      }),
+    );
   });
 
   it("scrolls a fixed-height roster pane and keeps chips in the composer", async () => {

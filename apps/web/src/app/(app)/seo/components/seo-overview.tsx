@@ -401,6 +401,19 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           <SeoSeverity severity={finding.severity} />
                         </span>
                       </div>
+                      {finding.relatedPageUrl ? (
+                        <div className="space-y-1">
+                          <p className="text-xs">
+                            {t("overview.relatedFindingPage")}
+                          </p>
+                          <SeoPageLink url={finding.relatedPageUrl} />
+                        </div>
+                      ) : null}
+                      {finding.visibility === "PRIVATE" ? (
+                        <p className="text-xs">
+                          {t("overview.privateFinding")}
+                        </p>
+                      ) : null}
                       <ul className="list-disc space-y-1 ps-4">
                         {finding.evidence.map((evidence, index) => (
                           <li
@@ -411,6 +424,14 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           </li>
                         ))}
                       </ul>
+                      {finding.suggestedFix ? (
+                        <div className="space-y-1">
+                          <p className="text-foreground font-medium">
+                            {t("overview.suggestedFix")}
+                          </p>
+                          <p className="break-words">{finding.suggestedFix}</p>
+                        </div>
+                      ) : null}
                       {/* The tests tile at the top of the tab dates the last check: a finding of that day repeats no date
                           (the date of the tile opens the results of that check). An older finding has its date,
                           with a word, and the date is the link to its check. */}

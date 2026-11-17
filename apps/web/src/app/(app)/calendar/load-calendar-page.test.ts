@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+import { redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getWorkspaceCalendarMock = vi.fn();
@@ -7,6 +9,11 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
+const getSessionResultMock = vi.fn(
+  async (): Promise<Result<unknown, { reason: string }>> =>
+    ok(await getSessionMock()),
+);
+const connectionMock = vi.fn(async () => undefined);
 const isNewsletterEnabledMock = vi.fn();
 const getTimeZoneMock = vi.fn();
 
@@ -18,15 +25,18 @@ vi.mock("@/lib/newsletter-access.server", () => ({
   isNewsletterEnabled: () => isNewsletterEnabledMock(),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
 }));
 
 vi.mock("next/server", () => ({
-  connection: vi.fn(),
+  connection: () => connectionMock(),
 }));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 
 vi.mock("next-intl/server", () => ({
   getTimeZone: () => getTimeZoneMock(),
@@ -34,6 +44,7 @@ vi.mock("next-intl/server", () => ({
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
+  getSessionResult: () => getSessionResultMock(),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
@@ -474,6 +485,44 @@ describe("loadWorkspaceCalendarPage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(getProjectCalendarMock).not.toHaveBeenCalled();
+  });
+
+  // connection() would drop the page from every link prefetch.
+  it("reads the page without deferring to the request", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(result.activeOrganizationId).toBe("org-1");
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // The cached read must not keep an outage as "signed out", so the click
+  // renders fresh and the page degrades as before.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResultMock.mockResolvedValueOnce(err({ reason: "timeout" }));
+    getSessionMock.mockResolvedValue(null);
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(result.activeOrganizationId).toBeNull();
+  });
+
+  // Any redirect thrown inside the cached read, such as a Core 401 from a
+  // service, must reach the prefetch instead of the fresh fallback.
+  it("keeps a sign-in redirect from the cached read", async () => {
+    getSessionResultMock.mockImplementationOnce(async () =>
+      redirect("/signin"),
+    );
+
+    await expect(
+      loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   describe("scheduled Social post horizon", () => {

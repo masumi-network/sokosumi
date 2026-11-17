@@ -12,6 +12,7 @@ const {
   findFirstMock,
   findManyMock,
   streamModelCallMock,
+  claimsActionMock,
   getContextMock,
   waitUntilMock,
 } = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const {
   findFirstMock: vi.fn(),
   findManyMock: vi.fn(),
   streamModelCallMock: vi.fn(),
+  claimsActionMock: vi.fn(async () => false),
   getContextMock: vi.fn(),
   // The real waitUntil detaches the turn, so tests await the captured promise.
   waitUntilMock: vi.fn((promise: Promise<unknown>) => {
@@ -31,7 +33,9 @@ const {
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 // The canned replies here all claim work; Jev is not called from a test.
-vi.mock("./answer-claims", () => ({ claimsAction: async () => true }));
+// A reply claims nothing unless a test says so: claiming by default withheld
+// every reply, including in tests about metering, regions and deadlines.
+vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   stepCountIs: (count: number) => count,
@@ -83,6 +87,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { expectConsole } from "@/test/console";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
 import {
@@ -139,6 +144,9 @@ describe("InProcessSokoBotRuntime", () => {
   });
 
   it("runs the turn and records the events the drain settles on", async () => {
+    // The canned reply claims a delegation no receipt backs, so it is held.
+    claimsActionMock.mockResolvedValueOnce(true);
+    const withheld = expectConsole("warn", "Soko Bot reply withheld");
     const runtime = new InProcessSokoBotRuntime();
 
     const ref = await runtime.createSession({
@@ -167,6 +175,9 @@ describe("InProcessSokoBotRuntime", () => {
       (event) => event.type === "message.completed",
     );
     expect(completed?.data.message).toBe("Nothing was changed in this turn.");
+    expect(withheld[0]?.[1]).toMatchObject({
+      reason: "claims_unconfirmed_change",
+    });
   });
 
   it("reports the model and metered usage the drain bills on", async () => {
@@ -360,6 +371,9 @@ describe("InProcessSokoBotRuntime", () => {
   ])(
     "suppresses unsupported success prose for an unused %s grant",
     async (capability) => {
+      // The claim check reads the success prose as a claim no receipt backs.
+      claimsActionMock.mockResolvedValueOnce(true);
+      const withheld = expectConsole("warn", "Soko Bot reply withheld");
       authorizeMock.mockResolvedValueOnce({
         turn: { id: TURN_ID, versionId: "v11" },
         grant: { capabilities: [capability] },
@@ -382,6 +396,9 @@ describe("InProcessSokoBotRuntime", () => {
         recordedEvents().find((event) => event.type === "message.completed")
           ?.data.message,
       ).toBe("Nothing was changed in this turn.");
+      expect(withheld[0]?.[1]).toMatchObject({
+        reason: "claims_unconfirmed_change",
+      });
       expect(executeToolMock).not.toHaveBeenCalled();
     },
   );

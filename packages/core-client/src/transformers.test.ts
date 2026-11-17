@@ -7,6 +7,7 @@ import {
   getProjectsByIdCalendarResponseTransformer,
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getSeoAuditWorkspaceResponseTransformer,
+  getStudioComparePairResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
@@ -72,6 +73,31 @@ it("revives X thread part dates and preserves unpublished parts", async () => {
 });
 
 describe("generated response transformers keep nullable objects null-safe", () => {
+  it("Studio compare: an exhausted batch keeps its pair null", async () => {
+    const result = await getStudioComparePairResponseTransformer({
+      data: { pair: null },
+      meta,
+    });
+
+    expect(result.data.pair).toBeNull();
+    expect(result.meta.timestamp).toBeInstanceOf(Date);
+  });
+
+  it("Studio compare: a pair revives both asset dates", async () => {
+    const result = await getStudioComparePairResponseTransformer({
+      data: {
+        pair: {
+          a: { createdAt: meta.timestamp, sourceJob: null },
+          b: { createdAt: meta.timestamp, sourceJob: null },
+        },
+      },
+      meta,
+    });
+
+    expect(result.data.pair?.a.createdAt).toBeInstanceOf(Date);
+    expect(result.data.pair?.b.createdAt).toBeInstanceOf(Date);
+  });
+
   it("finalize ad connection: connection null (account reaches no ad accounts)", async () => {
     const result =
       await postProjectsByIdAdsConnectionsFinalizeResponseTransformer({
@@ -200,6 +226,7 @@ it.each([null, { observedAt: meta.timestamp, rows: [] }])(
       keywords: [],
       competitors: [],
       findings: [],
+      actions: [],
       metrics: [],
       timeline: [],
       analyses: [],

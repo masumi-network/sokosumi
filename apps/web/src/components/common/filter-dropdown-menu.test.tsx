@@ -98,6 +98,35 @@ describe("FilterDropdownMenu", () => {
     expect(optionLabel).toHaveClass(FILTER_DROPDOWN_OPTION_LABEL_CLASS);
   });
 
+  it("shows the active filter count on both triggers and names it", () => {
+    render(
+      <FilterDropdownMenu
+        buttonLabel="Filters"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        activeCount={{ count: 2, label: "2 active" }}
+        sections={[
+          {
+            id: "task",
+            label: "Task",
+            icon: Folder,
+            value: null,
+            onChange: vi.fn(),
+            options: [],
+          },
+        ]}
+      />,
+    );
+
+    const triggers = screen.getAllByRole("button", {
+      name: "Filters, 2 active",
+    });
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) {
+      expect(trigger).toHaveTextContent("2");
+    }
+  });
+
   it("supports a controlled sheet without the built-in mobile trigger", async () => {
     const user = userEvent.setup();
     const onSheetOpenChange = vi.fn();

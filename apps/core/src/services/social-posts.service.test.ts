@@ -15,6 +15,7 @@ import {
 
 import * as socialProviders from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
+import { expectConsole } from "@/test/console";
 
 const {
   projectFindFirstMock,
@@ -3366,7 +3367,10 @@ describe("social posts service", () => {
     });
 
     it("treats malformed stored media as none", async () => {
-      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnCalls = expectConsole(
+        "warn",
+        "[social-post] Ignoring malformed media refs",
+      );
       socialPostFindManyMock.mockResolvedValue([
         { ...draftPost, media: [{ pathname: 1 }] },
       ]);
@@ -3378,10 +3382,10 @@ describe("social posts service", () => {
       });
 
       expect(posts[0].media).toEqual([]);
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(warnCalls).toContainEqual([
         expect.stringContaining("media"),
         { postId: POST_ID },
-      );
+      ]);
     });
 
     it("enforces the media rules when scheduling", async () => {

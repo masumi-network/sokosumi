@@ -34,6 +34,7 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
+import { expectConsole } from "@/test/console";
 import { publishChatRoomReadRealtime } from "./chat-room-read-realtime";
 
 const ROOM_ID = "660e8400-e29b-41d4-a716-446655440000";
@@ -42,7 +43,6 @@ const LAST_READ_AT = new Date("2026-08-03T12:00:00.000Z");
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(console, "error").mockImplementation(() => {});
   publishMock.mockResolvedValue(undefined);
   channelsGetMock.mockReturnValue({ publish: publishMock });
   channelEnvironmentMock.mockReturnValue(PRODUCTION);
@@ -91,6 +91,7 @@ describe("publishChatRoomReadRealtime", () => {
   });
 
   it("swallows a publish failure so the caller never sees it", async () => {
+    expectConsole("error", "Failed to publish room read event over Ably");
     publishMock.mockRejectedValue(new Error("ably down"));
 
     await expect(

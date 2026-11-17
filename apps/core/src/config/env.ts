@@ -272,6 +272,25 @@ const baseEnvSchema = z.object({
    * read-only view rather than failing a page render.
    */
   FAL_KEY: z.string().min(1).optional(),
+  /** Automatic studio ad evals are opt-in; PAUSED stops new judge calls. */
+  AD_EVALS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AD_EVALS_PAUSED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AD_EVALS_WORKSPACE_DAILY_LIMIT: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(100),
+  AD_EVALS_GLOBAL_DAILY_USD: z.coerce
+    .number()
+    .finite()
+    .nonnegative()
+    .default(10),
   /**
    * Shared secret the image-studio agent signs its grants with. The agent runs
    * outside Core, so a grant is how it names the acting user; Core still
@@ -457,6 +476,12 @@ const baseEnvSchema = z.object({
    * See `lib/drive-blob.ts`.
    */
   DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * The private reference library store: old ads, posters and covers Cuso
+   * takes a style from (`services/reference-library.service.ts`). Unset, his
+   * pictures are made from the brand's own pictures only.
+   */
+  REFERENCE_LIBRARY_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.

@@ -15,6 +15,7 @@ import { TASK_TAG_IDS, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
+import { expectConsole } from "@/test/console";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -1563,31 +1564,25 @@ describe("POST /tasks", () => {
   it("creates the task when name generation throws trailing bytes", async () => {
     generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
     const app = createApp();
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Task name generation failed");
 
-    try {
-      const response = await app.request("http://localhost/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: "Build landing page",
-          assigneeId: null,
-          status: TaskStatus.DRAFT,
-          channel: Channel.SOKOSUMI,
-        }),
-      });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Build landing page",
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
 
-      expect(response.status).toBe(201);
-      expect(taskCreateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ name: "Build landing page" }),
-        }),
-      );
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: "Build landing page" }),
+      }),
+    );
   });
 
   it("generates a name from the description when name is omitted", async () => {
@@ -1885,6 +1880,10 @@ describe("POST /tasks delegated coworker create grant", () => {
   });
 
   it("still returns 201 when post-create grant notify fails", async () => {
+    expectConsole(
+      "error",
+      "Failed to notify approvers of pending vendor grant after task create",
+    );
     mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockRejectedValue(
       new Error("notify down"),

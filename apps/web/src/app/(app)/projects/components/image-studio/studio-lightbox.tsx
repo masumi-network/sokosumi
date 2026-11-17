@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
 import type { StudioBatchDownloadReview } from "./studio-batch";
+import { StudioBatchCompareButton } from "./studio-batch-compare";
 import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -34,6 +35,7 @@ import {
   isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
+  type StudioJob,
   type StudioLabels,
 } from "./types";
 
@@ -57,6 +59,7 @@ export function StudioLightbox({
   defaultLogoPosition,
   onAnimate,
   onClose,
+  onCompare,
   onRate,
   onHide,
   onViewed,
@@ -79,8 +82,10 @@ export function StudioLightbox({
   onCaptionSuggestionResolve,
   onUndoCaption,
   siblings,
+  jobs = [],
 }: {
   assets: StudioAsset[];
+  jobs?: readonly StudioJob[];
   catalog: StudioCatalog;
   /** What each version was debited, in credits; absent when unknown. */
   creditsByAssetId: Record<string, number>;
@@ -92,6 +97,7 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
+  onCompare?: (asset: StudioAsset) => void;
   onRate?: (
     asset: StudioAsset,
     input: SetStudioAssetFeedbackData["body"],
@@ -274,9 +280,18 @@ export function StudioLightbox({
               {writingCaption ? labels.writingCaption : null}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {onCompare && single.batchId && !isVideoAsset(single) ? (
+                <StudioBatchCompareButton
+                  asset={single}
+                  key={single.id}
+                  labels={labels}
+                  onCompare={onCompare}
+                />
+              ) : null}
               {isVideoAsset(single) ? null : (
                 <StudioAdPreview
                   asset={single}
+                  jobs={jobs}
                   caption={caption}
                   headline={headlineForAsset?.(single)}
                   savingHeadline={savingHeadline}
@@ -386,6 +401,7 @@ export function StudioLightbox({
                       downloading={downloadingBatch}
                       headlineForAsset={headlineForAsset}
                       savingHeadline={savingHeadline}
+                      jobs={jobs}
                       key={logoScope}
                       labels={labels}
                       onDownload={(review) =>

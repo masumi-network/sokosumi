@@ -10,14 +10,23 @@ const m = vi.hoisted(() => ({
   account: vi.fn(),
   fetch: vi.fn(),
   describe: vi.fn(),
+  rowUpdate: vi.fn(),
+  upsert: vi.fn(),
+  identity: vi.fn(),
+  revoke: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findFirst: m.workspace },
-    seoConnection: { findUnique: m.selection },
+    seoConnection: {
+      findUnique: m.selection,
+      updateMany: m.rowUpdate,
+      upsert: m.upsert,
+    },
     seoConnectionIntent: {
       findUnique: m.intent,
       findFirst: async () => null,
+      findMany: async () => [],
       updateMany: m.redeemed,
     },
     sokoBotIntegration: { findMany: m.legacy },
@@ -34,12 +43,23 @@ vi.mock("@/clients/composio.client", () => ({
   getComposio: () => ({ tools: { getRawComposioToolBySlug: m.describe } }),
   completeComposioAuth: m.complete,
   getComposioConnectedAccount: m.account,
+  deleteProjectSocialConnectionIntent: m.revoke,
+}));
+vi.mock("@/lib/db/transaction", async () => {
+  const prisma = (await import("@/lib/db/prisma")).default;
+  return {
+    serializableTransaction: (run: (tx: unknown) => unknown) => run(prisma),
+  };
+});
+vi.mock("@/lib/seo/google-account-identity", () => ({
+  readGoogleAccountIdentity: m.identity,
 }));
 
 import { readIntegrationTool } from "@/services/composio-integration-tools.service";
 import {
   completeSeoConnectionCallback,
   connectSeoConnection,
+  disconnectSeoConnection,
   finalizeSeoConnection,
 } from "@/services/seo-connection-oauth.service";
 import {
@@ -344,6 +364,177 @@ describe("native SEO connection ownership", () => {
     expect(body).toMatchObject({
       user_id: identity,
       connected_account_id: "ca-native",
+    });
+  });
+});
+
+describe("Google account identity on a native connection", () => {
+  type Row = Record<string, unknown>;
+  const google = {
+    email: "ann@example.com",
+    name: "Ann",
+    pictureUrl: "https://lh3.googleusercontent.com/a/ann",
+  };
+  /** Applies a Prisma-style where/data pair to one in-memory row. */
+  function fakeRow(initial: Row) {
+    const row: Row = { ...initial };
+    const matches = (where: Row): boolean =>
+      Object.entries(where).every(([key, value]) => {
+        if (key === "OR") return (value as Row[]).some(matches);
+        if (
+          value instanceof Date ||
+          value === null ||
+          typeof value !== "object"
+        )
+          return row[key] === value;
+        const { lt } = value as { lt?: Date };
+        // Other operators (revision filters) stay out of these cases.
+        return lt === undefined || (row[key] as Date) < lt;
+      });
+    m.selection.mockImplementation(async () => ({ ...row }));
+    m.rowUpdate.mockImplementation(
+      async ({ where, data }: { where: Row; data: Row }) => {
+        if (!matches(where)) return { count: 0 };
+        Object.assign(row, data);
+        return { count: 1 };
+      },
+    );
+    m.upsert.mockImplementation(async ({ update }: { update: Row }) => {
+      const before = { ...row };
+      Object.assign(row, update, { revision: Number(row.revision) + 1 });
+      return before;
+    });
+    return row;
+  }
+  const active = {
+    ...owner,
+    provider: "ga4",
+    id: "native-selection",
+    status: "ACTIVE",
+    revision: 2,
+    composioAccountId: "ca-old",
+    entityId: identity,
+  };
+  beforeEach(() => m.revoke.mockResolvedValue(undefined));
+
+  it("reads a pre-existing connection's identity once, also when Google returns none", async () => {
+    fakeRow({ ...active, accountCheckedAt: null, accountEmail: null });
+    m.identity.mockResolvedValue(null);
+    expect((await getSeoConnection(owner, "ga4")).account).toBeNull();
+    expect((await getSeoConnection(owner, "ga4")).account).toBeNull();
+    expect(m.identity).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads again after the retry period when the last read gave no identity", async () => {
+    const hoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    fakeRow({ ...active, accountCheckedAt: hoursAgo, accountEmail: null });
+    m.identity.mockResolvedValue(google);
+    expect((await getSeoConnection(owner, "ga4")).account).toEqual(google);
+  });
+
+  it("keeps the identity in a finalize answer when a status read runs during the old account cleanup", async () => {
+    fakeRow({ ...active, accountCheckedAt: new Date(), accountEmail: null });
+    m.intent.mockResolvedValue({ ...intent(), callbackRedeemedAt: new Date() });
+    let release = (_: typeof google) => {};
+    m.identity.mockImplementation(
+      () => new Promise<typeof google>((resolve) => (release = resolve)),
+    );
+    // The cleanup of the old account waits on Composio; a status read starts meanwhile.
+    m.revoke.mockImplementation(async () => {
+      void getSeoConnection(owner, "ga4");
+      await Promise.resolve();
+    });
+    const finalized = finalizeSeoConnection(owner, "ga4", "ca-google");
+    await vi.waitFor(() => expect(m.identity).toHaveBeenCalled());
+    release(google);
+    expect(await finalized).toMatchObject({ account: google });
+  });
+
+  it("answers a finalize with the identity when a status read starts as the account changes", async () => {
+    const row = fakeRow({
+      ...active,
+      accountCheckedAt: null,
+      accountEmail: null,
+    });
+    m.intent.mockResolvedValue({ ...intent(), callbackRedeemedAt: new Date() });
+    m.identity.mockResolvedValue(google);
+    const reads: Promise<unknown>[] = [];
+    const update = m.rowUpdate.getMockImplementation()!;
+    m.rowUpdate.mockImplementation(async (args: { data: Row }) => {
+      const result = await update(args);
+      // The popup closes and the opener's focus reads the status right after the switch.
+      if (args.data.composioAccountId === "ca-google")
+        reads.push(getSeoConnection(owner, "ga4"));
+      return result;
+    });
+    expect(
+      await finalizeSeoConnection(owner, "ga4", "ca-google"),
+    ).toMatchObject({ account: google });
+    await Promise.all(reads);
+    expect(m.identity).toHaveBeenCalledTimes(1);
+    expect(row.accountEmail).toBe(google.email);
+  });
+
+  it("lets only one of two concurrent status reads call Google", async () => {
+    fakeRow({ ...active, accountCheckedAt: null, accountEmail: null });
+    m.identity.mockResolvedValue(google);
+    const reads = await Promise.all([
+      getSeoConnection(owner, "ga4"),
+      getSeoConnection(owner, "ga4"),
+    ]);
+    expect(m.identity).toHaveBeenCalledTimes(1);
+    expect(reads.map((read) => read.account)).toContainEqual(google);
+    expect((await getSeoConnection(owner, "ga4")).account).toEqual(google);
+  });
+
+  it("stores the new account's identity when a connection is finalized", async () => {
+    fakeRow({ ...active, accountCheckedAt: new Date(), accountEmail: null });
+    m.intent.mockResolvedValue({ ...intent(), callbackRedeemedAt: new Date() });
+    m.identity.mockResolvedValue(google);
+    expect(
+      await finalizeSeoConnection(owner, "ga4", "ca-google"),
+    ).toMatchObject({ status: "connected", account: google });
+    expect(m.identity).toHaveBeenCalledWith({
+      connectedAccountId: "ca-google",
+      executorUserId: identity,
+    });
+  });
+
+  it("finalizes without the old account's identity when the new read fails", async () => {
+    const row = fakeRow({
+      ...active,
+      accountCheckedAt: new Date(),
+      accountEmail: "old@example.com",
+      accountName: "Old",
+      accountPictureUrl: null,
+    });
+    m.intent.mockResolvedValue({ ...intent(), callbackRedeemedAt: new Date() });
+    m.identity.mockRejectedValue(new Error("Google is down"));
+    expect(
+      await finalizeSeoConnection(owner, "ga4", "ca-google"),
+    ).toMatchObject({ status: "connected", account: null });
+    expect(row).toMatchObject({
+      composioAccountId: "ca-google",
+      accountEmail: null,
+      accountName: null,
+    });
+  });
+
+  it("clears the stored identity on disconnect", async () => {
+    const row = fakeRow({
+      ...active,
+      accountCheckedAt: new Date(),
+      accountEmail: "old@example.com",
+      accountName: "Old",
+      accountPictureUrl: google.pictureUrl,
+    });
+    await disconnectSeoConnection(owner, "ga4");
+    expect(row).toMatchObject({
+      status: "DISCONNECTED",
+      accountEmail: null,
+      accountName: null,
+      accountPictureUrl: null,
+      accountCheckedAt: null,
     });
   });
 });

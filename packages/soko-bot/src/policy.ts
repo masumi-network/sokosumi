@@ -151,6 +151,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "search_exa",
   "read_social_profile",
   "read_writing_skill",
+  "find_style_references",
   "list_social_comments",
   "handle_social_comment",
   "start_background_run",
@@ -199,6 +200,8 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "read_social_profile",
   // How Cuso writes each kind of piece, read before he writes it.
   "read_writing_skill",
+  // Old ads, posters and labels a picture can take its look from.
+  "find_style_references",
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",

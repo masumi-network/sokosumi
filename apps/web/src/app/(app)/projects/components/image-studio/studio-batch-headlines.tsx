@@ -18,7 +18,13 @@ import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type { StudioBatchDownloadReview } from "./studio-batch";
 import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";
-import { isVideoAsset, type StudioAsset, type StudioLabels } from "./types";
+import { usesExactFontOverlay } from "./studio-lettering";
+import {
+  isVideoAsset,
+  type StudioAsset,
+  type StudioJob,
+  type StudioLabels,
+} from "./types";
 
 export function StudioBatchHeadlines({
   projectId,
@@ -29,6 +35,7 @@ export function StudioBatchHeadlines({
   downloading,
   onHeadlineChange,
   onDownload,
+  jobs = [],
 }: {
   projectId: string;
   batchId: string;
@@ -38,6 +45,7 @@ export function StudioBatchHeadlines({
   downloading?: boolean;
   onHeadlineChange: (asset: StudioAsset, headline: string) => void;
   onDownload: (review: StudioBatchDownloadReview) => void;
+  jobs?: readonly StudioJob[];
 }) {
   const t = useTranslations("App.Studio");
   const [review, setReview] = useState<{
@@ -71,6 +79,7 @@ export function StudioBatchHeadlines({
   }
 
   const unavailableHeadline = review?.assets.some((asset) => {
+    if (!usesExactFontOverlay(asset, jobs)) return false;
     const headline = headlineForAsset(asset);
     return headline && !review.options.includes(headline);
   });
@@ -132,12 +141,20 @@ export function StudioBatchHeadlines({
                         : null}
                       {asset.width} × {asset.height}
                     </p>
-                    <StudioHeadlineSelect
-                      disabled={downloading || savingHeadline}
-                      headline={headlineForAsset(asset)}
-                      onChange={(headline) => onHeadlineChange(asset, headline)}
-                      options={review.options}
-                    />
+                    {!usesExactFontOverlay(asset, jobs) ? (
+                      <p className="text-muted-foreground text-xs break-words">
+                        {headlineForAsset(asset)}
+                      </p>
+                    ) : (
+                      <StudioHeadlineSelect
+                        disabled={downloading || savingHeadline}
+                        headline={headlineForAsset(asset)}
+                        onChange={(headline) =>
+                          onHeadlineChange(asset, headline)
+                        }
+                        options={review.options}
+                      />
+                    )}
                   </div>
                 </li>
               ))}

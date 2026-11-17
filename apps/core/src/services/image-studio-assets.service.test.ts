@@ -9,6 +9,9 @@ const {
   requireWorkspaceAccessMock,
   getMock,
   getEnvMock,
+  feedbackGroupByMock,
+  feedbackFindManyMock,
+  eventGroupByMock,
 } = vi.hoisted(() => ({
   assetFindFirstMock: vi.fn(),
   assetFindManyMock: vi.fn(),
@@ -18,6 +21,9 @@ const {
   requireWorkspaceAccessMock: vi.fn(),
   getMock: vi.fn(),
   getEnvMock: vi.fn(),
+  feedbackGroupByMock: vi.fn(),
+  feedbackFindManyMock: vi.fn(),
+  eventGroupByMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -34,12 +40,18 @@ vi.mock("@/lib/db/prisma", () => ({
       groupBy: assetGroupByMock,
     },
     projectImageJob: { findMany: jobFindManyMock },
+    adFeedback: {
+      groupBy: feedbackGroupByMock,
+      findMany: feedbackFindManyMock,
+    },
+    adEvent: { groupBy: eventGroupByMock },
   },
 }));
 
 import {
   listJobs,
   listRecentStudioProjects,
+  listStudioBatchAssets,
   openAssetStream,
   toJobView,
 } from "@/services/image-studio-assets.service";
@@ -60,6 +72,9 @@ describe("image studio versions", () => {
       IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
     });
     requireProjectAccessMock.mockResolvedValue(SCOPE);
+    feedbackGroupByMock.mockResolvedValue([]);
+    feedbackFindManyMock.mockResolvedValue([]);
+    eventGroupByMock.mockResolvedValue([]);
   });
 
   it("streams bytes only after re-authorizing, and never exposes a storage path", async () => {
@@ -221,6 +236,74 @@ describe("image studio versions", () => {
       }
     },
   );
+});
+
+describe("image studio batch siblings", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireProjectAccessMock.mockResolvedValue(SCOPE);
+    feedbackGroupByMock.mockResolvedValue([]);
+    feedbackFindManyMock.mockResolvedValue([]);
+    eventGroupByMock.mockResolvedValue([]);
+  });
+
+  const rawAsset = {
+    id: "asset-1",
+    projectId: SCOPE.projectId,
+    project: { name: "Launch" },
+    prompt: "Make the logo larger",
+    model: "model-a",
+    settings: { aspectRatio: "1:1" },
+    mediaType: "IMAGE",
+    createdAt: new Date("2026-11-13T08:00:00Z"),
+    headline: null,
+    job: { batchId: null, batchSlot: { batchId: "batch-1" } },
+  };
+
+  it("retains the original slot brief alongside the latest successful refinement", async () => {
+    jobFindManyMock.mockResolvedValue([
+      {
+        prompt: "A red vase",
+        asset: { ...rawAsset, id: "original", prompt: "A red vase" },
+        batchRefinements: [{ asset: rawAsset }],
+      },
+    ]);
+
+    const result = await listStudioBatchAssets({
+      ...SCOPE,
+      batchId: "batch-1",
+    });
+
+    expect(result).toMatchObject([
+      {
+        id: "asset-1",
+        batchId: "batch-1",
+        batchBrief: "A red vase",
+        prompt: "Make the logo larger",
+      },
+    ]);
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: SCOPE.projectId,
+          workspaceId: SCOPE.workspaceId,
+          batchId: "batch-1",
+        }),
+        select: expect.objectContaining({ prompt: true }),
+      }),
+    );
+  });
+
+  it("does not read private siblings after project access is denied", async () => {
+    requireProjectAccessMock.mockRejectedValueOnce(
+      new Error("Project not found"),
+    );
+    jobFindManyMock.mockClear();
+    await expect(
+      listStudioBatchAssets({ ...SCOPE, batchId: "batch-1" }),
+    ).rejects.toThrow("Project not found");
+    expect(jobFindManyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("listRecentStudioProjects", () => {

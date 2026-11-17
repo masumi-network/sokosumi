@@ -46,6 +46,7 @@ vi.mock("@/schemas/chat-room.schema", () => ({
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
+import { expectConsole } from "@/test/console";
 import {
   publishChatRoomMembershipStatusMessagesBestEffort,
   publishChatRoomMessageRealtime,
@@ -181,6 +182,7 @@ describe("publishChatRoomMessageRealtime", () => {
   });
 
   it("swallows publish errors", async () => {
+    expectConsole("error", "Failed to publish chat room message over Ably");
     publishChatRoomMessageEventMock.mockRejectedValue(new Error("ably down"));
 
     await expect(

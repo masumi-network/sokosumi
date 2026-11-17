@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Source",
         "projectLabel": "Project",
-        "typeOptions": {
-          "job": "Agent job",
-          "image": "Image",
-          "task": "Task",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "SEO chat",
-          "topUp": "Top up",
-          "unattributed": "Other"
-        }
+        "activeCount": "{count} active",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clearAll": "Clear all",
+        "searchLabel": "Search"
       },
       "Empty": {
         "title": "No transactions yet",
         "description": "Every job run, image generation, other credit consumption and top up will appear here."
+      },
+      "EmptyFiltered": {
+        "title": "No matching transactions",
+        "description": "Nothing matches these filters.",
+        "searchTitle": "No results for “{query}”",
+        "searchDescription": "Check the spelling or try another search.",
+        "clear": "Clear filters"
       },
       "List": {
         "loadMore": "Load more",
@@ -1558,6 +1561,7 @@
           "task": "Task",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO chat",
           "topUp": "Top up",
           "unattributed": "Other",
           "contacts": "Find people"
@@ -4459,6 +4463,14 @@
       "approvedHeadline": "Approved headline",
       "noHeadline": "No headline",
       "headlineHint": "Studio saves this headline to the ad and uses it in placement PNGs and ZIPs.",
+      "headlineLettering": "Headline lettering",
+      "letteringOverlay": "Exact font overlay",
+      "letteringIdeogram": "Ideogram lettering",
+      "letteringOverlayHint": "Adds the headline after generation. Use this for an exact font.",
+      "letteringIdeogramHint": "Gemini Pro renders the scene, then Ideogram v3 letters the headline. Two paid generations. If lettering fails, the exact brand font is added as a fallback.",
+      "letteringEditHint": "Edits the existing scene with Ideogram v3. One paid generation.",
+      "letteringPlan": "Gemini Pro + Ideogram v3 · two generations per ad",
+      "letteringPlanCredits": "Gemini Pro: {sceneCredits} + Ideogram v3: {letteringCredits} = {credits} credits",
       "headlineLoading": "Loading approved headlines…",
       "headlineLoadFailed": "Could not load approved headlines.",
       "useApprovedHeadlines": "Use approved headlines",
@@ -4506,6 +4518,26 @@
       "archiveImageLimit": "Select up to {count} images per ZIP.",
       "archiveSizeLimit": "Select images totaling {size} MiB or less.",
       "archiveDownloadFailed": "Could not download the ZIP. Try again or download the images individually.",
+      "Pairwise": {
+        "title": "Compare ads",
+        "hint": "Choose the better ad. Models appear after your pick.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Tie",
+        "bothBad": "Both bad",
+        "done": "Done",
+        "loadFailed": "Failed to load comparisons. Try again.",
+        "saveFailed": "Failed to save comparison. Try again.",
+        "retry": "Try again",
+        "loading": "Loading comparisons…",
+        "saved": "Pick saved",
+        "bestModels": "Your best models",
+        "loadingScores": "Loading models…",
+        "scoreboardFailed": "Failed to load models. Try again.",
+        "scoreboardEmpty": "Compare ads to find your best models.",
+        "modelStats": "Wins {percent}% · {count, plural, one {# pick} other {# picks}}",
+        "smallSample": "Early results · fewer than {count} picks"
+      },
       "compare": "Compare",
       "version": "Version",
       "generating": "Generating",
@@ -4695,6 +4727,7 @@
       },
       "creditsCheckedOn": "Price checked {date}",
       "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
+      "letteringFallbackHint": "Ideogram lettering is unavailable, so Studio will add the headline in the brand font.",
       "Rating": {
         "label": "Rate ad",
         "up": "Thumbs up",
@@ -11623,7 +11656,7 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
-      "manageStatistics": "Google statistics settings",
+      "manageStatistics": "Google connections",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
       "noPagesBody": "Pages define what each check and statistic covers.",
@@ -11646,13 +11679,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Only you can see this finding.",
+        "relatedFindingPage": "Related page",
         "measurements": "Traffic",
         "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
         "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
         "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
-        "findings": "Issues with no fix yet",
+        "findings": "Audit findings",
+        "suggestedFix": "Suggested fix",
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
@@ -11680,8 +11716,6 @@
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
-        "dailyValues": "Daily values",
-        "day": "Day",
         "synced": "Last synced",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
         "noComparison": "Not enough days to compare",
@@ -11719,12 +11753,16 @@
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
-        "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
-        "googleUpdate": "Google: {name}, {from} to {to}",
-        "googleUpdateOpen": "Google: {name}, {from} to {to}, still rolling out",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google updates known until {day}"
+        "googleUpdate": "{name}: {from} to {to}",
+        "googleUpdateOpen": "{name}: since {from}",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Google updates known until {day}",
+        "markerKind": "{kind, select, change {Page change} audit {Audit} task {Task done} verified {Fix confirmed} other {Event}}",
+        "markerEvent": "{kind}: {label}",
+        "day": "Day",
+        "markerEvents": "Events",
+        "markerLater": "{day} (no search data yet): {events}"
       },
       "keywords": {
         "title": "Keywords",
@@ -11806,7 +11844,7 @@
           "subtitle": "Monthly searches against how hard it is to rank. Top left is best.",
           "checked": "Your keywords",
           "idea": "Idea",
-          "hint": "Use the left and right arrow keys to move between keywords, and + or - to zoom.",
+          "hint": "Use the left and right arrow keys to move between keywords, Enter to open one, and + or - to zoom.",
           "axis": "Difficulty",
           "difficulty": "Difficulty {value} of 100",
           "top10": "{clicks, plural, =0 {Top 10: no extra clicks} one {Top 10: +# click a month} other {Top 10: +# clicks a month}}",
@@ -11816,7 +11854,14 @@
           "source": "Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO.",
           "zoomIn": "Zoom in",
           "zoomOut": "Zoom out",
-          "zoomReset": "Show the whole map"
+          "zoomReset": "Show the whole map",
+          "yours": "Your keyword",
+          "gainShort": "Extra clicks in top 3",
+          "contentTask": "Create content task",
+          "ask": "Ask the SEO agent",
+          "brief": "Write web content{site, select, none {} other { for {site}}} that can rank on Google for the search \"{keyword}\". The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { Lead with this product feature: {feature}.}}",
+          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"? The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { The product feature it fits: {feature}.}}",
+          "noGain": "Unknown"
         },
         "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",
@@ -11922,7 +11967,6 @@
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
-        "whyDetails": "Reason and evidence",
         "effort": "Effort",
         "before": "Before",
         "after": "Suggested change",
@@ -11938,9 +11982,6 @@
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
-        "fixesTitle": "Fixes for the issues",
-        "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
-        "opportunitiesTitle": "Suggestions from search data",
         "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
         "noOpportunitiesBody": "The last check found nothing to fix. The Overview lists what the SEO agent suggests next.",
         "kind": {
@@ -11948,7 +11989,19 @@
           "opportunity": "Suggestion"
         },
         "problem": "{check}. Found: {found}",
-        "impactLine": "{level}: {hint}"
+        "copyFix": "Copy change",
+        "copyInstructions": "Copy agent instructions",
+        "copyPage": "Page",
+        "copied": "Copied to the clipboard",
+        "copyFailed": "Could not copy. Select the text and copy it by hand.",
+        "copyAgentLead": "Make this SEO change on the website. Change only what it names, then check the page again.",
+        "evidence": "Evidence",
+        "change": "The change",
+        "filter": {
+          "label": "Filter actions",
+          "all": "All",
+          "suggestions": "Suggestions"
+        }
       },
       "pages": {
         "title": "Pages",
@@ -12047,6 +12100,7 @@
         "failed": "Failed",
         "invalid": "Check the page selection, keywords, market and devices. Full audits accept one keyword and both devices.",
         "keywordsHelp": "Enter up to 20 keywords, each with up to 80 characters.",
+        "relatedPages": "Also checks indexing for relevant pages from this site, up to {count} pages total. Full audits cover selected pages only.",
         "fullHelp": "Full audits accept one keyword and both devices. Each selected page keeps the same market.",
         "serviceUnavailable": "Checks are unavailable in this workspace. Return to the audit.",
         "returnToAudit": "Return to audit",
@@ -12060,8 +12114,8 @@
         "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
       },
       "statistics": {
-        "title": "Google statistics",
-        "description": "Statistics load automatically for the selected pages. Choose a property only when needed.",
+        "title": "Google connections",
+        "description": "Connect your Google sources. Statistics for the selected pages load automatically.",
         "provider": "Source",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12075,17 +12129,20 @@
         "propertiesLoading": "Loading authorized properties",
         "propertiesFailed": "Failed to load properties. Try again.",
         "noProperties": "No authorized properties available.",
-        "ownerOnly": "Statistics use your connected account and its access.",
+        "ownerOnly": "Sokosumi reads statistics with your Google access only.",
         "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
         "readsSearch": "Reads the last {days} days of Google search data.",
         "readsOrganic": "Reads the last {days} days of organic search traffic.",
         "readsAll": "Reads the last {days} days of all website traffic.",
         "channelAny": "All measured segments",
-        "connectTitle": "Set up statistics",
-        "connectFirst": "Connect {provider}. Statistics for the last 90 days will load automatically.",
         "channelAiAssistant": "AI assistants (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot."
+        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot.",
+        "measures": {
+          "search_console": "Searches, clicks and positions in Google Search",
+          "ga4": "Visits and page views on your site"
+        },
+        "propertyNotMatching": "It does not cover the selected pages, so no statistics load from it."
       },
       "metrics": {
         "page_views": "Page views",
@@ -12300,7 +12357,14 @@
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
         "connectGoogle": "Connect Google",
         "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
-        "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty."
+        "connectShort": "Connect",
+        "connectedShort": "Connected",
+        "googleAccount": "Google account",
+        "noneConnected": "No source connected yet",
+        "options": "Google account options",
+        "settings": "Statistics settings",
+        "switchFor": "Switch account: {provider}",
+        "notConnected": "Not connected"
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
@@ -12358,6 +12422,15 @@
         "refreshing": "Loading Google statistics.",
         "refreshFailed": "Google statistics could not load. Try again.",
         "nextTitle": "The agent proposes",
+        "chart": "Picture to show",
+        "chartKeywords": "Keyword searches",
+        "statistics": "{analytics, select, missing {Google statistics: Analytics not connected} no_property {Google statistics: this Google account has no Analytics property} choose {Google statistics: no Analytics property is picked for {site}. Choose one of your {count, plural, one {# property} other {# properties}}.} empty {Google statistics: the Analytics property {property} has no visits for these pages yet} other {Google statistics}}",
+        "figures": {
+          "label": "Key figures",
+          "rankings": "{depth, select, same {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {max} results read per keyword} range {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {min} to {max} results read per keyword} other {{found} of {read} {count, plural, one {keyword} other {keywords}} found}}",
+          "searches": "{partial, select, yes {{total, plural, one {# search} other {# searches}} a month for {keywords, number} of {of, number} keywords} other {{total, plural, one {# search} other {# searches}} a month}}",
+          "traffic": "{clicks, plural, one {# click} other {# clicks}} · {impressions, plural, one {# impression} other {# impressions}}"
+        },
         "nothingNext": "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
         "steps": {
           "refresh": {
@@ -12407,18 +12480,16 @@
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
-        "openTraffic": "Open traffic",
-        "openRankings": "Open rankings",
-        "toSteps": "Start with the first step",
         "draftFix": "Ask the agent for a fix",
-        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
-        "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
         "statisticsMissing": "Statistics are not set up",
         "demand": {
           "title": "Checked keywords with the most searches",
           "unit": "Searches a month",
           "position": "Position {position}"
-        }
+        },
+        "openAction": "Open action",
+        "changeProperty": "Change property",
+        "chooseProperty": "Choose property"
       },
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -12458,6 +12529,20 @@
           "device": "Google gives a device for only {listed, number} of your {total, number} impressions.",
           "both": "Google gives a country and a device for only {listed, number} of your {total, number} impressions."
         }
+      },
+      "indexReview": {
+        "title": "Indexing review notes",
+        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
+        "checked": "Reviewed",
+        "state": {
+          "review": "Review needed",
+          "expected_exclusion": "Expected exclusion",
+          "unavailable": "Not checked"
+        },
+        "suggestedFix": "Suggested next step",
+        "evidence": "View evidence",
+        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
+        "sources": "Sources: Google Search Console and this audit."
       },
       "index": {
         "title": "Google index",
@@ -12603,15 +12688,10 @@
         "issues": "Issues",
         "issuesNone": "None found",
         "severityCount": "{count} {severity, select, critical {critical} major {high impact} other {low impact}}",
-        "keywords": "Keywords in Google's top results",
         "of": "of {total}",
-        "searches": "Searches for your keywords",
-        "searchesFor": "For {keywords} of {of} checked keywords",
         "tests": "Tests completed",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
-        "testsAll": "Every test gave a result",
-        "aMonth": "a month",
-        "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
+        "testsAll": "Every test gave a result"
       },
       "traffic": {
         "searchType": "Search type",
@@ -12693,6 +12773,7 @@
           "publishing": "You apply changes, recheck fixes and share client reports yourself."
         },
         "gaps": {
+          "noSearchTraffic": "Search traffic statistics are not available yet. Indexing results appear in this audit.",
           "statisticsIncomplete": "Some Google statistics are missing. The agent can only assess the data available.",
           "checksIncomplete": "Some checks did not return a result. This audit may miss issues.",
           "title": "Missing audit data",
@@ -12727,7 +12808,7 @@
         "fix": {
           "connect_search_console": "Set up statistics",
           "connect_ga4": "Set up statistics",
-          "sync": "Google statistics settings",
+          "sync": "Google connections",
           "run_check": "Run a check"
         },
         "items": {

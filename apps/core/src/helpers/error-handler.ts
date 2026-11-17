@@ -7,7 +7,6 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { recordCoreRequestError, tryUseLogger } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
-import { matchedRouteTemplate } from "@/lib/route-template";
 
 import {
   type ErrorResponse,
@@ -92,14 +91,14 @@ export const errorHandler: ErrorHandler = (error, c) => {
   };
 
   if (error instanceof z.ZodError) {
-    console.error("Zod parsing error:", {
-      requestId: c.var.requestId,
-      path: matchedRouteTemplate(c),
-      method: c.req.method,
-      issues: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
+    // The wide event already carries the error; add which fields failed.
+    tryUseLogger()?.set({
+      validation: {
+        issues: error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
     });
 
     const status = 500;
@@ -182,13 +181,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
     const message = resolveBetterAuthApiErrorMessage(error);
 
     if (status >= 500) {
-      console.error("Better Auth APIError (server):", {
-        requestId: c.var.requestId,
-        path: matchedRouteTemplate(c),
-        method: c.req.method,
-        status,
-        message,
-      });
+      tryUseLogger()?.set({ betterAuth: { status, message } });
       captureExternalServiceError(error, {
         label: "better_auth_api_error",
         sentry: {
@@ -207,14 +200,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
       status,
     );
   }
-
-  console.error("Unexpected error:", {
-    requestId: c.var.requestId,
-    path: matchedRouteTemplate(c),
-    method: c.req.method,
-    error: error.message,
-    stack: error.stack,
-  });
 
   captureExternalServiceError(error, {
     label: "unhandled_route_error",

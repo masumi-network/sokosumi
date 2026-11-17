@@ -46,6 +46,7 @@ const PROPER_PHRASES = [
   "Data Processing Agreement",
   // Other names.
   "Mistral Medium",
+  "Gemini Pro",
   "Florian Haller",
   "Serviceplan Group",
   "Acme Inc.",

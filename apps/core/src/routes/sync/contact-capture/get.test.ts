@@ -26,6 +26,7 @@ vi.mock("@vercel/functions", () => ({
   },
 }));
 
+import { expectConsole } from "@/test/console";
 import mount, { CONTACT_CAPTURE_SYNC_LOCK_KEY } from "./get";
 
 const authorized = { headers: { authorization: "Bearer test-secret" } };
@@ -76,6 +77,10 @@ describe("contact capture cron", () => {
   });
 
   it("asks the run to stop at the deadline and still releases the lock", async () => {
+    expectConsole(
+      "warn",
+      "[sync/contact-capture-sync] Deadline reached after 1000ms; requesting cancellation",
+    );
     let stopped: boolean | undefined;
     sync.mockImplementation(
       async ({ shouldContinue }: { shouldContinue: () => boolean }) => {
@@ -90,6 +95,7 @@ describe("contact capture cron", () => {
   });
 
   it("releases the lock when the run fails", async () => {
+    expectConsole("error", "Error in sync operation");
     sync.mockRejectedValue(new Error("boom"));
     await request(authorized);
     await Promise.all(pending);
@@ -97,6 +103,10 @@ describe("contact capture cron", () => {
   });
 
   it("leaves a lock another runner took over alone", async () => {
+    expectConsole(
+      "warn",
+      "[sync/contact-capture-sync] Lock not released because ownership changed",
+    );
     // Compare-and-set on the owner token: a stale runner's release changes nothing.
     release.mockResolvedValue(false);
     await request(authorized);

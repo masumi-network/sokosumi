@@ -195,10 +195,11 @@ model Workspace {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
-  adEvals       AdEval[]
-  adFeedback    AdFeedback[]
-  adEvents      AdEvent[]
-  adDataConsent WorkspaceAdDataConsent?
+  adEvals            AdEval[]
+  adEvalDailyBudgets AdEvalDailyBudget[]
+  adFeedback         AdFeedback[]
+  adEvents           AdEvent[]
+  adDataConsent      WorkspaceAdDataConsent?
 
   fileResources      FileResource[]
   fileEvidenceScopes FileEvidenceScope[]
@@ -5424,6 +5425,9 @@ model ProjectImageJob {
   /// Files (a brand's product photos) sent as references after the assets,
   /// readable by the person who asked. Ids for the same reason as above.
   referenceFileIds  String[] @default([]) @db.Uuid
+  /// Reference library images (`reference_image`) sent first, as the style to
+  /// borrow: Cuso's pictures in the look of an old ad or poster.
+  referenceLibraryIds String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 
@@ -5446,6 +5450,11 @@ model ProjectImageJob {
 
   /// Approved copy to attach when the image is delivered.
   exportHeadline String?
+
+  /// Exact-font overlay by default; ideogram paints approved copy into the image.
+  lettering String @default("overlay")
+  /// Frozen quote for the automatic Ideogram edit, until the backdrop delivers.
+  letteringQuoteCents BigInt?
 
   /// Generate a backdrop, then composite the original transparent product photo.
   useProductCutout      Boolean @default(false)

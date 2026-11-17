@@ -18,7 +18,7 @@ import type { StudioAsset, StudioJob } from "./types";
  * reference is a button that visibly works and buys the same picture twice.
  */
 
-const mocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
+const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), jobs: [] as StudioJob[] }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -109,9 +109,65 @@ function mount(
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.jobs = [];
+});
 
 describe("actions on a result", () => {
+  it.each(["Revised headline", null])(
+    "keeps the current overlay headline choice %s when repeating an asset",
+    (text) => {
+      mount(
+        [{ ...ASSET, lettering: "overlay", headline: { text, revision: 2 } }],
+        TEST_CATALOG,
+        null,
+        [{ id: "j", exportHeadline: "Original headline" } as StudioJob],
+      );
+      fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
+      expect(mocks.enqueue.mock.calls[0][0][0]).not.toHaveProperty(
+        "exportHeadline",
+      );
+    },
+  );
+
+  it("repeats Ideogram lettering from its textless backdrop with the approved headline", () => {
+    mount(
+      [
+        {
+          ...ASSET,
+          projectId: "p",
+          model: "fal-ai/ideogram/v3/edit",
+          parentId: "backdrop",
+          lettering: "ideogram",
+          headline: { text: "Made to last", revision: 0 },
+        },
+      ],
+      {
+        ...TEST_CATALOG,
+        models: [
+          ...TEST_CATALOG.models,
+          {
+            ...TEST_CATALOG.models[0],
+            id: "ideogram-v3",
+            generateEndpoint: "fal-ai/ideogram/v3",
+            editEndpoint: "fal-ai/ideogram/v3/edit",
+          },
+        ],
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "reroll" }));
+    expect(mocks.enqueue).toHaveBeenCalledWith([
+      expect.objectContaining({
+        modelId: "ideogram-v3",
+        parentAssetId: "backdrop",
+        referenceAssetIds: ["backdrop"],
+        exportHeadline: "Made to last",
+        lettering: "ideogram",
+      }),
+    ]);
+  });
+
   it("retries an original failed job with its prompt metadata", () => {
     const job: StudioJob = {
       id: "failed-job",

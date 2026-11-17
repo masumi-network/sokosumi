@@ -3,6 +3,7 @@
 import type { SetStudioAssetFeedbackData } from "@sokosumi/core-client";
 import {
   Check,
+  Columns2,
   Dices,
   Download,
   Loader2,
@@ -30,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
+import { canCompareStudioAsset } from "./studio-batch";
 import { StudioImage } from "./studio-image";
 import { StudioAssetMenu, StudioRating } from "./studio-rating";
 import {
@@ -59,6 +61,7 @@ export function StudioGallery({
   catalog,
   labels,
   onCancelJob,
+  onCompare,
   onOpen,
   onRate,
   onHide,
@@ -80,6 +83,7 @@ export function StudioGallery({
   labels: StudioLabels;
   /** Omitted, with the draw actions below, in a read-only studio. */
   onCancelJob?: (jobId: string) => void;
+  onCompare?: (asset: StudioAsset) => void;
   onOpen: (assetId: string) => void;
   onRate?: (
     asset: StudioAsset,
@@ -250,6 +254,14 @@ export function StudioGallery({
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:hidden",
                       )}
                     >
+                      {onCompare && canCompareStudioAsset(asset, assets) ? (
+                        <HoverAction
+                          label={labels.compare}
+                          onClick={() => onCompare(asset)}
+                        >
+                          <Columns2 className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       {reroll ? (
                         <HoverAction
                           label={labels.reroll}
