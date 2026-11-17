@@ -18,6 +18,7 @@ import { loadClassificationContext } from "@/lib/soko-bot/classification-context
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
+import { expectCoreLog } from "@/test/core-log";
 import { jevRoute } from "@/test/jev-routes";
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
@@ -729,6 +730,31 @@ describe("SokoBotControlPlane lifecycle", () => {
       );
     },
   );
+
+  it("logs a next run that did not start through Core's logger", async () => {
+    const warned = expectCoreLog("warn", "CMO's next run did not start");
+    afterCmoTurnMock.mockRejectedValueOnce(new Error("Gateway answered 502"));
+    turnFindUniqueMock.mockResolvedValueOnce({
+      parentTurnId: null,
+      sokoBotId: BOT_ID,
+      clientTurnId: "cmo:onboarding:1",
+      requestedByUserId: "user_1",
+      startedAt: new Date(),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      finalAnswer: "Done.",
+      capabilityNames: [],
+      cancellationRequestedAt: null,
+      scheduleRun: null,
+    });
+    await new SokoBotControlPlane()["settleTurn"]({
+      turnId: "turn_1",
+      status: "COMPLETED",
+    });
+    await vi.waitFor(() => expect(warned).toHaveLength(1));
+    expect(warned[0]?.why).toContain("Gateway answered 502");
+    expect(warned[0]?.event.operation).toBe("cmo_next_run");
+  });
 
   it.each([
     { capability: "create_schedule", route: "MANAGE_WORK", guarded: true },

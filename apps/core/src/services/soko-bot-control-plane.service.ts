@@ -68,6 +68,8 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
+import { getErrorMessage } from "@/lib/external-service-errors";
 import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
@@ -1730,11 +1732,19 @@ export class SokoBotControlPlane {
           waitUntil(
             import("@/services/cmo-strategy.service")
               .then(({ afterCmoTurn }) => afterCmoTurn(ended))
-              .catch((error) => {
-                console.warn("CMO's next run did not start", {
-                  sokoBotId: ended.sokoBotId,
-                  error: error instanceof Error ? error.message : "unknown",
+              .catch((error: unknown) => {
+                // After the response: a standalone event, redacted and drained.
+                const log = createCoreLogger({
+                  operation: "cmo_next_run",
+                  sokoBot: { id: ended.sokoBotId },
+                  clientTurnId: ended.clientTurnId,
                 });
+                logCoreWarning(log, {
+                  message: "CMO's next run did not start",
+                  why: getErrorMessage(error) || "unknown error",
+                  fix: "A queued brand fix or the first plan starts again when Cuso's next turn ends. If it keeps failing, read the error and the Cuso's credits.",
+                });
+                log.emit();
               }),
           );
         }
