@@ -6,7 +6,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
@@ -81,7 +81,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
-**Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Site, Brand, Plan, Launch, Subscribe.
+**Step marker.** 8px radius, small 500, "1 Research". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Research, Brand, Plan, Subscribe, Launch.
 
 **Buttons.** 44px high, 8px radius, body 500, 0 18px.
 
@@ -94,7 +94,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Selection.** Tabs, radio cards (pace) and the open tile button use the ink inversion: ink fill, inverted text. Iris is never selection; it means now.
 
-**Plan card (Subscribe).** The CMO plans of one interval as cards on a panel: name (h2), price (value step) with its interval (small, muted), credits a month (small). A Monthly / Yearly switch above them uses the ink inversion; the picked plan is the selected tile and takes the Iris shadow. One primary button below ("Continue to payment") leads to Polar's hosted checkout.
+**Plan card (Subscribe).** Under Cuso's scene and a card of what the approved month holds (checks: pieces and channels, pictures and videos, the daily and weekly work), the CMO plans of one interval as cards: an Iris "Fits your {pace} plan" mark on the one that fits, the tier's name, the price a month (value step; a yearly plan shows its month and "billed once a year"), credits a month (small). A Monthly / Yearly switch above them uses the ink inversion and names the yearly saving; the picked plan is the selected tile and takes the Iris shadow. One primary button below names the plan and its price ("Start Growth for $500 a month") and leads to Polar's hosted checkout; a quiet row under it says only what is true (change or cancel in Settings, discount codes, Polar).
 
 **Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
 
@@ -112,8 +112,6 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Goal block.** The plan's goal: an ink block with inverted text that inverts again in dark, 10px radius, statement step.
 
-**Stat row.** Value step numbers over a small muted line, separated by a top line.
-
 **Sidebar (CMO home).** Panel fill, hairline right, 232 to 260px. Workspace card on top, nav rows 40px with 8px radius, current row as a card with an ink line. Counts are ink badges, 6px radius, micro text. Cuso's status card sits at the bottom.
 
 **Status.** Done: green disc, Neutral 950 check. Needs you: yellow disc, Neutral 950 "!". Failed or blocked: Neutral 950 disc, white X. Live: green dot with a line edge.
@@ -122,10 +120,10 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card, 176px where he leads an onboarding step.
-- **Cuso leads onboarding.** Every step opens with him, large and centred, in the pose of its state; the title under him is what he says. He pops in, then breathes (a slow 6px drift), still under `prefers-reduced-motion`. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
-- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
+- **Cuso leads onboarding.** Every step opens with his scene on the hero's Iris stage (`CusoScene`, 220 by 280px, looping): Research, Brand, Plan, Subscribe and Launch each have their own; a failure or a question shows the Needs you avatar instead. While he works, a tilted label over the stage's lower edge says what he is doing now (with the working dot) and an ink bar runs along the bottom, so the wait reads as work. The title under him is what he says. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
+- **Stage:** the hire hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600); a step's scene carries one, what he is doing now. These are the only places labels tilt.
 - **Celebration:** the party image shows only after Launch is pressed.
-- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
+- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the step scenes loop, and the celebration plays once. Under `prefers-reduced-motion` only the still shows.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.
 
 ## Accessibility

@@ -146,7 +146,8 @@ const ANSWERS: { value: Answer; label: string }[] = [
 
 /**
  * Cuso's questions, one at a time: where the founder is in them, the topic,
- * the question, and Yes, No or Not sure. A no can say what is true instead.
+ * the question, and Yes, No or Not sure. A tap answers at once; details are
+ * optional and go with the next tap.
  */
 interface QuestionCardProps {
   topic: string;
@@ -166,14 +167,13 @@ export function QuestionCard({
   onAnswer,
   onSkip,
 }: QuestionCardProps) {
-  const [correcting, setCorrecting] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [details, setDetails] = useState("");
   const [failed, setFailed] = useState(false);
-  const save = (answer: Answer, note?: string) => {
+  const save = (answer: Answer) => {
     setFailed(false);
-    setCorrecting(false);
-    onAnswer(answer, note).catch(() => setFailed(true));
+    onAnswer(answer, details.trim() || undefined).catch(() => setFailed(true));
   };
-  const chosen = correcting ? "no" : question.answer;
 
   return (
     <section className="ob-question card card-focus" aria-label="Quick read">
@@ -200,19 +200,24 @@ export function QuestionCard({
             key={value}
             type="button"
             className="button button-secondary"
-            aria-pressed={chosen === value}
-            onClick={() => (value === "no" ? setCorrecting(true) : save(value))}
+            aria-pressed={question.answer === value}
+            onClick={() => save(value)}
           >
             {label}
           </button>
         ))}
       </div>
-      {correcting ? (
-        <NoteField
-          initial={question.note ?? ""}
-          onSave={(note) => save("no", note)}
+      {adding ? (
+        <input
+          className="ob-question-details"
+          value={details}
+          onChange={(event) => setDetails(event.target.value)}
+          placeholder="Add details, then pick your answer"
+          maxLength={400}
+          aria-label="More details"
+          autoFocus
         />
-      ) : question.answer === "no" && question.note ? (
+      ) : question.note ? (
         <p className="ob-question-said">{question.note}</p>
       ) : null}
       {failed ? (
@@ -220,15 +225,26 @@ export function QuestionCard({
           That didn't save. Try again.
         </p>
       ) : null}
-      {onSkip ? (
-        <button
-          type="button"
-          className="button button-ghost button-small ob-skip"
-          onClick={onSkip}
-        >
-          Skip for now
-        </button>
-      ) : null}
+      <div className="ob-question-more">
+        {adding ? null : (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setAdding(true)}
+          >
+            Add more details
+          </button>
+        )}
+        {onSkip ? (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={onSkip}
+          >
+            Skip for now
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }
