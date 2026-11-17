@@ -37,6 +37,8 @@ export interface SocialPostPreviewContentProps {
   compact?: boolean;
   /** Compact cards open the full preview instead of growing in the grid. */
   onSeeMore?: () => void;
+  /** Turns the feed's "..." into a button that opens the post's editor. */
+  edit?: { label: string; onSelect: () => void };
 }
 
 export function accountName(

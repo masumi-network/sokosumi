@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
@@ -29,6 +29,15 @@ import {
 } from "@/lib/social-account-avatar";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
+
+/** Post statuses where a stale connection blocks the next publish. */
+export const RECONNECT_SENSITIVE_POST_STATUSES: readonly SocialPostStatus[] = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+];
 
 export interface ProjectSocialConnectionSummary {
   id: string;
@@ -121,16 +130,25 @@ function activeExternalAccountKeys(
   provider: string,
   externalAccountId: string,
 ): string[] {
-  if (provider !== "linkedin") {
-    return [activeExternalAccountKey(provider, externalAccountId)];
-  }
-  return [
-    activeExternalAccountKey(provider, linkedInPersonId(externalAccountId)),
-    activeExternalAccountKey(provider, linkedInPersonUrn(externalAccountId)),
-  ];
+  return externalAccountIdVariants(provider, externalAccountId).map((id) =>
+    activeExternalAccountKey(provider, id),
+  );
 }
 
 /** LinkedIn rows saved before the bare id hold the full person URN. */
+/** Every stored form of one account's id: LinkedIn rows may hold the URN. */
+function externalAccountIdVariants(
+  provider: string,
+  externalAccountId: string,
+): string[] {
+  return provider === "linkedin"
+    ? [
+        linkedInPersonId(externalAccountId),
+        linkedInPersonUrn(externalAccountId),
+      ]
+    : [externalAccountId];
+}
+
 function isSameExternalAccount(
   provider: string,
   stored: string,
@@ -578,6 +596,28 @@ export async function finalizeProjectSocialConnection(
               projectId: input.projectId,
               socialConnectionId: target.id,
               status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
+            },
+            data: { socialConnectionId: connection.id },
+          });
+        }
+        if (currentIntent.action === "connect") {
+          // Disconnecting retires the row for good, so connecting the same
+          // account again makes a new one. Unsent posts follow the account
+          // there, or they stay flagged for a reconnect that cannot happen.
+          await tx.socialPost.updateMany({
+            where: {
+              projectId: input.projectId,
+              status: { in: [...RECONNECT_SENSITIVE_POST_STATUSES] },
+              socialConnection: {
+                status: "disconnected",
+                provider: currentIntent.provider,
+                externalAccountId: {
+                  in: externalAccountIdVariants(
+                    currentIntent.provider,
+                    identity.id,
+                  ),
+                },
+              },
             },
             data: { socialConnectionId: connection.id },
           });

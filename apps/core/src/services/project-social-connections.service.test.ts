@@ -1793,6 +1793,100 @@ describe("project social connections service", () => {
     });
   });
 
+  it("moves unsent posts off a disconnected row when the same account connects again", async () => {
+    const newConnectionId = "77777777-7777-4777-8777-777777777777";
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("connect"),
+    );
+    socialConnectionCreateMock.mockResolvedValue({
+      ...socialConnection,
+      id: newConnectionId,
+      composioConnectedAccountId: CONNECTION_ID,
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        status: {
+          in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"],
+        },
+        socialConnection: {
+          status: "disconnected",
+          provider: "x",
+          externalAccountId: { in: ["123"] },
+        },
+      },
+      data: { socialConnectionId: newConnectionId },
+    });
+  });
+
+  it("matches a legacy LinkedIn URN row when the same person connects again", async () => {
+    const intent = {
+      ...createIntent("connect"),
+      provider: "linkedin",
+      authConfigId: "ac_linkedin",
+    };
+    getEnvMock.mockReturnValue({
+      COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+    });
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(intent);
+    getComposioConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: PROJECT_SOCIAL_PROVIDERS.linkedin.toolkitSlug,
+      authConfigId: "ac_linkedin",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "abc",
+      handle: null,
+      displayName: "Ada",
+      avatarUrl: null,
+      subscriptionType: null,
+    });
+    socialConnectionCreateMock.mockResolvedValue({
+      ...socialConnection,
+      provider: "linkedin",
+      externalAccountId: "abc",
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          socialConnection: {
+            status: "disconnected",
+            provider: "linkedin",
+            externalAccountId: { in: ["abc", "urn:li:person:abc"] },
+          },
+        }),
+      }),
+    );
+  });
+
   it("keeps an outgoing account when another Project requires reauthorization", async () => {
     const target = { ...socialConnection, status: "active" };
     socialConnectionFindFirstMock

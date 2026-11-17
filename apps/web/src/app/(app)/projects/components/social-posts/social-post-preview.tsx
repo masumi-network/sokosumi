@@ -107,6 +107,7 @@ export function SocialPostPreview({
             <XPreview
               key={part.id}
               {...content}
+              edit={undefined}
               text={part.text}
               media={part.media}
               timestamp={part.publishedAt ?? content.timestamp}
@@ -143,6 +144,27 @@ export function SocialPostPreview({
         </p>
       ))}
     </PreviewFrame>
+  );
+}
+
+/** The feed's "..." menu: decoration, or the way into the editor. */
+function PreviewMore({
+  className,
+  edit,
+}: {
+  className: string;
+  edit: SocialPostPreviewContentProps["edit"];
+}) {
+  if (!edit) return <MoreHorizontal className={className} aria-hidden />;
+  return (
+    <button
+      type="button"
+      aria-label={edit.label}
+      className="hover:text-foreground -m-1 shrink-0 rounded-sm p-1"
+      onClick={edit.onSelect}
+    >
+      <MoreHorizontal className={className} aria-hidden />
+    </button>
   );
 }
 
@@ -208,6 +230,7 @@ function XPreview({
   timestampLabel,
   compact,
   onSeeMore,
+  edit,
   threadContinues,
   publishedUrl,
   publishedLabel,
@@ -266,9 +289,9 @@ function XPreview({
             </span>
           </div>
           {!embedded ? (
-            <MoreHorizontal
+            <PreviewMore
               className="text-muted-foreground mt-0.5 size-4 shrink-0"
-              aria-hidden
+              edit={edit}
             />
           ) : null}
         </div>
@@ -375,6 +398,7 @@ function LinkedInPreview({
   timestampLabel,
   compact,
   onSeeMore,
+  edit,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
@@ -398,9 +422,9 @@ function LinkedInPreview({
             <Globe className="size-3" aria-label={t("linkedin.public")} />
           </p>
         </div>
-        <MoreHorizontal
+        <PreviewMore
           className="text-muted-foreground size-5 shrink-0"
-          aria-hidden
+          edit={edit}
         />
       </div>
       {text ? (
@@ -454,6 +478,7 @@ function FacebookPreview({
   timestampLabel,
   compact,
   onSeeMore,
+  edit,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const name = accountName(account, t("accountFallback"));
@@ -480,9 +505,9 @@ function FacebookPreview({
             <Globe className="size-3" aria-label={t("facebook.public")} />
           </p>
         </div>
-        <MoreHorizontal
+        <PreviewMore
           className="text-muted-foreground size-5 shrink-0"
-          aria-hidden
+          edit={edit}
         />
       </div>
       {text ? (
@@ -541,6 +566,7 @@ function InstagramPreview({
   timestampLabel,
   mediaUnavailable,
   onSeeMore,
+  edit,
 }: SocialPostPreviewContentProps) {
   const t = useTranslations("App.Projects.SocialPosts.preview");
   const formatter = useFormatter();
@@ -555,7 +581,7 @@ function InstagramPreview({
       <div className="flex items-center gap-3 px-3 py-2.5">
         <PreviewAvatar account={account} name={name} className="size-8" />
         <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
-        <MoreHorizontal className="size-5 shrink-0" aria-hidden />
+        <PreviewMore className="size-5 shrink-0" edit={edit} />
       </div>
       <div
         className="relative aspect-[4/5] overflow-hidden bg-media-ground"

@@ -2784,6 +2784,7 @@
         "title": "Social-Media-Beiträge",
         "newPost": "Neuer Beitrag",
         "moreActionsNamed": "Beitragsaktionen für {handle}",
+        "editNamed": "{handle} bearbeiten",
         "thisDraft": "diesen Entwurf",
         "noAccount": "Kein Konto",
         "outcomes": {
