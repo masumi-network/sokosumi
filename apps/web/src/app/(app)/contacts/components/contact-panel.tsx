@@ -511,7 +511,7 @@ function PanelBody({
                 aria-label={t("panel.changeStage", {
                   stage: t(`stages.${contact.stage}`),
                 })}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <StageChip stage={contact.stage} />
               </button>
@@ -537,7 +537,7 @@ function PanelBody({
               <button
                 type="button"
                 aria-label={t("importance.change")}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <ScoreMeter
                   value={importance}
@@ -608,7 +608,7 @@ function PanelBody({
                 ref={listsTrigger}
                 type="button"
                 aria-label={t("panel.changeLists")}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 {contact.lists.length ? (
                   contact.lists.map((list) => (
@@ -807,7 +807,7 @@ function ArchivedNotice({ contact }: { contact: ContactDetail }) {
           <Button
             size="sm"
             variant="outline"
-            className="w-fit"
+            className="text-foreground w-fit"
             loading={restoring}
             onClick={() => void handleRestore()}
           >
