@@ -364,6 +364,54 @@ catches it too, so a dead session renders the degraded page instead. Call
 `unstable_rethrow(error)` from `next/navigation` first (as `tasks-page-data.ts`
 does), or read through `coreClientNoRedirect` and handle the 401 yourself.
 
+### Navigation opens a loaded page, not its skeleton
+
+A click, a predicted approach, or a back press must open a page whose content
+is already loaded. Next's default `<Link>` prefetch loads only the App Shell,
+so the click still shows `loading.tsx`. Sokosumi loads the page's content
+ahead of the click: a **content prefetch**. Apply this when you add or change
+a list page, a detail page, a Core read that such a page uses, or any link to
+one of them (nav row, list row, back link).
+
+1. **Make the page content-prefetchable.**
+   - Read the page's data through `"use cache: private"` loaders. The pattern
+     is `loadTasksPageData` in `src/app/(app)/tasks/utils/tasks-page-data.ts`:
+     one private-cached loader, and an outage falls back to `connection()` and
+     a fresh read.
+   - On the content's path, the page and its layouts call no `connection()`
+     and make no uncached Core read. A read that must stay fresh (a banner)
+     goes in its own `<Suspense>` and streams in after the click.
+   - Render `<RefreshPrefetchedPage />` in the page, so a prefetched copy
+     refreshes in the background after the visit.
+   - Add the path to `CONTENT_PREFETCH_PATHS`
+     (`src/lib/navigation/content-prefetch-routes.ts`) and set
+     `prefetchContent` on its sidebar row in
+     `src/app/(app)/components/sidebar/components/menu-items.tsx`.
+2. **Link to it with an intent link.**
+   - Nav and list rows: `RestingIntentLink` with `prefetchContent`
+     (`src/components/resting-intent-link.tsx`). It loads the content on a
+     predicted pointer approach (ForesightJS), a resting hover, or resting
+     keyboard focus.
+   - Back links to a parent page: `BackLink` (`src/components/back-link.tsx`).
+     It loads the parent as soon as it shows, which also covers a phone tap,
+     and decides from `canPrefetchRouteContent(href)` whether the parent
+     supports it.
+   - A page that is not content-prefetchable keeps a plain `<Link>`.
+3. **Start content loads only through `prefetchRouteContent(router, href,
+   { keepLoaded })`** (`src/lib/navigation/prefetch-route-content.ts`).
+   - Each call is one server render of the page. Trigger it on reading
+     intent, never for every link in view.
+   - Pass `keepLoaded`. Each `router.refresh()` (every
+     `RefreshPrefetchedPage`, a polling page, a revalidating Server Action)
+     drops every prefetched page, and Next loads only the shell again.
+     `keepLoaded` returns true while the reader still wants that page (the
+     pointer still rests, the back link still shows), and the page then
+     loads again, up to `MAX_CONTENT_RELOADS` times.
+
+**Done when** a production build opens the page with its content, not its
+skeleton, after a hover, after a predicted approach, and on back. `next dev`
+does not prefetch, so check this on the preview (`/deploy all`), not locally.
+
 ### After a mutation: refresh only what changed
 
 `router.refresh()` makes a new server request and re-renders every Server
