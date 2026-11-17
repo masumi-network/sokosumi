@@ -228,6 +228,10 @@ vi.mock("@/lib/soko-bot/preference-capture", () => ({
   capturePreference: capturePreferenceMock,
   MIN_PREFERENCE_CONFIDENCE: 0.85,
 }));
+const afterCmoTurnMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock("@/services/cmo-strategy.service", () => ({
+  afterCmoTurn: afterCmoTurnMock,
+}));
 vi.mock("@/lib/soko-bot/route-outcome", () => ({
   logSokoBotRouteOutcome: vi.fn().mockResolvedValue(undefined),
 }));
@@ -658,6 +662,112 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect(granted).toContain("save_brand_brain");
     },
   );
+
+  it.each([
+    {
+      clientTurnId: "cmo:onboarding:bot_1:1",
+      status: "COMPLETED",
+      starts: true,
+    },
+    { clientTurnId: "cmo:onboarding:bot_1:1", status: "FAILED", starts: true },
+    {
+      clientTurnId: "cmo:onboarding:bot_1:1",
+      status: "CANCELLED",
+      starts: false,
+    },
+    // A plan, fix or patch that ends lets the next queued fix start.
+    { clientTurnId: "cmo:strategy:bot_1:1", status: "COMPLETED", starts: true },
+    {
+      clientTurnId: "cmo:strategy:bot_1:fix:1",
+      status: "FAILED",
+      starts: true,
+    },
+    {
+      clientTurnId: "cmo:strategy:bot_1:1",
+      status: "CANCELLED",
+      starts: false,
+    },
+    {
+      clientTurnId: "cmo:production:bot_1:1",
+      status: "COMPLETED",
+      starts: false,
+    },
+    { clientTurnId: null, status: "COMPLETED", starts: false },
+    // A chat with Cuso held the bot: a fix asked meanwhile may start now.
+    {
+      clientTurnId: "chat:1",
+      status: "COMPLETED",
+      starts: true,
+      versionId: "cmo-v1",
+    },
+    {
+      clientTurnId: "chat:1",
+      status: "COMPLETED",
+      starts: false,
+      versionId: "cmo-v1",
+      parentTurnId: "parent-1",
+    },
+  ] as const)(
+    "starts Cuso's next run when his research or plan turn settles: $clientTurnId $status",
+    async ({ clientTurnId, status, starts, ...turn }) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        parentTurnId: null,
+        ...turn,
+        sokoBotId: BOT_ID,
+        clientTurnId,
+        requestedByUserId: "user_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: "Done.",
+        capabilityNames: [],
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status,
+      });
+      await vi.waitFor(() =>
+        starts
+          ? expect(afterCmoTurnMock).toHaveBeenCalledWith({
+              sokoBotId: BOT_ID,
+              userId: "user_1",
+              clientTurnId,
+            })
+          : expect(afterCmoTurnMock).not.toHaveBeenCalled(),
+      );
+    },
+  );
+
+  it("logs a next run that did not start through Core's logger", async () => {
+    const warned = expectCoreLog("warn", "CMO's next run did not start");
+    afterCmoTurnMock.mockRejectedValueOnce(new Error("Gateway answered 502"));
+    turnFindUniqueMock.mockResolvedValueOnce({
+      parentTurnId: null,
+      sokoBotId: BOT_ID,
+      clientTurnId: "cmo:onboarding:1",
+      requestedByUserId: "user_1",
+      startedAt: new Date(),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      finalAnswer: "Done.",
+      capabilityNames: [],
+      cancellationRequestedAt: null,
+      scheduleRun: null,
+    });
+    await new SokoBotControlPlane()["settleTurn"]({
+      turnId: "turn_1",
+      status: "COMPLETED",
+    });
+    await vi.waitFor(() => expect(warned).toHaveLength(1));
+    expect(warned[0]?.event).toMatchObject({
+      operation: "cmo_next_run",
+      failure: { errorName: "Error" },
+    });
+    // The error's own text never reaches the event.
+    expect(JSON.stringify(warned[0]?.event)).not.toContain("Gateway answered");
+  });
 
   it.each([
     { capability: "create_schedule", route: "MANAGE_WORK", guarded: true },

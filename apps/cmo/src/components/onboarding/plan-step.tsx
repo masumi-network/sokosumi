@@ -500,7 +500,7 @@ export function PlanReview({
       ) : writing ? (
         <>
           <Loader2 size={16} className="spin" aria-hidden="true" />
-          {asked
+          {asked || work?.change
             ? `${AGENT_NAME} is changing it`
             : `${AGENT_NAME} is finishing`}
         </>

@@ -5,6 +5,7 @@ import {
   type ToolSet,
 } from "ai";
 import { streamModelCall } from "../lib/soko-bot/stream-model-call";
+import { endedByTool, toolEndedTurn } from "../lib/soko-bot/turn-parts";
 import { compactHistory } from "./history";
 import {
   isFinalReport,
@@ -71,7 +72,7 @@ export async function runTurnLoop(
       system: input.system,
       messages: compactHistory(messages) ?? messages,
       tools: input.tools,
-      stopWhen: [stepCountIs(stepsLeft), timeUp],
+      stopWhen: [stepCountIs(stepsLeft), timeUp, endedByTool],
       prepareStep: ({ messages: current }) => {
         const compacted = compactHistory(current);
         return compacted ? { messages: compacted } : {};
@@ -86,6 +87,8 @@ export async function runTurnLoop(
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
+    const ended = toolEndedTurn(result.steps);
+    if (ended) return { text: ended, finishReason: result.finishReason, steps };
     text =
       result.text ||
       (result.steps.findLast((step) => step.text.trim())?.text ?? "");

@@ -127,6 +127,8 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import {
   revokeCusoSubscription,
@@ -1504,14 +1506,23 @@ export class SokoBotControlPlane {
     } | null = null;
     // A Cuso's charge gets his own notice, on his Project (SOKD-246).
     let chargedCusoProjectId: string | null = null;
+    // A CMO research or plan turn that ended: Cuso's first plan, or the
+    // next fix the owner asked for meanwhile, may start now.
+    let cmoTurnEnded: {
+      sokoBotId: string;
+      userId: string | null;
+      clientTurnId: string | null;
+    } | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
       chargedCusoProjectId = null;
+      cmoTurnEnded = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
           sokoBotId: true,
+          clientTurnId: true,
           requestedByUserId: true,
           sokoBot: { select: { userId: true } },
           workspaceId: true,
@@ -1632,6 +1643,23 @@ export class SokoBotControlPlane {
         },
       });
       if (settled.count === 0) return false;
+      // Once any foreground turn of Cuso ends, his first plan or the next
+      // fix the owner asked for meanwhile may start (one turn per bot). A
+      // turn the owner stopped starts nothing.
+      if (
+        settledStatus !== "CANCELLED" &&
+        (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
+          (turn.parentTurnId === null &&
+            turn.versionId !== undefined &&
+            getSokoBotVersion(turn.versionId).profile === "cmo"))
+      ) {
+        cmoTurnEnded = {
+          sokoBotId: turn.sokoBotId,
+          userId: turn.requestedByUserId,
+          clientTurnId: turn.clientTurnId,
+        };
+      }
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
       // The owner reads the model's own words; the claim check has already
@@ -1721,6 +1749,33 @@ export class SokoBotControlPlane {
         }
         if (chargedCusoProjectId) {
           await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
+        }
+        if (settled && cmoTurnEnded) {
+          const ended: {
+            sokoBotId: string;
+            userId: string | null;
+            clientTurnId: string | null;
+          } = cmoTurnEnded;
+          waitUntil(
+            import("@/services/cmo-strategy.service")
+              .then(({ afterCmoTurn }) => afterCmoTurn(ended))
+              .catch((error: unknown) => {
+                // After the response: a standalone event, redacted and drained.
+                emitCoreWarning(
+                  { operation: "cmo_next_run" },
+                  {
+                    message: "CMO's next run did not start",
+                    why: "Starting the first plan or a queued brand fix threw after Cuso's turn settled",
+                    fix: "It starts again when Cuso's next turn ends. If it keeps failing, read the failure and the Cuso's credits.",
+                  },
+                  {
+                    sokoBot: { id: ended.sokoBotId },
+                    clientTurnId: ended.clientTurnId,
+                    failure: messageSafeErrorFields(error),
+                  },
+                );
+              }),
+          );
         }
         if (settled) {
           waitUntil(
@@ -3078,8 +3133,6 @@ export class SokoBotControlPlane {
       );
     }
 
-    let aggregateUsage = parseTurnUsage(turn.usage);
-    let aggregateCostUsdMicros = turn.costUsdMicros ?? 0n;
     const priorTerminalEvent = await prisma.sokoBotEvent.findFirst({
       where: {
         turnId: turn.id,
@@ -3131,8 +3184,13 @@ export class SokoBotControlPlane {
       }
     };
 
-    const heartbeat = async (): Promise<void> => {
-      const updated = await prisma.sokoBotTurn.updateMany({
+    // Inside an event write it is the fence: the UPDATE locks the turn row,
+    // so the usage read after it sees what another writer under the same
+    // lease (the in-process loop's settle, an admin retry) committed.
+    const heartbeat = async (
+      client: Prisma.TransactionClient = prisma,
+    ): Promise<void> => {
+      const updated = await client.sokoBotTurn.updateMany({
         where: {
           id: turn.id,
           leaseToken,
@@ -3150,9 +3208,47 @@ export class SokoBotControlPlane {
       }
     };
 
+    // A writer that lags behind replays a lower index: it never moves the
+    // cursor back.
+    const advanceCursor = (tx: Prisma.TransactionClient, streamIndex: number) =>
+      tx.sokoBotTurn.updateMany({
+        where: { id: turn.id, eveStreamIndex: { lt: streamIndex } },
+        data: { eveStreamIndex: streamIndex },
+      });
+
+    // Adds a step's usage to the locked row's totals, never to a copy read
+    // before another writer added its own step.
+    const usageAfterStep = async (
+      tx: Prisma.TransactionClient,
+      event: IndexedRuntimeEvent["event"],
+    ): Promise<Prisma.SokoBotTurnUpdateInput> => {
+      const current = await tx.sokoBotTurn.findUnique({
+        where: { id: turn.id },
+        select: { usage: true, costUsdMicros: true },
+      });
+      const nextUsage = addTurnUsage(
+        parseTurnUsage(current?.usage),
+        event.data.usage,
+        event.data.modelId,
+      );
+      if (!nextUsage) return {};
+      return {
+        usage: jsonInput(nextUsage),
+        costUsdMicros:
+          (current?.costUsdMicros ?? 0n) +
+          BigInt(
+            Math.round(
+              nonnegativeNumber(
+                (event.data.usage as Record<string, unknown>).costUsd,
+              ) * 1_000_000,
+            ),
+          ),
+      };
+    };
+
     const persistEvent = async (
       indexed: IndexedRuntimeEvent,
-      data: Prisma.SokoBotTurnUpdateManyMutationInput = {},
+      data: Prisma.SokoBotTurnUpdateInput = {},
     ): Promise<boolean> => {
       return prisma.$transaction(async (tx) => {
         const projection = safeEventProjection(
@@ -3179,47 +3275,34 @@ export class SokoBotControlPlane {
           ],
           skipDuplicates: true,
         });
-        const updated = await tx.sokoBotTurn.updateMany({
-          where: {
-            id: turn.id,
-            leaseToken,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-          },
-          data: {
-            ...(persisted.count === 1 ? data : {}),
-            eveStreamIndex: indexed.startIndex,
-            reconcilerHeartbeatAt: new Date(),
-            leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-          },
-        });
-        if (updated.count === 0) {
-          throw new SokoBotReconciliationLeaseLostError(
-            "Soko Bot reconciliation lease was lost",
-          );
+        // Insert, then fence: the order every release writes in, so a writer
+        // from the release before cannot deadlock with this one. A failed
+        // fence rolls the insert back.
+        await heartbeat(tx);
+        const persistedNew = persisted.count === 1;
+        if (persistedNew) {
+          const update = {
+            ...data,
+            ...(indexed.event.type === "step.completed"
+              ? await usageAfterStep(tx, indexed.event)
+              : {}),
+          };
+          if (Object.keys(update).length > 0)
+            await tx.sokoBotTurn.update({
+              where: { id: turn.id },
+              data: update,
+            });
         }
-        return persisted.count === 1;
+        await advanceCursor(tx, indexed.startIndex);
+        return persistedNew;
       });
     };
 
-    const advancePastUnownedEvent = async (streamIndex: number) => {
-      const updated = await prisma.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          leaseToken,
-          status: { in: [...ACTIVE_TURN_STATUSES] },
-        },
-        data: {
-          eveStreamIndex: streamIndex,
-          reconcilerHeartbeatAt: new Date(),
-          leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        },
+    const advancePastUnownedEvent = (streamIndex: number) =>
+      prisma.$transaction(async (tx) => {
+        await heartbeat(tx);
+        await advanceCursor(tx, streamIndex);
       });
-      if (updated.count === 0) {
-        throw new SokoBotReconciliationLeaseLostError(
-          "Soko Bot reconciliation lease was lost",
-        );
-      }
-    };
 
     const heartbeatTimer = setInterval(() => {
       void heartbeat().catch(() => {
@@ -3288,35 +3371,13 @@ export class SokoBotControlPlane {
         // later durable event advances the cursor across all skipped deltas.
         if (!shouldPersistSokoBotRuntimeEvent(indexed.event.type)) continue;
 
-        const turnData: Prisma.SokoBotTurnUpdateManyMutationInput = {};
-        let nextAggregateUsage: SokoBotTurnUsage | null = null;
-        let nextAggregateCostUsdMicros: bigint | null = null;
+        // A step's usage is added inside persistEvent, from the locked row.
+        const turnData: Prisma.SokoBotTurnUpdateInput = {};
         if (
           indexed.event.type === "step.started" &&
           typeof indexed.event.data.modelId === "string"
         ) {
           turnData.modelId = indexed.event.data.modelId.slice(0, 240);
-        } else if (indexed.event.type === "step.completed") {
-          const nextUsage = addTurnUsage(
-            aggregateUsage,
-            indexed.event.data.usage,
-            indexed.event.data.modelId,
-          );
-          if (nextUsage) {
-            nextAggregateUsage = nextUsage;
-            nextAggregateCostUsdMicros =
-              aggregateCostUsdMicros +
-              BigInt(
-                Math.round(
-                  nonnegativeNumber(
-                    (indexed.event.data.usage as Record<string, unknown>)
-                      .costUsd,
-                  ) * 1_000_000,
-                ),
-              );
-            turnData.usage = jsonInput(nextAggregateUsage);
-            turnData.costUsdMicros = nextAggregateCostUsdMicros;
-          }
         }
         if (indexed.event.type === "message.completed") {
           if (typeof indexed.event.data.message === "string") {
@@ -3366,15 +3427,6 @@ export class SokoBotControlPlane {
             );
           });
         }
-        if (
-          eventWasNew &&
-          nextAggregateUsage &&
-          nextAggregateCostUsdMicros !== null
-        ) {
-          aggregateUsage = nextAggregateUsage;
-          aggregateCostUsdMicros = nextAggregateCostUsdMicros;
-        }
-
         if (indexed.event.type === "input.requested") {
           try {
             await this.runtime.cancelTurn({

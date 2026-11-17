@@ -8,12 +8,16 @@ import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 import mountSyncSokoBotSchedules from "./get";
 
-const { pending, purge, reconcileTurn, syncDueSchedules } = vi.hoisted(() => ({
-  pending: [] as Promise<unknown>[],
-  purge: vi.fn(),
-  reconcileTurn: vi.fn(),
-  syncDueSchedules: vi.fn(),
-}));
+const { pending, purge, reconcileTurn, run, syncDueSchedules } = vi.hoisted(
+  () => ({
+    pending: [] as Promise<unknown>[],
+    /** The run the mocked handler starts, or none to run inside the request. */
+    run: { syncRunId: undefined as string | undefined },
+    purge: vi.fn(),
+    reconcileTurn: vi.fn(),
+    syncDueSchedules: vi.fn(),
+  }),
+);
 
 vi.mock("@vercel/functions", () => ({
   waitUntil: vi.fn((work: Promise<unknown>) => {
@@ -30,9 +34,11 @@ vi.mock("@/services/soko-bot-schedules-sync.service", () => ({
   sokoBotSchedulesSyncService: { syncDueSchedules },
 }));
 
-// Run the operation inside the request, without the handler's own background
-// wrap, so the route's reconciliation start has to keep itself off the
-// request's event. The lock, auth and deadline belong to the handler's tests.
+// Run the operation under a fixed run id, as the handler does, so the route's
+// events show they inherit it. With `run.syncRunId` unset it runs inside the
+// request, without the handler's background wrap, so the route's
+// reconciliation start has to keep itself off the request's event. The lock,
+// auth and deadline belong to the handler's tests.
 vi.mock("../handler.js", () => ({
   handleSyncRequest: async (
     c: { json: (body: unknown) => Response },
@@ -41,23 +47,30 @@ vi.mock("../handler.js", () => ({
       context: import("../handler.js").SyncRunContext,
     ) => Promise<void>,
   ) => {
-    const { createCoreLogger } = await import("@/lib/evlog");
-    const log = createCoreLogger({
-      operation: "cron_sync",
-      sync: { runId: "run-1" },
-    });
-    await operation({
-      abortSignal: new AbortController().signal,
-      deadlineMs: Date.now() + 60_000,
-      msRemaining: () => 60_000,
-      shouldContinue: () => true,
-      log,
-      runId: "run-1",
-    });
-    log.emit();
+    const { createCoreLogger, runAsBackgroundWork } = await import(
+      "@/lib/evlog"
+    );
+    const syncRun = async () => {
+      const log = createCoreLogger({ operation: "cron_sync" });
+      await operation({
+        abortSignal: new AbortController().signal,
+        deadlineMs: Date.now() + 60_000,
+        msRemaining: () => 60_000,
+        shouldContinue: () => true,
+        log,
+      });
+      log.emit();
+    };
+    const { syncRunId } = run;
+    await (syncRunId === undefined
+      ? syncRun()
+      : runAsBackgroundWork(syncRun, { syncRunId }));
     return c.json({ ok: true });
   },
 }));
+
+/** The run id the mocked handler starts each run under. */
+const SYNC_RUN_ID = "01960001-0001-7001-8001-0000000000c1";
 
 function createApp() {
   const app = new Hono<{ Variables: RequestIdVariables }>();
@@ -77,6 +90,7 @@ function runEvent() {
 beforeEach(() => {
   vi.resetAllMocks();
   pending.length = 0;
+  run.syncRunId = SYNC_RUN_ID;
   syncDueSchedules.mockImplementation(
     async (input: {
       enqueueReconciliation: (turn: {
@@ -107,6 +121,8 @@ describe("GET /soko-bot-schedules", () => {
   });
 
   it("starts the reconciliation as background work, off the request's event", async () => {
+    // Inside the request: the route's own wrap must keep it off the event.
+    run.syncRunId = undefined;
     let liveDuringReconciliation: unknown = "not called";
     reconcileTurn.mockImplementation(async () => {
       liveDuringReconciliation = tryUseLiveLogger();
@@ -140,7 +156,7 @@ describe("GET /soko-bot-schedules", () => {
 
     expect(errors[0]?.event).toMatchObject({
       operation: "soko_bot_schedule_reconciliation",
-      sync: { runId: "run-1" },
+      syncRunId: SYNC_RUN_ID,
       turn: { id: "turn-1" },
       failure: { errorName: "Error" },
     });
@@ -165,7 +181,7 @@ describe("GET /soko-bot-schedules", () => {
 
     expect(errors[0]?.event).toMatchObject({
       operation: "soko_bot_schedule_purge",
-      sync: { runId: "run-1" },
+      syncRunId: SYNC_RUN_ID,
       failure: { errorName: "Error" },
     });
     expect(errors[0]?.cause).toBeUndefined();

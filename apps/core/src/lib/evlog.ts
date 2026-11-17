@@ -276,11 +276,39 @@ export function logCoreWarning(
   });
 }
 
-/** Standalone logger for non-HTTP work (mention dispatch). Uses the global drain. */
+/** Fields every standalone event started inside the background work carries. */
+export interface BackgroundWorkContext {
+  /** The cron run the work belongs to, set by `handleSyncRequest`. */
+  syncRunId?: string;
+}
+
+const backgroundWork = new AsyncLocalStorage<BackgroundWorkContext>();
+
+/**
+ * Runs `work` as known background work (a cron's sync): `recordCore*` inside
+ * it emit standalone events. Such work starts in `waitUntil` before the
+ * response, while the request's event is still live, and must not land on it.
+ * `context` goes on every standalone event started inside `work`, background
+ * work it starts included; nested work keeps the outer context.
+ */
+export function runAsBackgroundWork<T>(
+  work: () => T,
+  context: BackgroundWorkContext = {},
+): T {
+  return backgroundWork.run({ ...backgroundWork.getStore(), ...context }, work);
+}
+
+/**
+ * Standalone logger for non-HTTP work (mention dispatch). Uses the global
+ * drain. Inside `runAsBackgroundWork` the event also carries its context.
+ */
 export function createCoreLogger(initialContext: Record<string, unknown> = {}) {
-  return createLogger(initialContext, {
-    waitUntil: process.env.VERCEL ? waitUntil : undefined,
-  });
+  return createLogger(
+    { ...backgroundWork.getStore(), ...initialContext },
+    {
+      waitUntil: process.env.VERCEL ? waitUntil : undefined,
+    },
+  );
 }
 
 /**
@@ -334,17 +362,6 @@ export function emitCoreError(
   const log = createCoreLogger(context);
   writeCoreError(log, error, fields);
   log.emit();
-}
-
-const backgroundWork = new AsyncLocalStorage<true>();
-
-/**
- * Runs `work` as known background work (a cron's sync): `recordCore*` inside
- * it emit standalone events. Such work starts in `waitUntil` before the
- * response, while the request's event is still live, and must not land on it.
- */
-export function runAsBackgroundWork<T>(work: () => T): T {
-  return backgroundWork.run(true, work);
 }
 
 /** `context` without `operation`, which names standalone work, not a request. */
