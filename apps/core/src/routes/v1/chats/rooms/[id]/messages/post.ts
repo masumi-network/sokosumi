@@ -18,6 +18,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -502,7 +503,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (didCreate) {
       for (const mentionId of mentionIds) {
-        waitUntil(dispatchChatRoomMention(mentionId));
+        // Background work: its events never land on this request's event.
+        waitUntil(
+          runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)),
+        );
       }
 
       if (mentionedUserIds.length > 0) {

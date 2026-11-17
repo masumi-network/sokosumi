@@ -6,7 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { getComposio } from "@/clients/composio.client";
 import { auth } from "@/lib/auth";
-import { bindCoreRequestContext, coreEvlogMiddleware } from "@/lib/evlog";
+import {
+  bindCoreRequestContext,
+  coreEvlogMiddleware,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import { composioLogger as coreComposioSink } from "@/lib/evlog-library-logs";
 import { restoreComposioSdkLoggerAfterFile } from "@/test/composio-sdk-logger";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
@@ -64,6 +68,21 @@ describe("Better Auth's logger", () => {
           message: "Skipped 1 JWKS signing key",
         },
       ],
+    });
+  });
+
+  it("inside background work a live request started, logs a standalone event, not on that request", async () => {
+    const warnings = expectCoreLog("warn", "Skipped 1 JWKS signing key");
+    const log = await betterAuthLogger();
+
+    await inRequest(() =>
+      runAsBackgroundWork(() => log.warn("Skipped 1 JWKS signing key")),
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.event.path).toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      libraryLogs: [{ source: "better-auth", level: "warn" }],
     });
   });
 

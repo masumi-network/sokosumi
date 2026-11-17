@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { expectCoreLog } from "@/test/core-log";
+
 const {
   messageFindUniqueMock,
   mergeMetadataKeysMock,
@@ -426,6 +428,26 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       messageId: MESSAGE_ID,
       attempted: 1,
       persisted: 0,
+    });
+  });
+
+  it("logs one standalone warning when the unfurl run fails, and never throws", async () => {
+    const errors = expectCoreLog(
+      "warn",
+      "Could not add link previews to a chat message",
+    );
+    messageFindUniqueMock.mockRejectedValue(new Error("connection reset"));
+
+    await expect(
+      scheduleChatRoomMessageUnfurls(MESSAGE_ID),
+    ).resolves.toMatchObject({ messageId: MESSAGE_ID, persisted: 0 });
+
+    expect(errors[0]).toMatchObject({ why: "The unfurl run threw" });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("connection reset");
+    expect(errors[0]?.event).toMatchObject({
+      operation: "chat_message_unfurl",
+      chatMessage: { id: MESSAGE_ID },
+      failure: { name: "Error" },
     });
   });
 

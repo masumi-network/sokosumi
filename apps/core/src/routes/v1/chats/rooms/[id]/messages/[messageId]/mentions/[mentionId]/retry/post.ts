@@ -6,6 +6,7 @@ import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -131,7 +132,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     await publishChatRoomMessageRealtime(message, "mention_status");
-    waitUntil(dispatchChatRoomMention(mentionId));
+    // Background work: its events never land on this request's event.
+    waitUntil(runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)));
 
     return ok(
       c,
