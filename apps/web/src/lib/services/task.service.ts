@@ -411,6 +411,16 @@ export const taskService = (() => {
     return result.data.participants;
   }
 
+  async function unsubscribeTask(taskId: string): Promise<TaskParticipant[]> {
+    const result = await coreClient.unsubscribeTask(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to stop following task");
+    }
+
+    return result.data.participants;
+  }
+
   async function subscribeTaskParticipant(
     taskId: string,
   ): Promise<TaskParticipant[]> {
@@ -472,6 +482,7 @@ export const taskService = (() => {
     deleteTaskLink,
     removeTaskParticipant,
     subscribeTaskParticipant,
+    unsubscribeTask,
     moveTaskToWorkspace,
     moveOverdueTasks,
     undoMoveOverdueTasks,

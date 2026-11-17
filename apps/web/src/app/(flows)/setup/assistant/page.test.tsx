@@ -111,6 +111,15 @@ describe("SetupAssistantPage", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
+  it('leaves the follow marker off "Later", so leaving setup follows nothing', async () => {
+    const next = "/tasks/task-1?follow=1";
+    render(await renderPage({ next }));
+
+    expect(screen.getByTestId("assistant-first-run").textContent).toBe(
+      `/tasks/task-1|/setup/assistant/connect?${new URLSearchParams({ next })}|personal`,
+    );
+  });
+
   it("bills an organization user's assistant to the organization", async () => {
     readRouteSessionMock.mockResolvedValue(session("org-1"));
 

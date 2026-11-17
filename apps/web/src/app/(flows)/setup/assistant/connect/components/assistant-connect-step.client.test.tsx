@@ -30,7 +30,7 @@ function renderStep(offers = OFFERS, botImageUrl: string | null = null) {
         botImageUrl={botImageUrl}
         botOrbSeed="orb:u1"
         offers={offers}
-        chatUrl="/chat/rooms/room-1"
+        doneUrl="/chat/rooms/room-1"
         returnTo="/setup/assistant/connect"
       />
     </NextIntlClientProvider>,

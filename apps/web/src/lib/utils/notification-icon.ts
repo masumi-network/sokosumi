@@ -34,7 +34,7 @@ export function getNotificationIcon(
     if (FAILURE_SUFFIXES.some((suffix) => messageKey.endsWith(suffix))) {
       return TriangleAlert;
     }
-    if (messageKey.endsWith("Required")) {
+    if (messageKey.endsWith("Required") || messageKey.endsWith("overdue")) {
       return CircleAlert;
     }
     if (messageKey.endsWith("completed") || messageKey.endsWith("closed")) {

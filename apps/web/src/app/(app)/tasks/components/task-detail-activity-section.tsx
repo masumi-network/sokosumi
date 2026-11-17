@@ -8,6 +8,7 @@ import {
   type MentionableUser,
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
+import { TaskActivitySubscribeControl } from "@/app/tasks/components/task-activity-subscribe";
 import type {
   AgentsResult,
   SessionResult,
@@ -26,6 +27,7 @@ export async function TaskActivitySectionContent({
   sessionPromise,
   currentPlanPromise,
   mentionableUsersPromise,
+  viewerHasSokoBotPromise,
 }: {
   taskId: string;
   task: Task;
@@ -35,16 +37,25 @@ export async function TaskActivitySectionContent({
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
   mentionableUsersPromise: Promise<MentionableUser[]>;
+  viewerHasSokoBotPromise: Promise<boolean>;
 }) {
-  const [agents, session, viewerPlan, hasAssignedSeat, mentionableUsers, t] =
-    await Promise.all([
-      agentsPromise,
-      sessionPromise,
-      currentPlanPromise,
-      hasAssignedSeatPromise,
-      mentionableUsersPromise,
-      getTranslations("App.Tasks.Detail"),
-    ]);
+  const [
+    agents,
+    session,
+    viewerPlan,
+    hasAssignedSeat,
+    mentionableUsers,
+    viewerHasSokoBot,
+    t,
+  ] = await Promise.all([
+    agentsPromise,
+    sessionPromise,
+    currentPlanPromise,
+    hasAssignedSeatPromise,
+    mentionableUsersPromise,
+    viewerHasSokoBotPromise,
+    getTranslations("App.Tasks.Detail"),
+  ]);
   // The task payload already carries every event, so a second events read
   // only repeats it. Read-only (admin and developer views) keeps every
   // comment: the viewer is outside the task's workspace, so the
@@ -90,6 +101,14 @@ export async function TaskActivitySectionContent({
       }
     : knownUserById;
   const agentNameById = buildAgentNameById(agents);
+  const canComment = canCommentOnTaskForViewer({
+    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+    taskOwnerId: task.ownerId,
+    sessionUserId: session?.user.id,
+    forceReadOnly,
+    taskStatus: task.status,
+    hasAssignedSeat,
+  });
 
   return (
     <TaskActivitySection
@@ -119,15 +138,19 @@ export async function TaskActivitySectionContent({
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
       mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
-      participants={task.participants}
-      canComment={canCommentOnTaskForViewer({
-        taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        taskOwnerId: task.ownerId,
-        sessionUserId: session?.user.id,
-        forceReadOnly,
-        taskStatus: task.status,
-        hasAssignedSeat,
-      })}
+      canComment={canComment}
+      headerAction={
+        <TaskActivitySubscribeControl
+          taskId={taskId}
+          // Read-only views show who takes part, with no follow or leave.
+          viewerId={forceReadOnly ? null : (currentUser?.id ?? null)}
+          viewerName={currentUser?.name ?? null}
+          viewerImage={currentUser?.image ?? null}
+          viewerHasSokoBot={viewerHasSokoBot}
+          participants={task.participants}
+          canComment={canComment}
+        />
+      }
     />
   );
 }

@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getTaskByIdMock = vi.fn();
+const getMySokoBotActivityMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getTaskById: (...args: unknown[]) => getTaskByIdMock(...args),
+    getMySokoBotActivity: () => getMySokoBotActivityMock(),
   },
 }));
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -75,6 +77,24 @@ describe("startPrivateTaskDetailReads", () => {
 
     await expect(reads.hasAssignedSeatPromise).resolves.toBe(false);
     await expect(reads.currentPlanPromise).resolves.toBeNull();
+  });
+
+  // Only Core's "no bot" sends the viewer to setup instead of following.
+  it.each([
+    [404, false],
+    [503, true],
+  ])("reads a Soko Bot activity %s as has-bot %s", async (status, expected) => {
+    getMySokoBotActivityMock.mockRejectedValue(coreError(status));
+    const task = {
+      projectId: null,
+      organizationId: "org-1",
+      visibility: "PRIVATE",
+      workspace: { organizationId: "org-1" },
+    } as unknown as Parameters<typeof startPrivateTaskDetailReads>[0];
+
+    const reads = startPrivateTaskDetailReads(task, false);
+
+    await expect(reads.viewerHasSokoBotPromise).resolves.toBe(expected);
   });
 
   it("keeps a sign-in redirect from the seat read", async () => {

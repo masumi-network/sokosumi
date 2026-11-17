@@ -5,6 +5,7 @@ import { TaskCreditsUsed } from "@/app/tasks/components/task-credits-used";
 import type { ProjectResult } from "@/app/tasks/components/task-detail-view";
 import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
 import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
@@ -73,6 +74,15 @@ export async function TaskMetadataSection({
               <TaskCreditsUsed taskId={task.id} />
             </Suspense>
           )
+        }
+        participants={
+          <TaskMetadataParticipantsRow
+            participants={task.participants}
+            labels={{
+              participants: t("participants"),
+              followsWithSokoBot: t("followsWithSokoBot"),
+            }}
+          />
         }
         labels={{
           privateBadge: t("privateBadge"),

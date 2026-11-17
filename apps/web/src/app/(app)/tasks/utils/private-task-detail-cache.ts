@@ -69,6 +69,21 @@ async function getPrivateCachedViewerPlan(
   return resolveTaskDetailViewerPlan(forceReadOnly, session, organizationId);
 }
 
+/** Whether the viewer has a personal Soko Bot here; Core answers 404 for none. */
+async function getPrivateCachedHasSokoBot(): Promise<boolean> {
+  "use cache: private";
+  cacheLife({ stale: PREFETCHED_CONTENT_STALE_SECONDS });
+  try {
+    await coreClient.getMySokoBotActivity();
+    return true;
+  } catch (error) {
+    if (error instanceof CoreApiRequestError && error.status === 404) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function getPrivateCachedMentionableMembers(
   organizationId: string | null,
 ): Promise<MentionableMembers> {
@@ -113,6 +128,15 @@ export function startPrivateTaskDetailReads(
       forceReadOnly || task.visibility === TaskVisibility.PRIVATE
         ? Promise.resolve<MentionableMembers>([])
         : getPrivateCachedMentionableMembers(organizationId),
+    // Read-only views show no follow control.
+    // Any failure but "no bot" offers to follow rather than sending the
+    // viewer to setup; kept outside the cache, as above.
+    viewerHasSokoBotPromise: forceReadOnly
+      ? Promise.resolve(false)
+      : getPrivateCachedHasSokoBot().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return true;
+        }),
     projectPromise: task.projectId
       ? getPrivateCachedProject(task.projectId).catch(() => null)
       : Promise.resolve(null),
