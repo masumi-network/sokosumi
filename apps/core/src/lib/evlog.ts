@@ -1,11 +1,13 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { waitUntil } from "@vercel/functions";
 import type {
   DrainContext,
+  ErrorOptions,
   EvlogPlugin,
   RedactConfig,
   RequestLogger,
 } from "evlog";
-import { createLogger, initLogger } from "evlog";
+import { createError, createLogger, initLogger } from "evlog";
 import { evlog, useLogger } from "evlog/hono";
 import { createSentryDrain } from "evlog/sentry";
 import type { MiddlewareHandler } from "hono";
@@ -123,9 +125,15 @@ export function toLogData(
 /** What a Core warning says: what happened, why, and what to do. */
 export interface CoreWarning {
   message: string;
+  /** A fixed sentence Core writes, never a provider's or library's error text. */
   why?: string;
   fix?: string;
   link?: string;
+  /**
+   * The error behind the warning; its text goes here, not into `why`.
+   * Redaction runs on it before the drain.
+   */
+  cause?: unknown;
 }
 
 /**
@@ -143,9 +151,17 @@ export function logCoreWarning(
 ) {
   const { requestLogs } = log.getContext();
   const requestLogIndex = Array.isArray(requestLogs) ? requestLogs.length : 0;
+  const { cause, ...guidance } = warning;
   log.warn(warning.message, {
     ...fields,
-    warnings: [{ ...warning, requestLogIndex }],
+    // The cause stays with its own warning when several share an event.
+    warnings: [
+      {
+        ...guidance,
+        ...(cause === undefined ? {} : { cause: errorCause(cause) }),
+        requestLogIndex,
+      },
+    ],
   });
 }
 
@@ -154,6 +170,106 @@ export function createCoreLogger(initialContext: Record<string, unknown> = {}) {
   return createLogger(initialContext, {
     waitUntil: process.env.VERCEL ? waitUntil : undefined,
   });
+}
+
+/**
+ * One standalone event holding `warning`, for work after the response or in
+ * the background, where the request's event is already emitted.
+ */
+export function emitCoreWarning(
+  context: Record<string, unknown>,
+  warning: CoreWarning,
+  fields?: Record<string, unknown>,
+) {
+  const log = createCoreLogger(context);
+  logCoreWarning(log, warning, fields);
+  log.emit();
+}
+
+/**
+ * What a Core error says. `why` is a fixed sentence Core writes; the
+ * provider's or library's error text goes only into `cause`, which may be
+ * anything a `catch` received.
+ */
+export interface CoreError extends Omit<ErrorOptions, "cause"> {
+  cause?: unknown;
+}
+
+/** `cause` as an `Error`, so a rejected string keeps its text there too. */
+function errorCause(cause: unknown): Error | undefined {
+  if (cause instanceof Error) return cause;
+  if (typeof cause === "string") return new Error(cause);
+  return undefined;
+}
+
+/** The one writer behind `emitCoreError` and `recordCoreError`. */
+function writeCoreError(
+  log: Pick<RequestLogger, "error">,
+  { cause, ...error }: CoreError,
+  fields?: Record<string, unknown>,
+) {
+  log.error(createError({ ...error, cause: errorCause(cause) }), fields);
+}
+
+/**
+ * One standalone error event, for work after the response or in the
+ * background.
+ */
+export function emitCoreError(
+  context: Record<string, unknown>,
+  error: CoreError,
+  fields?: Record<string, unknown>,
+) {
+  const log = createCoreLogger(context);
+  writeCoreError(log, error, fields);
+  log.emit();
+}
+
+const backgroundWork = new AsyncLocalStorage<true>();
+
+/**
+ * Runs `work` as known background work (a cron's sync): `recordCore*` inside
+ * it emit standalone events. Such work starts in `waitUntil` before the
+ * response, while the request's event is still live, and must not land on it.
+ */
+export function runAsBackgroundWork<T>(work: () => T): T {
+  return backgroundWork.run(true, work);
+}
+
+/** `context` without `operation`, which names standalone work, not a request. */
+function requestFields(
+  { operation: _operation, ...context }: Record<string, unknown>,
+  fields?: Record<string, unknown>,
+) {
+  return { ...context, ...fields };
+}
+
+/**
+ * For code that runs both inside a request and after one: `warning` on the
+ * request's event while it is live, else its own standalone event.
+ */
+export function recordCoreWarning(
+  context: Record<string, unknown>,
+  warning: CoreWarning,
+  fields?: Record<string, unknown>,
+) {
+  const log = tryUseLiveLogger();
+  if (!log) return emitCoreWarning(context, warning, fields);
+  logCoreWarning(log, warning, requestFields(context, fields));
+}
+
+/**
+ * For code that runs both inside a request and after one: `error` on the
+ * request's event while it is live, else its own standalone event.
+ */
+export function recordCoreError(
+  context: Record<string, unknown>,
+  error: CoreError,
+  fields?: Record<string, unknown>,
+) {
+  const log = tryUseLiveLogger();
+  if (!log) return emitCoreError(context, error, fields);
+  writeCoreError(log, error, requestFields(context, fields));
 }
 
 export function coreEvlogDrain() {
@@ -369,13 +485,16 @@ export function auditImpersonationDenied(input: ImpersonationDenialInput) {
 
 /**
  * The request's logger while its wide event can still take writes: `null`
- * outside a request and after the event was emitted (work in `waitUntil`).
+ * outside a request, after the event was emitted (work in `waitUntil`), and
+ * inside `runAsBackgroundWork`, which may start before the emit.
  * For code that cannot know where it runs, such as library loggers, which
  * fall back to a standalone event. `tryUseLogger` keeps returning the emitted
  * logger, so evlog still warns about a late write that should have been a
  * standalone event.
  */
 export function tryUseLiveLogger() {
+  // Known background work never writes on the request that started it.
+  if (backgroundWork.getStore()) return null;
   const log = tryUseLogger();
   return log && !emittedRequestLoggers.has(log) ? log : null;
 }

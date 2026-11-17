@@ -88,7 +88,7 @@ vi.mock("./chat-room-mention-context", async (importOriginal) => ({
   loadRoomContextMessages,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { expectCoreLog } from "@/test/core-log";
 import {
   acceptOnceIdle,
   runSokoBotMentionDispatch,
@@ -487,7 +487,10 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(reconcileTurn).not.toHaveBeenCalled();
   });
   it("closes the reply as failed even while the failed turn's delivery is still open", async () => {
-    expectConsole("error", "Soko Bot delivery push failed");
+    const deliveryErrors = expectCoreLog(
+      "error",
+      "Could not deliver a finished Soko Bot turn",
+    );
     // A PERSISTED delivery only republishes the message as it is now: the
     // reopened "Thinking…". The failed card must come back regardless.
     startTurn.mockResolvedValue({
@@ -502,6 +505,13 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(fail).toHaveBeenCalledWith(
       expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
+    expect(deliveryErrors[0]).toMatchObject({
+      why: "Pushing the turn's delivery threw",
+    });
+    expect(JSON.stringify(deliveryErrors[0]?.event)).not.toContain("Ably down");
+    expect(deliveryErrors[0]?.event).toMatchObject({
+      sokoBotTurn: { id: "turn-failed" },
+    });
   });
   it("restores a failed turn still holding the mention without reopening its reply", async () => {
     // Retry while the failed turn's delivery is owed: a reopened "Thinking…"
@@ -531,16 +541,30 @@ describe("a reclaimed mention whose turn already ended", () => {
     );
   });
   it("writes nothing when the ownership check itself fails", async () => {
-    expectConsole("error", "Soko Bot reply failure left for reclaim");
+    const fenceErrors = expectCoreLog(
+      "error",
+      "Could not fail a Soko Bot reply",
+    );
     // Left `sent` for stale reclaim; nothing escapes to the caller's
     // unchecked cleanup.
     loadRoomContextMessages.mockRejectedValue(new Error("room read failed"));
     fail.mockRejectedValue(new Error("transaction timeout"));
     await expect(runSokoBotMentionDispatch(input())).resolves.toBeUndefined();
+    expect(fenceErrors[0]).toMatchObject({
+      why: "The ownership-checked write threw",
+    });
+    expect(fenceErrors[0]?.event).toMatchObject({
+      mention: { id: "mention-a" },
+      failure: { name: "Error" },
+      replyFailure: { name: "Error" },
+    });
+    const drained = JSON.stringify(fenceErrors[0]?.event);
+    expect(drained).not.toContain("transaction timeout");
+    expect(drained).not.toContain("room read failed");
   });
   it("fails, without starting, a reply its claim did not open", async () => {
-    expectConsole("error", "Soko Bot Thought placeholder create failed");
-    expectConsole("error", "Soko Bot reply failure left for reclaim");
+    expectCoreLog("error", "Could not open the Soko Bot's thinking reply");
+    expectCoreLog("error", "Could not fail a Soko Bot reply");
     // The open threw before committing: the linked reply is an old one.
     placeholder.mockRejectedValue(new Error("Unable to start a transaction"));
     openedBy.mockResolvedValue(null);
@@ -552,7 +576,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     );
   });
   it("continues on the reply its claim opened when only the acknowledgement was lost", async () => {
-    expectConsole("error", "Soko Bot Thought placeholder create failed");
+    expectCoreLog("error", "Could not open the Soko Bot's thinking reply");
     placeholder.mockRejectedValue(new Error("connection reset"));
     openedBy.mockResolvedValue("response-b");
     await runSokoBotMentionDispatch(input());
@@ -581,7 +605,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(publishById).not.toHaveBeenCalled();
   });
   it("starts a fresh attempt under its own key and fails it under its own claim", async () => {
-    expectConsole("error", "Soko Bot reply failure left for reclaim");
+    expectCoreLog("error", "Could not fail a Soko Bot reply");
     findMentionTurn.mockResolvedValue([
       {
         id: "turn-old",
