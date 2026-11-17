@@ -3,6 +3,7 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
+import { expectConsole } from "@/test/console";
 
 const CORE = "https://auth.example.com";
 const WEB = "https://app.example.com";
@@ -54,6 +55,7 @@ function createCore() {
 
 describe("Better Auth error page", () => {
   it("sends a social callback whose state is gone to Sokosumi's error page", async () => {
+    expectConsole("error", /^\S+ ERROR \[Better Auth\]: Failed to parse state/);
     const handle = createCore();
 
     // Started more than ten minutes ago, or in another browser: Core holds no
@@ -85,6 +87,7 @@ describe("Better Auth error page", () => {
   });
 
   it("keeps the error page a social sign-in names for itself", async () => {
+    expectConsole("error", /^\S+ ERROR \[Better Auth\]: Failed to parse state/);
     const handle = createCore();
     const signIn = await handle("/auth/sign-in/social", {
       method: "POST",

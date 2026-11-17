@@ -83,6 +83,7 @@ import {
   reconcileStaleJobs,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+import { pngBytes } from "@/test/image-bytes";
 
 let userId: string;
 let workspaceId: string;
@@ -140,7 +141,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   accessMock.mockResolvedValue({ projectId, workspaceId, userId });
   downloadMediaMock.mockResolvedValue({
-    bytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3]),
+    bytes: pngBytes(1024, 1024),
     contentType: "image/png",
   });
   putMock.mockResolvedValue({ pathname: `projects/${projectId}/x` });

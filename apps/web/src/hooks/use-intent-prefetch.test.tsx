@@ -56,14 +56,14 @@ describe("useIntentPrefetch", () => {
       const link = screen.getByRole("link");
 
       disturb();
-      await act(() => approachElement(link));
+      await act(() => approachElement(link, "mouse", "keep"));
       expect(prefetch).not.toHaveBeenCalled();
 
       // Once things settle the element predicts again, well before its repeat time.
       await act(() => vi.advanceTimersByTimeAsync(201));
       // It is not under the cursor, so settling alone prefetches nothing.
       expect(prefetch).not.toHaveBeenCalled();
-      await act(() => approachElement(link));
+      await act(() => approachElement(link, "mouse", "keep"));
       expect(prefetch).toHaveBeenCalledTimes(1);
     },
   );
@@ -79,7 +79,7 @@ describe("useIntentPrefetch", () => {
     );
 
     document.dispatchEvent(new Event("scroll"));
-    await act(() => approachElement(link));
+    await act(() => approachElement(link, "mouse", "keep"));
     await act(() => vi.advanceTimersByTimeAsync(150));
     // Still scrolling.
     document.dispatchEvent(new Event("scroll"));
@@ -124,7 +124,7 @@ describe("useIntentPrefetch", () => {
 
       leave();
       document.dispatchEvent(new Event("scroll"));
-      await act(() => approachElement(link));
+      await act(() => approachElement(link, "mouse", "keep"));
       await act(() => vi.advanceTimersByTimeAsync(201));
 
       expect(under).toHaveBeenCalled();
@@ -142,13 +142,13 @@ describe("useIntentPrefetch", () => {
     );
 
     document.dispatchEvent(new Event("scroll"));
-    await act(() => approachElement(link));
+    await act(() => approachElement(link, "mouse", "keep"));
     // The scroll goes on past the element's repeat time, so it fires again.
     for (let step = 0; step < 8; step++) {
       await act(() => vi.advanceTimersByTimeAsync(150));
       document.dispatchEvent(new Event("scroll"));
     }
-    await act(() => approachElement(link));
+    await act(() => approachElement(link, "mouse", "keep"));
     await act(() => vi.advanceTimersByTimeAsync(201));
 
     expect(prefetch).toHaveBeenCalledTimes(1);
@@ -159,7 +159,7 @@ describe("useIntentPrefetch", () => {
     render(<Probe prefetch={prefetch} />);
     const link = screen.getByRole("link");
 
-    await act(() => approachElement(link));
+    await act(() => approachElement(link, "mouse", "keep"));
 
     expect(prefetch).toHaveBeenCalledTimes(1);
     // The sidebar styles its open row by this attribute.
@@ -172,7 +172,7 @@ describe("useIntentPrefetch", () => {
     const view = render(<Probe prefetch={first} />);
     view.rerender(<Probe prefetch={second} />);
 
-    await act(() => approachElement(screen.getByRole("link")));
+    await act(() => approachElement(screen.getByRole("link"), "mouse", "keep"));
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
@@ -188,5 +188,44 @@ describe("useIntentPrefetch", () => {
 
     view.unmount();
     expect(ForesightManager.instance.registeredElements.has(link)).toBe(false);
+  });
+
+  it("takes its page listeners off when the last element goes, and puts them back for the next", () => {
+    const targets = [document, document.documentElement];
+    const added = targets.map((target) => vi.spyOn(target, "addEventListener"));
+    const removed = targets.map((target) =>
+      vi.spyOn(target, "removeEventListener"),
+    );
+    const listeners = (spies: typeof added) =>
+      spies.flatMap((spy) => spy.mock.calls.map(([type, fn]) => [type, fn]));
+    // A listener is still on while it was added more often than removed.
+    const stillOn = () => {
+      const count = (spies: typeof added, type: unknown, fn: unknown) =>
+        listeners(spies).filter(([t, f]) => t === type && f === fn).length;
+      return listeners(added).filter(
+        ([type, fn], index, all) =>
+          all.findIndex(([t, f]) => t === type && f === fn) === index &&
+          count(added, type, fn) > count(removed, type, fn),
+      );
+    };
+
+    const first = render(<Probe prefetch={vi.fn()} />);
+    const second = render(<Probe prefetch={vi.fn()} />);
+    const types = listeners(added).map(([type]) => type);
+    expect(types).toEqual(
+      expect.arrayContaining(["scroll", "pointermove", "pointerleave"]),
+    );
+
+    first.unmount();
+    expect(stillOn().map(([type]) => type)).toEqual(
+      expect.arrayContaining(["scroll", "pointermove", "pointerleave"]),
+    );
+    second.unmount();
+    expect(stillOn()).toEqual([]);
+
+    render(<Probe prefetch={vi.fn()} />);
+    expect(stillOn().map(([type]) => type)).toEqual(
+      expect.arrayContaining(["scroll", "pointermove", "pointerleave"]),
+    );
   });
 });

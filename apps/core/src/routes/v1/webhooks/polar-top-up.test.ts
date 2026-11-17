@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
-
 import router from "./index";
 
 /** Credits are stored as cents, base 10^10 (apps/core/AGENTS.md). */

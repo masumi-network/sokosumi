@@ -4,6 +4,7 @@ import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
+import { expectConsole } from "@/test/console";
 import { auth } from "./auth";
 import {
   accountOptions,
@@ -215,6 +216,7 @@ describe("social provider options", () => {
   });
 
   it("falls back when social profile mapping fails", async () => {
+    expectConsole("error", "Failed to map profile to user");
     uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
 
     await expect(
@@ -235,6 +237,10 @@ describe("social sign-in boundaries (SOK-1178)", () => {
   it.each(["google", "microsoft"] as const)(
     "rejects client-submitted %s ID tokens before creating a session",
     async (provider) => {
+      expectConsole(
+        "error",
+        /^\S+ ERROR \[Better Auth\]: Provider does not support id token verification/,
+      );
       const db: MemoryDb = {
         user: [],
         session: [],

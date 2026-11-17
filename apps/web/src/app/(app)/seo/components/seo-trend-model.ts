@@ -14,6 +14,21 @@ const MIN_RATIO_STEP = 0.001;
 
 type Point = ProjectSeoMetric["points"][number];
 
+/** What happened on a marked day, strongest last: a confirmed fix outranks the work that led to it. */
+export const SEO_MARKER_KINDS = [
+  "audit",
+  "change",
+  "task",
+  "verified",
+] as const;
+export type SeoMarkerKind = (typeof SEO_MARKER_KINDS)[number];
+/** One event on the site that a chart marks on its day. */
+export interface SeoChartMarker {
+  date: string;
+  kind: SeoMarkerKind;
+  label: string;
+}
+
 /**
  * The Google events that can move one chart's metric. A data anomaly is a Search Console reporting
  * fault, so a chart of another source (Analytics, the paid SERP checks) leaves it out; an event that did
@@ -74,8 +89,8 @@ const OPEN_UPDATE_LAST_DAY =
 export function seoTrendModel(
   points: Point[],
   unit: ProjectSeoMetric["unit"],
-  /** Recorded changes by day; a day outside the plotted span is left out. */
-  markers: { date: string; label: string }[] = [],
+  /** Events on the site by day; a day outside the plotted span is left out. */
+  markers: SeoChartMarker[] = [],
   /**
    * The points are single reads, not a daily series: a line joins neighbouring reads over the days
    * between them. A read without a value still breaks the line.
@@ -122,20 +137,30 @@ export function seoTrendModel(
         : 50,
     y: values[index] === null ? null : y(values[index] as number),
   }));
-  // Several changes on one day share one marker.
-  const marked = new Map<number, { date: string; labels: string[] }>();
-  for (const marker of markers) {
-    const day = dayNumber(marker.date);
-    // A change after the last reported day is still named; it just has no place on the plot.
+  // Several events on one day share one marker, drawn as the strongest of them.
+  const marked = new Map<
+    number,
+    { date: string; events: Omit<SeoChartMarker, "date">[] }
+  >();
+  for (const { date, ...event } of markers) {
+    const day = dayNumber(date);
+    // An event after the last reported day is still kept; it just has no place on the plot.
     if (!points.length || day < first) continue;
     const known = marked.get(day);
-    if (known) known.labels.push(marker.label);
-    else marked.set(day, { date: marker.date, labels: [marker.label] });
+    if (known) known.events.push(event);
+    else marked.set(day, { date, events: [event] });
   }
   const changes = [...marked]
     .sort(([a], [b]) => a - b)
     .map(([day, change]) => ({
       ...change,
+      kind: change.events.reduce<SeoMarkerKind>(
+        (strongest, { kind }) =>
+          SEO_MARKER_KINDS.indexOf(kind) > SEO_MARKER_KINDS.indexOf(strongest)
+            ? kind
+            : strongest,
+        change.events[0].kind,
+      ),
       x:
         day > first + span
           ? null

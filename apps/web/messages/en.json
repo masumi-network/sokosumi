@@ -11716,8 +11716,6 @@
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
-        "dailyValues": "Daily values",
-        "day": "Day",
         "synced": "Last synced",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
         "noComparison": "Not enough days to compare",
@@ -11755,12 +11753,16 @@
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
-        "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
         "googleUpdate": "{name}: {from} to {to}",
-        "googleUpdateOpen": "{name}: from {from}, ongoing",
+        "googleUpdateOpen": "{name}: since {from}",
         "googleUpdateDay": "{name}: {day}",
-        "googleUpdatesAsOf": "Google updates as of {day}"
+        "googleUpdatesAsOf": "Google updates known until {day}",
+        "markerKind": "{kind, select, change {Page change} audit {Audit} task {Task done} verified {Fix confirmed} other {Event}}",
+        "markerEvent": "{kind}: {label}",
+        "day": "Day",
+        "markerEvents": "Events",
+        "markerLater": "{day} (no search data yet): {events}"
       },
       "keywords": {
         "title": "Keywords",
@@ -11842,7 +11844,7 @@
           "subtitle": "Monthly searches against how hard it is to rank. Top left is best.",
           "checked": "Your keywords",
           "idea": "Idea",
-          "hint": "Use the left and right arrow keys to move between keywords, and + or - to zoom.",
+          "hint": "Use the left and right arrow keys to move between keywords, Enter to open one, and + or - to zoom.",
           "axis": "Difficulty",
           "difficulty": "Difficulty {value} of 100",
           "top10": "{clicks, plural, =0 {Top 10: no extra clicks} one {Top 10: +# click a month} other {Top 10: +# clicks a month}}",
@@ -11852,7 +11854,14 @@
           "source": "Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO.",
           "zoomIn": "Zoom in",
           "zoomOut": "Zoom out",
-          "zoomReset": "Show the whole map"
+          "zoomReset": "Show the whole map",
+          "yours": "Your keyword",
+          "gainShort": "Extra clicks in top 3",
+          "contentTask": "Create content task",
+          "ask": "Ask the SEO agent",
+          "brief": "Write web content{site, select, none {} other { for {site}}} that can rank on Google for the search \"{keyword}\". The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { Lead with this product feature: {feature}.}}",
+          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"? The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { The product feature it fits: {feature}.}}",
+          "noGain": "Unknown"
         },
         "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",
@@ -11958,7 +11967,6 @@
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
-        "whyDetails": "Reason and evidence",
         "effort": "Effort",
         "before": "Before",
         "after": "Suggested change",
@@ -11974,9 +11982,6 @@
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
-        "fixesTitle": "Fixes for the issues",
-        "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
-        "opportunitiesTitle": "Suggestions from search data",
         "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
         "noOpportunitiesBody": "The last check found nothing to fix. The Overview lists what the SEO agent suggests next.",
         "kind": {
@@ -11984,7 +11989,19 @@
           "opportunity": "Suggestion"
         },
         "problem": "{check}. Found: {found}",
-        "impactLine": "{level}: {hint}"
+        "copyFix": "Copy change",
+        "copyInstructions": "Copy agent instructions",
+        "copyPage": "Page",
+        "copied": "Copied to the clipboard",
+        "copyFailed": "Could not copy. Select the text and copy it by hand.",
+        "copyAgentLead": "Make this SEO change on the website. Change only what it names, then check the page again.",
+        "evidence": "Evidence",
+        "change": "The change",
+        "filter": {
+          "label": "Filter actions",
+          "all": "All",
+          "suggestions": "Suggestions"
+        }
       },
       "pages": {
         "title": "Pages",
@@ -12405,6 +12422,15 @@
         "refreshing": "Loading Google statistics.",
         "refreshFailed": "Google statistics could not load. Try again.",
         "nextTitle": "The agent proposes",
+        "chart": "Picture to show",
+        "chartKeywords": "Keyword searches",
+        "statistics": "{analytics, select, missing {Google statistics: Analytics not connected} no_property {Google statistics: this Google account has no Analytics property} choose {Google statistics: no Analytics property is picked for {site}. Choose one of your {count, plural, one {# property} other {# properties}}.} empty {Google statistics: the Analytics property {property} has no visits for these pages yet} other {Google statistics}}",
+        "figures": {
+          "label": "Key figures",
+          "rankings": "{depth, select, same {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {max} results read per keyword} range {{found} of {read} {count, plural, one {keyword} other {keywords}} found · {min} to {max} results read per keyword} other {{found} of {read} {count, plural, one {keyword} other {keywords}} found}}",
+          "searches": "{partial, select, yes {{total, plural, one {# search} other {# searches}} a month for {keywords, number} of {of, number} keywords} other {{total, plural, one {# search} other {# searches}} a month}}",
+          "traffic": "{clicks, plural, one {# click} other {# clicks}} · {impressions, plural, one {# impression} other {# impressions}}"
+        },
         "nothingNext": "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
         "steps": {
           "refresh": {
@@ -12454,18 +12480,16 @@
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
         "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
-        "openTraffic": "Open traffic",
-        "openRankings": "Open rankings",
-        "toSteps": "Start with the first step",
         "draftFix": "Ask the agent for a fix",
-        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
-        "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
         "statisticsMissing": "Statistics are not set up",
         "demand": {
           "title": "Checked keywords with the most searches",
           "unit": "Searches a month",
           "position": "Position {position}"
-        }
+        },
+        "openAction": "Open action",
+        "changeProperty": "Change property",
+        "chooseProperty": "Choose property"
       },
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
@@ -12664,15 +12688,10 @@
         "issues": "Issues",
         "issuesNone": "None found",
         "severityCount": "{count} {severity, select, critical {critical} major {high impact} other {low impact}}",
-        "keywords": "Keywords in Google's top results",
         "of": "of {total}",
-        "searches": "Searches for your keywords",
-        "searchesFor": "For {keywords} of {of} checked keywords",
         "tests": "Tests completed",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
-        "testsAll": "Every test gave a result",
-        "aMonth": "a month",
-        "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
+        "testsAll": "Every test gave a result"
       },
       "traffic": {
         "searchType": "Search type",

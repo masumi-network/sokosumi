@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EmbedTexts } from "@/lib/embeddings";
 import { findRepeats } from "@/lib/repeats";
+import { expectConsole } from "@/test/console";
 
 /** One dimension per topic a text names, plus a little of everything. */
 function fakeEmbed(topics: readonly RegExp[]): EmbedTexts & {
@@ -97,7 +98,10 @@ describe("findRepeats", () => {
   });
 
   it("skips the check when the embedding model fails", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warned = expectConsole(
+      "warn",
+      "[repeats] embedding failed; check skipped",
+    );
     const failing: EmbedTexts = async () => {
       throw new Error("Gateway timeout");
     };
@@ -109,16 +113,12 @@ describe("findRepeats", () => {
     );
 
     expect(result).toEqual({ repeats: [null, null], costUsd: 0 });
-    expect(warn).toHaveBeenCalledWith(
-      "[repeats] embedding failed; check skipped",
-      expect.any(Error),
-    );
-    warn.mockRestore();
+    expect(warned[0]?.[1]).toBeInstanceOf(Error);
   });
 
   it("skips the check when the embedding model is slow, and keeps what it returns later", async () => {
     vi.useFakeTimers();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "[repeats] embedding failed; check skipped");
     const embed = fakeEmbed([/staking/i]);
     const slow: EmbedTexts = (values) =>
       new Promise((resolve) =>
@@ -131,7 +131,6 @@ describe("findRepeats", () => {
     expect(await checking).toEqual({ repeats: [null, null], costUsd: 0 });
     await vi.advanceTimersByTimeAsync(60_000);
     vi.useRealTimers();
-    warn.mockRestore();
 
     expect((await findRepeats(month, "post", embed)).repeats).toEqual([
       null,

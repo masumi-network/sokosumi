@@ -35,6 +35,7 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   downloadStudioFileReference: mocks.reference,
 }));
 
+import { expectConsole } from "@/test/console";
 import { enqueueAdEval } from "./ad-eval.service";
 
 const ENV = {
@@ -309,7 +310,7 @@ describe("background ad evaluations", () => {
   it.each(["reserve", "readBytes", "judge", "update"] as const)(
     "contains %s failures without rejecting background work",
     async (failingStep) => {
-      vi.spyOn(console, "warn").mockImplementation(() => {});
+      expectConsole("warn", "[ad-evals] background evaluation failed");
       mocks[failingStep].mockRejectedValue(new Error("test failure"));
       expect(() => enqueueAdEval("job-1")).not.toThrow();
       await expect(finishBackground()).resolves.toBeUndefined();
@@ -318,14 +319,17 @@ describe("background ad evaluations", () => {
   );
 
   it("contains a background registration failure", async () => {
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warning = expectConsole(
+      "warn",
+      "[ad-evals] could not register background evaluation",
+    );
     mocks.reserve.mockResolvedValue(null);
     mocks.waitUntil.mockImplementation(() => {
       throw new Error("registration unavailable");
     });
     expect(() => enqueueAdEval("job-1")).not.toThrow();
     await finishBackground();
-    expect(warning).toHaveBeenCalledOnce();
+    expect(warning).toHaveLength(1);
     vi.restoreAllMocks();
   });
 });

@@ -42,14 +42,24 @@ export interface ProjectWorkspaceLabels {
  * shared bots exist only in an organization.
  */
 export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabels> {
-  const [t, sharedBots, organizationId] = await Promise.all([
-    getTranslations("App.Projects.Detail"),
+  const [sharedBots, organizationId] = await Promise.all([
     sokoBotService.listShared().catch(() => null),
     userService.getActiveOrganizationId(),
   ]);
+  return getProjectWorkspaceLabelsFor(Boolean(sharedBots && organizationId));
+}
+
+/**
+ * {@link getProjectWorkspaceLabels} for a page that has already decided the
+ * Bots tab, such as one that reads it inside a prefetch cache.
+ */
+export async function getProjectWorkspaceLabelsFor(
+  showBots: boolean,
+): Promise<ProjectWorkspaceLabels> {
+  const t = await getTranslations("App.Projects.Detail");
   return {
     ariaLabel: t("tabs.ariaLabel"),
-    ...(sharedBots && organizationId ? { bots: t("tabs.bots") } : {}),
+    ...(showBots ? { bots: t("tabs.bots") } : {}),
     design: t("tabs.design"),
     memory: t("tabs.memory"),
     overview: t("tabs.overview"),

@@ -9,7 +9,6 @@ import type {
 } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
 import {
-  type PublicSeoPayload,
   publicSeoPayloadSchema,
   seoPayloadCoverage,
 } from "@/helpers/project-seo-report";
@@ -21,6 +20,10 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
+import {
+  actionVerifiedAt,
+  latestDate,
+} from "./project-seo-action-verification";
 import { checkIdentity, issueIdentity } from "./project-seo-check-identity";
 import {
   indexAuditFindings,
@@ -89,54 +92,6 @@ const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 /** A Task in one of these states does no work on its action any more. */
 const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
-
-function verifiedAction(
-  input: ProjectionInput,
-  source: PublicSeoPayload,
-  action: PublicSeoPayload["actions"][number],
-  taskId: string,
-): boolean {
-  const task = input.tasks.find((item) => item.id === taskId);
-  if (
-    task?.status !== "COMPLETED" ||
-    !task.completedAt ||
-    !action.findingIds.length
-  )
-    return false;
-  const referenced = action.findingIds.map((id) =>
-    source.findings.find((finding) => finding.id === id),
-  );
-  if (referenced.some((finding) => !finding?.device)) return false;
-  return referenced.every((finding) => {
-    if (!finding?.device) return false;
-    for (const observation of input.observations) {
-      if (
-        observation.ownerId ||
-        observation.kind === "metrics" ||
-        observation.observedAt <= task.completedAt! ||
-        observation.createdAt <= task.completedAt!
-      )
-        continue;
-      const parsed = publicSeoPayloadSchema.safeParse(observation.payload);
-      if (!parsed.success) continue;
-      const data = parsed.data;
-      if (
-        data.countryCode !== source.countryCode ||
-        data.languageCode !== source.languageCode ||
-        data.rulebookVersion !== source.rulebookVersion
-      )
-        continue;
-      const check = data.checks.find(
-        (row) =>
-          normalizeSeoUrl(row.pageUrl) === normalizeSeoUrl(finding.pageUrl) &&
-          row.rowId === finding.rowId &&
-          row.device === finding.device,
-      );
-      if (check) return check.result === "pass";
-    }
-    return false;
-  });
-}
 
 /** Current views are projections. Historical observations and human choices remain separate. */
 export function projectSeoProjection(
@@ -454,6 +409,23 @@ export function projectSeoProjection(
             finding &&
             passedLater(checkIdentity(data, finding), finding.device),
         );
+      // The newest check of each finding passes: the issue is gone, also while its Task is still open.
+      const verifiedAt = !link
+        ? null
+        : solved
+          ? latestDate(
+              fixed.flatMap((finding) => {
+                const latest =
+                  finding && latestChecked.get(checkIdentity(data, finding));
+                return latest ? [latest.observedAt] : [];
+              }),
+            )
+          : actionVerifiedAt(
+              input.tasks.find((task) => task.id === link.taskId),
+              input.observations,
+              data,
+              item,
+            );
       const action: ProjectSeoWorkspace["actions"][number] = {
         ...item,
         observationId: row.id,
@@ -463,12 +435,12 @@ export function projectSeoProjection(
         taskId: link?.taskId ?? null,
         status: !link
           ? "recommended"
-          : // The newest check of each finding passes: the issue is gone, also while its Task is still open.
-            solved || verifiedAction(input, data, item, link.taskId)
+          : verifiedAt
             ? "verified"
             : taskStatus === "COMPLETED"
               ? "implemented"
               : "task_created",
+        ...(verifiedAt ? { verifiedAt: verifiedAt.toISOString() } : {}),
       };
       actions.push(action);
       fixWork.set(action, {
@@ -589,6 +561,12 @@ export function projectSeoProjection(
     taskStatuses,
   );
   actions.push(...search.actions);
+  // The day each Task behind an action completed, so a chart can mark it. A reopened Task is not done.
+  for (const action of actions) {
+    const task = input.tasks.find((item) => item.id === action.taskId);
+    if (task?.status === "COMPLETED" && task.completedAt)
+      action.completedAt = task.completedAt.toISOString();
+  }
   for (const link of input.actionTasks) {
     const observation =
       scopedPublicSources.get(link.observationId) ??

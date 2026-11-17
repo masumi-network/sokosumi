@@ -3,13 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const redirectMock = vi.fn();
 const loadWorkspaceCalendarPageMock = vi.fn();
+const connectionMock = vi.fn(async () => undefined);
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     redirectMock(url);
     throw new Error("NEXT_REDIRECT");
   },
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
+
+vi.mock("next/server", () => ({ connection: () => connectionMock() }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 
 vi.mock("./load-calendar-page", () => ({
   loadWorkspaceCalendarPage: (query: unknown) =>
@@ -68,6 +73,7 @@ const PAGE = {
 describe("CalendarPage", () => {
   beforeEach(() => {
     redirectMock.mockClear();
+    connectionMock.mockClear();
     loadWorkspaceCalendarPageMock.mockReset();
     loadWorkspaceCalendarPageMock.mockResolvedValue(PAGE);
   });
@@ -91,6 +97,14 @@ describe("CalendarPage", () => {
       "data-newsletter",
       "true",
     );
+  });
+
+  // The calendar reads are cached, so a link prefetch carries the page.
+  it("renders the page without deferring to the request", async () => {
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByTestId("workspace-calendar")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   it("gives the Calendar the create-task modal it opens from an empty slot", async () => {

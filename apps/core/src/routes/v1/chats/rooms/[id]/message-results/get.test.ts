@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { expectConsole } from "@/test/console";
 import mount from "./get";
 
 const mocks = vi.hoisted(() => ({
@@ -117,7 +118,7 @@ describe("batched room result hydration", () => {
     expect(mocks.messages).not.toHaveBeenCalled();
   });
   it("omits only the message whose hydration throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to hydrate chat message results");
     mocks.messages.mockResolvedValue([
       { id: first, metadata: null },
       { id: second, metadata: null },

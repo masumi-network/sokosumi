@@ -48,6 +48,7 @@ import {
   publishStudioAssetToFiles,
   studioAssetFileName,
 } from "@/services/image-studio-drive.service";
+import { expectConsole } from "@/test/console";
 
 const INPUT = {
   projectId: "project-1",
@@ -183,6 +184,7 @@ describe("publishStudioAssetToFiles", () => {
   });
 
   it("never fails settlement when Files is unavailable", async () => {
+    expectConsole("warn", "[image-studio] could not add the asset to Files");
     mocks.reserve.mockRejectedValue(new Error("down"));
     await expect(
       publishStudioAssetToFiles({
@@ -278,6 +280,10 @@ describe("moveLegacyStudioFolderTasks", () => {
   });
 
   it("keeps the Task when a file cannot be copied", async () => {
+    expectConsole(
+      "warn",
+      "[image-studio] could not move a folder Task to Files",
+    );
     mocks.taskFindMany.mockResolvedValueOnce([folderTask]);
     vi.stubGlobal(
       "fetch",

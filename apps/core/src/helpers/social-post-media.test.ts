@@ -7,6 +7,7 @@ import {
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
+import { expectConsole } from "@/test/console";
 
 const { ssrfSafeFetchMock } = vi.hoisted(() => ({
   ssrfSafeFetchMock: vi.fn(),
@@ -156,6 +157,7 @@ describe("parseSocialPostMedia", () => {
   });
 
   it("ignores malformed media instead of throwing", () => {
+    expectConsole("warn", "[social-post] Ignoring malformed media refs", 2);
     expect(parseSocialPostMedia([{ pathname: 1 }], "post_1")).toEqual([]);
     expect(parseSocialPostMedia("not-json", "post_1")).toEqual([]);
   });
@@ -163,6 +165,7 @@ describe("parseSocialPostMedia", () => {
 
 describe("requireSocialPostMedia", () => {
   it("fails permanently when the stored media cannot be read", () => {
+    expectConsole("warn", "[social-post] Unreadable media refs");
     expect(() => requireSocialPostMedia([{ pathname: 1 }], "post_1")).toThrow(
       SocialPostMediaError,
     );

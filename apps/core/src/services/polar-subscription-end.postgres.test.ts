@@ -22,6 +22,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { expectConsole } from "@/test/console";
 import { handlePolarSubscriptionEvent } from "./polar-subscription.service";
 import {
   retryOwedPolarRevokes,
@@ -214,6 +215,10 @@ describe.skipIf(!db)(
     });
 
     it("keeps an owed revoke ended through Polar's later events until the job revokes it", async () => {
+      expectConsole(
+        "warn",
+        /^\[polar-subscription-end\] Revoke of \S+ failed; owed to the sync job/,
+      );
       const cuso = await hiredCuso();
       await handlePolarSubscriptionEvent(subscriptionCreated(cuso));
       m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));

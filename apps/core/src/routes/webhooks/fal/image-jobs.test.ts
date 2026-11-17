@@ -45,6 +45,7 @@ vi.mock("@/lib/image-studio/fal-webhook", async () => ({
 }));
 
 import { mountFalImageJobsWebhook } from "@/routes/webhooks/fal/image-jobs";
+import { expectConsole } from "@/test/console";
 
 const app = new Hono();
 mountFalImageJobsWebhook(app);
@@ -137,6 +138,7 @@ describe("fal completion callback", () => {
   });
 
   it("touches nothing for an unverified delivery", async () => {
+    expectConsole("warn", "[webhooks/fal] rejected delivery");
     verifyMock.mockResolvedValue({ ok: false, reason: "signature_mismatch" });
 
     const response = await deliver({

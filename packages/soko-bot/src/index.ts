@@ -122,6 +122,8 @@ export {
   cmoSearchAdSchema,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
+  REFERENCE_KINDS,
+  REFERENCE_PURPOSES,
   type SocialPostPlanning,
   socialPostPlanningSchema,
 } from "./project-marketing.js";

@@ -11243,6 +11243,8 @@ export type ProjectSeoAction = {
     } | null;
     taskId: string | null;
     status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+    completedAt?: Date;
+    verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };

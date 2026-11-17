@@ -5,6 +5,7 @@ import { betterAuth } from "better-auth/minimal";
 import { oAuthProxy } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/config/env";
+import { expectConsole } from "@/test/console";
 import { asServedOnVercel } from "@/test-fixtures/served-on-vercel";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { withPublicScheme } from "./request-scheme";
@@ -224,6 +225,7 @@ describe.each<[string, Entry]>([
   });
 
   it("cannot read a preview's state without a shared proxy secret", async () => {
+    expectConsole("error", /^\S+ ERROR \[Better Auth\]: Failed to parse state/);
     const production = createProduction();
     const preview = createPreview();
 

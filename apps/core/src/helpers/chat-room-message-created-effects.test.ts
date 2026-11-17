@@ -77,7 +77,7 @@ vi.mock("@sentry/node", () => ({
 import * as Sentry from "@sentry/node";
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-
+import { expectConsole } from "@/test/console";
 import {
   emitChatRoomMessageCreatedEffects,
   invalidateChatRoomMessageReaders,
@@ -497,6 +497,7 @@ describe("emitChatRoomMessageCreatedEffects", () => {
    * so a rejection here would arrive as an unhandled one that names nothing.
    */
   it("reports a failed roster read instead of rejecting", async () => {
+    expectConsole("error", "Failed to emit chat room message effects");
     const failure = new Error("pool exhausted");
     membershipFindManyMock.mockRejectedValueOnce(failure);
 
@@ -511,6 +512,7 @@ describe("emitChatRoomMessageCreatedEffects", () => {
 
   /** A settled failure is reported, not only written to a console nobody reads. */
   it("reports a failed effect instead of only logging it", async () => {
+    expectConsole("error", "Failed to emit chat room message effects");
     const failure = new Error("readers unavailable");
     userFindManyMock.mockRejectedValueOnce(failure);
 
@@ -540,7 +542,7 @@ describe("emitChatRoomMessageCreatedEffects", () => {
 it("reports a reader lookup failure without rejecting invalidation", async () => {
   const error = new Error("reader lookup failed");
   membershipFindManyMock.mockRejectedValueOnce(error);
-  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  expectConsole("error", "Failed to invalidate chat room message readers");
   await expect(
     invalidateChatRoomMessageReaders({ roomId: ROOM_ID }),
   ).resolves.toBeUndefined();
@@ -548,5 +550,4 @@ it("reports a reader lookup failure without rejecting invalidation", async () =>
     tags: { context: "chat_room_reader_invalidation" },
     extra: { roomId: ROOM_ID },
   });
-  log.mockRestore();
 });

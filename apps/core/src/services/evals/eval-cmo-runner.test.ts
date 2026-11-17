@@ -119,6 +119,40 @@ describe("strategy eval cases", () => {
     expect(expireTurn).toHaveBeenCalledWith("turn-9");
   });
 
+  it.each([
+    [
+      "GatewayInternalServerError",
+      "API key budget exceeded. Current spend: $400.12, limit: $400.00.",
+      "provider_budget_exhausted",
+    ],
+    ["runner_exited", "The runner ended with exit code 1", "runner_exited"],
+  ])(
+    "records %s as an execution error before reading generated content",
+    async (errorKind, errorDetail, code) => {
+      prisma.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
+        status: "FAILED",
+        errorKind,
+        errorDetail,
+        finalAnswer: null,
+      });
+      const result = await pollCmoCase(
+        evalCase,
+        lane,
+        { turnId: "turn-failed", state: {} },
+        context,
+      );
+      expect(result).toMatchObject({
+        kind: "done",
+        outcome: {
+          status: "ERROR",
+          checks: [],
+          turnIds: ["turn-failed"],
+          output: { infrastructure: { code, detail: errorDetail } },
+        },
+      });
+    },
+  );
+
   it.each(["Email and SMS marketing plans", null])(
     "exports the core offer separately from the trial: %s",
     async (coreOffer) => {

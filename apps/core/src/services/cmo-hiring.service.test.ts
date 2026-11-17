@@ -98,6 +98,14 @@ vi.mock(
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
       .integrationConnection,
 );
+// Hiring hands these to `waitUntil` without awaiting them; real ones would
+// fetch the brand's site after this file ends.
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  learnCmoBrandVisual: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-brand-media.service", () => ({
+  captureCmoHomepage: vi.fn(async () => undefined),
+}));
 vi.mock("@/config/env", async (importOriginal) =>
   (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
     await importOriginal<typeof import("@/config/env")>(),

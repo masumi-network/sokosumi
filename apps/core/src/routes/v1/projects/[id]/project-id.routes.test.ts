@@ -5,6 +5,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { expectConsole } from "@/test/console";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountGetProjectContextMd from "./context-md/get.js";
 import mountDeleteProject from "./delete.js";
@@ -478,6 +479,7 @@ describe("PATCH /projects/{id}", () => {
   });
 
   it("nulls the URL when a briefing upload fails", async () => {
+    expectConsole("warn", "Project briefing saved without a Blob URL");
     const oldBriefingUrl =
       "https://blob.example/projects/project_1/secret_token/BRIEFING.md";
     projectFindFirstMock

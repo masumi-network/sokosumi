@@ -31,6 +31,7 @@ describe("cmo-v3", () => {
     const production = getSokoBotSkill("cmo-production")?.content ?? "";
     expect(production).not.toContain("styleReferenceId");
     expect(styles.startsWith(production.trimEnd())).toBe(true);
+    expect(styles).toContain("call find_style_references");
     const weekly = getSokoBotSkill("cmo-strategy-weekly")?.content ?? "";
     const patches = getSokoBotSkill("cmo-strategy-patches")?.content ?? "";
     expect(weekly).toContain("Do you want to try Google Ads");

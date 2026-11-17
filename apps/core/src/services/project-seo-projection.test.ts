@@ -1408,6 +1408,10 @@ describe("stored SEO workspace projections", () => {
     expect(projectSeoProjection(input).actions).toMatchObject([
       { status: "verified", taskId: task.id },
     ]);
+    // An open Task has no completion day to mark, also when it completed once and was reopened.
+    expect(projectSeoProjection(input).actions[0].completedAt).toBeUndefined();
+    input.tasks = [{ ...task, status: "RUNNING" }];
+    expect(projectSeoProjection(input).actions[0].completedAt).toBeUndefined();
     // A Task that was cancelled, failed or is gone does no work: its action leaves the list like one without a Task.
     for (const tasks of [
       [],
@@ -1424,7 +1428,12 @@ describe("stored SEO workspace projections", () => {
 
   it("requires a later compatible explicit pass to verify an implemented action", () => {
     const { input, pass } = actionFixture();
-    expect(projectSeoProjection(input).actions[0].status).toBe("verified");
+    // The dates a chart marks: the Task's completion and the check that confirmed the fix.
+    expect(projectSeoProjection(input).actions[0]).toMatchObject({
+      status: "verified",
+      completedAt: input.tasks[0].completedAt?.toISOString(),
+      verifiedAt: pass.observedAt.toISOString(),
+    });
     for (const mutation of [
       { countryCode: "DE" },
       { languageCode: "de" },
@@ -1452,15 +1461,20 @@ describe("stored SEO workspace projections", () => {
     ]) {
       const payload = parsePublicSeoArtifact(focusedReport());
       pass.payload = { ...payload, ...mutation };
-      expect(
-        projectSeoProjection(input).actions[0].status,
-        JSON.stringify(mutation),
-      ).toBe("implemented");
+      const [action] = projectSeoProjection(input).actions;
+      expect(action.status, JSON.stringify(mutation)).toBe("implemented");
+      expect(action.verifiedAt, JSON.stringify(mutation)).toBeUndefined();
+      expect(action.completedAt).toBe(
+        input.tasks[0].completedAt?.toISOString(),
+      );
     }
     // The newest check passes before the Task ended: the issue is gone all the same, so the action is solved.
     pass.payload = parsePublicSeoArtifact(focusedReport());
     pass.observedAt = new Date("2026-11-02T11:00:00Z");
-    expect(projectSeoProjection(input).actions[0].status).toBe("verified");
+    expect(projectSeoProjection(input).actions[0]).toMatchObject({
+      status: "verified",
+      verifiedAt: "2026-11-02T11:00:00.000Z",
+    });
   });
 
   it("does not clear an unrelated finding when a focused check skips its row", () => {

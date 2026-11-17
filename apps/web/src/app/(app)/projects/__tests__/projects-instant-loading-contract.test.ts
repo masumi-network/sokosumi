@@ -55,7 +55,9 @@ describe("projects Instant Nav skeleton contract", () => {
       /export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{[\s\S]*<\s*Suspense\b/,
     );
     expect(code).toMatch(/fallback=\{\s*<\s*ProjectsPageSkeleton\s*\/>\s*\}/);
-    expect(code).toMatch(/await\s+connection\s*\(\s*\)/);
+    // The reads are private-cached, so a link prefetch carries the page.
+    // connection() would drop it back to the skeleton.
+    expect(code).not.toMatch(/\bconnection\s*\(/);
   });
 
   it("projects/(root)/loading.tsx stays sync (no cookies/connection/session/i18n)", () => {

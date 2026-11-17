@@ -10,6 +10,7 @@ import {
   ComposioToolError,
 } from "@/clients/social-post-providers/tools";
 import { publishXPost } from "@/clients/social-post-providers/x";
+import { expectConsole } from "@/test/console";
 
 const X_IMAGE_MAX_BYTES = socialPostMaxBytesForKind("x", "image");
 
@@ -234,11 +235,13 @@ describe("publishXPost", () => {
         throw new Error(`unexpected ${path}`);
       }),
     );
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[composio] delete Project X publish session failed",
+    );
 
     await expect(publishXPost(publishInput)).resolves.toEqual(xResult("1907"));
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(warn).not.toHaveLength(0);
   });
 
   it("parses a flat tool result", async () => {

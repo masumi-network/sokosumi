@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   ChartColumn,
   ChevronRight,
   type LucideIcon,
@@ -12,17 +13,25 @@ import {
   Settings2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { SeoActionDetail } from "./seo-action-detail";
+import { SeoActionFinding } from "./seo-action-finding";
 import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoIssueSeverity } from "./seo-overview-model";
-import { SEO_ROW_BUTTON_CLASS, SeoActionName, SeoSeverity } from "./seo-shared";
+import {
+  SEO_ROW_ARROW_CLASS,
+  SEO_ROW_BUTTON_CLASS,
+  SeoActionName,
+  SeoSeverity,
+} from "./seo-shared";
 import { useSeoConnectionStatus } from "./use-seo-connection";
-import type { SeoWorkspaceModel } from "./use-seo-workspace";
+import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /** A step with a sentence and its own button. An action and the strategy actions are rows that lead to a card. */
 type SeoButtonStep = Exclude<SeoAgentStep, { kind: "action" | "strategy" }>;
@@ -39,6 +48,7 @@ export function SeoStepRow({
   model,
   first,
   banner,
+  flush = false,
 }: {
   /** The step stands alone as a banner with this title, not as a row of the step list. */
   banner?: string;
@@ -46,6 +56,8 @@ export function SeoStepRow({
   model: SeoWorkspaceModel;
   /** The agent's top proposal carries the one primary button. */
   first: boolean;
+  /** The row sits inside another card: no surface of its own. */
+  flush?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -64,18 +76,8 @@ export function SeoStepRow({
     step.kind === "refresh"
       ? [
           t(`agent.steps.refresh.${step.reason}`),
-          model.statisticsSync.state === "failed" ? (
-            <Button
-              key="refresh"
-              size="sm"
-              variant={variant}
-              disabled={model.pending}
-              onClick={model.statisticsSync.retry}
-            >
-              <RefreshCw />
-              {t("retry")}
-            </Button>
-          ) : null,
+          // A failed sync has its alert and Retry in the verdict card, which drops this step.
+          null,
         ]
       : step.kind === "connect"
         ? [
@@ -139,7 +141,7 @@ export function SeoStepRow({
   return (
     <Shell
       className={cn(
-        HOLDER_ITEM_CLASS,
+        !flush && HOLDER_ITEM_CLASS,
         "content-rise flex items-start gap-3 p-4",
         // The one coloured surface of the tab: statistics are missing, and one button sets them up.
         banner && "bg-chart-3-quinary",
@@ -199,18 +201,15 @@ export function SeoStepRow({
 }
 
 /**
- * A row that leads to the Actions tab: the rest of the fixes, or the actions of the keyword strategy.
- * The whole row is the button, with the arrow at its end. A sentence with a button of its own was the heaviest
- * row of the list for its last step.
+ * A row that counts the actions of the keyword strategy: it leads to their group on the Actions tab, with every
+ * row in view. The whole row is the button, with the arrow at its end. A sentence with a button of its own was
+ * the heaviest row of the list for its last step.
  */
 export function SeoActionsLinkRow({
   model,
-  strategy = false,
   children,
 }: {
   model: SeoWorkspaceModel;
-  /** The row counts the strategy actions: it leads to their group, with every row in view. */
-  strategy?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -221,50 +220,132 @@ export function SeoActionsLinkRow({
           SEO_ROW_BUTTON_CLASS,
           "text-muted-foreground px-4 py-2.5 text-sm",
         )}
-        onClick={() => {
-          if (strategy) model.showStrategy();
-          else void model.setFilters({ tab: "actions" });
-        }}
+        onClick={model.showStrategy}
       >
         <span className="min-w-0 flex-1">{children}</span>
-        <ChevronRight className="size-4 shrink-0" />
+        <ChevronRight className={SEO_ROW_ARROW_CLASS} />
       </button>
     </li>
   );
 }
 
-/** An action without the primary button: its title and the way to its card. The Actions tab holds the cards, once. */
+/**
+ * An action as one row: its title, and a press opens it in a dialog on the same tab. The lead row also says
+ * what the check found and has a button under it that opens the action on the Actions tab.
+ */
 export function SeoActionStepRow({
   action,
   severity,
   model,
+  onOpen,
+  lead = false,
 }: {
   action: Extract<SeoAgentStep, { kind: "action" }>["action"];
   severity: SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
+  /** Opens the action in the tab's one action dialog; the row is the place focus returns to. */
+  onOpen: (row: HTMLButtonElement) => void;
+  /** The first step of the verdict card: no frame of its own, the finding and the button. */
+  lead?: boolean;
 }) {
+  const t = useTranslations("App.Seo");
+  const findingId = useId();
   return (
     <li className="content-rise">
       <button
         type="button"
-        className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5")}
-        onClick={() => model.showAction(action)}
+        // The finding describes the row: as part of its name it read several sentences per press.
+        aria-describedby={lead ? findingId : undefined}
+        className={cn(
+          SEO_ROW_BUTTON_CLASS,
+          "px-4 py-2.5",
+          lead && "rounded-none border-0 bg-transparent",
+        )}
+        onClick={(event) => onOpen(event.currentTarget)}
       >
-        {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
-        <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
-          <SeoActionName
-            title={action.title}
-            pageUrl={action.pageUrl}
-            workspace={model.data}
-          />
-          {severity ? (
-            <span className="flex max-sm:mt-1">
-              <SeoSeverity severity={severity} />
+        <span className="min-w-0 flex-1">
+          {/* On a phone the impact label stands under the title: beside it, the title broke into five lines. */}
+          <span className="gap-3 sm:flex sm:items-center">
+            <SeoActionName
+              title={action.title}
+              pageUrl={action.pageUrl}
+              workspace={model.data}
+              strong={lead}
+            />
+            {severity ? (
+              <span className="flex max-sm:mt-1">
+                <SeoSeverity severity={severity} />
+              </span>
+            ) : null}
+          </span>
+          {lead ? (
+            <span
+              id={findingId}
+              aria-hidden
+              className="text-muted-foreground mt-1 line-clamp-2 text-sm break-words"
+            >
+              <SeoActionFinding action={action} model={model} />
             </span>
           ) : null}
         </span>
-        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+        <ChevronRight className={SEO_ROW_ARROW_CLASS} />
       </button>
+      {/* The lead opens its action on the Actions tab, among the others: its dialog holds the Task button with
+          the reasons, so a Task is drafted once its reasons were in view. */}
+      {lead ? (
+        <div className="px-4 pb-3">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="group/open"
+            onClick={() => model.showAction(seoActionKey(action))}
+          >
+            {t("agent.openAction")}
+            {/* The arrow leans toward the Actions tab it leads to. */}
+            <ArrowRight className="motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out motion-safe:group-hover/open:translate-x-0.5" />
+          </Button>
+        </div>
+      ) : null}
     </li>
+  );
+}
+
+/**
+ * An action row opened in a dialog on the Agent tab. The dialog belongs to the tab, not to the row: a
+ * Task for the action takes its row out of the steps, and the dialog stays to show the Task.
+ */
+export function SeoActionDialog({
+  action,
+  severity,
+  model,
+  onClose,
+  onCloseAutoFocus,
+}: {
+  action: Extract<SeoAgentStep, { kind: "action" }>["action"] | undefined;
+  severity: SeoIssueSeverity | null;
+  model: SeoWorkspaceModel;
+  onClose: () => void;
+  onCloseAutoFocus: (event: Event) => void;
+}) {
+  return (
+    <Dialog
+      open={Boolean(action)}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      {action ? (
+        // A long action scrolls between its head and its buttons, which stay in view. On a screen too short for
+        // both, the whole dialog scrolls.
+        <DialogContent
+          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-y-auto p-0 sm:max-w-xl"
+          onCloseAutoFocus={onCloseAutoFocus}
+          // The action is the whole content: no separate description.
+          aria-describedby={undefined}
+        >
+          <SeoActionDetail action={action} model={model} severity={severity} />
+        </DialogContent>
+      ) : null}
+    </Dialog>
   );
 }
