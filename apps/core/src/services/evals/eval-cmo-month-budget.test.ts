@@ -1,7 +1,10 @@
 import { CMO_PRODUCTION_TURN_PREFIX } from "@sokosumi/soko-bot";
+import { Hono } from "hono";
+import { requestId } from "hono/request-id";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runAsBackgroundWork } from "@/lib/evlog";
-import { expectCoreLogWhys } from "@/test/core-log";
+import { errorHandler } from "@/helpers/error-handler";
+import { coreEvlogMiddleware, runAsBackgroundWork } from "@/lib/evlog";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import { inRequest } from "@/test/in-request";
 
 const boundary = vi.hoisted(() => ({
@@ -418,6 +421,35 @@ describe("monthly eval hard-budget guard", () => {
       });
       expect(errors[0]?.fix).toContain("regression email failed too");
     });
+  });
+
+  it("keeps a lane failure beside an error thrown while completing the run", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not move an eval run's lanes on",
+      ["A lane's step threw"],
+    );
+    // The admin tick's request error, recorded by the real error handler.
+    const requestErrors = expectCoreLog("error", "count failed");
+    boundary.lane.mockRejectedValue(new Error("lane down"));
+    boundary.resultCount.mockRejectedValue(new Error("count failed"));
+    const app = new Hono();
+    app.use(requestId());
+    app.use(coreEvlogMiddleware());
+    app.onError(errorHandler);
+    app.post("/v1/admin/evals/tick", async (c) => c.json(await tickEvalRuns()));
+
+    const response = await app.request("http://localhost/v1/admin/evals/tick", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(500);
+    // Both on the request's one event: the lane warning survives the error.
+    expect(warnings[0]?.event).toBe(requestErrors[0]?.event);
+    expect(warnings[0]?.event).toMatchObject({
+      evalLaneFailures: [{ lane: 1, errorName: "Error" }],
+    });
+    expect(warnings[0]?.fix).toContain("evalLaneFailures");
   });
 
   it.each(["expiry", "post cleanup"] as const)(

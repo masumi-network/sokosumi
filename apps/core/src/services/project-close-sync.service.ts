@@ -443,11 +443,12 @@ async function recordProjectCloseFailure(
       message: "A project close batch failed",
       why: failureSummary.message,
       fix: failed
-        ? `The close stopped after ${PROJECT_CLOSE_MAX_FAILURES} failed batches and the project's owner was told; Sentry has the error to fix before closing it again.`
-        : "The next project-closes sync retries the batch.",
+        ? `The close stopped after ${PROJECT_CLOSE_MAX_FAILURES} failed batches and the project's owner was told. failure.code and failure.status say what failed (projectClose.scheduleId names the schedule); fix that before closing it again.`
+        : "The next project-closes sync retries the batch. If it keeps failing, failure.code and failure.status say what failed.",
     },
     // Only safe fields: releasing scheduled work writes the schedule's task
-    // name and description, and a write error can quote them.
+    // name and description, and a write error can quote them. They include
+    // the Prisma code beneath ProjectCloseScheduleError.
     { failure: messageSafeErrorFields(error) },
   );
   return failed;

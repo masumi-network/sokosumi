@@ -305,7 +305,7 @@ describe("project close sync", () => {
     expect(errors[0]?.event).toMatchObject({
       operation: "project_close_sync",
       projectClose: { attempts: 3, failed: true },
-      failure: { errorName: "Error" },
+      failure: { errorName: "ProjectCloseScheduleError" },
     });
     expect(errors[0]?.cause).toBeUndefined();
   });
@@ -315,8 +315,11 @@ describe("project close sync", () => {
     taskScheduleFindFirstMock.mockResolvedValue(scheduleCandidate);
     // Releasing a schedule writes its task; a write error can quote it.
     taskScheduleFindUniqueOrThrowMock.mockRejectedValue(
-      new Error(
-        'Invalid `task.create()`: name "Private launch plan for Acme" sk_live_abc123',
+      Object.assign(
+        new Error(
+          'Invalid `task.create()`: name "Private launch plan for Acme" sk_live_abc123',
+        ),
+        { name: "PrismaClientKnownRequestError", code: "P2028" },
       ),
     );
     projectCloseOperationFindFirstMock.mockResolvedValue({
@@ -326,7 +329,11 @@ describe("project close sync", () => {
 
     await projectCloseSyncService.syncProjectCloses(options());
 
-    expect(errors[0]?.event).toMatchObject({ failure: { errorName: "Error" } });
+    // The wrapper's Prisma code survives; its text does not.
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "ProjectCloseScheduleError", code: "P2028" },
+    });
+    expect(errors[0]?.fix).toContain("failure.code");
     const drained = JSON.stringify(errors[0]?.event);
     expect(drained).not.toContain("Private launch plan");
     expect(drained).not.toContain("sk_live");

@@ -17,7 +17,7 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
-import { recordCoreError } from "@/lib/evlog";
+import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import {
   messageSafeErrorFields,
   type SafeErrorFields,
@@ -394,21 +394,25 @@ const REGRESSION_EMAIL_FIX =
   "The run is complete; read its report in the admin evals page.";
 
 /**
- * The tick's failures on one error, since an event holds one: on the admin
- * tick's request event while it is live, else a standalone event (the cron).
+ * The tick's failures on one entry: on the admin tick's request event while
+ * it is live, else a standalone event (the cron). An error, unless an error
+ * thrown while completing the run is about to own the event (an event holds
+ * one error): then a warning, so neither replaces the other.
  */
 function recordEvalTickFailures(
   runId: string,
   laneFailures: ({ lane: number } & SafeErrorFields)[],
   emailFailure: SafeErrorFields | undefined,
+  level: "error" | "warn",
 ) {
+  const record = level === "error" ? recordCoreError : recordCoreWarning;
   const fields = {
     evalRun: { id: runId },
     ...(laneFailures.length > 0 ? { evalLaneFailures: laneFailures } : {}),
     ...(emailFailure ? { evalRegressionEmailFailure: emailFailure } : {}),
   };
   if (laneFailures.length > 0) {
-    recordCoreError(
+    record(
       { operation: "eval_tick" },
       {
         message: "Could not move an eval run's lanes on",
@@ -418,7 +422,7 @@ function recordEvalTickFailures(
       fields,
     );
   } else if (emailFailure) {
-    recordCoreError(
+    record(
       { operation: "eval_tick" },
       {
         message: "Could not send the daily eval regression email",
@@ -453,13 +457,21 @@ export async function tickEvalRuns(
       }),
     ),
   );
-  let completion: Awaited<ReturnType<typeof completeIfDone>> | undefined;
+  let completion: Awaited<ReturnType<typeof completeIfDone>>;
   try {
     completion = await completeIfDone(run);
-  } finally {
-    // Also when completing throws, so the lanes' failures are not lost.
-    recordEvalTickFailures(run.id, laneFailures, completion?.emailFailure);
+  } catch (error) {
+    // The thrown error becomes the request's error; the lanes' failures stay
+    // on the same event as a warning.
+    recordEvalTickFailures(run.id, laneFailures, undefined, "warn");
+    throw error;
   }
+  recordEvalTickFailures(
+    run.id,
+    laneFailures,
+    completion.emailFailure,
+    "error",
+  );
   return { runId: run.id, completed: completion.completed };
 }
 
