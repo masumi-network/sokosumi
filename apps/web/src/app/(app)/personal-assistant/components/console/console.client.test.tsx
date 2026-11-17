@@ -9,6 +9,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { useContext } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,12 +20,17 @@ import { SokoBotTargetContext } from "../soko-bot-target";
 import { SokoBotConsole, type SokoBotConsoleProps } from "./console.client";
 
 const pushMock = vi.fn();
+const refreshMock = vi.fn();
 const toastErrorMock = vi.fn();
 const ensureRoomMock = vi.fn();
 const useStateMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({
+    push: pushMock,
+    replace: vi.fn(),
+    refresh: refreshMock,
+  }),
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
@@ -142,6 +148,12 @@ vi.mock("../ad-accounts-section", () => ({
   AdAccountsSection: ({ botProjectId }: { botProjectId: string | null }) => (
     <span data-testid="ads">{botProjectId ?? "all"}</span>
   ),
+}));
+vi.mock("./daily-stats", () => ({
+  DailyStats: () => <span data-testid="daily-stats" />,
+}));
+vi.mock("./usage-summary", () => ({
+  UsageSummary: () => <span data-testid="usage-summary" />,
 }));
 vi.mock("../how-it-works", () => ({ HowItWorks: () => null }));
 vi.mock("./activity-list.client", () => ({ ActivityList: () => null }));
@@ -278,6 +290,53 @@ describe("SokoBotConsole", () => {
       "data-read-only",
       "false",
     );
+  });
+
+  it("keeps Tools, What it did and Usage when they fail to load, and says so", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({ integrations: null, stats: null, usage: null });
+
+    for (const section of ["Connectors", "Stats", "Usage"]) {
+      const heading = screen.getByRole("heading", {
+        name: `Console.${section}.title`,
+      });
+      const region = heading.closest("section") as HTMLElement;
+      expect(region).toHaveTextContent(`Console.LoadError.${section}`);
+      expect(
+        within(region).getByRole("button", { name: "Console.LoadError.retry" }),
+      ).toBeInTheDocument();
+    }
+    // The rest of the page still works.
+    expect(screen.getByTestId("schedule")).toBeInTheDocument();
+    expect(screen.queryByTestId("connectors")).not.toBeInTheDocument();
+  });
+
+  it("loads the page again from a section's Try again", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({
+      integrations: null,
+      stats: { days: 30 } as SokoBotConsoleProps["stats"],
+      usage: {} as SokoBotConsoleProps["usage"],
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Console.LoadError.retry" }),
+    );
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a loaded section with nothing in it, not a load error", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({
+      integrations: { configured: true, integrations: [] },
+      stats: { days: 30 } as SokoBotConsoleProps["stats"],
+      usage: {} as SokoBotConsoleProps["usage"],
+    });
+    expect(screen.getByTestId("connectors")).toBeInTheDocument();
+    expect(screen.getByTestId("daily-stats")).toBeInTheDocument();
+    expect(screen.getByTestId("usage-summary")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Console.LoadError.retry" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows schedules in the default view, not under Advanced", () => {

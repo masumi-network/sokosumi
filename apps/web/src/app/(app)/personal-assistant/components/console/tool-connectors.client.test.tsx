@@ -3,7 +3,7 @@ import type {
   SokoBotIntegrationCatalogEntry,
 } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -163,6 +163,103 @@ describe("ToolConnectors", () => {
     expect(
       await screen.findByRole("button", { name: "Connect figma" }),
     ).toBeTruthy();
+  });
+
+  it("shows placeholder cards for the new search, not the last list", async () => {
+    const user = userEvent.setup();
+    let finish = (_value: unknown) => {};
+    renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+    expect(await screen.findByText("slack")).toBeTruthy();
+    searchCatalog.mockImplementation(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+
+    await user.type(screen.getByRole("searchbox"), "fig");
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Searching apps for “fig”…");
+    expect(screen.queryByText("slack")).toBeNull();
+    expect(screen.queryByText("Nothing found.")).toBeNull();
+    expect(
+      screen.getAllByTestId("connector-placeholder").length,
+    ).toBeGreaterThan(0);
+    await waitFor(() =>
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "fig" }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+    finish({ ok: true, value: catalog.filter((e) => e.provider === "figma") });
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("connector-placeholder")).toBeNull();
+  });
+
+  it("keeps a slow answer for an old search off the new one", async () => {
+    const user = userEvent.setup();
+    let finishFig = (_value: unknown) => {};
+    searchCatalog.mockImplementation(({ query }: { query: string }) =>
+      query === "fig"
+        ? new Promise((resolve) => (finishFig = resolve))
+        : Promise.resolve({
+            ok: true,
+            value: catalog.filter((e) => e.provider.includes(query)),
+          }),
+    );
+    renderConnectors([]);
+    const search = screen.getByRole("searchbox");
+
+    await user.type(search, "fig");
+    await waitFor(() =>
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "fig" }),
+    );
+    await user.clear(search);
+    await user.type(search, "lin");
+    expect(
+      await screen.findByRole("button", { name: "Connect linear" }),
+    ).toBeTruthy();
+    finishFig({
+      ok: true,
+      value: catalog.filter((e) => e.provider === "figma"),
+    });
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("listitem")).toHaveLength(1),
+    );
+    expect(screen.queryByText("figma")).toBeNull();
+  });
+
+  it("says a failed search failed, and Try again searches again", async () => {
+    const user = userEvent.setup();
+    renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+    searchCatalog.mockResolvedValue({ ok: false, error: "down" });
+
+    await user.type(screen.getByRole("searchbox"), "fig");
+
+    const failure = await screen.findByTestId("app-search-error");
+    expect(failure).toHaveTextContent("Couldn't search apps.");
+    expect(screen.queryByText("Nothing found.")).toBeNull();
+    searchCatalog.mockResolvedValue({
+      ok: true,
+      value: catalog.filter((e) => e.provider === "figma"),
+    });
+    await user.click(
+      within(failure).getByRole("button", { name: "Try again" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("app-search-error")).toBeNull();
+  });
+
+  it("says nothing matched only when the search worked", async () => {
+    const user = userEvent.setup();
+    renderConnectors([]);
+
+    await user.type(screen.getByRole("searchbox"), "zzz");
+
+    expect(await screen.findByText("Nothing found.")).toBeTruthy();
+    expect(screen.queryByTestId("app-search-error")).toBeNull();
+    expect(screen.queryByTestId("connector-placeholder")).toBeNull();
   });
 
   it("shows a read-only bot's apps with no Connect, Manage or search", async () => {

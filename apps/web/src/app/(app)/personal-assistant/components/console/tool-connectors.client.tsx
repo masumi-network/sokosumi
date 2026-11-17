@@ -4,10 +4,11 @@ import type {
   SokoBotIntegrationCatalogEntry,
   SokoBotIntegrations,
 } from "@sokosumi/core-client";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronDown, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, Loader2, Search } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
+import { LoadErrorState } from "@/components/common/load-error-state";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 import {
@@ -45,25 +47,35 @@ interface Connector {
   hiddenOnPhone: boolean;
 }
 
-/** Composio's apps for a search; the empty search is the most used ones. */
+/**
+ * Composio's apps for a search; the empty search is the most used ones. Each
+ * search keeps its own answer, so a slow one never lands on a newer search.
+ * `settling` is true until the answer for what is typed now is in.
+ */
 function useCatalog(query: string, enabled: boolean) {
   const [debounced, setDebounced] = useState(query);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query), SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [query]);
-  return useQuery({
+  const catalog = useQuery({
     queryKey: ["soko-bot-integration-catalog", debounced.trim()],
     queryFn: async (): Promise<SokoBotIntegrationCatalogEntry[]> => {
       const result = await searchSokoBotIntegrationCatalogAction({
         query: debounced.trim(),
       });
-      return result.ok ? result.value : [];
+      // A failed search is not an empty one; Try again is the retry.
+      if (!result.ok) throw new Error("Catalog search failed");
+      return result.value;
     },
     enabled,
-    placeholderData: keepPreviousData,
+    retry: false,
     staleTime: 5 * 60_000,
   });
+  const settling =
+    query.trim() !== debounced.trim() ||
+    (catalog.isPending && catalog.fetchStatus !== "idle");
+  return { ...catalog, settling };
 }
 
 /**
@@ -158,8 +170,8 @@ export function ToolConnectors({
           />
         </div>
       )}
-      {searching && catalog.data?.length === 0 && !catalog.isFetching ? (
-        <p className="text-muted-foreground px-1 text-sm">{t("noResults")}</p>
+      {searching && (catalog.settling || !catalog.data?.length) ? (
+        <SearchOutcome query={query.trim()} catalog={catalog} />
       ) : (
         <ul
           className={cn(
@@ -211,6 +223,76 @@ export function ToolConnectors({
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** A search with no apps to list: still running, failed, or found none. */
+function SearchOutcome({
+  query,
+  catalog,
+}: {
+  query: string;
+  catalog: ReturnType<typeof useCatalog>;
+}) {
+  const t = useTranslations("App.SokoBot.Integrations");
+  if (catalog.settling) return <SearchPlaceholder query={query} />;
+  if (catalog.isError)
+    return (
+      <LoadErrorState
+        data-testid="app-search-error"
+        description={t("searchFailedHelp")}
+        retrying={catalog.isFetching}
+        retryLabel={t("tryAgain")}
+        title={t("searchFailed")}
+        variant="banner"
+        onRetry={() => void catalog.refetch()}
+      />
+    );
+  return (
+    <p className="text-muted-foreground px-1 text-sm" role="status">
+      {t("noResults")}
+    </p>
+  );
+}
+
+/** The search for `query` is running: cards the size of the answer's. */
+function SearchPlaceholder({ query }: { query: string }) {
+  const t = useTranslations("App.SokoBot.Integrations");
+  return (
+    <div className="space-y-3">
+      <p
+        className="text-muted-foreground flex items-center gap-2 px-1 text-sm"
+        role="status"
+      >
+        <Loader2
+          aria-hidden
+          className="size-4 animate-spin motion-reduce:animate-none"
+        />
+        <span className="min-w-0 truncate">{t("searching", { query })}</span>
+      </p>
+      <ul
+        aria-hidden
+        className={cn(HOLDER_CLASS, "grid gap-2 sm:grid-cols-2 xl:grid-cols-3")}
+      >
+        {Array.from({ length: POPULAR_SHOWN }, (_, index) => (
+          <li
+            key={index}
+            data-testid="connector-placeholder"
+            className={cn(
+              HOLDER_ITEM_CLASS,
+              "flex items-center gap-3 p-3",
+              index >= POPULAR_SHOWN_ON_PHONE && "max-sm:hidden",
+            )}
+          >
+            <Skeleton className="size-9 shrink-0" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-3.5 w-24" />
+              <Skeleton className="h-3 w-40 max-w-full" />
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

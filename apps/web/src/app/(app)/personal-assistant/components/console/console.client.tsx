@@ -29,6 +29,7 @@ import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accoun
 import { formatTaskScheduleTime } from "@/app/tasks/utils/task-schedule-view";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
+import { LoadErrorState } from "@/components/common/load-error-state";
 import Markdown from "@/components/markdown";
 import { useChatAvatarState } from "@/components/soko-bot/avatar-state";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
@@ -87,7 +88,7 @@ function HolderSection({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   aside?: ReactNode;
   children: ReactNode;
 }) {
@@ -96,9 +97,11 @@ function HolderSection({
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>{title}</h2>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {description}
-          </p>
+          {description ? (
+            <p className="text-muted-foreground text-sm text-pretty">
+              {description}
+            </p>
+          ) : null}
         </div>
         {aside ? <div className="shrink-0">{aside}</div> : null}
       </div>
@@ -320,6 +323,18 @@ export function SokoBotConsole({
   // raw `orb:` id, so the two would draw different orbs for the same bot.
   const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
+  // The page loads every section in one go, so Try again loads it again.
+  const [isReloading, startReloading] = useTransition();
+  const loadError = (section: "Connectors" | "Stats" | "Usage") => (
+    <LoadErrorState
+      description={t("Console.LoadError.help")}
+      retrying={isReloading}
+      retryLabel={t("Console.LoadError.retry")}
+      title={t(`Console.LoadError.${section}`)}
+      variant="banner"
+      onRetry={() => startReloading(() => router.refresh())}
+    />
+  );
   const avatarState = useChatAvatarState(state);
   const [editingPicture, setEditingPicture] = useState(false);
   // A shared bot's `botId` is set; the personal bot's is not.
@@ -609,18 +624,20 @@ export function SokoBotConsole({
               </div>
             ) : (
               <div className="space-y-10">
-                {integrations ? (
-                  <HolderSection
-                    title={t("Console.Connectors.title")}
-                    description={t("Console.Connectors.description")}
-                  >
+                <HolderSection
+                  title={t("Console.Connectors.title")}
+                  description={t("Console.Connectors.description")}
+                >
+                  {integrations ? (
                     <ToolConnectors
                       integrations={integrations}
                       focusProvider={connectProvider}
                       readOnly={isCuso}
                     />
-                  </HolderSection>
-                ) : null}
+                  ) : (
+                    loadError("Connectors")
+                  )}
+                </HolderSection>
                 <HolderSection
                   title={t("Schedules.title")}
                   description={t("Schedules.description")}
@@ -654,28 +671,35 @@ export function SokoBotConsole({
                     </div>
                   </HolderPanel>
                 </HolderSection>
-                {stats ? (
-                  <HolderSection
-                    title={t("Console.Stats.title")}
-                    description={t("Console.Stats.description", {
-                      days: stats.days,
-                    })}
-                  >
+                <HolderSection
+                  title={t("Console.Stats.title")}
+                  // The window comes with the stats, so a failed load has none.
+                  description={
+                    stats
+                      ? t("Console.Stats.description", { days: stats.days })
+                      : undefined
+                  }
+                >
+                  {stats ? (
                     <HolderPanel>
                       <DailyStats stats={stats} />
                     </HolderPanel>
-                  </HolderSection>
-                ) : null}
-                {usage ? (
-                  <HolderSection
-                    title={t("Console.Usage.title")}
-                    description={t("Console.Usage.description")}
-                  >
+                  ) : (
+                    loadError("Stats")
+                  )}
+                </HolderSection>
+                <HolderSection
+                  title={t("Console.Usage.title")}
+                  description={t("Console.Usage.description")}
+                >
+                  {usage ? (
                     <HolderPanel>
                       <UsageSummary usage={usage} detailed />
                     </HolderPanel>
-                  </HolderSection>
-                ) : null}
+                  ) : (
+                    loadError("Usage")
+                  )}
+                </HolderSection>
               </div>
             )}
           </div>
