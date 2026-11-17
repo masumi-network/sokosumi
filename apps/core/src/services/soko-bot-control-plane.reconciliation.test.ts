@@ -17,6 +17,7 @@ const {
   turnFindUniqueMock,
   turnFindFirstMock,
   turnUpdateManyMock,
+  turnUpdateMock,
 } = vi.hoisted(() => ({
   botUpdateManyMock: vi.fn(),
   eventCreateManyMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   turnFindUniqueMock: vi.fn(),
   turnFindFirstMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
+  turnUpdateMock: vi.fn(),
 }));
 
 const jevEvaluate = vi.hoisted(() => vi.fn());
@@ -122,7 +124,7 @@ function activeTurn(overrides: Record<string, unknown> = {}) {
     status: "RUNNING",
     deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
     startedAt: new Date("2026-08-18T11:59:00.000Z"),
-    usage: null,
+    usage: null as unknown,
     costUsdMicros: 0n,
     errorKind: null,
     errorDetail: null,
@@ -163,7 +165,13 @@ describe("SokoBotControlPlane reconciliation", () => {
       return { count: 1 };
     });
     eventFindFirstMock.mockResolvedValue(null);
-    turnFindUniqueMock.mockResolvedValue(activeTurn());
+    // The locked row: usage is read back from what earlier steps wrote.
+    let row = activeTurn();
+    turnFindUniqueMock.mockImplementation(async () => row);
+    turnUpdateMock.mockImplementation(async ({ data }) => {
+      row = { ...row, ...data };
+      return row;
+    });
     turnFindFirstMock.mockResolvedValue(null);
     turnUpdateManyMock.mockResolvedValue({ count: 1 });
     botUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -180,6 +188,7 @@ describe("SokoBotControlPlane reconciliation", () => {
       sokoBotScheduleRun: { updateMany: vi.fn() },
       sokoBotTurn: {
         findUnique: turnFindUniqueMock,
+        update: turnUpdateMock,
         updateMany: turnUpdateManyMock,
       },
     };
@@ -216,7 +225,7 @@ describe("SokoBotControlPlane reconciliation", () => {
       undefined,
     ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN);
 
-    const usageWrites = turnUpdateManyMock.mock.calls
+    const usageWrites = turnUpdateMock.mock.calls
       .map(([input]) => input.data.usage)
       .filter(Boolean);
     expect(usageWrites).toHaveLength(2);
@@ -258,7 +267,7 @@ describe("SokoBotControlPlane reconciliation", () => {
       undefined,
     ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN);
 
-    const usage = turnUpdateManyMock.mock.calls
+    const usage = turnUpdateMock.mock.calls
       .map(([input]) => input.data.usage)
       .filter(Boolean)
       .at(-1);
@@ -379,9 +388,18 @@ describe("SokoBotControlPlane reconciliation", () => {
       undefined,
     ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN);
 
+    // The failure event writes the turn's diagnostics while it is active.
+    const activeErrorWrite = turnUpdateMock.mock.calls
+      .map(([input]) => input.data)
+      .find((data) => data.errorKind !== undefined);
+    expect(activeErrorWrite?.errorKind).toContain("[Sensitive value removed]");
+    expect(activeErrorWrite?.errorDetail).toContain(
+      "[Sensitive value removed]",
+    );
     const persisted = JSON.stringify({
       events: eventCreateManyMock.mock.calls,
       turns: turnUpdateManyMock.mock.calls,
+      activeTurns: turnUpdateMock.mock.calls,
     });
     expect(persisted).not.toContain("provider-secret");
     expect(persisted).not.toContain("provider-token-123456789");
@@ -652,5 +670,106 @@ describe("reconciling a turn whose first caller is still starting it", () => {
         undefined,
       ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN),
     ).rejects.toThrow("Runtime turn not found");
+  });
+});
+
+describe("reconciling beside another writer under the same lease", () => {
+  // The in-process loop's settle and an admin retry reconcile under the
+  // lease the row holds, beside whoever already drains it.
+  let row: ReturnType<typeof activeTurn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    row = activeTurn();
+    eventFindFirstMock.mockResolvedValue(null);
+    eventCreateManyMock.mockResolvedValue({ count: 1 });
+    turnFindUniqueMock.mockImplementation(async () => row);
+    turnUpdateMock.mockImplementation(async ({ data }) => {
+      row = { ...row, ...data };
+      return row;
+    });
+    // Applies each conditional write to the row, as PostgreSQL would.
+    turnUpdateManyMock.mockImplementation(async ({ where, data }) => {
+      const matches =
+        (where.leaseToken === undefined ||
+          where.leaseToken === row.leaseToken) &&
+        (where.eveStreamIndex === undefined ||
+          row.eveStreamIndex < where.eveStreamIndex.lt);
+      if (!matches) return { count: 0 };
+      row = { ...row, ...data };
+      return { count: 1 };
+    });
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        sokoBotEvent: { createMany: eventCreateManyMock },
+        sokoBotTurn: {
+          findUnique: turnFindUniqueMock,
+          update: turnUpdateMock,
+          updateMany: turnUpdateManyMock,
+        },
+      }),
+    );
+  });
+
+  it("adds its step to the totals the other writer committed", async () => {
+    const runtime = runtimeFor([]);
+    vi.mocked(runtime.streamEvents).mockImplementation(async function* () {
+      yield {
+        startIndex: 0,
+        event: runtimeEvent("step.completed", "step_a", {
+          usage: { inputTokens: 1, costUsd: 0.1 },
+        }),
+      };
+      // The other writer commits its own step before this one's next write.
+      row = {
+        ...row,
+        usage: { ...(row.usage as object), inputTokens: 3 },
+        costUsdMicros: (row.costUsdMicros ?? 0n) + 200_000n,
+      };
+      yield {
+        startIndex: 2,
+        event: runtimeEvent("step.completed", "step_c", {
+          usage: { inputTokens: 4, costUsd: 0.4 },
+        }),
+      };
+    });
+
+    await new SokoBotControlPlane(runtime, undefined, undefined).reconcileTurn(
+      TURN_ID,
+      undefined,
+      LEASE_TOKEN,
+    );
+
+    expect(row.costUsdMicros).toBe(700_000n);
+    expect(row.usage).toMatchObject({ inputTokens: 7 });
+  });
+
+  it("never moves the cursor back past what the other writer reached", async () => {
+    row = activeTurn({ eveStreamIndex: 5 });
+    const runtime = runtimeFor([
+      {
+        startIndex: 3,
+        event: runtimeEvent("message.completed", "msg_3", {
+          message: "replayed",
+        }),
+      },
+    ]);
+    eventCreateManyMock.mockResolvedValue({ count: 0 });
+
+    await new SokoBotControlPlane(runtime, undefined, undefined).reconcileTurn(
+      TURN_ID,
+      undefined,
+      LEASE_TOKEN,
+    );
+
+    // The replayed event was fenced, found already stored, and left the
+    // cursor where the other writer put it.
+    expect(eventCreateManyMock).toHaveBeenCalledTimes(1);
+    expect(turnUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: TURN_ID, eveStreamIndex: { lt: 3 } },
+      }),
+    );
+    expect(row.eveStreamIndex).toBe(5);
   });
 });
