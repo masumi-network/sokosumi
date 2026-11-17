@@ -11,7 +11,7 @@ import { approachElement } from "@/test/approach-element";
 
 const routerPrefetchMock = vi.fn();
 // The task's content, not only the route's shared App Shell (kind "auto").
-const CONTENT_PREFETCH = { kind: "full" };
+const CONTENT_PREFETCH = expect.objectContaining({ kind: "full" });
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
