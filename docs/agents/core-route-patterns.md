@@ -126,6 +126,8 @@ A PR that removes such an operation:
 
 Only Core's catch-all answers `route_not_found`. Never answer a missing resource with that kind: the app would tell the person to update.
 
+Making a required response field nullable also reaches installed builds. The Apple client is generated from that snapshot by swift-openapi-generator, which turns a field in a schema's `required` list into a non-optional Swift property, so a `null` there is expected to fail decoding of the whole response (not tested). Grep `apps/apple` for the field and plan the Apple release before Core can send `null`.
+
 ## Cursor-Based Pagination
 
 **Always use cursor-based pagination for list endpoints** that may return large datasets. This ensures consistent performance and a better user experience.

@@ -82,6 +82,10 @@ Examples include workspace move operations for tasks and jobs. Do not add `updat
 
 When a flow does need `Serializable` isolation (e.g. credit consumption, idempotency checks), use `serializableTransaction()` from `@/lib/db/transaction` instead of calling `prisma.$transaction` with `isolationLevel` directly. Postgres aborts serializable transactions with a serialization failure (Prisma `P2034`) under concurrent writes; the helper maps that to a retryable 409 conflict (`kind: "concurrency_conflict"`) instead of an unhandled 500. Routes using it must declare `409: jsonErrorResponse("Conflict")` in their OpenAPI responses.
 
+The helper makes up to 8 attempts with exponential backoff (60 ms base, 1 s cap, plus jitter), so a route test that mocks a `P2034` rejection to assert the 409 waits seconds on real timers. Call `vi.useFakeTimers()`, start the request, `await vi.runAllTimersAsync()`, then await the response (`src/routes/v1/vendors/vendor-admin.test.ts`).
+
+A read of the whole table before an `INSERT` inside `serializableTransaction()` makes a concurrent duplicate fail as a serialization failure (40001, retried as `P2034`), not as a unique violation (23505). This holds only while the read is a sequential scan: an index read takes finer predicate locks, and 23505 can then occur. Check the plan with `EXPLAIN` before you drop a `P2002` path.
+
 #### Interactive Transactions (avoid on read-only GETs)
 
 **Default: do not wrap read-only GET handlers in interactive `prisma.$transaction(async (tx) => …)`.** Pass the default `prisma` client into helpers that accept a `tx` / client argument (access gate, then list/count/unread). Helpers already accept either shape.
@@ -314,6 +318,12 @@ The `unit` Vitest project runs with `isolate: false` and files in random order (
 
 **No unexpected console output.** `src/test/setup.ts` fails a test that writes a `console.error` or `console.warn` it did not declare, and a test that gives either a mock implementation (`vi.spyOn(console, "warn").mockImplementation(…)`), even one restored before the test ends. `console.log` stays allowed. Such output means the test ran something other than production, so fix its cause: a Prisma mock missing a model or method, a fixture production would reject (a row without a required column, bytes that are not an image), a client reaching a real service, a mock with the wrong signature. Only a test whose subject is that error path declares it, with `expectConsole(method, start, times = 1)` from `@sokosumi/utils/test-console`: the message must start with `start` and come exactly `times` times, and the return value holds the matched calls' arguments, so assert the reason or error on them. A library logger that prints a timestamp first takes a `^`-anchored RegExp, matched without terminal colors. Production code on a normal path does not warn: detail of a request belongs on its wide event (`tryUseLogger()?.set(…)`), but work in `waitUntil` runs after that event is emitted, so a routine note there is `console.info`. evlog prints its own events through `console[level]` too, so moving a log there is not a way to quiet a test.
 
+**A new required response field breaks distant fixtures.** Many routes `.parse()` their result through the response schema, so a fixture without the new field makes the route answer 500 while typecheck stays clean. The failing test can be in an unrelated file that calls the route as a control case. Grep Core tests for a sibling field of the same schema and update every fixture before you run the suite.
+
+**Keep heavy imports out of every-request modules.** A module that every route loads (middleware that `OpenAPIHonoWithAuth` mounts, shared `@/helpers`) must not import `@/lib/auth` or a route helper at top level. That import pulls Stripe into every suite, and unrelated files fail with `Neither apiKey nor config.authenticator provided` or hook timeouts. Load it with `await import()` inside the branch that needs it, with a comment that says why (`src/middleware/organization.ts`).
+
+**Opt-in Soko Bot reliability suites.** `src/services/soko-bot-*.integration.test.ts` skip unless `LOCAL_RELIABILITY_DATABASE_URL` names a disposable PostgreSQL at `127.0.0.1:55439` with a database name the file allows (`soko_reliability_verified`); the native-table suites are in [docs/native-tables.md](../../docs/native-tables.md). CI runs neither, so they can already fail on `main`: compare failing test names with a `main` run before you blame your diff.
+
 A failure that comes and goes with the order: the log prints `Running tests with seed "<seed>"`. Replay it with `pnpm --filter core test --sequence.seed=<seed>`; add `--maxWorkers=1` to make the whole order deterministic. `--detectAsyncLeaks` names files that leave work running. A run that selects an opt-in PostgreSQL or integration file keeps per-file isolation and its file order.
 
 ## Core API Gotchas
@@ -324,6 +334,7 @@ A failure that comes and goes with the order: the log prints `Running tests with
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
 - Read the actor through the handler actor menu helpers, not `c.var.authContext` directly
 - Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, `/organizations/{id}/credits`, `/workspaces`, and `/workspaces/preferred` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Both workspace reads skip the context binding and narrow their result instead (`AGENT_SELF_FILTERING_USER_SUBPATH_PATTERNS`). Mounting a new user route for agents means extending that allowlist
+- API-key and OAuth requests set `organizationId: null` (`src/middleware/auth.ts`), so `workspaceMiddleware` resolves their personal workspace. To widen an owner-only write to organization members, filter `ownerId` OR `workspaceId`; a `workspaceId` filter alone locks those callers out of their organization's rows. Web can gate the same action separately (`readOnly` in `load-job-details.ts`), so check the loader too
 
 ### Error Handling
 

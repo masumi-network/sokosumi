@@ -54,6 +54,15 @@ Phone layout verdicts need WebKit: Chromium computes some layout differently and
 - **Home-screen (standalone) web app** geometry differs from Safari: probe it with a `/share` page that prints `innerHeight`, `main.clientHeight` and unit sizes, add it with Share → Add to Home Screen, and launch the clip. Turbopack HMR reaches it.
 - A Sentry replay pins a device-only bug to the pixel: pull its rrweb segments with `sentry api "/projects/masumi/sokosumi/replays/<id>/recording-segments/?per_page=50"` and read row transforms, container height and scroll events against both edges of the viewport.
 
+## Web push
+
+A push test that shows no banner is usually a display problem, not a delivery failure. Open Notification Center first: an entry there means the push arrived, which rules out the whole network path. Then check:
+
+- A macOS Focus mode, or the notification setting for screen mirroring and sharing: either can hold banners back.
+- A reused `tag` replaces the old entry silently. Test with a unique `tag` and `renotify: true`.
+- A `showNotification` call from the DevTools console runs while DevTools holds focus. Delay it with `setTimeout`, then click the page.
+- A tab open for a while can return a dead registration from `getRegistration()`. Reload and use `await navigator.serviceWorker.ready`.
+
 ## Instant navigation
 
 `next dev` locates a blocking route but cannot judge one: it does not prefetch and its navigation lock is unreliable. The verdict comes from a production build with an `instant()` test (`.agents/skills/next-cache-components-optimizer/`). Its insight log misleads in three ways:
