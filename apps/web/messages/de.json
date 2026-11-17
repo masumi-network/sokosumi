@@ -10239,6 +10239,7 @@
         "successHint": "Noch ein Schritt…",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
+        "nameRequired": "Gib einen Namen ein.",
         "submit": "{name} erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
@@ -10295,6 +10296,10 @@
         "lastChecked": "Verbunden · geprüft {when}",
         "searchPlaceholder": "Alle Apps durchsuchen, etwa Notion oder HubSpot",
         "noResults": "Nichts gefunden.",
+        "searching": "Apps werden nach „{query}“ durchsucht …",
+        "searchFailed": "Die App-Suche hat nicht geklappt.",
+        "searchFailedHelp": "Deine verbundenen Apps funktionieren weiter.",
+        "tryAgain": "Erneut versuchen",
         "kindsGeneric": "Nutzbar über seine Tools",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
@@ -10591,6 +10596,13 @@
         "Connectors": {
           "title": "Tools",
           "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest."
+        },
+        "LoadError": {
+          "Connectors": "Die Tools wurden nicht geladen.",
+          "Stats": "Die Aktivität wurde nicht geladen.",
+          "Usage": "Die Nutzung wurde nicht geladen.",
+          "help": "Zeitpläne und Chat funktionieren weiter.",
+          "retry": "Erneut versuchen"
         }
       },
       "Avatar": {

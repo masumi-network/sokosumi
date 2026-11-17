@@ -10239,6 +10239,7 @@
         "successHint": "Un paso más…",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
+        "nameRequired": "Escribe un nombre.",
         "submit": "Crear {name}",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
@@ -10295,6 +10296,10 @@
         "lastChecked": "Conectado · comprobado {when}",
         "searchPlaceholder": "Buscar todas las apps, como Notion o HubSpot",
         "noResults": "No se encontró nada.",
+        "searching": "Buscando apps para «{query}»…",
+        "searchFailed": "No se pudieron buscar apps.",
+        "searchFailedHelp": "Tus apps conectadas siguen funcionando.",
+        "tryAgain": "Reintentar",
         "kindsGeneric": "Utilizable a través de sus herramientas",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
@@ -10591,6 +10596,13 @@
         "Connectors": {
           "title": "Herramientas",
           "description": "Apps que puede usar por ti. Lee tu calendario, ordena tu correo, guarda adjuntos y envía un correo solo cuando tú lo dices; otras apps actúan en tu nombre cuando se lo pides."
+        },
+        "LoadError": {
+          "Connectors": "No se cargaron las herramientas.",
+          "Stats": "No se cargó la actividad.",
+          "Usage": "No se cargó el uso.",
+          "help": "Las programaciones y el chat siguen funcionando.",
+          "retry": "Reintentar"
         }
       },
       "Avatar": {

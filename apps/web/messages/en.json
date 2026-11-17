@@ -10239,6 +10239,7 @@
         "successHint": "One more step…",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
+        "nameRequired": "Enter a name.",
         "submit": "Create {name}",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
@@ -10295,6 +10296,10 @@
         "lastChecked": "Connected · checked {when}",
         "searchPlaceholder": "Search all apps, like Notion or HubSpot",
         "noResults": "Nothing found.",
+        "searching": "Searching apps for “{query}”…",
+        "searchFailed": "Couldn't search apps.",
+        "searchFailedHelp": "Your connected apps still work.",
+        "tryAgain": "Try again",
         "kindsGeneric": "Usable through its tools",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
@@ -10591,6 +10596,13 @@
         "Connectors": {
           "title": "Tools",
           "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask."
+        },
+        "LoadError": {
+          "Connectors": "Tools didn't load.",
+          "Stats": "Activity didn't load.",
+          "Usage": "Usage didn't load.",
+          "help": "Schedules and chat still work.",
+          "retry": "Try again"
         }
       },
       "Avatar": {
