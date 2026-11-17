@@ -475,6 +475,36 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
+/** The kinds of print in the reference library. */
+export const REFERENCE_KINDS = [
+  "ad",
+  "poster",
+  "magazine-cover",
+  "label",
+  "trade-card",
+  "playbill",
+  "record-cover",
+  "book-cover",
+  "illustration",
+  "infographic",
+  "other",
+] as const;
+
+/** What a reference suits as a piece's style: Cuso searches by these. */
+export const REFERENCE_PURPOSES = [
+  "product",
+  "announcement",
+  "event",
+  "offer",
+  "how-to",
+  "data",
+  "comparison",
+  "quote",
+  "people",
+  "story",
+  "brand",
+] as const;
+
 /** The funnel's stages, top to bottom. */
 export const CMO_FUNNEL_STAGES = [
   "awareness",

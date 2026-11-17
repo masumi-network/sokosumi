@@ -1,36 +1,8 @@
+import { REFERENCE_KINDS, REFERENCE_PURPOSES } from "@sokosumi/soko-bot";
 import { z } from "zod";
 
 /** Reads each library image once; cheap, and sees images well enough to catalogue them. */
 export const REFERENCE_DESCRIBE_MODEL = "anthropic/claude-haiku-5.5";
-
-export const REFERENCE_KINDS = [
-  "ad",
-  "poster",
-  "magazine-cover",
-  "label",
-  "trade-card",
-  "playbill",
-  "record-cover",
-  "book-cover",
-  "illustration",
-  "infographic",
-  "other",
-] as const;
-
-/** What a reference suits as a piece's style: Cuso searches by these. */
-export const REFERENCE_PURPOSES = [
-  "product",
-  "announcement",
-  "event",
-  "offer",
-  "how-to",
-  "data",
-  "comparison",
-  "quote",
-  "people",
-  "story",
-  "brand",
-] as const;
 
 export const referenceDescriptionSchema = z.object({
   kind: z.enum(REFERENCE_KINDS),

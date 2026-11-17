@@ -5,8 +5,9 @@
  * finds one by what his piece is about, and Core makes the picture in that
  * style with the brand's own logo, colours and DESIGN.md.
  */
-import { get } from "@vercel/blob";
 
+import type { REFERENCE_KINDS, REFERENCE_PURPOSES } from "@sokosumi/soko-bot";
+import { get } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import {
   type EmbedTexts,
@@ -14,10 +15,6 @@ import {
   vectorLiteral,
 } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
-import {
-  REFERENCE_KINDS,
-  REFERENCE_PURPOSES,
-} from "@/lib/reference-library/description";
 
 /** References below this are blank, damaged or mostly text. */
 const MIN_USABLE = 3;
