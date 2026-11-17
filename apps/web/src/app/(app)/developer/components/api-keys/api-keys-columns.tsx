@@ -1,12 +1,11 @@
 "use client";
 
-import { Eye, EyeOff, Trash2 } from "lucide-react";
 import type { useFormatter, useTranslations } from "next-intl";
 
 import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
 import DataTableColumnHeader from "@/components/data-table/data-table-column-header";
-import { Button } from "@/components/ui/button";
 
+import { ApiKeyActions, ApiKeyStatus } from "./api-key-row-parts";
 import type { ApiKeyRecord } from "./types";
 
 const columnHelper = createAppColumnHelper<ApiKeyRecord>();
@@ -53,17 +52,7 @@ export function getApiKeyColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Table.status")} />
       ),
-      cell: ({ row }) => (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            row.original.enabled
-              ? "bg-quinary text-foreground"
-              : "bg-quinary text-foreground"
-          }`}
-        >
-          {row.original.enabled ? t("Status.enabled") : t("Status.disabled")}
-        </span>
-      ),
+      cell: ({ row }) => <ApiKeyStatus apiKey={row.original} t={t} />,
       enableSorting: true,
       enableHiding: false,
     }),
@@ -95,38 +84,12 @@ export function getApiKeyColumns(
         <DataTableColumnHeader column={column} title={t("Table.actions")} />
       ),
       cell: ({ row }) => (
-        <div className="flex items-center justify-end space-x-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleStatus(row.original);
-            }}
-            title={
-              row.original.enabled
-                ? t("Actions.disableTooltip")
-                : t("Actions.enableTooltip")
-            }
-          >
-            {row.original.enabled ? (
-              <EyeOff className="size-4" />
-            ) : (
-              <Eye className="size-4" />
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteClick(row.original);
-            }}
-            title={t("Actions.deleteTooltip")}
-          >
-            <Trash2 className="text-destructive size-4" />
-          </Button>
-        </div>
+        <ApiKeyActions
+          apiKey={row.original}
+          t={t}
+          onToggleStatus={onToggleStatus}
+          onDeleteClick={onDeleteClick}
+        />
       ),
       enableSorting: false,
       enableHiding: false,

@@ -37,8 +37,20 @@ interface OrganizationLogoUploadFieldProps {
   onRemove?: () => void;
   onUpload: (files: File[]) => void | Promise<void>;
   pendingLogoFiles: File[];
+  /**
+   * Paint the preview on the ground the logo is made for, whatever the page
+   * theme: a light-mode logo on light, a dark-mode logo on dark. Unset, the
+   * preview follows the theme.
+   */
+  previewSurface?: "light" | "dark";
   showRemoveButton?: boolean;
 }
+
+// The on-media and media-ground steps hold one value in both themes.
+const PREVIEW_SURFACE_CLASS = {
+  light: "bg-on-media",
+  dark: "bg-media-ground",
+} as const;
 
 function translateFileRejectMessage(
   message: string | undefined,
@@ -72,8 +84,10 @@ export function OrganizationLogoUploadField({
   onRemove,
   onUpload,
   pendingLogoFiles,
+  previewSurface,
   showRemoveButton = Boolean(logoValue),
 }: OrganizationLogoUploadFieldProps) {
+  const surfaceClass = previewSurface && PREVIEW_SURFACE_CLASS[previewSurface];
   return (
     <div className="max-w-24">
       <FileUpload
@@ -95,15 +109,23 @@ export function OrganizationLogoUploadField({
               type="button"
               disabled={disabled}
               aria-label={logoValue ? labels.replace : labels.upload}
-              className="group bg-muted focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring relative size-full cursor-pointer overflow-hidden rounded-lg border transition-opacity outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className={cn(
+                "group bg-muted focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring relative size-full cursor-pointer overflow-hidden rounded-lg border transition-opacity outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60",
+                surfaceClass,
+              )}
             >
               <Avatar className="size-full rounded-none">
                 <AvatarImage
                   src={logoValue || undefined}
                   alt={labels.previewAlt}
-                  className="object-contain"
+                  className={cn("object-contain", surfaceClass && "p-3")}
                 />
-                <AvatarFallback className="bg-muted text-muted-foreground rounded-none">
+                <AvatarFallback
+                  className={cn(
+                    "bg-muted text-muted-foreground rounded-none",
+                    surfaceClass,
+                  )}
+                >
                   {fallbackIcon ?? <Building2 className="size-8" />}
                 </AvatarFallback>
               </Avatar>

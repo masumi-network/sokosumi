@@ -3,14 +3,17 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+import { getVendorLogoUrls } from "./vendor-logo-urls";
 
 interface DeveloperVendorsListProps {
   adminVendors: VendorMembership[];
 }
 
-function getVendorLogoUrl(vendor: VendorMembership): string | undefined {
-  return vendor.logos.light ?? vendor.logos.dark ?? undefined;
-}
+// Wordmarks are wide: fit the whole logo inside the circle on the row's own
+// surface, so neither the fallback letter nor a crop shows through.
+const VENDOR_LOGO_CLASS = "bg-muted object-contain p-1";
 
 export async function DeveloperVendorsList({
   adminVendors,
@@ -24,7 +27,7 @@ export async function DeveloperVendorsList({
   return (
     <ul className="divide-border divide-y rounded-lg border">
       {adminVendors.map((vendor) => {
-        const logoUrl = getVendorLogoUrl(vendor);
+        const logos = getVendorLogoUrls(vendor);
 
         return (
           <li
@@ -33,9 +36,16 @@ export async function DeveloperVendorsList({
           >
             <div className="flex min-w-0 items-start gap-3">
               <Avatar className="size-10 shrink-0">
-                {logoUrl ? (
-                  <AvatarImage src={logoUrl} alt={vendor.name} />
-                ) : null}
+                <AvatarImage
+                  src={logos.light}
+                  alt={vendor.name}
+                  className={cn(VENDOR_LOGO_CLASS, "dark:hidden")}
+                />
+                <AvatarImage
+                  src={logos.dark}
+                  alt={vendor.name}
+                  className={cn(VENDOR_LOGO_CLASS, "hidden dark:block")}
+                />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                   {vendor.name.charAt(0).toUpperCase()}
                 </AvatarFallback>

@@ -7,6 +7,7 @@ import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/develop
 import DataTable from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 
+import { ApiKeyActions, ApiKeyStatus } from "./api-key-row-parts";
 import { getApiKeyColumns } from "./api-keys-columns";
 import type { ApiKeysListProps } from "./types";
 
@@ -51,22 +52,56 @@ export function ApiKeysList({
     );
   }
 
+  // Newest first, like the table's default sort.
+  const newestFirst = [...apiKeys].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
   return (
-    <DataTable
-      columns={columns}
-      data={apiKeys}
-      showPagination={apiKeys.length > 0}
-      enableRowSelection={false}
-      disableHover={true}
-      showRowsPerPage={false}
-      initialPageSize={5}
-      defaultSort={[
-        {
-          id: "createdAt",
-          desc: true,
-        },
-      ]}
-      containerClassName="rounded-lg"
-    />
+    <>
+      {/* Phones: one stacked row per key, so status and actions stay on screen. */}
+      <ul className="divide-border divide-y rounded-lg border md:hidden">
+        {newestFirst.map((apiKey) => (
+          <li key={apiKey.id} className="flex items-center gap-3 p-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="min-w-0 truncate font-medium">{apiKey.name}</p>
+                <ApiKeyStatus apiKey={apiKey} t={t} />
+              </div>
+              <p className="text-muted-foreground flex items-center gap-2 text-xs">
+                <code className="bg-muted rounded px-1 font-mono">
+                  {apiKey.start ?? "••••••••"}
+                </code>
+                {formatter.dateTime(new Date(apiKey.createdAt), {
+                  dateStyle: "medium",
+                })}
+              </p>
+            </div>
+            <ApiKeyActions
+              apiKey={apiKey}
+              t={t}
+              onToggleStatus={onToggleStatus}
+              onDeleteClick={onDeleteClick}
+            />
+          </li>
+        ))}
+      </ul>
+      <DataTable
+        columns={columns}
+        data={apiKeys}
+        showPagination={apiKeys.length > 0}
+        enableRowSelection={false}
+        disableHover={true}
+        showRowsPerPage={false}
+        initialPageSize={5}
+        defaultSort={[
+          {
+            id: "createdAt",
+            desc: true,
+          },
+        ]}
+        containerClassName="hidden rounded-lg md:flex"
+      />
+    </>
   );
 }

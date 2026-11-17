@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium } from "playwright";
+import { type Browser, chromium, type Locator } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
-// A new user creates an API key and sees it in the list at every size. On a
+// A new user creates an API key and sees it, with its actions, at every size. On a
 // phone they reach Developer from the You tab, and the header Back returns to
 // the Developer menu, not to Chats.
 const BASE_URL = resolveBaseUrl(process.env);
@@ -79,12 +79,26 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .click();
 
       // The new key's row sits inside the screen, not beside the header.
-      const row = page.getByText(KEY_NAME, { exact: true });
-      await row.waitFor();
-      const box = await row.boundingBox();
-      assert.ok(
-        box && box.x >= 0 && box.x + box.width <= viewport.width,
-        `the key row is off screen at x=${box?.x}`,
+      // The new key's name and its Delete action sit inside the screen, not
+      // past a sideways scroll. Phones show a stacked list, wider screens the
+      // table; only one of them is visible.
+      const onScreen = async (name: string, locator: Locator) => {
+        await locator.waitFor();
+        const box = await locator.boundingBox();
+        assert.ok(
+          box && box.x >= 0 && box.x + box.width <= viewport.width,
+          `${name} is off screen at x=${box?.x}`,
+        );
+      };
+      await onScreen(
+        "the key name",
+        page.getByText(KEY_NAME, { exact: true }).filter({ visible: true }),
+      );
+      await onScreen(
+        "the Delete action",
+        page
+          .getByRole("button", { name: "Delete API key" })
+          .filter({ visible: true }),
       );
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth + 1,
