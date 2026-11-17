@@ -8,15 +8,17 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. Seve
 - **A decision and its reason**: an ADR in `docs/adr/`.
 - **One person's machine, tools or preferences**: their agent memory.
 
-Before writing, grep `docs/`, `apps/*/AGENTS.md`, `apps/*/docs/`, `docs/adr/` and `GLOSSARY.md`: if the repo already says it, write nothing. Leave out people's names, quotes and session history.
+Before writing, grep every `AGENTS.md` (root, `apps/*`, `packages/*`), `docs/`, `apps/*/docs/`, `.cursor/rules/` and `GLOSSARY.md`: if the repo already says it, write nothing. Leave out people's names, quotes and session history.
 
 ## Auditing an existing memory
 
 Memories pile up team knowledge that never reached the repo. To move it, run this prompt in a Sokosumi checkout:
 
 ```text
-Audit my agent memory for this repo (Claude Code: ~/.claude/projects/<this repo>/memory/;
-Codex/Cursor: their memory or rules files). Read AGENTS.md and docs/agents/agent-memory.md first.
+Audit my private agent memory for this repo (Claude Code: ~/.claude/projects/<this repo>/memory/;
+Codex/Cursor: my own memories, not files tracked in git). Read AGENTS.md and
+docs/agents/agent-memory.md first. Files tracked in the repo (.cursor/rules/, AGENTS.md, docs/)
+are shared documentation: never list them for deletion.
 
 For each memory, sort it:
 - Team knowledge (true for anyone on Sokosumi): check whether the repo already says it and
@@ -26,9 +28,10 @@ For each memory, sort it:
 - Personal (my machine, my tools, my preferences): keep it in memory.
 - Stale or duplicated: list it for deletion.
 
-Show me the table (memory → outcome → target) before editing anything. Then open one draft
-docs PR with the repo changes, following docs/agents/delivery.md. Delete the memory copies
-only after the PR has merged.
+Show me the table (memory → outcome → target) before editing anything. If any repo change is
+needed, open one draft docs PR with it, following docs/agents/delivery.md, and delete the
+memory copies only after that PR has merged. Delete stale or duplicated memories once I
+confirm, with or without a PR.
 ```
 
 Each audit ends in a reviewed PR. #7375 is a worked example.
