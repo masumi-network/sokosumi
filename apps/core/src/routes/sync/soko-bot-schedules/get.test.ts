@@ -16,9 +16,9 @@ const { pending, purge, reconcileTurn, syncDueSchedules } = vi.hoisted(() => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => {
+  waitUntil: vi.fn((work: Promise<unknown>) => {
     pending.push(work);
-  },
+  }),
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn },

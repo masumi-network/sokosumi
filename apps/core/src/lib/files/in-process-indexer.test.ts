@@ -9,7 +9,7 @@ const processStaleTableIndexes = vi.fn();
 const waitUntil = vi.fn();
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => waitUntil(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => waitUntil(promise)),
   // Pulled in transitively by the table service's prisma import.
   attachDatabasePool: vi.fn(),
 }));

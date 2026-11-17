@@ -30,9 +30,9 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilPromises.push(promise);
-  },
+  }),
 }));
 
 vi.mock("@/helpers/notifications", async (importOriginal) => ({

@@ -2,6 +2,7 @@ import { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { expectBackgroundRejection } from "@/test/wait-until";
 
 import mountDeleteChatRoomMessage from "./delete";
 
@@ -86,9 +87,9 @@ vi.mock("@/lib/chat-unfurl-snapshot", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilPromises.push(promise);
-  },
+  }),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -572,6 +573,8 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
   });
 
   it("still tombstones when owned blob delete rejects", async () => {
+    // The blob cleanup runs after the response; its failure is the subject.
+    expectBackgroundRejection("blob down");
     deleteChatRoomFilesIfOwnedMock.mockRejectedValueOnce(
       new Error("blob down"),
     );

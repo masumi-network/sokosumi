@@ -55,9 +55,9 @@ vi.mock("@/lib/chat-unfurl-snapshot", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void promise;
-  },
+  }),
 }));
 
 const { publishChatRoomMessageRealtimeMock } = vi.hoisted(() => ({

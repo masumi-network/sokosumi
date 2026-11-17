@@ -51,7 +51,7 @@ vi.mock("@/clients/email.client", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => background.push(work),
+  waitUntil: vi.fn((work: Promise<unknown>) => background.push(work)),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";

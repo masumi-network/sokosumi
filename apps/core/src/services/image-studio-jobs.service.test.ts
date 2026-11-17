@@ -1111,15 +1111,26 @@ describe("image studio job submission", () => {
   });
 
   it("does not wait for a snapshot write before submitting or returning the job", async () => {
-    snapshotUpsertMock.mockReturnValueOnce(new Promise(() => {}));
+    // Held open while the job is created and returned, then settled, so the
+    // drain after the test finishes it even when an assertion fails.
+    let finishSnapshot = () => {};
+    snapshotUpsertMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishSnapshot = resolve;
+      }),
+    );
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
-      status: "QUEUED",
-    });
-    expect(snapshotUpsertMock).toHaveBeenCalledOnce();
-    expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
-    expect(submitToQueueMock).toHaveBeenCalledOnce();
+    try {
+      await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+        status: "QUEUED",
+      });
+      expect(snapshotUpsertMock).toHaveBeenCalledOnce();
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      expect(submitToQueueMock).toHaveBeenCalledOnce();
+    } finally {
+      finishSnapshot();
+    }
   });
 
   it("still sends the brief when Design cannot be read", async () => {

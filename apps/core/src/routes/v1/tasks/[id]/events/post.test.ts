@@ -131,9 +131,9 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilCapturedPromises.push(promise);
-  },
+  }),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

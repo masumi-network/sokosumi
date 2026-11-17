@@ -37,9 +37,9 @@ vi.mock("@/helpers/billing-notifications", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilCapturedPromises.push(promise);
-  },
+  }),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({

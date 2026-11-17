@@ -98,7 +98,7 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (...args: unknown[]) => waitUntilMock(...args),
+  waitUntil: vi.fn((...args: unknown[]) => waitUntilMock(...args)),
 }));
 
 vi.mock("ai", () => ({
