@@ -74,6 +74,11 @@ export async function saveBrandBrain(
   projectId: string,
   input: CmoSaveBrandBrainInput,
   db?: Prisma.TransactionClient,
+  /**
+   * Cuso's save: when his turn was asked, so only the corrections in its
+   * brief close. A member's own edit closes the fix whenever it was asked.
+   */
+  options: { briefedAt?: Date } = {},
 ): Promise<BrandBrainRecord> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
@@ -87,9 +92,17 @@ export async function saveBrandBrain(
         const before = stored.profile[key as CmoBrandSectionKey];
         if (!sent) return [key, sent];
         const { fix: _sent, ...section } = sent;
+        // A correction asked while the turn wrote never reached it: it stays
+        // open, so the next change picks it up.
+        const briefed =
+          !options.briefedAt ||
+          (before?.fix &&
+            Date.parse(before.fix.at) <= options.briefedAt.getTime());
         const fix = before?.fix && {
           ...before.fix,
-          fixed: before.fix.fixed || section.answer !== before.answer,
+          fixed:
+            before.fix.fixed ||
+            (section.answer !== before.answer && Boolean(briefed)),
         };
         return [
           key,

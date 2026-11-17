@@ -348,7 +348,14 @@ export async function saveCmoRecord(
             throw new SokoBotRuntimeValidationError(
               "A Brand Brain belongs to a Project, and this bot has none.",
             );
-          return saveBrandBrain(bot.projectId, save, tx);
+          // A fix turn's brief holds the corrections asked before it.
+          const turn = await tx.sokoBotTurn.findUnique({
+            where: { id: authorized.turn.id },
+            select: { createdAt: true },
+          });
+          return saveBrandBrain(bot.projectId, save, tx, {
+            briefedAt: turn?.createdAt,
+          });
         });
         if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
         const stored = parseBrandBrain(saved.body);

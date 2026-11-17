@@ -614,6 +614,44 @@ describe("Brand Brain fixes", () => {
     expect(brainUpdate).not.toHaveBeenCalled();
   });
 
+  it("keeps a correction open that came after the rewriting turn started", async () => {
+    const rewrite = (fixAt: string) => {
+      brainFindUnique.mockResolvedValueOnce({
+        body: {
+          ...essentials,
+          profile: {
+            ...sixteen,
+            pricing: {
+              ...sixteen.pricing,
+              fix: { note: "From 19 dollars.", at: fixAt, fixed: false },
+            },
+          },
+          questions: [],
+        },
+      });
+      return saveBrandBrain(
+        PROJECT_ID,
+        {
+          sections: {
+            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
+          },
+        },
+        undefined,
+        { briefedAt: new Date(asked) },
+      );
+    };
+    const fixOf = () =>
+      brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix;
+
+    // In the turn's brief: the rewrite closes it.
+    await rewrite("2026-11-10T09:59:00.000Z");
+    expect(fixOf()).toMatchObject({ fixed: true });
+
+    // Asked while the turn wrote: the next change still has it.
+    await rewrite("2026-11-10T10:01:00.000Z");
+    expect(fixOf()).toMatchObject({ fixed: false });
+  });
+
   it("marks the fix done when its section is rewritten, and leaves the other 15 untouched", async () => {
     const waiting = {
       ...sixteen,

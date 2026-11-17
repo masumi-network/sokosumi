@@ -11624,6 +11624,9 @@ describe("CMO record saves", () => {
       sokoBot: {
         findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
       },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({ createdAt: new Date() }),
+      },
       brandBrain: {
         findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn().mockResolvedValue({
@@ -11665,6 +11668,9 @@ describe("CMO record saves", () => {
       $executeRaw: vi.fn().mockResolvedValue(1),
       sokoBot: {
         findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({ createdAt: new Date() }),
       },
       brandBrain: {
         findUnique: vi.fn().mockResolvedValue({ body: { profile: {} } }),
