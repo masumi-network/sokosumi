@@ -16,7 +16,6 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 
 import { SOKO_BOT_HOME_TASK_LIMIT } from "./components/soko-bot-home-data";
-import { SOKO_BOT_SETUP_FACES } from "./components/soko-bot-setup";
 
 /**
  * Wraps a read in a browser-only cache, so a link prefetch carries Home. A
@@ -134,12 +133,6 @@ async function readHomeData(scope: HomeScope) {
     // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
     taskService.getActivitySummary({ scope }),
   ]);
-  // Without pictures the page still offers the setup, only without the row.
-  const avatars = sokoBot
-    ? []
-    : await sokoBotService
-        .listAvatars(SOKO_BOT_SETUP_FACES, [])
-        .catch(() => []);
   return {
     needsYou,
     rooms,
@@ -148,7 +141,6 @@ async function readHomeData(scope: HomeScope) {
     sokoBot,
     lastFailure,
     summary,
-    avatars,
   };
 }
 

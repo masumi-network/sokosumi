@@ -2,6 +2,18 @@ import { render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/back-link", () => ({
+  BackLink: ({
+    children,
+    href,
+    ...props
+  }: React.ComponentProps<"a"> & { href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 const getScheduleMock = vi.fn();
 const listUpcomingRunsMock = vi.fn();
 const listManualRunsMock = vi.fn();

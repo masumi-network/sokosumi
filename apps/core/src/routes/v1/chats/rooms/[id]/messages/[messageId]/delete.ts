@@ -19,6 +19,7 @@ import { ok } from "@/helpers/response";
 import { deleteChatRoomFilesIfOwned } from "@/lib/blob";
 import { deleteChatRoomUnfurlSnapshotsIfOwned } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -191,17 +192,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (newlySoftDeleted && blobCleanup) {
       waitUntil(
-        deleteChatRoomFilesIfOwned(
-          blobCleanup.chatFileUrls,
-          { kind: "user", userId: userContext.userId },
-          message.roomId,
+        runAsBackgroundWork(() =>
+          deleteChatRoomFilesIfOwned(
+            blobCleanup.chatFileUrls,
+            { kind: "user", userId: userContext.userId },
+            message.roomId,
+          ),
         ),
       );
       waitUntil(
-        deleteChatRoomUnfurlSnapshotsIfOwned(
-          blobCleanup.unfurlImageUrls,
-          message.roomId,
-          message.id,
+        runAsBackgroundWork(() =>
+          deleteChatRoomUnfurlSnapshotsIfOwned(
+            blobCleanup.unfurlImageUrls,
+            message.roomId,
+            message.id,
+          ),
         ),
       );
     }

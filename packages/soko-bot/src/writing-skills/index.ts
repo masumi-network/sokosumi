@@ -45,6 +45,17 @@ export function writingSkillsForChannels(
   );
 }
 
+/**
+ * Who is on each network and what it is worth for which business, one line
+ * a network, for planning the channels: main channel or side, and which
+ * buyer a side channel serves.
+ */
+export function networkAudiences(): string {
+  return WRITING_SKILLS.filter((skill) => skill.audience)
+    .map((skill) => `- ${skill.name}: ${skill.audience}`)
+    .join("\n");
+}
+
 /** A skill as Cuso reads it: its content, then the checklist each piece is held to. */
 export function renderWritingSkill(skill: WritingSkill): string {
   return [

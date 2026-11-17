@@ -43,6 +43,54 @@ describe("superviseRunner", () => {
     });
   });
 
+  it("reports the runner's startup diagnostic, in words Core owns", async () => {
+    const diagnostic = {
+      event: "start_failed",
+      coreResponse: { status: 503 },
+      errorName: "Error",
+    };
+    const { code, report } = await run((child) => {
+      child.emit("message", diagnostic);
+      child.emit("close", 1, null);
+    });
+    expect(code).toBe(1);
+    expect(report).toHaveBeenCalledExactlyOnceWith({
+      code: "runner_exited",
+      message:
+        "The runner ended with exit code 1: A Soko Bot turn could not start in its sandbox (Core answered 503)",
+      diagnostic,
+    });
+  });
+
+  it("ignores a message from the runner that is not a known diagnostic", async () => {
+    const { report } = await run((child) => {
+      child.emit("message", { event: "anything", note: "USER-WRITTEN" });
+      child.emit("close", 1, null);
+    });
+    expect(report).toHaveBeenCalledExactlyOnceWith({
+      code: "runner_exited",
+      message: "The runner ended with exit code 1",
+    });
+  });
+
+  it.each([
+    ["an unknown kind", { status: 409, kind: "USER-WRITTEN" }],
+    ["an oversized kind", { status: 409, kind: "x".repeat(5_000) }],
+    ["a status out of range", { status: 99_999 }],
+  ])(
+    "discards a known event with %s and keeps the generic report",
+    async (_name, coreResponse) => {
+      const { report } = await run((child) => {
+        child.emit("message", { event: "start_failed", coreResponse });
+        child.emit("close", 1, null);
+      });
+      expect(report).toHaveBeenCalledExactlyOnceWith({
+        code: "runner_exited",
+        message: "The runner ended with exit code 1",
+      });
+    },
+  );
+
   it("reports a killed runner and survives Core refusing the report", async () => {
     const { code, report } = await run(
       (child) => child.emit("close", null, "SIGKILL"),

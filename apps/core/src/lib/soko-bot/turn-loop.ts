@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import {
   isSokoBotSandboxCapability,
   isSokoBotSilentAnswer,
@@ -11,6 +12,8 @@ import {
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
@@ -25,6 +28,7 @@ import { claimsAction } from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding, evaluationContext } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
+import type { TurnPart } from "./turn-parts";
 
 /**
  * The parts of a turn every runtime shares, whether the loop runs inside Core
@@ -106,14 +110,18 @@ export class RuntimeEventLog {
   /**
    * Appends unless the turn already holds one of these event types, checked
    * under the same lock as the write. False when it was left out.
+   * `shouldAppend` decides under that lock, before the insert, and what it
+   * writes commits with the event. False skips the insert but still commits
+   * the transaction, so it must return false before it writes anything.
    */
   async appendUnless(
     event: RuntimeEvent,
     recorded: readonly string[],
+    shouldAppend?: (tx: Prisma.TransactionClient) => Promise<boolean>,
   ): Promise<boolean> {
     const queued = this.tail.then(
-      () => this.write(event, recorded),
-      () => this.write(event, recorded),
+      () => this.write(event, recorded, shouldAppend),
+      () => this.write(event, recorded, shouldAppend),
     );
     // A failed append must not cancel the ones queued behind it.
     this.tail = queued.catch(() => undefined);
@@ -123,6 +131,7 @@ export class RuntimeEventLog {
   private async write(
     event: RuntimeEvent,
     unless: readonly string[],
+    shouldAppend?: (tx: Prisma.TransactionClient) => Promise<boolean>,
   ): Promise<boolean> {
     return prisma.$transaction(async (tx) => {
       const key = `soko-bot-runtime-event:${this.turnId}`;
@@ -136,6 +145,7 @@ export class RuntimeEventLog {
         });
         if (held) return false;
       }
+      if (shouldAppend && !(await shouldAppend(tx))) return false;
       const latest = await tx.sokoBotRuntimeEvent.findFirst({
         where: { turnId: this.turnId },
         orderBy: { startIndex: "desc" },
@@ -170,10 +180,17 @@ export async function settleNow(turnId: string): Promise<void> {
     await sokoBotControlPlane.reconcileTurn(turnId);
   } catch (error) {
     // The cron will retry; a lost lease just means it got there first.
-    console.warn("Soko Bot inline settle failed", {
-      turnId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Only safe fields: settling writes the turn's reply, and a Prisma error
+    // quotes what it writes.
+    recordCoreWarning(
+      { operation: "soko_bot_turn_settle" },
+      {
+        message: "Could not settle a Soko Bot turn right after its loop",
+        why: "Reconciling the turn failed, or the cron held its lease",
+        fix: "Nothing in production: the soko-bot-turns cron settles it. Crons do not run on previews, so a preview turn stays open.",
+      },
+      { turnId, failure: messageSafeErrorFields(error) },
+    );
   }
 }
 
@@ -217,6 +234,8 @@ export interface PreparedTurn {
   >["inferenceRegion"];
   capabilities: readonly SokoBotCapability[];
   requiresActionProof: boolean;
+  /** Briefs the runtime runs side by side before the message (turn-parts). */
+  parts: readonly TurnPart[];
 }
 
 const LATEST_EXCHANGE_WINDOW_MS = 24 * 60 * 60 * 1_000;
@@ -358,6 +377,13 @@ export async function prepareTurn(
       JSON.stringify(evaluationContext(context.packet)),
     ),
   ].join("\n");
+  // Only a Cuso's first read has parts today (SOKD-167).
+  const parts =
+    version.profile === "cmo"
+      ? await (await import("@/services/cmo-hiring.service")).cmoTurnParts(
+          turnId,
+        )
+      : [];
   return {
     turnId,
     sessionId,
@@ -366,6 +392,7 @@ export async function prepareTurn(
     inferenceRegion: version.inferenceRegion,
     capabilities,
     requiresActionProof,
+    parts,
   };
 }
 
@@ -534,10 +561,22 @@ async function ownerNarrative(
   );
   if (claim === false) return narrative;
   // Counted, never quoted: how often a reply is withheld is the signal.
-  console.warn("Soko Bot reply withheld", {
-    turnId,
-    reason: claim === null ? "unchecked" : "claims_unconfirmed_change",
-  });
+  recordCoreWarning(
+    { operation: "soko_bot_reply_check" },
+    {
+      message: "Withheld a Soko Bot reply",
+      why:
+        claim === null
+          ? "The check for claims of unconfirmed changes could not run"
+          : "The reply claims a change that no action receipt confirms",
+    },
+    {
+      turnId,
+      replyWithheld: {
+        reason: claim === null ? "unchecked" : "claims_unconfirmed_change",
+      },
+    },
+  );
   // A claim is dropped: the receipts say what changed, or that nothing did.
   // An unchecked reply is not shown either, but the owner is told why.
   return {

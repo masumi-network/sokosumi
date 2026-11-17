@@ -45,7 +45,7 @@ vi.mock("@/lib/image-studio/fal-webhook", async () => ({
 }));
 
 import { mountFalImageJobsWebhook } from "@/routes/webhooks/fal/image-jobs";
-import { expectConsole } from "@/test/console";
+import { causeMessage, expectCoreLog } from "@/test/core-log";
 
 const app = new Hono();
 mountFalImageJobsWebhook(app);
@@ -138,7 +138,7 @@ describe("fal completion callback", () => {
   });
 
   it("touches nothing for an unverified delivery", async () => {
-    expectConsole("warn", "[webhooks/fal] rejected delivery");
+    const warnings = expectCoreLog("warn", "Rejected a fal webhook delivery");
     verifyMock.mockResolvedValue({ ok: false, reason: "signature_mismatch" });
 
     const response = await deliver({
@@ -150,6 +150,29 @@ describe("fal completion callback", () => {
     expect(response.status).toBe(401);
     expect(failImageJobMock).not.toHaveBeenCalled();
     expect(jobFindUniqueMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.why).toBe(
+      "Its signature did not verify against fal's published keys",
+    );
+    expect(warnings[0]?.event).toMatchObject({
+      verification: { reason: "signature_mismatch" },
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+  });
+
+  it("keeps the key fetch's own text in cause, not in the reason field", async () => {
+    const warnings = expectCoreLog("warn", "Rejected a fal webhook delivery");
+    verifyMock.mockResolvedValue({
+      ok: false,
+      reason: "jwks:fetch failed: ECONNRESET",
+    });
+
+    const response = await deliver({ request_id: REQUEST_ID, status: "OK" });
+
+    expect(response.status).toBe(401);
+    expect(warnings[0]?.event).toMatchObject({
+      verification: { reason: "jwks" },
+    });
+    expect(causeMessage(warnings[0]?.cause)).toBe("fetch failed: ECONNRESET");
   });
 
   it("ignores a request id it does not know, rather than failing something else", async () => {

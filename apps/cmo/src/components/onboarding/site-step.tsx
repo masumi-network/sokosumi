@@ -103,12 +103,16 @@ export function SiteStep({
   const [questions, answer] = useAnswers(brain?.questions ?? [], onAnswer);
   const answered = questions.map((question) => question.answer !== undefined);
   const firstOpen = answered.indexOf(false);
-  // Where the founder is in the questions; "Change answers" starts again.
-  const [at, setAt] = useState<number | null>(null);
+  // The question the founder is on, by id: the list can change while Cuso
+  // still reads, and a place in it would then show a question twice.
+  // "Change answers" starts again.
+  const [at, setAt] = useState<string | null>(null);
+  const atIndex = questions.findIndex((question) => question.id === at);
   // Skipping shows its result at once; the cookie write takes a moment.
   const [skipping, setSkipping] = useState(false);
-  const asking = !skipping && (at !== null || (firstOpen !== -1 && !skipped));
-  const index = at ?? Math.max(firstOpen, 0);
+  const asking =
+    !skipping && (atIndex !== -1 || (firstOpen !== -1 && !skipped));
+  const index = atIndex !== -1 ? atIndex : Math.max(firstOpen, 0);
   const question = questions[index];
 
   const title = failed
@@ -208,11 +212,11 @@ export function SiteStep({
           answered={answered}
           onAnswer={async (value, note) => {
             // The next question shows at once; a failed save comes back to this one.
-            setAt(index + 1 < questions.length ? index + 1 : null);
+            setAt(questions[index + 1]?.id ?? null);
             try {
               await answer(question.id, value, note);
             } catch (error) {
-              setAt(index);
+              setAt(question.id);
               throw error;
             }
           }}
@@ -246,7 +250,7 @@ export function SiteStep({
             <button
               type="button"
               className="button button-ghost button-small"
-              onClick={() => setAt(0)}
+              onClick={() => setAt(questions[0]?.id ?? null)}
             >
               Change answers
             </button>

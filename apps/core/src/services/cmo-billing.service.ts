@@ -5,6 +5,7 @@ import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import { recordCoreWarning } from "@/lib/evlog";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
   CmoConflictError,
@@ -283,9 +284,16 @@ export interface CmoBilling {
 /** The tier of a plan product; null when Polar's catalog does not answer. */
 async function cmoPlanTier(productId: string): Promise<string | null> {
   const catalog = await getCmoCatalog().catch((error) => {
-    console.warn("CMO catalog not read", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_plan_tier" },
+      {
+        message: "Could not read the CMO plan catalog",
+        why: "Polar's product catalog did not answer",
+        fix: "The scheduled plan change shows no tier until the catalog answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+      { polarProduct: { id: productId } },
+    );
     return null;
   });
   return (

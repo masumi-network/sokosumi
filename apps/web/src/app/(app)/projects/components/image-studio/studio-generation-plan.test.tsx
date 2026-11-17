@@ -15,6 +15,9 @@ const { uploadPhoto, getBrandKit } = vi.hoisted(() => ({
   getBrandKit: vi.fn(),
 }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioBrandKit: getBrandKit,
 }));

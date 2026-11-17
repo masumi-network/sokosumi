@@ -1,12 +1,11 @@
 import type { PendingInvitation } from "@sokosumi/core-client";
 import { MemberRole } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
-
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
-
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 
@@ -33,7 +32,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 
 describe("InvitationActionsDropdown", () => {
   it("reports a failed resend as a failure only", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to resend invitation");
     inviteMemberMock.mockResolvedValue({ error: { message: "rate limited" } });
 
     render(

@@ -7,6 +7,8 @@ export const LONG_FORM_WRITING_SKILLS: readonly WritingSkill[] = [
     name: "Newsletter",
     description:
       "Read before any newsletter issue: a subject line people open, one idea, one link to click.",
+    audience:
+      "People who already know the business and asked to hear from it. Worth it for every business with a mailing list: it brings them back rather than reaching new people.",
     channels: ["newsletter"],
     content: `# Newsletter
 
@@ -90,6 +92,8 @@ Anna, from the bakery
     name: "Search (SEO)",
     description:
       "Read before any article or page fix: answer the search first, titles and descriptions that fit Google's limits.",
+    audience:
+      "People searching for an answer or a product right now. Worth it for almost every business: each piece answers a search its buyers make.",
     channels: ["seo"],
     content: `# Search (SEO)
 

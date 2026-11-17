@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
   afterAll,
@@ -8,7 +9,6 @@ import {
   it,
   vi,
 } from "vitest";
-
 import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
 
 const {
@@ -521,6 +521,7 @@ describe("StudioPage", () => {
   });
 
   it("keeps the first-ad screen when recent projects are empty or unavailable", async () => {
+    expectConsole("warn", "Image studio: recent projects unavailable");
     imageStudioServiceMock.getRecentProjects.mockRejectedValue(
       new Error("Core down"),
     );
@@ -582,6 +583,10 @@ describe("StudioPage", () => {
   });
 
   it("survives a selection Core will not accept, instead of taking the page down", async () => {
+    expectConsole(
+      "warn",
+      "Image studio: ignoring an unusable selection from the URL",
+    );
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     // Once-only answers: clearAllMocks keeps an implementation, and a lasting
     // one would leak into later tests.

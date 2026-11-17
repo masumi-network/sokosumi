@@ -46,7 +46,12 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
 ] as const;
 
 /** You page rows that live outside `/you/`; back returns to You. */
-const YOU_HUB_CHILD_PATHS = ["/account", "/billing", "/connections"] as const;
+const YOU_HUB_CHILD_PATHS = [
+  "/account",
+  "/billing",
+  "/connections",
+  "/seo",
+] as const;
 
 const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
 

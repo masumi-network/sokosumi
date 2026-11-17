@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mountDeleteChatRoomCoworker from "../[id]/coworkers/[coworkerId]/delete";
 import mountDeleteChatRoomMember from "../[id]/members/[userId]/delete";
 import mountPostChatRoomMembers from "../[id]/members/post";
@@ -139,6 +138,7 @@ function bot(
       name,
       avatarImageUrl: null,
       avatarSeed: null,
+      avatarCode: null,
       userId: ownerUserId,
       projectId: shared.projectId ?? null,
       sharedRoomId: shared.sharedRoomId ?? null,
@@ -739,9 +739,16 @@ describe("channel membership authorization and concurrency", () => {
   );
 
   it("keeps other after-commit effects independent when timeline publication fails", async () => {
-    expectConsole("error", "Failed to publish channel membership change");
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish every effect of a channel membership change",
+      ["A realtime publish failed after the membership change was saved"],
+    );
     asRole("admin");
-    mocks.publishStatus.mockRejectedValue(new Error("timeline unavailable"));
+    // A status message is chat text; the publish error can quote it.
+    mocks.publishStatus.mockRejectedValue(
+      new Error('Payload "Dana left the channel" rejected'),
+    );
     expect(
       (await request(ADMIN_ID, "DELETE", `/members/${MEMBER_ID}`)).status,
     ).toBe(200);
@@ -751,6 +758,11 @@ describe("channel membership authorization and concurrency", () => {
       "removed",
     );
     expect(mocks.publishMentionStatuses).toHaveBeenCalled();
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event.failures).toEqual([
+      { effect: "status_messages", failure: { errorName: "Error" } },
+    ]);
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Dana left");
   });
 
   it("allows an organization owner to remove a host", async () => {

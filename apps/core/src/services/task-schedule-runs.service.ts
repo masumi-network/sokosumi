@@ -21,8 +21,6 @@ import {
   createTaskFromBlueprint,
 } from "./task-schedule-task.service";
 
-export { announceReleasedTasks } from "./task-schedule-task.service";
-
 /**
  * The Run ledger of Task Schedules (ADR 0041): which Runs are
  * planned, and the release that turns each due one into a Task.

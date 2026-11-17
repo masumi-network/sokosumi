@@ -12,6 +12,7 @@ import {
 } from "@/components/agents/agent-action-buttons";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
+import { BackLink } from "@/components/back-link";
 import { Skeleton } from "@/components/ui/skeleton";
 import useIsClient from "@/hooks/use-is-client";
 import {
@@ -71,13 +72,13 @@ function AgentDetailHeader({
       <div className="hidden w-full md:block">
         <div className="flex w-full items-center justify-between">
           {showBackButton && (
-            <Link
+            <BackLink
               href="/agents"
               className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm text-nowrap transition-colors"
             >
               <ArrowLeft className="size-4" />
               <span>{tJobsHeader("back")}</span>
-            </Link>
+            </BackLink>
           )}
           <AgentActionButtons
             agent={agent}

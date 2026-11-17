@@ -5,7 +5,7 @@ Projects lets a signed-in user open `/projects` and see their projects as a card
 ## Sub-features
 
 - `projects-open` loads `/projects` while authenticated.
-- `projects-list-or-empty` shows project cards **or** heading “No projects yet”. Open / Hidden / Closed filters and a **Recent activity** column are part of the same page.
+- `projects-list-or-empty` shows project cards **or** heading “No projects yet”. Open / Hidden / Closed filters are on the page. **Recent activity** sits beside the grid on Open only.
 - `projects-gated` is covered by the shared app auth gate (anonymous users bounce to sign-in).
 
 ## How to get to it (user POV)

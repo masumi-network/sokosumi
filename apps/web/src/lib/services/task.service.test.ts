@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 
 const coreClientMock = {
   createTaskLink: vi.fn(),
@@ -546,6 +547,7 @@ describe("task.service", () => {
 
   // Null, not zeros: the landing hides chips rather than claiming idle activity.
   it("returns null when the activity summary request fails", async () => {
+    expectConsole("error", "Failed to load task activity summary");
     coreClientMock.getTasksSummary.mockRejectedValue(new Error("core down"));
 
     const { taskService } = await import("./task.service");

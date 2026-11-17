@@ -33,7 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { coworker: { findUnique: coworkerFindUniqueMock } },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectCoreLog } from "@/test/core-log";
 import {
   LATE_RESPONSE_GRACE_MS,
   LATE_RESPONSE_MAX_AGE_MS,
@@ -203,9 +203,9 @@ describe("syncLateCoworkerResponses", () => {
   });
 
   it("removes an expired entry even when its note cannot be saved", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "[sync/coworker-late-responses] Failed to deliver resp_old",
+      "Could not deliver a late coworker reply to its chat",
     );
     listMock.mockResolvedValue([
       entry("resp_old", LATE_RESPONSE_MAX_AGE_MS + 1),
@@ -214,12 +214,24 @@ describe("syncLateCoworkerResponses", () => {
 
     expect(await sync()).toEqual({ delivered: 0, dropped: 1, waiting: 0 });
     expect(untrackMock).toHaveBeenCalledWith("resp_old");
+    // Only safe fields: the reply being saved can echo its text.
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("coworker deleted");
+    expect(errors[0]).toMatchObject({
+      why: "Saving the reply failed",
+      fix: expect.stringContaining("dropped"),
+    });
+    expect(errors[0]?.event).toMatchObject({
+      coworkerLateResponse: { id: "resp_old", expired: true },
+    });
   });
 
   it("retries later when saving the reply fails", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "[sync/coworker-late-responses] Failed to deliver resp_late",
+      "Could not deliver a late coworker reply to its chat",
     );
     listMock.mockResolvedValue([
       entry("resp_late", LATE_RESPONSE_GRACE_MS + 1),
@@ -232,5 +244,17 @@ describe("syncLateCoworkerResponses", () => {
 
     expect(await sync()).toEqual({ delivered: 0, dropped: 0, waiting: 1 });
     expect(untrackMock).not.toHaveBeenCalled();
+    // Only safe fields: the reply being saved can echo its text.
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("db down");
+    expect(errors[0]).toMatchObject({
+      why: "Saving the reply failed",
+      fix: expect.stringContaining("next coworker-late-responses sync"),
+    });
+    expect(errors[0]?.event).toMatchObject({
+      coworkerLateResponse: { id: "resp_late", expired: false },
+    });
   });
 });

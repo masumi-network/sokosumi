@@ -28,5 +28,5 @@ Preconditions:
 ## Gotchas
 
 - Empty contacts is valid for a fixture user. People are filled from mail, calendar, and Slack connections on Soko Bots, not by this landing check.
-- **Lists** and **Companies** are adjacent chrome. Opening them is out of scope.
+- A **Layout** control (**Table** / **Map** / **Companies**) sits beside the presets, plus **Lists** and **Companies** filters. The landing proof stays on **Table** and the three presets. Opening the map, a company, or a duplicate merge is out of scope. **Possible duplicates** shows only when Core returns groups.
 - This is not the account menu. The sidebar label is **Contacts**.

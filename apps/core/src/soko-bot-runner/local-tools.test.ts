@@ -7,6 +7,7 @@ import {
   htmlToText,
   readWorkspaceUpload,
   runCommand,
+  socialLinks,
   WORKSPACE,
   workspacePath,
 } from "./local-tools";
@@ -59,6 +60,31 @@ describe("workspace files for upload_file", () => {
 describe("html to text", () => {
   it("decodes entities once", () => {
     expect(htmlToText("<p>a &amp;lt; b &lt; c</p>")).toBe("a &lt; b < c");
+  });
+});
+
+describe("social links on a page", () => {
+  it("keeps the profiles a footer links to with icons only", () => {
+    const html = `<footer>
+      <a href="https://x.com/BeginWallet"><svg></svg></a>
+      <a href="https://www.youtube.com/@beginwallet/">YouTube</a>
+      <a href="https://github.com/begin-wallet?tab=repos&amp;q=x">GitHub</a>
+      <a href="https://x.com/BeginWallet">again</a>
+      <a href="/pricing">Pricing</a>
+    </footer>`;
+    expect(socialLinks(html)).toEqual([
+      "https://x.com/BeginWallet",
+      "https://youtube.com/@beginwallet",
+      "https://github.com/begin-wallet",
+    ]);
+  });
+
+  it("leaves out share buttons and bare network homepages", () => {
+    const html = `<a href="https://twitter.com/intent/tweet?text=hi">Share</a>
+      <a href="https://www.facebook.com/sharer/sharer.php?u=x">Share</a>
+      <a href="https://www.linkedin.com/shareArticle?url=x">Share</a>
+      <a href="https://instagram.com/">Instagram</a>`;
+    expect(socialLinks(html)).toEqual([]);
   });
 });
 

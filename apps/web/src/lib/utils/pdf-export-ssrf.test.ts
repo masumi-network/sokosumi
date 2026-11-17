@@ -8,8 +8,8 @@ vi.mock("@sokosumi/net", () => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import type { HTTPRequest, Page } from "puppeteer-core";
-
 import {
   installPdfExportRequestGuard,
   isAllowedLocalBrowserUrl,
@@ -96,7 +96,7 @@ describe("pdf-export-ssrf helpers", () => {
   });
 
   it("aborts and logs when ssrfSafeFetch rejects (blocked target)", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = expectConsole("warn", "[pdf-export-ssrf] blocked request");
     const handlers: Array<(request: HTTPRequest) => void> = [];
     const page = {
       on: (_event: string, handler: (request: HTTPRequest) => void) => {
@@ -121,14 +121,13 @@ describe("pdf-export-ssrf helpers", () => {
     await vi.waitFor(() =>
       expect(abortMock).toHaveBeenCalledWith("blockedbyclient"),
     );
-    expect(warnSpy).toHaveBeenCalledWith(
+    expect(warnSpy).toContainEqual([
       "[pdf-export-ssrf] blocked request",
       expect.objectContaining({
         reason: "ssrf_or_fetch_failed",
         url: "http://169.254.169.254/latest/meta-data/",
       }),
-    );
-    warnSpy.mockRestore();
+    ]);
   });
 });
 
@@ -161,13 +160,12 @@ it("cancels a stalled PDF resource download with the operation signal", async ()
     method: () => "GET",
     abort,
   };
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  expectConsole("warn", "[pdf-export-ssrf] blocked request");
   try {
     handle?.(request as HTTPRequest);
     controller.abort();
     await vi.waitFor(() => expect(abort).toHaveBeenCalled());
     expect(aborted).toHaveBeenCalledOnce();
   } finally {
-    warn.mockRestore();
   }
 });

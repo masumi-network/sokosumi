@@ -3,6 +3,8 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "./jev";
 
 export interface AgentSearchCandidate {
@@ -107,9 +109,16 @@ export async function rateAgentFit(
     });
     return ratings;
   } catch (error) {
-    console.warn("Soko Bot agent fit rating failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only safe fields: a model error can quote the text it was sent.
+    recordCoreWarning(
+      { operation: "soko_bot_agent_fit" },
+      {
+        message: "Could not rate how well marketplace agents fit a request",
+        why: "Jev, the judging model, failed or timed out",
+        fix: "Nothing: the search returns its agents unrated.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
 }

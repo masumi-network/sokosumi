@@ -150,6 +150,10 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
     alias: {
+      // Before the package root: a string alias also matches its subpaths.
+      "@sokosumi/utils/test-console": fileURLToPath(
+        new URL("../../packages/utils/src/test-console.ts", import.meta.url),
+      ),
       "@sokosumi/utils": fileURLToPath(
         new URL("../../packages/utils/src/index.ts", import.meta.url),
       ),

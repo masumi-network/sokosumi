@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import type Stripe from "stripe";
 
+import { tryUseLiveLogger } from "@/lib/evlog";
 import { handleCustomerCreatedEvent } from "@/services/stripe-customer-created.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
@@ -54,9 +55,10 @@ export const stripeWebhookService = {
         break;
       }
       default: {
-        console.info(
-          `[webhooks/stripe] Unhandled Stripe event type: ${event.type}`,
-        );
+        // Routine, so a field on the Stripe webhook's request event.
+        tryUseLiveLogger()?.set({
+          stripeWebhook: { unhandledEventType: event.type },
+        });
         break;
       }
     }

@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TASK_DETAIL_SHELL_CLASS } from "@/app/tasks/constants";
@@ -490,6 +491,7 @@ describe("ProjectDetailPage", () => {
   });
 
   it("leaves the strip out when the counts fail to load", async () => {
+    expectConsole("warn", "Project Overview task counts failed");
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
     projectServiceMock.getProjectsStats.mockRejectedValue(new Error("down"));
 
@@ -505,6 +507,7 @@ describe("ProjectDetailPage", () => {
   });
 
   it("scopes Needs you and Recent activity to the project", async () => {
+    expectConsole("warn", "Workspace column feed failed");
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
     notificationServiceMock.listNeedsYou.mockRejectedValue(new Error("down"));
 

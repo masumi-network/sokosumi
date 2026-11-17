@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { withoutElement } from "@/test/without-element";
 import SharePageLayout from "./(page)/layout";
 import ShareLayout, { ShareImpersonationBanner } from "./layout";
 
@@ -57,10 +57,12 @@ describe("ShareLayout", () => {
   });
 
   it("renders children without the share chrome, so data rooms stay clean", () => {
+    // The async banner cannot render in happy-dom; it is tested below.
     render(
-      <ShareLayout>
-        <div data-testid="share-child" />
-      </ShareLayout>,
+      withoutElement(
+        ShareLayout({ children: <div data-testid="share-child" /> }),
+        ShareImpersonationBanner,
+      ),
     );
 
     expect(screen.getByTestId("share-child")).toBeInTheDocument();

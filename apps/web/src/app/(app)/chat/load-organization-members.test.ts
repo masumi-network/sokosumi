@@ -11,6 +11,7 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { loadOrganizationMembers } from "./load-organization-members";
 
@@ -43,7 +44,10 @@ describe("loadOrganizationMembers", () => {
   });
 
   it("soft-fails CoreApiRequestError instead of throwing", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = expectConsole(
+      "error",
+      "Failed to load organization members",
+    );
     getOrganizationMembersMock.mockRejectedValue(
       new CoreApiRequestError("An unexpected error occurred", {
         status: 500,
@@ -55,8 +59,7 @@ describe("loadOrganizationMembers", () => {
       members: [],
       failed: true,
     });
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(errorSpy).not.toHaveLength(0);
   });
 
   it("rethrows unexpected errors", async () => {

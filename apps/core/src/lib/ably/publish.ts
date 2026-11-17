@@ -17,6 +17,8 @@ import {
   makeWorkspaceCalendarChannelName,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
 import {
@@ -399,11 +401,28 @@ async function publishToUsers(
     return;
   }
   const results = await Promise.allSettled(uniqueUserIds.map(publish));
-  for (const result of results) {
-    if (result.status === "rejected") {
-      console.error(`Failed to publish ${label} to a user`, result.reason);
-    }
-  }
+  const failures = results.flatMap((result, index) =>
+    result.status === "rejected"
+      ? [{ userId: uniqueUserIds[index], reason: result.reason as unknown }]
+      : [],
+  );
+  if (failures.length === 0) return;
+  // One event for the fan-out: the first error as cause, each user's below.
+  recordCoreError(
+    { operation: "ably_user_publish", ablyPublish: { label } },
+    {
+      message: "Could not send a realtime update to some users",
+      why: "Ably rejected the publish to their channels",
+      fix: "Their apps catch up on the next reload. ablyPublishFailures lists each user.",
+      cause: failures[0]?.reason,
+    },
+    {
+      ablyPublishFailures: failures.map(({ userId, reason }) => ({
+        userId,
+        ...messageSafeErrorFields(reason),
+      })),
+    },
+  );
 }
 
 /** Best-effort fan-out of revoke signals; one failure does not block others. */
@@ -462,16 +481,16 @@ export async function publishChatRoomsChanged({
         channels.slice(offset, offset + CHAT_CONTROL_BATCH_CHANNEL_LIMIT),
       );
     }
+    // One event for the whole publish: a failed channel or batch each adds
+    // an item, the first error is its cause.
+    const failures: { channel?: string; batch?: number; reason: unknown }[] =
+      [];
     const outcomes = await Promise.allSettled(
       batches.map(async (batch) => {
         const result = await client.batchPublish({ channels: batch, messages });
         for (const entry of result.results) {
           if ("error" in entry) {
-            console.error(
-              "Failed to publish chat rooms changed to channel",
-              entry.channel,
-              entry.error,
-            );
+            failures.push({ channel: entry.channel, reason: entry.error });
             Sentry.captureException(entry.error, {
               tags: { context: "chat_rooms_changed" },
               extra: { roomId, channel: entry.channel },
@@ -480,20 +499,46 @@ export async function publishChatRoomsChanged({
         }
       }),
     );
-    for (const outcome of outcomes) {
+    outcomes.forEach((outcome, batch) => {
       if (outcome.status === "rejected") {
-        console.error(
-          "Failed to publish chat rooms changed batch",
-          outcome.reason,
-        );
+        failures.push({ batch, reason: outcome.reason });
         Sentry.captureException(outcome.reason, {
           tags: { context: "chat_rooms_changed" },
           extra: { roomId },
         });
       }
+    });
+    if (failures.length > 0) {
+      recordCoreError(
+        { operation: "ably_chat_rooms_changed" },
+        {
+          message:
+            "Could not tell some users' apps that their chat rooms changed",
+          why: "Ably rejected the publish on some channels, or a batch request failed",
+          fix: "Their sidebars catch up on the next change or reload. Sentry has each error.",
+          cause: failures[0]?.reason,
+        },
+        {
+          roomId,
+          chatRoomsChangedFailures: failures.map(({ reason, ...failure }) => ({
+            ...failure,
+            ...messageSafeErrorFields(reason),
+          })),
+        },
+      );
     }
   } catch (error) {
-    console.error("Failed to publish chat rooms changed", error);
+    recordCoreError(
+      { operation: "ably_chat_rooms_changed" },
+      {
+        message:
+          "Could not tell some users' apps that their chat rooms changed",
+        why: "Creating the Ably client or sending the publish failed",
+        fix: "Their sidebars catch up on the next change or reload. Check the Ably configuration if it repeats.",
+        cause: error,
+      },
+      { roomId },
+    );
     Sentry.captureException(error, {
       tags: { context: "chat_rooms_changed" },
       extra: { roomId },

@@ -56,6 +56,7 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { error: mocks.toast, success: vi.fn() } }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { setupAssistantPath } from "@/lib/workspace-gate";
 import { IdentityOnboardingForm } from "./identity-onboarding-form.client";
 
@@ -123,7 +124,6 @@ describe("IdentityOnboardingForm navigation", () => {
       value: { results: [{ status: "sent" }] },
     });
     vi.spyOn(window.location, "replace").mockImplementation(mocks.replace);
-    vi.spyOn(console, "error").mockImplementation(() => {});
   });
   afterEach(() => vi.restoreAllMocks());
   it("keeps ready dialog locked through activation and preference before invite return navigation", async () => {
@@ -161,10 +161,10 @@ describe("IdentityOnboardingForm navigation", () => {
     await user.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(mocks.setActive).toHaveBeenCalledOnce();
-    await act(() => activation.resolve({ data: null, error: null }));
+    await act(async () => activation.resolve({ data: null, error: null }));
     expect(mocks.preferred).toHaveBeenCalledWith({ organizationId: "org-1" });
     expect(mocks.replace).not.toHaveBeenCalled();
-    await act(() =>
+    await act(async () =>
       preference.resolve({ ok: true, value: { organizationId: "org-1" } }),
     );
     expect(mocks.replace).toHaveBeenCalledWith(
@@ -199,6 +199,11 @@ describe("IdentityOnboardingForm navigation", () => {
   it.each(["in-band", "rejection"])(
     "retries %s selection errors and completes after preference failure",
     async (errorKind) => {
+      expectConsole("error", "Failed to persist preferred organization");
+      expectConsole(
+        "error",
+        "Identity onboarding organization activation failed",
+      );
       if (errorKind === "in-band")
         mocks.setActive.mockResolvedValueOnce({
           data: null,
@@ -250,6 +255,14 @@ describe("IdentityOnboardingForm navigation", () => {
     expect(mocks.send).toHaveBeenCalledOnce();
   });
   it("leaves after both activation attempts fail, preserving the caller fallback", async () => {
+    expectConsole(
+      "error",
+      "Identity onboarding organization activation retry failed",
+    );
+    expectConsole(
+      "error",
+      "Identity onboarding organization activation failed",
+    );
     mocks.setActive.mockResolvedValue({
       data: null,
       error: { message: "offline" },
@@ -307,7 +320,7 @@ describe("IdentityOnboardingForm navigation", () => {
     await openCreatedWizard();
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(mocks.setActive).not.toHaveBeenCalled();
-    await act(() =>
+    await act(async () =>
       creation.resolve({ ok: true, value: { organizationId: "org-1" } }),
     );
     expect(

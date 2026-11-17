@@ -123,17 +123,6 @@ export async function resolveProjectReaderAccess(
   throw forbidden("Unsupported actor for project visibility");
 }
 
-export async function resolveProjectReaderVisibility(
-  authContext: AuthenticationContext,
-  workspaceId: string,
-): Promise<ProjectReaderVisibility> {
-  const { prismaWhere } = await resolveProjectReaderAccess(
-    authContext,
-    workspaceId,
-  );
-  return prismaWhere;
-}
-
 export function createProjectListCountsInclude(
   workspaceId: string,
   visibility: ProjectReaderVisibility,

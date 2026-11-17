@@ -2,10 +2,9 @@ import type { CreditCost } from "@sokosumi/database";
 import type { X402AvailableNetwork, X402KeySpendCaps } from "@sokosumi/masumi";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
 import { LIMITS } from "@/config/constants";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
-import { expectConsole } from "@/test/console";
+import { expectCoreLog } from "@/test/core-log";
 import {
   availableNetwork,
   BASE_MAINNET_USDC,
@@ -78,9 +77,9 @@ describe("composeX402ReadySources", () => {
   });
 
   it("drops a funded node-default asset without trusted EIP-712 metadata and names the gap", () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/agents] x402 chain eip155:84532 is enabled and priced",
+      "An enabled, priced x402 chain is not payable",
     );
     const unknownAsset = "0x2222222222222222222222222222222222222222";
     expect(
@@ -91,12 +90,10 @@ describe("composeX402ReadySources", () => {
     ).toEqual([]);
     // Soko-side config gap, not node state: silent, it is indistinguishable
     // from "node not ready", so the warn must name the pair and the map.
-    expect(warnings).toContainEqual([
-      expect.stringContaining(
-        `no trusted EIP-712 domain; add it to X402_TRUSTED_EXACT_EVM_DOMAINS`,
-      ),
-    ]);
-    expect(warnings).toContainEqual([expect.stringContaining(unknownAsset)]);
+    expect(warnings[0]).toMatchObject({
+      fix: expect.stringContaining("X402_TRUSTED_EXACT_EVM_DOMAINS"),
+      event: { x402: { caip2Network: "eip155:84532", asset: unknownAsset } },
+    });
   });
 
   describe("the key's spend cap", () => {
@@ -130,31 +127,28 @@ describe("composeX402ReadySources", () => {
       // A zero-credit key passes every wallet-side checklist item. The wallet
       // is listed and funded, so without this warn it is a silent zero-pairs
       // deployment.
-      const warnings = expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      const warnings = expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           caps: cappedWith(0n),
         }),
       ).toEqual([]);
       expect(warnings).toHaveLength(1);
-      expect(warnings).toContainEqual([
-        expect.stringContaining(`eip155:84532:${USDC_BASE_SEPOLIA}`),
-      ]);
-      expect(warnings).toContainEqual([
-        expect.stringContaining("PATCH /api/v1/api-key"),
-      ]);
+      expect(warnings[0]).toMatchObject({
+        message: expect.stringContaining("has no remaining usage credits"),
+        fix: expect.stringContaining(
+          `eip155:84532:${USDC_BASE_SEPOLIA} with PATCH /api/v1/api-key`,
+        ),
+        event: {
+          x402: { caip2Network: "eip155:84532", asset: USDC_BASE_SEPOLIA },
+        },
+      });
     });
 
     it("drops the pair when the key holds credits only for ANOTHER chain", () => {
       // The cap is per (chain, asset) unit, not one pooled EVM budget, so
       // mainnet credits must not unlock a testnet pair.
-      expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           caps: keySpendCaps({
@@ -172,18 +166,13 @@ describe("composeX402ReadySources", () => {
       // uncapped spend, so this gate let it through and warned instead. The
       // node now refuses every payment it makes, so the pair is not payable
       // and must not be listed.
-      const warnings = expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      const warnings = expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           caps: keySpendCaps({ usageLimited: true }),
         }),
       ).toEqual([]);
-      expect(warnings).toContainEqual([
-        expect.stringContaining("has no remaining usage credits"),
-      ]);
+      expect(warnings[0]?.message).toContain("has no remaining usage credits");
     });
 
     it("keeps the cap warns silent for an ordinary funded capped key", () => {
@@ -198,19 +187,14 @@ describe("composeX402ReadySources", () => {
 
   describe("choosing the signing wallet", () => {
     it("fails closed and names the chain when no Purchasing wallet is listed", () => {
-      const warnings = expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      const warnings = expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           walletStates: [],
         }),
       ).toEqual([]);
       expect(warnings).toHaveLength(1);
-      expect(warnings).toContainEqual([
-        expect.stringContaining("no usable Purchasing wallet"),
-      ]);
+      expect(warnings[0]?.message).toContain("no usable Purchasing wallet");
     });
 
     it("keeps the wallet warn silent when a wallet backs the pair", () => {
@@ -256,10 +240,7 @@ describe("composeX402ReadySources", () => {
         },
       ],
     ])("requires a positive %s balance", (_label, overrides) => {
-      expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           walletStates: [
@@ -273,10 +254,7 @@ describe("composeX402ReadySources", () => {
     });
 
     it("ignores a Selling wallet and a wallet on another chain", () => {
-      expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           walletStates: [
@@ -382,10 +360,7 @@ describe("composeX402ReadySources", () => {
       // The recorded pair carries the id AND the address the pay path binds
       // the signed payer to, so taking them from an arbitrary row can pair an
       // id with the wrong address and fail every payment on that pair.
-      const warnings = expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-      );
+      const warnings = expectCoreLog("warn", "An x402 pair has no");
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
           walletStates: [
@@ -403,9 +378,7 @@ describe("composeX402ReadySources", () => {
           ],
         }),
       ).toEqual([]);
-      expect(warnings).toContainEqual([
-        expect.stringContaining("no usable Purchasing wallet"),
-      ]);
+      expect(warnings[0]?.message).toContain("no usable Purchasing wallet");
     });
 
     it("keeps a distinct sibling usable when another id is poisoned", () => {
@@ -433,11 +406,7 @@ describe("composeX402ReadySources", () => {
     it("drops a wallet whose id is blank or whitespace only", () => {
       // Without a signable id the pay route cannot sign, so the pair must not
       // be recorded ready.
-      expectConsole(
-        "warn",
-        "[sync/agents] x402 pair eip155:84532:0x036cbd53842c5426634e7929541ec2318f3dcf7e has no",
-        2,
-      );
+      expectCoreLog("warn", "An x402 pair has no", 2);
       for (const id of ["", "   "]) {
         expect(
           composeX402ReadySources([availableNetwork()], "Preprod", {

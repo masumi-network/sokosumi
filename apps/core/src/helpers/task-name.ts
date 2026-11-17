@@ -2,8 +2,9 @@ import {
   removeTaskContextAttachmentLinks,
   replaceMarkdownLinks,
 } from "@sokosumi/utils";
-
 import { openrouterClient } from "@/clients/openrouter.client";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 const TASK_AUTO_NAME_MAX_LENGTH = 60;
 const UNTITLED_TASK_NAME = "Untitled Task";
@@ -114,7 +115,16 @@ export async function resolveTaskName(input: {
     generated = (await openrouterClient.generateTaskName(namingSource))?.trim();
   } catch (error) {
     // Best-effort naming. A parser/runtime throw must not fail task create.
-    console.error("Task name generation failed:", error);
+    // The description is user text an error can quote.
+    recordCoreError(
+      { operation: "task_name_generation" },
+      {
+        message: "Task name generation failed",
+        why: "Generating a task name from its description threw",
+        fix: "The task is named from its description's first line.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
   }
   if (generated) {
     const cleaned = cleanAutoName(generated);

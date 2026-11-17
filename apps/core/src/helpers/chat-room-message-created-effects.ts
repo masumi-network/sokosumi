@@ -9,6 +9,8 @@ import {
 } from "@/helpers/notification-delivery";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { shouldEmitChatDirectMessageNotifications } from "./chat-direct-message-notifications";
 import { fanOutChatNotifications } from "./chat-notification-fanout";
@@ -128,14 +130,27 @@ export async function emitChatRoomMessageCreatedEffects(
 
 /**
  * Reported as well as logged. This runs after the reader has been answered,
- * so the console line is the only trace a failure leaves, and nobody reads it
- * until someone already suspects the failure.
+ * so the log event is the only trace a failure leaves, and nobody reads it
+ * until someone already suspects the failure. Notifications quote the
+ * message, so the event keeps only content-free fields.
  */
 function report(
   error: unknown,
   params: ChatRoomMessageCreatedEffectsParams,
 ): void {
-  console.error("Failed to emit chat room message effects", error);
+  recordCoreError(
+    {
+      operation: "chat_room_message_effects",
+      roomId: params.roomId,
+      messageId: params.messageId,
+    },
+    {
+      message: "A chat message's notifications or reader refresh failed",
+      why: "Notifying the room's members of a new message failed after it was saved",
+      fix: "Members see the message on their next refresh; Sentry has the error.",
+    },
+    { failure: messageSafeErrorFields(error) },
+  );
   Sentry.captureException(error, {
     tags: { context: "chat_room_message_effects" },
     extra: { roomId: params.roomId, messageId: params.messageId },
@@ -182,7 +197,15 @@ export async function invalidateChatRoomMessageReaders(
     });
   } catch (error) {
     if (params.throwOnError) throw error;
-    console.error("Failed to invalidate chat room message readers", error);
+    recordCoreError(
+      { operation: "chat_room_reader_invalidation", roomId: params.roomId },
+      {
+        message: "A chat room's readers were not told to refresh",
+        why: "Publishing the room change to its members failed",
+        fix: "Open clients catch up on their next refresh; Sentry has the error.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       tags: { context: "chat_room_reader_invalidation" },
       extra: { roomId: params.roomId },
