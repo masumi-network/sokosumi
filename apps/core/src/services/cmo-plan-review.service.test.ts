@@ -25,6 +25,7 @@ import {
   cmoPlanProblemsSince,
   cmoPlanRuleProblems,
   cmoReplySafety,
+  cmoSideChannelFit,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -406,6 +407,93 @@ describe("the funnel strategy", () => {
     expect(
       cmoPlanProblems(plan({ calendar: weekOne, pace })).join(" "),
     ).not.toContain("calendar covers");
+  });
+
+  it("holds a weekly Cuso's side channels to a buyer and three a week", () => {
+    // Hiltl's LinkedIn once got 56 diner posts, as many as its Instagram.
+    const calendar = Array.from({ length: 28 }, (_, index) => ({
+      ...entry(`l${index}`, "linkedin", "post"),
+      date: `2026-11-${String(2 + index).padStart(2, "0")}`,
+    }));
+    const channels = [
+      { channel: "linkedin", cadence: "2 a day", role: "side" as const },
+      { channel: "instagram", cadence: "2 a day" },
+      { channel: "seo", cadence: "2 a week" },
+    ];
+    const weekly = cmoPlanProblems(plan({ calendar, channels }), {
+      weekly: true,
+    }).join(" ");
+    expect(weekly).toContain("linkedin is a side channel without a buyer");
+    expect(weekly).toContain(
+      "linkedin is a side channel with 28 pieces over 4 weeks; a side channel takes at most 3 a week",
+    );
+    expect(weekly).toContain("instagram has no role");
+    // seo is no social network: it takes no role.
+    expect(weekly).not.toContain("seo has no role");
+    const fitted = cmoPlanProblems(
+      plan({
+        // Three a week over four weeks.
+        calendar: calendar.slice(0, 12).map((piece, index) => ({
+          ...piece,
+          date: `2026-11-${String(2 + index * 2).padStart(2, "0")}`,
+        })),
+        channels: [
+          {
+            channel: "linkedin",
+            cadence: "3 a week",
+            role: "side",
+            buyer: "Event organizer",
+          },
+          { channel: "instagram", cadence: "2 a day", role: "main" },
+        ],
+      }),
+      { weekly: true },
+    ).join(" ");
+    expect(fitted).not.toContain("side channel");
+    expect(fitted).not.toContain("has no role");
+    // Cusos before cmo-v3 plan without roles.
+    expect(
+      cmoPlanProblems(plan({ calendar, channels })).join(" "),
+    ).not.toContain("role");
+  });
+
+  it("asks Jev whether a side channel's titles serve its buyer", async () => {
+    jev.answer = async () => ({
+      answers: new Map([
+        ["fits_linkedin", { type: "boolean", probability: 0.12 }],
+      ]),
+      costUsd: 0.0003,
+    });
+    const strategy = plan({
+      channels: [
+        {
+          channel: "linkedin",
+          cadence: "3 a week",
+          role: "side",
+          buyer: "Event organizer",
+        },
+        { channel: "instagram", cadence: "2 a day", role: "main" },
+      ],
+      calendar: [
+        { ...entry("l1", "linkedin", "post"), title: "Palak Paneer for lunch" },
+        { ...entry("i1", "instagram", "image"), title: "Our tartare" },
+      ],
+    });
+    const fit = await cmoSideChannelFit(strategy);
+    expect(fit.problems).toEqual([
+      "linkedin is a side channel for Event organizer, but its titles speak to other customers; rewrite its pieces for Event organizer.",
+    ]);
+    expect(fit.costUsd).toBe(0.0003);
+    // Only the side channel's titles are read.
+    expect(JSON.stringify(jev.input?.state)).toContain("Palak Paneer");
+    expect(JSON.stringify(jev.input?.state)).not.toContain("tartare");
+    // A plan without side channels asks nothing.
+    jev.input = undefined;
+    expect(await cmoSideChannelFit(plan())).toEqual({
+      problems: [],
+      costUsd: 0,
+    });
+    expect(jev.input).toBeUndefined();
   });
 
   it("refuses a pace reached by piling one network", () => {

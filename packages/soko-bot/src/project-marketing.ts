@@ -902,6 +902,14 @@ export const marketingStrategyPlanSchema = z.object({
         cadence: shortText,
         /** Why this channel at this cadence, for this audience. */
         why: shortText.optional(),
+        /**
+         * A social network's place in the plan (cmo-v3): main where the main
+         * buyer and most of the audience are, at the pace's full rate; side
+         * for another buyer, two to three a week.
+         */
+        role: z.enum(["main", "side"]).optional(),
+        /** The Brand Brain buyer a side channel's pieces are written for. */
+        buyer: shortText.optional(),
       }),
     )
     .max(10),

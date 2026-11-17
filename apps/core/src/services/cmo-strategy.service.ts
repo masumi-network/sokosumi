@@ -12,6 +12,7 @@ import {
   getSokoBotVersion,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
+  networkAudiences,
 } from "@sokosumi/soko-bot";
 import { unprocessableEntity } from "@/helpers/error";
 import { keepAnswers } from "@/helpers/question-answers";
@@ -558,6 +559,16 @@ async function startStrategyTurn(
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
+              // A restaurant's LinkedIn once got two diner posts a day: who
+              // is on each network decides its role before its cadence.
+              ...(savesWeekly
+                ? [
+                    "",
+                    "Who is on each network, to set each channel's role (main or side) and the buyer a side channel serves:",
+                    networkAudiences(),
+                    "",
+                  ]
+                : []),
               savesWeekly ? PLAN_SAVE_WEEKLY : PLAN_SAVE_TWO_CALLS,
             ],
       )

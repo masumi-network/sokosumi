@@ -40,6 +40,7 @@ import {
   cmoPlanDrift,
   cmoPlanProblemsSince,
   cmoReplySafety,
+  cmoSideChannelFit,
   WEEKLY_STRATEGY_SKILL,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
@@ -258,6 +259,12 @@ export async function reviewCmoPlan(
   await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
   const known = new Set(had.problems);
   problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
+  // A cmo-v3 side channel serves one buyer: Jev reads its titles against them.
+  if (weekly && plan.calendarSent) {
+    const fit = await cmoSideChannelFit(strategy);
+    problems.push(...fit.problems);
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, fit.costUsd);
+  }
   const bot = plan.planSent
     ? await prisma.sokoBot.findUnique({
         where: { id: authorized.turn.sokoBotId },

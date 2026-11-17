@@ -176,6 +176,8 @@ export function cmoPlanProblems(
       );
     if (weeks >= 4)
       problems.push(...cadenceProblems(strategy.channels, pieces));
+    if (options.weekly)
+      problems.push(...roleProblems(strategy.channels, pieces, weeks));
     problems.push(...crowdedNetworks(pieces));
     problems.push(...storyProblems(pieces));
     problems.push(...repeatedTitles(pieces));
@@ -246,6 +248,100 @@ function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
   if (days.length === 0) return 1;
   const span = (Math.max(...days) - Math.min(...days)) / 86_400_000;
   return Math.min(4, Math.floor(span / 7) + 1);
+}
+
+/** A side channel's most pieces a week: it serves another buyer than the main one. */
+export const CMO_SIDE_CHANNEL_PER_WEEK = 3;
+
+function isSocialChannel(channel: string): boolean {
+  return (
+    (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
+    "connect"
+  );
+}
+
+/**
+ * Each social network's role (cmo-v3): main at the pace's full rate, side for
+ * another buyer at most three a week. A restaurant's LinkedIn once got two
+ * diner posts a day, the same as its Instagram.
+ */
+function roleProblems(
+  channels: MarketingStrategyPlan["channels"],
+  pieces: MarketingStrategyPlan["calendar"],
+  weeks: number,
+): string[] {
+  return channels.flatMap((channel) => {
+    if (!isSocialChannel(channel.channel)) return [];
+    if (!channel.role)
+      return [
+        `${channel.channel} has no role; set role main (where the main buyer and most of the audience are) or side (another buyer), from who is on each network.`,
+      ];
+    if (channel.role === "main") return [];
+    const problems: string[] = [];
+    if (!channel.buyer?.trim())
+      problems.push(
+        `${channel.channel} is a side channel without a buyer; name the Brand Brain buyer its pieces are written for.`,
+      );
+    const count = pieces.filter(
+      (entry) => entry.channel === channel.channel,
+    ).length;
+    const most = CMO_SIDE_CHANNEL_PER_WEEK * weeks;
+    if (count > most)
+      problems.push(
+        `${channel.channel} is a side channel with ${count} pieces over ${weeks} ${weeks === 1 ? "week" : "weeks"}; a side channel takes at most ${CMO_SIDE_CHANNEL_PER_WEEK} a week. Drop pieces or make it a main channel.`,
+      );
+    return problems;
+  });
+}
+
+/**
+ * Whether each side channel's pieces are written for its buyer: Jev reads
+ * its titles against the buyer the plan names. A restaurant's LinkedIn once
+ * carried its dishes rather than its catering. A failed check is no finding.
+ */
+export async function cmoSideChannelFit(
+  strategy: MarketingStrategyPlan,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const sides = strategy.channels.flatMap((channel) => {
+    const buyer = channel.buyer?.trim();
+    if (channel.role !== "side" || !buyer) return [];
+    const titles = strategy.calendar
+      .filter(
+        (entry) =>
+          entry.channel === channel.channel && entry.status !== "skipped",
+      )
+      .map((entry) => entry.title);
+    return titles.length > 0
+      ? [{ channel: channel.channel, buyer, titles }]
+      : [];
+  });
+  if (sides.length === 0) return { problems: [], costUsd: 0 };
+  try {
+    const { answers, costUsd } = await evaluateWithJev({
+      state: { sideChannels: sides },
+      questions: Object.fromEntries(
+        sides.map((side) => [
+          `fits_${side.channel}`,
+          {
+            type: "boolean" as const,
+            instructions: `Are the ${side.channel} titles written for ${side.buyer}: about their situation, their questions or an offer meant for them, rather than for the business's other customers?`,
+          },
+        ]),
+      ),
+      timeoutMs: 15_000,
+    });
+    const problems = sides.flatMap((side) => {
+      const answer = answers.get(`fits_${side.channel}`);
+      return answer?.type === "boolean" && answer.probability < 0.5
+        ? [
+            `${side.channel} is a side channel for ${side.buyer}, but its titles speak to other customers; rewrite its pieces for ${side.buyer}.`,
+          ]
+        : [];
+    });
+    return { problems, costUsd };
+  } catch {
+    return { problems: [], costUsd: 0 };
+  }
 }
 
 /** The most a social network takes a day: X's feed moves fastest. */

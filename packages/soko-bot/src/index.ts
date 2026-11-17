@@ -259,6 +259,7 @@ export {
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,
+  networkAudiences,
   renderWritingSkill,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,

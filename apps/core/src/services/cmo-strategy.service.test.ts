@@ -16,6 +16,7 @@ import {
   resetCmoServiceMocks,
   revised,
   seedStrategy,
+  sokoBotFindUnique,
   startTurn,
   strategy,
   strategyRows,
@@ -196,6 +197,21 @@ describe("requestCmoStrategy", () => {
       expect(message).toContain("Say the opposite plainly");
       expect(message.match(/- \w+: you asked/g)).toHaveLength(2);
     }
+  });
+
+  it("tells a cmo-v3 Cuso who is on each network before he sets roles", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v3" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+    const v3 = JSON.stringify(startTurn.mock.lastCall);
+    expect(v3).toContain("Who is on each network");
+    expect(v3).toContain("- LinkedIn: People at work: buyers inside companies");
+    sokoBotFindUnique.mockResolvedValueOnce({ versionId: "cmo-v2" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+    expect(JSON.stringify(startTurn.mock.lastCall)).not.toContain(
+      "Who is on each network",
+    );
   });
 
   it("posts in the language the website is written in", async () => {
