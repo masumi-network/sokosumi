@@ -151,7 +151,7 @@ describe("studio ratings", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "up" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getByRole("button", { name: "up" })).toHaveAttribute(
       "aria-pressed",
