@@ -112,4 +112,10 @@ export interface SokoBotTurnStartResult {
   duplicate: boolean;
   errorKind?: string | null;
   reconciliationLeaseToken?: string;
+  /**
+   * A duplicate that this call acknowledged itself: it resumed or recovered
+   * the start, or its acknowledgement committed and only the response was
+   * lost. It owns the turn's drain, unlike a duplicate that only observed.
+   */
+  acknowledgedByCaller?: true;
 }

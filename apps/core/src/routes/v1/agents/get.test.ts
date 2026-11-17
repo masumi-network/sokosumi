@@ -1,8 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { PricingType } from "@sokosumi/database";
 import { expectConsole } from "@sokosumi/utils/test-console";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mountGetAgents from "./get";
 
 const {
@@ -415,10 +416,16 @@ describe("GET /agents", () => {
   });
 
   it("advances pagination from the consumed raw row when its summary is skipped", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[agents] Skipping agent agent_unreadable during transient pricing rewrite",
+      "An agent was left out of a listing while its pricing is rewritten",
+      [
+        "The agent has fixed pricing without amounts, as a registry replay leaves it for a moment",
+      ],
     );
+    onTestFinished(() => {
+      expect(warnings[0]?.event).toMatchObject({ agentId: "agent_unreadable" });
+    });
     agentFindManyMock.mockResolvedValue([
       {
         id: "agent_unreadable",

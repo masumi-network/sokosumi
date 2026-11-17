@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
 import {
   isSokoBotSandboxCapability,
   isSokoBotSilentAnswer,
@@ -109,14 +110,18 @@ export class RuntimeEventLog {
   /**
    * Appends unless the turn already holds one of these event types, checked
    * under the same lock as the write. False when it was left out.
+   * `shouldAppend` decides under that lock, before the insert, and what it
+   * writes commits with the event. False skips the insert but still commits
+   * the transaction, so it must return false before it writes anything.
    */
   async appendUnless(
     event: RuntimeEvent,
     recorded: readonly string[],
+    shouldAppend?: (tx: Prisma.TransactionClient) => Promise<boolean>,
   ): Promise<boolean> {
     const queued = this.tail.then(
-      () => this.write(event, recorded),
-      () => this.write(event, recorded),
+      () => this.write(event, recorded, shouldAppend),
+      () => this.write(event, recorded, shouldAppend),
     );
     // A failed append must not cancel the ones queued behind it.
     this.tail = queued.catch(() => undefined);
@@ -126,6 +131,7 @@ export class RuntimeEventLog {
   private async write(
     event: RuntimeEvent,
     unless: readonly string[],
+    shouldAppend?: (tx: Prisma.TransactionClient) => Promise<boolean>,
   ): Promise<boolean> {
     return prisma.$transaction(async (tx) => {
       const key = `soko-bot-runtime-event:${this.turnId}`;
@@ -139,6 +145,7 @@ export class RuntimeEventLog {
         });
         if (held) return false;
       }
+      if (shouldAppend && !(await shouldAppend(tx))) return false;
       const latest = await tx.sokoBotRuntimeEvent.findFirst({
         where: { turnId: this.turnId },
         orderBy: { startIndex: "desc" },

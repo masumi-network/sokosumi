@@ -1,6 +1,5 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
-
 import type { ChatRoomMessageEventType } from "@sokosumi/utils";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import {
@@ -9,6 +8,8 @@ import {
   publishChatRoomMessageEvent,
 } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
@@ -82,7 +83,20 @@ export async function publishChatRoomMessageRealtime(
     });
   } catch (error) {
     if (options.throwOnError) throw error;
-    console.error("Failed to publish chat room message over Ably:", error);
+    // The payload is the message itself, which an error can quote.
+    recordCoreError(
+      {
+        operation: "ably_publish_chat_room_message",
+        roomId: message.roomId,
+        messageId: message.id,
+      },
+      {
+        message: "A chat message event was not published over Ably",
+        why: "Building or publishing the message event failed",
+        fix: "Open clients catch up on their next refresh. If it repeats, check Ably's status; Sentry has the error.",
+      },
+      { eventType, failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       extra: {
         messageId: message.id,
@@ -111,7 +125,15 @@ export async function publishChatRoomMessageRealtimeById(
     await publishChatRoomMessageRealtime(message, eventType, options);
   } catch (error) {
     if (options.throwOnError) throw error;
-    console.error("Failed to load chat room message for Ably publish:", error);
+    recordCoreError(
+      { operation: "ably_publish_chat_room_message", messageId },
+      {
+        message: "A chat message was not loaded for its Ably event",
+        why: "Reading the saved message failed before its event could be built",
+        fix: "Open clients catch up on their next refresh. If it repeats, check Ably's status; Sentry has the error.",
+      },
+      { eventType, failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       extra: {
         messageId,
@@ -153,9 +175,26 @@ export async function publishChatRoomMembershipStatusMessagesBestEffort(
       ]);
     }),
   );
-  for (const result of results) {
-    if (result.status === "rejected") {
-      console.error(`Failed to publish ${logContext}`, result.reason);
-    }
+  // Status messages are chat text an error can quote.
+  const failures = results.flatMap((result, index) =>
+    result.status === "rejected"
+      ? [
+          {
+            messageId: messages[index]?.id,
+            failure: messageSafeErrorFields(result.reason),
+          },
+        ]
+      : [],
+  );
+  if (failures.length > 0) {
+    recordCoreError(
+      { operation: "chat_membership_status_publish" },
+      {
+        message: "Could not publish every membership status message",
+        why: "A reader refresh or realtime publish failed after the status messages were saved",
+        fix: "Open clients catch up on their next refresh; failures names each message.",
+      },
+      { publish: logContext, failures },
+    );
   }
 }

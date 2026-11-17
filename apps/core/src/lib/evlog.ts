@@ -245,6 +245,11 @@ export interface CoreWarning {
    * Redaction runs on it before the drain.
    */
   cause?: unknown;
+  /**
+   * Fields of this warning alone, kept on its own `warnings` entry: event
+   * fields merge, so two warnings on one event would share them.
+   */
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -547,10 +552,6 @@ export function attachUploadToLogger(file: CoreLogUpload) {
       mimeType: file.mimeType,
     },
   });
-}
-
-export function recordCoreRequestError(error: Error) {
-  tryUseLogger()?.error(error);
 }
 
 export interface ImpersonationAuditInput {

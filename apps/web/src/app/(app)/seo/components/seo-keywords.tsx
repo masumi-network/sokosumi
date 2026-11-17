@@ -63,6 +63,7 @@ import {
   SeoSection,
   SeoShowMore,
   SeoSource,
+  seoIsOnlyPrimary,
   seoMarketName,
   seoSectionClass,
 } from "./seo-shared";
@@ -355,6 +356,13 @@ export function SeoKeywords({
                     const target = model.data.pages.find(
                       (page) => page.id === row.targetPageId,
                     );
+                    const skipPrimary = !repeated.has(nameOf(row));
+                    // The line under the keyword names its page, unless that is the one primary page.
+                    const pageNamed =
+                      !!row.pageUrl &&
+                      !(
+                        skipPrimary && seoIsOnlyPrimary(model.data, row.pageUrl)
+                      );
                     // Only an unmeasured position falls back to the Search Console period average.
                     const average = reads.length
                       ? undefined
@@ -400,7 +408,7 @@ export function SeoKeywords({
                                 <SeoPageText
                                   url={row.pageUrl}
                                   workspace={model.data}
-                                  skipPrimary={!repeated.has(nameOf(row))}
+                                  skipPrimary={skipPrimary}
                                   oneLine
                                 />
                               ) : null
@@ -409,8 +417,13 @@ export function SeoKeywords({
                                 {t("keywords.anyPage")}
                               </span>
                             )}
-                            {/* One page in scope: the target can only be that page. */}
-                            {row.version > 0 && manyPages ? (
+                            {/* One page in scope: the target can only be that page. The line also stays away when it
+                                would repeat the line above: no page and no target, or the target is the page named there. */}
+                            {row.version > 0 &&
+                            manyPages &&
+                            (target
+                              ? target.url !== row.pageUrl || !pageNamed
+                              : row.pageUrl) ? (
                               <p className="text-muted-foreground mt-1 text-xs">
                                 {t("keywords.target")}:{" "}
                                 {target?.label ||

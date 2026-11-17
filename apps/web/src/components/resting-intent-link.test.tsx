@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  FOCUS_DWELL_MS,
   HOVER_DWELL_MS,
   RestingIntentLink,
 } from "@/components/resting-intent-link";
@@ -75,11 +76,162 @@ describe("RestingIntentLink", () => {
       expect(routerPrefetchMock).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(HOVER_DWELL_MS);
-      expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
-        kind: "full",
-      });
+      expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+        "/tasks",
+        expect.objectContaining({ kind: "full" }),
+      );
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("after a refresh drops the loaded page", () => {
+    /** Hovers until the content loads, then returns the drop callback. */
+    function hoverUntilLoaded(link: HTMLElement) {
+      fireEvent.pointerEnter(link, { pointerType: "mouse", buttons: 0 });
+      vi.advanceTimersByTime(HOVER_DWELL_MS);
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+      const [, options] = routerPrefetchMock.mock.calls[0];
+      return options.onInvalidate as () => void;
+    }
+
+    // Far past the scroll the settle test leaves in this module's state.
+    beforeEach(() => {
+      vi.useFakeTimers({ now: 1_000_000 });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Each page refreshes itself after a navigation. A pointer that rested on
+    // a sidebar row while that page loaded would otherwise click into the
+    // skeleton, however long it stays.
+    it("loads it again while the pointer still rests on the link", () => {
+      const link = renderTasksLink();
+      const dropped = hoverUntilLoaded(link);
+
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledTimes(2);
+      expect(routerPrefetchMock).toHaveBeenLastCalledWith(
+        "/tasks",
+        expect.objectContaining({ kind: "full" }),
+      );
+    });
+
+    it("does not load it again once the pointer has left", () => {
+      const link = renderTasksLink();
+      const dropped = hoverUntilLoaded(link);
+
+      fireEvent.pointerLeave(link, { pointerType: "mouse" });
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
+
+    // The click opens this page, and the page's own refresh drops it.
+    it("does not load it again after a press on the link", () => {
+      const link = renderTasksLink();
+      const dropped = hoverUntilLoaded(link);
+
+      fireEvent.pointerDown(link, { pointerType: "mouse" });
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
+
+    // A middle click opens a new tab; this tab's click is still to come.
+    it("loads it again after a middle click on the link", () => {
+      const link = renderTasksLink();
+      const dropped = hoverUntilLoaded(link);
+
+      fireEvent.pointerDown(link, { pointerType: "mouse", button: 1 });
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    // A cmd-click opens a new tab and still fires a click on the link.
+    it("loads it again after a modified click on the link", () => {
+      const link = renderTasksLink();
+      const dropped = hoverUntilLoaded(link);
+
+      fireEvent.pointerDown(link, { pointerType: "mouse", metaKey: true });
+      fireEvent.click(link, { metaKey: true });
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    // A hidden or removed link must not keep rendering its page.
+    it("does not load it again after the link unmounts", () => {
+      const { unmount } = render(
+        <RestingIntentLink href="/tasks" prefetchContent>
+          Tasks
+        </RestingIntentLink>,
+      );
+      const dropped = hoverUntilLoaded(
+        screen.getByRole("link", { name: "Tasks" }),
+      );
+
+      unmount();
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("loads it again while keyboard focus rests on the link, not after blur", () => {
+      const link = renderTasksLink();
+      act(() => link.focus());
+      vi.advanceTimersByTime(FOCUS_DWELL_MS);
+      const [, options] = routerPrefetchMock.mock.calls[0];
+      const dropped = options.onInvalidate as () => void;
+
+      dropped();
+      expect(routerPrefetchMock).toHaveBeenCalledTimes(2);
+
+      act(() => link.blur());
+      const [, reloaded] = routerPrefetchMock.mock.calls[1];
+      (reloaded.onInvalidate as () => void)();
+      expect(routerPrefetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    // Back to the page the row leads to: the row stops loading content, and
+    // the page's own refresh must not render it a second time.
+    it("does not load it again once the link stops loading content", () => {
+      const { rerender } = render(
+        <RestingIntentLink href="/tasks" prefetchContent>
+          Tasks
+        </RestingIntentLink>,
+      );
+      const dropped = hoverUntilLoaded(
+        screen.getByRole("link", { name: "Tasks" }),
+      );
+
+      rerender(<RestingIntentLink href="/tasks">Tasks</RestingIntentLink>);
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("does not load the old page again after the link's href changes", () => {
+      const { rerender } = render(
+        <RestingIntentLink href="/projects/p-1" prefetchContent>
+          Overview
+        </RestingIntentLink>,
+      );
+      const dropped = hoverUntilLoaded(
+        screen.getByRole("link", { name: "Overview" }),
+      );
+
+      rerender(
+        <RestingIntentLink href="/projects/p-2" prefetchContent>
+          Overview
+        </RestingIntentLink>,
+      );
+      dropped();
+
+      expect(routerPrefetchMock).toHaveBeenCalledOnce();
+    });
   });
 });

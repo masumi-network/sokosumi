@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildNamedChatMessagePreview } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-
 import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
@@ -22,6 +21,7 @@ import { createNotification, resolveDelivery } from "@/helpers/notifications";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 
 export interface FanOutChatNotificationsParams {
   throwOnError?: boolean;
@@ -139,7 +139,11 @@ async function deliverToCurrentRoomMember(
     }
   });
   if (countedRowId)
-    waitUntil(resendRoomMessageEmail(countedRowId, { allowInitialSend: true }));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        resendRoomMessageEmail(countedRowId, { allowInitialSend: true }),
+      ),
+    );
 }
 
 /**
@@ -564,7 +568,7 @@ export async function rewriteChatNotificationPreviews(
         });
       }
       // Provider cancellation must not hold the message edit or delete open.
-      waitUntil(resendRoomMessageEmail(row.id));
+      waitUntil(runAsBackgroundWork(() => resendRoomMessageEmail(row.id)));
     }
   } catch (error) {
     Sentry.captureException(error, {

@@ -8,6 +8,8 @@ import {
 } from "@/clients/social-post-providers/tools";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
 
 export const X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS = 3_000;
@@ -23,9 +25,16 @@ type XConnection = Pick<
 
 const subscriptionSchema = z.enum(["None", "Basic", "Premium", "PremiumPlus"]);
 
+const FALLBACK_FIX =
+  "Nothing to do for one miss: posting uses the stored tier and the next post checks again. If it repeats, check the account's X connection in Composio.";
+
+// A route and the publisher's background work both resolve tiers.
+const LOG_CONTEXT = { operation: "x_subscription_tier" };
+
 async function lookupXSubscriptionType(
   connection: XConnection,
   signal: AbortSignal,
+  timeout: AbortSignal,
 ): Promise<string | null> {
   let sessionId: string | undefined;
   try {
@@ -47,14 +56,30 @@ async function lookupXSubscriptionType(
     });
     const parsed = subscriptionSchema.safeParse(payload?.subscription_type);
     if (parsed.success) return parsed.data;
-    console.warn("[x-subscription-tier] Invalid subscription response", {
-      connectionId: connection.id,
+    // One request can look up several accounts: each warning keeps its own.
+    recordCoreWarning(LOG_CONTEXT, {
+      message: "Could not read an X account's subscription tier",
+      why: "X's account lookup returned no known subscription tier",
+      fix: FALLBACK_FIX,
+      details: { connection: { id: connection.id } },
     });
     return null;
-  } catch {
-    console.warn("[x-subscription-tier] Subscription lookup failed", {
-      connectionId: connection.id,
-      aborted: signal.aborted,
+  } catch (error) {
+    // Composio's error can quote X's response: only its shape is logged.
+    recordCoreWarning(LOG_CONTEXT, {
+      message: "Could not read an X account's subscription tier",
+      // The combined signal keeps the reason of whichever aborted first.
+      why: !signal.aborted
+        ? "X's account lookup failed"
+        : signal.reason === timeout.reason
+          ? `X's account lookup did not answer within ${X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS / 1000} seconds`
+          : "The caller stopped the lookup before X answered",
+      fix: FALLBACK_FIX,
+      details: {
+        connection: { id: connection.id },
+        aborted: signal.aborted,
+        failure: messageSafeErrorFields(error),
+      },
     });
     return null;
   } finally {
@@ -79,6 +104,7 @@ export async function resolveXSubscriptionType(
   const subscriptionType = await lookupXSubscriptionType(
     connection,
     lookupSignal,
+    timeout,
   );
   if (subscriptionType === null) return connection.subscriptionType;
   if (subscriptionType !== connection.subscriptionType) {
@@ -87,9 +113,13 @@ export async function resolveXSubscriptionType(
         where: { id: connection.id },
         data: { subscriptionType },
       });
-    } catch {
-      console.warn("[x-subscription-tier] Could not store subscription tier", {
-        connectionId: connection.id,
+    } catch (error) {
+      recordCoreWarning(LOG_CONTEXT, {
+        message: "Could not store an X account's subscription tier",
+        why: "Updating the social connection failed",
+        fix: "Nothing to do for one miss: this post uses the fresh tier and the next one looks it up again. If it repeats, read the error under warnings[].cause.",
+        cause: error,
+        details: { connection: { id: connection.id } },
       });
     }
   }

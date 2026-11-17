@@ -15,6 +15,8 @@ interface TaskDetailHeaderProps {
   backLabel: string;
   /** Back label when the task was opened from the Calendar. */
   calendarBackLabel?: string;
+  /** False where the board is not the likely next page. */
+  loadBoardOnMount?: boolean;
   parentLink?: React.ReactNode;
   actions?: React.ReactNode;
 }
@@ -25,6 +27,7 @@ export function TaskDetailHeader({
   identifierLabels,
   backLabel,
   calendarBackLabel,
+  loadBoardOnMount,
   parentLink,
   actions,
 }: TaskDetailHeaderProps) {
@@ -34,6 +37,7 @@ export function TaskDetailHeader({
         <BackToTasksButton
           label={backLabel}
           calendarLabel={calendarBackLabel}
+          loadOnMount={loadBoardOnMount}
         />
 
         {actions}
