@@ -58,7 +58,6 @@ import {
   toTaskScheduleView,
 } from "@/services/task-schedule-read.service";
 import {
-  announceReleasedTasks,
   cancelMissedTaskScheduleRuns,
   isRunException,
   moveTaskScheduleRunsToProject,
@@ -68,6 +67,7 @@ import {
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
+import { announceReleasedTasks } from "@/services/task-schedule-task.service";
 
 function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
   if (assigneeUserId != null) {
