@@ -18,11 +18,11 @@ import { PartsPreview } from "./parts-preview";
 type Scheme = "light" | "dark";
 
 const RULES = [
-  "Lines do the work.",
-  "One hard shadow.",
-  "Iris means now.",
+  "Thick lines do the work.",
+  "Hard shadows, three sizes.",
+  "Iris means now, and picked.",
   "Bold speaks, Regular works.",
-  "Three layers.",
+  "Black strips for contrast.",
 ];
 
 interface Swatch {
@@ -85,7 +85,10 @@ const RADII: Radius[] = [
   { name: "Control", token: "--radius-control" },
   { name: "Card", token: "--radius-card" },
   { name: "Panel", token: "--radius-panel" },
+  { name: "Pill", token: "--radius-pill" },
 ];
+
+const SHADOWS = ["Pill", "Hard", "Hero"];
 
 const POSES: Pose[] = [
   { file: "reading", label: "Reading" },
@@ -133,7 +136,7 @@ function Board({ scheme }: BoardProps) {
           <Logo />
         </p>
         <p className="ds-t-small ds-muted">
-          16px high in a header, drawn in the text colour.
+          The cursor-head mark, then the wordmark in the text colour.
         </p>
       </Section>
 
@@ -177,10 +180,14 @@ function Board({ scheme }: BoardProps) {
               <span className="ds-t-small">{radius.name}</span>
             </li>
           ))}
-          <li>
-            <span className="ds-radius-box ds-shadow-box" />
-            <span className="ds-t-small">Hard shadow</span>
-          </li>
+          {SHADOWS.map((shadow) => (
+            <li key={shadow}>
+              <span
+                className={`ds-radius-box ds-shadow-${shadow.toLowerCase()}`}
+              />
+              <span className="ds-t-small">{shadow} shadow</span>
+            </li>
+          ))}
         </ul>
       </Section>
 
@@ -226,12 +233,12 @@ function Board({ scheme }: BoardProps) {
         </div>
       </Section>
 
-      <Section title="Three layers">
+      <Section title="Layers">
         <div className="panel">
           <div className="card ds-card-body">
-            <p className="ds-t-h2">White page, gray panel, outlined card</p>
+            <p className="ds-t-h2">White page, outlined panel, outlined card</p>
             <p className="ds-t-small muted">
-              A card sits on a panel, never straight on the page.
+              A black strip crosses the page where contrast helps.
             </p>
           </div>
         </div>
