@@ -25,13 +25,13 @@ describe("cmo-v3", () => {
             : skill,
       ),
     );
-    // Picture styles wait for the reference library's tool; until then the
-    // production skill is cmo-production's word for word.
+    // cmo-production carries picture styles itself, so cmo-v1 and cmo-v2 use
+    // the reference library too; cmo-v3's skill never repeats the section.
     const styles = getSokoBotSkill("cmo-production-styles")?.content ?? "";
     const production = getSokoBotSkill("cmo-production")?.content ?? "";
-    expect(production).not.toContain("styleReferenceId");
-    expect(styles.startsWith(production.trimEnd())).toBe(true);
-    expect(styles).toContain("call find_style_references");
+    expect(production).toContain("call find_style_references");
+    expect(styles).toBe(production);
+    expect(styles.split("## Picture styles")).toHaveLength(2);
     const weekly = getSokoBotSkill("cmo-strategy-weekly")?.content ?? "";
     const patches = getSokoBotSkill("cmo-strategy-patches")?.content ?? "";
     expect(weekly).toContain("Do you want to try Google Ads");
