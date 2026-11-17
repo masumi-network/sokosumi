@@ -97,7 +97,7 @@ function Swatches({
             onClick={() => onChange(colour)}
             style={{ backgroundColor: AVATAR_PALETTE[colour].hex }}
             className={cn(
-              "border-border focus-visible:ring-ring size-8 rounded-full border outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-25",
+              "border-border focus-visible:ring-ring size-8 rounded-full border outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:scale-[0.4] transition-transform",
               colour === value &&
                 "ring-foreground ring-2 ring-offset-2 ring-offset-background",
             )}
