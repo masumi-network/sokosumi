@@ -736,31 +736,42 @@ export async function failSandboxTurn(
   // A runner that died after its answer reached Core changes nothing: the
   // outcome already recorded stands, and only its settling is finished here.
   const failure = runtimeEvent("turn.failed", { ...error });
-  const outcomes = ["turn.completed", "turn.failed"];
+  const outcomes = ["turn.completed", "turn.failed", "turn.cancelled"];
+  // Authorization passed before the lock, so a cancellation can commit in
+  // between. Writing the row waits for a cancellation in flight; one that
+  // committed first leaves the turn to settle CANCELLED.
+  const live = async (tx: Prisma.TransactionClient) => {
+    const { count } = await tx.sokoBotTurn.updateMany({
+      where: {
+        id: claims.turnId,
+        status: { in: ["STARTING", "RUNNING"] },
+        cancellationRequestedAt: null,
+      },
+      data: { updatedAt: new Date() },
+    });
+    return count === 1;
+  };
   // The diagnostic's claim commits with the failure, so the report that
   // failed the turn owns it before anyone can settle the turn. The claim is
   // on the turn's row, which outlives the session's events, and holds only
   // while the turn is live and not being cancelled.
   let claimed = false;
-  const claim = async (tx: Prisma.TransactionClient) => {
+  const liveAndClaim = async (tx: Prisma.TransactionClient) => {
+    if (!(await live(tx))) return false;
     const { count } = await tx.sokoBotTurn.updateMany({
-      where: {
-        id: claims.turnId,
-        runnerDiagnosticAt: null,
-        status: { in: ["QUEUED", "STARTING", "RUNNING"] },
-        cancellationRequestedAt: null,
-      },
+      where: { id: claims.turnId, runnerDiagnosticAt: null },
       data: { runnerDiagnosticAt: new Date() },
     });
     claimed = count === 1;
+    return true;
   };
   const failed = await log
-    .appendUnless(failure, outcomes, diagnostic ? claim : undefined)
+    .appendUnless(failure, outcomes, diagnostic ? liveAndClaim : live)
     .catch(() => {
       // A claim that broke the write must not keep the turn from failing.
       claimed = false;
       return diagnostic
-        ? log.appendUnless(failure, outcomes).catch(() => false)
+        ? log.appendUnless(failure, outcomes, live).catch(() => false)
         : false;
     });
   if (failed && claimed && diagnostic)
