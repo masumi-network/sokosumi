@@ -8,11 +8,8 @@ import { mapBrandBrainForApi } from "@/routes/v1/projects/[id]/brand-brain/conte
 import { brandBrainSchema } from "@/schemas/brand-brain.schema";
 import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
 import { questionAnswerRequestSchema } from "@/schemas/question-answer.schema";
-import {
-  answerBrandBrainQuestion,
-  getBrandBrain,
-} from "@/services/brand-brain.service";
-import { requireCuso } from "@/services/cmo-cuso.service";
+import { getBrandBrain } from "@/services/brand-brain.service";
+import { answerCmoBrandQuestion } from "@/services/cmo-strategy.service";
 
 const route = createRoute({
   method: "post",
@@ -20,7 +17,7 @@ const route = createRoute({
   operationId: "answerCmoBrandBrainQuestionForProject",
   tags: ["CMO"],
   description:
-    "A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no or not sure, each with the member's optional details.",
+    "A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no or not sure, each with the member's optional details. A no is a fix on its section: Cuso rewrites it, and patches the plan once one exists, as soon as his current turn ends.",
   request: {
     params: cmoProjectParamsSchema,
     body: {
@@ -35,17 +32,21 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Cuso is not hired yet, or no such question"),
+    409: jsonErrorResponse(
+      "A no whose fix does not fit beside the corrections already waiting on its section",
+    ),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    const { projectId } = await requireCuso({
+    const { projectId } = c.req.valid("param");
+    await answerCmoBrandQuestion({
       userId,
-      projectId: c.req.valid("param").projectId,
+      projectId,
+      ...c.req.valid("json"),
     }).catch(rethrow);
-    await answerBrandBrainQuestion(projectId, c.req.valid("json"));
     return ok(c, mapBrandBrainForApi(await getBrandBrain(projectId)));
   });
 }
