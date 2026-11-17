@@ -128,6 +128,29 @@ export function adToolkitRefusal(
     : null;
 }
 
+/**
+ * Read tools a query about their subject always lists first. Composio's search
+ * returns a tool only when it has every word of the query, and at most `limit`
+ * of a toolkit's hundreds, so "pull request merged list repository" found
+ * nothing on GitHub. Slugs are checked against Composio's toolkit.
+ */
+const PINNED_READ_TOOLS: Record<string, { subject: RegExp; slugs: string[] }> =
+  {
+    github: {
+      subject: /\b(pull|prs?|merged?)\b/i,
+      slugs: [
+        "GITHUB_LIST_PULL_REQUESTS",
+        "GITHUB_FIND_PULL_REQUESTS",
+        "GITHUB_GET_A_PULL_REQUEST",
+      ],
+    },
+  };
+
+function pinnedReadToolSlugs(providerId: string, query?: string): string[] {
+  const pinned = PINNED_READ_TOOLS[providerId];
+  return pinned && query && pinned.subject.test(query) ? pinned.slugs : [];
+}
+
 /** Tool descriptors of one toolkit, optionally narrowed by intent words. */
 export async function listIntegrationTools(
   integration: ComposioIntegrationAccount,
@@ -136,13 +159,33 @@ export async function listIntegrationTools(
   const refusal = adToolkitRefusal(integration.provider.id);
   if (refusal) throw new SokoBotIntegrationError(refusal);
   const composio = requireComposio();
-  const tools = await withComposio("list tools", () =>
-    composio.tools.getRawComposioTools({
-      toolkits: [integration.provider.id],
-      search: options.query?.trim() || undefined,
-      limit: options.limit,
-    }),
+  const query = options.query?.trim() || undefined;
+  const pinnedSlugs = pinnedReadToolSlugs(integration.provider.id, query);
+  const [pinned, found] = await withComposio("list tools", () =>
+    Promise.all([
+      pinnedSlugs.length
+        ? // A slug Composio renamed must not take the search down with it.
+          composio.tools
+            .getRawComposioTools({ tools: pinnedSlugs })
+            .catch(() => [])
+        : [],
+      composio.tools.getRawComposioTools({
+        toolkits: [integration.provider.id],
+        search: query,
+        limit: options.limit,
+      }),
+    ]),
   );
+  const first = pinnedSlugs.flatMap(
+    (slug) =>
+      pinned.find(
+        (tool) => tool.slug === slug && tool.tags?.includes(READ_ONLY_TAG),
+      ) ?? [],
+  );
+  const tools = [
+    ...first,
+    ...found.filter((tool) => !first.some((pin) => pin.slug === tool.slug)),
+  ].slice(0, options.limit);
   return tools.map((tool) => ({
     slug: tool.slug,
     name: tool.name,
@@ -150,6 +193,19 @@ export async function listIntegrationTools(
     inputSchema: tool.inputParameters ?? null,
     readOnly: tool.tags?.includes(READ_ONLY_TAG) ?? false,
   }));
+}
+
+/** An empty search once read to a bot as "the account has no such tool". */
+export function integrationToolSearchResult(
+  tools: SokoBotIntegrationTool[],
+  query?: string,
+): { tools: SokoBotIntegrationTool[]; note?: string } {
+  return tools.length || !query?.trim()
+    ? { tools }
+    : {
+        tools,
+        note: "No tool has every word of this query. The account may still have the tool: search again with one or two words, or without a query.",
+      };
 }
 
 /** Runs one toolkit tool as the connected account; mailboxes and ad toolkits are refused. */
