@@ -60,6 +60,8 @@ export function CreateState({
   const router = useRouter();
   const nameId = useId();
   const [name, setName] = useState("");
+  // Spaces pass the native `required` check, so say what is missing here.
+  const [blank, setBlank] = useState(false);
   // The studio reports its first look as it mounts, so Create waits for that.
   const [avatarCode, setAvatarCode] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -92,6 +94,10 @@ export function CreateState({
   function handleContinue(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (name.trim()) goToStep("picture");
+    else {
+      setBlank(true);
+      nameInputRef.current?.focus();
+    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -180,13 +186,27 @@ export function CreateState({
             ref={nameInputRef}
             id={nameId}
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              setBlank(false);
+            }}
             maxLength={80}
             placeholder={t("namePlaceholder")}
             required
             autoComplete="off"
             autoFocus
+            aria-invalid={blank || undefined}
+            aria-describedby={blank ? `${nameId}-error` : undefined}
           />
+          {blank ? (
+            <p
+              id={`${nameId}-error`}
+              role="alert"
+              className="text-destructive text-xs"
+            >
+              {t("nameRequired")}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Button type="submit" variant="primary" className="w-full">
