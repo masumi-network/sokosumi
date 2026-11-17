@@ -515,6 +515,13 @@ body:has(.ob) .site-header {
   box-shadow: none;
 }
 
+/* A button that waits is quiet on the strip: no fill, only its line and words. */
+.ob-main .ob-bar > .button:disabled:not(.button-ghost) {
+  border-color: var(--muted);
+  background: transparent;
+  color: var(--strip-foreground);
+}
+
 .ob-bar > p {
   flex: 1 1 100%;
   margin: 0;
