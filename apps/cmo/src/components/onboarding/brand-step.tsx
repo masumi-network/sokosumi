@@ -71,7 +71,8 @@ interface TileData {
  */
 export function brandTiles(
   brain: BrandBrain,
-  onSave: (brain: BrandBrain) => Promise<void>,
+  /** Saves an edit, with the section it corrects. */
+  onSave: (brain: BrandBrain, section: BrandSectionKey) => Promise<void>,
   media: CmoBrandMedia | null = null,
   visual: BrandVisual | null = null,
 ): TileData[] {
@@ -96,7 +97,7 @@ export function brandTiles(
           )
         : short(brain.products.slice(1).join(", ")),
       section: "offer",
-      body: <Offers brain={brain} onSave={onSave} />,
+      body: <Offers brain={brain} onSave={(next) => onSave(next, "offer")} />,
     });
   }
   const buyer = brain.reveal?.buyers[0];
@@ -200,7 +201,9 @@ export function brandTiles(
       label: "Profiles",
       value: `${brain.channels.length} ${brain.channels.length === 1 ? "profile" : "profiles"}`,
       detail: short(brain.channels.map((channel) => channel.name).join(", ")),
-      body: <Accounts brain={brain} onSave={onSave} />,
+      body: (
+        <Accounts brain={brain} onSave={(next) => onSave(next, "marketing")} />
+      ),
     });
   }
   return tiles;
@@ -209,7 +212,14 @@ export function brandTiles(
 interface BrandStepProps {
   overview: CmoOverview;
   messages: CusoMessage[];
+  /** Sends what is off to Cuso in the chat; used when there is no onFix. */
   onCorrect: (text: string) => Promise<void>;
+  /**
+   * Hiring: Cuso writes the plan while the founder reads, so a correction or
+   * an edit is a fix on its section, which Core runs after his current turn
+   * and fits the plan to. Core's refusal, or null.
+   */
+  onFix?: (section: BrandSectionKey, note: string) => Promise<string | null>;
   onSave: (brain: BrandBrain) => Promise<void>;
   /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. Without it the step only shows the Brand Brain. */
   onApprove?: () => Promise<string | null>;
@@ -234,6 +244,7 @@ export function BrandStep({
   overview,
   messages,
   onCorrect,
+  onFix,
   onSave,
   onApprove,
   onAnswer,
@@ -273,9 +284,37 @@ export function BrandStep({
     );
     return () => window.clearTimeout(timer);
   }, [sent, answered, idle]);
-  const fixing = sent !== null && !answered && !stale;
+  // With onFix the overview says when a fix runs; the chat's reply never has to.
+  const fixing = onFix
+    ? overview.botStatus === "RUNNING" && overview.work?.change === "fix"
+    : sent !== null && !answered && !stale;
   // Right after research Cuso is still wrapping up his turn for a few seconds.
-  const finishing = !fixing && !stale && overview.botStatus === "RUNNING";
+  // The plan he starts next runs for minutes and never holds the founder.
+  const finishing =
+    !fixing &&
+    !stale &&
+    overview.botStatus === "RUNNING" &&
+    overview.work?.kind !== "strategy";
+
+  /** A correction in the founder's words, about one section when it has one. */
+  async function correct(section: BrandSectionKey | undefined, text: string) {
+    // Profiles have no section of their own: they are where marketing runs.
+    if (onFix) setRefusal(await onFix(section ?? "marketing", text));
+    else await ask(text);
+  }
+
+  /** An edit is saved at once; Cuso brings the summary and the plan in line. */
+  async function edit(next: BrandBrain, section: BrandSectionKey) {
+    await onSave(next);
+    if (onFix) {
+      setRefusal(
+        await onFix(
+          section,
+          `I edited the ${BRAND_SECTIONS[section].title} section myself. Keep my words, and bring the summary and the plan in line with it.`,
+        ),
+      );
+    }
+  }
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });
@@ -289,12 +328,13 @@ export function BrandStep({
 
   const tiles = brandTiles(
     brain,
-    onSave,
+    edit,
     overview.brandMedia,
     overview.brandVisual,
   );
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
+  const waiting = onFix && section?.fix && !section.fix.fixed;
 
   const [shownQuestions, answer] = useAnswers(
     brain.questions ?? [],
@@ -342,7 +382,7 @@ export function BrandStep({
               overview={overview}
               brain={brain}
               site={site}
-              onSave={onSave}
+              onSave={(next) => edit(next, "positioning")}
             />
             {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
@@ -422,10 +462,12 @@ export function BrandStep({
                 shown.section
                   ? async (next) => {
                       if (!shown.section) return;
-                      await onSave({
+                      const changed = {
                         ...brain,
                         profile: { ...profile, [shown.section]: next },
-                      });
+                      };
+                      if (onFix) return edit(changed, shown.section);
+                      await onSave(changed);
                       // The summary comes from Cuso, so he brings it in line.
                       await ask(
                         `I corrected the ${BRAND_SECTIONS[shown.section].title} research in my Brand Brain. Update the summary to match it.`,
@@ -441,9 +483,16 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
-                onAsk={ask}
+                onAsk={(text) => correct(shown.section, text)}
               />
             </div>
+            {waiting ? (
+              <p className="note" aria-live="polite">
+                {fixing
+                  ? `${AGENT_NAME} is fixing this now.`
+                  : `${AGENT_NAME} will fix this and update your plan.`}
+              </p>
+            ) : null}
             {sent && answered && lastWord ? (
               <p className="note" aria-live="polite">
                 {AGENT_NAME}: {lastWord.content}
