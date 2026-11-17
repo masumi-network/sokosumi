@@ -105,18 +105,13 @@ export async function setSokoBotAvatarCode(sokoBotId: string, code: string) {
   if (holder) throw taken();
   const avatarImageUrl = await renderAvatarCode(code);
   try {
-    await prisma.$transaction([
-      prisma.sokoBot.update({
-        where: { id: sokoBotId },
-        data: { avatarCode: code, avatarImageUrl },
-        select: { id: true },
-      }),
-      // A pool picture the bot held is free again, so the pool can be dropped.
-      prisma.sokoBotAvatar.updateMany({
-        where: { claimedBySokoBotId: sokoBotId },
-        data: { claimedBySokoBotId: null, claimedAt: null },
-      }),
-    ]);
+    // The pool row the bot may still claim stays: the pool is dropped whole (SOKD-271 3/3),
+    // and touching it here would fail saves while that drop deploys.
+    await prisma.sokoBot.update({
+      where: { id: sokoBotId },
+      data: { avatarCode: code, avatarImageUrl },
+      select: { id: true },
+    });
   } catch (error) {
     if (isPrismaUniqueViolation(error)) throw taken();
     throw error;

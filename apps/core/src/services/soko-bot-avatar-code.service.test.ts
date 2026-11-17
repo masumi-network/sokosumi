@@ -77,10 +77,8 @@ describe("setSokoBotAvatarCode", () => {
       data: { avatarCode: CODE, avatarImageUrl: URL },
       select: { id: true },
     });
-    expect(m.updateMany).toHaveBeenCalledWith({
-      where: { claimedBySokoBotId: "bot" },
-      data: { claimedBySokoBotId: null, claimedAt: null },
-    });
+    // Never touches the pool table: it is dropped while this code may still serve.
+    expect(m.updateMany).not.toHaveBeenCalled();
     expect(result).toEqual({ avatarCode: CODE, avatarImageUrl: URL });
   });
 
