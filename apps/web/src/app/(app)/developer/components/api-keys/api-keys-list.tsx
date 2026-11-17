@@ -53,7 +53,6 @@ export function ApiKeysList({
 
   return (
     <DataTable
-      tableClassName="[&>table]:flex! [&>table]:md:table!"
       columns={columns}
       data={apiKeys}
       showPagination={apiKeys.length > 0}
