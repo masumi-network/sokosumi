@@ -2217,6 +2217,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "RUNNING",
       duplicate: true,
       reconciliationLeaseToken: "lease_1",
+      // This call's own resume acknowledged the start: it owns the drain.
+      acknowledgedByCaller: true,
     });
     expect(resetSession).not.toHaveBeenCalled();
   });
@@ -2326,6 +2328,76 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(resetSession).not.toHaveBeenCalled();
     expect(turnUpdateManyMock).toHaveBeenCalledOnce();
+  });
+
+  // The acknowledgement commits and only its response is lost: the caller
+  // re-reads its own accepted session. It still owns the drain only while
+  // the lease is its own.
+  it.each([
+    ["still owns the drain under its own lease", true],
+    ["only observes once another worker holds the lease", false],
+  ])("after a lost acknowledgement response %s", async (_label, ownLease) => {
+    const fresh = {
+      id: "turn_fresh",
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      workspaceId: "workspace_1",
+      source: "CHAT",
+      userMessage: "Hello",
+      eveSessionId: null,
+      status: "STARTING",
+      route: "DIRECT_RESPONSE",
+      capabilityNames: [],
+      errorKind: null,
+      startedAt: null,
+      costUsdMicros: 0n,
+      scheduleRun: null,
+      deadlineAt: new Date(Date.now() + 60 * 60_000),
+    };
+    let startLease = "";
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockImplementation(async ({ data }) => {
+      startLease = data.leaseToken;
+      return { ...fresh, leaseToken: data.leaseToken };
+    });
+    turnFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockImplementation(async () => ({
+        ...fresh,
+        status: "RUNNING",
+        eveSessionId: "accepted_session",
+        reconcilerHeartbeatAt: new Date(),
+        leaseToken: ownLease ? startLease : "watchdog_lease",
+      }));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "accepted_session",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    turnUpdateManyMock.mockRejectedValueOnce(
+      new Error("Connection reset after commit"),
+    );
+
+    const result = await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-1",
+      message: "Hello",
+    });
+
+    expect(startLease).not.toBe("");
+    expect(result).toMatchObject({ turnId: "turn_fresh", status: "RUNNING" });
+    expect(result.duplicate).toBe(true);
+    expect(result.acknowledgedByCaller).toBe(ownLease ? true : undefined);
   });
 
   it("starts no turn at all while an administrator has it switched off", async () => {
