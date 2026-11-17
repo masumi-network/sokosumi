@@ -5,10 +5,13 @@ import {
   jobInclude,
 } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
 
@@ -1591,7 +1594,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       "error",
       "Could not sync changed purchases from the payment node",
       ["The purchase diff threw before it finished"],
-      ["diff exploded"],
     );
     const reconciliationJob = createJob({
       id: "job_missing_purchase",
@@ -1603,7 +1605,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       pendingLocalRefunds: [reconciliationJob],
     });
     jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
-    getPurchasesDiffMock.mockRejectedValueOnce(new Error("diff exploded"));
+    // The diff relays proxy bodies and writes provider notes: its text stays out.
+    getPurchasesDiffMock.mockRejectedValueOnce(
+      new Error("diff exploded quoting PRIVATE-MARKER-7c1"),
+    );
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1613,6 +1618,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       syncTransactionClient,
     );
     expect(captureExceptionMock).toHaveBeenCalled();
+    expect(JSON.stringify(coreLogEvents())).not.toContain("PRIVATE-MARKER");
   });
 
   it("skips new events and notifications when the agent status hash is unchanged", async () => {
@@ -3135,7 +3141,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("still counts the job as processed when email delivery fails transiently", async () => {
-    expectConsole("warn", "[job-sync-email-batch] suppressed external failure");
+    expectCoreLog("warn", "Kept a transient external failure out of Sentry");
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
     const failedJob = createJob({
       status: SokosumiJobStatus.FAILED,

@@ -592,8 +592,10 @@ export const jobSyncService = {
             message: "Could not sync changed purchases from the payment node",
             why: "The purchase diff threw before it finished",
             fix: "The other phases still run, and the next jobs sync resumes the diff from its stored cursor. If it fails every run, Sentry has the error.",
-            cause: error,
           },
+          // Only safe fields: the diff writes the provider's error notes and
+          // relays proxy bodies, which an error can quote.
+          { failure: messageSafeErrorFields(error) },
         );
         // Through the shared helper, not Sentry directly: the transient
         // Prisma failures this block exists for (P2028 pool timeouts, P2034,

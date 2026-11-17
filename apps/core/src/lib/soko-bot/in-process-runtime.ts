@@ -17,6 +17,7 @@ import { waitUntil } from "@vercel/functions";
 import { stepCountIs, type ToolSet, tool } from "ai";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
@@ -272,7 +273,8 @@ export async function inspectStoredSession(
 export class InProcessSokoBotRuntime implements SokoBotRuntime {
   async createSession(input: RuntimeTurnInput): Promise<RuntimeTurnRef> {
     const sessionId = input.sessionId ?? `sess_${randomUUID()}`;
-    waitUntil(runTurn(sessionId, input));
+    // Known background work: what the turn logs gets its own events.
+    waitUntil(runAsBackgroundWork(() => runTurn(sessionId, input)));
     return {
       sessionId,
       runtimeVersion: IN_PROCESS_RUNTIME_VERSION,

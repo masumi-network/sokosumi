@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 
 const {
   captureExceptionMock,
@@ -46,7 +50,6 @@ vi.mock("@sokosumi/database/helpers", () => ({
   mapJobWithStatus: (job: unknown) => job,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { ok } from "neverthrow";
 import {
   PURCHASE_DIFF_INITIAL_LOOKBACK_MS,
@@ -908,7 +911,6 @@ describe("syncPurchasesFromDiff", () => {
       "error",
       "Could not apply a changed purchase to its job",
       ["Writing the purchase state to the job failed"],
-      ["write failed"],
     );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
@@ -989,10 +991,70 @@ describe("syncPurchasesFromDiff", () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not page when a proxy answers for an absent node", async () => {
-    const warnings = expectConsole(
+  it("keeps a proxy's echoed body out of the log, with its status", async () => {
+    const warnings = expectCoreLog(
       "warn",
-      "[sync/jobs/purchase-diff] suppressed external failure",
+      "Kept a transient external failure out of Sentry",
+    );
+    const { err } = await import("neverthrow");
+    // Without the node's envelope the message is the proxy's body, which can
+    // echo a payload or a token no env secret matches.
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      err({
+        hasNodeErrorEnvelope: false,
+        message:
+          'purchase-diff 502: "upstream echoed PRIVATE-MARKER-7c1 with token tok_live_93hf"',
+        status: 502,
+      }),
+    );
+
+    await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
+
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error", status: 502 },
+    });
+    const drained = JSON.stringify(coreLogEvents());
+    expect(drained).not.toContain("PRIVATE-MARKER");
+    expect(drained).not.toContain("tok_live_93hf");
+  });
+
+  it("keeps a provider's error note out when the purchase write fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not apply a changed purchase to its job",
+      ["Writing the purchase state to the job failed"],
+    );
+    // Its schema-drift phrase also makes the helper suppress it, at error.
+    expectCoreLog("error", "Kept a database schema mismatch out of Sentry");
+    getPurchasesDiffMock.mockResolvedValueOnce(ok([createDiffPurchase()]));
+    jobPurchaseFindManyMock.mockResolvedValue([createJobPurchaseRow()]);
+    // A Prisma validation error quotes the update's arguments, and the
+    // purchase's error note is the provider's free text.
+    const quoting = Object.assign(
+      new Error(
+        'Invalid `prisma.job.update()` invocation: { nextActionErrorNote: "Refund for Alice Example, card on file sk_live_abc123" } The column `x` does not exist in the current database.',
+      ),
+      { name: "PrismaClientValidationError" },
+    );
+
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>().mockRejectedValueOnce(quoting)),
+    );
+
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "PrismaClientValidationError" },
+    });
+    const drained = JSON.stringify(coreLogEvents());
+    expect(drained).not.toContain("Alice Example");
+    expect(drained).not.toContain("sk_live");
+  });
+
+  it("does not page when a proxy answers for an absent node", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Kept a transient external failure out of Sentry",
     );
     const { err } = await import("neverthrow");
     // A restarting payment node reaches us as Cloudflare's 521 page, once a
@@ -1041,7 +1103,6 @@ describe("syncPurchasesFromDiff", () => {
       "error",
       "Could not apply a changed purchase to its job",
       ["Writing the purchase state to the job failed"],
-      ["write failed"],
     );
     const purchase = createDiffPurchase();
     getPurchasesDiffMock

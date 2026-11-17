@@ -2,8 +2,8 @@ import { inspect } from "node:util";
 
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLog } from "@/test/core-log";
 
 interface AuthorizeReferenceConfig {
   subscription: {
@@ -1753,21 +1753,22 @@ describe("core auth config", () => {
         statusCode: null,
       });
       sendEmailMock.mockRejectedValueOnce(failure);
-      const warn = expectConsole(
+      const warn = expectCoreLog(
         "warn",
-        "[email_code_email] suppressed external failure",
+        "Kept a transient external failure out of Sentry",
       );
 
       await expectCodeLine(true);
       await expect(flushWaitUntil()).resolves.toBeUndefined();
-      expect(warn).toContainEqual([
-        "[email_code_email] suppressed external failure",
-        {
-          error: "Email code delivery failed",
-        },
-      ]);
-      expect(JSON.stringify(warn)).not.toContain("042917");
-      expect(JSON.stringify(warn)).not.toContain("andreas@example.com");
+      expect(warn[0]?.event).toMatchObject({
+        suppressedFailure: { label: "email_code_email" },
+        failure: { errorName: "Error" },
+      });
+      expect(warn[0]?.cause).toBeUndefined();
+      expect(JSON.stringify(warn[0]?.event)).not.toContain("042917");
+      expect(JSON.stringify(warn[0]?.event)).not.toContain(
+        "andreas@example.com",
+      );
     });
 
     it.each(["production", "staging"])(
@@ -1815,9 +1816,9 @@ describe("core auth config", () => {
       // Only a 503 counts as transient and is suppressed with a warning.
       const warn =
         statusCode === 503
-          ? expectConsole(
+          ? expectCoreLog(
               "warn",
-              "[email_code_email] suppressed external failure",
+              "Kept a transient external failure out of Sentry",
             )
           : [];
       await import("./auth");
@@ -1849,13 +1850,15 @@ describe("core auth config", () => {
         [
           sentryCaptureExceptionMock.mock.calls,
           sentrySetExtrasMock.mock.calls,
-          warn,
+          warn.map((entry) => entry.event),
         ],
         { depth: null },
       );
       expect(reported).not.toContain("andreas@example.com");
       expect(reported).not.toContain("042917");
-      expect(reported).toContain("Email code delivery failed");
+      expect(reported).toContain(
+        statusCode === 503 ? "email_code_email" : "Email code delivery failed",
+      );
     },
   );
 

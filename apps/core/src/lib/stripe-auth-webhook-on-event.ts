@@ -10,6 +10,7 @@ import {
   isCancellationScheduled,
   releaseAppliedSeatReduction,
 } from "@/helpers/organization-subscription-seats";
+import { tryUseLiveLogger } from "@/lib/evlog";
 import {
   handleCheckoutSessionCompletedEvent,
   handleSubscriptionCreatedEvent,
@@ -141,7 +142,10 @@ export async function handleStripeAuthWebhookOnEvent(
     return;
   }
 
-  console.info(`Unhandled Stripe event type: ${event.type}`);
+  // Routine, so a field on the Stripe webhook's request event.
+  tryUseLiveLogger()?.set({
+    stripeWebhook: { unhandledEventType: event.type },
+  });
 }
 
 interface StripeHandlerFailureReport {

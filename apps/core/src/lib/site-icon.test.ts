@@ -1,6 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { parseIconCandidates, rankCandidates } from "@/lib/site-icon";
+import {
+  parseIconCandidates,
+  rankCandidates,
+  resolveSiteIconAsOrganizationLogo,
+} from "@/lib/site-icon";
+import { causeMessage, expectCoreLogWhys } from "@/test/core-log";
+
+const { ssrfSafeFetchMock, uploadOrganizationLogoBytesMock } = vi.hoisted(
+  () => ({
+    ssrfSafeFetchMock: vi.fn(),
+    uploadOrganizationLogoBytesMock: vi.fn(),
+  }),
+);
+
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: ssrfSafeFetchMock }));
+vi.mock("@/lib/blob", () => ({
+  uploadOrganizationLogoBytes: uploadOrganizationLogoBytesMock,
+  uploadProjectLogoBytes: vi.fn(),
+}));
 
 const BASE = "https://example.com/";
 
@@ -134,5 +152,53 @@ describe("rankCandidates", () => {
       <link rel="icon" href="/same.png">
     `;
     expect(urls(html)).toEqual(["https://example.com/same.png"]);
+  });
+});
+
+describe("resolveSiteIconAsOrganizationLogo", () => {
+  it("logs one warning with the page failure when no icon is found", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Found no usable icon for a website",
+      [
+        "The page fetch failed or answered with an error status, and the default favicon returned no image",
+      ],
+      ["connect ECONNREFUSED"],
+    );
+    ssrfSafeFetchMock
+      .mockRejectedValueOnce(new Error("connect ECONNREFUSED"))
+      .mockResolvedValueOnce(new Response("missing", { status: 404 }));
+
+    await expect(
+      resolveSiteIconAsOrganizationLogo("example.com", "org_1"),
+    ).resolves.toBeNull();
+
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "site_icon",
+      siteIcon: { origin: "https://example.com" },
+    });
+  });
+
+  it("warns once when storage refuses the icon", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not store a website's icon",
+      ["Blob storage refused the icon upload"],
+    );
+    ssrfSafeFetchMock
+      .mockResolvedValueOnce(new Response("down", { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response("icon", { headers: { "content-type": "image/png" } }),
+      );
+    uploadOrganizationLogoBytesMock.mockResolvedValueOnce(null);
+
+    await expect(
+      resolveSiteIconAsOrganizationLogo("https://example.com", "org_1"),
+    ).resolves.toBeNull();
+
+    expect(causeMessage(warnings[0]?.cause)).toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      siteIcon: { origin: "https://example.com", pageStatus: 503 },
+    });
   });
 });
