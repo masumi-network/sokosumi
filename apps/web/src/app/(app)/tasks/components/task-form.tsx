@@ -1239,14 +1239,28 @@ export function TaskForm({
               ) : null}
               {/* Create shows the name only for a copy, so its title can be reviewed. */}
               {mode === "edit" || isCopy ? (
-                <input
+                // A textarea that grows, so a long title wraps on a phone instead of being cut off.
+                <textarea
                   id="task-name"
-                  type="text"
+                  rows={1}
                   aria-label={labels.name}
                   placeholder={labels.namePlaceholder}
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                  onChange={(event) =>
+                    setName(event.target.value.replace(/\r?\n/g, " "))
+                  }
+                  onKeyDown={(event) => {
+                    // A title is one line; Cmd/Ctrl+Enter still saves.
+                    if (
+                      event.key === "Enter" &&
+                      !event.metaKey &&
+                      !event.ctrlKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                    }
+                  }}
+                  className="block w-full field-sizing-content resize-none border-0 bg-transparent p-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 />
               ) : null}
 

@@ -21,8 +21,7 @@ export function TaskTags({
   const ids = [...(tags?.manual ?? []), ...(tags?.automatic ?? [])];
   const visible = ids.slice(0, compact ? 1 : 2);
   const remaining = ids.length - visible.length;
-  if (!ids.length)
-    return <p className="text-muted-foreground text-xs">{t("empty")}</p>;
+  if (!ids.length) return null;
   return (
     <div
       className="flex min-w-0 flex-wrap items-center gap-1"

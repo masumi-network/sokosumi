@@ -76,6 +76,14 @@ describe("ArchivedTasksList", () => {
     expect(pushMock).toHaveBeenCalledWith("/tasks/SOK-7-plan-launch");
   });
 
+  it("wraps a long name to two lines so similar rows stay apart on a phone", () => {
+    render(<ArchivedTasksList tasks={[...tasks]} />);
+
+    const name = screen.getByText("Plan launch");
+    expect(name).toHaveClass("line-clamp-2", "wrap-anywhere");
+    expect(name).not.toHaveClass("truncate");
+  });
+
   it("keeps the row and says so when restore fails", async () => {
     restoreMock.mockRejectedValue(new Error("409"));
     render(<ArchivedTasksList tasks={[...tasks]} />);

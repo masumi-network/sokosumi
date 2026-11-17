@@ -637,6 +637,34 @@ describe("TaskForm", () => {
     );
   });
 
+  it("wraps a long title over lines and keeps it one line of text", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Plan November newsletter",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const nameField = screen.getByLabelText("Task name");
+    // A phone-width input cuts a long title off; a growing textarea shows all of it.
+    expect(nameField.tagName).toBe("TEXTAREA");
+    expect(nameField).toHaveClass("field-sizing-content", "resize-none");
+
+    await user.type(nameField, "{Enter} launch");
+    await user.paste("\nchef note");
+    expect(nameField).toHaveValue("Plan November newsletter launch chef note");
+  });
+
   it("places project and context controls above the footer status row", () => {
     render(
       <TaskForm
