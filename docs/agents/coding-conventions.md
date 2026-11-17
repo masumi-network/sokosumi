@@ -77,6 +77,10 @@ function handler(_req, res) {
 - **`null` means not given.** Store a missing value as `null`, and keep `""` out of use as a second marker beside it (new row vs legacy row): any writer that trims empty input to `null` silently moves a row between the two. When rows need different treatment, derive it from real data or add an explicit field.
 - **`skipDuplicates` is idempotent, not free.** PostgreSQL runs BEFORE INSERT row triggers for every proposed row, including the ones `ON CONFLICT DO NOTHING` (`createMany({ skipDuplicates: true })`) then skips. On a table with row triggers (`task_schedule_run` enqueues a calendar invalidation per row), send only the rows that are not there yet (for example, continue after the last planned row) instead of the whole set, and keep `skipDuplicates`, since a concurrent writer can still insert the same row.
 
+## Bug fixes
+
+- **Fix the caller that causes it.** When a fix would guard an error that is already guarded once, find the caller that produces it and fix it there. Choose the narrowest place that removes the cause; central logic stays as it is, and every other caller keeps its current behaviour.
+
 ## Security
 
 - **Redirect targets keep the host.** Never build a redirect as `new URL(requestPath, base)`: a path like `//evil.example/x` is protocol-relative, so only the scheme survives and the target leaves the site. Strip leading `/` and `\` from the path, assign it to `target.pathname`, and assert `new URL(location).host` in the test.
