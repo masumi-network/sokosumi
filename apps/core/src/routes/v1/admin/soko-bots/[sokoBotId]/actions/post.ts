@@ -2,7 +2,9 @@ import { createRoute } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
   adminSokoBotActionRequestSchema,
@@ -73,14 +75,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         if (retry) {
           waitUntil(
-            sokoBotControlPlane
-              .reconcileTurn(retry.id, undefined, retry.leaseToken ?? undefined)
-              .catch((error) => {
-                console.error("Admin Soko Bot retry reconciliation failed", {
+            runAsBackgroundWork(() =>
+              sokoBotControlPlane.reconcileTurn(
+                retry.id,
+                undefined,
+                retry.leaseToken ?? undefined,
+              ),
+            ).catch((error) => {
+              // A turn's error can quote what the member asked: content-free
+              // fields only.
+              emitCoreError(
+                {
+                  operation: "admin_soko_bot_retry_reconcile",
                   turnId: retry.id,
-                  error: error instanceof Error ? error.message : "unknown",
-                });
-              }),
+                },
+                {
+                  message: "Could not reconcile an admin Soko Bot retry",
+                  why: "Reconciling the retried turn after the response failed",
+                  fix: "If the turn stays STARTING or RUNNING, look up the error name and code under failure.",
+                },
+                { failure: messageSafeErrorFields(error) },
+              );
+            }),
           );
         }
       }

@@ -45,16 +45,34 @@ interface ConsoleGuardState {
 // console patch that reads it.
 const STATE_KEY = Symbol.for("sokosumi.test.console-guard");
 
-function matches(entry: ExpectedMessage, text: string): boolean {
-  if (typeof entry.start === "string") return text.startsWith(entry.start);
+/**
+ * `expectConsole`'s match, shared by other exact guards (Core's
+ * `expectBackgroundRejection`): a string is a prefix of `text`; a RegExp,
+ * anchored with `^` (`requireAnchoredStart`), matches `text` without terminal
+ * colors at index 0.
+ */
+export function matchesMessageStart(
+  start: string | RegExp,
+  text: string,
+): boolean {
+  if (typeof start === "string") return text.startsWith(start);
   // A fresh pattern without g, y or m: no lastIndex carried between calls,
   // and ^ cannot match after a newline. Index 0 also catches an unanchored
   // alternative (`/^a|b/`) that matched later in the text.
-  const pattern = new RegExp(
-    entry.start.source,
-    entry.start.flags.replace(/[gmy]/g, ""),
-  );
+  const pattern = new RegExp(start.source, start.flags.replace(/[gmy]/g, ""));
   return pattern.exec(stripVTControlCharacters(text))?.index === 0;
+}
+
+/** Throws unless a RegExp `start` is anchored with `^`, naming `helper`. */
+export function requireAnchoredStart(
+  helper: string,
+  start: string | RegExp,
+): void {
+  if (start instanceof RegExp && !start.source.startsWith("^")) {
+    throw new Error(
+      `${helper}: anchor the message pattern with ^ (got ${start})`,
+    );
+  }
 }
 
 function guardState(): ConsoleGuardState {
@@ -78,7 +96,7 @@ function guardState(): ConsoleGuardState {
         (entry) =>
           entry.method === method &&
           entry.calls.length < entry.times &&
-          matches(entry, text),
+          matchesMessageStart(entry.start, text),
       );
       if (match) {
         match.calls.push(args);
@@ -175,11 +193,7 @@ export function expectConsole(
   start: string | RegExp,
   times = 1,
 ): unknown[][] {
-  if (start instanceof RegExp && !start.source.startsWith("^")) {
-    throw new Error(
-      `expectConsole: anchor the message pattern with ^ (got ${start})`,
-    );
-  }
+  requireAnchoredStart("expectConsole", start);
   const calls: unknown[][] = [];
   guardState().expected.push({ method, start, times, calls });
   return calls;

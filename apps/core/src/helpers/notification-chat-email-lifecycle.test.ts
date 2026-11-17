@@ -23,9 +23,9 @@ vi.mock("@sentry/node", () => ({
   captureMessage: vi.fn(),
 }));
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => {
+  waitUntil: vi.fn((work: Promise<unknown>) => {
     state.background.push(work);
-  },
+  }),
 }));
 vi.mock("@/lib/ably/channel-occupancy", () => ({
   hasAppInFront: async () => true,

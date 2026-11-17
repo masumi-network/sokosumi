@@ -47,7 +47,7 @@ vi.mock("@/helpers/notification-email-dispatch", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: vi.fn((promise: Promise<unknown>) => promise),
 }));
 
 describe("markNotificationsRead", () => {

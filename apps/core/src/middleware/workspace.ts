@@ -110,6 +110,8 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
       }
       captureExternalServiceError(error, {
         label: "workspace_context_resolution",
+        // Reads by user and organization id only.
+        errorDetail: "cause",
         sentry: {
           tags: {
             context: "workspace_context_resolution",

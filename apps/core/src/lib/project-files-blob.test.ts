@@ -1,5 +1,5 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 import {
   ensureProjectFilesToken,
   generateProjectFilesToken,
@@ -96,19 +96,33 @@ describe("project markdown blob uploads", () => {
   });
 
   it("returns null and reports Blob failures", async () => {
-    expectConsole("warn", "Project briefing upload failed");
-    putMock.mockRejectedValueOnce(new Error("blob down"));
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not upload a project file",
+      ["Vercel Blob rejected the upload"],
+    );
+    putMock.mockRejectedValueOnce(
+      new Error("blob down for projects/project_123/secret_token/BRIEFING.md"),
+    );
 
     await expect(
       uploadProjectBriefingFile("project_123", "secret_token", "# Briefing"),
     ).resolves.toBeNull();
     expect(captureExceptionMock).toHaveBeenCalledOnce();
+    expect(warnings[0]?.event).toMatchObject({
+      projectFile: { kind: "briefing" },
+      projectId: "project_123",
+      failure: { errorName: "Error" },
+    });
+    // The files token in the path is a capability.
+    expect(JSON.stringify(warnings[0]?.event)).not.toContain("secret_token");
   });
 
   it("returns null when Blob storage is not configured", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "warn",
-      "Project context-md upload skipped: Blob storage is not configured",
+      "Skipped a project file upload, because blob storage is not configured",
+      ["BLOB_READ_WRITE_TOKEN is unset"],
     );
     getEnvMock.mockReturnValueOnce({ BLOB_READ_WRITE_TOKEN: undefined });
 

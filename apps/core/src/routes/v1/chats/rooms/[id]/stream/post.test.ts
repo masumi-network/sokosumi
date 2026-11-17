@@ -1,4 +1,3 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import type { DrainContext } from "evlog";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
@@ -11,6 +10,15 @@ import {
 } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import {
+  type CoreLogEntry,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import mountPostRoomStream from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -98,7 +106,7 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (...args: unknown[]) => waitUntilMock(...args),
+  waitUntil: vi.fn((...args: unknown[]) => waitUntilMock(...args)),
 }));
 
 vi.mock("ai", () => ({
@@ -152,6 +160,13 @@ vi.mock("@/lib/resumable-ui-stream-context", () => ({
 vi.mock("@/helpers/persist-assistant-to-chat-room", () => ({
   persistAssistantToChatRoom: persistAssistantToChatRoomMock,
   persistUserMessageToChatRoom: persistUserMessageToChatRoomMock,
+}));
+
+const deleteChatRoomMessageMetadataKeysMock = vi.hoisted(() =>
+  vi.fn(async () => undefined),
+);
+vi.mock("@/helpers/chat-room-message-metadata-patch", () => ({
+  deleteChatRoomMessageMetadataKeys: deleteChatRoomMessageMetadataKeysMock,
 }));
 
 vi.mock("@/helpers/room-stream-thread", () => ({
@@ -255,8 +270,10 @@ const userAuthContext: AuthVariables["authContext"] = {
 
 function createApp(
   authContext: AuthVariables["authContext"] = userAuthContext,
+  options: { evlog?: boolean } = {},
 ) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -1232,9 +1249,10 @@ describe("POST /chats/rooms/{id}/stream", () => {
     });
 
     it("releases the stream lock when the UI stream errors before finish", async () => {
-      expectConsole(
+      const errors = expectCoreLogWhys(
         "error",
-        "Coworker chat UI stream error (POST /rooms/{id}/stream)",
+        "A coworker's chat reply stream failed",
+        ["The UI message stream reported an error"],
       );
       roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
       const waitUntilPromises: Promise<unknown>[] = [];
@@ -1248,9 +1266,18 @@ describe("POST /chats/rooms/{id}/stream", () => {
       const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
         onError?: (error: unknown) => string;
       };
-      expect(init.onError?.(new Error("stream boom"))).toBe(
-        "An error occurred.",
-      );
+      // A provider's stream error can quote the prompt.
+      expect(
+        init.onError?.(new Error('Upstream rejected prompt "Hello"')),
+      ).toBe("An error occurred.");
+      expect(errors[0]?.cause).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        operation: "chat_room_coworker_stream",
+        roomId: ROOM_ID,
+        coworkerId: COWORKER_ID,
+        failure: { errorName: "Error" },
+      });
+      expect(JSON.stringify(errors[0]?.event)).not.toContain("Hello");
       expect(waitUntilPromises).toHaveLength(2);
       await Promise.all(waitUntilPromises);
 
@@ -1389,5 +1416,263 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(response.status).toBe(400);
       expect(captured[0]?.event.chat).toBeUndefined();
     });
+  });
+});
+
+/** Error text that carries a prompt and a key, as a dependency error can. */
+const PRIVATE_TEXT = "Quarterly secrets sk_live_51PrivateKeyValue";
+const privateError = () => new Error(`write failed near "${PRIVATE_TEXT}"`);
+
+/** The entry keeps only content-free fields: no cause, no error text. */
+function expectContentFree(entry: CoreLogEntry | undefined) {
+  expect(entry?.cause).toBeUndefined();
+  expect(entry?.event.failure).toEqual({ errorName: "Error" });
+  expect(JSON.stringify(entry?.event)).not.toContain("Quarterly");
+  expect(JSON.stringify(entry?.event)).not.toContain("sk_live");
+}
+
+describe("POST /chats/rooms/:id/stream events", () => {
+  type UiStreamInit = {
+    onError?: (error: unknown) => string;
+    onFinish?: () => Promise<void>;
+    consumeSseStream?: (args: {
+      stream: ReadableStream<string>;
+    }) => Promise<void>;
+  };
+  const closedStream = () =>
+    new ReadableStream<string>({
+      start(controller) {
+        controller.close();
+      },
+    });
+
+  it("frees the lock as background work when the stream fails before the response leaves", async () => {
+    expectBackgroundProbe("clearPendingResponseMirror");
+    expectBackgroundProbe("releaseStreamLock");
+    expectCoreLog("error", "A coworker's chat reply stream failed");
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    const pending: Promise<unknown>[] = [];
+    waitUntilMock.mockImplementation((promise: Promise<unknown>) => {
+      pending.push(promise);
+    });
+    clearPendingResponseMirrorMock.mockImplementationOnce(async () => {
+      probeBackgroundFailure("clearPendingResponseMirror");
+    });
+    releaseStreamLockMock.mockImplementationOnce(async () => {
+      probeBackgroundFailure("releaseStreamLock");
+      return true;
+    });
+    // A stream that errors at once runs onError while the request is live.
+    toUIMessageStreamResponseMock.mockImplementationOnce(
+      (init: UiStreamInit) => {
+        init.onError?.(new Error("stream boom"));
+        return new Response(null, { status: 200 });
+      },
+    );
+
+    const response = await createApp(userAuthContext, { evlog: true }).request(
+      `/${ROOM_ID}/stream`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      },
+    );
+    await Promise.all(pending);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("logs each failed save of the reply without its text, then gives up", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not save a coworker's streamed reply",
+      [
+        "Writing the reply to the room failed",
+        "Writing the reply to the room failed",
+        "Writing the reply to the room failed",
+      ],
+    );
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    // A database error quotes the values it was writing.
+    persistAssistantToChatRoomMock.mockRejectedValue(
+      new Error('Invalid value for "contentText": "Quarterly secrets"'),
+    );
+    await postStream();
+    const streamCall = streamTextMock.mock.calls[0]![0] as {
+      onFinish: (finishEvent: { text: string }) => Promise<void>;
+    };
+
+    await expect(
+      streamCall.onFinish({ text: "Quarterly secrets" }),
+    ).rejects.toThrow();
+
+    expect(errors.map((entry) => entry.event.attempt)).toEqual([1, 2, 3]);
+    for (const entry of errors) {
+      expect(entry.cause).toBeUndefined();
+      expect(entry.event.failure).toEqual({ errorName: "Error" });
+      expect(JSON.stringify(entry.event)).not.toContain("Quarterly");
+    }
+  });
+
+  it("logs a failed resumable registration without the stream's text", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not make a chat reply stream resumable",
+      ["Registering the stream for resumption failed"],
+    );
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    createNewResumableStreamMock.mockRejectedValueOnce(
+      new Error('Redis rejected chunk "Quarterly secrets"'),
+    );
+    await postStream();
+    const init = toUIMessageStreamResponseMock.mock
+      .calls[0]![0] as UiStreamInit;
+
+    await init.consumeSseStream!({ stream: closedStream() });
+
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Quarterly");
+  });
+
+  it("logs each failed clear of a finished stream's id as its own error, without the error's text", async () => {
+    const first = expectCoreLogWhys(
+      "error",
+      "Could not clear a finished chat stream's id on the first try",
+      ["Writing the room's stream metadata failed"],
+    );
+    const retry = expectCoreLogWhys(
+      "error",
+      "Gave up clearing a finished chat stream's id",
+      ["Writing the room's stream metadata failed twice"],
+    );
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    await postStream();
+    const init = toUIMessageStreamResponseMock.mock
+      .calls[0]![0] as UiStreamInit;
+    await init.consumeSseStream!({ stream: closedStream() });
+    clearActiveUiStreamIdForRoomMock
+      .mockRejectedValueOnce(privateError())
+      .mockRejectedValueOnce(privateError());
+
+    await init.onFinish!();
+
+    expect(clearActiveUiStreamIdForRoomMock).toHaveBeenCalledTimes(3);
+    expect(first[0]?.level).toBe("error");
+    expect(retry[0]?.level).toBe("error");
+    expectContentFree(first[0]);
+    expectContentFree(retry[0]);
+  });
+
+  it("logs a first failed clear as an error when the retry succeeds", async () => {
+    const first = expectCoreLog(
+      "error",
+      "Could not clear a finished chat stream's id on the first try",
+    );
+    expectCoreLog("error", "Gave up clearing a finished chat stream's id", 0);
+    expectCoreLog("warn", "Could not clear a finished chat stream's id", 0);
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    await postStream();
+    const init = toUIMessageStreamResponseMock.mock
+      .calls[0]![0] as UiStreamInit;
+    await init.consumeSseStream!({ stream: closedStream() });
+    clearActiveUiStreamIdForRoomMock.mockRejectedValueOnce(privateError());
+
+    await init.onFinish!();
+
+    expect(clearActiveUiStreamIdForRoomMock).toHaveBeenCalledTimes(3);
+    expect(first[0]?.event.method).toBeUndefined();
+    expectContentFree(first[0]);
+  });
+
+  it("still streams when the previous stream id cannot be cleared", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not clear a chat room's previous stream id",
+      ["Writing the room's stream metadata failed before the new stream"],
+    );
+    isUiStreamResumptionConfiguredMock.mockReturnValue(true);
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    clearActiveUiStreamIdForRoomMock.mockRejectedValueOnce(privateError());
+
+    const response = await postStream();
+
+    expect(response.status).toBe(200);
+    expect(errors[0]?.event).toMatchObject({ roomId: ROOM_ID });
+    expectContentFree(errors[0]);
+  });
+
+  it("logs a lock it could not release while the request fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not release a chat room's coworker stream lock",
+      ["Releasing the lock in Redis failed while the request was failing"],
+    );
+    roomFindFirstMock
+      .mockResolvedValueOnce(
+        roomWithOneCoworker({ providerConversationId: null }),
+      )
+      .mockResolvedValueOnce({ providerConversationId: null });
+    createCoworkerConversationMock.mockRejectedValueOnce(
+      new Error("provider down"),
+    );
+    releaseStreamLockMock.mockRejectedValueOnce(privateError());
+
+    const response = await postStream();
+
+    expect(response.status).toBe(503);
+    expectContentFree(errors[0]);
+  });
+
+  it("logs a room conversation id it could not reset", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not reset a chat room's coworker conversation",
+      ["Clearing the invalid conversation id on the room failed"],
+    );
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    await postStream();
+    const streamArgs = streamTextMock.mock.calls[0]![0] as {
+      providerOptions: {
+        sokosumi: { onInvalidProviderConversationId: () => Promise<void> };
+      };
+    };
+    chatRoomUpdateMock.mockRejectedValueOnce(privateError());
+
+    await streamArgs.providerOptions.sokosumi.onInvalidProviderConversationId();
+
+    expectContentFree(errors[0]);
+  });
+
+  it("logs a thread conversation id it could not reset, without the error's text", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not reset a thread's coworker conversation",
+      ["Clearing the invalid conversation id on the thread failed"],
+    );
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: PARENT_MESSAGE_ID,
+      parentMessageId: null,
+    });
+    await postStream({
+      messages: [{ role: "user", parts: [{ type: "text", text: "Thread" }] }],
+      parentMessageId: PARENT_MESSAGE_ID,
+    });
+    const streamArgs = streamTextMock.mock.calls[0]![0] as {
+      providerOptions: {
+        sokosumi: { onInvalidProviderConversationId: () => Promise<void> };
+      };
+    };
+    deleteChatRoomMessageMetadataKeysMock.mockRejectedValueOnce(privateError());
+
+    await streamArgs.providerOptions.sokosumi.onInvalidProviderConversationId();
+
+    expectContentFree(errors[0]);
   });
 });

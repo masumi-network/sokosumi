@@ -4,10 +4,17 @@ import {
   uploadOrganizationLogoBytes,
   uploadProjectLogoBytes,
 } from "@/lib/blob";
+import { type CoreWarning, recordCoreWarning } from "@/lib/evlog";
 import {
   declaredWebsiteLogoUrls,
   prepareWebsiteLogo,
 } from "@/lib/image-studio/website-logo";
+
+/** Why the page itself could not be read: its status, or the fetch error. */
+interface PageFailure {
+  status?: number;
+  cause?: unknown;
+}
 
 /** Only the head matters for icon links, so we never parse beyond this. */
 const MAX_HTML_BYTES = 512 * 1024;
@@ -257,6 +264,7 @@ async function resolveSiteIcon(
 
   const candidates: IconCandidate[] = [];
   let baseUrl = pageUrl.href;
+  let pageFailure: PageFailure | undefined;
 
   // 1. Parse the page for declared icons.
   try {
@@ -280,12 +288,10 @@ async function resolveSiteIcon(
       }
       candidates.push(...parseIconCandidates(html, baseUrl));
     } else {
-      console.warn(
-        `[site-icon] page fetch for ${pageUrl.origin} returned ${response.status}`,
-      );
+      pageFailure = { status: response.status };
     }
   } catch (error) {
-    console.warn(`[site-icon] page fetch for ${pageUrl.origin} failed`, error);
+    pageFailure = { cause: error };
   }
 
   // 2. Always add the well-known default as a last resort.
@@ -305,17 +311,65 @@ async function resolveSiteIcon(
     const prepared = studioLogo ? await prepareWebsiteLogo(icon) : icon;
     if (!prepared) continue;
     const url = await storeIcon(prepared);
-    if (url) return url;
+    if (url) {
+      if (pageFailure) {
+        warnSiteIcon(
+          {
+            message: "Could not read a website's page for its icon",
+            why: "The page fetch failed or answered with an error status, so only the default favicon was tried",
+          },
+          pageUrl.origin,
+          pageFailure,
+        );
+      }
+      return url;
+    }
     // Bytes were fine but storage refused them — retrying other candidates
     // will hit the same wall, so stop and let the caller fall back.
-    console.warn(
-      `[site-icon] storing the icon for ${pageUrl.origin} failed; is BLOB_READ_WRITE_TOKEN set?`,
+    warnSiteIcon(
+      {
+        message: "Could not store a website's icon",
+        why: "Blob storage refused the icon upload",
+        fix: "Check that BLOB_READ_WRITE_TOKEN is set.",
+      },
+      pageUrl.origin,
+      pageFailure,
     );
     return null;
   }
 
-  console.warn(`[site-icon] no usable icon found for ${pageUrl.origin}`);
+  warnSiteIcon(
+    {
+      message: "Found no usable icon for a website",
+      why: pageFailure
+        ? "The page fetch failed or answered with an error status, and the default favicon returned no image"
+        : "None of the page's declared icons or its default favicon returned an image",
+    },
+    pageUrl.origin,
+    pageFailure,
+  );
   return null;
+}
+
+/**
+ * One warning per icon lookup, on the request's event or its own: the page
+ * fetch's failure, when there was one, rides along.
+ */
+function warnSiteIcon(
+  warning: Omit<CoreWarning, "cause">,
+  origin: string,
+  pageFailure: PageFailure | undefined,
+) {
+  recordCoreWarning(
+    { operation: "site_icon" },
+    { ...warning, cause: pageFailure?.cause },
+    {
+      siteIcon: {
+        origin,
+        ...(pageFailure?.status ? { pageStatus: pageFailure.status } : {}),
+      },
+    },
+  );
 }
 
 export function resolveSiteIconAsOrganizationLogo(

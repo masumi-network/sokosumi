@@ -5,6 +5,10 @@ import {
 } from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
+import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
+// The checks below report through Core's logger: started before they run.
+import "@/lib/evlog-init";
+import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
 const minimumBuildSchema = z.preprocess(
@@ -647,20 +651,55 @@ export function resolveWebRelatedProjectFallbackHost(
   return params.configuredWebAppBaseUrl;
 }
 
+/**
+ * What a log may keep of each failed check: the variable, the issue's path
+ * and code, and Zod's message unless it quotes the variable's value. Zod 4
+ * messages describe the expected value, but a refinement's own message can
+ * say anything.
+ */
+export function invalidVariables(
+  issues: readonly z.core.$ZodIssue[],
+  env: NodeJS.ProcessEnv,
+) {
+  return issues.map((issue) => {
+    const variable = String(issue.path[0] ?? "");
+    const value = env[variable];
+    const quotesValue = Boolean(value) && issue.message.includes(value ?? "");
+    return {
+      variable,
+      path: issue.path.join("."),
+      code: issue.code,
+      ...(quotesValue ? {} : { message: issue.message }),
+    };
+  });
+}
+
 export function validateEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error(
-      "❌ Invalid environment variables:",
-      JSON.stringify(result.error.format(), null, 2),
+    // Outside any request, so its own event, sent to Sentry before Core
+    // stops. Names, codes and messages only, never a value.
+    failStartup(
+      { operation: "env_validation" },
+      {
+        message: "Core cannot start, because environment variables are invalid",
+        why: "One or more environment variables are missing or fail Core's checks",
+        fix: "Set each variable in invalidVariables to a valid value (apps/core/.env.example lists them), then start Core again.",
+      },
+      { invalidVariables: invalidVariables(result.error.issues, process.env) },
     );
-    process.exit(1);
   }
 
   if (!result.data.TURNSTILE_SECRET_KEY && isDeployedEnvironment(result.data)) {
-    console.warn(
-      "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
+    emitCoreWarning(
+      { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
+      {
+        message:
+          "Turnstile captcha verification is off in a deployed environment",
+        why: "TURNSTILE_SECRET_KEY is unset, so the auth email endpoints are unprotected from spam",
+        fix: "Set TURNSTILE_SECRET_KEY to the secret key from the Cloudflare Turnstile dashboard.",
+      },
     );
   }
 
@@ -676,15 +715,25 @@ export function validateEnv(): EnvConfig {
   // it lets an agent drive sign-in without answering a human check.
   if (result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET) {
     if (isProductionEnvironment(result.data)) {
-      console.error(
-        "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected. Set a real secret from the Turnstile dashboard.",
+      failStartup(
+        { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
+        {
+          message:
+            "Core cannot start in production with Turnstile's testing secret",
+          why: "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected.",
+          fix: "Set TURNSTILE_SECRET_KEY to a real secret from the Cloudflare Turnstile dashboard.",
+        },
       );
-      process.exit(1);
     }
 
     if (isDeployedEnvironment(result.data)) {
-      console.warn(
-        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview environment; captcha verification accepts every token, including forged ones. Intended only for driving sign-in without a human check.",
+      emitCoreWarning(
+        { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
+        {
+          message: "Turnstile accepts every captcha token in this preview",
+          why: "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret, so captcha verification accepts every token, including forged ones",
+          fix: "Nothing, if the preview is meant for driving sign-in without a human check; otherwise set TURNSTILE_SECRET_KEY to a real secret from the Cloudflare Turnstile dashboard.",
+        },
       );
     }
   }
@@ -741,8 +790,15 @@ export function getBetterAuthPublicBaseUrl(): string {
     !env.VERCEL_BRANCH_URL &&
     !env.VERCEL_URL
   ) {
-    console.warn(
-      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (email links may point at the wrong host)",
+    // At startup and inside requests: on the request's event when there is one.
+    recordCoreWarning(
+      { operation: "better_auth_base_url", envVariable: "BETTER_AUTH_URL" },
+      {
+        message:
+          "Better Auth on this preview uses BETTER_AUTH_URL as its base URL",
+        why: "VERCEL_BRANCH_URL and VERCEL_URL are unset, so email links may point at the wrong host",
+        fix: "Check that Vercel exposes system environment variables to this project, or set BETTER_AUTH_URL to this preview's URL.",
+      },
     );
   }
 

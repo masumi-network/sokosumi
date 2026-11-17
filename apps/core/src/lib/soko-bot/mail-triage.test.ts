@@ -19,11 +19,12 @@ vi.mock("ai", () => ({
   experimental_evaluate: evaluateMock,
   gateway: { evaluationModel: vi.fn() },
 }));
-vi.mock("@/lib/evlog", () => ({
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
   createCoreLogger: () => ({ set: logSetMock, emit: vi.fn() }),
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import {
   MAIL_TRIAGE_CRITERIA,
   mailTriageTag,
@@ -201,7 +202,11 @@ describe("triageMail", () => {
   });
 
   it("keeps the triage when only the rule call fails", async () => {
-    expectConsole("warn", "Soko Bot mail rule check failed");
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not check mail against the owner's saved rules",
+      ["Jev, the judging model, failed or timed out"],
+    );
     memoryMock.mockResolvedValue({
       markdown:
         "# Soko Bot memory\n\n## Decisions\n\n- Save invoice attachments into Finance/Invoices.\n",
@@ -213,6 +218,10 @@ describe("triageMail", () => {
     const { mail: tagged, failed } = await triage([mail("a", "Invoice")]);
     expect(failed).toBe(false);
     expect(tagged[0]).toMatchObject({ tag: "NOTABLE", matchesRule: false });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "soko_bot_mail_rules",
+      failure: { errorName: "Error" },
+    });
   });
 
   it("asks no rule questions when the owner saved none", async () => {
@@ -263,8 +272,15 @@ describe("triageMail", () => {
   });
 
   it("returns every mail untagged and logs the failure when Jev fails", async () => {
-    expectConsole("warn", "Soko Bot mail triage failed");
-    evaluateMock.mockRejectedValue(new Error("timeout"));
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not triage the owner's mail",
+      ["Jev, the judging model, failed or timed out"],
+    );
+    // A model error can quote the mail it was sent.
+    evaluateMock.mockRejectedValue(
+      new Error('timeout on "Confidential payroll Q3" from boss@acme.io'),
+    );
     const inbox = [mail("a", "Hi")];
     const result = await triage(inbox);
     expect(result.failed).toBe(true);
@@ -272,6 +288,12 @@ describe("triageMail", () => {
       { message: inbox[0], tag: null, probability: null, matchesRule: false },
     ]);
     expect(logSetMock.mock.calls[0][0].mailTriage.failed).toBe(true);
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(warnings[0]?.event)).not.toContain(
+      "Confidential payroll",
+    );
   });
 
   it("asks a busy hour in batches of 25 and keeps the order", async () => {
@@ -298,7 +320,9 @@ describe("triageMail", () => {
   });
 
   it("leaves only a failed batch untagged", async () => {
-    expectConsole("warn", "Soko Bot mail triage failed");
+    expectCoreLogWhys("warn", "Could not triage the owner's mail", [
+      "Jev, the judging model, failed or timed out",
+    ]);
     evaluateMock
       .mockResolvedValueOnce({
         answers: Object.fromEntries(

@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import { Hono } from "hono";
 import {
   beforeAll,
@@ -248,9 +249,9 @@ vi.mock("@/services/calendar-invalidation-outbox.service", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void promise;
-  },
+  }),
 }));
 
 /**
@@ -1346,6 +1347,8 @@ describe("sync routes", () => {
 
       expect(releaseLockMock).not.toHaveBeenCalled();
     } finally {
+      // The sync never settles by design; leave nothing for the drain to await.
+      vi.mocked(waitUntil).mockClear();
       vi.useRealTimers();
     }
   });
@@ -1412,6 +1415,8 @@ describe("sync routes", () => {
 
       expect(releaseLockMock).not.toHaveBeenCalled();
     } finally {
+      // The sync never settles by design; leave nothing for the drain to await.
+      vi.mocked(waitUntil).mockClear();
       vi.useRealTimers();
     }
   });

@@ -34,8 +34,8 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mountGet from "./get.js";
 
 function app() {
@@ -81,7 +81,12 @@ describe("GET /v1/drive/folders", () => {
   });
 
   it("keeps the catalog's folders when storage is unavailable", async () => {
-    expectConsole("warn", "[drive] folder markers unavailable");
+    expectCoreLogWhys(
+      "warn",
+      "Listed drive folders without the empty ones",
+      ["Blob storage could not list the folder markers"],
+      ["down"],
+    );
     queryRawMock.mockResolvedValue([{ folder: "Media" }]);
     listMock.mockRejectedValue(new Error("down"));
     const response = await app().request("/?scope=org&organizationId=org_1");

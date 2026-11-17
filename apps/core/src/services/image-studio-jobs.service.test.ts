@@ -149,7 +149,6 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
@@ -670,9 +669,12 @@ describe("image studio job submission", () => {
   });
 
   it("refuses to generate before spending anything when there is no private store", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[image-studio] IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set. The studio needs its own",
+      "Refused an image studio request, because its private storage is not configured",
+      [
+        "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is unset, and the studio never falls back to the shared public store named by BLOB_READ_WRITE_TOKEN",
+      ],
     );
     // Checked ahead of the reservation and the provider call, because the
     // alternative is paying fal for an image the studio is not allowed to
@@ -1111,15 +1113,26 @@ describe("image studio job submission", () => {
   });
 
   it("does not wait for a snapshot write before submitting or returning the job", async () => {
-    snapshotUpsertMock.mockReturnValueOnce(new Promise(() => {}));
+    // Held open while the job is created and returned, then settled, so the
+    // drain after the test finishes it even when an assertion fails.
+    let finishSnapshot = () => {};
+    snapshotUpsertMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishSnapshot = resolve;
+      }),
+    );
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
-      status: "QUEUED",
-    });
-    expect(snapshotUpsertMock).toHaveBeenCalledOnce();
-    expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
-    expect(submitToQueueMock).toHaveBeenCalledOnce();
+    try {
+      await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+        status: "QUEUED",
+      });
+      expect(snapshotUpsertMock).toHaveBeenCalledOnce();
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      expect(submitToQueueMock).toHaveBeenCalledOnce();
+    } finally {
+      finishSnapshot();
+    }
   });
 
   it("still sends the brief when Design cannot be read", async () => {

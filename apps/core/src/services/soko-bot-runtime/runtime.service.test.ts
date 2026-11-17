@@ -581,9 +581,9 @@ vi.mock("@/lib/db/transaction", () => ({
   ),
 }));
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void promise;
-  },
+  }),
 }));
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchChatRoomMentionMock,

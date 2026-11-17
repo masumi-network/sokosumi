@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 // The follow-up runs after the response; each test awaits it so its import
 // cannot finish in the next file, without this file's mocks.
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => mocks.pending.push(work),
+  waitUntil: vi.fn((work: Promise<unknown>) => mocks.pending.push(work)),
 }));
 vi.mock("@/services/soko-bot-watches.service", () => ({
   followUpConnectedApp: mocks.followUpConnectedApp,

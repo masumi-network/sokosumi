@@ -11,6 +11,7 @@ import { doesPurchaseMatchJobTerms } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError, emitCoreWarning } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
  * Cursor key for the purchase diff feed. Versioned like the registry cursor
@@ -594,6 +595,8 @@ async function runPurchaseDiff(
       if (hasNodeErrorEnvelope) {
         Sentry.captureException(error);
       } else {
+        // Safe fields and the status only: without the node's envelope the
+        // message is whatever the proxy answered, stringified.
         captureExternalServiceError(error, {
           label: "sync/jobs/purchase-diff",
         });
@@ -700,8 +703,10 @@ async function runPurchaseDiff(
             message: "Could not apply a changed purchase to its job",
             why: "Writing the purchase state to the job failed",
             fix: "The diff stays parked in front of this purchase, so the next jobs sync retries it. If it fails every run, Sentry has the error.",
-            cause: error,
           },
+          // Only safe fields: the write carries the provider's free-text
+          // error note, and a Prisma validation error quotes what it writes.
+          { failure: messageSafeErrorFields(error) },
         );
         // Transient Prisma classes (write conflict, pool timeout) self-heal on
         // the next run and would otherwise page on every cron tick; a real
