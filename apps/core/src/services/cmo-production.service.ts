@@ -51,6 +51,7 @@ import {
   withMarketingFiles,
   withSocialPostCalendar,
 } from "@/services/marketing-strategy.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 
 /**
  * After the owner approves the strategy and pays, Cuso makes the whole month
@@ -298,6 +299,8 @@ export function cmoProductionMessage(input: {
   proof?: readonly string[];
   /** Pieces whose picture failed twice for its visual. */
   failedMedia?: ReadonlySet<string>;
+  /** The reference library is set up here: pictures can take an old print's look. */
+  styles?: boolean;
 }): string {
   const { strategy, pending } = input;
   const batch = pending.slice(0, PIECES_PER_RUN);
@@ -331,6 +334,9 @@ export function cmoProductionMessage(input: {
     ),
     "",
     "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
+    input.styles && batch.some(cmoPieceNeedsMedia)
+      ? "Picture styles: before you save the visuals, call find_style_references for the pieces whose picture should stop a reader rather than show the product or a screen (an announcement, an offer, a how-to, a number), and save each with its styleReferenceId and a headline of at most six words in that same call. When a reference fits, give at least one piece with a picture in this run a style, and never the same reference twice."
+      : "",
     "",
     writingSkillsBrief(batch.map((piece) => piece.channel)),
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
@@ -739,6 +745,7 @@ export async function advanceCmoProduction(
         parseBrandBrain((await getBrandBrain(cuso.projectId))?.body),
       ),
       failedMedia,
+      styles: referenceLibraryAvailable(),
     }),
     `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
   );

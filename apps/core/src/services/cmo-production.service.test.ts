@@ -389,6 +389,31 @@ describe("cmoProductionMessage", () => {
     );
   });
 
+  it("asks for picture styles only where the reference library is set up and a piece has a picture", () => {
+    const withPicture = [entry({ id: "a", format: "image" })];
+    const input = {
+      businessName: "Acme",
+      strategy: strategy(withPicture),
+      pending: withPicture.map((item) => piece(item)),
+      connected: new Set<string>(),
+      attempt: 1,
+      topUp: false,
+    };
+    expect(cmoProductionMessage({ ...input, styles: true })).toContain(
+      "call find_style_references",
+    );
+    expect(cmoProductionMessage(input)).not.toContain("find_style_references");
+    const textOnly = [entry({ id: "b" })];
+    expect(
+      cmoProductionMessage({
+        ...input,
+        strategy: strategy(textOnly),
+        pending: textOnly.map((item) => piece(item)),
+        styles: true,
+      }),
+    ).not.toContain("find_style_references");
+  });
+
   it("tells a top-up run the month is already made", () => {
     const message = cmoProductionMessage({
       businessName: "Acme",

@@ -298,8 +298,8 @@ async function load(root: string): Promise<void> {
     await readJsonl<Described>(path.join(root, "_meta", "descriptions.jsonl"))
   ).filter((row) => uploaded.has(row.path) && !existing.has(row.path));
   console.log(`${existing.size} loaded, ${rows.length} to go`);
-  // The embedding model reads 20,000 tokens a request; a row is about 230.
-  const BATCH = 40;
+  // The embedding model takes at most 20,000 input tokens a request; 100 descriptions ran over.
+  const BATCH = 25;
   let costUsd = 0;
   for (let at = 0; at < rows.length; at += BATCH) {
     const batch = rows.slice(at, at + BATCH);
