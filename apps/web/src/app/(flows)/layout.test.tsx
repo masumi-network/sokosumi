@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 import FlowsLayout from "./layout";
@@ -114,6 +115,10 @@ describe("FlowsLayout impersonation banner", () => {
       "inline-flex",
       "min-h-6",
       "items-center",
+    );
+    // Sign-up's padding, safe areas included, so the logo sits where it did.
+    expect(logos[0]?.closest("[data-workspace-gate-shell]")).toHaveClass(
+      ...AUTH_SHELL_SAFE_AREA_PADDING_CLASS.split(" "),
     );
   });
 

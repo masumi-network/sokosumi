@@ -20,7 +20,10 @@ import {
   SOKO_BOT_HOME_TASK_LIMIT,
 } from "./components/soko-bot-home-data";
 
-/** Enough of the bot's Direct to hold the reader's latest question. */
+/**
+ * How much of the bot's Direct Home reads for the reader's latest question:
+ * Core's newest 20 top-level messages, deleted ones included, no further page.
+ */
 const SOKO_BOT_ROOM_MESSAGE_LIMIT = 20;
 
 /**
@@ -141,7 +144,10 @@ async function readHomeData(scope: HomeScope) {
   ]);
   // The bot's Direct, for Home's row of the reader's latest chat with it,
   // read or not. It needs the room list, so it is one round trip after the
-  // reads above, and only for a reader whose bot has a Direct.
+  // reads above, and only for a reader whose bot has a Direct. It spends one
+  // of Core's per-user message reads; a failed or throttled read shows no row.
+  // ponytail: one page only, so a question followed by 20 or more top-level
+  // bot posts drops off; follow `nextCursor` if bots start posting that much.
   const botDirect = sokoBot ? findSokoBotDirectRoom(rooms, sokoBot.id) : null;
   const botRoom = botDirect
     ? {

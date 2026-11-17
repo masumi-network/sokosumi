@@ -171,10 +171,10 @@ export function toImportantChats(
 /**
  * Adds the reader's latest question to their Soko Bot as one row, read or
  * not, so a first chat shows on Home. `messages` is the bot's Direct, oldest
- * first. The row takes the time of the room's last message, so it sits among
- * the day by the bot's answer. Nothing when the room went quiet over a day
- * ago, when the reader never asked, or when an unread row from that room is
- * already listed: that one points at what is new.
+ * first. The row shows and is dated by the question itself, so a bot post
+ * today does not make an older question look new. Nothing when the question
+ * is over a day old, when the reader never asked, or when an unread row from
+ * that room is already listed: that one points at what is new.
  */
 export function withSokoBotChat(
   chats: SokoBotHomeChat[],
@@ -185,16 +185,13 @@ export function withSokoBotChat(
   if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
     return chats;
   }
-  const timeline = botRoom.messages.filter(
-    (message) => !message.parentMessageId && !message.deletedAt,
-  );
-  const last = timeline.at(-1);
-  const question = timeline.findLast(
+  const question = botRoom.messages.findLast(
     (message) =>
+      !message.deletedAt &&
       message.sender.type === "user" &&
       message.sender.user.id === reader.userId,
   );
-  if (!last || !question || now.getTime() - last.createdAt.getTime() > DAY_MS) {
+  if (!question || now.getTime() - question.createdAt.getTime() > DAY_MS) {
     return chats;
   }
   return [
@@ -204,7 +201,7 @@ export function withSokoBotChat(
       messageId: question.id,
       title: buildChatMessagePreview(question.content) || reader.untitled,
       from: reader.botName,
-      at: last.createdAt,
+      at: question.createdAt,
     },
   ];
 }

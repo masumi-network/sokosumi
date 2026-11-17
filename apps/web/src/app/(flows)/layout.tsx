@@ -2,12 +2,14 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { LegalLinks } from "@/components/legal-links";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { readRouteSession } from "@/lib/auth/route-session";
+import { cn } from "@/lib/utils";
 
 export default async function FlowsLayout({
   children,
@@ -40,7 +42,9 @@ export default async function FlowsLayout({
         />
       ) : null}
       <div
-        className="flex h-dvh gap-6 p-6"
+        // Sign-up's padding, safe areas included, so the logo sits in the
+        // same place on both.
+        className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
         {...(isWorkspaceGate ? { "data-workspace-gate-shell": true } : {})}
       >
         {/* min-w-0: a row flex item would otherwise grow to its widest unwrappable

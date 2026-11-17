@@ -257,11 +257,16 @@ export async function SokoBotHome({
                         aria-hidden
                         className="text-muted-foreground size-4 shrink-0"
                       />
-                      <span className="text-foreground min-w-0 flex-1 truncate text-sm">
-                        {row.chat.title}
-                      </span>
-                      <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate text-sm sm:block">
-                        {row.chat.from}
+                      {/* Who wrote it shows on a phone too, on its own
+                          line under the message; a column beside it on
+                          wider screens. */}
+                      <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
+                        <span className="text-foreground block truncate sm:flex-1">
+                          {row.chat.title}
+                        </span>
+                        <span className="text-muted-foreground block truncate sm:max-w-40 sm:shrink-0">
+                          {row.chat.from}
+                        </span>
                       </span>
                       {timeOf(row.at)}
                       <span className="text-foreground shrink-0 text-sm font-medium">

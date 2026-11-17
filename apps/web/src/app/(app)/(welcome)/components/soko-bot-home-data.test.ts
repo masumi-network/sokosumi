@@ -179,7 +179,7 @@ describe("withSokoBotChat", () => {
     chats: Parameters<typeof withSokoBotChat>[0] = [],
   ) => withSokoBotChat(chats, { roomId: "bot-room", messages }, reader, now);
 
-  it("adds the reader's latest question to the bot, read or not, at the bot's last answer", () => {
+  it("adds the reader's latest question to the bot, read or not, at the time it was asked", () => {
     expect(
       chat([
         message("q1", "me", "Old question", "2026-11-17T09:00:00Z"),
@@ -198,12 +198,12 @@ describe("withSokoBotChat", () => {
         messageId: "q2",
         title: "What should I set up first?",
         from: "Wren",
-        at: new Date("2026-11-17T11:59:00Z"),
+        at: new Date("2026-11-17T11:58:00Z"),
       },
     ]);
   });
 
-  it("skips thread replies, deleted questions and other people's messages", () => {
+  it("skips deleted questions and other people's messages", () => {
     expect(
       chat([
         message("q1", "me", "Kept", "2026-11-17T10:00:00Z"),
@@ -211,9 +211,6 @@ describe("withSokoBotChat", () => {
           deletedAt: new Date("2026-11-17T10:06:00Z"),
         }),
         message("o1", "other", "Not mine", "2026-11-17T10:07:00Z"),
-        message("r1", "me", "In a thread", "2026-11-17T10:08:00Z", {
-          parentMessageId: "q1",
-        }),
       ])[0]?.messageId,
     ).toBe("q1");
   });
@@ -224,9 +221,16 @@ describe("withSokoBotChat", () => {
     ).toBe("No text");
   });
 
-  it("adds nothing when the chat went quiet over a day ago or the reader never asked", () => {
+  it("adds nothing when the question is over a day old or the reader never asked", () => {
     expect(
       chat([message("q1", "me", "Yesterday", "2026-11-16T11:59:00Z")]),
+    ).toEqual([]);
+    // The bot posting today does not make an old question new.
+    expect(
+      chat([
+        message("q1", "me", "Last week", "2026-11-10T09:00:00Z"),
+        message("a1", "bot", "Your Monday digest", "2026-11-17T11:00:00Z"),
+      ]),
     ).toEqual([]);
     expect(
       chat([message("a1", "bot", "Hello!", "2026-11-17T11:00:00Z")]),

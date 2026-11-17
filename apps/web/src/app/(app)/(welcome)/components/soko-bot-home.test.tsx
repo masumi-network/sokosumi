@@ -243,6 +243,12 @@ describe("SokoBotHome", () => {
     );
     expect(links[0]?.textContent).toContain("Maya");
     expect(links[0]?.textContent).toContain("open");
+    // Who wrote it shows on a phone too: no ancestor in the row hides it.
+    let node: HTMLElement | null = screen.getByText("Maya");
+    while (node && node !== links[0]) {
+      expect(node.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+      node = node.parentElement;
+    }
     expect(screen.queryByText(/quietDay/)).toBeNull();
   });
 
