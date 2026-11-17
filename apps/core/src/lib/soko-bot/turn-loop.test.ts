@@ -29,7 +29,7 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import {
   contextBlock,
   finishTurn,
@@ -245,12 +245,19 @@ describe("finishTurn", () => {
   });
 
   it("drops a message that claims an action no receipt proves", async () => {
-    expectConsole("warn", "Soko Bot reply withheld");
+    const warnings = expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
+      "The reply claims a change that no action receipt confirms",
+    ]);
     claimsActionMock.mockResolvedValue(true);
     await finish("I created the task and assigned it to Hannah.", true);
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
       message: null,
     });
+    // Counted, never quoted.
+    expect(warnings[0]?.event).toMatchObject({
+      replyWithheld: { reason: "claims_unconfirmed_change" },
+    });
+    expect(JSON.stringify(warnings[0]?.event)).not.toContain("Hannah");
   });
 
   it("lets the message report the changes its receipts confirm", async () => {
@@ -266,7 +273,9 @@ describe("finishTurn", () => {
   });
 
   it("says so when the message could not be checked", async () => {
-    expectConsole("warn", "Soko Bot reply withheld");
+    expectCoreLogWhys("warn", "Withheld a Soko Bot reply", [
+      "The check for claims of unconfirmed changes could not run",
+    ]);
     claimsActionMock.mockResolvedValue(null);
     await finish("Here is what I found.", true);
     expect(buildActionResponseMock.mock.calls[0][4].message).toContain(

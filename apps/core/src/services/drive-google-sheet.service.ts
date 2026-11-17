@@ -9,6 +9,8 @@ import JSZip from "jszip";
 
 import prisma from "@/lib/db/prisma";
 import { driveExists, driveHasAny } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   ownerDrivePathname,
   writeOwnerDriveFile,
@@ -303,11 +305,22 @@ async function refresh(row: LinkRow): Promise<GoogleSheetLink> {
   } catch (error) {
     lastError =
       error instanceof GoogleSheetExportError ? error.reason : "failed";
-    console.warn("[drive-google-sheet] Refresh failed", {
-      id: row.id,
-      reason: lastError,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // A user's refresh request, or the drive-google-sheets cron.
+    recordCoreWarning(
+      { operation: "drive_google_sheet_refresh" },
+      {
+        message: "Could not refresh a linked Google Sheet",
+        why: "Exporting the sheet from Google or storing its copy failed",
+        fix: "The Drive keeps the last copy and shows the failure; the next refresh tries again. googleSheetRefreshFailures[].reason says which step failed.",
+      },
+      // An array: one event can hold several sheets. Only safe fields: a
+      // Google error can quote the sheet's title or cells.
+      {
+        googleSheetRefreshFailures: [
+          { id: row.id, reason: lastError, ...messageSafeErrorFields(error) },
+        ],
+      },
+    );
   }
   const updated = await prisma.driveGoogleSheet.update({
     where: { id: row.id },

@@ -1,3 +1,5 @@
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "./jev";
 
 const TIMEOUT_MS = 6_000;
@@ -33,9 +35,16 @@ export async function unattendedChaseRefusal(input: {
     });
     probability = answers.get("chases");
   } catch (error) {
-    console.warn("Soko Bot chase check failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only safe fields: a model error can quote the text it was sent.
+    recordCoreWarning(
+      { operation: "soko_bot_chase_check" },
+      {
+        message: "Could not check whether a Soko Bot comment chases people",
+        why: "Jev, the judging model, failed or timed out",
+        fix: "Nothing: the comment is posted unchecked.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
   if (probability === undefined || probability < MIN_CHASE_PROBABILITY)

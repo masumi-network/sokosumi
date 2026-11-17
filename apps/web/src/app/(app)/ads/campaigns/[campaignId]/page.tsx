@@ -1,6 +1,5 @@
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 import { CORE_RANGE_BY_PARAM, campaignsHref } from "@/app/ads/ads-query";
@@ -8,6 +7,7 @@ import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
 import { AdsCampaignDetails } from "@/app/ads/components/ads-campaign-details";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
+import { BackLink } from "@/components/back-link";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { adsService } from "@/lib/services/ads.service";
 import { cn } from "@/lib/utils";
@@ -70,13 +70,13 @@ export default async function AdsCampaignDetailsPage({
   return (
     <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "pt-2 md:pt-3")}>
       <div className="flex max-w-180 flex-col gap-3 pb-16">
-        <Link
+        <BackLink
           className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 self-start text-sm transition-colors"
           href={campaignsHref(project.id, account.id, query.range)}
         >
           <ArrowLeft aria-hidden className="size-4" />
           {t("back")}
-        </Link>
+        </BackLink>
         {project.cmo ? <CmoProjectBanner projectId={project.id} /> : null}
         {body}
       </div>

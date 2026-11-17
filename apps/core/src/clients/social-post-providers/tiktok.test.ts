@@ -11,7 +11,11 @@ const { getEnvMock, logSetMock } = vi.hoisted(() => ({
   logSetMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("node:timers/promises", () => ({
   setTimeout: vi.fn(async () => undefined),

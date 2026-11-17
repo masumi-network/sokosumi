@@ -1,11 +1,13 @@
 import { waitUntil } from "@vercel/functions";
 import type { Hono } from "hono";
 
-import { createCoreLogger } from "@/lib/evlog";
+import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { purgeSokoBotSchedules } from "@/services/soko-bot-schedule.service";
 import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
 
+import type { SyncRunContext } from "../handler.js";
 import { handleSyncRequest } from "../handler.js";
 
 const SOKO_BOT_SCHEDULES_SYNC_LOCK_KEY = "soko-bot-schedules-sync";
@@ -19,40 +21,54 @@ export default function mount(app: Hono) {
         const result = await sokoBotSchedulesSyncService.syncDueSchedules({
           shouldContinue: context.shouldContinue,
           enqueueReconciliation: ({ turnId, leaseToken }) => {
+            // Background work: it outlives the run, so its events are its own.
             waitUntil(
-              sokoBotControlPlane
-                .reconcileTurn(turnId, context.abortSignal, leaseToken)
-                .catch((error) => {
-                  console.error(
-                    "Scheduled Soko Bot turn reconciliation failed",
-                    {
-                      turnId,
-                      error: error instanceof Error ? error.message : "unknown",
-                    },
-                  );
-                }),
+              runAsBackgroundWork(() =>
+                sokoBotControlPlane
+                  .reconcileTurn(turnId, context.abortSignal, leaseToken)
+                  .catch((error) => {
+                    emitCoreError(
+                      {
+                        operation: "soko_bot_schedule_reconciliation",
+                        turn: { id: turnId },
+                      },
+                      {
+                        message:
+                          "Could not reconcile a scheduled Soko Bot turn",
+                        why: "Reconciling the turn right after its schedule started it failed",
+                        fix: "Nothing to do now: the next soko-bot-turns sync tries the turn again, and its deadline expires it if it never recovers.",
+                      },
+                      // Only safe fields: turn work can echo its prompt.
+                      { failure: messageSafeErrorFields(error) },
+                    );
+                  }),
+              ),
             );
           },
         });
-        console.info("[sync/soko-bot-schedules] Completed sync", result);
-        await purgeSchedules();
+        context.log.set({ result });
+        await purgeSchedules(context);
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }
 
-/** One wide event per tick that removed anything; quiet ticks log nothing. */
-async function purgeSchedules() {
+/** What the purge removed goes on the run's event, next to its counts. */
+async function purgeSchedules({ log }: SyncRunContext) {
   try {
     const purged = await purgeSokoBotSchedules();
-    if (Object.values(purged).some((count) => count > 0)) {
-      const log = createCoreLogger({ operation: "soko_bot_schedule_purge" });
-      log.set({ purged });
-      log.emit();
-    }
+    log.set({ result: { purged } });
   } catch (error) {
-    console.error("Soko Bot schedule purge failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    emitCoreError(
+      { operation: "soko_bot_schedule_purge" },
+      {
+        message: "Could not purge spent Soko Bot schedules",
+        why: "The database delete of spent schedules failed",
+        fix: "Nothing to do now: the next soko-bot-schedules sync purges them; spent schedules only take space until then.",
+      },
+      // Only safe fields: a schedule carries its prompt.
+      { failure: messageSafeErrorFields(error) },
+    );
   }
 }

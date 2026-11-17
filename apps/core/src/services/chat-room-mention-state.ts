@@ -1,6 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
@@ -52,7 +54,18 @@ export async function markMentionFailed(
       },
     })
     .catch((updateError) => {
-      console.error("Failed to mark room mention as failed:", updateError);
+      emitCoreError(
+        {
+          operation: "chat_room_mention_dispatch",
+          mention: { id: mentionId },
+          failure: messageSafeErrorFields(updateError),
+        },
+        {
+          message: "Could not mark a failed chat mention as failed",
+          why: "The database update threw",
+          fix: "Stale reclaim picks the mention up again and ends it as failed once it is too old. If this repeats, check the database by the code under failure.",
+        },
+      );
     });
 }
 

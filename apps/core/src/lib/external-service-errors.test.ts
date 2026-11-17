@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   captureExternalServiceError,
   isSchemaDriftPrismaError,
@@ -9,7 +8,7 @@ import {
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
-import { expectConsole } from "@/test/console";
+import { causeMessage, expectCoreLogWhys } from "@/test/core-log";
 
 const { captureExceptionMock, setExtrasMock, withScopeMock } = vi.hoisted(
   () => {
@@ -282,6 +281,9 @@ describe("shouldSuppressSentryForExternalError", () => {
   });
 });
 
+const TRANSIENT_WHY =
+  "The call failed in a way that usually clears on the next attempt: a timeout, a dropped connection, an upstream gateway error or a busy database";
+
 describe("captureExternalServiceError", () => {
   beforeEach(() => {
     captureExceptionMock.mockClear();
@@ -290,9 +292,12 @@ describe("captureExternalServiceError", () => {
   });
 
   it("preserves schema-drift suppression severity with a fixed message", () => {
-    const errorCalls = expectConsole(
+    const errors = expectCoreLogWhys(
       "error",
-      "[private-operation] suppressed external failure",
+      "Kept a database schema mismatch out of Sentry",
+      [
+        "The database schema does not match this Core build, as happens while migrations deploy before the matching release",
+      ],
     );
 
     captureExternalServiceError(
@@ -301,10 +306,62 @@ describe("captureExternalServiceError", () => {
     );
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(errorCalls).toContainEqual([
-      "[private-operation] suppressed external failure",
-      { error: "Operation failed" },
-    ]);
+    // A fixed message marks private provider detail: safe fields, no cause.
+    expect(errors[0]?.event).toMatchObject({
+      operation: "external_service_failure",
+      suppressedFailure: { label: "private-operation" },
+      failure: { errorName: "Error", code: "P2022" },
+    });
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("andreas");
+  });
+
+  it("keeps the error text out unless the caller opts in", () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Kept a transient external failure out of Sentry",
+      [TRANSIENT_WHY],
+    );
+    // A provider echoing the mail it was sending: its body, a one-time link
+    // and a token no env secret matches. Redaction recognizes none of them.
+    const error = Object.assign(
+      new Error(
+        "socket hang up sending <p>Your payroll for Q3 is attached</p> https://app.sokosumi.com/invite/tok_8f3k2j1h9g sk_live_abc123",
+      ),
+      { code: "ECONNRESET" },
+    );
+
+    captureExternalServiceError(error, { label: "data_room_email" });
+
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      suppressedFailure: { label: "data_room_email" },
+      failure: { errorName: "Error", code: "ECONNRESET" },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("payroll");
+    expect(drained).not.toContain("tok_8f3k2j1h9g");
+    expect(drained).not.toContain("sk_live");
+  });
+
+  it("keeps the error text of a private failure out of a warning", () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Kept a transient external failure out of Sentry",
+      [TRANSIENT_WHY],
+    );
+
+    captureExternalServiceError(
+      new Error(`socket hang up for "Confidential payroll" sk_live_abc123`),
+      { label: "private-operation", message: "Operation failed" },
+    );
+
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential payroll");
+    expect(drained).not.toContain("sk_live");
   });
 
   it("applies top-level extra via scope and keeps sentry tags", () => {
@@ -326,26 +383,30 @@ describe("captureExternalServiceError", () => {
   });
 
   it("masks an env secret echoed back inside the error message", () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[job-final-status] suppressed external failure",
+      "Kept a transient external failure out of Sentry",
+      [TRANSIENT_WHY],
     );
     // A gateway answering for an upstream can echo the request headers into
     // its error body. Sentry has `beforeSend`; stdout has only this.
     const error = new Error(`socket hang up (token: ${ENV_SECRET})`);
 
-    captureExternalServiceError(error, { label: "job-final-status" });
+    captureExternalServiceError(error, {
+      label: "job-final-status",
+      errorDetail: "cause",
+    });
 
-    expect(warnings).toHaveLength(1);
-    const payload = warnings[0]?.[1] as { error: string };
-    expect(payload.error).not.toContain(ENV_SECRET);
-    expect(payload.error).toContain(REDACTED_SECRET);
+    const cause = causeMessage(warnings[0]?.cause);
+    expect(cause).not.toContain(ENV_SECRET);
+    expect(cause).toContain(REDACTED_SECRET);
   });
 
   it("masks an env secret carried in extra", () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[job-final-status] suppressed external failure",
+      "Kept a transient external failure out of Sentry",
+      [TRANSIENT_WHY],
     );
 
     captureExternalServiceError(new Error("socket hang up"), {
@@ -353,18 +414,17 @@ describe("captureExternalServiceError", () => {
       extra: { upstreamMessage: `401 for key ${ENV_SECRET}` },
     });
 
-    expect(warnings).toHaveLength(1);
-    const payload = warnings[0]?.[1] as {
-      upstreamMessage: string;
-    };
+    const payload = warnings[0]?.event as { upstreamMessage: string };
     expect(payload.upstreamMessage).not.toContain(ENV_SECRET);
     expect(payload.upstreamMessage).toContain(REDACTED_SECRET);
   });
 
   it("uses top-level extra for suppressed log context", () => {
-    const warnings = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[job-final-status] suppressed external failure",
+      "Kept a transient external failure out of Sentry",
+      [TRANSIENT_WHY],
+      ["socket hang up"],
     );
     const error = new Error("socket hang up");
 
@@ -374,16 +434,14 @@ describe("captureExternalServiceError", () => {
         jobId: "job_1",
         notificationType: "job-final-status",
       },
+      errorDetail: "cause",
     });
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(warnings).toContainEqual([
-      "[job-final-status] suppressed external failure",
-      {
-        error: "socket hang up",
-        jobId: "job_1",
-        notificationType: "job-final-status",
-      },
-    ]);
+    expect(warnings[0]?.event).toMatchObject({
+      suppressedFailure: { label: "job-final-status" },
+      jobId: "job_1",
+      notificationType: "job-final-status",
+    });
   });
 });

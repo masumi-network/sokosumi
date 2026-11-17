@@ -20,6 +20,9 @@ const { toastSuccessMock, uploadMock, sizes } = vi.hoisted(() => ({
   sizes: new Map<string, { width: number; height: number }>(),
 }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("sonner", () => ({
   toast: {
     error: vi.fn(),

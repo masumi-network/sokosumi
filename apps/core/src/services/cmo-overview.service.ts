@@ -7,6 +7,7 @@ import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
@@ -217,6 +218,20 @@ export function cmoUpNext(
 }
 
 /** Everything the CMO app shows, in one read, for one member of the business. */
+/**
+ * The plan as CMO shows it: a piece a patch skipped (status skipped drops
+ * one) is no longer in the month, on any screen.
+ */
+export function withoutSkippedPieces<
+  T extends Pick<MarketingStrategyPlan, "calendar"> | null,
+>(plan: T): T {
+  if (!plan?.calendar.some((entry) => entry.status === "skipped")) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.filter((entry) => entry.status !== "skipped"),
+  };
+}
+
 export async function getCmoOverview(
   target: CusoTarget,
   now: Date = new Date(),
@@ -263,7 +278,7 @@ export async function getCmoOverview(
     listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
   ]);
   if (project && project.sitePlatform === null) {
-    waitUntil(learnCmoSitePlatform(cuso));
+    waitUntil(runAsBackgroundWork(() => learnCmoSitePlatform(cuso)));
   }
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
@@ -292,7 +307,7 @@ export async function getCmoOverview(
       ])
     : [[], new Map<string, MarketingStrategyFilePiece>()];
   const planOf = (version: typeof newest) => {
-    const plan = parseMarketingPlan(version?.plan);
+    const plan = withoutSkippedPieces(parseMarketingPlan(version?.plan));
     return plan && version?.approvedAt
       ? withMarketingFiles(withSocialPostCalendar(plan, posts), files)
       : plan;
@@ -360,10 +375,15 @@ export async function getCmoOverview(
     websiteUrl: cuso.websiteUrl,
     brain: brandBrain,
   }).catch((error) => {
-    console.warn("CMO brand media not read", {
-      projectId: cuso.projectId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_overview", project: { id: cuso.projectId } },
+      {
+        message: "Could not read the brand media for the CMO overview",
+        why: "Blob storage did not answer",
+        fix: "The overview shows no research pictures until storage answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+    );
     return null;
   });
   const brandVisual = await cmoBrandVisual(

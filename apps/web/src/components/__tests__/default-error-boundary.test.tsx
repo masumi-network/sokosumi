@@ -11,6 +11,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 
 function Boom({ message }: { message: string }): ReactNode {
@@ -23,7 +24,7 @@ describe("DefaultErrorBoundary", () => {
   beforeEach(() => {
     captureException.mockClear();
     // Boundary + React both log the caught error; keep the suite output clean.
-    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleError = vi.spyOn(console, "error");
   });
 
   afterEach(() => {
@@ -32,6 +33,8 @@ describe("DefaultErrorBoundary", () => {
   });
 
   it("reports the caught error, its component stack, and caller context to Sentry", () => {
+    expectConsole("error", "[chat-error-boundary]");
+    expectConsole("error", "Error: render exploded");
     render(
       <DefaultErrorBoundary
         boundaryName="chat"
@@ -62,6 +65,8 @@ describe("DefaultErrorBoundary", () => {
   });
 
   it("still reports when no context is given (default boundary name)", () => {
+    expectConsole("error", "[default-error-boundary]");
+    expectConsole("error", "Error: no context");
     render(
       <DefaultErrorBoundary fallback={<div>fallback</div>}>
         <Boom message="no context" />

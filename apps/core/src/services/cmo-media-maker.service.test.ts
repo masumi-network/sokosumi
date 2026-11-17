@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -80,7 +81,12 @@ vi.mock("@vercel/blob", () => ({
   head: async (pathname: string) => ({ url: `https://blob/${pathname}` }),
 }));
 
-import { expectConsole } from "@/test/console";
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import {
   advanceCmoMedia,
   type CmoMediaJob,
@@ -343,11 +349,15 @@ describe("advanceCmoMedia", () => {
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
-    expectConsole("warn", "CMO media could not start");
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The image studio refused to start a CMO picture",
+      ["Image studio refused the generation"],
+    );
     const { HTTPException } = await import("hono/http-exception");
     createImageJob.mockRejectedValue(
       new HTTPException(429, {
-        message: "You can start at most 40 image generations per hour.",
+        message: "Refused: SENTINEL-PROMPT a sunlit bookshop",
       }),
     );
     jobFindMany.mockResolvedValue([
@@ -385,6 +395,79 @@ describe("advanceCmoMedia", () => {
     expect(updateSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId: "b" }),
     );
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_media",
+      cmoPieces: [{ id: "a", failure: { errorName: "Error", status: 429 } }],
+    });
+    // The refusal can quote the prompt; none of it reaches the drain.
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("logs a refused schedule without the post's text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not schedule a CMO Social post",
+      ["Social publishing refused the schedule"],
+    );
+    const { HTTPException } = await import("hono/http-exception");
+    scheduleSocialPost.mockRejectedValue(
+      new HTTPException(409, { message: "Refused: SENTINEL-POST words" }),
+    );
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Rewritten words after the picture.",
+      revision: 10,
+      status: "DRAFT",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      planning: {},
+    });
+    await advanceCmoMedia(context, [piece({ media: ["file-1"] })]);
+    expect(warnings[0]?.event).toMatchObject({
+      socialPosts: [
+        { id: "post-1", failure: { errorName: "Error", status: 409 } },
+      ],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
+  });
+
+  it("keeps each refused schedule with its own post on one request", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not schedule a CMO Social post",
+      2,
+    );
+    const { HTTPException } = await import("hono/http-exception");
+    scheduleSocialPost
+      .mockRejectedValueOnce(new HTTPException(409, { message: "Refused" }))
+      .mockRejectedValueOnce(new HTTPException(423, { message: "Refused" }));
+    postFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({
+        id: where.id,
+        provider: "x",
+        text: "Rewritten words after the picture.",
+        revision: 10,
+        status: "DRAFT",
+        scheduledAt: new Date(Date.now() + 86_400_000),
+        planning: {},
+      }),
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/cmo/month", async (c) => {
+      await advanceCmoMedia(context, [
+        piece({ id: "a", socialPostId: "post-a", media: ["file-1"] }),
+        piece({ id: "b", socialPostId: "post-b", media: ["file-1"] }),
+      ]);
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/cmo/month", { method: "POST" });
+
+    expect(warnings[1]?.event.socialPosts).toEqual([
+      { id: "post-a", failure: { errorName: "Error", status: 409 } },
+      { id: "post-b", failure: { errorName: "Error", status: 423 } },
+    ]);
   });
 
   it("schedules a post that went back to a draft after its picture went on", async () => {

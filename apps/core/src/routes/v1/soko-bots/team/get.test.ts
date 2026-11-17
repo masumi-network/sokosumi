@@ -102,6 +102,7 @@ function bot(id: string, overrides: Record<string, unknown> = {}) {
     name: id,
     avatarImageUrl: null,
     avatarSeed: null,
+    avatarCode: null,
     status: "IDLE",
     lastActivityAt: null,
     archivedAt: null,

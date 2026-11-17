@@ -2,8 +2,10 @@ import { z } from "@hono/zod-openapi";
 import { EnterpriseContractActivationError } from "@sokosumi/database/helpers";
 import { APIError } from "better-auth/api";
 import { Hono } from "hono";
-import type { RequestIdVariables } from "hono/request-id";
+import { type RequestIdVariables, requestId } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
 import { conflict, serviceUnavailable, tooManyRequests } from "./error";
 import { errorHandler } from "./error-handler";
@@ -319,9 +321,9 @@ describe("errorHandler", () => {
     expect(seenError).toBeUndefined();
   });
 
-  it("keeps context.error for unexpected 5xx so evlog can mark the wide event", async () => {
+  it("clears context.error for unexpected 5xx, so evlog does not log the error's text", async () => {
     const app = createApp();
-    let seenError: Error | undefined;
+    let seenError: Error | undefined = new Error("unset");
     app.use("*", async (c, next) => {
       await next();
       seenError = c.error;
@@ -333,8 +335,69 @@ describe("errorHandler", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(500);
-    expect(seenError).toEqual(expect.any(Error));
-    expect(seenError?.message).toBe("boom");
+    expect(seenError).toBeUndefined();
+  });
+
+  it("puts an unexpected error on the wide event without its text, and still reports it whole", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A request failed with an unexpected error",
+      ["The route threw an error it did not handle"],
+    );
+    // A Prisma validation error quotes its call's arguments: user text.
+    const error = Object.assign(
+      new Error(
+        "Invalid `prisma.task.update()` invocation: name: 'Ada private plan'",
+      ),
+      { name: "PrismaClientValidationError" },
+    );
+    const app = new Hono();
+    app.use(requestId());
+    app.use(coreEvlogMiddleware());
+    app.onError(errorHandler);
+    app.get("/v1/fail", () => {
+      throw error;
+    });
+
+    const response = await app.request("http://localhost/v1/fail");
+
+    expect(response.status).toBe(500);
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      level: "error",
+      status: 500,
+      failure: { errorName: "PrismaClientValidationError" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private plan");
+    expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({ label: "unhandled_route_error" }),
+    );
+  });
+
+  it("puts a reported 5xx HTTPException on the wide event with its kind", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A request failed with a server error",
+      ["The route answered with an HTTP 5xx error"],
+    );
+    const app = new Hono();
+    app.use(requestId());
+    app.use(coreEvlogMiddleware());
+    app.onError(errorHandler);
+    app.get("/v1/fail", () => {
+      throw serviceUnavailable("Storage backend unavailable", {
+        kind: "storage_unavailable",
+      });
+    });
+
+    const response = await app.request("http://localhost/v1/fail");
+
+    expect(response.status).toBe(503);
+    expect(errors[0]?.event).toMatchObject({
+      kind: "storage_unavailable",
+      failure: { status: 503 },
+    });
   });
 
   it("sets Retry-After header and body delay for throttled errors", async () => {

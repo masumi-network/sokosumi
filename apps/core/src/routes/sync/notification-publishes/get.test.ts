@@ -21,9 +21,9 @@ vi.mock("@/services/sync-lock.service", () => ({
   syncLockService: { acquireLock: acquire, releaseLock: release },
 }));
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => {
+  waitUntil: vi.fn((work: Promise<unknown>) => {
     pending.push(work);
-  },
+  }),
 }));
 
 import mount from "./get";

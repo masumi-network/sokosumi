@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -244,6 +245,10 @@ describe("GET /api/billing/portal", () => {
   });
 
   it("rejects non-Stripe portal URLs", async () => {
+    expectConsole(
+      "error",
+      "[billing-portal] rejected redirect url https://evil.com/phish",
+    );
     mockSession({ user: { id: "user-1" } });
     openPersonalBillingPortalServerMock.mockResolvedValue({
       ok: true,

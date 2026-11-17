@@ -4,6 +4,8 @@ import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-cr
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { reasoningPartsToMetadata } from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 import { markMentionFailed } from "./chat-room-mention-state";
 
@@ -178,10 +180,18 @@ export async function publishMentionThoughtPlaceholder(params: {
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
   } catch (publishError) {
-    console.error("Mention Thought placeholder Ably create failed:", {
-      mentionId: params.mentionId,
-      error: publishError,
-    });
+    emitCoreError(
+      {
+        failure: messageSafeErrorFields(publishError),
+        operation: "chat_room_mention_dispatch",
+        mention: { id: params.mentionId },
+      },
+      {
+        message: "Could not announce a thinking reply to the room",
+        why: "Invalidating readers or publishing over Ably threw",
+        fix: "The reply is saved; readers see it when they next load the room.",
+      },
+    );
   }
   return created.id;
 }
@@ -284,10 +294,18 @@ export async function failMentionWithCoworkerShell(params: {
       mentionId: params.mentionId,
     });
   } catch (publishError) {
-    console.error("Mention failed-shell create failed:", {
-      mentionId: params.mentionId,
-      error: publishError,
-    });
+    emitCoreError(
+      {
+        failure: messageSafeErrorFields(publishError),
+        operation: "chat_room_mention_dispatch",
+        mention: { id: params.mentionId },
+      },
+      {
+        message: "Could not show a failed reply for a chat mention",
+        why: "Writing the failed reply threw",
+        fix: "The mention is still marked failed, so the asker can retry it.",
+      },
+    );
   }
   await markMentionFailed(params.mentionId, params.error);
 }

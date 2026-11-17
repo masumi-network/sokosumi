@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -48,9 +49,7 @@ function show(
       locale={locale}
       messages={{ en, de, es }[locale]}
       timeZone="UTC"
-      formats={{
-        dateTime: { dateTime: { dateStyle: "medium", timeStyle: "short" } },
-      }}
+      formats={createFormats()}
     >
       <IssueActions
         issue={issue}

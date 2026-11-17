@@ -8,7 +8,9 @@ import { upsertCoworkerWorkspaceAccess } from "@/helpers/coworker-workspace-acce
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import {
   coworkerWorkspaceAccessSchema,
@@ -73,9 +75,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         await notifyWorkspaceApproversOfPendingCoworkerAccess(pendingNotify);
       } catch (error) {
-        console.error(
-          "Failed to notify workspace approvers of pending coworker access:",
-          error,
+        // The notice is a mail naming the coworker: content-free fields only.
+        recordCoreError(
+          {
+            operation: "coworker_workspace_access_request",
+            coworkerId: pendingNotify.coworkerId,
+            workspaceId: pendingNotify.workspaceId,
+            accessId: pendingNotify.accessId,
+          },
+          {
+            message:
+              "Could not notify workspace approvers of a coworker access request",
+            why: "Sending the approval request failed after the request was saved",
+            fix: "The request stays PENDING until someone approves; tell the workspace's approvers. Look up the error name and code under failure.",
+          },
+          { failure: messageSafeErrorFields(error) },
         );
       }
     }

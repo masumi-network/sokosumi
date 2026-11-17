@@ -16,6 +16,9 @@ import {
   trimEvmWalletId,
   type X402ReadySource,
 } from "@/helpers/x402-readiness";
+import { emitCoreWarning } from "@/lib/evlog";
+
+const OPERATION = "agent_x402_readiness";
 
 /** The one asset on a chain whose scale the node vouches for. */
 interface PricedNetworkAsset {
@@ -175,8 +178,17 @@ export function computeEnabledPricedNetworks(
         // it is indistinguishable from "node not ready" — so name the exact
         // pair. Chain/asset ids are public; runs at cron cadence (twice per
         // sync: compose + balance-eligibility sweep), so volume is bounded.
-        console.warn(
-          `[sync/agents] x402 chain ${caip2Id} is enabled and priced (${candidateAsset.asset}) but has no trusted EIP-712 domain; add it to X402_TRUSTED_EXACT_EVM_DOMAINS (apps/core/src/helpers/x402-readiness.ts) to make it payable`,
+        emitCoreWarning(
+          {
+            operation: OPERATION,
+            x402: { caip2Network: caip2Id, asset: candidateAsset.asset },
+          },
+          {
+            message:
+              "An enabled, priced x402 chain is not payable because its asset has no trusted EIP-712 domain",
+            why: "X402_TRUSTED_EXACT_EVM_DOMAINS has no entry for this chain and asset",
+            fix: "Add the chain and asset under x402 to X402_TRUSTED_EXACT_EVM_DOMAINS (apps/core/src/helpers/x402-readiness.ts) to make it payable",
+          },
         );
       }
     }
@@ -310,8 +322,17 @@ export function composeX402ReadySources(
       // is the expected shape of an almost-empty credit unit.
       const remaining = spendCaps.creditsByUnit.get(pairLabel) ?? 0n;
       if (remaining <= 0n) {
-        console.warn(
-          `[sync/agents] x402 pair ${pairLabel} has no remaining usage credits on Soko's payment-node API key, so it cannot be buy-side ready. Grant credits for unit ${pairLabel} with PATCH /api/v1/api-key, or clear usageLimited on the key`,
+        emitCoreWarning(
+          {
+            operation: OPERATION,
+            x402: { caip2Network, asset: pricedAsset.asset },
+          },
+          {
+            message:
+              "An x402 pair has no remaining usage credits on Soko's payment-node API key, so it cannot be buy-side ready",
+            why: "The key is usage limited and holds no credit for this pair's unit",
+            fix: `Grant credits for unit ${pairLabel} with PATCH /api/v1/api-key, or clear usageLimited on the key`,
+          },
         );
         continue;
       }
@@ -346,8 +367,17 @@ export function composeX402ReadySources(
       }
     }
     if (!best) {
-      console.warn(
-        `[sync/agents] x402 pair ${pairLabel} has no usable Purchasing wallet, so it cannot be buy-side ready. The node's listing exposes none that Soko's key can reach on this chain, or none holding both native gas and the priced token; create, scope, and fund one`,
+      emitCoreWarning(
+        {
+          operation: OPERATION,
+          x402: { caip2Network, asset: pricedAsset.asset },
+        },
+        {
+          message:
+            "An x402 pair has no usable Purchasing wallet, so it cannot be buy-side ready",
+          why: "The node's listing exposes no Purchasing wallet that Soko's key can reach on this chain, or none holding both native gas and the priced token",
+          fix: "Create a Purchasing wallet on this chain that Soko's key can reach, and fund it with native gas and the priced token",
+        },
       );
       continue;
     }

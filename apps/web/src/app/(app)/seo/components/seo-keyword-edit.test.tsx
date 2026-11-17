@@ -1655,7 +1655,8 @@ describe("Search Console queries", () => {
     const workspace = seoTestWorkspace();
     const read = (day: string, position: number | null) => ({
       observedAt: new Date(`${day}T08:00:00Z`),
-      observationId: "observation-1",
+      // One observation per check.
+      observationId: `observation-${day}`,
       position,
       positionStatus:
         position === null ? ("not_in_range" as const) : ("ranked" as const),
@@ -1668,7 +1669,8 @@ describe("Search Console queries", () => {
     );
     const check = (day: string, aiOverview: { shown: boolean } | null) => ({
       observedAt: new Date(`${day}T08:00:00Z`),
-      observationId: "observation-1",
+      // One observation per check.
+      observationId: `observation-${day}`,
       pages: [0],
       itemTypes: ["organic", "video"],
       aiOverview: aiOverview && {
@@ -1823,7 +1825,7 @@ describe("Search Console queries", () => {
 
   it("keeps two checks read at the same time apart in the SERP marks", async () => {
     const user = userEvent.setup();
-    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errors = vi.spyOn(console, "error");
     const workspace = seoTestWorkspace();
     workspace.keywords.push(seoTestKeyword());
     const check = (observationId: string, shown: boolean | null) => ({

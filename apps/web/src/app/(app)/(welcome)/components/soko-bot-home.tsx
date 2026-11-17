@@ -1,4 +1,9 @@
-import type { TaskActivitySummary, TaskListItem } from "@sokosumi/core-client";
+import type {
+  SokoBotStatus,
+  TaskActivitySummary,
+  TaskListItem,
+} from "@sokosumi/core-client";
+import { avatarStateOf } from "@sokosumi/soko-bot";
 import { CalendarClock, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
@@ -20,6 +25,8 @@ export interface SokoBotHomeBot {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
+  avatarCode?: string | null;
+  status?: SokoBotStatus;
 }
 
 interface SokoBotHomeProps {
@@ -146,6 +153,9 @@ export async function SokoBotHome({
           <BotFace
             imageUrl={bot.avatarImageUrl}
             seed={botFaceSeed(bot, ownerId)}
+            avatarCode={bot.avatarCode}
+            avatarState={avatarStateOf({ status: bot.status })}
+            avatarSize={56}
             className="border-background size-14 rounded-full border-4 shadow-md"
           />
           <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">

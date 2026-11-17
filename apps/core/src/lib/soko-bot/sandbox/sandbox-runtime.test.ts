@@ -16,7 +16,7 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => pending.push(promise)),
 }));
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: { create: createSandboxMock, get: getSandboxMock },
@@ -57,7 +57,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { SandboxSokoBotRuntime } from "./sandbox-runtime";
 
 const turn = {
@@ -126,7 +126,11 @@ describe("SandboxSokoBotRuntime", () => {
   });
 
   it("settles a turn whose VM never started, so it does not sit RUNNING", async () => {
-    expectConsole("error", "Soko Bot sandbox launch failed");
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not start a Soko Bot turn's sandbox",
+      ["Creating the Vercel Sandbox VM, its Drive or the runner failed"],
+    );
     driveGetOrCreateMock.mockRejectedValue(new Error("Drive unavailable"));
     await new SandboxSokoBotRuntime().createSession(turn);
     await Promise.all(pending);
@@ -143,5 +147,11 @@ describe("SandboxSokoBotRuntime", () => {
       ],
     );
     expect(reconcileTurnMock).toHaveBeenCalledWith("turn_2");
+    expect(errors[0]?.event).toMatchObject({
+      operation: "soko_bot_sandbox_launch",
+      turnId: "turn_2",
+      failure: { errorName: "Error" },
+    });
+    expect(errors[0]?.cause).toBeUndefined();
   });
 });

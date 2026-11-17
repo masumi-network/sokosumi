@@ -43,6 +43,7 @@ vi.mock("ably/react", () => ({
   }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { useNotificationFrontPresence } from "./use-notification-front-presence";
 
 /**
@@ -325,14 +326,15 @@ describe("useNotificationFrontPresence", () => {
   // An enter that was refused may still have reached the server, so what it
   // may have entered is left to the leave that follows it.
   it("leaves after an enter whose answer never came", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
     channel.presence.enter.mockRejectedValueOnce(new Error("presence refused"));
 
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
 
     setVisibility("hidden");
     await act(async () => {
@@ -398,9 +400,10 @@ describe("useNotificationFrontPresence", () => {
   });
 
   it("starts from nothing when signing in again replaces the Ably client", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
     const userId = nextUser();
     const { unmount } = renderHook(() => useNotificationFrontPresence(userId));
     await flush();
@@ -410,7 +413,7 @@ describe("useNotificationFrontPresence", () => {
     channel.presence.leave.mockRejectedValueOnce(new Error("presence refused"));
     unmount();
     await flush();
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
 
     const replacement = makeChannel();
     replacement.presence.enter.mockResolvedValue(undefined);
@@ -426,14 +429,15 @@ describe("useNotificationFrontPresence", () => {
   // holds is no longer known. The tab sends the next state it reaches
   // whether or not that state matches the one the failed request asked for.
   it("leaves after an enter that was refused, and enters again on the way back", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
     channel.presence.enter.mockRejectedValueOnce(new Error("presence refused"));
 
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
 
     await changeVisibility("hidden");
     await flush();
@@ -445,9 +449,10 @@ describe("useNotificationFrontPresence", () => {
   });
 
   it("says the tab's state again after a request that failed asking for it", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
     const userId = nextUser();
     const { unmount } = renderHook(() => useNotificationFrontPresence(userId));
     await flush();
@@ -456,7 +461,7 @@ describe("useNotificationFrontPresence", () => {
     channel.presence.leave.mockRejectedValueOnce(new Error("presence refused"));
     unmount();
     await flush();
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
 
     // The page is mounted again, still behind another tab. Asking for what
     // the failed request asked for is not a reason to skip it: the failure
@@ -474,16 +479,17 @@ describe("useNotificationFrontPresence", () => {
    * hook does.
    */
   it("sends a leave the channel refused again", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
 
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
 
     channel.presence.leave.mockRejectedValueOnce(new Error("presence refused"));
     await changeVisibility("hidden");
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
     expect(calls).toEqual(["enter"]);
 
     await waitForRetry();
@@ -498,7 +504,7 @@ describe("useNotificationFrontPresence", () => {
    * nothing.
    */
   it("stops asking after three refusals", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expectConsole("error", "Ably notification presence failed", 5);
     channel.presence.leave.mockRejectedValue(new Error("presence refused"));
 
     renderHook(() => useNotificationFrontPresence(nextUser()));
@@ -518,8 +524,7 @@ describe("useNotificationFrontPresence", () => {
    * answering again, so the next refusal starts from the top.
    */
   it("starts the budget again after a leave the channel took", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-
+    expectConsole("error", "Ably notification presence failed", 6);
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
 
@@ -548,8 +553,7 @@ describe("useNotificationFrontPresence", () => {
    * member back out.
    */
   it("drops the waiting retry when the tab says something newer", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-
+    expectConsole("error", "Ably notification presence failed");
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
 
@@ -570,8 +574,7 @@ describe("useNotificationFrontPresence", () => {
    * no longer the latest thing the tab said.
    */
   it("drops the retry for a leave the tab had already overtaken", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-
+    expectConsole("error", "Ably notification presence failed");
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
 
@@ -599,9 +602,10 @@ describe("useNotificationFrontPresence", () => {
   });
 
   it("enters again after a leave that was refused", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
 
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
@@ -609,7 +613,7 @@ describe("useNotificationFrontPresence", () => {
     channel.presence.leave.mockRejectedValueOnce(new Error("presence refused"));
     await changeVisibility("hidden");
     await flush();
-    expect(consoleError).toHaveBeenCalled();
+    expect(consoleError).not.toHaveLength(0);
 
     // The reader is back in front of a tab Ably may hold nothing for, so
     // the enter goes although the last request already asked to be present.
@@ -620,25 +624,26 @@ describe("useNotificationFrontPresence", () => {
   });
 
   it("reports a refused enter, and stays quiet about a closed connection", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably notification presence failed",
+    );
     channel.presence.enter.mockRejectedValueOnce(
       new Error("Connection closed."),
     );
 
     renderHook(() => useNotificationFrontPresence(nextUser()));
     await flush();
-    expect(consoleError).not.toHaveBeenCalled();
+    expect(consoleError).toHaveLength(0);
 
     channel.presence.enter.mockRejectedValueOnce(new Error("presence refused"));
     await changeVisibility("hidden");
     await changeVisibility("visible");
     await flush();
 
-    expect(consoleError).toHaveBeenCalledWith(
+    expect(consoleError).toContainEqual([
       "Ably notification presence failed:",
       expect.objectContaining({ message: "presence refused" }),
-    );
+    ]);
   });
 });

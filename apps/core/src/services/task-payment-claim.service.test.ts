@@ -70,7 +70,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectCoreLog } from "@/test/core-log";
 import {
   createTaskPaymentClaim,
   markTaskPaymentClaimPurchased,
@@ -676,9 +676,9 @@ describe("task payment claims", () => {
   });
 
   it("keeps draining the batch when acquisition itself throws", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "[sync/task-payment-claims] Failed to process claim claim-boom",
+      "Could not process a task payment claim",
     );
     claimFindManyMock.mockResolvedValue([
       { id: "claim-boom" },
@@ -713,12 +713,19 @@ describe("task payment claims", () => {
         extra: { claimId: "claim-boom" },
       }),
     );
+    expect(errors[0]).toMatchObject({ why: "Processing the claim threw" });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "connection terminated" },
+    });
+    expect(errors[0]?.event).toMatchObject({
+      taskPaymentClaim: { id: "claim-boom" },
+    });
   });
 
   it("escalates under its own lease token when processing throws after acquisition", async () => {
-    expectConsole(
+    const errors = expectCoreLog(
       "error",
-      "[sync/task-payment-claims] Failed to process claim claim-boom",
+      "Could not process a task payment claim",
     );
     claimFindManyMock.mockResolvedValue([{ id: "claim-boom" }]);
     claimCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
@@ -753,6 +760,10 @@ describe("task payment claims", () => {
     expect(escalationArgs.data).toMatchObject({
       processingStartedAt: null,
       processingToken: null,
+    });
+    expect(errors[0]).toMatchObject({ why: "Processing the claim threw" });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "socket hang up" },
     });
   });
 

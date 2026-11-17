@@ -33,9 +33,6 @@ function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
 const POLL_MS = 2_500;
 /** A hidden tab still checks in, so coming back shows where Cuso is now. */
 const HIDDEN_POLL_MS = 20_000;
-/** The change request after a no, once a plan exists. */
-const BRAND_CORRECTED =
-  "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
 
 interface OnboardingFlowProps {
   overview: CmoOverview;
@@ -289,6 +286,11 @@ export function OnboardingFlow({
               await actions.sendMessage(text);
               await refresh();
             }}
+            onFix={async (section, note) => {
+              const refused = await actions.fixBrandSection(section, note);
+              await refresh();
+              return refused;
+            }}
             onSave={async (brandBrain) => {
               setOverview(await actions.saveBrandBrain(brandBrain));
             }}
@@ -297,10 +299,10 @@ export function OnboardingFlow({
             }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
-              // Once a plan exists, the corrected Brand Brain changes it.
-              const refused = await request(
-                overview.strategy ? BRAND_CORRECTED : undefined,
-              );
+              // Cuso starts the plan when the research ends, so it is often
+              // written or under way: asking again hands back the one he is
+              // writing. A no is already Core's to fix on its section.
+              const refused = overview.strategy ? null : await request();
               if (!refused) setViewing(null);
               return refused;
             }}

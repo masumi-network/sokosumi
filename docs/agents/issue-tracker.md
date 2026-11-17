@@ -54,7 +54,7 @@ sokosumi --api-url https://api.sokosumi.com tasks create \
   --json
 ```
 
-`--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet). Without a project the Task has no short identifier. Confirm the brief and write authorization before creating. Do not invent Tasks during implement work unless the user explicitly asked to file one.
+`--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet). Without a project the Task has no short identifier. Confirm the brief and write authorization before creating. Before filing or scoping a Task, also run `gh pr list --state all --search "<topic>"`: in-flight work often has no Task, and a PR closed as folded into another points at the live one. Do not invent Tasks during implement work unless the user explicitly asked to file one.
 
 ## When a skill says "fetch the relevant ticket"
 

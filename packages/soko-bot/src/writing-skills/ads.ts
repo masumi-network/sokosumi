@@ -7,6 +7,8 @@ export const AD_WRITING_SKILLS: readonly WritingSkill[] = [
     name: "Facebook and Instagram ads",
     description:
       "Read before any Meta ad: primary text that works in 125 characters, a headline, one action.",
+    audience:
+      "Paid reach on Instagram and Facebook, aimed by place, age and interest. Fits consumer and local businesses; for a business that sells to companies only with a clearly defined audience.",
     channels: ["meta_ads"],
     content: `# Facebook and Instagram ads
 
@@ -80,6 +82,8 @@ Button: Get offer
     name: "Google Ads",
     description:
       "Read before any Google ad: headlines of 30 characters and descriptions of 90 that answer the search.",
+    audience:
+      "Paid search: people looking for exactly what the business sells, right now. Fits any business with demand people search for.",
     channels: ["google_ads"],
     content: `# Google Ads
 

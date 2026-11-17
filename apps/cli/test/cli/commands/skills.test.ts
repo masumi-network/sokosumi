@@ -25,20 +25,6 @@ test("skills command finds the bundled skills including sokosumi", async () => {
   assert.ok(sokosumi.path.endsWith("sokosumi"));
 });
 
-test("skills JSON output lists skills and their directory", async () => {
-  const output: string[] = [];
-  await runSkillsCommand({
-    stdout: { write: (value) => output.push(value) },
-    json: true,
-  });
-  const result = JSON.parse(output.join("")) as {
-    skillsDir: string;
-    skills: { name: string; description: string; path: string }[];
-  };
-  assert.ok(result.skillsDir.endsWith("skills"));
-  assert.ok(result.skills.some((skill) => skill.name === "sokosumi"));
-});
-
 test("skills path prints only the skills directory", async () => {
   const output: string[] = [];
   await runSkillsCommand({

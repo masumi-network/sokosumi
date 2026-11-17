@@ -34,7 +34,7 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
-import { expectConsole } from "@/test/console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { publishChatRoomReadRealtime } from "./chat-room-read-realtime";
 
 const ROOM_ID = "660e8400-e29b-41d4-a716-446655440000";
@@ -91,8 +91,12 @@ describe("publishChatRoomReadRealtime", () => {
   });
 
   it("swallows a publish failure so the caller never sees it", async () => {
-    expectConsole("error", "Failed to publish room read event over Ably");
-    publishMock.mockRejectedValue(new Error("ably down"));
+    expectCoreLogWhys(
+      "error",
+      "A room read event was not published over Ably",
+      ["The Ably publish of the read event failed"],
+    );
+    publishMock.mockRejectedValue(new Error("ably down: 'Ada private note'"));
 
     await expect(
       publishChatRoomReadRealtime({
@@ -102,5 +106,6 @@ describe("publishChatRoomReadRealtime", () => {
       }),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalledOnce();
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
   });
 });

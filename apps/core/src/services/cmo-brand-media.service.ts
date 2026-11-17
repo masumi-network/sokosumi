@@ -11,7 +11,9 @@ import type { Browser } from "puppeteer-core";
 
 import prisma from "@/lib/db/prisma";
 import { driveOwnerOf } from "@/lib/drive-blob";
+import { emitCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   capturePage,
   MOBILE,
@@ -443,14 +445,25 @@ export function scheduleCmoBrandMedia(sokoBotId: string): void {
   if (capturing.has(sokoBotId)) return;
   capturing.add(sokoBotId);
   waitUntil(
-    captureCmoBrandMedia(sokoBotId)
-      .catch((error) => {
-        console.warn("CMO brand media failed", {
-          sokoBotId,
-          error: error instanceof Error ? error.message : "unknown",
-        });
-      })
-      .finally(() => capturing.delete(sokoBotId)),
+    runAsBackgroundWork(() =>
+      captureCmoBrandMedia(sokoBotId)
+        .catch((error) => {
+          // After the response, and pages can carry what the brand wrote.
+          emitCoreWarning(
+            {
+              operation: "cmo_brand_media",
+              sokoBot: { id: sokoBotId },
+              failure: messageSafeErrorFields(error),
+            },
+            {
+              message: "Could not capture the brand's pages for Cuso",
+              why: "The brand media capture threw",
+              fix: "The Brand Brain opens without these pictures; Cuso's next essentials save captures again. If it repeats, look up the error name and code under failure.",
+            },
+          );
+        })
+        .finally(() => capturing.delete(sokoBotId)),
+    ),
   );
 }
 

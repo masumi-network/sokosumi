@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-import { expectConsole } from "@/test/console";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { type CoreLogEntry, expectCoreLogWhys } from "@/test/core-log";
 import mountStreamGetRoomStream from "./stream-get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -56,6 +61,18 @@ vi.mock("@/helpers/active-ui-stream-room-metadata", () => ({
   clearActiveUiStreamIdForRoom: clearActiveUiStreamIdForRoomMock,
 }));
 
+/** Error text that carries a prompt and a key, as a dependency error can. */
+const PRIVATE_TEXT = "Quarterly secrets sk_live_51PrivateKeyValue";
+const privateError = () => new Error(`write failed near "${PRIVATE_TEXT}"`);
+
+/** The entry keeps only content-free fields: no cause, no error text. */
+function expectContentFree(entry: CoreLogEntry | undefined) {
+  expect(entry?.cause).toBeUndefined();
+  expect(entry?.event.failure).toEqual({ errorName: "Error" });
+  expect(JSON.stringify(entry?.event)).not.toContain("Quarterly");
+  expect(JSON.stringify(entry?.event)).not.toContain("sk_live");
+}
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 
@@ -68,8 +85,10 @@ const userAuthContext: AuthVariables["authContext"] = {
 
 function createApp(
   authContext: AuthVariables["authContext"] = userAuthContext,
+  options: { evlog?: boolean } = {},
 ) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -141,9 +160,10 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
   });
 
   it("returns 204 and clears stale id when resume throws ack timeout", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "Resumable UI stream resume timed out waiting for Redis ack (likely slow Redis or",
+      "Could not resume a chat room's live stream",
+      ["Redis did not acknowledge the resume in time"],
     );
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
@@ -163,7 +183,66 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
       roomId: ROOM_ID,
       userId: USER_ID,
     });
+    expect(warnings[0]?.event).toMatchObject({ activeStreamId: "stream_slow" });
+    // The resume carries the reply's stream: content-free fields only.
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(warnings[0]?.event.failure).toEqual({ errorName: "Error" });
   });
+
+  it.each([
+    {
+      staleBecause: "resume_ack_timeout",
+      resume: () =>
+        resumeExistingStreamMock.mockRejectedValueOnce(
+          new Error("Timeout waiting for ack"),
+        ),
+    },
+    {
+      staleBecause: "resume_miss",
+      resume: () => resumeExistingStreamMock.mockResolvedValueOnce(null),
+    },
+  ])(
+    "clears the stale id after a $staleBecause as background work, its failure on its own event",
+    async ({ staleBecause, resume }) => {
+      if (staleBecause === "resume_ack_timeout") {
+        expectCoreLogWhys(
+          "warn",
+          "Could not resume a chat room's live stream",
+          ["Redis did not acknowledge the resume in time"],
+        );
+      }
+      expectBackgroundProbe("clearActiveUiStreamIdForRoom");
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not clear a chat room's stale stream id",
+        ["Writing the room's stream metadata failed"],
+      );
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        organizationId: "org_1",
+        userMembers: [{ access: "member" }],
+      });
+      readActiveUiStreamIdForRoomMock.mockResolvedValue("stream_stale");
+      resume();
+      clearActiveUiStreamIdForRoomMock.mockImplementationOnce(async () => {
+        probeBackgroundFailure("clearActiveUiStreamIdForRoom");
+        throw privateError();
+      });
+
+      const response = await createApp(userAuthContext, {
+        evlog: true,
+      }).request(`/${ROOM_ID}/stream/active`);
+
+      expect(response.status).toBe(204);
+      expect(errors[0]?.event).toMatchObject({
+        operation: "chat_room_stream_resume",
+        roomId: ROOM_ID,
+        staleBecause,
+      });
+      expect(errors[0]?.event.method).toBeUndefined();
+      expectContentFree(errors[0]);
+    },
+  );
 
   it("returns 204 and clears stale id when resume returns null", async () => {
     roomFindFirstMock.mockResolvedValue({

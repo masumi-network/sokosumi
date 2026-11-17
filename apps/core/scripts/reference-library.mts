@@ -27,11 +27,9 @@ import { put } from "@vercel/blob";
 import { gateway, generateText, Output } from "ai";
 import pLimit from "p-limit";
 import sharp from "sharp";
-import {
-  embedContactTexts,
-  vectorLiteral,
-} from "../src/lib/contacts/embeddings";
+import { vectorLiteral } from "../src/lib/contacts/embeddings";
 import prisma from "../src/lib/db/prisma";
+import { embedTexts } from "../src/lib/embeddings";
 import type { ReferenceDescription } from "../src/lib/reference-library/description";
 import {
   clipDescription,
@@ -302,7 +300,7 @@ async function load(root: string): Promise<void> {
   let costUsd = 0;
   for (let at = 0; at < rows.length; at += BATCH) {
     const batch = rows.slice(at, at + BATCH);
-    const { embeddings, costUsd: cost } = await embedContactTexts(
+    const { embeddings, costUsd: cost } = await embedTexts(
       batch.map(searchText),
     );
     costUsd += cost;

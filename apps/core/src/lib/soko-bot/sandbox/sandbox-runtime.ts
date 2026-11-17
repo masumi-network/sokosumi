@@ -17,6 +17,12 @@ import { Drive, type NetworkPolicy, Sandbox } from "@vercel/sandbox";
 import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import {
+  emitCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
   cancelStoredTurn,
   inspectStoredSession,
   resetStoredSession,
@@ -141,10 +147,17 @@ export async function stopTurnSandbox(turnId: string): Promise<void> {
     });
     await sandbox.stop();
   } catch (error) {
-    console.warn("Soko Bot sandbox stop failed", {
-      turnId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // A turn's settlement or cancel request, or the launch in the background.
+    recordCoreWarning(
+      { operation: "soko_bot_sandbox_stop" },
+      {
+        message: "Could not stop a Soko Bot turn's sandbox",
+        why: "Vercel Sandbox did not find or stop the VM",
+        fix: "Nothing: the VM stops itself at its timeout, which only costs its remaining run time.",
+        cause: error,
+      },
+      { turnId },
+    );
   }
 }
 
@@ -219,10 +232,17 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
       detached: true,
     });
   } catch (error) {
-    console.error("Soko Bot sandbox launch failed", {
-      turnId: input.turnId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Started in `waitUntil`, so its own event. Only safe fields: the
+    // sandbox request carries the turn's token in its network policy.
+    emitCoreError(
+      { operation: "soko_bot_sandbox_launch" },
+      {
+        message: "Could not start a Soko Bot turn's sandbox",
+        why: "Creating the Vercel Sandbox VM, its Drive or the runner failed",
+        fix: "The turn is failed with code sandbox_launch_failed, and its turn.failed event has the error. Check the Vercel Sandbox credentials and quota if it repeats.",
+      },
+      { turnId: input.turnId, failure: messageSafeErrorFields(error) },
+    );
     // The drain binds a turn on `turn.started` + `message.received` and skips
     // anything before them, so a turn that failed before the runner started
     // has to announce itself first or it sits RUNNING until the watchdog.
@@ -247,7 +267,7 @@ export class SandboxSokoBotRuntime implements SokoBotRuntime {
   async createSession(input: RuntimeTurnInput): Promise<RuntimeTurnRef> {
     const sessionId = input.sessionId ?? `sess_${randomUUID()}`;
     // The caller is answering a user; the VM starts in the background.
-    waitUntil(launch(sessionId, input));
+    waitUntil(runAsBackgroundWork(() => launch(sessionId, input)));
     return {
       sessionId,
       runtimeVersion: SANDBOX_RUNTIME_VERSION,
@@ -270,7 +290,7 @@ export class SandboxSokoBotRuntime implements SokoBotRuntime {
       select: { id: true },
     });
     if (!turn) return;
-    waitUntil(stopTurnSandbox(turn.id));
+    waitUntil(runAsBackgroundWork(() => stopTurnSandbox(turn.id)));
     // The runner exits without reporting, so nothing else marks the session
     // idle and the reconciler never settles: a stopped background run stayed
     // CANCEL_REQUESTED until its six-hour deadline failed it.

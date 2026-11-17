@@ -1,11 +1,11 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
+import { BackLink } from "@/components/back-link";
 import { getAgentName } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
@@ -43,7 +43,7 @@ export default function Header({
       </div>
       <div className="hidden w-full md:block">
         <div className="flex w-full items-center justify-between py-4">
-          <Link
+          <BackLink
             href={disabled ? "/agents" : `/agents/${agent.id}`}
             className="text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 text-sm transition-colors"
           >
@@ -53,7 +53,7 @@ export default function Header({
                 ? t("back")
                 : t("backToAgent", { name: getAgentName(agent) })}
             </span>
-          </Link>
+          </BackLink>
           <div className="flex items-center gap-1.5">
             {canRate && (
               <AgentRatingCTA

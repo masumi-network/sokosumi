@@ -15,6 +15,7 @@ vi.mock(
 import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
+  requestBrandBrainFix,
   saveBrandBrain,
   saveStudioBrandCopy,
 } from "./brand-brain.service";
@@ -516,5 +517,253 @@ describe("Brand Brain questions", () => {
     expect(
       brainUpsert.mock.lastCall?.[0].update.body.questions[0],
     ).toMatchObject({ corrected: false });
+  });
+});
+
+describe("Brand Brain fixes", () => {
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+  };
+  const sixteen = Object.fromEntries(
+    [
+      "company",
+      "offer",
+      "pricing",
+      "problems",
+      "customers",
+      "buyers",
+      "value",
+      "positioning",
+      "competition",
+      "sales",
+      "marketing",
+      "content",
+      "proof",
+      "reputation",
+      "momentum",
+      "opportunities",
+    ].map((key) => [
+      key,
+      { answer: `What ${key} says.`, findings: [], openQuestions: [] },
+    ]),
+  );
+  const asked = "2026-11-10T10:00:00.000Z";
+
+  it("holds the owner's fix on its one section until Cuso rewrites it", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [] },
+    });
+
+    await requestBrandBrainFix(PROJECT_ID, {
+      section: "pricing",
+      note: "From 19 dollars a month.",
+      at: new Date(asked),
+    });
+
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.profile.pricing.fix).toEqual({
+      note: "From 19 dollars a month.",
+      at: asked,
+      fixed: false,
+    });
+    expect({ ...body.profile, pricing: null }).toEqual({
+      ...sixteen,
+      pricing: null,
+    });
+  });
+
+  it("adds a second correction to the waiting one, and refuses one that would not fit whole", async () => {
+    const waiting = (note: string) => ({
+      body: {
+        ...essentials,
+        profile: {
+          ...sixteen,
+          pricing: {
+            ...sixteen.pricing,
+            fix: { note, at: asked, fixed: false },
+          },
+        },
+        questions: [],
+      },
+    });
+    brainFindUnique.mockResolvedValueOnce(waiting("From 19 dollars."));
+    await requestBrandBrainFix(PROJECT_ID, {
+      section: "pricing",
+      note: "Teams pay per seat.",
+      at: new Date(asked),
+    });
+    expect(
+      brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
+    ).toBe("From 19 dollars. Teams pay per seat.");
+
+    // A no's fix, its statement and the owner's whole note, fits.
+    const no = `Not true: ${"s".repeat(400)} True instead: ${"n".repeat(400)}`;
+    brainFindUnique.mockResolvedValueOnce(waiting("From 19 dollars."));
+    await requestBrandBrainFix(PROJECT_ID, {
+      section: "pricing",
+      note: no,
+      at: new Date(asked),
+    });
+    expect(
+      brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
+    ).toBe(`From 19 dollars. ${no}`);
+
+    // Cut to fit, the new correction would be lost.
+    brainUpdate.mockClear();
+    brainFindUnique.mockResolvedValueOnce(waiting("x".repeat(1990)));
+    await expect(
+      requestBrandBrainFix(PROJECT_ID, {
+        section: "pricing",
+        note: "Teams pay per seat.",
+        at: new Date(asked),
+      }),
+    ).rejects.toThrow(/waiting/);
+    expect(brainUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a correction open that came after the rewriting turn started", async () => {
+    const rewrite = (fixAt: string) => {
+      brainFindUnique.mockResolvedValueOnce({
+        body: {
+          ...essentials,
+          profile: {
+            ...sixteen,
+            pricing: {
+              ...sixteen.pricing,
+              fix: { note: "From 19 dollars.", at: fixAt, fixed: false },
+            },
+          },
+          questions: [],
+        },
+      });
+      return saveBrandBrain(
+        PROJECT_ID,
+        {
+          sections: {
+            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
+          },
+        },
+        undefined,
+        { briefedAt: new Date(asked) },
+      );
+    };
+    const fixOf = () =>
+      brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix;
+
+    // In the turn's brief: the rewrite closes it.
+    await rewrite("2026-11-10T09:59:00.000Z");
+    expect(fixOf()).toMatchObject({ fixed: true });
+
+    // Asked while the turn wrote: the next change still has it.
+    await rewrite("2026-11-10T10:01:00.000Z");
+    expect(fixOf()).toMatchObject({ fixed: false });
+  });
+
+  it("keeps a no open on its question while its section's fix stays open", async () => {
+    const no = {
+      id: "q1",
+      section: "pricing" as const,
+      question: "Do you start at 9 dollars?",
+      statement: "Acme starts at 9 dollars.",
+      answer: "no" as const,
+      corrected: false,
+    };
+    const rewrite = (fixAt: string) => {
+      brainFindUnique.mockResolvedValueOnce({
+        body: {
+          ...essentials,
+          profile: {
+            ...sixteen,
+            pricing: {
+              ...sixteen.pricing,
+              fix: { note: "Not true.", at: fixAt, fixed: false },
+            },
+          },
+          questions: [no],
+        },
+      });
+      return saveBrandBrain(
+        PROJECT_ID,
+        {
+          sections: {
+            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
+          },
+        },
+        undefined,
+        { briefedAt: new Date(asked) },
+      );
+    };
+    const questionOf = () =>
+      brainUpsert.mock.lastCall?.[0].update.body.questions[0];
+
+    // Answered while the turn wrote: the turn never read it.
+    await rewrite("2026-11-10T10:01:00.000Z");
+    expect(questionOf()).toMatchObject({ corrected: false });
+
+    // In the turn's brief: the rewrite corrects it.
+    await rewrite("2026-11-10T09:59:00.000Z");
+    expect(questionOf()).toMatchObject({ corrected: true });
+  });
+
+  it("marks the fix done when its section is rewritten, and leaves the other 15 untouched", async () => {
+    const waiting = {
+      ...sixteen,
+      pricing: {
+        ...sixteen.pricing,
+        fix: { note: "From 19 dollars.", at: asked, fixed: false },
+      },
+    };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: waiting, questions: [] },
+    });
+
+    await saveBrandBrain(PROJECT_ID, {
+      sections: {
+        pricing: {
+          answer: "From 19 dollars a month.",
+          findings: [],
+          // Cuso cannot close a fix himself.
+          fix: { note: "Done.", at: asked, fixed: true },
+        },
+      },
+    });
+
+    const body = brainUpsert.mock.lastCall?.[0].update.body;
+    expect(body.profile.pricing.answer).toBe("From 19 dollars a month.");
+    expect(body.profile.pricing.fix).toEqual({
+      note: "From 19 dollars.",
+      at: asked,
+      fixed: true,
+    });
+    expect({ ...body.profile, pricing: null }).toEqual({
+      ...waiting,
+      pricing: null,
+    });
+  });
+
+  it("keeps the fix open when a save leaves the section's answer as it was", async () => {
+    const waiting = {
+      ...sixteen,
+      pricing: {
+        ...sixteen.pricing,
+        fix: { note: "From 19 dollars.", at: asked, fixed: false },
+      },
+    };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: waiting, questions: [] },
+    });
+
+    await saveBrandBrain(PROJECT_ID, {
+      sections: { pricing: { answer: "What pricing says.", findings: [] } },
+    });
+
+    expect(
+      brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix,
+    ).toMatchObject({ fixed: false });
   });
 });

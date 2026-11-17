@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import * as Sentry from "@sentry/node";
 import { waitUntil } from "@vercel/functions";
-
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
+import { runAsBackgroundWork } from "@/lib/evlog";
 
 export function notificationPublishFields(
   delivery: NotificationDelivery,
@@ -24,14 +24,14 @@ export function notificationPublishFields(
 
 export function scheduleNotificationPublish(notificationId: string): void {
   waitUntil(
-    import("./notification-publish")
-      .then(({ dispatchNotificationPublish }) =>
+    runAsBackgroundWork(() =>
+      import("./notification-publish").then(({ dispatchNotificationPublish }) =>
         dispatchNotificationPublish(notificationId),
-      )
-      .catch((error) => {
-        Sentry.captureException(error, {
-          extra: { notificationId, errorType: "notification-publish-schedule" },
-        });
-      }),
+      ),
+    ).catch((error) => {
+      Sentry.captureException(error, {
+        extra: { notificationId, errorType: "notification-publish-schedule" },
+      });
+    }),
   );
 }

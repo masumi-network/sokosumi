@@ -1,6 +1,7 @@
+import { installConsoleGuard } from "@sokosumi/utils/test-console";
 import { vi } from "vitest";
-
-import { installConsoleGuard } from "./console";
+import { installCoreLogDrain } from "./core-log";
+import { installWaitUntilDrain } from "./wait-until";
 import { workerDatabaseUrl } from "./worker-database-url";
 
 const envDefaults: Record<string, string> = {
@@ -53,6 +54,8 @@ const envDefaults: Record<string, string> = {
   OPENROUTER_CHAT_API_KEY:
     "sk-or-v1-test-0000000000000000000000000000000000000000",
   PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
+  // A numeric env secret, for the log redaction of bigint values.
+  CORE_LOG_TEST_NUMERIC_SECRET: "73914826503917482650",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {
@@ -115,3 +118,12 @@ vi.mock("@sentry/node", () => {
 });
 
 installConsoleGuard();
+// The test drain owns evlog's setup here: `lib/evlog-init.ts`, which
+// `config/env.ts` imports, must neither start Core's logger over it nor read
+// `@/lib/evlog`, which 16 files mock without `initCoreLogger`. Its own test
+// clears this flag.
+(globalThis as Record<symbol, unknown>)[
+  Symbol.for("sokosumi.core.logger-started")
+] = true;
+await installCoreLogDrain();
+installWaitUntilDrain();

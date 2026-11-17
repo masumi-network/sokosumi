@@ -167,6 +167,29 @@ export const cmoProjectParamsSchema = z.object({
     }),
 });
 
+export const cmoBrandFixRequestSchema = z
+  .object({
+    section: z.enum(CMO_BRAND_SECTION_KEYS),
+    note: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .describe("What is true instead, in the owner's words."),
+  })
+  .openapi("CmoBrandFixRequest");
+
+export const cmoBrandFixStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy: the fix is kept on its section and starts when his current turn ends.",
+      ),
+  })
+  .openapi("CmoBrandFixStarted");
+
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
   strategyId: z
@@ -230,6 +253,12 @@ export const cmoWorkStepSchema = z
 export const cmoWorkSchema = z
   .object({
     kind: z.enum(["research", "strategy"]),
+    change: z
+      .union([z.enum(["fix", "patch"]), z.null()])
+      .optional()
+      .describe(
+        "A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.",
+      ),
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),

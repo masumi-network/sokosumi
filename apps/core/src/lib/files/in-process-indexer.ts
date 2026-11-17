@@ -1,5 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 
+import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   type FileIndexSyncResult,
   processFileIndexJobs,
@@ -126,7 +128,7 @@ export interface IndexingNudgeResult {
  * arbitrary, and the next path added will be read against this list.
  */
 export function nudgeFileIndexing(): void {
-  waitUntil(runIndexingNudge());
+  waitUntil(runAsBackgroundWork(runIndexingNudge));
 }
 
 /**
@@ -152,7 +154,7 @@ export function nudgeFileIndexing(): void {
  * path and, in production, to the cron.
  */
 export function nudgeFileExtraction(): void {
-  waitUntil(runExtractionNudge());
+  waitUntil(runAsBackgroundWork(runExtractionNudge));
 }
 
 const NO_TABLES: TableSyncResult = { scanned: 0, indexed: 0, failed: 0 };
@@ -203,9 +205,17 @@ export async function runExtractionNudge(): Promise<FileIndexSyncResult> {
   } catch (error) {
     // Indexing is background work. It must never fail the upload, the
     // search or the page that happened to trigger it.
-    console.warn("[files] in-process indexing nudge failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Only safe fields: indexing writes a file's text, and a Prisma error
+    // quotes what it writes.
+    recordCoreWarning(
+      { operation: "files_index_nudge" },
+      {
+        message: "Could not index uploaded files in the background",
+        why: "Processing the file index jobs failed",
+        fix: "Nothing: the jobs stay queued for the next nudge or the file-index cron.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return { processed: 0, indexed: 0, failed: 0 };
   }
 }
@@ -221,9 +231,17 @@ async function runTableNudge(): Promise<TableSyncResult> {
     // Caught on its own, for the reason the other two are: a table that
     // will not index must not be read as extraction or labelling having
     // done nothing.
-    console.warn("[files] in-process table nudge failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Only safe fields: indexing writes a file's text, and a Prisma error
+    // quotes what it writes.
+    recordCoreWarning(
+      { operation: "files_table_nudge" },
+      {
+        message: "Could not index data tables in the background",
+        why: "Indexing the stale data tables failed",
+        fix: "Nothing: the tables stay stale until the next nudge or cron indexes them.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return { ...NO_TABLES };
   }
 }
@@ -240,9 +258,17 @@ async function runSuggestionNudge(): Promise<SuggestionSyncResult> {
     // would mean a provider outage during labelling also reported
     // extraction as having done nothing, and the two have different
     // answers.
-    console.warn("[files] in-process suggestion nudge failed", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Only safe fields: indexing writes a file's text, and a Prisma error
+    // quotes what it writes.
+    recordCoreWarning(
+      { operation: "files_suggestion_nudge" },
+      {
+        message: "Could not label uploaded files in the background",
+        why: "Processing the file suggestion jobs failed",
+        fix: "Nothing: the jobs stay queued for the next nudge or the file-suggestions cron.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return { ...NO_SUGGESTIONS };
   }
 }

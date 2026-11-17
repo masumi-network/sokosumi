@@ -283,7 +283,9 @@ export function StudioLightbox({
               {onCompare && single.batchId && !isVideoAsset(single) ? (
                 <StudioBatchCompareButton
                   asset={single}
-                  key={single.id}
+                  // Siblings of the preview below: each keyed by the asset,
+                  // apart from each other.
+                  key={`compare:${single.id}`}
                   labels={labels}
                   onCompare={onCompare}
                 />
@@ -300,7 +302,7 @@ export function StudioLightbox({
                       ? (headline) => onHeadlineChange(single, headline)
                       : undefined
                   }
-                  key={single.id}
+                  key={`preview:${single.id}`}
                   labels={labels}
                   logoPosition={logoPosition}
                   onLogoPositionChange={changeLogoPosition}

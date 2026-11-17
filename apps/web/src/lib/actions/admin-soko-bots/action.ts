@@ -9,6 +9,7 @@ import type {
   SokoBotDeletionResult,
   SokoBotVersionDetail,
 } from "@sokosumi/core-client";
+import { avatarCodeSchema } from "@sokosumi/soko-bot";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
@@ -213,26 +214,26 @@ interface DeleteBotParams extends AuthenticatedRequest {
   input: unknown;
 }
 
-const setAvatarSchema = z.object({
+const setAvatarCodeSchema = z.object({
   sokoBotId: z.string().uuid(),
-  avatarId: z.string().uuid(),
+  code: avatarCodeSchema,
 });
 
-/** Gives another user's bot a Soko Bot avatar from the shared pool. */
-export const setAdminSokoBotAvatarAction = withSession<
+/** Gives another user's bot a look from the avatar studio. A look another bot has comes back as `avatar_code_taken`. */
+export const setAdminSokoBotAvatarCodeAction = withSession<
   DeleteBotParams,
-  ActionResultDto<{ avatarImageUrl: string }, ActionError>
+  ActionResultDto<{ avatarCode: string; avatarImageUrl: string }, ActionError>
 >(async ({ session, input }) => {
   try {
     assertAdminSession(session);
-    const parsed = setAvatarSchema.safeParse(input);
+    const parsed = setAvatarCodeSchema.safeParse(input);
     if (!parsed.success) {
       return toActionResult(
         err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
       );
     }
-    const { sokoBotId, avatarId } = parsed.data;
-    const result = await adminSokoBotService.setAvatar(sokoBotId, avatarId);
+    const { sokoBotId, code } = parsed.data;
+    const result = await adminSokoBotService.setAvatarCode(sokoBotId, code);
     revalidatePath(`${ADMIN_SOKO_BOTS_ROUTE}/${sokoBotId}`);
     return toActionResult(ok(result));
   } catch (error) {

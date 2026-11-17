@@ -209,6 +209,7 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   isMessageContinuation,
+  liveSokoBotFaces,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -3057,6 +3058,8 @@ function RoomView({
       (messagesPending && displayMessages.length === 0) || openingAtUnread;
     // Seen by rides the newest message only; scrollback stays quiet.
     const newestMessageId = displayMessages.at(-1)?.id ?? null;
+    // One live face per bot, on the header of its newest message group.
+    const liveFaces = liveSokoBotFaces(transcriptRows, localCalendarReady);
     // Narrowed once here: the row renderer is a nested function, which
     // TypeScript does not narrow through.
     const room = selectedRoom;
@@ -3216,6 +3219,8 @@ function RoomView({
               isSaving={savingMessageIds.has(message.id)}
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
+              liveFace={liveFaces.has(message.id)}
+              liveFaceStreaming={liveFaces.get(message.id) ?? false}
               isContinuation={
                 localCalendarReady &&
                 !showDaySeparator &&
