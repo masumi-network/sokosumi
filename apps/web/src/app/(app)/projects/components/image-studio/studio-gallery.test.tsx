@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
@@ -105,5 +105,106 @@ describe("studio gallery tile actions on touch", () => {
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
     ).toEqual(["download"]);
+  });
+});
+
+/**
+ * A button inside a button is invalid HTML, and an unreadable picture carries
+ * its own "Try again" button. So open-details covers the picture as an empty
+ * sibling, and "Try again" sits beside it, after it in the tab order.
+ */
+describe("studio gallery tile structure", () => {
+  function mountTile(asset: StudioAsset = ASSET) {
+    const onOpen = vi.fn();
+    render(
+      <StudioGallery
+        activeJobs={[]}
+        assets={[asset]}
+        cancelRequestedJobIds={[]}
+        catalog={TEST_CATALOG}
+        labels={TEST_LABELS}
+        onOpen={onOpen}
+        onToggleSelect={vi.fn()}
+        queued={[]}
+        selectedIds={[]}
+      />,
+    );
+    return onOpen;
+  }
+
+  const openDetails = () =>
+    screen.getByRole("button", { name: /^openDetails/ });
+
+  /** Two failed loads and a 503 probe: the placeholder with "Try again". */
+  async function breakThumbnail() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    return screen.getByRole("button", { name: /imageRetry/ });
+  }
+
+  it("keeps every control out of the open-details button", async () => {
+    mountTile();
+    expect(openDetails()).toBeEmptyDOMElement();
+
+    const retry = await breakThumbnail();
+    expect(openDetails()).toBeEmptyDOMElement();
+    expect(openDetails().contains(retry)).toBe(false);
+    // Same picture box: the cover and the placeholder share one parent.
+    expect(retry.closest("figure > div")).toBe(openDetails().parentElement);
+  });
+
+  it("opens details from the picture", async () => {
+    const user = userEvent.setup();
+    const onOpen = mountTile();
+
+    await user.click(openDetails());
+    expect(onOpen).toHaveBeenCalledWith("a");
+  });
+
+  it("reloads an unreadable picture on Try again without opening details", async () => {
+    const user = userEvent.setup();
+    const onOpen = mountTile();
+    const retry = await breakThumbnail();
+
+    await user.click(retry);
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(screen.getByRole("img").getAttribute("src")).toContain("reload=1-");
+  });
+
+  it("tabs to open details, then to Try again", async () => {
+    const user = userEvent.setup();
+    mountTile();
+    await breakThumbnail();
+
+    await user.tab();
+    expect(openDetails()).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: /imageRetry/ })).toHaveFocus();
+  });
+
+  it("plays a video tile's silent preview while the pointer is on it", async () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockResolvedValue(undefined);
+    const pause = vi
+      .spyOn(HTMLMediaElement.prototype, "pause")
+      .mockImplementation(() => {});
+    const user = userEvent.setup();
+    mountTile({ ...ASSET, mediaType: "VIDEO" } as StudioAsset);
+
+    await user.hover(openDetails());
+    expect(play).toHaveBeenCalledTimes(1);
+    await user.unhover(openDetails());
+    expect(pause).toHaveBeenCalledTimes(1);
   });
 });
