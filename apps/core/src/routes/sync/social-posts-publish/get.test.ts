@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents } from "@/test/core-log";
 
 import mountSyncSocialPostsPublish, {
   SOCIAL_POSTS_PUBLISH_SYNC_LOCK_KEY,
@@ -21,15 +22,21 @@ vi.mock("../handler.js", () => ({
       deadlineMs: number;
       msRemaining: () => number;
       shouldContinue: () => boolean;
+      log: import("../handler.js").SyncRunContext["log"];
     }) => Promise<void>,
   ) => {
+    // The run's event, as the real handler sends it when the run ends.
+    const { createCoreLogger } = await import("@/lib/evlog");
+    const log = createCoreLogger({ operation: "cron_sync" });
     seen.lockKey = lockKey;
     await operation({
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       msRemaining: () => 60_000,
       shouldContinue: () => true,
+      log,
     });
+    log.emit();
     return c.json({ ok: true });
   },
 }));
@@ -42,7 +49,6 @@ describe("GET /sync/social-posts-publish", () => {
   });
 
   it("publishes due posts under the publish sync lock", async () => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const app = new Hono();
     mountSyncSocialPostsPublish(app);
     const response = await app.request("http://localhost/social-posts-publish");
@@ -51,10 +57,11 @@ describe("GET /sync/social-posts-publish", () => {
     expect(seen.lockKey).toBe(SOCIAL_POSTS_PUBLISH_SYNC_LOCK_KEY);
     expect(seen.lockKey).toBe("social-posts-publish-sync");
     expect(publish).toHaveBeenCalledOnce();
-    expect(info).toHaveBeenCalledWith(
-      "[sync/social-posts-publish] Completed sync",
-      { published: 2, failed: 1, skipped: 0 },
-    );
-    info.mockRestore();
+    expect(coreLogEvents()).toEqual([
+      expect.objectContaining({
+        operation: "cron_sync",
+        result: { published: 2, failed: 1, skipped: 0 },
+      }),
+    ]);
   });
 });

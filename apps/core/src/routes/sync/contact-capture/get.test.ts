@@ -26,7 +26,7 @@ vi.mock("@vercel/functions", () => ({
   },
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import mount, { CONTACT_CAPTURE_SYNC_LOCK_KEY } from "./get";
 
 const authorized = { headers: { authorization: "Bearer test-secret" } };
@@ -77,9 +77,12 @@ describe("contact capture cron", () => {
   });
 
   it("asks the run to stop at the deadline and still releases the lock", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[sync/contact-capture-sync] Deadline reached after 1000ms; requesting cancellation",
+      "A scheduled sync reached its deadline and was asked to stop",
+      [
+        "It ran longer than its time budget, LOCK_TIMEOUT minus LOCK_TIMEOUT_BUFFER",
+      ],
     );
     let stopped: boolean | undefined;
     sync.mockImplementation(
@@ -92,26 +95,43 @@ describe("contact capture cron", () => {
     await Promise.all(pending);
     expect(stopped).toBe(true);
     expect(release).toHaveBeenCalledWith("contact-capture-sync", "owner-1");
+    expect(warnings[0]?.event).toMatchObject({
+      sync: { lockKey: "contact-capture-sync", timeoutMs: 1000 },
+    });
   });
 
   it("releases the lock when the run fails", async () => {
-    expectConsole("error", "Error in sync operation");
+    const errors = expectCoreLogWhys("error", "A scheduled sync failed", [
+      "The sync threw before it finished",
+    ]);
     sync.mockRejectedValue(new Error("boom"));
     await request(authorized);
     await Promise.all(pending);
     expect(release).toHaveBeenCalledWith("contact-capture-sync", "owner-1");
+    expect(errors[0]?.event).toMatchObject({
+      sync: {
+        lockKey: "contact-capture-sync",
+        outcome: "failed",
+        lock: "released",
+      },
+    });
   });
 
   it("leaves a lock another runner took over alone", async () => {
-    expectConsole(
-      "warn",
-      "[sync/contact-capture-sync] Lock not released because ownership changed",
-    );
+    expectCoreLogWhys("warn", "A scheduled sync's lock was not released", [
+      "Another run owns the lock now: it expired while this run was still going",
+    ]);
     // Compare-and-set on the owner token: a stale runner's release changes nothing.
     release.mockResolvedValue(false);
     await request(authorized);
     await Promise.all(pending);
     expect(release).toHaveBeenCalledTimes(1);
     expect(release).toHaveBeenCalledWith("contact-capture-sync", "owner-1");
+    expect(coreLogEvents()).toEqual([
+      expect.objectContaining({
+        sync: expect.objectContaining({ lock: "ownership_changed" }),
+        result: { workspaces: 1 },
+      }),
+    ]);
   });
 });

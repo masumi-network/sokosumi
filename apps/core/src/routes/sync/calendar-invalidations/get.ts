@@ -16,8 +16,9 @@ export default function mount(app: Hono) {
           await calendarInvalidationOutboxService.syncInvalidations({
             shouldContinue: context.shouldContinue,
           });
-        console.info("[sync/calendar-invalidations] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }
