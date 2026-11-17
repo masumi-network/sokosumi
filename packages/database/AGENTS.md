@@ -65,6 +65,7 @@ const user = await userRepository.getUserById("user-id", prisma);
 
 - **Purpose**: Prisma-backed domain helpers (job status, credit buckets, billing plan resolution, etc.)
 - **Note**: Credit _conversion_ (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
+- **Credit buckets can activate in the future.** The free plan pre-creates the next period's bucket up to `FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS` (15 minutes) early. A bucket read that means "current funding" spreads `creditBucketActivatesAtOrBefore(now)` into its `where` (raw SQL: `creditBucketActivatesAtOrBeforeSql`), or it can pick next period's bucket.
 
 ```typescript
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";

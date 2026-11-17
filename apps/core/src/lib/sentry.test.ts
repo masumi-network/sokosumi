@@ -131,3 +131,26 @@ describe("initSentry", () => {
     expect(names).not.toContain("Dedupe");
   });
 });
+
+describe("initSentry beforeSend", () => {
+  it("masks env secrets in nested fields and error causes at any depth", () => {
+    vi.clearAllMocks();
+    const secret = process.env.OPENROUTER_CHAT_API_KEY ?? "";
+    expect(secret.length).toBeGreaterThanOrEqual(16);
+    initSentry();
+    const beforeSend = initMock.mock.calls[0]?.[0].beforeSend as (
+      event: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    let nested: Record<string, unknown> = { body: `echo ${secret}` };
+    for (let level = 0; level < 20; level += 1) nested = { cause: nested };
+
+    const sent = beforeSend({
+      message: "upstream failed",
+      exception: { values: [{ value: `key ${secret}` }] },
+      extra: { response: nested },
+    });
+
+    expect(JSON.stringify(sent)).not.toContain(secret);
+    expect(sent.message).toBe("upstream failed");
+  });
+});

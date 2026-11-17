@@ -75,6 +75,7 @@ vi.mock("@/config/env", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { composioLogger } from "@/lib/evlog-library-logs";
 import {
   listIntegrationTools,
   runIntegrationTool,
@@ -91,6 +92,8 @@ import {
   searchSokoBotIntegrationCatalog,
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
+import { restoreComposioSdkLoggerAfterFile } from "@/test/composio-sdk-logger";
+import { coreLogEvents } from "@/test/core-log";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
@@ -117,6 +120,8 @@ afterEach(async () => {
   await Promise.all(mocks.pending);
   mocks.pending.length = 0;
 });
+
+restoreComposioSdkLoggerAfterFile();
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -798,6 +803,7 @@ describe("installed Composio link contract", () => {
         baseURL: "https://composio.example",
         allowTracking: false,
         disableVersionCheck: true,
+        logger: composioLogger,
       });
       const list = vi.spyOn(sdk.connectedAccounts, "list").mockResolvedValue({
         items: statuses
@@ -827,20 +833,33 @@ describe("installed Composio link contract", () => {
         ).rejects.toThrow("Multiple connected accounts found");
         expect(transport).not.toHaveBeenCalled();
       }
-      // Core links with allowMultiple: true, and the SDK warns on that branch
-      // whenever an active account exists (pending: patch the SDK or ticket 10).
-      if (statuses.includes("ACTIVE")) {
-        expectConsole(
-          "warn",
-          /^\S+ - \[Warn:AllowMultiple\] Multiple connected accounts found/,
-        );
-      }
       mocks.link.mockImplementation(
         sdk.connectedAccounts.link.bind(sdk.connectedAccounts),
       );
       await expect(connectSokoBotIntegration(input)).resolves.toEqual({
         redirectUrl: "https://connect.example/oauth",
       });
+      // Core links with allowMultiple: true, and the SDK warns on that branch
+      // whenever an active account exists; Core logs that warning as info
+      // (pending: the upstream Composio report drafted in the core-logging
+      // notes, after which the mapping goes).
+      expect(
+        coreLogEvents().flatMap((event) =>
+          Array.isArray(event.libraryLogs) ? event.libraryLogs : [],
+        ),
+      ).toEqual(
+        statuses.includes("ACTIVE")
+          ? [
+              expect.objectContaining({
+                source: "composio",
+                level: "info",
+                message: expect.stringMatching(
+                  /^\[Warn:AllowMultiple\] Multiple connected accounts found/,
+                ),
+              }),
+            ]
+          : [],
+      );
       expect(list).toHaveBeenCalledWith(
         {
           userIds: ["sokobot:bot"],

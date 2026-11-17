@@ -1,4 +1,3 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { signJWT } from "better-auth/crypto";
@@ -6,8 +5,10 @@ import { betterAuth } from "better-auth/minimal";
 import { oAuthProxy } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/config/env";
+import { expectCoreLog } from "@/test/core-log";
 import { asServedOnVercel } from "@/test-fixtures/served-on-vercel";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
+import { betterAuthLogger } from "./evlog-library-logs";
 import { withPublicScheme } from "./request-scheme";
 
 const PRODUCTION = "https://api.example.com";
@@ -44,6 +45,7 @@ function createCore({
 }: CoreOptions) {
   const db: MemoryDb = { user: [], session: [], account: [], verification: [] };
   const auth = betterAuth({
+    logger: betterAuthLogger,
     baseURL,
     basePath: "/auth",
     secret: authSecret,
@@ -225,7 +227,7 @@ describe.each<[string, Entry]>([
   });
 
   it("cannot read a preview's state without a shared proxy secret", async () => {
-    expectConsole("error", /^\S+ ERROR \[Better Auth\]: Failed to parse state/);
+    expectCoreLog("error", "Failed to parse state");
     const production = createProduction();
     const preview = createPreview();
 

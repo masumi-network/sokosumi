@@ -100,6 +100,7 @@ import {
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
+import { betterAuthLogger } from "./evlog-library-logs";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -167,6 +168,7 @@ const APP_TOKEN_REVOKING_PATHS = new Set([
 
 export const auth = betterAuth({
   appName: "Sokosumi",
+  logger: betterAuthLogger,
   advanced: {
     database: {
       generateId: "uuid",

@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 
 import {
   clampToModel,
-  curatedModels,
+  defaultVideoModel,
   modelById,
   modelIdForRepeat,
   resolveModel,
@@ -96,6 +96,7 @@ import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
 import {
+  carryVideoSettings,
   StudioModeSwitch,
   StudioVideoComposer,
   type StudioVideoDraft,
@@ -304,11 +305,28 @@ export function ImageStudio({
   const [videoDraft, setVideoDraft] = useState<StudioVideoDraft | null>(null);
   const [videoBusy, startVideoTransition] = useTransition();
   const videoModels = videoModelsFor(catalog, videoSource ? "image" : "text");
+  const automaticVideoModel = defaultVideoModel(
+    catalog,
+    videoSource ? "image" : "text",
+  );
   const activeVideoDraft =
-    videoDraft && videoModels.some((model) => model.id === videoDraft.modelId)
+    videoDraft &&
+    videoDraft.modelSelection !== "auto" &&
+    videoModels.some((model) => model.id === videoDraft.modelId)
       ? videoDraft
-      : videoModels[0]
-        ? videoDraftFor(videoModels[0])
+      : automaticVideoModel
+        ? {
+            ...videoDraftFor(automaticVideoModel),
+            ...(videoDraft?.modelSelection === "auto"
+              ? {
+                  settings: carryVideoSettings(
+                    automaticVideoModel,
+                    videoDraft.settings,
+                  ),
+                }
+              : {}),
+            modelSelection: "auto" as const,
+          }
         : null;
 
   const [target, setTarget] = useState<StudioTarget>(() => {
@@ -316,8 +334,11 @@ export function ImageStudio({
     // of them can be unselected, the rest of the catalog can be added, and
     // bulk selection is bounded by the 12-image purchase ceiling. Nothing
     // below treats these five as special after this line.
+    // Auto supersedes that opening shortlist: no models are pinned until a
+    // person selects one in Advanced, and the direct path resolves Gemini Pro.
     return {
-      modelIds: curatedModels(catalog).map((model) => model.id),
+      modelIds: [],
+      modelSelection: "auto",
       settings: {
         aspectRatio: "1:1",
         resolution: "1K",
@@ -326,6 +347,11 @@ export function ImageStudio({
       },
     };
   });
+
+  const pinnedModel =
+    target.modelSelection === "auto"
+      ? null
+      : modelById(catalog, target.modelIds[0]);
 
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
@@ -1492,6 +1518,7 @@ export function ImageStudio({
                       setTarget({
                         templateId: request.templateId,
                         modelIds: [request.modelId],
+                        modelSelection: undefined,
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
                         lettering: request.lettering,
@@ -1832,6 +1859,12 @@ export function ImageStudio({
             onSelectResult={(asset) => setAssistant({ open: true, asset })}
             projectId={activeProjectId}
             selectedAsset={assistant.asset}
+            studioModelId={pinnedModel?.id ?? null}
+            studioSettings={
+              pinnedModel
+                ? clampToModel(pinnedModel, target.settings)
+                : target.settings
+            }
           />
         </aside>
       ) : null}
