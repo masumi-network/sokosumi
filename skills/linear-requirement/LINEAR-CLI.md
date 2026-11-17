@@ -27,8 +27,6 @@ const LINEAR_ASSIGNEE = null; // omit --assignee on create unless user overrides
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```
 
-Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
-
 ## Required on create (never omit)
 
 Every `linear issue create` must include **all** of:
@@ -81,7 +79,7 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 Run **before** any Linear write (after user approval):
 
 1. `command -v linear`. If it fails, stop this file and follow `LINEAR-MCP.md`.
-2. `linear team list` (proves auth; `.linear.toml` + `LINEAR_API_KEY` or `linear auth login`).
+2. `linear team list` (proves auth; `LINEAR_API_KEY` or `linear auth login`).
 3. If `linear` is present but `linear team list` fails, stop and tell the user to authenticate (`LINEAR_API_KEY` or `linear auth login`). Do not fall back to MCP when the binary is installed.
 
 ## Resolution order (create only)

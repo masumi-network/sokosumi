@@ -42,6 +42,8 @@ interface SidebarProps {
   name: string;
   email: string;
   signOut?: () => Promise<void>;
+  /** The person has another Cuso, so "Your Cusos" leads somewhere. */
+  manyCusos?: boolean;
   /** Pins the time Cuso's "just filed" report counts from (previews, tests). */
   now?: Date;
 }
@@ -54,6 +56,7 @@ export function Sidebar({
   name,
   email,
   signOut,
+  manyCusos = false,
   now,
 }: SidebarProps) {
   const host = hostOf(overview.websiteUrl);
@@ -89,10 +92,12 @@ export function Sidebar({
           </a>
         ))}
         {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
-        <a href="/?cusos=1">
-          <Users size={16} aria-hidden="true" />
-          <span>Your {AGENT_NAME}s</span>
-        </a>
+        {manyCusos ? (
+          <a href="/?cusos=1">
+            <Users size={16} aria-hidden="true" />
+            <span>Your {AGENT_NAME}s</span>
+          </a>
+        ) : null}
       </div>
       <div className="grow" />
       <CusoStatus

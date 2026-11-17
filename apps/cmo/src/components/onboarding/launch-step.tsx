@@ -13,10 +13,10 @@ import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
-import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
+import { CusoScene } from "./cuso-scene";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
 function strategyChannels(overview: CmoOverview): string[] {
@@ -85,8 +85,6 @@ interface LaunchStepProps {
     provider: SocialProvider,
   ) => Promise<{ url: string | null; error: string | null }>;
   onConnectAds: AdActions["connectAds"];
-  /** Runs before the celebration shows. */
-  onLaunch: () => Promise<void>;
   /** Records the finish and opens the app. */
   onGoToday: () => void;
   /** Why a connection came back without an account, from the return address. */
@@ -94,15 +92,15 @@ interface LaunchStepProps {
 }
 
 /**
- * Where Cuso posts, and the one thing he needs to start: one of the plan's
- * networks connected. Pressing Launch records it and shows the celebration;
- * Go to Today opens the app.
+ * Hiring's last step, once Cuso is paid for: where he posts, and the one
+ * thing he needs to start, one of the plan's networks connected. Pressing
+ * Launch shows the celebration; Go to Today records the finish and opens the
+ * app.
  */
 export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
-  onLaunch,
   onGoToday,
   notice = null,
 }: LaunchStepProps) {
@@ -122,7 +120,6 @@ export function LaunchStep({
   const shownError = error === undefined ? notice : error;
   const [celebrating, setCelebrating] = useState(false);
   const [, startTransition] = useTransition();
-  const [launching, startLaunching] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.
   const waiting =
     required.length > 0 && !required.some((key) => connected.has(key));
@@ -232,14 +229,14 @@ export function LaunchStep({
   return (
     <section className="ob-launch">
       <div className="ob-lead">
-        <CusoAvatar pose="done" size={176} />
+        <CusoScene scene="launch" />
         <h1 className="ob-h1">
           {accounts ? "One thing, then I start." : "Ready when you are."}
         </h1>
         <p className="muted">
           {accounts
-            ? "Your plan is approved. Connect where I post."
-            : "Your plan is approved."}
+            ? "I'm making your month now. Connect where I post."
+            : "I'm making your month now."}
         </p>
       </div>
 
@@ -345,20 +342,11 @@ export function LaunchStep({
       <button
         type="button"
         className="button ob-wide"
-        disabled={waiting || launching}
-        onClick={() =>
-          startLaunching(async () => {
-            try {
-              await onLaunch();
-              setCelebrating(true);
-            } catch {
-              setError("Could not launch. Try again.");
-            }
-          })
-        }
+        disabled={waiting}
+        onClick={() => setCelebrating(true)}
       >
-        {launching ? "Launching…" : `Launch ${AGENT_NAME}`}
-        {launching ? null : <ArrowRight size={16} aria-hidden="true" />}
+        Launch {AGENT_NAME}
+        <ArrowRight size={16} aria-hidden="true" />
       </button>
       <p className="ob-small muted">
         {waiting

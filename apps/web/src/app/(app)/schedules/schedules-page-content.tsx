@@ -1,25 +1,16 @@
-import { TaskScheduleState } from "@sokosumi/core-client";
 import { cookies } from "next/headers";
-import { connection } from "next/server";
 
 import { TaskSchedulesView } from "@/app/tasks/components/task-schedules-view";
-import { loadTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
-import {
-  parseTaskScheduleStateFilter,
-  TASK_SCHEDULES_PAGE_LIMIT,
-} from "@/app/tasks/utils/task-schedules-filters";
+import { parseTaskScheduleStateFilter } from "@/app/tasks/utils/task-schedules-filters";
 import { firstQueryString } from "@/app/tasks/utils/tasks-filters";
-import { getSession } from "@/lib/auth/auth.server";
-import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
-import { organizationSeatService } from "@/lib/services/organization-seat.service";
-import { taskScheduleService } from "@/lib/services/task-schedule.service";
-import { userService } from "@/lib/services/user.service";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 
 import {
   parseSchedulesViewMode,
   SCHEDULES_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/schedules-view-mode";
+
+import { loadSchedulesPageData } from "./schedules-page-data";
 
 export interface SchedulesSearchParams {
   projectId?: string | string[];
@@ -31,50 +22,30 @@ export async function SchedulesPageContent({
 }: {
   searchParams: Promise<SchedulesSearchParams>;
 }) {
-  await connection();
-  const [params, session] = await Promise.all([searchParams, getSession()]);
+  const params = await searchParams;
   const cookieStore = await cookies();
   const defaultViewMode = parseSchedulesViewMode(
     cookieStore.get(SCHEDULES_VIEW_MODE_COOKIE_NAME)?.value,
   );
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const requestedProjectId = firstQueryString(params.projectId) ?? null;
   const state = parseTaskScheduleStateFilter(params.scheduleState);
-  const [projectOptions, assigneeOptions, canCreate, members] =
-    await Promise.all([
-      getProjectFilterOptions(requestedProjectId),
-      loadTaskScheduleAssigneeOptions(activeOrganizationId),
-      organizationSeatService.hasAssignedSeat(activeOrganizationId),
-      userService.getMyMembersWithOrganizations(),
-    ]);
-  const projectId = projectOptions.some(
-    (project) => project.id === requestedProjectId,
-  )
-    ? requestedProjectId
-    : null;
-  const { schedules, nextCursor } = await taskScheduleService.listSchedules({
+  const {
+    activeOrganizationId,
+    projectOptions,
+    assigneeOptions,
+    canCreate,
+    canDeleteUnowned,
     projectId,
+    schedules,
+    nextCursor,
+    otherStateCounts,
+  } = await loadSchedulesPageData({
+    requestedProjectId: firstQueryString(params.projectId) ?? null,
     state,
-    limit: TASK_SCHEDULES_PAGE_LIMIT,
   });
-  // An empty filter says what the other tabs hold, counted by Core.
-  const otherStateCounts =
-    state && schedules.length === 0
-      ? await Promise.all(
-          Object.values(TaskScheduleState)
-            .filter((other) => other !== state)
-            .map(async (other) => ({
-              state: other,
-              count: await taskScheduleService.countSchedules({
-                projectId,
-                state: other,
-              }),
-            })),
-        )
-      : [];
 
   return (
     <div className="w-full pb-6">
+      <RefreshPrefetchedPage />
       <TaskSchedulesView
         // A new filter starts a new first page, so appended pages reset.
         key={`${projectId ?? ""}:${state ?? ""}`}
@@ -89,10 +60,7 @@ export async function SchedulesPageContent({
         selectedState={state}
         canCreate={canCreate}
         canCreatePrivate={activeOrganizationId !== null}
-        canDeleteUnowned={viewerIsOrganizationOwnerOrAdmin(
-          activeOrganizationId,
-          members,
-        )}
+        canDeleteUnowned={canDeleteUnowned}
       />
     </div>
   );

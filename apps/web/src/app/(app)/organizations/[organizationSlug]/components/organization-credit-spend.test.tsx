@@ -1,6 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OrganizationCreditSpendCard } from "./organization-credit-spend";
 
 const { getOrganizationCreditSpendMock } = vi.hoisted(() => ({
@@ -236,6 +236,7 @@ describe("OrganizationCreditSpendCard", () => {
   });
 
   it("offers a retry when Core refuses or fails", async () => {
+    expectConsole("error", "Failed to load organization credit spend");
     getOrganizationCreditSpendMock.mockRejectedValue(new Error("403"));
 
     await renderCard();

@@ -40,6 +40,7 @@ const cases = [
     name: "researching reads",
     patch: { learning: "running" as const },
     pose: "reading",
+    scene: "research",
     line: "Learning",
   },
   {
@@ -50,12 +51,14 @@ const cases = [
       production: production({ state: "running", ready: 8 }),
     },
     pose: "thinking",
+    scene: "planning",
     line: "8 of 11 made",
   },
   {
     name: "a plan waiting for approval needs the owner",
     patch: {},
     pose: "needs-you",
+    scene: "hero",
     line: "Waiting for approval",
   },
   {
@@ -67,6 +70,7 @@ const cases = [
       updates: [report("2026-11-05T09:00:00Z")],
     },
     pose: "reporting",
+    scene: "brand",
     line: "Running",
   },
   {
@@ -78,19 +82,23 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
+    scene: "launch",
     line: "Running",
   },
 ];
 
-it.each(cases)("Cuso's status card: $name", ({ patch, pose, line }) => {
+it.each(cases)("Cuso's status card: $name", ({ patch, pose, scene, line }) => {
   const html = renderToStaticMarkup(
     <CusoStatus overview={cmoOverview(patch)} now={NOW} />,
   );
-  expect(html).toContain(`src="/cuso/${pose}.png"`);
+  expect(html).toContain(`src="/cuso/${scene}.jpg"`);
   expect(html).toContain("Cuso");
   expect(html).toContain(line);
-  // Needs you is the one pose whose state line sits on Iris.
-  expect(html.includes("cuso-status-iris")).toBe(pose === "needs-you");
+  // Needs you calls out on Iris; working shows what he does over the bar.
+  expect(html.includes("ob-scene-call")).toBe(pose === "needs-you");
+  expect(html.includes("ob-scene-bar")).toBe(
+    pose === "reading" || pose === "thinking",
+  );
 });
 
 it("is a focused button that opens the chat only while Cuso needs the owner", () => {
@@ -98,7 +106,7 @@ it("is a focused button that opens the chat only while Cuso needs the owner", ()
     <CusoStatus overview={cmoOverview()} now={NOW} onOpen={() => {}} />,
   );
   expect(needs).toContain("<button");
-  expect(needs).toContain("card-focus");
+  expect(needs).toContain("Needs you");
   const calm = renderToStaticMarkup(
     <CusoStatus
       overview={cmoOverview({
@@ -111,5 +119,4 @@ it("is a focused button that opens the chat only while Cuso needs the owner", ()
     />,
   );
   expect(calm).not.toContain("<button");
-  expect(calm).not.toContain("card-focus");
 });

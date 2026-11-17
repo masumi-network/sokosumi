@@ -129,6 +129,14 @@ const OWNERS: Record<NonNullable<Stage["owner"]>, string> = {
   shared: `${AGENT_NAME} and you`,
 };
 
+/** The classic funnel step each stage is, in plain words. */
+const STEPS: Record<Stage["stage"], string> = {
+  awareness: "Get seen",
+  consideration: "Get considered",
+  conversion: "Get chosen",
+  loyalty: "Keep them",
+};
+
 const BASES = {
   measured: "Measured",
   estimated: "Estimate",
@@ -136,8 +144,9 @@ const BASES = {
 } as const;
 
 /**
- * The three moves, top to bottom: each stage's job, what every channel does
- * there and how often, who moves it, and today's number with how it is known.
+ * The funnel at a glance: one band a stage, narrowing toward the sale, each
+ * with its step, its goal in one line and the channels that do it. How each
+ * channel works it, the owner's part and today's number open on a tap.
  */
 export function FunnelPlan({
   stages,
@@ -148,69 +157,95 @@ export function FunnelPlan({
 }) {
   return (
     <ol className="sc-funnel">
-      {stages.map((stage, index) => (
-        <li
-          key={stage.stage}
-          className={`sc-stage ${stage.owner ?? "cuso"}`}
-          style={{
-            // Each band starts as wide as the one above it ends.
-            ["--sc-top" as string]: `${funnelWidth(index, stages.length)}%`,
-            ["--sc-bottom" as string]: `${funnelWidth(index + 1, stages.length)}%`,
-          }}
-        >
-          <div className="sc-band">
-            <span className="sc-stage-name">{stage.name}</span>
-          </div>
-          <div className="sc-stage-body">
-            <div className="sc-stage-head">
-              <p className="sc-goal">{stage.goal}</p>
-              <span className={`sc-owner ${stage.owner ?? "cuso"}`}>
-                {OWNERS[stage.owner ?? "cuso"]}
-              </span>
+      {stages.map((stage, index) => {
+        const plays = stage.plays ?? [];
+        const owner = stage.owner ?? "cuso";
+        const channels = [
+          ...new Set(
+            (plays.length > 0
+              ? plays.map((play) => play.channel)
+              : (stage.channels ?? [])
+            ).map((channel) => channelKey(channel) ?? channel),
+          ),
+        ];
+        return (
+          <li
+            key={stage.stage}
+            className={`sc-stage ${owner}`}
+            style={{
+              // Each band starts as wide as the one above it ends.
+              ["--sc-top" as string]: `${funnelWidth(index, stages.length)}%`,
+              ["--sc-bottom" as string]: `${funnelWidth(index + 1, stages.length)}%`,
+            }}
+          >
+            <div className="sc-band">
+              <span className="sc-step">{STEPS[stage.stage]}</span>
+              <span className="sc-stage-name">{stage.name}</span>
             </div>
-            {(stage.plays ?? []).length > 0 ? (
-              <ul className="sc-plays">
-                {(stage.plays ?? []).map((play) => (
-                  <li key={`${play.channel}:${play.what}`}>
-                    <ChannelIcon
-                      channel={channelKey(play.channel) ?? play.channel}
-                      size={16}
-                    />
-                    <span className="sc-play-channel">
-                      {channelLabel(play.channel)}
-                    </span>
-                    <span>{play.what}</span>
-                    {play.cadence ? (
-                      <span className="sc-cadence">{play.cadence}</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {stage.owner === "you" || stage.owner === "shared" ? (
-              <StageImprovements stage={stage} improvements={improvements} />
-            ) : null}
-            <p className="sc-measure">
-              <span>{stage.metric}</span>
-              {stage.measure?.value ? (
-                <b className="num">{stage.measure.value}</b>
-              ) : null}
-              <span className={`sc-basis ${stage.measure?.basis ?? "unknown"}`}>
-                {BASES[stage.measure?.basis ?? "unknown"]}
-                {stage.measure?.basis === "measured" && stage.measure.source
-                  ? ` · ${stage.measure.source}`
-                  : ""}
-              </span>
-            </p>
-          </div>
-        </li>
-      ))}
+            <div className="sc-stage-body">
+              <p className="sc-goal">{stage.goal}</p>
+              <div className="sc-stage-meta">
+                <span className="sc-icons">
+                  {channels.map((channel) => (
+                    <ChannelIcon key={channel} channel={channel} size={16} />
+                  ))}
+                </span>
+                {owner === "cuso" ? null : (
+                  <span className={`sc-owner ${owner}`}>{OWNERS[owner]}</span>
+                )}
+              </div>
+              <details className="sc-how">
+                <summary>How</summary>
+                {plays.length > 0 ? (
+                  <ul className="sc-plays">
+                    {plays.map((play) => (
+                      <li key={`${play.channel}:${play.what}`}>
+                        <ChannelIcon
+                          channel={channelKey(play.channel) ?? play.channel}
+                          size={16}
+                        />
+                        <span className="sc-play-channel">
+                          {channelLabel(play.channel)}
+                        </span>
+                        <span>{play.what}</span>
+                        {play.cadence ? (
+                          <span className="sc-cadence">{play.cadence}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {owner === "cuso" ? null : (
+                  <StageImprovements
+                    stage={stage}
+                    improvements={improvements}
+                  />
+                )}
+                <p className="sc-measure">
+                  <span>{stage.metric}</span>
+                  {stage.measure?.value ? (
+                    <b className="num">{stage.measure.value}</b>
+                  ) : null}
+                  <span
+                    className={`sc-basis ${stage.measure?.basis ?? "unknown"}`}
+                  >
+                    {BASES[stage.measure?.basis ?? "unknown"]}
+                    {stage.measure?.basis === "measured" && stage.measure.source
+                      ? ` · ${stage.measure.source}`
+                      : ""}
+                  </span>
+                </p>
+              </details>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }
 
 /** The funnel narrows from full width to this share at its last stage's end. */
-const FUNNEL_END = 40;
+const FUNNEL_END = 55;
 
 function funnelWidth(edge: number, stages: number): number {
   return 100 - (edge * (100 - FUNNEL_END)) / Math.max(stages, 1);

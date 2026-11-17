@@ -242,7 +242,10 @@ describe("a market save while the page catches up", () => {
       holdEveryRefresh();
       saveMock.mockResolvedValue({ ok: true, value: { profile: SAVED } });
       await withTimers(async (user) => {
-        render(page(SHOWN));
+        // The page suspends on the held refresh: render inside an awaited act.
+        await act(async () => {
+          render(page(SHOWN));
+        });
         await saveWithoutTrailShoes(user);
         await outwait();
         expect(refreshMock).toHaveBeenCalledTimes(1);
@@ -254,7 +257,10 @@ describe("a market save while the page catches up", () => {
         );
         expect(screen.getByText(NEW_SUMMARY)).toBeVisible();
 
-        await user.click(refreshButton());
+        // The click starts a refresh the gate suspends on.
+        await act(async () => {
+          await user.click(refreshButton());
+        });
         expect(refreshMock).toHaveBeenCalledTimes(2);
         await outwait();
         expect(results()).toHaveAttribute("data-results", "stale");

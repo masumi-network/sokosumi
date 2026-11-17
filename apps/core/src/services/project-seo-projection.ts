@@ -9,7 +9,6 @@ import type {
 } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
 import {
-  type PublicSeoPayload,
   publicSeoPayloadSchema,
   seoPayloadCoverage,
 } from "@/helpers/project-seo-report";
@@ -21,7 +20,16 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
-
+import {
+  actionVerifiedAt,
+  latestDate,
+} from "./project-seo-action-verification";
+import { checkIdentity, issueIdentity } from "./project-seo-check-identity";
+import {
+  indexAuditFindings,
+  newestIndexStatus,
+  withIndexIssueCounts,
+} from "./project-seo-index-projection";
 import {
   observedSeoKeyword,
   savedSeoKeyword,
@@ -85,82 +93,6 @@ const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 /** A Task in one of these states does no work on its action any more. */
 const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
 
-function checkIdentity(
-  source: PublicSeoPayload,
-  check: { pageUrl: string; rowId: string; device: string | null },
-) {
-  return key(
-    normalizeSeoUrl(check.pageUrl),
-    check.rowId,
-    check.device,
-    source.countryCode,
-    source.languageCode,
-    source.rulebookVersion,
-  );
-}
-
-/** One issue across checks: a later check that finds the same row again replaces it, also under a newer rulebook. */
-function issueIdentity(
-  source: PublicSeoPayload,
-  check: { pageUrl: string; rowId: string; device: string | null },
-) {
-  return key(
-    normalizeSeoUrl(check.pageUrl),
-    check.rowId,
-    check.device,
-    source.countryCode,
-    source.languageCode,
-  );
-}
-
-function verifiedAction(
-  input: ProjectionInput,
-  source: PublicSeoPayload,
-  action: PublicSeoPayload["actions"][number],
-  taskId: string,
-): boolean {
-  const task = input.tasks.find((item) => item.id === taskId);
-  if (
-    task?.status !== "COMPLETED" ||
-    !task.completedAt ||
-    !action.findingIds.length
-  )
-    return false;
-  const referenced = action.findingIds.map((id) =>
-    source.findings.find((finding) => finding.id === id),
-  );
-  if (referenced.some((finding) => !finding?.device)) return false;
-  return referenced.every((finding) => {
-    if (!finding?.device) return false;
-    for (const observation of input.observations) {
-      if (
-        observation.ownerId ||
-        observation.kind === "metrics" ||
-        observation.observedAt <= task.completedAt! ||
-        observation.createdAt <= task.completedAt!
-      )
-        continue;
-      const parsed = publicSeoPayloadSchema.safeParse(observation.payload);
-      if (!parsed.success) continue;
-      const data = parsed.data;
-      if (
-        data.countryCode !== source.countryCode ||
-        data.languageCode !== source.languageCode ||
-        data.rulebookVersion !== source.rulebookVersion
-      )
-        continue;
-      const check = data.checks.find(
-        (row) =>
-          normalizeSeoUrl(row.pageUrl) === normalizeSeoUrl(finding.pageUrl) &&
-          row.rowId === finding.rowId &&
-          row.device === finding.device,
-      );
-      if (check) return check.result === "pass";
-    }
-    return false;
-  });
-}
-
 /** Current views are projections. Historical observations and human choices remain separate. */
 export function projectSeoProjection(
   input: ProjectionInput,
@@ -219,6 +151,7 @@ export function projectSeoProjection(
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
+    if (row.kind === "index_triage") continue;
     if (row.kind === "page_change") {
       if (!matchesSeoPeriod(row.observedAt, query)) continue;
       const event = seoPageChangePayloadSchema.parse(row.payload);
@@ -476,6 +409,23 @@ export function projectSeoProjection(
             finding &&
             passedLater(checkIdentity(data, finding), finding.device),
         );
+      // The newest check of each finding passes: the issue is gone, also while its Task is still open.
+      const verifiedAt = !link
+        ? null
+        : solved
+          ? latestDate(
+              fixed.flatMap((finding) => {
+                const latest =
+                  finding && latestChecked.get(checkIdentity(data, finding));
+                return latest ? [latest.observedAt] : [];
+              }),
+            )
+          : actionVerifiedAt(
+              input.tasks.find((task) => task.id === link.taskId),
+              input.observations,
+              data,
+              item,
+            );
       const action: ProjectSeoWorkspace["actions"][number] = {
         ...item,
         observationId: row.id,
@@ -485,12 +435,12 @@ export function projectSeoProjection(
         taskId: link?.taskId ?? null,
         status: !link
           ? "recommended"
-          : // The newest check of each finding passes: the issue is gone, also while its Task is still open.
-            solved || verifiedAction(input, data, item, link.taskId)
+          : verifiedAt
             ? "verified"
             : taskStatus === "COMPLETED"
               ? "implemented"
               : "task_created",
+        ...(verifiedAt ? { verifiedAt: verifiedAt.toISOString() } : {}),
       };
       actions.push(action);
       fixWork.set(action, {
@@ -611,6 +561,12 @@ export function projectSeoProjection(
     taskStatuses,
   );
   actions.push(...search.actions);
+  // The day each Task behind an action completed, so a chart can mark it. A reopened Task is not done.
+  for (const action of actions) {
+    const task = input.tasks.find((item) => item.id === action.taskId);
+    if (task?.status === "COMPLETED" && task.completedAt)
+      action.completedAt = task.completedAt.toISOString();
+  }
   for (const link of input.actionTasks) {
     const observation =
       scopedPublicSources.get(link.observationId) ??
@@ -668,6 +624,12 @@ export function projectSeoProjection(
       });
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
+  const indexing = indexAuditFindings(
+    input.privateMetricsAllowed ? input.observations : [],
+    [...scopedPublicSources.values()],
+    selectedUrls,
+    query,
+  );
   return projectSeoWorkspaceSchema.parse({
     sharing: input.sharing ?? "personal",
     projectId: project.auditId ? (project.projectId ?? null) : project.id,
@@ -684,7 +646,7 @@ export function projectSeoProjection(
     },
     pages: input.pages,
     scopes: input.scopes,
-    observations,
+    observations: withIndexIssueCounts(observations, indexing.counts),
     history: {
       limit: SEO_RESULT_LIMIT,
       limited: input.historyLimited,
@@ -692,13 +654,14 @@ export function projectSeoProjection(
     },
     keywords,
     competitors,
-    findings,
+    findings: [...findings, ...indexing.findings],
     actions,
     metrics,
     searchQueries: search.searchQueries,
     searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
+    indexTriage: indexing.triage,
     strategy,
     metricsStatus: !metrics.length
       ? "unavailable"
@@ -708,7 +671,7 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
-    runs,
+    runs: withIndexIssueCounts(runs, indexing.counts),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),
@@ -732,19 +695,4 @@ export function projectSeoProjection(
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
     },
   });
-}
-
-/** The newest verdict per selected page; observations arrive newest first. */
-function newestIndexStatus(
-  sources: Array<{ at: Date; pages: SeoIndexedPage[] }>,
-  selectedUrls: Set<string>,
-): ProjectSeoWorkspace["indexStatus"] {
-  const pages = new Map<string, SeoIndexedPage & { checkedAt: string }>();
-  for (const source of sources)
-    for (const page of source.pages) {
-      const url = normalizeSeoUrl(page.pageUrl);
-      if (selectedUrls.has(url) && !pages.has(url))
-        pages.set(url, { ...page, checkedAt: source.at.toISOString() });
-    }
-  return pages.size ? { pages: [...pages.values()] } : null;
 }

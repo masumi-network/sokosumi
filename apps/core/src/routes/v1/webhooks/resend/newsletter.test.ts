@@ -13,7 +13,6 @@ import {
   NEWSLETTER_SUBSCRIBER_ID,
   newsletterWorkspace,
 } from "@/test/newsletter";
-
 import router from "../index";
 
 const m = vi.hoisted(() => {

@@ -1,6 +1,6 @@
 import { SsrfError } from "@sokosumi/net";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   downloadSocialPostMedia,
   parseSocialPostMedia,
@@ -156,6 +156,7 @@ describe("parseSocialPostMedia", () => {
   });
 
   it("ignores malformed media instead of throwing", () => {
+    expectConsole("warn", "[social-post] Ignoring malformed media refs", 2);
     expect(parseSocialPostMedia([{ pathname: 1 }], "post_1")).toEqual([]);
     expect(parseSocialPostMedia("not-json", "post_1")).toEqual([]);
   });
@@ -163,6 +164,7 @@ describe("parseSocialPostMedia", () => {
 
 describe("requireSocialPostMedia", () => {
   it("fails permanently when the stored media cannot be read", () => {
+    expectConsole("warn", "[social-post] Unreadable media refs");
     expect(() => requireSocialPostMedia([{ pathname: 1 }], "post_1")).toThrow(
       SocialPostMediaError,
     );

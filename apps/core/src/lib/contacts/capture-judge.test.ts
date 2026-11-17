@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { askJev } = vi.hoisted(() => ({ askJev: vi.fn() }));
 vi.mock("@/lib/soko-bot/jev", () => ({ askJev }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { judgeRoleInboxes, MIN_PERSON_PROBABILITY } from "./capture-judge";
 
 const samples = [
@@ -51,6 +52,7 @@ describe("judgeRoleInboxes", () => {
   });
 
   it("returns null when Jev fails, and asks nothing for nothing", async () => {
+    expectConsole("warn", "Contact capture role inbox check failed");
     askJev.mockRejectedValue(new Error("timeout"));
     expect(await judgeRoleInboxes(samples)).toBeNull();
     askJev.mockReset();

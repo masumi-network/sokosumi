@@ -52,6 +52,20 @@ export function formatHasImage(channel: string, format: string): boolean {
   return formats?.[format.trim().toLowerCase()]?.image ?? false;
 }
 
+/** What Cuso makes to go with a piece: a video, several images, one, or none. */
+export function formatMedia(
+  channel: string,
+  format: string,
+): "video" | "images" | "image" | null {
+  const formats = channelInfo(channel)?.formats as
+    | Record<string, { image: boolean; video?: boolean; slides?: unknown }>
+    | undefined;
+  const known = formats?.[format.trim().toLowerCase()];
+  if (known?.video) return "video";
+  if (known?.slides) return "images";
+  return known?.image ? "image" : null;
+}
+
 export const GROUP_NAMES: Record<ChannelGroup, string> = {
   social: "Social media",
   ads: "Ads",

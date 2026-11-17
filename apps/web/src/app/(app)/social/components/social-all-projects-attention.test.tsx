@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
+import { createFormats } from "@/i18n/time-format";
 
 const { openPreview } = vi.hoisted(() => ({ openPreview: vi.fn() }));
 vi.mock("./social-calendar-preview", () => ({
@@ -33,7 +34,12 @@ function post(overrides: Partial<SocialPost>): SocialPost {
 
 function setup(items: WorkspaceSocialPost[], hasMore = false) {
   return render(
-    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      timeZone="UTC"
+      formats={createFormats()}
+    >
       <SocialProviderAvailabilityProvider
         enabledProviders={SOCIAL_PUBLIC_PROVIDERS}
       >

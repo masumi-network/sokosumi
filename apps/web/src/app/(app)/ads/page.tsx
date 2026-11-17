@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 import { Suspense } from "react";
@@ -7,9 +6,9 @@ import { Suspense } from "react";
 import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
-import { adsService } from "@/lib/services/ads.service";
-import { projectService } from "@/lib/services/project.service";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 
+import { loadAdsPageScope } from "./ads-page-data";
 import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
 import { AdsCampaignsToolbar } from "./components/ads-campaigns-toolbar";
@@ -41,18 +40,17 @@ export async function generateMetadata(): Promise<Metadata> {
  * backdrop of sample ads.
  */
 export default async function AdsPage({ searchParams }: AdsPageProps) {
-  await connection();
-
   const query = await loadAdsSearchParams(searchParams);
   const t = await getTranslations("App.Ads");
   const projectId = query.projectId?.trim();
-  const project = projectId
-    ? await projectService.getProjectById(projectId)
-    : null;
+  const scope = projectId ? await loadAdsPageScope(projectId) : null;
 
-  if (!project) {
+  if (!scope) {
     return (
       <WorkspacePageShell title={t("title")}>
+        {/* A lost project came from the cached read, so a client visit
+            renders it again rather than keep it for the cache's stale time. */}
+        {projectId ? <RefreshPrefetchedPage /> : null}
         <ProjectScopeRequired
           // Not `notFound()` for a lost id: it came from a switchable scope,
           // so the repair is to pick another project.
@@ -66,7 +64,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
     );
   }
 
-  const accounts = await adsService.listAccounts(project.id);
+  const { project, accounts } = scope;
   const account = selectAccount(accounts, query.account);
 
   // Only load campaigns while the Campaigns tab is the one showing: they come
@@ -105,6 +103,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
 
   return (
     <WorkspacePageShell title={t("title")}>
+      <RefreshPrefetchedPage />
       {project.cmo ? (
         <CmoProjectBanner className="mb-4" projectId={project.id} />
       ) : null}

@@ -3,6 +3,7 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   afterEach,
   beforeAll,
@@ -12,7 +13,6 @@ import {
   it,
   vi,
 } from "vitest";
-
 import * as socialProviders from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
 
@@ -3366,7 +3366,10 @@ describe("social posts service", () => {
     });
 
     it("treats malformed stored media as none", async () => {
-      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnCalls = expectConsole(
+        "warn",
+        "[social-post] Ignoring malformed media refs",
+      );
       socialPostFindManyMock.mockResolvedValue([
         { ...draftPost, media: [{ pathname: 1 }] },
       ]);
@@ -3378,10 +3381,10 @@ describe("social posts service", () => {
       });
 
       expect(posts[0].media).toEqual([]);
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(warnCalls).toContainEqual([
         expect.stringContaining("media"),
         { postId: POST_ID },
-      );
+      ]);
     });
 
     it("enforces the media rules when scheduling", async () => {

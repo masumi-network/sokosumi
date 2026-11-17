@@ -235,7 +235,7 @@ describe("onboardingStep", () => {
     ).toEqual({ step: "launch", phase: "review" });
   });
 
-  describe("the checkout, after Launch", () => {
+  describe("the checkout, before Launch", () => {
     const unpaid = (patch: Partial<CmoOverview> = {}) =>
       draft({
         ...cmoStrategyVersion(new Date()),
@@ -243,16 +243,8 @@ describe("onboardingStep", () => {
         ...patch,
       });
 
-    it("stays on Launch until the person launched", () => {
-      // Core owes the checkout from the first connection; Launch is not pressed yet.
+    it("shows the plans right after the plan is approved", () => {
       expect(onboardingStep(unpaid())).toEqual({
-        step: "launch",
-        phase: "review",
-      });
-    });
-
-    it("shows the plans once the person launched", () => {
-      expect(onboardingStep(unpaid(), ["accounts"])).toEqual({
         step: "checkout",
         phase: "choosing",
       });
@@ -260,14 +252,15 @@ describe("onboardingStep", () => {
 
     it("confirms the payment back from Polar, until the subscription shows", () => {
       expect(
-        onboardingStep(unpaid(), ["accounts"], { returnedFromCheckout: true }),
+        onboardingStep(unpaid(), [], { returnedFromCheckout: true }),
       ).toEqual({ step: "checkout", phase: "confirming" });
     });
 
-    it("confirms on a device that never pressed Launch too", () => {
-      expect(
-        onboardingStep(unpaid(), [], { returnedFromCheckout: true }),
-      ).toEqual({ step: "checkout", phase: "confirming" });
+    it("opens Launch once paid for, until an account is connected", () => {
+      expect(onboardingStep(unpaid({ onboardingStep: "accounts" }))).toEqual({
+        step: "launch",
+        phase: "review",
+      });
     });
 
     it("has no checkout for a Cuso with Tester credits", () => {

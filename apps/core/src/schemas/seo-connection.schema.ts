@@ -23,6 +23,17 @@ export const seoConnectionStatusSchema = z
     source: z.enum(["native", "personal", "none"]),
     pendingConnectionId: z.string().nullable().optional(),
     canResume: z.boolean().optional(),
+    /** The Google account behind a native connection, when Google shared it. */
+    account: z
+      .union([
+        z.object({
+          email: z.string(),
+          name: z.string().nullable(),
+          pictureUrl: z.string().nullable(),
+        }),
+        z.null(),
+      ])
+      .optional(),
     /** Opaque cache identity for this account selection. It changes after reconnection. */
     connectionVersion: z
       .string()

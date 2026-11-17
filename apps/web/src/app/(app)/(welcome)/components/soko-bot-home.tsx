@@ -42,6 +42,11 @@ interface SokoBotHomeProps {
   schedules?: SokoBotHomeSchedule[];
   /** The reader's Tasks due today or overdue, first; nothing when none are. */
   myDay?: ReactNode;
+  /**
+   * The time the page read inside its prefetch cache. A clock read here,
+   * outside that cache, would cut a link prefetch of Home short.
+   */
+  now: Date;
   /** What waits on the reader, above the team's day; one line when nothing
    * does. */
   needsYou?: ReactNode;
@@ -68,6 +73,7 @@ export async function SokoBotHome({
   schedules = [],
   myDay,
   needsYou,
+  now,
 }: SokoBotHomeProps) {
   const [t, tStats, tStatus, format] = await Promise.all([
     getTranslations("App.Chat.Landing.SokoBotHome"),
@@ -76,7 +82,6 @@ export async function SokoBotHome({
     getFormatter(),
   ]);
   const botName = bot.name?.trim() || t("defaultName");
-  const now = new Date();
   const stats = summary
     ? [
         summary.completed > 0

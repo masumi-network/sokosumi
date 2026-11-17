@@ -34,12 +34,21 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import {
+  evalInfrastructureFailure,
+  infrastructureCaseOutcome,
+} from "./eval-infrastructure";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
 import monthPlans from "./fixtures/cmo-month-plans.json";
 
 /** Research reads a whole site; a plan is one long turn. */
 const CMO_TURN_TIMEOUT_MS = 45 * 60_000;
+const PLANNED_MONTH_POST_STATUSES = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+] as const;
 /** A month is a production run, Core's pictures, Jev's review and a rewrite. */
 const MONTH_TIMEOUT_MS = 3 * 60 * 60_000;
 /** Above this share of pieces Jev flags after the rewrite, the month fails. */
@@ -327,8 +336,64 @@ export async function startCmoCase(
 async function settledTurn(turnId: string) {
   return prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
-    select: { status: true, errorKind: true, finalAnswer: true },
+    select: {
+      status: true,
+      errorKind: true,
+      errorDetail: true,
+      finalAnswer: true,
+    },
   });
+}
+
+async function cancelMonthPosts(strategyId: string) {
+  // Nothing of an eval month may stay scheduled.
+  await prisma.socialPost.updateMany({
+    where: {
+      marketingStrategyId: strategyId,
+      status: { in: [...PLANNED_MONTH_POST_STATUSES] },
+    },
+    data: {
+      status: "CANCELED",
+      canceledAt: new Date(),
+      revision: { increment: 1 },
+    },
+  });
+}
+
+async function monthProductionTurns(
+  botId: string,
+  prefix: string,
+  since: Date,
+) {
+  const select = {
+    id: true,
+    status: true,
+    errorKind: true,
+    errorDetail: true,
+  } as const;
+  let frontier = await prisma.sokoBotTurn.findMany({
+    where: {
+      sokoBotId: botId,
+      source: "EVENT",
+      createdAt: { gte: since },
+      clientTurnId: { startsWith: prefix },
+    },
+    select,
+  });
+  const turns = new Map(frontier.map((turn) => [turn.id, turn]));
+  while (frontier.length) {
+    const children = await prisma.sokoBotTurn.findMany({
+      where: {
+        sokoBotId: botId,
+        createdAt: { gte: since },
+        parentTurnId: { in: frontier.map((turn) => turn.id) },
+      },
+      select,
+    });
+    frontier = children.filter((turn) => !turns.has(turn.id));
+    for (const turn of frontier) turns.set(turn.id, turn);
+  }
+  return [...turns.values()];
 }
 
 /** The month's pieces once Core says they are made and Jev is done reading. */
@@ -351,6 +416,56 @@ async function pollMonth(
     };
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
+  const approval = await prisma.marketingStrategy.findUniqueOrThrow({
+    where: {
+      id: strategyId,
+      projectId: lane.cusoProjectId,
+      authorSokoBotId: lane.cusoBotId,
+    },
+    select: { approvedAt: true },
+  });
+  const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
+  if (approval.approvedAt) {
+    // Production IDs bind retries to the current approval, including rewrites.
+    const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
+    const productionTurns = await monthProductionTurns(
+      lane.cusoBotId,
+      prefix,
+      context.startedAt,
+    );
+    const exhausted = productionTurns.find(
+      (turn) => evalInfrastructureFailure(turn)?.stopsRun,
+    );
+    if (exhausted) {
+      const active = productionTurns.filter(
+        (turn) => !SETTLED_TURN_STATUSES.includes(turn.status),
+      );
+      if (active.length && !timedOut) return { kind: "waiting" };
+      const outcome = infrastructureCaseOutcome(exhausted.id, exhausted, {
+        strategyId,
+      });
+      if (outcome) {
+        try {
+          // The month deadline also bounds existing background/watch work.
+          await Promise.all(
+            active.map((turn) => sokoBotControlPlane.expireTurn(turn.id)),
+          );
+          await cancelMonthPosts(strategyId);
+        } catch {
+          // The runner turns thrown poll errors into terminal results. Keep the
+          // lane here until its writers and unsent posts are safely stopped.
+          return { kind: "waiting" };
+        }
+        return {
+          kind: "done",
+          outcome: {
+            ...outcome,
+            turnIds: productionTurns.map((turn) => turn.id),
+          },
+        };
+      }
+    }
+  }
   // The cron moves a month on every ten minutes; the eval does not wait.
   const production = await advanceCmoProduction(cuso);
   const version = await prisma.marketingStrategy.findUniqueOrThrow({
@@ -359,7 +474,6 @@ async function pollMonth(
   });
   const review = parseCmoMonthReview(version.monthReview);
   const reviewed = review && (review.round === 2 || !review.rewriteRunId);
-  const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
   // Stuck: today's runs ended with pieces missing; the cron would try tomorrow.
   if (!reviewed && !timedOut && production.state !== "stuck")
     return { kind: "waiting" };
@@ -436,11 +550,7 @@ async function pollMonth(
         : "none flagged",
     },
   ];
-  // Nothing of an eval month may stay scheduled.
-  await prisma.socialPost.updateMany({
-    where: { marketingStrategyId: strategyId, status: { not: "PUBLISHED" } },
-    data: { status: "CANCELED" },
-  });
+  await cancelMonthPosts(strategyId);
   return {
     kind: "done",
     outcome: {
@@ -493,6 +603,12 @@ export async function pollCmoCase(
       },
     };
   }
+  const infrastructure = infrastructureCaseOutcome(result.turnId, turn, {
+    answer: turn.finalAnswer,
+    turnStatus: turn.status,
+    errorKind: turn.errorKind,
+  });
+  if (infrastructure) return { kind: "done", outcome: infrastructure };
   const completed = {
     label: "Turn completed",
     pass: turn.status === "COMPLETED",

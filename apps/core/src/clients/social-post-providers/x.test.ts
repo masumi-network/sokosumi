@@ -2,6 +2,7 @@ import {
   type SocialPostMediaKind,
   socialPostMaxBytesForKind,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
@@ -234,11 +235,13 @@ describe("publishXPost", () => {
         throw new Error(`unexpected ${path}`);
       }),
     );
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[composio] delete Project X publish session failed",
+    );
 
     await expect(publishXPost(publishInput)).resolves.toEqual(xResult("1907"));
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(warn).not.toHaveLength(0);
   });
 
   it("parses a flat tool result", async () => {

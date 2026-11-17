@@ -102,9 +102,9 @@ describe("pre-hire Site", () => {
     );
     expect(html).toContain("Start reading");
     expect(html).toContain('value="acme.io"');
-    expect(html).toContain("3 min");
+    expect(html).not.toContain("3 min");
     expect(html).toContain("Drafts your first month");
-    expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Site/);
+    expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Research/);
     // No organizations: nothing asks where Cuso goes.
     expect(html).not.toContain('name="organizationId"');
   });
@@ -139,7 +139,7 @@ describe("step markers", () => {
       new RegExp(
         `<li class="ob-step (\\w+)"[^>]*>(?:(?!</li>).)*${label}`,
       ).exec(html)?.[1];
-    expect(marker("Site")).toBe("done");
+    expect(marker("Research")).toBe("done");
     expect(marker("Brand")).toBe("done");
     expect(marker("Plan")).toBe("now");
     expect(marker("Launch")).toBe("next");
@@ -167,7 +167,10 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Reading your site");
     expect(html).toContain("Cuso is reading · ");
     expect(html).toContain(" so far");
-    expect(html).toContain("/cuso/reading-scene.jpg");
+    expect(html).toContain("/cuso/research.jpg");
+    // The wait shows: what he is doing now, and the running bar.
+    expect(html).toContain("ob-scene-now");
+    expect(html).toContain("ob-scene-bar");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
     expect(html).toContain("questions come when the read lands");
@@ -567,7 +570,7 @@ describe("Plan", () => {
     expect(html).toContain("Approve plan");
     expect(html).toContain("Ask for a change");
     expect(html).toContain("X now once a week");
-    for (const tab of ["Three moves", "Your month", "How we know it works"]) {
+    for (const tab of ["Your funnel", "Your month", "How we know it works"]) {
       expect(html).toContain(tab);
     }
     expect(html).toContain('role="tablist"');
@@ -653,7 +656,6 @@ describe("Launch", () => {
         overview={value}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
-        onLaunch={noop}
         onGoToday={() => {}}
       />,
     );

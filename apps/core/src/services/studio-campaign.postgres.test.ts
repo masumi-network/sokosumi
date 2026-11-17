@@ -15,6 +15,11 @@ const external = vi.hoisted(() => ({
   driveHead: vi.fn(),
 }));
 
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -53,6 +58,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   writeStudioDriveFile: vi.fn(),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
@@ -740,6 +746,12 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
   });
 
   it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {
+    // Refused twice before it is accepted: no transparency, then a changed file.
+    expectConsole(
+      "warn",
+      "[image-studio] a generation could not be prepared",
+      2,
+    );
     const path = `/${projectId}/image-studio`;
     const studio = app();
     const width = 20;

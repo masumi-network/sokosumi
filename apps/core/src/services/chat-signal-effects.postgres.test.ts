@@ -11,6 +11,11 @@ import prisma from "@/lib/db/prisma";
 import { tagRoomChatSignals } from "./chat-message-signals.service";
 import { chatOpenLoopsBlock } from "./soko-bot-proactive.service";
 
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+
 vi.mock("@/lib/ably/publish", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),

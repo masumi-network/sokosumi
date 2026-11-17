@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { requestSeoAnalysisSchema } from "@/schemas/project-seo.schema";
+import { SEO_MAX_PACKET_CHARS } from "@/schemas/seo-task-pages.schema";
 import {
-  SEO_MAX_PACKET_CHARS,
   seoTaskPacket,
   validateSeoAnalysis,
 } from "./project-seo-operations.service";
@@ -20,6 +20,15 @@ const request = () =>
   });
 
 describe("SEO worker request compatibility before Task dispatch", () => {
+  it("rejects equivalent encoded seed URLs before emitting a fixed-price worker packet", () => {
+    expect(() =>
+      seoTaskPacket(
+        { ...request(), kind: "audit_full", fullAuditCredits: 750 },
+        [page, "https://example.test/%70age"],
+        "audit-id",
+      ),
+    ).toThrow("each audit page once");
+  });
   it("rejects keyword operators, normalized duplicates and duplicate analyses before worker intake", () => {
     const base = request();
     expect(() =>
@@ -81,6 +90,14 @@ describe("SEO worker request compatibility before Task dispatch", () => {
       "01951111-1111-7111-8111-111111111111",
     );
     expect(full.price).toEqual({ kind: "fixed", credits: 750 });
+    expect(full.inspectRelated).toBe(true);
+    expect(
+      seoTaskPacket(
+        { ...base, kind: "audit_full" },
+        [page],
+        "01951111-1111-7111-8111-111111111111",
+      ).inspectRelated,
+    ).toBeUndefined();
     expect(
       seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111").price,
     ).toBeUndefined();

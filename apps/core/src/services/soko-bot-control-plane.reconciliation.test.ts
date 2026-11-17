@@ -567,3 +567,24 @@ describe("SokoBotControlPlane reconciliation", () => {
     );
   });
 });
+
+describe("reconciling a turn another reconciler already settled", () => {
+  // Two callers start the same clientTurnId: the duplicate gets the lease
+  // the first one holds, and the first settles the turn and clears it.
+  it("returns without touching the runtime", async () => {
+    vi.clearAllMocks();
+    turnFindUniqueMock.mockResolvedValue(
+      activeTurn({ status: "COMPLETED", leaseToken: null }),
+    );
+    const runtime = runtimeFor([]);
+
+    await new SokoBotControlPlane(runtime, undefined, undefined).reconcileTurn(
+      TURN_ID,
+      undefined,
+      LEASE_TOKEN,
+    );
+
+    expect(runtime.streamEvents).not.toHaveBeenCalled();
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
+  });
+});

@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -91,36 +92,24 @@ describe("openrouter.client", () => {
 
   it("returns null when agent summary generation fails, so sync retries", async () => {
     generateTextMock.mockRejectedValue(new Error("timeout"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "OpenRouter agent summary generation failed");
 
-    try {
-      const { openrouterClient } = await import("./openrouter.client");
+    const { openrouterClient } = await import("./openrouter.client");
 
-      await expect(
-        openrouterClient.generateAgentSummary("Landing page teardown agent"),
-      ).resolves.toBeNull();
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await expect(
+      openrouterClient.generateAgentSummary("Landing page teardown agent"),
+    ).resolves.toBeNull();
   });
 
   it("returns null when generateText throws trailing bytes", async () => {
     generateTextMock.mockRejectedValue(new Error("479 trailing bytes"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "OpenRouter task name generation failed");
 
-    try {
-      const { openrouterClient } = await import("./openrouter.client");
+    const { openrouterClient } = await import("./openrouter.client");
 
-      await expect(
-        openrouterClient.generateTaskName("Build landing page"),
-      ).resolves.toBeNull();
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await expect(
+      openrouterClient.generateTaskName("Build landing page"),
+    ).resolves.toBeNull();
   });
 
   it("returns null without calling generateText when OpenRouter is not configured", async () => {

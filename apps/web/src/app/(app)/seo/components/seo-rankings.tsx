@@ -88,6 +88,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           after pass 59). The competitors list has no use for the map. */}
       {section === "competitors" ? null : (
         <SeoKeywordMap
+          model={model}
           groups={
             section === "ideas"
               ? { checked: [], ideas: groups.ideas }

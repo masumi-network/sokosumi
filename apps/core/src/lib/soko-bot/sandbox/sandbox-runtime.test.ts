@@ -57,6 +57,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { SandboxSokoBotRuntime } from "./sandbox-runtime";
 
 const turn = {
@@ -125,6 +126,7 @@ describe("SandboxSokoBotRuntime", () => {
   });
 
   it("settles a turn whose VM never started, so it does not sit RUNNING", async () => {
+    expectConsole("error", "Soko Bot sandbox launch failed");
     driveGetOrCreateMock.mockRejectedValue(new Error("Drive unavailable"));
     await new SandboxSokoBotRuntime().createSession(turn);
     await Promise.all(pending);

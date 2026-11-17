@@ -2,6 +2,7 @@ import { inspect } from "node:util";
 
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface AuthorizeReferenceConfig {
@@ -1752,24 +1753,21 @@ describe("core auth config", () => {
         statusCode: null,
       });
       sendEmailMock.mockRejectedValueOnce(failure);
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warn = expectConsole(
+        "warn",
+        "[email_code_email] suppressed external failure",
+      );
 
-      try {
-        await expectCodeLine(true);
-        await expect(flushWaitUntil()).resolves.toBeUndefined();
-        expect(warn).toHaveBeenCalledWith(
-          "[email_code_email] suppressed external failure",
-          {
-            error: "Email code delivery failed",
-          },
-        );
-        expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
-        expect(JSON.stringify(warn.mock.calls)).not.toContain(
-          "andreas@example.com",
-        );
-      } finally {
-        warn.mockRestore();
-      }
+      await expectCodeLine(true);
+      await expect(flushWaitUntil()).resolves.toBeUndefined();
+      expect(warn).toContainEqual([
+        "[email_code_email] suppressed external failure",
+        {
+          error: "Email code delivery failed",
+        },
+      ]);
+      expect(JSON.stringify(warn)).not.toContain("042917");
+      expect(JSON.stringify(warn)).not.toContain("andreas@example.com");
     });
 
     it.each(["production", "staging"])(
@@ -1814,7 +1812,14 @@ describe("core auth config", () => {
         },
       );
       sendEmailMock.mockRejectedValueOnce(failure);
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      // Only a 503 counts as transient and is suppressed with a warning.
+      const warn =
+        statusCode === 503
+          ? expectConsole(
+              "warn",
+              "[email_code_email] suppressed external failure",
+            )
+          : [];
       await import("./auth");
 
       const [[config]] = emailOTPPluginMock.mock.calls as Array<
@@ -1839,19 +1844,18 @@ describe("core auth config", () => {
       expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(
         statusCode === 503 ? 0 : 1,
       );
-      expect(warn).toHaveBeenCalledTimes(statusCode === 503 ? 1 : 0);
+      expect(warn).toHaveLength(statusCode === 503 ? 1 : 0);
       const reported = inspect(
         [
           sentryCaptureExceptionMock.mock.calls,
           sentrySetExtrasMock.mock.calls,
-          warn.mock.calls,
+          warn,
         ],
         { depth: null },
       );
       expect(reported).not.toContain("andreas@example.com");
       expect(reported).not.toContain("042917");
       expect(reported).toContain("Email code delivery failed");
-      warn.mockRestore();
     },
   );
 

@@ -1,0 +1,38 @@
+/// One image of the reference library: old ads, posters, covers, labels and
+/// ephemera Cuso borrows a style from when he makes a picture. The image sits
+/// in the private reference library Blob store at `pathname`; a vision model
+/// described it once (`apps/core/scripts/reference-library.mts`), and Core
+/// searches the description by meaning (`embedding`) and by its fields.
+/// `credit` and `source` trace it back to the museum or archive it came from.
+model ReferenceImage {
+  id          String                     @id @default(uuid(7)) @db.Uuid
+  /// The image's path in the library, e.g. `posters/loc-wpa/…jpg`; unique.
+  libraryPath String                     @unique
+  pathname    String
+  width       Int
+  height      Int
+  title       String
+  maker       String
+  date        String
+  source      String
+  credit      String
+  kind        String
+  era         String
+  description String
+  subjects    String[]
+  technique   String
+  layout      String
+  lettering   String
+  palette     String[]
+  mood        String[]
+  suits       String[]
+  textAmount  String
+  /// 1 blank or damaged, 5 a striking, clear design; search leaves out low ones.
+  usable      Int
+  embedding   Unsupported("vector(768)")?
+  createdAt   DateTime                   @default(now())
+
+  @@index([kind])
+  @@index([usable])
+  @@map("reference_image")
+}

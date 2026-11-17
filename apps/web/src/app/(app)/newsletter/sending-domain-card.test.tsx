@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import en from "@/messages/en.json";
 
 const mocks = vi.hoisted(() => ({
@@ -115,7 +116,12 @@ function renderCard(state: Partial<NewsletterSendingDomainState> = {}) {
   function card(currentState: Partial<NewsletterSendingDomainState>) {
     return (
       <QueryClientProvider client={queryClient}>
-        <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <NextIntlClientProvider
+          locale="en"
+          messages={en}
+          timeZone="UTC"
+          formats={createFormats()}
+        >
           <SendingDomainCard
             state={{
               sendingDomain: null,

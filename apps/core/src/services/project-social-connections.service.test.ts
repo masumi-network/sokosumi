@@ -1,6 +1,6 @@
 import { isSocialProviderEnabled } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
@@ -2140,12 +2140,14 @@ describe("backfillLinkedInAccountProfile", () => {
 
   it("never throws when the lookup fails", async () => {
     getConnectedSocialIdentityMock.mockRejectedValue(new Error("down"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole(
+      "warn",
+      "[social-connections] LinkedIn profile backfill failed",
+    );
     const { backfillLinkedInAccountProfile } = await import(
       "./project-social-connections.service"
     );
 
     await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
-    warn.mockRestore();
   });
 });

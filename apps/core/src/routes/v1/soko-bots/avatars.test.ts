@@ -66,9 +66,9 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { LIMITS } from "@/config/constants";
 import { errorHandler } from "@/helpers/error-handler";
-
 import app from "./index";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -260,7 +260,10 @@ describe("Soko Bot avatar picker", () => {
     it("answers Show others with nothing when its paid draw could not be stored", async () => {
       store.seed();
       // Quiet the failure's log line; the outcome is what is checked.
-      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      expectConsole(
+        "error",
+        "Soko Bot avatar generation failed; skipping this run",
+      );
       putMock.mockRejectedValue(new Error("blob down"));
 
       const { status, avatars } = await topUp(6, [], true);
@@ -269,7 +272,6 @@ describe("Soko Bot avatar picker", () => {
       expect(status).toBe(200);
       expect(avatars).toEqual([]);
       expect(drawMock).toHaveBeenCalledTimes(1);
-      error.mockRestore();
     });
 
     it("answers 409 and buys nothing while the user's own draw is in flight", async () => {

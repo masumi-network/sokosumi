@@ -76,16 +76,16 @@ export interface CmoUpNextItem {
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
  * until a member confirms it, the Marketing strategy until a version is
- * approved, the accounts until the Project has an active Social connection,
- * the checkout until his Project has a CMO subscription (ADR 0068).
- * CMO's own cookie may skip the accounts (ADR 0062).
+ * approved, the checkout until his Project has a CMO subscription (ADR 0068),
+ * then the accounts until the Project has an active Social connection.
+ * CMO's own cookie records that Launch was pressed (ADR 0062).
  */
 /** Hiring Cuso's steps, in order. */
 export const CMO_ONBOARDING_STEPS = [
   "brandBrain",
   "strategy",
-  "accounts",
   "checkout",
+  "accounts",
   "done",
 ] as const;
 export type CmoOnboardingStep = (typeof CMO_ONBOARDING_STEPS)[number];
@@ -102,8 +102,10 @@ export function cmoOnboardingStep(input: {
   if (!input.strategyApproved) {
     return input.brandBrainConfirmed ? "strategy" : "brandBrain";
   }
-  if (!input.connected) return "accounts";
-  return input.subscribed || input.hasTesterCredits ? "done" : "checkout";
+  // The person pays before connecting accounts: a paid plan is what lets
+  // Cuso make the month, and the accounts only decide where it goes.
+  if (!input.subscribed && !input.hasTesterCredits) return "checkout";
+  return input.connected ? "done" : "accounts";
 }
 
 export interface CmoOverview {

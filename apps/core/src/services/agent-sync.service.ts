@@ -176,7 +176,8 @@ function reportAgentRepricing(
   previous: string,
   next: string,
 ): void {
-  console.warn("[sync/agents] Registry pricing changed for a live agent", {
+  // Routine and intended, so info: the record, not an alarm.
+  console.info("[sync/agents] Registry pricing changed for a live agent", {
     agentIdentifier,
     previousPricing: previous,
     nextPricing: next,

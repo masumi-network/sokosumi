@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getConnectedSocialIdentity } from "@/clients/composio.client";
 import {
@@ -357,7 +358,10 @@ describe("publishLinkedInPost", () => {
   });
 
   it("treats a confirmed post without an id as published without a link", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[linkedin] Published post returned no post id",
+    );
     stubSession(() =>
       toolResponse({
         status_code: 201,
@@ -371,7 +375,7 @@ describe("publishLinkedInPost", () => {
       publishedUrl: null,
       toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
     });
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toContainEqual([
       "[linkedin] Published post returned no post id",
       {
         toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
@@ -383,9 +387,8 @@ describe("publishLinkedInPost", () => {
           "response_data.secret",
         ],
       },
-    );
-    expect(JSON.stringify(warn.mock.calls)).not.toContain("tok_should_not_log");
-    warn.mockRestore();
+    ]);
+    expect(JSON.stringify(warn)).not.toContain("tok_should_not_log");
   });
 
   it("only accepts LinkedIn post URNs as the post id", () => {

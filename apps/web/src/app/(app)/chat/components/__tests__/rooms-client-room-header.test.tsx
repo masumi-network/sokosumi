@@ -26,6 +26,16 @@ import {
   sampleMessage,
 } from "./rooms-client-harness";
 
+// The decisions entry loads through a server action; a DOM test has no server
+// to run it on. The room has none to list.
+vi.mock("@/app/chat/signal-actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/chat/signal-actions")>()),
+  listChatRoomDecisionsAction: async () => ({
+    ok: true as const,
+    value: { messages: [], nextCursor: null },
+  }),
+}));
+
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => (
     <button type="button" data-testid="room-search-trigger" />

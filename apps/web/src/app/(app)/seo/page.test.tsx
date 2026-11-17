@@ -20,15 +20,17 @@ const m = vi.hoisted(() => ({
   coworkers: vi.fn(),
   createAudit: vi.fn(),
   push: vi.fn(),
+  connection: vi.fn(async () => {}),
 }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
-  connection: async () => {},
+  connection: m.connection,
 }));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: m.push }),
+  useRouter: () => ({ push: m.push, refresh: vi.fn() }),
 }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () =>
     createTranslator({ locale: "en", messages, namespace: "App.Seo" }),
@@ -358,5 +360,27 @@ describe("native SEO audit entry", () => {
       "https://example.test/launch",
     );
     expect(m.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("SEO link prefetch", () => {
+  // The Audit list read is cached, so a link prefetch carries it.
+  it("reads the Audit list without deferring to the request", async () => {
+    await SeoPage({ searchParams: Promise.resolve({}) });
+    expect(m.connection).not.toHaveBeenCalled();
+  });
+
+  // A workspace read is not cached, so a link prefetch must stop before it.
+  it.each([
+    ["an Audit", { auditId: SEO_TEST_AUDIT }],
+    ["a Project's", { projectId: SEO_TEST_PROJECT, view: "project" }],
+  ])("keeps %s workspace out of the link prefetch", async (_, params) => {
+    m.getWorkspace.mockResolvedValue(seoTestWorkspace());
+    // A prefetch never resolves connection(), so the page must wait on it.
+    m.connection.mockReturnValueOnce(new Promise<void>(() => {}));
+    void SeoPage({ searchParams: Promise.resolve(params) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(m.connection).toHaveBeenCalledOnce();
+    expect(m.getWorkspace).not.toHaveBeenCalled();
   });
 });

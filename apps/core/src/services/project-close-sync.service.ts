@@ -22,10 +22,10 @@ import {
   revokeProjectSocialConnectionForClose,
 } from "@/services/project-social-connections.service";
 import {
-  announceReleasedTasks,
   closeTaskScheduleForProject,
   type ReleasedTask,
 } from "@/services/task-schedule-runs.service";
+import { announceReleasedTasks } from "@/services/task-schedule-task.service";
 
 const PROJECT_CLOSE_OPERATION_BATCH_SIZE = 5;
 const PROJECT_CLOSE_SCHEDULE_BATCH_SIZE = 10;
