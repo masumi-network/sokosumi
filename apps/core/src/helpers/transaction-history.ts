@@ -100,6 +100,7 @@ const KIND_CASE = PrismaRaw.sql`
     WHEN te."id" IS NOT NULL THEN 'task'
     WHEN cu."id" IS NOT NULL THEN 'coworker'
     WHEN sbu."id" IS NOT NULL THEN 'sokoBot'
+    WHEN sch."id" IS NOT NULL THEN 'seoChat'
     WHEN cps."id" IS NOT NULL THEN 'contacts'
     ELSE 'unattributed'
   END
@@ -183,7 +184,13 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         tk."projectId",
         rj."projectId",
         rpij."projectId",
-        rtk."projectId"
+        rtk."projectId",
+        -- Project credits (ADR 0067): a grant belongs to the Project of the
+        -- bucket it created, a write-off to the Project of the bucket it drew.
+        topup."projectId",
+        bucket."projectId",
+        -- This server-owned usage field freezes the payer, independent of later Audit relinking.
+        (sch."usage" #>> '{billing,projectId}')::uuid
       ) AS "projectId",
       -- The Task a row belongs to: charged by its event or one of its Jobs,
       -- or a refund of either. Filter-only; the label comes from the columns
@@ -262,6 +269,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "task" AS tk ON tk."id" = te."taskId"
     LEFT JOIN "coworker_usage" AS cu ON cu."transactionId" = t."id"
     LEFT JOIN "coworker" AS cw ON cw."id" = cu."coworkerId"
+    LEFT JOIN "seo_audit_chat_turn" AS sch ON sch."transactionId" = t."id"
     LEFT JOIN "soko_bot_usage" AS sbu ON sbu."transactionId" = t."id"
     LEFT JOIN "soko_bot" AS sb ON sb."id" = sbu."sokoBotId"
     -- A usage row's reference is the turn it billed.
@@ -273,7 +281,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "contact" AS ct ON ct."id" = cps."contactId"
     -- A spend can draw from several buckets. One is enough to name a source.
     LEFT JOIN LATERAL (
-      SELECT b."referenceType"::TEXT AS "referenceType"
+      SELECT b."referenceType"::TEXT AS "referenceType", b."projectId"
       FROM "credit_consumption" AS cc
       JOIN "credit_bucket" AS b ON b."id" = cc."bucketId"
       WHERE cc."transactionId" = t."id"
@@ -476,6 +484,9 @@ const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
   ENTERPRISE_TOP_UP: "Enterprise top up",
   SIGNUP_BONUS: "Signup bonus",
   FREE: "Free credits",
+  POLAR_SUBSCRIPTION_MONTH: "CMO plan credits",
+  PROJECT_TOP_UP: "Project top-up",
+  CMO_TESTER_CREDITS: "CMO tester credits",
 };
 
 /**
@@ -658,6 +669,8 @@ export function mapTransactionHistoryRow(
         description: sokoBotTurnLabel(row),
         sokoBotId: row.sokoBotId ?? "",
       };
+    case "seoChat":
+      return { ...base, kind: "seoChat", title: "SEO chat", description: null };
     case "contacts":
       return {
         ...base,

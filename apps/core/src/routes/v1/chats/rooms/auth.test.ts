@@ -86,6 +86,14 @@ vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
 vi.mock("@/services/chat-room-mention-state", () => ({
   listStaleSentChatRoomMentionIds: vi.fn().mockResolvedValue([]),
 }));
+// A posted message's after-commit effects: realtime publish, link unfurls,
+// and reader invalidation. Not what an auth gate test is about.
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/services/chat-room-message-unfurl.service", () => ({
+  scheduleChatRoomMessageUnfurls: vi.fn().mockResolvedValue(undefined),
+}));
 
 // Stream routes: auth/membership only — keep heavy stream deps inert.
 vi.mock("ai", () => ({

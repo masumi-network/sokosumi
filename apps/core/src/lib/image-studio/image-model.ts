@@ -51,6 +51,9 @@ export const IMAGE_PROVIDER_FIELDS = [
   "seed",
   "limit_generations",
   "image_urls",
+  "image_url",
+  "mask_url",
+  "strength",
 ] as const;
 
 export type ImageProviderField = (typeof IMAGE_PROVIDER_FIELDS)[number];
@@ -93,6 +96,16 @@ export interface ImageModel {
    * reserved or sent.
    */
   editEndpoint: string | null;
+  /**
+   * fal `/edit` path that inpaints through a mask, when that is a different
+   * endpoint from {@link editEndpoint}.
+   *
+   * Ideogram v3 is the case that forced the split: `/edit` requires `image_url`
+   * and `mask_url`, while Studio Refine has no mask painter and must use
+   * `/remix`. Lettering generates a headline-area mask and calls this endpoint.
+   * Null or absent means there is no separate inpaint path.
+   */
+  inpaintEndpoint?: string | null;
   aspectRatios: readonly string[];
   resolutions: readonly string[];
   /** Empty means the model chooses; the studio then sends no format at all. */

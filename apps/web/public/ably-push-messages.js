@@ -59,6 +59,8 @@ globalThis.MESSAGES = {
       "The schedule for {taskName} was removed after review",
     "Notifications.Billing.lowBalance":
       "Your credits are running low: {credits} left",
+    "Notifications.Billing.cusoLowCredits":
+      "{cusoName} for {businessName} is running low: {credits} credits left",
     "Notifications.Billing.paymentFailed": "A subscription payment failed",
     "Notifications.Billing.creditsAdded":
       "{credits} credits were added to your balance",
@@ -72,6 +74,8 @@ globalThis.MESSAGES = {
       "A teammate moved {taskName} to another calendar source",
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "A teammate changed an occurrence of {taskName}",
+    "Notifications.Task.seoMonitorWorse":
+      "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}.",
     "Notifications.Project.closed": "{projectName} is now closed",
     "Notifications.Project.closeFailed":
       "{projectName} could not finish closing",
@@ -136,6 +140,8 @@ globalThis.MESSAGES = {
       "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
     "Notifications.Billing.lowBalance":
       "Deine Credits werden knapp: noch {credits}",
+    "Notifications.Billing.cusoLowCredits":
+      "{cusoName} für {businessName} gehen die Credits aus: noch {credits}",
     "Notifications.Billing.paymentFailed":
       "Eine Abo-Zahlung ist fehlgeschlagen",
     "Notifications.Billing.creditsAdded":
@@ -150,6 +156,8 @@ globalThis.MESSAGES = {
       "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "Ein Teammitglied hat einen Termin von {taskName} geändert",
+    "Notifications.Task.seoMonitorWorse":
+      "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}.",
     "Notifications.Project.closed": "{projectName} ist jetzt geschlossen",
     "Notifications.Project.closeFailed":
       "{projectName} konnte nicht vollständig geschlossen werden",
@@ -215,6 +223,8 @@ globalThis.MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Billing.lowBalance":
       "Tus créditos se están agotando: quedan {credits}",
+    "Notifications.Billing.cusoLowCredits":
+      "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",
     "Notifications.Billing.paymentFailed": "Un pago de suscripción falló",
     "Notifications.Billing.creditsAdded":
       "Se añadieron {credits} créditos a tu saldo",
@@ -228,6 +238,8 @@ globalThis.MESSAGES = {
       "Un miembro del equipo movió {taskName} a otra fuente de calendario",
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "Un miembro del equipo cambió una ocurrencia de {taskName}",
+    "Notifications.Task.seoMonitorWorse":
+      "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}.",
     "Notifications.Project.closed": "{projectName} ya está cerrado",
     "Notifications.Project.closeFailed":
       "{projectName} no pudo terminar de cerrarse",

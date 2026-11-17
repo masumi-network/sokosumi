@@ -23,6 +23,8 @@ vi.mock("@/lib/db/prisma", () => ({
       delete: deleteMessage,
       deleteMany: deleteMessage,
     },
+    // A new Thought refreshes the room's readers; this room has none.
+    chatRoomUserMember: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         chatRoomMessage: { create: createMessage },

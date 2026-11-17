@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMine = vi.fn();
@@ -30,7 +31,14 @@ const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
 
-vi.mock("next/server", () => ({ connection: async () => {} }));
+const connection = vi.fn(async () => {});
+const SESSION = { user: { id: "user-1", name: "Alice Doe" } };
+const getSession = vi.fn(async () => SESSION);
+const getSessionResult = vi.fn(async (): Promise<unknown> => ok(SESSION));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("next/server", () => ({ connection: () => connection() }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
@@ -46,11 +54,14 @@ vi.mock("./components/my-day", () => ({
     return <div>my day</div>;
   },
 }));
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   redirect: (path: string) => redirect(path),
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: async () => ({ user: { id: "user-1", name: "Alice Doe" } }),
+  getSession: () => getSession(),
+  getSessionResult: () => getSessionResult(),
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
@@ -322,6 +333,54 @@ describe("WelcomePage", () => {
     );
     // The first page of projects is read next to the rows, not after them.
     expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
+  });
+
+  // The reads are cached, so a link prefetch carries Home.
+  // connection() would drop it back to the skeleton.
+  it("renders the bot home while the request has not come", async () => {
+    connection.mockReturnValueOnce(new Promise(() => {}));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
+    // My day and the Needs you projects are uncached: they wait for the
+    // request, so a prefetch leaves them as holes.
+    expect(loadMyDay).not.toHaveBeenCalled();
+    expect(listProjects).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a session outage as a signed-out Home: the
+  // click renders fresh with the session read again.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResult.mockResolvedValueOnce(err({ reason: "timeout" }));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: "user-1" }),
+    );
+  });
+
+  // A Core blip on the access read must not be kept as "not set up": the
+  // click would redirect to setup with nothing to repair it.
+  it("reads a failed workspace access again, fresh, instead of keeping it", async () => {
+    getWorkspaceAccess
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValueOnce({ gate: "ready" });
+    getMine.mockResolvedValue(null);
+    await renderPage();
+    expect(redirect).not.toHaveBeenCalled();
+    expect(getWorkspaceAccess).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("soko bot setup")).toBeTruthy();
   });
 
   describe("a bot whose last turn failed", () => {

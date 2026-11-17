@@ -2,6 +2,7 @@ import { render } from "@react-email/render";
 import { Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
+import { toSingleLineSubject } from "../subject-line.js";
 import {
   DARK_CLASS,
   LIGHT_PALETTE,
@@ -93,5 +94,5 @@ export async function renderCodeEmail({
 }: RenderCodeEmailProps): Promise<RenderedEmail> {
   const html = await render(<CodeEmailTemplate {...props} />);
 
-  return { html, subject };
+  return { html, subject: toSingleLineSubject(subject) };
 }

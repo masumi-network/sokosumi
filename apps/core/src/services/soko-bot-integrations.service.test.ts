@@ -5,7 +5,7 @@ import {
   ComposioToolkitNotFoundError,
   ComposioToolNotFoundError,
 } from "@composio/core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   bot: vi.fn(),
@@ -22,6 +22,16 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   toolkitGet: vi.fn(),
   getRawComposioTools: vi.fn(),
+  followUpConnectedApp: vi.fn(),
+  pending: [] as Promise<unknown>[],
+}));
+// The follow-up runs after the response; each test awaits it so its import
+// cannot finish in the next file, without this file's mocks.
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (work: Promise<unknown>) => mocks.pending.push(work),
+}));
+vi.mock("@/services/soko-bot-watches.service", () => ({
+  followUpConnectedApp: mocks.followUpConnectedApp,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -34,6 +44,8 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: mocks.findMany,
       delete: mocks.deleteRow,
     },
+    // An active connection schedules its contact capture.
+    contactCaptureState: { deleteMany: vi.fn(), upsert: vi.fn() },
   },
 }));
 vi.mock("@/clients/composio.client", () => ({
@@ -63,10 +75,9 @@ vi.mock("@/config/env", () => ({
 }));
 
 import {
-  connectSokoBotIntegration,
-  disconnectSokoBotIntegration,
-  finalizeSokoBotIntegration,
-} from "./soko-bot-integration-connection.service";
+  listIntegrationTools,
+  runIntegrationTool,
+} from "@/services/composio-integration-tools.service";
 import {
   activeIntegrationsForBot,
   createInboxDraft,
@@ -74,13 +85,17 @@ import {
   fetchInboxMessage,
   fetchInboxMessages,
   fetchInboxPage,
-  listIntegrationTools,
   modifyInboxMessages,
   revokeSokoBotIntegrationAccounts,
-  runIntegrationTool,
   searchSokoBotIntegrationCatalog,
   withOwnerReplies,
-} from "./soko-bot-integrations.service";
+} from "@/services/soko-bot-integrations.service";
+import { expectConsole } from "@/test/console";
+import {
+  connectSokoBotIntegration,
+  disconnectSokoBotIntegration,
+  finalizeSokoBotIntegration,
+} from "./soko-bot-integration-connection.service";
 
 const input = {
   userId: "owner",
@@ -97,6 +112,11 @@ const existing = {
   status: "ACTIVE",
   cursor: { since: "old" },
 };
+
+afterEach(async () => {
+  await Promise.all(mocks.pending);
+  mocks.pending.length = 0;
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -598,20 +618,16 @@ it("attempts both account revocations and reports a provider once on partial fai
     { ...existing, pendingComposioAccountId: "replacement" },
   ]);
   mocks.remove.mockRejectedValue(new Error("upstream unavailable"));
-  const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-  try {
-    expect(
-      await revokeSokoBotIntegrationAccounts("bot", [
-        { ...existing, pendingComposioAccountId: "replacement" },
-      ]),
-    ).toEqual({
-      revoked: 0,
-      failed: ["gmail"],
-    });
-    expect(mocks.remove.mock.calls).toEqual([["selected"], ["replacement"]]);
-  } finally {
-    log.mockRestore();
-  }
+  expectConsole("error", "Soko Bot integration revoke failed", 2);
+  expect(
+    await revokeSokoBotIntegrationAccounts("bot", [
+      { ...existing, pendingComposioAccountId: "replacement" },
+    ]),
+  ).toEqual({
+    revoked: 0,
+    failed: ["gmail"],
+  });
+  expect(mocks.remove.mock.calls).toEqual([["selected"], ["replacement"]]);
 });
 
 describe("OAuth retries and failures", () => {
@@ -810,6 +826,14 @@ describe("installed Composio link contract", () => {
           }),
         ).rejects.toThrow("Multiple connected accounts found");
         expect(transport).not.toHaveBeenCalled();
+      }
+      // Core links with allowMultiple: true, and the SDK warns on that branch
+      // whenever an active account exists (pending: patch the SDK or ticket 10).
+      if (statuses.includes("ACTIVE")) {
+        expectConsole(
+          "warn",
+          /^\S+ - \[Warn:AllowMultiple\] Multiple connected accounts found/,
+        );
       }
       mocks.link.mockImplementation(
         sdk.connectedAccounts.link.bind(sdk.connectedAccounts),

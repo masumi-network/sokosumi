@@ -59,6 +59,7 @@ vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
   triageMail: triageMailMock,
 }));
 
+import { expectConsole } from "@/test/console";
 import { SokoBotIngestSyncService } from "./soko-bot-ingest.service";
 
 const LAST_SEEN = "2026-09-30T06:14:00.000Z";
@@ -348,13 +349,15 @@ describe("soko-bot ingest member", () => {
 
   it("still ingests when the sweep fails", async () => {
     sweepMock.mockRejectedValue(new Error("db down"));
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const log = expectConsole(
+      "error",
+      "Soko Bot leaver integration sweep failed",
+    );
     expect((await run()).deltas).toBe(1);
-    expect(log).toHaveBeenCalledWith(
+    expect(log).toContainEqual([
       "Soko Bot leaver integration sweep failed",
       { error: "db down" },
-    );
-    log.mockRestore();
+    ]);
   });
 });
 

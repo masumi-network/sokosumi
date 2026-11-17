@@ -3,13 +3,15 @@ import { type ReactNode, Suspense, use } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  loadWorkspaceCalendarPageMock,
+  connectionMock,
+  readWorkspaceCalendarPageMock,
   notFoundMock,
   projectServiceMock,
   sokoBotGetMineMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   sokoBotGetMineMock: vi.fn(),
-  loadWorkspaceCalendarPageMock: vi.fn(),
+  readWorkspaceCalendarPageMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
@@ -50,11 +52,20 @@ vi.mock("./components/social-calendar-preview", () => ({
   }) => <>{children}</>,
 }));
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("next/server", () => ({ connection: connectionMock }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("@/lib/auth/auth.server", async () => {
+  const { ok } = await import("neverthrow");
+  return {
+    getSessionResult: async () => ok(SESSION),
+    getSession: async () => SESSION,
+  };
+});
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
   useSearchParams: () => new URLSearchParams("tab=accounts"),
+  useRouter: () => ({ refresh: vi.fn() }),
   unstable_rethrow: (error: unknown) => {
     if (
       error instanceof Error &&
@@ -76,7 +87,8 @@ vi.mock("@/lib/services/project.service", () => ({
 }));
 
 vi.mock("@/app/calendar/load-calendar-page", () => ({
-  loadWorkspaceCalendarPage: loadWorkspaceCalendarPageMock,
+  readWorkspaceCalendarPage: readWorkspaceCalendarPageMock,
+  requestCalendarTimezone: async () => "UTC",
 }));
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
@@ -226,6 +238,11 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: { getMine: sokoBotGetMineMock },
 }));
 
+const SESSION = {
+  user: { id: "user-1" },
+  session: { activeOrganizationId: "org-1" },
+};
+
 const PROJECT = {
   id: "project-1",
   name: "Launch plan",
@@ -275,7 +292,7 @@ describe("SocialPage", () => {
       timezone: null,
       slots: [],
     });
-    loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
+    readWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
     sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
     projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
       items: [],
@@ -415,8 +432,8 @@ describe("SocialPage", () => {
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ view: "week" });
+    const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(requested).toMatchObject({ view: "week" });
   });
 
   it("lists every project's failed, missed and approval posts under Needs attention", async () => {
@@ -492,8 +509,8 @@ describe("SocialPage", () => {
         tab: "calendar",
       });
 
-      const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-      await expect(searchParams).resolves.toEqual({
+      const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+      expect(requested).toEqual({
         projectId,
         assigneeId: undefined,
         assigneeUserId: undefined,
@@ -534,8 +551,8 @@ describe("SocialPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
     // The lost id must not narrow the all-projects calendar to nothing.
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+    const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(requested).toMatchObject({ projectId: undefined });
   });
 
   it("stays on all-projects when that project fails to load", async () => {
@@ -553,8 +570,8 @@ describe("SocialPage", () => {
     expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+    const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(requested).toMatchObject({ projectId: undefined });
   });
 
   // The loader drops a stale view=agenda for Social posts alone.
@@ -566,7 +583,7 @@ describe("SocialPage", () => {
 
     await visit({ ...query, view: "agenda" });
 
-    const [{ types }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    const [{ types }] = readWorkspaceCalendarPageMock.mock.lastCall!;
     expect(types).toEqual(["social"]);
   });
 
@@ -614,7 +631,7 @@ describe("SocialPage", () => {
 
   it("keeps Social up when the calendar fails to load", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
-    loadWorkspaceCalendarPageMock.mockRejectedValue(new Error("core down"));
+    readWorkspaceCalendarPageMock.mockRejectedValue(new Error("core down"));
 
     await visit({ projectId: "project-1" });
 
@@ -629,9 +646,7 @@ describe("SocialPage", () => {
 
   it("still 404s when the calendar loader cannot find the project", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
-    loadWorkspaceCalendarPageMock.mockRejectedValue(
-      Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_NOT_FOUND" }),
-    );
+    readWorkspaceCalendarPageMock.mockResolvedValue(null);
 
     const { default: SocialPage } = await import("./page");
 
@@ -640,6 +655,19 @@ describe("SocialPage", () => {
         searchParams: Promise.resolve({ projectId: "project-1" }),
       }),
     ).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  // The Social reads are cached, so a link prefetch carries the page.
+  it.each([
+    ["the scoped project", { projectId: "project-1" }],
+    ["every project", {}],
+  ])("renders %s without deferring to the request", async (_label, query) => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+
+    await visit(query);
+
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   it("keeps Social up when one list page fails", async () => {
@@ -751,8 +779,9 @@ describe("SocialPage", () => {
     const calendar = screen.getByTestId("social-calendar");
     expect(calendar).toHaveAttribute("data-types", "social");
     expect(calendar).toHaveAttribute("data-locked-project", "project-1");
-    expect(loadWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "project-1" }),
+      SESSION,
     );
   });
 

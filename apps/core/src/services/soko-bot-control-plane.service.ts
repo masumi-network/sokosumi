@@ -12,6 +12,7 @@ import {
   createEmptySokoBotMemory,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
+  isSokoBotAnnouncementCapability,
   isSokoBotCapability,
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
@@ -37,6 +38,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
@@ -110,6 +112,7 @@ import {
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
+  PERSON_SCHEDULE_CAPABILITIES,
   systemScheduleRoute,
   withOwnScheduleTools,
 } from "@/lib/soko-bot/system-routes";
@@ -118,6 +121,11 @@ import type {
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
+import {
+  revokeCusoSubscription,
+  revokeCusoSubscriptionIfLeavingCmo,
+  revokeSubscriptionsLeftByEnding,
+} from "@/services/polar-subscription-end.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
@@ -132,6 +140,7 @@ import {
   invalidateSokoBotIntentOutcomes,
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
+import { isAnnouncementBot } from "@/services/soko-bot-runtime/dispatch-announcements";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -1464,9 +1473,12 @@ export class SokoBotControlPlane {
       userId: string;
       organizationId: string | null;
     } | null = null;
+    // A Cuso's charge gets his own notice, on his Project (SOKD-246).
+    let chargedCusoProjectId: string | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
+      chargedCusoProjectId = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1518,7 +1530,16 @@ export class SokoBotControlPlane {
         tx,
       );
       const chargedUserId = sokoBotActingUserId(turn);
-      if (usageCharge.chargedCents > 0n && chargedUserId) {
+      if (usageCharge.chargedCents > 0n && usageCharge.cusoProjectId) {
+        chargedCusoProjectId = usageCharge.cusoProjectId;
+      }
+      // A Cuso's charge drew on his Project credits first: the pool's
+      // notice, which sends people to Sokosumi's top-up, is not his.
+      if (
+        usageCharge.chargedCents > 0n &&
+        chargedUserId &&
+        !usageCharge.cusoProjectId
+      ) {
         // The wallet the turn drew on: a bot in an Organization workspace
         // bills the Organization, not the member's personal wallet.
         chargedWallet = {
@@ -1668,6 +1689,9 @@ export class SokoBotControlPlane {
         // usage was recorded still committed that charge.
         if (chargedWallet) {
           await notifyLowBalanceAfterCharge(chargedWallet);
+        }
+        if (chargedCusoProjectId) {
+          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
         }
         if (settled) {
           waitUntil(
@@ -1960,7 +1984,12 @@ export class SokoBotControlPlane {
     } catch (error) {
       // A chat turn's sender sees the refusal; a self-started one has nobody
       // watching, so the owner hears about it in their chat instead.
-      if (error instanceof SokoBotBillingAccessError && source !== "CHAT") {
+      // A paused Cuso is not out of credits; CMO shows why he is paused.
+      if (
+        error instanceof SokoBotBillingAccessError &&
+        error.reason !== "cmo_paused" &&
+        source !== "CHAT"
+      ) {
         await notifySokoBotOutOfCredits(bot.id).catch(
           (noticeError: unknown) => {
             console.warn("Soko Bot out-of-credits notice failed", {
@@ -2267,6 +2296,8 @@ export class SokoBotControlPlane {
     ).filter(
       (capability) =>
         (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        (!isSokoBotAnnouncementCapability(capability) ||
+          isAnnouncementBot(bot.id)) &&
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
@@ -3418,6 +3449,9 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
+    // Leaving CMO ends Cuso: Polar stops charging before anything is
+    // written (ADR 0068). A revoke Polar fails is owed to the sync job.
+    await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
     await serializableTransaction(async (tx) => {
       await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
       const updated = await tx.sokoBot.updateMany({
@@ -3427,6 +3461,7 @@ export class SokoBotControlPlane {
       if (updated.count === 0)
         throw new SokoBotNotFoundError("Soko Bot not found");
     }, "Soko Bot version changed concurrently");
+    await revokeSubscriptionsLeftByEnding(bot.projectId);
   }
 
   /**
@@ -3574,12 +3609,24 @@ export class SokoBotControlPlane {
     };
   }
 
+  /** A person writing a schedule in the console; see PERSON_SCHEDULE_CAPABILITIES. */
   async createSchedule(input: CreateSokoBotScheduleInput) {
-    return translateScheduleErrors(() => createSokoBotSchedule(input));
+    return translateScheduleErrors(() =>
+      createSokoBotSchedule({
+        ...input,
+        capabilityNames: PERSON_SCHEDULE_CAPABILITIES,
+      }),
+    );
   }
 
   async updateSchedule(input: UpdateSokoBotScheduleInput) {
-    return translateScheduleErrors(() => updateSokoBotSchedule(input));
+    return translateScheduleErrors(() =>
+      updateSokoBotSchedule(
+        input.prompt === undefined
+          ? input
+          : { ...input, capabilityNames: PERSON_SCHEDULE_CAPABILITIES },
+      ),
+    );
   }
 
   /** `bot` reaches a shared bot's schedule the caller did not write. */
@@ -4149,6 +4196,9 @@ export class SokoBotControlPlane {
     } else if (input.action === "SET_VERSION") {
       const versionId = input.versionId as string;
       try {
+        // Before the transaction, which is retried: Polar is called once
+        // (ADR 0068). A revoke Polar fails is owed to the sync job.
+        await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
         await serializableTransaction(async (tx) => {
           const current = await tx.sokoBot.findUnique({
             where: { id: bot.id },
@@ -4174,6 +4224,7 @@ export class SokoBotControlPlane {
             },
           });
         }, "Soko Bot version changed concurrently");
+        await revokeSubscriptionsLeftByEnding(bot.projectId);
       } catch (error) {
         await recordFailure(error);
         throw error;
@@ -4601,6 +4652,15 @@ export class SokoBotControlPlane {
     workspaceId: string,
     selector: SokoBotSelector = ME_SOKO_BOT,
   ): Promise<void> {
+    // Polar stops charging for a live Cuso before he is archived (ADR 0068).
+    // It is called here, once, because the transaction below is retried; the
+    // role check runs first so only someone who may archive ends it. A
+    // revoke Polar fails is owed to the sync job; the archive goes on.
+    const candidate = await memberSokoBot(userId, workspaceId, selector);
+    if (candidate) {
+      await assertSokoBotManagement(userId, candidate, "archive");
+      await revokeCusoSubscription(candidate.id);
+    }
     const archived = await serializableTransaction(async (tx) => {
       const bot = await memberSokoBot(userId, workspaceId, selector, tx);
       if (!bot) return null;
@@ -4663,6 +4723,7 @@ export class SokoBotControlPlane {
       });
       return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");
+    await revokeSubscriptionsLeftByEnding(candidate?.projectId ?? null);
     if (!archived) return;
     await publishChatRoomMentionStatuses(archived.mentionMessageIds);
     if (!archived.activeTurn) return;

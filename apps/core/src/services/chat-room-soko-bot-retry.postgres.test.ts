@@ -9,6 +9,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { expectConsole } from "@/test/console";
 
 /**
  * Retry and stale reclaim of a Soko Bot mention, against a real database.
@@ -542,6 +543,10 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
   ])(
     "lets an old dispatch resuming after Retry leave the fresh attempt and its answer alone ($entry)",
     async ({ faultFence }) => {
+      // The failing ownership check leaves the old reply for reclaim.
+      if (faultFence) {
+        expectConsole("error", "Soko Bot reply failure left for reclaim");
+      }
       const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
       const mountRetry = (
         await import(
@@ -1471,6 +1476,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
   }
 
   it("fails, without starting, a Retry whose open failed before committing, and keeps the next answer over the old failure", async () => {
+    expectConsole("error", "Soko Bot Thought placeholder create failed");
     const { isStaleSokoBotReply, readSokoBotAttemptAt } = await import(
       "@sokosumi/utils"
     );
@@ -1563,6 +1569,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
   });
 
   it("continues on the reply its open committed when only the acknowledgement was lost", async () => {
+    expectConsole("error", "Soko Bot Thought placeholder create failed");
     const { readSokoBotAttemptAt } = await import("@sokosumi/utils");
     const m = await pendingMention();
     recordReplyCopies(m.mention.id);

@@ -1,20 +1,34 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { notificationServiceMock, projectServiceMock, projectsViewMock } =
-  vi.hoisted(() => ({
-    notificationServiceMock: {
-      listNeedsYou: vi.fn(),
-    },
-    projectServiceMock: {
-      listProjects: vi.fn(),
-      listRecentActivity: vi.fn(),
-    },
-    projectsViewMock: vi.fn(),
-  }));
+const {
+  connectionMock,
+  notificationServiceMock,
+  projectServiceMock,
+  projectsViewMock,
+} = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
+  notificationServiceMock: {
+    listNeedsYou: vi.fn(),
+  },
+  projectServiceMock: {
+    listProjects: vi.fn(),
+    listRecentActivity: vi.fn(),
+  },
+  projectsViewMock: vi.fn(),
+}));
 
 vi.mock("next/server", () => ({
-  connection: vi.fn(async () => undefined),
+  connection: connectionMock,
+}));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next/navigation", async () => ({
+  ...(await vi.importActual<typeof import("next/navigation")>(
+    "next/navigation",
+  )),
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("next-intl/server", () => ({
@@ -36,6 +50,11 @@ vi.mock("@/app/projects/components/workspace-column", async () => ({
       typeof import("@/app/projects/components/workspace-column")
     >("@/app/projects/components/workspace-column")
   ).panelFeed,
+  requestPanelFeed: (
+    await vi.importActual<
+      typeof import("@/app/projects/components/workspace-column")
+    >("@/app/projects/components/workspace-column")
+  ).requestPanelFeed,
   WorkspaceColumn: () => <aside data-testid="workspace-column" />,
 }));
 
@@ -283,5 +302,23 @@ describe("ProjectsPage", () => {
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({ hasClosedProjects: false }),
     );
+  });
+
+  // The project lists are cached, so a link prefetch carries the page.
+  // Recent activity waits for the request: an uncached Core read started
+  // while a prefetch renders would cut that prefetch short.
+  it("renders the page while the request has not come, and reads activity only after it", async () => {
+    connectionMock.mockReturnValueOnce(new Promise(() => {}));
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [buildProject()],
+      pagination: null,
+    });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByText("Launch plan")).toBeInTheDocument();
+    expect(projectServiceMock.listRecentActivity).not.toHaveBeenCalled();
   });
 });

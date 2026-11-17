@@ -88,6 +88,7 @@ vi.mock("./chat-room-mention-context", async (importOriginal) => ({
   loadRoomContextMessages,
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   acceptOnceIdle,
   runSokoBotMentionDispatch,
@@ -486,6 +487,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(reconcileTurn).not.toHaveBeenCalled();
   });
   it("closes the reply as failed even while the failed turn's delivery is still open", async () => {
+    expectConsole("error", "Soko Bot delivery push failed");
     // A PERSISTED delivery only republishes the message as it is now: the
     // reopened "Thinking…". The failed card must come back regardless.
     startTurn.mockResolvedValue({
@@ -529,6 +531,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     );
   });
   it("writes nothing when the ownership check itself fails", async () => {
+    expectConsole("error", "Soko Bot reply failure left for reclaim");
     // Left `sent` for stale reclaim; nothing escapes to the caller's
     // unchecked cleanup.
     loadRoomContextMessages.mockRejectedValue(new Error("room read failed"));
@@ -536,6 +539,8 @@ describe("a reclaimed mention whose turn already ended", () => {
     await expect(runSokoBotMentionDispatch(input())).resolves.toBeUndefined();
   });
   it("fails, without starting, a reply its claim did not open", async () => {
+    expectConsole("error", "Soko Bot Thought placeholder create failed");
+    expectConsole("error", "Soko Bot reply failure left for reclaim");
     // The open threw before committing: the linked reply is an old one.
     placeholder.mockRejectedValue(new Error("Unable to start a transaction"));
     openedBy.mockResolvedValue(null);
@@ -547,6 +552,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     );
   });
   it("continues on the reply its claim opened when only the acknowledgement was lost", async () => {
+    expectConsole("error", "Soko Bot Thought placeholder create failed");
     placeholder.mockRejectedValue(new Error("connection reset"));
     openedBy.mockResolvedValue("response-b");
     await runSokoBotMentionDispatch(input());
@@ -575,6 +581,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(publishById).not.toHaveBeenCalled();
   });
   it("starts a fresh attempt under its own key and fails it under its own claim", async () => {
+    expectConsole("error", "Soko Bot reply failure left for reclaim");
     findMentionTurn.mockResolvedValue([
       {
         id: "turn-old",

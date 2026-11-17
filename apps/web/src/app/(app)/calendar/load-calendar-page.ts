@@ -6,16 +6,19 @@ import {
   type WorkspaceCalendarEntry,
   type WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { isValidTimezone } from "@sokosumi/utils";
+import { isValidTimezone, type Session } from "@sokosumi/utils";
 import { format } from "date-fns";
-import { notFound } from "next/navigation";
+import { cacheLife } from "next/cache";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTimeZone } from "next-intl/server";
 import { Temporal } from "temporal-polyfill";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { getSession } from "@/lib/auth/auth.server";
+import { getSession, getSessionResult } from "@/lib/auth/auth.server";
+import { CoreAuthUnavailableError } from "@/lib/auth/errors";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
+import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-content-stale-time";
 import { isNewsletterEnabled } from "@/lib/newsletter-access.server";
 import {
   getCalendarRange,
@@ -173,19 +176,28 @@ function projectOptionFromProject(project: Project): ProjectFilterOption {
   };
 }
 
-export async function loadWorkspaceCalendarPage({
-  projectId: routeProjectId,
-  searchParams,
-  types,
-}: {
+export interface WorkspaceCalendarPageInput {
   projectId?: string;
-  searchParams: Promise<CalendarPageSearchParams>;
+  requested: CalendarPageSearchParams;
   /** An embed's fixed features; otherwise the URL's `types`, default every one. */
   types?: readonly CalendarType[];
-}): Promise<LoadedWorkspaceCalendarPage> {
-  await connection();
-  const session = await getSession();
-  const requested = await searchParams;
+  /** The zone the calendar renders in, resolved from the request. */
+  timezone: string;
+}
+
+/**
+ * The calendar's Core reads for one session. `null` means the route's
+ * Project is not there: the caller answers 404 outside any cache.
+ */
+export async function readWorkspaceCalendarPage(
+  {
+    projectId: routeProjectId,
+    requested,
+    types,
+    timezone,
+  }: WorkspaceCalendarPageInput,
+  session: Session | null,
+): Promise<LoadedWorkspaceCalendarPage | null> {
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const scope: "owned" | "workspace" =
     requested.scope === "owned" ? "owned" : "workspace";
@@ -198,7 +210,7 @@ export async function loadWorkspaceCalendarPage({
       isNewsletterEnabled(),
     ]);
   if (routeProjectId && !project) {
-    notFound();
+    return null;
   }
   // Resolve the Project before Show availability: Core drops Follow-ups under
   // a Project and Marketing under scope=owned, so the page must not ask for them.
@@ -248,11 +260,7 @@ export async function loadWorkspaceCalendarPage({
     params.date,
     params.status,
     params.view,
-    // A URL without a valid zone renders in the zone from the
-    // `sokosumi.timezone` cookie, which the browser reported (UTC until it
-    // has). When the browser still reports that zone, the calendar has no
-    // reason to ask again with it.
-    isValidTimezone(params.timezone) ? params.timezone : await getTimeZone(),
+    timezone,
     latestScheduledFeatureAt,
   );
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
@@ -338,4 +346,66 @@ export async function loadWorkspaceCalendarPage({
     renderedTimezone: calendarTimezone,
     sources,
   };
+}
+
+/** Reads the request, so a cached read takes the result as an input. */
+export async function requestCalendarTimezone(
+  requested: CalendarPageSearchParams,
+): Promise<string> {
+  // A URL without a valid zone renders in the zone from the
+  // `sokosumi.timezone` cookie, which the browser reported (UTC until it
+  // has). When the browser still reports that zone, the calendar has no
+  // reason to ask again with it.
+  return isValidTimezone(requested.timezone)
+    ? requested.timezone
+    : await getTimeZone();
+}
+
+async function readPrivateCachedWorkspaceCalendarPage(
+  input: WorkspaceCalendarPageInput,
+): Promise<LoadedWorkspaceCalendarPage | null> {
+  "use cache: private";
+  cacheLife({ stale: PREFETCHED_CONTENT_STALE_SECONDS });
+  const sessionResult = await getSessionResult();
+  // Thrown, never cached: an outage must not be kept as "signed out".
+  if (sessionResult.isErr()) {
+    throw new CoreAuthUnavailableError(sessionResult.error.reason);
+  }
+  return readWorkspaceCalendarPage(input, sessionResult.value);
+}
+
+/**
+ * The calendar's Core reads, cached for the browser only, so a link prefetch
+ * carries the page. A read that throws is never kept: the page then renders
+ * fresh on the click, with the same reads uncached. A failure a read turns
+ * into a fallback value, such as the newsletter check, is kept for the stale
+ * window until the refresh on mount replaces it. "Today" can be one stale
+ * window old.
+ */
+export async function loadWorkspaceCalendarPage({
+  projectId,
+  searchParams,
+  types,
+}: {
+  projectId?: string;
+  searchParams: Promise<CalendarPageSearchParams>;
+  /** An embed's fixed features; otherwise the URL's `types`, default every one. */
+  types?: readonly CalendarType[];
+}): Promise<LoadedWorkspaceCalendarPage> {
+  const requested = await searchParams;
+  const input: WorkspaceCalendarPageInput = {
+    projectId,
+    requested,
+    types,
+    timezone: await requestCalendarTimezone(requested),
+  };
+  const page = await readPrivateCachedWorkspaceCalendarPage(input).catch(
+    async (error: unknown) => {
+      unstable_rethrow(error);
+      await connection();
+      return readWorkspaceCalendarPage(input, await getSession());
+    },
+  );
+  if (!page) notFound();
+  return page;
 }

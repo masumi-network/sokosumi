@@ -39,10 +39,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const user = requireOwnerUserContext(c.var.authContext);
-    if (
-      c.var.authContext.actor !== "user" ||
-      c.var.authContext.authenticationMethod !== "session"
-    )
+    if (user.source === "session" && user.authenticationMethod !== "session")
       throw forbidden("Tag suggestions require an interactive session");
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     await requireAssignedOrganizationSeat(

@@ -25,6 +25,7 @@ import {
   listContactActivity,
   listContacts,
   logContactInteraction,
+  markNotDuplicates,
   mergeContacts,
   removeContactChannel,
   removeContactInteraction,
@@ -918,6 +919,28 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       knownBy: [{ id: bob }],
       channels: [{ source: "CALENDAR" }],
     });
+  });
+
+  it("leaves contacts marked as different people out of duplicates", async () => {
+    const ids = [
+      (await create(asAlice, { name: "Mia Twin" })).contact.id,
+      (await create(asAlice, { name: "mia twin" })).contact.id,
+      (await create(asAlice, { name: "Mia Twin " })).contact.id,
+    ];
+    const group = async () =>
+      (await findDuplicateContacts(asAlice)).find(
+        (found) => found.name.trim().toLowerCase() === "mia twin",
+      );
+    expect((await group())?.contacts).toHaveLength(3);
+    // Two of them are different people; the third may still be either.
+    await inContactTransaction((tx) =>
+      markNotDuplicates(tx, asAlice, [ids[0] ?? "", ids[1] ?? ""]),
+    );
+    expect((await group())?.contacts).toHaveLength(3);
+    await inContactTransaction((tx) => markNotDuplicates(tx, asAlice, ids));
+    expect(await group()).toBeUndefined();
+    // Marking again is a no-op.
+    await inContactTransaction((tx) => markNotDuplicates(tx, asAlice, ids));
   });
 
   it("removes a primary channel and promotes the next one", async () => {

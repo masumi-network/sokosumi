@@ -26,13 +26,17 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    project: { findUnique: async () => null },
     projectImageJob: { findMany: jobFindMany, count: jobCount },
     socialPost: { findUnique: postFindUnique },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
-  imageModel: () => ({ id: "image-model", outputFormats: ["jpeg", "png"] }),
+  imageModel: (id?: string) => ({
+    id: id ?? "image-model",
+    outputFormats: ["jpeg", "png"],
+  }),
 }));
 vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
   ensureImageCatalogFresh: vi.fn(),
@@ -65,10 +69,18 @@ vi.mock("@/services/cuso-project-files.service", () => ({
     projectId: "project-1",
   }),
 }));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: () => true,
+  readReferenceImage: vi.fn(),
+}));
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  cmoBrandVisual: async () => null,
+}));
 vi.mock("@vercel/blob", () => ({
   head: async (pathname: string) => ({ url: `https://blob/${pathname}` }),
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   advanceCmoMedia,
   type CmoMediaJob,
@@ -77,7 +89,9 @@ import {
   cmoMediaState,
   cmoPieceSlides,
   cmoSlotAction,
+  cmoStylePrompt,
   cmoVisualKey,
+  REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
 function piece(patch: Partial<CmoMediaPiece> = {}): CmoMediaPiece {
@@ -104,6 +118,7 @@ function job(patch: Partial<CmoMediaJob>): CmoMediaJob {
     status: "SUCCEEDED",
     assetId: "asset-1",
     prompt: "prompt",
+    rejected: false,
     ...patch,
   };
 }
@@ -151,6 +166,69 @@ describe("cmoSlotAction", () => {
       kind: "attach",
       job: video,
     });
+  });
+});
+
+describe("a picture in a reference library style", () => {
+  const styled = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+      ...patch,
+    });
+
+  it("keeps the key of a piece without a style, and changes it with one", () => {
+    expect(cmoVisualKey(piece())).toBe(cmoVisualKey(piece({ headline: "x" })));
+    expect(cmoVisualKey(styled())).not.toBe(cmoVisualKey(piece()));
+    expect(cmoVisualKey(styled())).not.toBe(
+      cmoVisualKey(styled({ headline: "Other words" })),
+    );
+  });
+
+  it("borrows only the style, letters the headline, uses the brand colours and leaves the logo corner", () => {
+    const prompt = cmoStylePrompt({
+      piece: styled(),
+      slot: 0,
+      businessName: "NMKR",
+      colours: ["#11F250", "#021205"],
+    });
+    expect(prompt).toContain("ONLY as a style reference");
+    expect(prompt).toContain("Copy none of its words");
+    expect(prompt).toContain('"Fresh minted"');
+    expect(prompt).toContain("#11F250, #021205");
+    expect(prompt).toContain("Keep the lower-right corner plain");
+    expect(
+      cmoStylePrompt({
+        piece: styled({ headline: undefined }),
+        slot: 0,
+        businessName: "NMKR",
+        colours: [],
+      }),
+    ).toContain("No words, letters or numbers");
+  });
+
+  it("tries each style model once, and a picture the check turned down counts as a try", () => {
+    const tried = (count: number, patch: Partial<CmoMediaJob> = {}) =>
+      Array.from({ length: count }, (_, at) =>
+        job({ id: `job-${at}`, rejected: true, ...patch }),
+      );
+    expect(cmoSlotAction(styled(), tried(1))).toMatchObject({
+      kind: "start",
+      attempt: 2,
+    });
+    expect(cmoSlotAction(styled(), [job({ rejected: false })])).toMatchObject({
+      kind: "attach",
+    });
+    expect(
+      cmoSlotAction(styled(), tried(REFERENCE_STYLE_MODELS.length)),
+    ).toEqual({ kind: "failed" });
+    // A picture without a style still gets two tries.
+    expect(
+      cmoSlotAction(piece(), [
+        job({ status: "FAILED" }),
+        job({ id: "job-2", status: "FAILED" }),
+      ]),
+    ).toEqual({ kind: "failed" });
   });
 });
 
@@ -265,6 +343,7 @@ describe("advanceCmoMedia", () => {
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
+    expectConsole("warn", "CMO media could not start");
     const { HTTPException } = await import("hono/http-exception");
     createImageJob.mockRejectedValue(
       new HTTPException(429, {

@@ -6,6 +6,8 @@ import {
   getProjectsByIdAdsMarketResponseTransformer,
   getProjectsByIdCalendarResponseTransformer,
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
+  getSeoAuditWorkspaceResponseTransformer,
+  getStudioComparePairResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
@@ -71,6 +73,31 @@ it("revives X thread part dates and preserves unpublished parts", async () => {
 });
 
 describe("generated response transformers keep nullable objects null-safe", () => {
+  it("Studio compare: an exhausted batch keeps its pair null", async () => {
+    const result = await getStudioComparePairResponseTransformer({
+      data: { pair: null },
+      meta,
+    });
+
+    expect(result.data.pair).toBeNull();
+    expect(result.meta.timestamp).toBeInstanceOf(Date);
+  });
+
+  it("Studio compare: a pair revives both asset dates", async () => {
+    const result = await getStudioComparePairResponseTransformer({
+      data: {
+        pair: {
+          a: { createdAt: meta.timestamp, sourceJob: null },
+          b: { createdAt: meta.timestamp, sourceJob: null },
+        },
+      },
+      meta,
+    });
+
+    expect(result.data.pair?.a.createdAt).toBeInstanceOf(Date);
+    expect(result.data.pair?.b.createdAt).toBeInstanceOf(Date);
+  });
+
   it("finalize ad connection: connection null (account reaches no ad accounts)", async () => {
     const result =
       await postProjectsByIdAdsConnectionsFinalizeResponseTransformer({
@@ -189,6 +216,33 @@ describe("generated response transformers keep nullable objects null-safe", () =
     expect(result.data.ad).toBeNull();
   });
 });
+
+it.each([null, { observedAt: meta.timestamp, rows: [] }])(
+  "keeps an SEO workspace without saved query rows readable (%j)",
+  async (searchQueries) => {
+    const empty = {
+      pages: [],
+      observations: [],
+      keywords: [],
+      competitors: [],
+      findings: [],
+      actions: [],
+      metrics: [],
+      timeline: [],
+      analyses: [],
+      monitors: [],
+    };
+    const result = await getSeoAuditWorkspaceResponseTransformer({
+      data: { ...empty, searchQueries },
+      meta: { ...meta },
+    });
+    if (searchQueries)
+      expect(result.data.searchQueries?.observedAt).toEqual(
+        new Date(meta.timestamp),
+      );
+    else expect(result.data.searchQueries).toBeNull();
+  },
+);
 
 it.each([
   getWorkspacesCalendarResponseTransformer,

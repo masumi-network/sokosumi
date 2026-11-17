@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import {
   ensureProjectFilesToken,
   generateProjectFilesToken,
@@ -46,9 +46,7 @@ vi.mock("@sentry/node", () => ({
 }));
 
 describe("project markdown blob uploads", () => {
-  beforeEach(() => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  });
+  beforeEach(() => {});
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -98,6 +96,7 @@ describe("project markdown blob uploads", () => {
   });
 
   it("returns null and reports Blob failures", async () => {
+    expectConsole("warn", "Project briefing upload failed");
     putMock.mockRejectedValueOnce(new Error("blob down"));
 
     await expect(
@@ -107,6 +106,10 @@ describe("project markdown blob uploads", () => {
   });
 
   it("returns null when Blob storage is not configured", async () => {
+    expectConsole(
+      "warn",
+      "Project context-md upload skipped: Blob storage is not configured",
+    );
     getEnvMock.mockReturnValueOnce({ BLOB_READ_WRITE_TOKEN: undefined });
 
     await expect(

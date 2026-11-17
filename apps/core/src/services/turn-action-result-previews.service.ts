@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as Sentry from "@sentry/node";
 import type { Prisma, SokoBotTurn } from "@sokosumi/database";
 import {
@@ -36,6 +37,8 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   save_email_attachment: "file",
   hire_agent: "job",
   provide_job_input: "job",
+  request_seo_analysis: "task",
+  create_seo_action_task: "task",
 };
 
 /** Fallback for omitted preview calls; only committed receipts identify resources. */
@@ -82,6 +85,8 @@ export async function prepareTurnActionResultPreviews(
     }),
   );
   const references = new Map<string, ChatResultReference>();
+  // A later archive or delete in this turn is the resource's final state.
+  const removed = new Set<string>();
   for (const call of calls) {
     if (
       call.status !== "COMPLETED" ||
@@ -90,6 +95,10 @@ export async function prepareTurnActionResultPreviews(
       !["APPLIED", "ALREADY_SATISFIED"].includes(call.disposition ?? "")
     )
       continue;
+    if (call.targetId && call.capability === "archive_task")
+      removed.add(`task\0${call.targetId}`);
+    if (call.targetId && call.capability === "delete_schedule")
+      removed.add(`bot_schedule\0${call.targetId}`);
     const kind = ACTION_RESULTS[call.capability];
     if (!kind || !call.targetId) continue;
     const jobInput =
@@ -101,9 +110,17 @@ export async function prepareTurnActionResultPreviews(
         : null;
     if (call.capability === "provide_job_input" && !jobInput) continue;
     const project = z.object({ projectId: z.string() }).safeParse(call.result);
+    const seoTask = ["request_seo_analysis", "create_seo_action_task"].includes(
+      call.capability,
+    )
+      ? z.object({ taskId: z.string() }).safeParse(call.result)
+      : null;
+    if (seoTask && !seoTask.success) continue;
     const parsed = chatResultReferenceSchema.safeParse({
       kind,
-      id: jobInput?.event.jobId ?? call.targetId,
+      id: seoTask?.success
+        ? seoTask.data.taskId
+        : (jobInput?.event.jobId ?? call.targetId),
       ...(kind === "social_post" || kind === "studio_job"
         ? { projectId: project.success ? project.data.projectId : undefined }
         : {}),
@@ -115,20 +132,35 @@ export async function prepareTurnActionResultPreviews(
   for (const [key, reference] of references) {
     const existing = prepared.get(key);
     if (!existing && count >= CHAT_RESULT_PREVIEW_LIMIT) continue;
+    const removedKey =
+      "id" in reference ? `${reference.kind}\0${reference.id}` : null;
     try {
       // Read after the final action, so create + assignment show one final state.
-      const snapshot = await resolveChatResultReference(
-        {
-          reference,
-          actor: {
-            userId: actingUserId,
-            workspaceId: turn.workspaceId,
-            kind: "soko_bot",
-          },
-          ...(existing ? { previewId: existing.snapshot.data.id } : {}),
-        },
-        tx,
-      );
+      // A resource this turn removed is not looked up: that 404 is its card.
+      const snapshot =
+        removedKey && removed.has(removedKey)
+          ? chatResultSnapshotSchema.parse({
+              workspaceId: turn.workspaceId,
+              reference,
+              data: {
+                id: existing?.snapshot.data.id ?? randomUUID(),
+                state: "unavailable",
+                capturedAt: new Date().toISOString(),
+                kind: reference.kind,
+              },
+            })
+          : await resolveChatResultReference(
+              {
+                reference,
+                actor: {
+                  userId: actingUserId,
+                  workspaceId: turn.workspaceId,
+                  kind: "soko_bot",
+                },
+                ...(existing ? { previewId: existing.snapshot.data.id } : {}),
+              },
+              tx,
+            );
       const toolCallId = existing?.call.toolCallId ?? `auto-preview:${key}`;
       await tx.sokoBotToolCall.upsert({
         where: { turnId_toolCallId: { turnId, toolCallId } },

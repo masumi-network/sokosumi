@@ -9,6 +9,7 @@ import {
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
+import { expectConsole } from "@/test/console";
 
 const { captureExceptionMock, setExtrasMock, withScopeMock } = vi.hoisted(
   () => {
@@ -289,22 +290,21 @@ describe("captureExternalServiceError", () => {
   });
 
   it("preserves schema-drift suppression severity with a fixed message", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorCalls = expectConsole(
+      "error",
+      "[private-operation] suppressed external failure",
+    );
 
-    try {
-      captureExternalServiceError(
-        Object.assign(new Error("andreas@example.com"), { code: "P2022" }),
-        { label: "private-operation", message: "Operation failed" },
-      );
+    captureExternalServiceError(
+      Object.assign(new Error("andreas@example.com"), { code: "P2022" }),
+      { label: "private-operation", message: "Operation failed" },
+    );
 
-      expect(captureExceptionMock).not.toHaveBeenCalled();
-      expect(errorSpy).toHaveBeenCalledWith(
-        "[private-operation] suppressed external failure",
-        { error: "Operation failed" },
-      );
-    } finally {
-      errorSpy.mockRestore();
-    }
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(errorCalls).toContainEqual([
+      "[private-operation] suppressed external failure",
+      { error: "Operation failed" },
+    ]);
   });
 
   it("applies top-level extra via scope and keeps sentry tags", () => {
@@ -326,67 +326,64 @@ describe("captureExternalServiceError", () => {
   });
 
   it("masks an env secret echoed back inside the error message", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "[job-final-status] suppressed external failure",
+    );
     // A gateway answering for an upstream can echo the request headers into
     // its error body. Sentry has `beforeSend`; stdout has only this.
     const error = new Error(`socket hang up (token: ${ENV_SECRET})`);
 
-    try {
-      captureExternalServiceError(error, { label: "job-final-status" });
+    captureExternalServiceError(error, { label: "job-final-status" });
 
-      expect(warnSpy).toHaveBeenCalledOnce();
-      const payload = warnSpy.mock.calls[0]?.[1] as { error: string };
-      expect(payload.error).not.toContain(ENV_SECRET);
-      expect(payload.error).toContain(REDACTED_SECRET);
-    } finally {
-      warnSpy.mockRestore();
-    }
+    expect(warnings).toHaveLength(1);
+    const payload = warnings[0]?.[1] as { error: string };
+    expect(payload.error).not.toContain(ENV_SECRET);
+    expect(payload.error).toContain(REDACTED_SECRET);
   });
 
   it("masks an env secret carried in extra", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "[job-final-status] suppressed external failure",
+    );
 
-    try {
-      captureExternalServiceError(new Error("socket hang up"), {
-        label: "job-final-status",
-        extra: { upstreamMessage: `401 for key ${ENV_SECRET}` },
-      });
+    captureExternalServiceError(new Error("socket hang up"), {
+      label: "job-final-status",
+      extra: { upstreamMessage: `401 for key ${ENV_SECRET}` },
+    });
 
-      expect(warnSpy).toHaveBeenCalledOnce();
-      const payload = warnSpy.mock.calls[0]?.[1] as {
-        upstreamMessage: string;
-      };
-      expect(payload.upstreamMessage).not.toContain(ENV_SECRET);
-      expect(payload.upstreamMessage).toContain(REDACTED_SECRET);
-    } finally {
-      warnSpy.mockRestore();
-    }
+    expect(warnings).toHaveLength(1);
+    const payload = warnings[0]?.[1] as {
+      upstreamMessage: string;
+    };
+    expect(payload.upstreamMessage).not.toContain(ENV_SECRET);
+    expect(payload.upstreamMessage).toContain(REDACTED_SECRET);
   });
 
   it("uses top-level extra for suppressed log context", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "[job-final-status] suppressed external failure",
+    );
     const error = new Error("socket hang up");
 
-    try {
-      captureExternalServiceError(error, {
-        label: "job-final-status",
-        extra: {
-          jobId: "job_1",
-          notificationType: "job-final-status",
-        },
-      });
+    captureExternalServiceError(error, {
+      label: "job-final-status",
+      extra: {
+        jobId: "job_1",
+        notificationType: "job-final-status",
+      },
+    });
 
-      expect(captureExceptionMock).not.toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith(
-        "[job-final-status] suppressed external failure",
-        {
-          error: "socket hang up",
-          jobId: "job_1",
-          notificationType: "job-final-status",
-        },
-      );
-    } finally {
-      warnSpy.mockRestore();
-    }
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(warnings).toContainEqual([
+      "[job-final-status] suppressed external failure",
+      {
+        error: "socket hang up",
+        jobId: "job_1",
+        notificationType: "job-final-status",
+      },
+    ]);
   });
 });

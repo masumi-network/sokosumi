@@ -1,5 +1,4 @@
 import type { Task } from "@sokosumi/core-client";
-import { TaskVisibility } from "@sokosumi/core-client";
 import {
   removeTaskContextAttachmentLinks,
   resolveIpfsOrHttpUrl,
@@ -36,10 +35,9 @@ import {
 } from "@/app/tasks/constants";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
+import { startPrivateTaskDetailReads } from "@/app/tasks/utils/private-task-detail-cache";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { taskActivityFeedFromEvents } from "@/app/tasks/utils/task-activity-feed";
-import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { taskLinkHref } from "@/app/tasks/utils/task-href";
 import {
@@ -52,12 +50,9 @@ import {
   latestStatusChange,
   mapTaskToTaskWithCoworker,
 } from "@/app/tasks/utils/task-view-model";
-import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
-import { organizationSeatService } from "@/lib/services/organization-seat.service";
-import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import {
   buildWorkspaceApprovalReviewHref,
@@ -66,7 +61,8 @@ import {
   VENDOR_GRANT_REVIEW_HASH,
 } from "@/lib/utils/workspace-approval";
 
-type SessionResult = Awaited<ReturnType<typeof getSession>>;
+type PrivateReads = ReturnType<typeof startPrivateTaskDetailReads>;
+type SessionResult = Awaited<PrivateReads["sessionPromise"]>;
 type AgentsResult = Awaited<
   ReturnType<typeof agentService.getAvailableAgentsWithCreditsPrice>
 >;
@@ -76,9 +72,7 @@ type CoworkersResult = Awaited<
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
 >;
-type ProjectResult = Awaited<
-  ReturnType<typeof projectService.getProjectById>
-> | null;
+type ProjectResult = Awaited<PrivateReads["projectPromise"]>;
 
 interface TaskDetailViewProps {
   task: Task;
@@ -110,25 +104,14 @@ export async function TaskDetailView({
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const workspaceAccessPromise = userService.getWorkspaceAccess();
-  const sessionPromise = getSession();
-  // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
-  // org subscription call that used to 403 → auth-redirect bounce.
-  const currentPlanPromise = sessionPromise.then((session) =>
-    resolveTaskDetailViewerPlan(forceReadOnly, session, task.organizationId),
-  );
-  const hasAssignedSeatPromise = forceReadOnly
-    ? Promise.resolve(false)
-    : organizationSeatService.hasAssignedSeat(
-        task.workspace.organizationId ?? null,
-      );
-  const mentionableUsersPromise =
-    forceReadOnly || task.visibility === TaskVisibility.PRIVATE
-      ? Promise.resolve([])
-      : listTaskAssigneeMemberOptions(task.workspace.organizationId ?? null);
+  const {
+    sessionPromise,
+    currentPlanPromise,
+    hasAssignedSeatPromise,
+    mentionableUsersPromise,
+    projectPromise,
+  } = startPrivateTaskDetailReads(task, forceReadOnly);
   const translationsPromise = getTranslations("App.Tasks.Detail");
-  const projectPromise = task.projectId
-    ? projectService.getProjectById(task.projectId).catch(() => null)
-    : Promise.resolve(null);
   const linkedTasks = mapVisibleTaskLinks(task.links);
   const parentTask = linkedTasks.find((link) => link.relation === "child");
 

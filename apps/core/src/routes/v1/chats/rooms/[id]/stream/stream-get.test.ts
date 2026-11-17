@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-
+import { expectConsole } from "@/test/console";
 import mountStreamGetRoomStream from "./stream-get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -141,6 +141,10 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
   });
 
   it("returns 204 and clears stale id when resume throws ack timeout", async () => {
+    expectConsole(
+      "warn",
+      "Resumable UI stream resume timed out waiting for Redis ack (likely slow Redis or",
+    );
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",

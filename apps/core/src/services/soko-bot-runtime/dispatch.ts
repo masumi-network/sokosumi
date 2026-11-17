@@ -1,3 +1,4 @@
+import { isSokoBotSeoCapability } from "@sokosumi/soko-bot";
 import {
   evalCoworkerRefusal,
   isEvalWorkspace,
@@ -7,6 +8,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
 import { dispatchFilesTools } from "./dispatch-files";
 import { dispatchIntegrationsTools } from "./dispatch-integrations";
@@ -39,6 +41,8 @@ export async function executeAuthorizedTool(
     if (simulated) return simulated;
   }
 
+  if (isSokoBotSeoCapability(input.capability))
+    return runtime.executeSeoTool(input, authorized);
   switch (input.capability) {
     case "newsletter_draft_issue":
     case "get_newsletter":
@@ -59,6 +63,10 @@ export async function executeAuthorizedTool(
     case "update_newsletter_subscriber":
     case "remove_newsletter_subscriber":
       return dispatchNewsletterTools(runtime, input, authorized);
+    case "list_announcements":
+    case "save_announcement":
+    case "publish_announcement":
+      return dispatchAnnouncementTools(runtime, input, authorized);
     case "list_project_social_accounts":
     case "get_posting_instructions":
     case "list_social_posts":
@@ -85,6 +93,7 @@ export async function executeAuthorizedTool(
     case "list_social_comments":
     case "handle_social_comment":
     case "read_writing_skill":
+    case "find_style_references":
     case "read_social_profile":
       return dispatchSocialTools(runtime, input, authorized);
     case "wait_for":

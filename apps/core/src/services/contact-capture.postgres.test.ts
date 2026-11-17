@@ -29,6 +29,15 @@ const mocks = vi.hoisted(() => ({
   judgeRoleInboxes: vi.fn(),
   judgeListMemberships: vi.fn(),
   generateText: vi.fn(),
+  judgeWorkspaceImportance: vi.fn(),
+}));
+// Importance is judged by Jev after capture, through the AI Gateway; this
+// suite covers capture, and `contact-scores.service.test.ts` the judging.
+vi.mock("@/services/contact-scores.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/contact-scores.service")
+  >()),
+  judgeWorkspaceImportance: mocks.judgeWorkspaceImportance,
 }));
 vi.mock("@/lib/contacts/list-judge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/contacts/list-judge")>()),
@@ -40,8 +49,16 @@ vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => ({
   >()),
   fetchInboxPage: mocks.fetchInboxPage,
   fetchCalendarPage: mocks.fetchCalendarPage,
-  runIntegrationTool: mocks.runIntegrationTool,
 }));
+vi.mock(
+  "@/services/composio-integration-tools.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/composio-integration-tools.service")
+    >()),
+    runIntegrationTool: mocks.runIntegrationTool,
+  }),
+);
 vi.mock("@/lib/contacts/capture-judge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/contacts/capture-judge")>()),
   judgeRoleInboxes: mocks.judgeRoleInboxes,
@@ -52,6 +69,7 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { expectConsole } from "@/test/console";
 import {
   ContactCaptureService,
   scheduleContactCapture,
@@ -461,6 +479,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("resumes an interrupted backfill on the page it did not finish, and completes it once", async () => {
+    expectConsole("error", "Contact capture source failed");
     const bot = await addBot(backfillWorkspaceId, ["gmail"]);
     const sentCalls: string[] = [];
     let failOnCall = 3;
@@ -900,6 +919,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("leaves contacts queued when the model fails or the money is spent", async () => {
+    expectConsole("warn", "Contact enrichment model call failed");
     const actor: ContactActor = {
       workspaceId: mergeWorkspaceId,
       userId: bob,

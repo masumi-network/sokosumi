@@ -70,6 +70,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   createTaskPaymentClaim,
   markTaskPaymentClaimPurchased,
@@ -675,9 +676,10 @@ describe("task payment claims", () => {
   });
 
   it("keeps draining the batch when acquisition itself throws", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "[sync/task-payment-claims] Failed to process claim claim-boom",
+    );
     claimFindManyMock.mockResolvedValue([
       { id: "claim-boom" },
       { id: "claim-ok" },
@@ -690,15 +692,11 @@ describe("task payment claims", () => {
       .mockRejectedValueOnce(new Error("connection terminated"))
       .mockResolvedValue({ count: 0 });
 
-    try {
-      await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
-        processed: 1,
-        eligible: 2,
-        reviewRequired: 0,
-      });
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
+      processed: 1,
+      eligible: 2,
+      reviewRequired: 0,
+    });
 
     // Nothing is escalated here on purpose: the lease was never acquired, so
     // the row is untouched and the next tick retries it normally.
@@ -718,9 +716,10 @@ describe("task payment claims", () => {
   });
 
   it("escalates under its own lease token when processing throws after acquisition", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "[sync/task-payment-claims] Failed to process claim claim-boom",
+    );
     claimFindManyMock.mockResolvedValue([{ id: "claim-boom" }]);
     claimCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
     claimUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -735,11 +734,7 @@ describe("task payment claims", () => {
     // never sees, so nothing would otherwise back the row off.
     createPurchaseMock.mockRejectedValue(new Error("socket hang up"));
 
-    try {
-      await syncPendingTaskPaymentClaims();
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await syncPendingTaskPaymentClaims();
 
     const escalation = claimUpdateManyMock.mock.calls.find(
       (call) =>

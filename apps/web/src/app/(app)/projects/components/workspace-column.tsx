@@ -2,6 +2,7 @@ import type {
   NotificationItem,
   ProjectActivityItem,
 } from "@sokosumi/core-client";
+import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { projectService } from "@/lib/services/project.service";
@@ -29,6 +30,20 @@ export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
     console.warn("Workspace column feed failed", { error });
     return null;
   });
+}
+
+/**
+ * {@link panelFeed} for a read that starts in the page body. It waits for the
+ * request first, so a link prefetch leaves the panel as a hole: an uncached
+ * Core read started while a prefetch renders would cut that prefetch short.
+ */
+export function requestPanelFeed<T>(read: () => Promise<T[]>): PanelFeed<T> {
+  // A prefetch ends with `connection()` rejected. That is no failed feed, so
+  // it logs nothing.
+  return connection().then(
+    () => panelFeed(read()),
+    () => null,
+  );
 }
 
 interface WorkspaceColumnProps {
@@ -145,6 +160,9 @@ export async function NeedsYouPanel({
   /** A row above the notifications, such as your bot's failed reply. */
   lead?: NeedsYouLead;
 }) {
+  // A hole in a link prefetch: the time labels read the clock, and a clock
+  // read, or an uncached Core read, would cut that prefetch short.
+  await connection();
   const [notifications, t, timeLabel, gridProjects] = await Promise.all([
     feed,
     getTranslations("App.Projects.column.needsYou"),
@@ -202,6 +220,8 @@ export async function RecentActivityPanel({
   feed: WorkspaceColumnProps["activity"];
   projectScoped?: boolean;
 }) {
+  // A hole in a link prefetch, as in Needs you above.
+  await connection();
   const [items, t, timeLabel] = await Promise.all([
     feed,
     getTranslations("App.Projects.column.activity"),

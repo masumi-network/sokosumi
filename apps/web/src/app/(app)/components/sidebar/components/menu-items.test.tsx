@@ -2,17 +2,19 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: null, isPending: false }),
 }));
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pathnameRef, searchRef } = vi.hoisted(() => ({
+const { pathnameRef, searchRef, routerPrefetchMock } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   searchRef: { current: "" },
+  routerPrefetchMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameRef.current,
   useSearchParams: () => new URLSearchParams(searchRef.current),
+  useRouter: () => ({ prefetch: routerPrefetchMock }),
 }));
 
 // Core's answer for the scoped project, without a fetch. "gone" is a project
@@ -87,7 +89,9 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
+import { HOVER_DWELL_MS } from "@/components/resting-intent-link";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { approachElement } from "@/test/approach-element";
 import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
@@ -278,6 +282,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
     ]);
   });
@@ -345,6 +350,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
     ]);
   });
@@ -394,6 +400,7 @@ describe("MenuItems newsletter", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
       "newsletter",
     ]);
@@ -558,6 +565,8 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
+      ["ads", "/ads"],
+      ["seo", "/seo"],
       ["calendar", "/calendar"],
       ["contacts", "/contacts"],
       ["contentStudio", "/studio"],
@@ -596,5 +605,124 @@ describe("MenuItems project scope", () => {
       "href",
       "/tasks?projectId=p-1",
     );
+  });
+});
+
+describe("MenuItems prefetch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+    searchRef.current = "";
+    vi.useFakeTimers();
+    return () => {
+      vi.useRealTimers();
+    };
+  });
+
+  function restOn(name: RegExp) {
+    fireEvent.pointerEnter(screen.getByRole("link", { name }), {
+      pointerType: "mouse",
+    });
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
+  }
+
+  // Tasks reads are private-cached, so its prefetch carries the page.
+  it("loads the Tasks page content on a resting hover", () => {
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
+  });
+
+  // These pages' reads are private-cached too.
+  it.each([
+    ["projects", "/projects"],
+    ["schedules", "/schedules"],
+    ["ads", "/ads"],
+    ["seo", "/seo"],
+    ["calendar", "/calendar"],
+    ["social", "/social"],
+    ["exploreAgents", "/agents"],
+    ["contentStudio", "/studio"],
+  ])("loads the %s page content on a resting hover", (label, href) => {
+    renderMenu(true, false);
+
+    restOn(new RegExp(`^${label}$`));
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(href, {
+      kind: "full",
+    });
+  });
+
+  it("loads the Home content on a resting hover from another page", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/^home$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/", {
+      kind: "full",
+    });
+  });
+
+  it("loads the selected project's Overview content on a resting hover", () => {
+    pathnameRef.current = "/tasks";
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, false);
+
+    restOn(/^overview$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/projects/p-1",
+      { kind: "full" },
+    );
+  });
+
+  // A page whose reads are not cached would render on the server for nothing.
+  it("loads only the shell for a page without cached reads", () => {
+    renderMenu(true, false);
+
+    restOn(/^contacts$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/contacts");
+  });
+
+  // The page on screen would render on the server again for nothing.
+  it("loads only the shell for the Tasks page already on screen", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
+  // The cursor's path predicts the click, so the page is ready before the
+  // pointer arrives.
+  it("loads the Tasks page content when the reader heads for it", async () => {
+    renderMenu(true, false);
+
+    await act(() =>
+      approachElement(screen.getByRole("link", { name: /taskManager/ })),
+    );
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
+  });
+
+  // Back to the list from a task is the common way to reach it.
+  it("loads the Tasks page content from a task detail page", () => {
+    pathnameRef.current = "/tasks/task-1";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
   });
 });

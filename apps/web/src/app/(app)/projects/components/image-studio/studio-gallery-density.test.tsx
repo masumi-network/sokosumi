@@ -57,6 +57,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   writeStudioAssetCaption: vi.fn(),
 }));
 
+vi.mock("./studio-batch-compare", () => ({
+  StudioBatchCompareButton: () => null,
+}));
+
 vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/lib/actions/image-studio/brand-kit")
@@ -268,6 +272,8 @@ describe("a gallery with work in it", () => {
     expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
       [open, older],
       undefined,
+      undefined,
+      [],
     );
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -304,6 +310,8 @@ describe("a gallery with work in it", () => {
     expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
       [open, older],
       StudioLogoPosition.TOP_LEFT,
+      undefined,
+      [],
     );
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -343,6 +351,8 @@ describe("a gallery with work in it", () => {
         expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
           [open],
           expected,
+          undefined,
+          [],
         ),
       );
     },
@@ -444,6 +454,7 @@ describe("a gallery with work in it", () => {
         [open, older],
         undefined,
         { [open.id]: first, [older.id]: second },
+        [],
       ),
     );
   });
@@ -478,6 +489,8 @@ describe("a gallery with work in it", () => {
       expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
         [revised],
         undefined,
+        undefined,
+        [],
       ),
     );
   });

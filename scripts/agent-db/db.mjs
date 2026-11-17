@@ -42,7 +42,6 @@ import {
   runIdForRoot,
   withLock,
 } from "./session.mjs";
-import { isMainModule } from "./teardown.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -266,6 +265,6 @@ async function main() {
   return 2;
 }
 
-if (isMainModule(import.meta.url)) {
+if (import.meta.main) {
   process.exitCode = await main();
 }

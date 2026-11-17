@@ -16,6 +16,7 @@ vi.mock("@/lib/redis", () => ({
   getRedisClient: getRedisClientMock,
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   acquireStreamLock,
   COWORKER_STREAM_LOCK_HEARTBEAT_MS,
@@ -48,6 +49,10 @@ describe("coworker-stream-lock", () => {
   });
 
   it("returns unavailable when redis is not configured", async () => {
+    expectConsole(
+      "warn",
+      "[coworker-stream-lock] Redis not configured; skipping coworker stream lock.",
+    );
     getRedisClientMock.mockReturnValue(null);
 
     await expect(acquireStreamLock("conv-1")).resolves.toEqual({
@@ -82,6 +87,10 @@ describe("coworker-stream-lock", () => {
   });
 
   it("returns error when redis is configured but acquisition fails", async () => {
+    expectConsole(
+      "error",
+      "[coworker-stream-lock] Redis error acquiring coworker stream lock",
+    );
     redisSetMock.mockRejectedValue(new Error("redis down"));
 
     await expect(acquireStreamLock("conv-1")).resolves.toEqual({
