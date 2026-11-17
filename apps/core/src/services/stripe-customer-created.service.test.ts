@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -132,36 +133,35 @@ describe("handleCustomerCreatedEvent", () => {
       "No record was found for an update.",
     );
     prismaOrganizationUpdateMock.mockRejectedValue(missing);
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "Skipping Stripe customer cus_org_missing write-back: organization org-deleted no longer",
+    );
 
-    try {
-      const { handleCustomerCreatedEvent } = await getService();
+    const { handleCustomerCreatedEvent } = await getService();
 
-      await expect(
-        handleCustomerCreatedEvent({
-          id: "cus_org_missing",
-          metadata: {
-            customerType: "organization",
-            organizationId: "org-deleted",
-          },
-        } as never),
-      ).resolves.toBeUndefined();
+    await expect(
+      handleCustomerCreatedEvent({
+        id: "cus_org_missing",
+        metadata: {
+          customerType: "organization",
+          organizationId: "org-deleted",
+        },
+      } as never),
+    ).resolves.toBeUndefined();
 
-      expect(
-        ensureInitialLocalFreeSubscriptionPeriodMock,
-      ).not.toHaveBeenCalled();
-      expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        "Skipping Stripe customer cus_org_missing write-back: organization org-deleted no longer exists",
-      );
-    } finally {
-      consoleWarnSpy.mockRestore();
-    }
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+    expect(warnings).toContainEqual([
+      "Skipping Stripe customer cus_org_missing write-back: organization org-deleted no longer exists",
+    ]);
   });
 
   it("soft-acks user write-back when the user no longer exists", async () => {
+    expectConsole(
+      "warn",
+      "Skipping Stripe customer cus_user_missing write-back: user user-deleted no longer exists",
+    );
     const missing = prismaRecordNotFoundError(
       "No record was found for an update.",
     );
@@ -184,26 +184,23 @@ describe("handleCustomerCreatedEvent", () => {
   });
 
   it("skips organization write-back when organizationId metadata is missing", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "Skipping Stripe customer cus_org_no_meta write-back: missing organizationId metadata",
+    );
 
-    try {
-      const { handleCustomerCreatedEvent } = await getService();
+    const { handleCustomerCreatedEvent } = await getService();
 
-      await handleCustomerCreatedEvent({
-        id: "cus_org_no_meta",
-        metadata: {
-          customerType: "organization",
-        },
-      } as never);
+    await handleCustomerCreatedEvent({
+      id: "cus_org_no_meta",
+      metadata: {
+        customerType: "organization",
+      },
+    } as never);
 
-      expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        "Skipping Stripe customer cus_org_no_meta write-back: missing organizationId metadata",
-      );
-    } finally {
-      consoleWarnSpy.mockRestore();
-    }
+    expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
+    expect(warnings).toContainEqual([
+      "Skipping Stripe customer cus_org_no_meta write-back: missing organizationId metadata",
+    ]);
   });
 });

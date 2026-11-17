@@ -35,6 +35,7 @@ import {
   isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
+  type StudioJob,
   type StudioLabels,
 } from "./types";
 
@@ -81,8 +82,10 @@ export function StudioLightbox({
   onCaptionSuggestionResolve,
   onUndoCaption,
   siblings,
+  jobs = [],
 }: {
   assets: StudioAsset[];
+  jobs?: readonly StudioJob[];
   catalog: StudioCatalog;
   /** What each version was debited, in credits; absent when unknown. */
   creditsByAssetId: Record<string, number>;
@@ -280,7 +283,9 @@ export function StudioLightbox({
               {onCompare && single.batchId && !isVideoAsset(single) ? (
                 <StudioBatchCompareButton
                   asset={single}
-                  key={single.id}
+                  // Siblings of the preview below: each keyed by the asset,
+                  // apart from each other.
+                  key={`compare:${single.id}`}
                   labels={labels}
                   onCompare={onCompare}
                 />
@@ -288,6 +293,7 @@ export function StudioLightbox({
               {isVideoAsset(single) ? null : (
                 <StudioAdPreview
                   asset={single}
+                  jobs={jobs}
                   caption={caption}
                   headline={headlineForAsset?.(single)}
                   savingHeadline={savingHeadline}
@@ -296,7 +302,7 @@ export function StudioLightbox({
                       ? (headline) => onHeadlineChange(single, headline)
                       : undefined
                   }
-                  key={single.id}
+                  key={`preview:${single.id}`}
                   labels={labels}
                   logoPosition={logoPosition}
                   onLogoPositionChange={changeLogoPosition}
@@ -397,6 +403,7 @@ export function StudioLightbox({
                       downloading={downloadingBatch}
                       headlineForAsset={headlineForAsset}
                       savingHeadline={savingHeadline}
+                      jobs={jobs}
                       key={logoScope}
                       labels={labels}
                       onDownload={(review) =>

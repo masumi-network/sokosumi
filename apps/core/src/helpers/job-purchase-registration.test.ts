@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
@@ -130,22 +131,21 @@ describe("registerJobPurchase", () => {
         status: 400,
       }),
     );
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectConsole(
+      "warn",
+      "[registerJobPurchase] purchase registration failed",
+    );
 
-    try {
-      await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
+    await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
 
-      const logged = warnSpy.mock.calls.find(
-        (call) =>
-          call[0] === "[registerJobPurchase] purchase registration failed",
-      );
-      expect(logged).toBeDefined();
-      const payload = logged?.[1] as { error: string };
-      expect(payload.error).not.toContain(ENV_SECRET);
-      expect(payload.error).toContain(REDACTED_SECRET);
-    } finally {
-      warnSpy.mockRestore();
-    }
+    const logged = warnings.find(
+      (call) =>
+        call[0] === "[registerJobPurchase] purchase registration failed",
+    );
+    expect(logged).toBeDefined();
+    const payload = logged?.[1] as { error: string };
+    expect(payload.error).not.toContain(ENV_SECRET);
+    expect(payload.error).toContain(REDACTED_SECRET);
   });
 
   it("caps the redacted failure message written to stdout", async () => {
@@ -156,28 +156,28 @@ describe("registerJobPurchase", () => {
         status: 400,
       }),
     );
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
-      const logged = warnSpy.mock.calls.find(
-        (call) =>
-          call[0] === "[registerJobPurchase] purchase registration failed",
-      );
-      expect(logged).toBeDefined();
-      expect(logged?.[1]).toEqual(
-        expect.objectContaining({
-          error: expect.stringContaining(REDACTED_SECRET),
-        }),
-      );
-      const payload = logged?.[1] as { error: string };
-      expect(payload.error.length).toBeLessThanOrEqual(2_000);
-      expect(payload.error).not.toContain(ENV_SECRET);
-    } finally {
-      warnSpy.mockRestore();
-    }
+    const warnings = expectConsole(
+      "warn",
+      "[registerJobPurchase] purchase registration failed",
+    );
+    await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
+    const logged = warnings.find(
+      (call) =>
+        call[0] === "[registerJobPurchase] purchase registration failed",
+    );
+    expect(logged).toBeDefined();
+    expect(logged?.[1]).toEqual(
+      expect.objectContaining({
+        error: expect.stringContaining(REDACTED_SECRET),
+      }),
+    );
+    const payload = logged?.[1] as { error: string };
+    expect(payload.error.length).toBeLessThanOrEqual(2_000);
+    expect(payload.error).not.toContain(ENV_SECRET);
   });
 
   it("does not retry a permanent rejection", async () => {
+    expectConsole("warn", "[registerJobPurchase] purchase registration failed");
     // A permanent rejection is the node refusing this exact payload, so every
     // retry would be refused identically.
     createPurchaseMock.mockResolvedValue(
@@ -197,6 +197,7 @@ describe("registerJobPurchase", () => {
   });
 
   it("pages once the whole retry budget is spent", async () => {
+    expectConsole("warn", "[registerJobPurchase] purchase registration failed");
     // Nothing downstream posts this purchase later: job sync can adopt a
     // purchase the node already holds, but it never creates one. An exhausted
     // budget is an outage, not a blip, so it has to be visible.

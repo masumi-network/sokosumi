@@ -5,7 +5,12 @@ import { Check, Clock, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
-import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
+import {
+  channelLabel,
+  formatDay,
+  pieceMade,
+  planWeeks,
+} from "../../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
@@ -38,8 +43,8 @@ function excerpt(entry: Entry): string {
 
 /**
  * The month piece by piece: every post, article, ad and email Cuso makes,
- * as cards by week. A card opens the piece in full; the sheet steps to the
- * next one, so the founder can read the whole month in a row.
+ * as cards by week. A made piece opens in full and the sheet steps to the
+ * next made one; a piece still being made shows only that it is coming.
  */
 export function CalendarPage({
   overview,
@@ -91,21 +96,20 @@ export function CalendarPage({
     );
   }
 
-  const written = live.filter((entry) => entry.status !== "idea").length;
-  const scheduled = live.filter(
-    (entry) => entry.status === "scheduled" || entry.status === "published",
-  ).length;
   const mediaFor = (entry: Entry) =>
     overview.media.find((item) => item.entryId === entry.id);
-  const index = shown.findIndex((entry) => entry.id === openId);
-  const open = index >= 0 ? shown[index] : undefined;
+  const made = (entry: Entry) => pieceMade(entry, Boolean(mediaFor(entry)));
+  const ready = live.filter(made).length;
+  const readable = shown.filter(made);
+  const index = readable.findIndex((entry) => entry.id === openId);
+  const open = index >= 0 ? readable[index] : undefined;
 
   return (
     <div className="cal">
       <div className="card cal-head">
         <p className="note num">
-          {live.length} pieces this month · {written} written · {scheduled}{" "}
-          scheduled
+          {live.length} pieces this month · {ready} ready
+          {ready < live.length ? ` · ${live.length - ready} being made` : ""}
         </p>
         <div className="cal-filters" role="group" aria-label="Network">
           <button
@@ -181,12 +185,16 @@ export function CalendarPage({
             <ul className="cal-grid">
               {pieces.map((entry) => (
                 <li key={entry.id}>
-                  <PieceCard
-                    entry={entry}
-                    media={mediaFor(entry)}
-                    open={entry.id === openId}
-                    onOpen={() => setOpenId(entry.id)}
-                  />
+                  {made(entry) ? (
+                    <PieceCard
+                      entry={entry}
+                      media={mediaFor(entry)}
+                      open={entry.id === openId}
+                      onOpen={() => setOpenId(entry.id)}
+                    />
+                  ) : (
+                    <PieceInMaking entry={entry} />
+                  )}
                 </li>
               ))}
             </ul>
@@ -204,20 +212,47 @@ export function CalendarPage({
             onAsk={onAsk}
             loadText={loadText}
             extra={pieceExtra?.(open)}
-            position={{ index, total: shown.length }}
+            position={{ index, total: readable.length }}
             onPrev={
               index > 0
-                ? () => setOpenId(shown[index - 1]?.id ?? null)
+                ? () => setOpenId(readable[index - 1]?.id ?? null)
                 : undefined
             }
             onNext={
-              index < shown.length - 1
-                ? () => setOpenId(shown[index + 1]?.id ?? null)
+              index < readable.length - 1
+                ? () => setOpenId(readable[index + 1]?.id ?? null)
                 : undefined
             }
           />
         ) : null}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** A piece Cuso is still making: where and when, never its unfinished words. */
+function PieceInMaking({ entry }: { entry: Entry }) {
+  return (
+    <div className="cal-card cal-making">
+      <span className="cal-body">
+        <span className="cal-meta">
+          <ChannelIcon channel={entry.channel} size={13} />
+          {formatName(entry.channel, entry.format)}
+          <span className="cal-when num">
+            <Clock size={12} aria-hidden="true" />
+            {formatDay(entry.date, { weekday: "short", day: "numeric" })}
+            {entry.time ? ` ${entry.time}` : ""}
+          </span>
+        </span>
+        <span className="cal-making-lines" aria-hidden="true">
+          <span />
+          <span />
+        </span>
+        <span className="tag">
+          <span className="ob-box-dot" aria-hidden="true" />
+          Being made
+        </span>
+      </span>
     </div>
   );
 }

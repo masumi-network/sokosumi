@@ -6,6 +6,7 @@ import {
   parseSeoChatReply,
   SEO_CHAT_SYSTEM,
   seoChatContext,
+  seoChatTaskActions,
 } from "./chat-context";
 
 function workspaceFixture(): ProjectSeoWorkspace {
@@ -74,6 +75,76 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("excludes private findings and linked advice from shared replies and task suggestions", () => {
+    const workspace = workspaceFixture();
+    const privateFinding = {
+      id: "private-console",
+      observationId: randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      device: null,
+      rowId: "AC-20",
+      title: "Private Console finding",
+      relatedPageUrl: "https://example.test/private-related-evidence",
+      severity: "major" as const,
+      evidence: ["Private Console reason"],
+      suggestedFix: "Private Console fix",
+      visibility: "PRIVATE" as const,
+      sourceRef: "private-receipt",
+      observedAt: new Date().toISOString(),
+    };
+    const publicFinding = {
+      ...privateFinding,
+      id: "public-check",
+      title: "Public check",
+      relatedPageUrl: undefined,
+      evidence: ["Public HTML"],
+      suggestedFix: null,
+      visibility: undefined,
+    };
+    workspace.findings = [privateFinding, publicFinding];
+    const publicAction = {
+      id: "public-action",
+      observationId: publicFinding.observationId,
+      pageUrl: publicFinding.pageUrl,
+      findingIds: [publicFinding.id],
+      title: "Review public HTML",
+      why: "Public reason",
+      effort: "low" as const,
+      expectedEffect: "Fix the public issue",
+      edit: null,
+      taskId: null,
+      status: "recommended" as const,
+      kind: "fix" as const,
+      evidence: [],
+    };
+    workspace.actions = [
+      publicAction,
+      {
+        ...publicAction,
+        id: "private-action",
+        title: "Private Console action",
+        findingIds: [privateFinding.id],
+      },
+    ];
+    const shared = seoChatContext(workspace);
+    expect(shared).not.toContain("Private Console");
+    expect(shared).not.toContain(privateFinding.relatedPageUrl);
+    expect(JSON.parse(shared).totals).toMatchObject({
+      findings: 1,
+      actions: 1,
+    });
+    expect([...seoChatTaskActions(workspace)]).toEqual([
+      `${publicAction.observationId}:${publicAction.id}`,
+    ]);
+    const personal = JSON.parse(seoChatContext(workspace, "personal"));
+    expect(personal.findings[0].suggestedFix).toBe(privateFinding.suggestedFix);
+    expect(personal.findings[0].relatedPageUrl).toBe(
+      privateFinding.relatedPageUrl,
+    );
+    expect(personal.findings[0].evidence).toEqual(privateFinding.evidence);
+    expect(seoChatTaskActions(workspace, "personal").size).toBe(2);
+  });
+
   it("names the requested aggregate period instead of shortening it to traffic dates", () => {
     const workspace = workspaceFixture();
     workspace.metrics[0].points = [{ date: "2026-11-01", value: 321 }];
@@ -225,6 +296,37 @@ describe("native audit chat inference boundary", () => {
     });
     expect(evidence.limited).toBe(true);
     expect(evidence.totals.findings).toBe(21);
+  });
+
+  it("keeps a Console finding's saved fix and Google verdict available to audit chat", () => {
+    const workspace = workspaceFixture();
+    workspace.findings = [
+      {
+        id: "google-index",
+        observationId: randomUUID(),
+        pageUrl: workspace.pages[0].url,
+        device: null,
+        rowId: "AC-20",
+        title: "Google Search Console indexing",
+        severity: "major",
+        evidence: [
+          "The page is not indexed",
+          "Google URL Inspection: NEUTRAL; Crawled - currently not indexed",
+          "Google indexing status checked today",
+        ],
+        suggestedFix:
+          "Confirm search intent, then check the canonical and internal links.",
+        sourceRef: "private-receipt",
+        observedAt: new Date().toISOString(),
+      },
+    ];
+    const context = JSON.parse(seoChatContext(workspace));
+    expect(context.findings[0].suggestedFix).toBe(
+      workspace.findings[0].suggestedFix,
+    );
+    expect(context.findings[0].evidence).toContain(
+      workspace.findings[0].evidence[1],
+    );
   });
 
   it("keeps the audited page distinct from competing pages in chat evidence", () => {

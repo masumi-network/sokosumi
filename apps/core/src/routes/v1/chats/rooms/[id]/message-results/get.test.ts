@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
@@ -117,7 +118,7 @@ describe("batched room result hydration", () => {
     expect(mocks.messages).not.toHaveBeenCalled();
   });
   it("omits only the message whose hydration throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to hydrate chat message results");
     mocks.messages.mockResolvedValue([
       { id: first, metadata: null },
       { id: second, metadata: null },

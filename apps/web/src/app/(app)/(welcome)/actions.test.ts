@@ -11,6 +11,7 @@ vi.mock("@/lib/services/task.service", () => ({
 }));
 vi.mock("./components/my-day", () => ({ loadMyDay: vi.fn() }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { moveOverdueTasks, undoMoveOverdueTasks } from "./actions";
 
 const moved = [
@@ -33,7 +34,7 @@ describe("moveOverdueTasks", () => {
   });
 
   it("gives null for a bad day or a Core failure", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Move overdue failed");
     await expect(
       moveOverdueTasks({ today: "today", to: "2026-11-11" }),
     ).resolves.toBeNull();

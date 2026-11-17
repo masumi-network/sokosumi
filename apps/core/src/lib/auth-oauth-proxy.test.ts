@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { signJWT } from "better-auth/crypto";
@@ -224,6 +225,7 @@ describe.each<[string, Entry]>([
   });
 
   it("cannot read a preview's state without a shared proxy secret", async () => {
+    expectConsole("error", /^\S+ ERROR \[Better Auth\]: Failed to parse state/);
     const production = createProduction();
     const preview = createPreview();
 

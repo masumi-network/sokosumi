@@ -38,6 +38,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   SOKO_BOT_TURN_STARTING_ABANDON_MS,
@@ -352,6 +353,7 @@ describe("SokoBotTurnsSyncService", () => {
   });
 
   it("records an interrupted resume without terminally settling the turn", async () => {
+    expectConsole("warn", "Soko Bot watchdog reconciliation interrupted");
     turnFindManyMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])

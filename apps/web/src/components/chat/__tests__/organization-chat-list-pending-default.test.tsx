@@ -19,9 +19,7 @@ describe("OrganizationChatList pendingInvitations default (Chat Error / #301)", 
   });
 
   it("survives re-render when pendingInvitations prop is omitted", () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error");
     try {
       const { rerender } = render(createOrganizationChatList());
       expect(() => {

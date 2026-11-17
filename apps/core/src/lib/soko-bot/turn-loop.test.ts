@@ -29,6 +29,7 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   contextBlock,
   finishTurn,
@@ -244,6 +245,7 @@ describe("finishTurn", () => {
   });
 
   it("drops a message that claims an action no receipt proves", async () => {
+    expectConsole("warn", "Soko Bot reply withheld");
     claimsActionMock.mockResolvedValue(true);
     await finish("I created the task and assigned it to Hannah.", true);
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
@@ -264,6 +266,7 @@ describe("finishTurn", () => {
   });
 
   it("says so when the message could not be checked", async () => {
+    expectConsole("warn", "Soko Bot reply withheld");
     claimsActionMock.mockResolvedValue(null);
     await finish("Here is what I found.", true);
     expect(buildActionResponseMock.mock.calls[0][4].message).toContain(

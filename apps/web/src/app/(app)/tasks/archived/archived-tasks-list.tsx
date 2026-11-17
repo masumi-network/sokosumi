@@ -106,7 +106,9 @@ export function ArchivedTasksList({
                           {task.identifier}
                         </span>
                       ) : null}
-                      <span className="truncate">{task.name}</span>
+                      <span className="line-clamp-2 wrap-anywhere">
+                        {task.name}
+                      </span>
                     </Link>
                     <TaskStatusBadge
                       status={task.status}

@@ -188,8 +188,10 @@ export interface StudioTarget {
   templateId?: string;
   creativeDirection?: StudioCreativeDirection;
   exportHeadlines?: { projectId: string; lines: string[] };
+  lettering?: StudioJob["lettering"];
   useProductCutout?: boolean;
   modelIds: string[];
+  modelSelection?: "auto";
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }

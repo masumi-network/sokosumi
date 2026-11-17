@@ -23,6 +23,7 @@ vi.mock("@/lib/evlog", () => ({
   createCoreLogger: () => ({ set: logSetMock, emit: vi.fn() }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   MAIL_TRIAGE_CRITERIA,
   mailTriageTag,
@@ -200,6 +201,7 @@ describe("triageMail", () => {
   });
 
   it("keeps the triage when only the rule call fails", async () => {
+    expectConsole("warn", "Soko Bot mail rule check failed");
     memoryMock.mockResolvedValue({
       markdown:
         "# Soko Bot memory\n\n## Decisions\n\n- Save invoice attachments into Finance/Invoices.\n",
@@ -261,6 +263,7 @@ describe("triageMail", () => {
   });
 
   it("returns every mail untagged and logs the failure when Jev fails", async () => {
+    expectConsole("warn", "Soko Bot mail triage failed");
     evaluateMock.mockRejectedValue(new Error("timeout"));
     const inbox = [mail("a", "Hi")];
     const result = await triage(inbox);
@@ -295,6 +298,7 @@ describe("triageMail", () => {
   });
 
   it("leaves only a failed batch untagged", async () => {
+    expectConsole("warn", "Soko Bot mail triage failed");
     evaluateMock
       .mockResolvedValueOnce({
         answers: Object.fromEntries(

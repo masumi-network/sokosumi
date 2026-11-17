@@ -89,6 +89,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 }
 ```
 
+## Testing a Route
+
+- **Mocked Prisma beside the route.** Cover a route with `post.test.ts` (or the method's name) next to it, mocking `@/lib/db/prisma` and only the helpers the test must control, so access checks and mappers still run for real. `src/routes/v1/chats/rooms/[id]/messages/[messageId]/pin/post.test.ts` is the pattern. Add new cases there, not to the database-backed `*.integration.test.ts` files: those skip silently when their database env is unset, so they look like coverage while nothing runs (`admin.integration.test.ts` is the exception, a mocked router test that always runs; see `apps/core/vitest.config.ts`). A `*.postgres.test.ts` is the exception when real PostgreSQL behaviour is the point (Data and Concurrency in [coding-conventions.md](./coding-conventions.md)); CI runs those.
+- **Seams when the logic is raw SQL.** Mocked Prisma supplies the rows, so no test proves a `$queryRaw` query; review establishes it once. Test, highest first: the route contract (assert the response body), the pure decision function, then thin component tests. Skip broad `expect(sql).toContain(…)` assertions, which pass on a wrong query that keeps the literal and block refactors; one narrow assertion that a named ADR predicate is still present is fine as a tripwire.
+- **Keep the Prisma double free of Hono.** A `vi.mock("@/lib/db/prisma", async () => (await import(…)).double)` factory hangs Vitest with no output when that fixture transitively imports `@/lib/hono`, `@/helpers/error-handler` or anything else that imports Prisma: the factory awaits a module that awaits the mock. Put the double in a file that imports `@/` modules only as types, and the app helper in another (`src/test-fixtures/task-schedule.ts` and `task-schedule-app.ts`).
+
 ## Endpoint Migration Pattern (`/{id}` to `/me`)
 
 When the authentication context already identifies the caller (for example `authContext.coworkerId`), `/me` (or the target path) is the default:

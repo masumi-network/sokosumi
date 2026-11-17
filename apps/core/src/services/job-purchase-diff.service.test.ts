@@ -45,8 +45,8 @@ vi.mock("@sokosumi/database/helpers", () => ({
   mapJobWithStatus: (job: unknown) => job,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { ok } from "neverthrow";
-
 import {
   PURCHASE_DIFF_INITIAL_LOOKBACK_MS,
   PURCHASE_DIFF_PAGE_SIZE,
@@ -152,8 +152,6 @@ describe("syncPurchasesFromDiff", () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     jobPurchaseFindManyMock.mockResolvedValue([]);
     vi.spyOn(console, "info").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   it("anchors the initial cursor when nothing changed", async () => {
@@ -213,6 +211,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("matches a row by blockchain identifier when the stored id is stale", async () => {
+    expectConsole(
+      "warn",
+      "[sync/jobs/purchase-diff] Purchase purchase_new matched job job_1 by blockchain",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([createDiffPurchase({ id: "purchase_new" })]),
     );
@@ -242,6 +244,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("matches a stale-id fallback when hex identifier casing differs", async () => {
+    expectConsole(
+      "warn",
+      "[sync/jobs/purchase-diff] Purchase purchase_new matched job job_1 by blockchain",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
         createDiffPurchase({
@@ -275,6 +281,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("refuses a fallback match whose terms are not the job's terms", async () => {
+    expectConsole(
+      "error",
+      "Purchase purchase_new matches a job blockchain identifier but not its durable terms",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
         createDiffPurchase({ id: "purchase_new", inputHash: "other-input" }),
@@ -296,6 +306,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("refuses a fallback match with a different seller", async () => {
+    expectConsole(
+      "error",
+      "Purchase purchase_new matches a job blockchain identifier but not its durable terms",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
         createDiffPurchase({
@@ -319,6 +333,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("refuses ambiguous case-insensitive fallback matches", async () => {
+    expectConsole(
+      "error",
+      "Purchase purchase_new ambiguously matches 2 jobs by blockchain identifier and durable",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([createDiffPurchase({ id: "purchase_new" })]),
     );
@@ -405,6 +423,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("refuses a fallback match ordered from a different agent", async () => {
+    expectConsole(
+      "error",
+      "Purchase purchase_new matches a job blockchain identifier but not its durable terms",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
         createDiffPurchase({
@@ -429,6 +451,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("refuses a fallback match when the job records no agent identifier", async () => {
+    expectConsole(
+      "error",
+      "Purchase purchase_new matches a job blockchain identifier but not its durable terms",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([createDiffPurchase({ id: "purchase_new" })]),
     );
@@ -784,6 +810,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("refuses a row whose blockchain identifier does not match the job", async () => {
+    expectConsole(
+      "error",
+      "Diff purchase is for a different blockchain identifier than job job_1; refusing purchase",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(ok([createDiffPurchase()]));
     jobPurchaseFindManyMock.mockResolvedValue([
       createJobPurchaseRow({
@@ -807,6 +837,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("parks the cursor on the last applied row when one fails", async () => {
+    expectConsole(
+      "error",
+      "[sync/jobs/purchase-diff] Failed to apply purchase purchase_2 to job job_2",
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
         createDiffPurchase(),
@@ -883,6 +917,10 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("does not page when a proxy answers for an absent node", async () => {
+    const warnings = expectConsole(
+      "warn",
+      "[sync/jobs/purchase-diff] suppressed external failure",
+    );
     const { err } = await import("neverthrow");
     // A restarting payment node reaches us as Cloudflare's 521 page, once a
     // minute for the length of the restart. It clears on its own.
@@ -900,8 +938,7 @@ describe("syncPurchasesFromDiff", () => {
 
     expect(result).toEqual({ found: 0, processed: 0 });
     expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(console.error).not.toHaveBeenCalled();
-    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(warnings).toHaveLength(1);
     // Quiet, but still parked: the feed has to resume where it stopped once
     // the node answers again.
     expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
@@ -923,12 +960,14 @@ describe("syncPurchasesFromDiff", () => {
 
     expect(result).toEqual({ found: 0, processed: 0 });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-    expect(console.error).not.toHaveBeenCalled();
-    expect(console.warn).not.toHaveBeenCalled();
     expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("reuses the initial checkpoint after the first purchase fails", async () => {
+    expectConsole(
+      "error",
+      "[sync/jobs/purchase-diff] Failed to apply purchase purchase_1 to job job_1",
+    );
     const purchase = createDiffPurchase();
     getPurchasesDiffMock
       .mockResolvedValueOnce(ok([purchase]))
@@ -1200,10 +1239,13 @@ describe("syncPurchasesFromDiff cursor stalls", () => {
     vi.clearAllMocks();
     jobPurchaseFindManyMock.mockResolvedValue([]);
     vi.spyOn(console, "info").mockImplementation(() => {});
-    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   it("stops when a page ends where the previous page ended", async () => {
+    expectConsole(
+      "warn",
+      "[sync/jobs/purchase-diff] Cursor did not advance past purchase_19; stopping this run",
+    );
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     const fullPage = Array.from({ length: PURCHASE_DIFF_PAGE_SIZE }, (_, i) =>
       createDiffPurchase({ id: `purchase_${i}` }),

@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import Stripe from "stripe";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -395,6 +395,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
   });
 
   it("answers 500 when the local write fails after Stripe", async () => {
+    expectConsole("error", "Error: local seat write failed");
     setMembership("owner");
     subscriptionUpdateMock.mockRejectedValueOnce(
       new Error("local seat write failed"),
@@ -503,6 +504,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
   });
 
   it("keeps other Stripe failures as server errors", async () => {
+    expectConsole("error", "StripeAPIError: Stripe is unavailable.");
     setMembership("owner");
     updateSubscriptionItemQuantityMock.mockRejectedValue(
       new Stripe.errors.StripeAPIError({

@@ -62,6 +62,7 @@ interface StartGenerationParameters extends AuthenticatedRequest {
   product?: StudioProductIdentity;
   batchId?: string;
   exportHeadline?: string;
+  lettering?: CreateProjectImageJobRequest["lettering"];
   useProductCutout?: boolean;
   sessionId: string | null;
   /**
@@ -130,6 +131,7 @@ export const startImageGeneration = withSession<
       product: input.product,
       ...(input.batchId ? { batchId: input.batchId } : {}),
       ...(input.exportHeadline ? { exportHeadline: input.exportHeadline } : {}),
+      ...(input.lettering ? { lettering: input.lettering } : {}),
       ...(input.useProductCutout ? { useProductCutout: true } : {}),
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,

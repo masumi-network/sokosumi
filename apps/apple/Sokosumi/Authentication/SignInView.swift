@@ -76,7 +76,6 @@ private struct SignInColumn: View {
         }
         .buttonStyle(.brandPrimary)
         .controlSize(.extraLarge)
-        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
       case .signingIn:
         HStack(spacing: 8) {

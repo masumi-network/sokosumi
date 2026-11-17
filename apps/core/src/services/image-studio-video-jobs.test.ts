@@ -68,6 +68,7 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: assetFindManyMock,
     },
     project: { findUnique: projectFindUniqueMock },
+    projectImagePromptSnapshot: { upsert: vi.fn() },
   };
   return { default: client };
 });

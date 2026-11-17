@@ -8,6 +8,8 @@ import {
   pageDetailGuidanceRows,
   pageDetailReferences,
   pageDetailRuleCodes,
+  seoActionBucket,
+  seoActionWorklist,
   seoOverviewModel,
   seoPageSummaries,
   toolRangeFit,
@@ -83,6 +85,41 @@ describe("SEO overview relevance", () => {
     expect(seoOverviewModel(workspace).emptyState).toBe("no_fixes");
     workspace.observations[0].coverage.modules.failed = 1;
     expect(seoOverviewModel(workspace).emptyState).toBe("incomplete");
+  });
+
+  it("keeps separate related-page indexing issues on the same audited parent", () => {
+    const workspace = seoTestWorkspace();
+    const indexed = {
+      ...finding("indexing", "major"),
+      rowId: "AC-20",
+      device: null,
+    };
+    workspace.findings = [
+      { ...indexed, id: "parent" },
+      {
+        ...indexed,
+        id: "related-one",
+        relatedPageUrl: "https://example.com/one",
+        suggestedFix: "Fix page one.",
+      },
+      {
+        ...indexed,
+        id: "related-two",
+        relatedPageUrl: "https://example.com/two",
+        suggestedFix: "Fix page two.",
+      },
+    ];
+    const model = seoOverviewModel(workspace);
+    expect(model.issues.map((issue) => issue.id)).toEqual([
+      "parent",
+      "related-one",
+      "related-two",
+    ]);
+    expect(model.issues.map((issue) => issue.suggestedFix)).toEqual([
+      undefined,
+      "Fix page one.",
+      "Fix page two.",
+    ]);
   });
 
   it("prioritizes actual issue severities without treating measures, notes or tests as fixes", () => {
@@ -604,5 +641,42 @@ describe("measures outside tool ranges", () => {
         findingIds: ["desktop", "mobile"],
       },
     ]);
+  });
+});
+
+describe("seoActionBucket", () => {
+  it("groups a suggestion by its kind and a fix by its impact, an unrated fix as low", () => {
+    expect(seoActionBucket({ kind: "opportunity" }, null)).toBe("suggestions");
+    expect(seoActionBucket({ kind: "fix" }, "critical")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "major")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "minor")).toBe("low");
+    expect(seoActionBucket({ kind: "fix" }, null)).toBe("low");
+  });
+});
+
+describe("seoActionWorklist", () => {
+  it("offers only the filters that split the list, and counts each group", () => {
+    const actions = [
+      { kind: "fix", id: "a" },
+      { kind: "fix", id: "b" },
+      { kind: "opportunity", id: "c" },
+    ];
+    const worklist = seoActionWorklist(actions, (action) =>
+      action.kind === "opportunity" ? "suggestions" : "high",
+    );
+    expect(worklist.counts).toEqual({
+      all: 3,
+      high: 2,
+      low: 0,
+      suggestions: 1,
+    });
+    expect(worklist.filters).toEqual(["all", "high", "suggestions"]);
+    expect(worklist.rows("suggestions").map((action) => action.id)).toEqual([
+      "c",
+    ]);
+    // One group alone splits nothing.
+    expect(
+      seoActionWorklist(actions.slice(0, 2), () => "high").filters,
+    ).toEqual(["all"]);
   });
 });

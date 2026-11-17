@@ -5,6 +5,7 @@ import {
   TaskVisibility,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
@@ -14,7 +15,6 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
-
 import mountPostTaskEvents from "./post";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -634,6 +634,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("rethrows non-conflict transaction errors as 500", async () => {
+    expectConsole("error", "Error: Connection lost");
     prismaTransactionMock.mockRejectedValueOnce(new Error("Connection lost"));
 
     const app = createApp({
@@ -2765,33 +2766,32 @@ describe("POST /{id}/events", () => {
     };
     mockTransaction(tx);
     createTaskEventTransactionMock.mockResolvedValue("txn_retry");
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const app = createApp({
-        actor: "coworker",
-        coworkerId: COWORKER_ID,
-        vendorId: TEST_VENDOR_ID,
-      });
-      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: TaskStatus.COMPLETED,
-          masumiPayment: validMasumiPaymentBody,
-        }),
-      });
-      expect(response.status).toBe(201);
-      await Promise.all(waitUntilCapturedPromises);
-      const logged = warnSpy.mock.calls.find(
-        (call) => call[0] === "[tasks] masumi task payment: retry scheduled",
-      );
-      expect(logged).toBeDefined();
-      const payload = logged?.[1] as { reason: string };
-      expect(payload.reason.length).toBeLessThanOrEqual(2_000);
-      expect(payload.reason).toContain("[truncated]");
-    } finally {
-      warnSpy.mockRestore();
-    }
+    const warnings = expectConsole(
+      "warn",
+      "[tasks] masumi task payment: retry scheduled",
+    );
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+    expect(response.status).toBe(201);
+    await Promise.all(waitUntilCapturedPromises);
+    const logged = warnings.find(
+      (call) => call[0] === "[tasks] masumi task payment: retry scheduled",
+    );
+    expect(logged).toBeDefined();
+    const payload = logged?.[1] as { reason: string };
+    expect(payload.reason.length).toBeLessThanOrEqual(2_000);
+    expect(payload.reason).toContain("[truncated]");
   });
 
   it("returns 201 and publishes when durable processor refunds a permanent failure", async () => {

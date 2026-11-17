@@ -163,6 +163,88 @@ async function legacyPrivateRows(actor: SeoActor, pageIds: string[]) {
   return { observation, turn };
 }
 
+const PRIVATE_CONSOLE_REASON =
+  "Private Console reason: Google chose an unexpected canonical";
+const PRIVATE_CONSOLE_FIX =
+  "Private Console fix: confirm the intended canonical before changing it";
+async function consoleFinding(actor: SeoActor, pageIds: string[]) {
+  const taskId = randomUUID();
+  const observedAt = new Date().toISOString();
+  const publicPayload = {
+    version: 1,
+    kind: "audit_full",
+    requestId: null,
+    pageUrls: [pageUrl],
+    observedAt,
+    countryCode: "US",
+    languageCode: "en",
+    rulebookVersion: "fixture",
+    checks: [],
+    keywords: [],
+    competitors: [],
+    actions: [],
+    findings: [
+      {
+        id: "public-title",
+        pageUrl,
+        device: null,
+        rowId: "O-02",
+        title: "Public title finding",
+        severity: "minor",
+        evidence: ["Public HTML reason"],
+        sourceRef: "public-capture",
+        observedAt,
+      },
+    ],
+    coverage: { checked: 1, skipped: 0, failed: 0 },
+    notes: [],
+  };
+  const receiptHash = sha256(`private-console-fixture:${taskId}`);
+  const privatePayload = {
+    version: 1,
+    taskId,
+    receiptHash,
+    checkedAt: observedAt,
+    assessments: [
+      {
+        pageUrl,
+        status: "issue",
+        report: true,
+        reason: PRIVATE_CONSOLE_REASON,
+        suggestedFix: PRIVATE_CONSOLE_FIX,
+        evidence: ["Private Console evidence: Google URL Inspection NEUTRAL"],
+      },
+    ],
+  };
+  for (const data of [
+    {
+      kind: "audit_full",
+      source: "seo_coworker",
+      ownerId: null,
+      payload: publicPayload,
+    },
+    {
+      kind: "index_triage",
+      source: "seo_worker",
+      ownerId: actor.userId,
+      payload: privatePayload,
+    },
+  ])
+    await prisma.projectSeoObservation.create({
+      data: {
+        auditId: actor.owner.id,
+        sourceKey: randomUUID(),
+        sourceTaskId: taskId,
+        visibility: "PRIVATE",
+        pageIds,
+        scopeVersion: 0,
+        observedAt: new Date(observedAt),
+        artifactHash: sha256(JSON.stringify(data.payload)),
+        ...data,
+      },
+    });
+}
+
 describe.skipIf(!enabled)(
   "Organization Audit context with real storage and membership",
   () => {
@@ -397,6 +479,91 @@ describe.skipIf(!enabled)(
       expect((await getProjectSeoWorkspace(actor)).metrics).toMatchObject([
         { value: 12 },
       ]);
+    });
+
+    it("does not copy owner-only Console findings into a shared reply or another member's history", async () => {
+      const { actor, other, workspace } = await audit("Shared chat boundary");
+      await consoleFinding(actor, workspace.scope.pageIds);
+      const ownerView = await getProjectSeoWorkspace(actor);
+      expect(
+        ownerView.findings.some((finding) => finding.visibility === "PRIVATE"),
+      ).toBe(true);
+      expect(ownerView.observations[0].issues).toBe(2);
+      const sharedSource = await getProjectSeoWorkspace(
+        actor,
+        {},
+        { includePrivateIndexing: false },
+      );
+      expect(sharedSource.observations[0].issues).toBe(1);
+      const generate = vi.fn(async (_system: string, prompt: string) => {
+        const context = JSON.parse(JSON.parse(prompt).auditEvidence);
+        expect(prompt).not.toContain(PRIVATE_CONSOLE_REASON);
+        expect(prompt).not.toContain(PRIVATE_CONSOLE_FIX);
+        expect(prompt).not.toContain("Private Console evidence");
+        expect(context.findings).toMatchObject([
+          { title: "Public title finding" },
+        ]);
+        expect(context.totals.findings).toBe(1);
+        return modelReply;
+      });
+      const turn = await sendSeoChat(actor, question("What needs a fix?"), {
+        generate,
+      });
+      expect(generate).toHaveBeenCalledOnce();
+      expect(
+        await prisma.seoAuditChatTurn.findUniqueOrThrow({
+          where: { id: turn.id },
+        }),
+      ).toMatchObject({
+        visibility: "SHARED",
+        response: "Review the shared measurements.",
+      });
+      const history = await listSeoChat(other);
+      expect(history.turns.map((row) => row.id)).toEqual([turn.id]);
+      expect(JSON.stringify(history)).not.toContain("Private Console");
+      await sendSeoChat(other, question("Explain the previous reply"), {
+        generate,
+      });
+      expect(generate).toHaveBeenCalledTimes(2);
+    });
+
+    it("retains Console evidence and its saved fix in the owner's personal private conversation", async () => {
+      const workspace = await createSeoAudit(outsider, {
+        name: "Private Console conversation",
+        firstPage: { url: pageUrl, relationship: "primary" },
+      });
+      if (!workspace.auditId) throw new Error("Expected personal Audit");
+      const actor: SeoActor = {
+        ...outsider,
+        owner: { kind: "audit", id: workspace.auditId },
+      };
+      await consoleFinding(actor, workspace.scope.pageIds);
+      const generated = vi.fn(async (_system: string, prompt: string) => {
+        expect(prompt).toContain(PRIVATE_CONSOLE_REASON);
+        expect(prompt).toContain(PRIVATE_CONSOLE_FIX);
+        expect(prompt).toContain("Google URL Inspection NEUTRAL");
+        return {
+          ...modelReply,
+          text: JSON.stringify({ reply: PRIVATE_CONSOLE_FIX, actions: [] }),
+        };
+      });
+      const turn = await sendSeoChat(
+        actor,
+        question("How should I fix the indexing issue?"),
+        { generate: generated },
+      );
+      expect(generated).toHaveBeenCalledOnce();
+      expect(
+        await prisma.seoAuditChatTurn.findUniqueOrThrow({
+          where: { id: turn.id },
+        }),
+      ).toMatchObject({ visibility: "PRIVATE", response: PRIVATE_CONSOLE_FIX });
+      expect(JSON.stringify(await listSeoChat(actor))).toContain(
+        PRIVATE_CONSOLE_FIX,
+      );
+      await expect(
+        listSeoChat({ ...firstMember, owner: actor.owner }),
+      ).rejects.toMatchObject({ status: 404 });
     });
 
     it("rejects a foreign Workspace and a member whose access was revoked", async () => {

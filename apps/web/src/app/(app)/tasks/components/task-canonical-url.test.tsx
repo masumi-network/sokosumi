@@ -40,6 +40,19 @@ describe("TaskCanonicalUrl", () => {
     expect(window.location.hash).toBe("#comment-3");
   });
 
+  // A router refresh writes its own, non-canonical URL back when it commits.
+  it("rewrites the URL again after a re-render put the old one back", () => {
+    open("/tasks/SOK-12");
+    const { rerender } = render(
+      <TaskCanonicalUrl href="/tasks/SOK-12-fix-login" />,
+    );
+
+    window.history.replaceState(window.history.state, "", "/tasks/SOK-12");
+    rerender(<TaskCanonicalUrl href="/tasks/SOK-12-fix-login" />);
+
+    expect(window.location.pathname).toBe("/tasks/SOK-12-fix-login");
+  });
+
   it("keeps a UUID URL so bookmarks stay workspace-safe", () => {
     open(`/tasks/${UUID}?tab=jobs#comment-3`);
 

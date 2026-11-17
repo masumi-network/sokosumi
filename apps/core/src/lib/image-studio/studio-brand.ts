@@ -102,6 +102,25 @@ export function studioBrandPromptBlock(brand: StudioBrand): string {
   return parts.join("\n\n");
 }
 
+/** The edit receives only approved copy and the effective Studio look. */
+export function buildStudioLetteringPrompt(
+  headline: string,
+  look: { colors: string[]; fonts: string[] },
+): string {
+  return [
+    `Add only this approved headline to the supplied image: ${JSON.stringify(headline)}. Reproduce the wording exactly.`,
+    "Letter it into the clear upper area as part of the ad artwork. Preserve the product, its packaging and printed labels, the scene, composition, lighting, and all other details. Add no other copy or logos.",
+    ...(look.colors.length
+      ? [`Use the brand palette: ${look.colors.join(", ")}.`]
+      : []),
+    ...(look.fonts.length
+      ? [
+          `Use the brand font names as typographic direction: ${look.fonts.join(", ")}.`,
+        ]
+      : []),
+  ].join("\n\n");
+}
+
 export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
   try {
     const project = await prisma.project.findUnique({

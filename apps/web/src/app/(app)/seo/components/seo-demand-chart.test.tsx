@@ -26,6 +26,7 @@ describe("SEO keyword demand chart", () => {
             max: 2400,
             manyMarkets: false,
           }}
+          onOpenKeyword={() => {}}
         />
       </NextIntlClientProvider>,
     );

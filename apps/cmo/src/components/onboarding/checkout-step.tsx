@@ -1,31 +1,75 @@
 "use client";
 
-import type { CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { ArrowRight, Loader2 } from "lucide-react";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { AGENT_NAME } from "../../lib/agent";
-import { CusoAvatar } from "../cuso";
-import { money } from "../strategy-core";
+import { channelLabel } from "../../lib/calendar";
+import { channelKey, formatMedia } from "../../lib/channels";
+import { joinNames } from "../../lib/names";
+import { money, PACES } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
+import { CusoScene } from "./cuso-scene";
 import type { CheckoutPhase } from "./step";
 
 type Interval = CmoSubscriptionPlan["interval"];
+type Strategy = NonNullable<CmoOverview["strategy"]>;
+type Pace = NonNullable<Strategy["pace"]>["level"];
 
-const INTERVALS: { id: Interval; label: string; per: string }[] = [
-  { id: "month", label: "Monthly", per: "a month" },
-  { id: "year", label: "Yearly", per: "a year" },
-];
+/** The plan each pace fits, by its place among the plans from cheapest up. */
+const PACE_PLAN: Record<Pace, number> = { steady: 0, active: 1, all_in: 2 };
 
 /** A plan's price in its currency's main unit. */
 function price(plan: CmoSubscriptionPlan, months = 1): string {
   return money(plan.priceAmount / 100 / months, plan.currency.toUpperCase());
 }
 
+/** The tier's slug is Polar's; only its first letter is ours. */
+function tierName(tier: string): string {
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
+/** What paying a year at once saves against twelve months, in whole percent. */
+function yearlySaving(plans: CmoSubscriptionPlan[]): number {
+  const savings = plans
+    .filter((plan) => plan.interval === "year")
+    .map((year) => {
+      const month = plans.find(
+        (plan) => plan.interval === "month" && plan.tier === year.tier,
+      );
+      return month ? 1 - year.priceAmount / (month.priceAmount * 12) : 0;
+    });
+  return Math.max(0, Math.round(Math.max(0, ...savings) * 100));
+}
+
+/** What the approved plan makes in a month, in the person's terms. */
+function monthOf(strategy: Strategy) {
+  const media = strategy.calendar.map((entry) =>
+    formatMedia(entry.channel, entry.format),
+  );
+  const channels = [
+    ...new Set(
+      strategy.calendar.map(
+        (entry) => channelKey(entry.channel) ?? entry.channel,
+      ),
+    ),
+  ].map(channelLabel);
+  return {
+    pieces: strategy.calendar.length,
+    channels,
+    pictures: media.filter((kind) => kind === "image" || kind === "images")
+      .length,
+    videos: media.filter((kind) => kind === "video").length,
+  };
+}
+
 interface CheckoutStepProps {
   /** The CMO plans as Core lists them; empty when they could not be read. */
   plans: CmoSubscriptionPlan[];
   phase: CheckoutPhase;
+  /** The approved plan, to say what a subscription buys. */
+  strategy?: Strategy | null;
   /** Starts Polar's checkout; the browser goes to the returned URL. */
   onCheckout: (
     interval: Interval,
@@ -38,14 +82,15 @@ interface CheckoutStepProps {
 }
 
 /**
- * The last step of hiring (ADR 0068): the CMO plans of one interval, then
- * Polar's hosted checkout, where the person can still switch plans. Back
- * from Polar it waits for the payment's confirmation; the flow opens the
- * chat once the subscription shows.
+ * Hiring's step after the approved plan (ADR 0068): what the month holds,
+ * the CMO plans with the one that fits its pace picked, then Polar's hosted
+ * checkout. Back from Polar it waits for the payment's confirmation; the
+ * accounts and Launch come next.
  */
 export function CheckoutStep({
   plans,
   phase,
+  strategy = null,
   onCheckout,
   onShowPlans,
   skip = null,
@@ -57,14 +102,15 @@ export function CheckoutStep({
 
   if (phase === "confirming") {
     return (
-      <section className="ob-launch">
-        <CusoAvatar pose="thinking" size={96} />
-        <h1 className="ob-h1">Almost there.</h1>
-        <p className="ob-confirming" role="status">
-          <Loader2 size={16} className="spin" aria-hidden="true" />
-          Confirming your payment. This page opens the chat as soon as it is
-          through.
-        </p>
+      <section className="ob-checkout">
+        <div className="ob-lead">
+          <CusoScene scene="subscribe" now="Confirming your payment" />
+          <h1 className="ob-h1">Almost there.</h1>
+          <p className="ob-confirming muted" role="status">
+            <Loader2 size={16} className="spin" aria-hidden="true" />
+            Confirming your payment. Then you connect your accounts and I start.
+          </p>
+        </div>
         <button
           type="button"
           className="button button-ghost button-small"
@@ -76,17 +122,29 @@ export function CheckoutStep({
     );
   }
 
-  const offered = plans.filter((plan) => plan.interval === interval);
-  // The cheapest plan until the person picks one; a pick carries over to the
-  // other interval, which sells the same tiers.
+  const offered = plans
+    .filter((plan) => plan.interval === interval)
+    .sort((a, b) => a.priceAmount - b.priceAmount);
+  const pace = strategy?.pace?.level;
+  const fits =
+    offered[Math.min(pace ? PACE_PLAN[pace] : 0, offered.length - 1)]?.tier;
+  // The plan that fits the pace until the person picks one; a pick carries
+  // over to the other interval, which sells the same tiers.
   const tier =
-    offered.find((plan) => plan.tier === picked)?.tier ?? offered[0]?.tier;
+    offered.find((plan) => plan.tier === picked)?.tier ??
+    fits ??
+    offered[0]?.tier;
+  const chosen = offered.find((plan) => plan.tier === tier);
+  const saving = yearlySaving(plans);
+  const month =
+    strategy && strategy.calendar.length > 0 ? monthOf(strategy) : null;
+  const paceName = PACES.find((option) => option.level === pace)?.name;
 
-  function checkout(chosen: string) {
+  function checkout(chosenTier: string) {
     setError(null);
     startOpening(async () => {
       try {
-        const result = await onCheckout(interval, chosen);
+        const result = await onCheckout(interval, chosenTier);
         if (result.url) {
           window.location.assign(result.url);
           return;
@@ -100,12 +158,51 @@ export function CheckoutStep({
 
   return (
     <section className="ob-checkout">
-      <CusoAvatar pose="done" size={96} />
-      <h1 className="ob-h1">Pick a plan, then I start.</h1>
-      <p className="muted">
-        Every plan gives {AGENT_NAME} credits each month to make and post your
-        marketing. Credits left at the end of a month expire.
-      </p>
+      <div className="ob-lead">
+        <CusoScene scene="subscribe" />
+        <h1 className="ob-h1">Your month is ready to make.</h1>
+        <p className="muted">Pick a plan and I start right away.</p>
+      </div>
+
+      {month ? (
+        <ul className="card ob-gets" aria-label="What you get">
+          <li>
+            <Check size={16} aria-hidden="true" />
+            <span>
+              <b>{month.pieces} pieces</b> from your plan
+              {month.channels.length > 0
+                ? ` for ${joinNames(month.channels)}`
+                : ""}
+              , written in your voice
+            </span>
+          </li>
+          {month.pictures + month.videos > 0 ? (
+            <li>
+              <Check size={16} aria-hidden="true" />
+              <span>
+                {[
+                  month.pictures > 0
+                    ? `${month.pictures} ${month.pictures === 1 ? "picture" : "pictures"}`
+                    : "",
+                  month.videos > 0
+                    ? `${month.videos} ${month.videos === 1 ? "video" : "videos"}`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" and ")}{" "}
+                made from your brand
+              </span>
+            </li>
+          ) : null}
+          <li>
+            <Check size={16} aria-hidden="true" />
+            <span>
+              Every day {AGENT_NAME} answers comments and watches the news;
+              every week he checks the numbers
+            </span>
+          </li>
+        </ul>
+      ) : null}
 
       {plans.length === 0 ? (
         <p className="alert" role="alert">
@@ -114,46 +211,49 @@ export function CheckoutStep({
       ) : (
         <>
           <div className="ob-tabs" role="group" aria-label="Billing">
-            {INTERVALS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={interval === option.id}
-                onClick={() => setInterval(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              aria-pressed={interval === "month"}
+              onClick={() => setInterval("month")}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              aria-pressed={interval === "year"}
+              onClick={() => setInterval("year")}
+            >
+              Yearly{saving > 0 ? ` · save ${saving}%` : ""}
+            </button>
           </div>
 
-          <div className="panel">
-            <div className="ob-plan-options" role="group" aria-label="Plan">
-              {offered.map((plan) => (
-                <button
-                  key={plan.tier}
-                  type="button"
-                  aria-pressed={plan.tier === tier}
-                  className="card ob-plan-option"
-                  onClick={() => setPicked(plan.tier)}
-                >
-                  <span className="ob-plan-name">{plan.name}</span>
-                  <span className="ob-value">
-                    {price(plan)}{" "}
-                    <span className="ob-small muted">
-                      {INTERVALS.find((option) => option.id === interval)?.per}
-                    </span>
+          <div className="ob-plan-options" role="group" aria-label="Plan">
+            {offered.map((plan) => (
+              <button
+                key={plan.tier}
+                type="button"
+                aria-pressed={plan.tier === tier}
+                className="card ob-plan-option"
+                onClick={() => setPicked(plan.tier)}
+              >
+                {plan.tier === fits && paceName ? (
+                  <span className="ob-plan-fit">Fits your {paceName} plan</span>
+                ) : null}
+                <span className="ob-plan-name">{tierName(plan.tier)}</span>
+                <span className="ob-value">
+                  {price(plan, interval === "year" ? 12 : 1)}{" "}
+                  <span className="ob-small muted">a month</span>
+                </span>
+                <span className="ob-small">
+                  {plan.credits.toLocaleString("en")} credits a month
+                </span>
+                {interval === "year" ? (
+                  <span className="ob-small muted">
+                    {price(plan)} billed once a year
                   </span>
-                  <span className="ob-small">
-                    {plan.credits.toLocaleString("en")} credits every month
-                  </span>
-                  {interval === "year" ? (
-                    <span className="ob-small muted">
-                      {price(plan, 12)} a month, paid once a year
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
+                ) : null}
+              </button>
+            ))}
           </div>
 
           {error ? (
@@ -168,11 +268,20 @@ export function CheckoutStep({
             disabled={opening || !tier}
             onClick={() => tier && checkout(tier)}
           >
-            {opening ? "Opening checkout…" : "Continue to payment"}
+            {opening
+              ? "Opening checkout…"
+              : chosen
+                ? `Start ${tierName(chosen.tier)} for ${price(chosen, interval === "year" ? 12 : 1)} a month`
+                : "Continue to payment"}
             {opening ? null : <ArrowRight size={16} aria-hidden="true" />}
           </button>
+          <ul className="ob-trust">
+            <li>Change or cancel any time in Settings</li>
+            <li>Discount codes work at checkout</li>
+            <li>Secure payment with Polar</li>
+          </ul>
           <p className="ob-small muted">
-            You pay on Polar's checkout page, where you can still switch plans.
+            Nothing goes out until you connect your accounts, next.
           </p>
           {skip ? <SkipSubscriptionButton skip={skip} /> : null}
         </>

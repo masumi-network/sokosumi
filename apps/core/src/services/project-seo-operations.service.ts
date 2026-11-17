@@ -14,6 +14,7 @@ import {
   seoAnalysisMaxCredits,
 } from "@/lib/seo/analysis-price";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
+import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type {
   RequestSeoAnalysis,
@@ -21,6 +22,7 @@ import type {
 } from "@/schemas/project-seo.schema";
 import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
+import { SEO_MAX_PACKET_CHARS } from "@/schemas/seo-task-pages.schema";
 import { requireNoActiveSeoAnalysis } from "./project-seo-analysis-concurrency";
 import {
   type PlannedSeoMonitorRun,
@@ -67,8 +69,6 @@ function selectedModules(input: RequestSeoAnalysis): string[] {
   if (input.kind === "links") return ["links.refresh"];
   return input.analyses ?? ["page.inspect"];
 }
-// The SEO worker refuses a Task packet longer than this (seo-bot MAX_ANALYSIS_REQUEST_CHARS).
-export const SEO_MAX_PACKET_CHARS = 32_768;
 
 /** The Task packet the SEO worker reads. Refuse it here when the worker would refuse it. */
 export function seoTaskPacket(
@@ -76,12 +76,23 @@ export function seoTaskPacket(
   pageUrls: string[],
   requestId: string,
 ): Prisma.InputJsonObject {
+  if (
+    input.kind === "audit_full" &&
+    input.fullAuditCredits !== undefined &&
+    new Set(pageUrls.map(seoPageComparisonKey)).size !== pageUrls.length
+  )
+    throw badRequest(
+      "Select each audit page once, including equivalent URL encodings",
+    );
   const packet: Prisma.InputJsonObject =
     input.kind === "audit_full"
       ? {
           version: 1,
           requestId,
           pageUrls,
+          ...(input.fullAuditCredits !== undefined
+            ? { inspectRelated: true }
+            : {}),
           ...(input.fullAuditCredits !== undefined
             ? { price: { kind: "fixed", credits: input.fullAuditCredits } }
             : {}),
@@ -234,8 +245,8 @@ export async function requestProjectSeoAnalysisInTransaction(
     );
   input = executor.analysis;
   const coworkerId = executor.coworkerId;
-  const scope = await resolveSeoScope(actor, input, tx),
-    pageUrls = scope.pages.map((page) => page.url);
+  const scope = await resolveSeoScope(actor, input, tx);
+  const pageUrls = scope.pages.map((page) => page.url);
   if (input.scopeId && input.expectedScopeVersion !== scope.version)
     throw conflict(
       "The page group changed. Reload it before requesting an analysis.",

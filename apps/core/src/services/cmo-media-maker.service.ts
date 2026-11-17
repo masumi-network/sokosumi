@@ -5,16 +5,25 @@ import type { CmoCalendarEntry } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS, socialPostMediaKindForMime } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
+import sharp from "sharp";
 
 import { LIMITS } from "@/config/constants";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
+import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
+import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
+import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
-import { cusoDrive } from "@/services/cuso-project-files.service";
+import {
+  type CusoDrive,
+  cusoDrive,
+  saveCusoProjectFile,
+} from "@/services/cuso-project-files.service";
+import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
@@ -22,9 +31,14 @@ import {
   DEFAULT_SETTINGS,
 } from "@/services/image-studio-jobs.service";
 import {
+  readReferenceImage,
+  referenceLibraryAvailable,
+} from "@/services/reference-library.service";
+import {
   scheduleSocialPost,
   updateSocialPost,
 } from "@/services/social-posts.service";
+import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
 
 /**
  * Core makes the month's pictures and videos. Cuso writes each piece's
@@ -41,6 +55,23 @@ const KEY_PREFIX = "cmo-media";
 const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */
 const DEFAULT_REFERENCES = 2;
+/**
+ * The models a picture in a reference library style rotates through, one per
+ * try: GPT Image 2.6 kept the period look and lettering best in Patrick's
+ * NMKR test (2026-11-16), Nano Banana 2.1 made the boldest layouts, Seedream
+ * 5 Pro the cleanest. A try that fails the style check goes to the next.
+ */
+export const REFERENCE_STYLE_MODELS = [
+  "gpt-image-2-6",
+  "nano-banana-2-1",
+  "seedream-5-pro",
+] as const;
+
+/**
+ * A styled picture the style check turned down keeps its finished job (it
+ * was paid for) and says so in the job's error, which this starts.
+ */
+const REJECTED = "Style check: ";
 
 const LIVE = new Set<ProjectImageJobStatus>([
   ProjectImageJobStatus.PENDING,
@@ -99,6 +130,8 @@ export interface CmoMediaPiece
     | "title"
     | "visual"
     | "visualFileIds"
+    | "styleReferenceId"
+    | "headline"
     | "slides"
     | "socialPostId"
   > {
@@ -116,6 +149,8 @@ export interface CmoMediaJob {
   status: ProjectImageJobStatus;
   assetId: string | null;
   prompt: string;
+  /** The style check turned the finished picture down: the next try starts. */
+  rejected: boolean;
 }
 
 /** Where a piece's media stands. */
@@ -143,14 +178,34 @@ export type CmoSlotAction =
 
 /** The visual and its pictures, as one short key: a new visual starts over. */
 export function cmoVisualKey(
-  piece: Pick<CmoMediaPiece, "visual" | "visualFileIds" | "slides">,
+  piece: Pick<
+    CmoMediaPiece,
+    "visual" | "visualFileIds" | "slides" | "styleReferenceId" | "headline"
+  >,
 ): string {
+  // A style or headline joins the key only when set, so the keys of pieces
+  // made before them do not change.
+  const style = piece.styleReferenceId
+    ? `|style:${piece.styleReferenceId}|${piece.headline ?? ""}`
+    : "";
   return createHash("sha256")
     .update(
-      `${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}${piece.slides?.length ? `|${piece.slides.join("|")}` : ""}`,
+      `${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}${piece.slides?.length ? `|${piece.slides.join("|")}` : ""}${style}`,
     )
     .digest("hex")
     .slice(0, 10);
+}
+
+/** A styled picture gets one try per style model; any other, two. */
+function attemptsFor(piece: Pick<CmoMediaPiece, "styleReferenceId">): number {
+  return piece.styleReferenceId ? REFERENCE_STYLE_MODELS.length : ATTEMPTS;
+}
+
+/** Whether Core makes this piece's picture in a reference library style. */
+function styled(
+  piece: Pick<CmoMediaPiece, "styleReferenceId">,
+): piece is CmoMediaPiece & { styleReferenceId: string } {
+  return Boolean(piece.styleReferenceId) && referenceLibraryAvailable();
 }
 
 /** Slots a piece shows: its slides, or one picture or video. */
@@ -170,9 +225,13 @@ export function cmoSlotAction(
     const tried = jobs.filter((job) => job.step === name);
     const last = tried.at(-1);
     if (last && LIVE.has(last.status)) return { kind: "wait" };
-    if (last?.status === ProjectImageJobStatus.SUCCEEDED && last.assetId)
+    if (
+      last?.status === ProjectImageJobStatus.SUCCEEDED &&
+      last.assetId &&
+      !last.rejected
+    )
       return { kind: "attach", job: last };
-    if (tried.length >= ATTEMPTS) return { kind: "failed" };
+    if (tried.length >= attemptsFor(piece)) return { kind: "failed" };
     return {
       kind: "start",
       step: name,
@@ -246,6 +305,7 @@ export async function listCmoMediaJobs(
       idempotencyKey: true,
       status: true,
       prompt: true,
+      error: true,
       asset: { select: { id: true } },
     },
   });
@@ -267,6 +327,7 @@ export async function listCmoMediaJobs(
         status: row.status,
         assetId: row.asset?.id ?? null,
         prompt: row.prompt,
+        rejected: row.error?.startsWith(REJECTED) ?? false,
       },
     ];
   });
@@ -316,6 +377,38 @@ export function cmoImagePrompt(input: {
     .join(" ");
 }
 
+/**
+ * A picture in the look of an old print from the reference library: the
+ * reference (the first image fal gets) lends only its style, the brand gives
+ * the colours and, through the studio's brand block, its DESIGN.md. Core
+ * places the real logo afterwards, so the model leaves its corner plain.
+ */
+export function cmoStylePrompt(input: {
+  piece: CmoMediaPiece;
+  slot: number;
+  businessName: string;
+  colours: readonly string[];
+}): string {
+  const { piece } = input;
+  const slide = piece.slides?.[input.slot]?.trim();
+  const headline = piece.headline?.trim();
+  return [
+    "The first image is an old print, used ONLY as a style reference: borrow its illustration technique, layout, lettering and print texture.",
+    "Copy none of its words, names, mastheads, characters or illustrations; make an entirely new picture.",
+    `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slide ? ` This slide: ${slide}.` : ""}`,
+    headline
+      ? `The only words in the picture: "${headline}", lettered in the reference's style and spelled exactly.`
+      : "No words, letters or numbers in the picture.",
+    input.colours.length > 0
+      ? `Recolour everything around the brand colours ${input.colours.join(", ")}; a few neutral tones are fine.`
+      : "",
+    "Draw no logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep the lower-right corner plain: the brand's logo is placed there afterwards.",
+    "Never a real, named person.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /** The pictures a visual is made from: those it names, else the brand's own. */
 function references(
   piece: CmoMediaPiece,
@@ -337,6 +430,30 @@ interface MediaContext {
   cuso: Pick<Cuso, "projectId" | "workspaceId" | "sokoBotId" | "businessName">;
   versionId: string;
   connected: ReadonlySet<string>;
+}
+
+/** The brand a styled picture is made and finished with. */
+interface StyleBrand {
+  colours: string[];
+  /** The Project's logo, placed on every styled picture. */
+  logo: Uint8Array | null;
+}
+
+/** The brand's colours (DESIGN.md) and logo bytes, read once per run. */
+async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { logo: true, designMdUrl: true },
+  });
+  const visual = project ? await cmoBrandVisual(project, []) : null;
+  let logo: Uint8Array | null = null;
+  if (project?.logo) {
+    const response = await fetch(project.logo, {
+      signal: AbortSignal.timeout(15_000),
+    }).catch(() => null);
+    if (response?.ok) logo = new Uint8Array(await response.arrayBuffer());
+  }
+  return { colours: visual?.colors ?? [], logo };
 }
 
 /**
@@ -379,6 +496,8 @@ export async function advanceCmoMedia(
       where: { projectId, status: { in: [...LIVE] } },
     }));
   let brandPictures: { fileId: string; alt: string }[] | null = null;
+  let styleBrand: StyleBrand | null = null;
+  const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
   for (const piece of wanted) {
     const key = cmoVisualKey(piece);
     // Slides go on in order, so the next one missing is always slot
@@ -396,7 +515,16 @@ export async function advanceCmoMedia(
         ),
       );
       if (action.kind === "attach") {
-        if (inOrder) inOrder = await attach(context, drive, piece, action.job);
+        if (inOrder)
+          inOrder = await attach(
+            context,
+            drive,
+            piece,
+            action.job,
+            styled(piece) && action.job.step !== "video"
+              ? await brandFor()
+              : null,
+          );
         continue;
       }
       inOrder = false;
@@ -408,6 +536,10 @@ export async function advanceCmoMedia(
         action,
         references:
           action.step === "video" ? [] : references(piece, brandPictures),
+        colours:
+          styled(piece) && action.step !== "video"
+            ? (await brandFor()).colours
+            : [],
       });
       // A refusal (credits, the hourly limit) stops starting, never
       // attaching: finished pictures further down still go on their posts.
@@ -425,6 +557,8 @@ async function start(
     slot: number;
     action: Extract<CmoSlotAction, { kind: "start" }>;
     references: string[];
+    /** The brand's colours, for a picture in a reference library style. */
+    colours: string[];
   },
 ): Promise<boolean> {
   const { piece, slot, action } = input;
@@ -455,15 +589,30 @@ async function start(
       return true;
     }
     await ensureImageCatalogFresh();
-    const model = imageModel();
+    // A styled picture's try picks its model: the next one after a refusal.
+    const style = styled(piece) ? piece.styleReferenceId : null;
+    const model = imageModel(
+      style
+        ? REFERENCE_STYLE_MODELS[
+            (action.attempt - 1) % REFERENCE_STYLE_MODELS.length
+          ]
+        : undefined,
+    );
     await createImageJob({
       ...scope,
-      prompt: cmoImagePrompt({
-        piece,
-        slot,
-        businessName: context.cuso.businessName,
-        references: input.references.length,
-      }),
+      prompt: style
+        ? cmoStylePrompt({
+            piece,
+            slot,
+            businessName: context.cuso.businessName,
+            colours: input.colours,
+          })
+        : cmoImagePrompt({
+            piece,
+            slot,
+            businessName: context.cuso.businessName,
+            references: input.references.length,
+          }),
       modelId: model.id,
       settings: {
         ...DEFAULT_SETTINGS,
@@ -473,7 +622,8 @@ async function start(
         aspectRatio: aspectRatio(piece),
       },
       referenceAssetIds: [],
-      referenceFileIds: input.references,
+      referenceFileIds: style ? [] : input.references,
+      referenceLibraryIds: style ? [style] : [],
       parentAssetId: null,
     });
     return true;
@@ -494,11 +644,17 @@ async function start(
  */
 async function attach(
   context: MediaContext,
-  drive: { workspaceId: string; organizationId: string | null; userId: string },
+  drive: CusoDrive,
   piece: CmoMediaPiece,
   job: CmoMediaJob,
+  /** Set for a styled picture: it is checked, then gets the brand's logo. */
+  style: StyleBrand | null,
 ): Promise<boolean> {
   if (!job.assetId) return false;
+  const finished = style
+    ? await checkAndBrand(context, piece, job, style)
+    : null;
+  if (finished === "rejected") return false;
   const file = await ensureStudioAssetDriveFile({
     projectId: context.cuso.projectId,
     assetId: job.assetId,
@@ -509,6 +665,17 @@ async function attach(
     jobId: job.id,
   });
   if (!file) return false;
+  // The logo goes onto the Drive file itself, from the untouched studio
+  // picture, so finishing it again writes the same bytes.
+  if (finished && "bytes" in finished) {
+    const saved = await saveCusoProjectFile(
+      drive,
+      { pathname: file.pathname, filename: file.name },
+      finished.bytes,
+      finished.contentType,
+    );
+    if (!saved) return false;
+  }
   if (!piece.socialPostId) {
     await prisma.marketingStrategyFile.updateMany({
       where: {
@@ -563,6 +730,61 @@ async function attach(
   if (updated.media.length >= slotsOf(piece))
     await schedule(context, scope, { ...post, revision: updated.revision });
   return true;
+}
+
+/**
+ * Checks a styled picture next to its reference (headline, nothing copied,
+ * brand colours, no stray marks, room for the logo) and places the brand's
+ * logo on one that passes. A refusal marks the job, so the next model tries.
+ */
+async function checkAndBrand(
+  context: MediaContext,
+  piece: CmoMediaPiece & { styleReferenceId?: string },
+  job: CmoMediaJob,
+  style: StyleBrand,
+): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
+  const asset = await prisma.projectImageAsset.findUnique({
+    where: { id: job.assetId ?? "" },
+    select: { blobPathname: true, contentType: true },
+  });
+  const reference = piece.styleReferenceId
+    ? await readReferenceImage(piece.styleReferenceId)
+    : null;
+  if (!asset || !reference) return "rejected";
+  const picture = await readAssetBytes(asset.blobPathname);
+  const check = await checkStyledPicture({
+    picture,
+    reference: reference.bytes,
+    headline: piece.headline ?? null,
+    colours: style.colours,
+  });
+  await recordSokoBotCheckUsage({
+    sokoBotId: context.cuso.sokoBotId,
+    key: `cmo-style-check:${job.id}`,
+    costUsd: check.costUsd,
+  });
+  if (!check.passes) {
+    await prisma.projectImageJob.update({
+      where: { id: job.id },
+      data: {
+        error: `${REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
+      },
+      select: { id: true },
+    });
+    return "rejected";
+  }
+  if (!style.logo) {
+    return { bytes: Buffer.from(picture), contentType: asset.contentType };
+  }
+  const png = await renderStudioPng(picture, {
+    logo: { bytes: style.logo, position: "bottom-right" },
+  });
+  return asset.contentType === "image/png"
+    ? { bytes: png, contentType: "image/png" }
+    : {
+        bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
+        contentType: "image/jpeg",
+      };
 }
 
 /** Schedules a draft post that has all its pictures, on a connected network. */

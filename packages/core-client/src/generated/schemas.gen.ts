@@ -21795,7 +21795,10 @@ export const ProjectImageStudioCatalogModelSchema = {
                     'num_images',
                     'seed',
                     'limit_generations',
-                    'image_urls'
+                    'image_urls',
+                    'image_url',
+                    'mask_url',
+                    'strength'
                 ]
             }
         },
@@ -22046,6 +22049,14 @@ export const ProjectImageAssetSchema = {
         },
         headline: {
             $ref: '#/components/schemas/StudioAdHeadline'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
         },
         rootId: {
             type: 'string',
@@ -22340,8 +22351,21 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
@@ -29755,7 +29779,7 @@ export const QuestionAnswerRequestSchema = {
         note: {
             type: 'string',
             maxLength: 400,
-            description: 'After a no: what is true instead, in the member\'s words.'
+            description: 'The member\'s own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.'
         }
     },
     required: [
@@ -31043,6 +31067,15 @@ export const MarketingStrategySchema = {
                                             maxLength: 100
                                         },
                                         maxItems: 3
+                                    },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
                                     },
                                     slides: {
                                         type: 'array',
@@ -32488,6 +32521,15 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
                             },
                             slides: {
                                 type: 'array',
@@ -38740,6 +38782,15 @@ export const SocialPostSchema = {
                     },
                     maxItems: 3
                 },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
+                },
                 slides: {
                     type: 'array',
                     items: {
@@ -40464,6 +40515,13 @@ export const CreateProjectImageJobRequestSchema = {
         useProductCutout: {
             type: 'boolean'
         },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ]
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -40981,6 +41039,16 @@ export const ProjectSeoWorkspaceSchema = {
             anyOf: [
                 {
                     $ref: '#/components/schemas/ProjectSeoIndexStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        indexTriage: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoIndexTriage'
                 },
                 {
                     type: 'null'
@@ -41702,6 +41770,24 @@ export const ProjectSeoFindingSchema = {
                 type: 'string'
             }
         },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        relatedPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        visibility: {
+            type: 'string',
+            enum: [
+                'PRIVATE'
+            ]
+        },
         sourceRef: {
             type: 'string'
         },
@@ -41806,6 +41892,16 @@ export const ProjectSeoActionSchema = {
                 'implemented',
                 'verified'
             ]
+        },
+        completedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        verifiedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         kind: {
             type: 'string',
@@ -42488,6 +42584,91 @@ export const ProjectSeoIndexedPageSchema = {
         'lastCrawlTime',
         'googleCanonical',
         'userCanonical'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexTriageSchema = {
+    type: 'object',
+    properties: {
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessedPage'
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'assessments'
+    ]
+} as const;
+
+export const ProjectSeoIndexAssessedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        },
+        taskId: {
+            type: 'string'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence',
+        'taskId',
+        'checkedAt'
     ],
     additionalProperties: false
 } as const;
@@ -44787,6 +44968,38 @@ export const SeoConnectionStatusSchema = {
         },
         canResume: {
             type: 'boolean'
+        },
+        account: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        email: {
+                            type: 'string'
+                        },
+                        name: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        pictureUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'email',
+                        'name',
+                        'pictureUrl'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         connectionVersion: {
             type: 'string',
@@ -47098,11 +47311,11 @@ export const CmoOverviewSchema = {
             enum: [
                 'brandBrain',
                 'strategy',
-                'accounts',
                 'checkout',
+                'accounts',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
@@ -50886,6 +51099,15 @@ export const CmoPlanSchema = {
                             maxLength: 100
                         },
                         maxItems: 3
+                    },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
                     },
                     slides: {
                         type: 'array',
@@ -55803,6 +56025,384 @@ export const TaskSellerReceiptSchema = {
     ]
 } as const;
 
+export const SeoTaskIndexingReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        assessmentSaved: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'available',
+                'not_connected',
+                'needs_property',
+                'unavailable'
+            ]
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SeoTaskIndexedPage'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash',
+        'checkedAt',
+        'status',
+        'pages'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'PASS',
+                'PARTIAL',
+                'FAIL',
+                'NEUTRAL',
+                'VERDICT_UNSPECIFIED'
+            ]
+        },
+        coverageState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        robotsTxtState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        lastCrawlTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        googleCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        userCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        pageFetchState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        }
+    },
+    required: [
+        'pageUrl',
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical',
+        'indexingState',
+        'pageFetchState'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'expectedContext'
+    ],
+    additionalProperties: false
+} as const;
+
+export const TaskWorkerContextSchema = {
+    type: 'object',
+    properties: {
+        ownerId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 128
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'ownerId',
+        'organizationId',
+        'workspaceId'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultAcknowledgmentSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessment'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'receiptHash',
+        'assessments'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexAssessmentSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        inspectionPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'auditPageUrl',
+        'inspectionPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        seedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        relatedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'seedPageUrls',
+        'relatedPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SendTaskToChatRequestSchema = {
     type: 'object',
     properties: {
@@ -56037,35 +56637,6 @@ export const MasumiTaskPaymentSourceSchema = {
         'smartContractAddress',
         'policyId'
     ]
-} as const;
-
-export const TaskWorkerContextSchema = {
-    type: 'object',
-    properties: {
-        ownerId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 128
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            maxLength: 128
-        },
-        workspaceId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'ownerId',
-        'organizationId',
-        'workspaceId'
-    ],
-    additionalProperties: false
 } as const;
 
 export const TaskFilesSchema = {

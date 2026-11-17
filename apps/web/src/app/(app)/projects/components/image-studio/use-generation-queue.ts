@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { startImageGeneration } from "@/lib/actions/image-studio/action";
 
-import type { StudioSettings } from "./types";
+import type { StudioJob, StudioSettings } from "./types";
 
 /**
  * Bulk creation against a provider cap the browser does not get to raise.
@@ -53,6 +53,7 @@ export interface QueuedGeneration {
   product?: StudioProductIdentity;
   batchId?: string;
   exportHeadline?: string;
+  lettering?: StudioJob["lettering"];
   useProductCutout?: boolean;
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
@@ -198,6 +199,7 @@ export function useGenerationQueue({
           ...(next.exportHeadline
             ? { exportHeadline: next.exportHeadline }
             : {}),
+          ...(next.lettering ? { lettering: next.lettering } : {}),
           ...(next.useProductCutout ? { useProductCutout: true } : {}),
           referenceAssetIds: next.referenceAssetIds,
           ...(next.referenceFileIds?.length

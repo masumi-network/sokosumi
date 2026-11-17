@@ -168,6 +168,8 @@ function renderRow(row: RoomTranscriptRenderRow) {
  * here from fixed heights; the list container reports where it sits relative
  * to the scroller's top edge, so the viewport's margin math holds; and
  * ResizeObserver is recorded so a test can announce a scroller resize.
+ * A smooth scrollTo lands on the faked clock: happy-dom lands it on its own
+ * real timer, which `settle` does not wait for when the machine is slow.
  */
 const shimmed = ["offsetHeight", "clientHeight", "scrollHeight"] as const;
 const originalDescriptors = shimmed.map(
@@ -178,6 +180,7 @@ const originalDescriptors = shimmed.map(
     ] as const,
 );
 const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+const originalScrollTo = Element.prototype.scrollTo;
 const originalResizeObserver = window.ResizeObserver;
 
 beforeAll(() => {
@@ -223,6 +226,20 @@ beforeAll(() => {
     }
     return rect;
   };
+  Element.prototype.scrollTo = function (
+    this: Element,
+    options?: ScrollToOptions,
+  ) {
+    if (options?.behavior === "smooth") {
+      setTimeout(() =>
+        Reflect.apply(originalScrollTo, this, [
+          { ...options, behavior: "instant" },
+        ]),
+      );
+      return;
+    }
+    Reflect.apply(originalScrollTo, this, [options]);
+  } as Element["scrollTo"];
   // On the scroller's own window: the virtualizer reads it from there, not
   // from the test's globals.
   window.ResizeObserver = RecordingResizeObserver;
@@ -237,6 +254,7 @@ afterAll(() => {
     }
   }
   Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  Element.prototype.scrollTo = originalScrollTo;
   window.ResizeObserver = originalResizeObserver;
 });
 

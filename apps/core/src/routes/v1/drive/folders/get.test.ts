@@ -34,6 +34,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGet from "./get.js";
 
@@ -80,6 +81,7 @@ describe("GET /v1/drive/folders", () => {
   });
 
   it("keeps the catalog's folders when storage is unavailable", async () => {
+    expectConsole("warn", "[drive] folder markers unavailable");
     queryRawMock.mockResolvedValue([{ folder: "Media" }]);
     listMock.mockRejectedValue(new Error("down"));
     const response = await app().request("/?scope=org&organizationId=org_1");

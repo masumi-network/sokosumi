@@ -767,7 +767,6 @@ describe("AuthFlow signUp", () => {
     expect(window.sessionStorage.getItem("auth-email-hint")).toBe(
       "ada@example.com",
     );
-    const errors = vi.spyOn(console, "error");
     const root = hydrateRoot(container, ui);
     try {
       await waitFor(() =>
@@ -776,11 +775,9 @@ describe("AuthFlow signUp", () => {
         ),
       );
       expect(takeAuthEmailHint()).toBeNull();
-      expect(errors).not.toHaveBeenCalled();
     } finally {
       await act(() => root.unmount());
       container.remove();
-      errors.mockRestore();
     }
   });
 

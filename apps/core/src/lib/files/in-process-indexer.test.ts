@@ -25,6 +25,7 @@ vi.mock("@/services/file-table-index.service", () => ({
   processStaleTableIndexes: (input: unknown) => processStaleTableIndexes(input),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   nudgeFileExtraction,
   nudgeFileIndexing,
@@ -109,6 +110,7 @@ describe("the in-process nudge", () => {
   });
 
   it("keeps the table failure separate from the other two", async () => {
+    expectConsole("warn", "[files] in-process table nudge failed");
     // A table that will not index must not read as extraction or
     // labelling having done nothing.
     processStaleTableIndexes.mockRejectedValue(new Error("table gone"));
@@ -193,6 +195,7 @@ describe("a read path does not buy label evaluations", () => {
   });
 
   it("is still bounded, and still cannot reject", async () => {
+    expectConsole("warn", "[files] in-process indexing nudge failed");
     processFileIndexJobs.mockRejectedValue(new Error("object store down"));
 
     // Handed to `waitUntil`, so a rejection here is a rejection in the
@@ -304,6 +307,7 @@ describe("only write paths may buy label evaluations", () => {
 
 describe("neither half can take down the request that triggered it", () => {
   it("still labels when extraction throws", async () => {
+    expectConsole("warn", "[files] in-process indexing nudge failed");
     processFileIndexJobs.mockRejectedValue(new Error("object store down"));
 
     const result = await runIndexingNudge();
@@ -320,6 +324,7 @@ describe("neither half can take down the request that triggered it", () => {
   });
 
   it("still reports extraction when labelling throws", async () => {
+    expectConsole("warn", "[files] in-process suggestion nudge failed");
     processFileSuggestionJobs.mockRejectedValue(new Error("provider down"));
 
     const result = await runIndexingNudge();
@@ -344,6 +349,8 @@ describe("neither half can take down the request that triggered it", () => {
   });
 
   it("never rejects, whatever both halves do", async () => {
+    expectConsole("warn", "[files] in-process indexing nudge failed");
+    expectConsole("warn", "[files] in-process suggestion nudge failed");
     processFileIndexJobs.mockRejectedValue(new Error("a"));
     processFileSuggestionJobs.mockRejectedValue(new Error("b"));
 

@@ -1,10 +1,14 @@
 import type { TaskEvent } from "@sokosumi/core-client";
 import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
+
+const HAPPY_DOM_SUBMITTER_ERROR =
+  "DOMException [NotFoundError]: The specified element is not owned by this form element";
 
 const {
   uploadTaskAttachmentMock,
@@ -1324,6 +1328,10 @@ describe("TaskActivitySection", () => {
     });
 
     it("does not send the viewer when they @ themselves", async () => {
+      // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+      // so React's new FormData(form, submitter) throws.
+      // https://github.com/capricorn86/happy-dom/issues/2438
+      expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
       createTaskCommentMock.mockResolvedValue(undefined);
       render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
 
@@ -1342,6 +1350,10 @@ describe("TaskActivitySection", () => {
     });
 
     it("sends mentioned workspace members with the comment", async () => {
+      // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+      // so React's new FormData(form, submitter) throws.
+      // https://github.com/capricorn86/happy-dom/issues/2438
+      expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
       createTaskCommentMock.mockResolvedValue(undefined);
       render(
         <TaskActivitySection
@@ -1368,6 +1380,10 @@ describe("TaskActivitySection", () => {
     });
 
     it("does not send human mentions when mentionableUsers is empty", async () => {
+      // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+      // so React's new FormData(form, submitter) throws.
+      // https://github.com/capricorn86/happy-dom/issues/2438
+      expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
       createTaskCommentMock.mockResolvedValue(undefined);
       render(
         <TaskActivitySection
@@ -1716,10 +1732,13 @@ describe("TaskActivitySection", () => {
   });
 
   it("jumps to an optimistic comment before refresh", async () => {
+    // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+    // so React's new FormData(form, submitter) throws.
+    // https://github.com/capricorn86/happy-dom/issues/2438
+    expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
     highlightListMessageMock.mockReturnValue(true);
-    createTaskCommentMock.mockImplementation(
-      () => new Promise(() => undefined),
-    );
+    const sent = Promise.withResolvers<void>();
+    createTaskCommentMock.mockReturnValue(sent.promise);
 
     render(<TaskActivitySection {...baseProps} latestCommentId="c-old" />);
 
@@ -1739,9 +1758,15 @@ describe("TaskActivitySection", () => {
     expect(highlightListMessageMock).toHaveBeenCalled();
     const targetId = highlightListMessageMock.mock.calls.at(-1)?.[1];
     expect(String(targetId)).toMatch(/^optimistic:/);
+    // A send left pending holds every later transition in this worker.
+    await act(async () => sent.resolve());
   });
 
   it("restores the draft when the comment fails to send", async () => {
+    // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+    // so React's new FormData(form, submitter) throws.
+    // https://github.com/capricorn86/happy-dom/issues/2438
+    expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
     createTaskCommentMock.mockRejectedValue(new Error("offline"));
     const { container } = render(<TaskActivitySection {...baseProps} />);
 
@@ -1760,6 +1785,10 @@ describe("TaskActivitySection", () => {
   });
 
   it("merges text typed during a failed send with the restored draft", async () => {
+    // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+    // so React's new FormData(form, submitter) throws.
+    // https://github.com/capricorn86/happy-dom/issues/2438
+    expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
     let rejectSend!: (error: Error) => void;
     createTaskCommentMock.mockImplementation(
       () =>

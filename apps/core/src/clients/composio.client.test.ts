@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { ConnectedSocialIdentity } from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
@@ -911,10 +911,13 @@ describe("getConnectedSocialIdentity", () => {
   ];
 
   function stubIdentity(payload: unknown) {
+    // Session, identity tool, session delete. LinkedIn also asks userinfo for
+    // a photo before the delete, so it takes the fourth answer.
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
       .mockResolvedValueOnce(Response.json(payload))
+      .mockResolvedValueOnce(Response.json({}))
       .mockResolvedValueOnce(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
@@ -1257,7 +1260,7 @@ describe("getConnectedSocialIdentity", () => {
     });
 
     it("keeps the identity without a photo when userinfo is refused", async () => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const info = vi.spyOn(console, "info");
       stubLinkedIn(
         meProfile,
         Response.json({ data: null, error: "forbidden", successful: false }),
@@ -1275,8 +1278,11 @@ describe("getConnectedSocialIdentity", () => {
         displayName: "Alice Doe",
         avatarUrl: null,
       });
-      expect(JSON.stringify(warn.mock.calls)).not.toContain("licdn");
-      warn.mockRestore();
+      expect(info).toHaveBeenCalledWith(
+        "[composio] LinkedIn identity has no photo",
+        expect.objectContaining({ profileKeys: expect.any(Array) }),
+      );
+      expect(JSON.stringify(info.mock.calls)).not.toContain("licdn");
     });
 
     it("ignores a non-https photo value", async () => {
@@ -1316,7 +1322,10 @@ describe("getConnectedSocialIdentity", () => {
         Response.json({ data: { data: [{ id: "page_123", name: "Alice" }] } }),
       )
       .mockRejectedValueOnce(new Error("private-token private-session-url"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = expectConsole(
+      "warn",
+      "[composio] delete Project Facebook identity session failed",
+    );
     const { getConnectedSocialIdentity } = await import("./composio.client");
     await expect(
       getConnectedSocialIdentity({
@@ -1325,10 +1334,9 @@ describe("getConnectedSocialIdentity", () => {
         executorUserId: input.executorUserId,
       }),
     ).resolves.toMatchObject({ id: "page_123", handle: "Alice" });
-    expect(warn).toHaveBeenCalledWith(
+    expect(warn).toContainEqual([
       "[composio] delete Project Facebook identity session failed",
-    );
-    warn.mockRestore();
+    ]);
   });
 
   it("sanitizes execute transport failures and deletes the identity session", async () => {

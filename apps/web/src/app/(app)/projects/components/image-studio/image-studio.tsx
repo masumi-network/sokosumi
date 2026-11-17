@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 
 import {
   clampToModel,
-  curatedModels,
+  defaultVideoModel,
   modelById,
   modelIdForRepeat,
   resolveModel,
@@ -88,6 +88,7 @@ import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
+import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { StudioModelScoreboard } from "./studio-model-scoreboard";
@@ -95,6 +96,7 @@ import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
 import {
+  carryVideoSettings,
   StudioModeSwitch,
   StudioVideoComposer,
   type StudioVideoDraft,
@@ -303,11 +305,28 @@ export function ImageStudio({
   const [videoDraft, setVideoDraft] = useState<StudioVideoDraft | null>(null);
   const [videoBusy, startVideoTransition] = useTransition();
   const videoModels = videoModelsFor(catalog, videoSource ? "image" : "text");
+  const automaticVideoModel = defaultVideoModel(
+    catalog,
+    videoSource ? "image" : "text",
+  );
   const activeVideoDraft =
-    videoDraft && videoModels.some((model) => model.id === videoDraft.modelId)
+    videoDraft &&
+    videoDraft.modelSelection !== "auto" &&
+    videoModels.some((model) => model.id === videoDraft.modelId)
       ? videoDraft
-      : videoModels[0]
-        ? videoDraftFor(videoModels[0])
+      : automaticVideoModel
+        ? {
+            ...videoDraftFor(automaticVideoModel),
+            ...(videoDraft?.modelSelection === "auto"
+              ? {
+                  settings: carryVideoSettings(
+                    automaticVideoModel,
+                    videoDraft.settings,
+                  ),
+                }
+              : {}),
+            modelSelection: "auto" as const,
+          }
         : null;
 
   const [target, setTarget] = useState<StudioTarget>(() => {
@@ -315,8 +334,11 @@ export function ImageStudio({
     // of them can be unselected, the rest of the catalog can be added, and
     // bulk selection is bounded by the 12-image purchase ceiling. Nothing
     // below treats these five as special after this line.
+    // Auto supersedes that opening shortlist: no models are pinned until a
+    // person selects one in Advanced, and the direct path resolves Gemini Pro.
     return {
-      modelIds: curatedModels(catalog).map((model) => model.id),
+      modelIds: [],
+      modelSelection: "auto",
       settings: {
         aspectRatio: "1:1",
         resolution: "1K",
@@ -325,6 +347,11 @@ export function ImageStudio({
       },
     };
   });
+
+  const pinnedModel =
+    target.modelSelection === "auto"
+      ? null
+      : modelById(catalog, target.modelIds[0]);
 
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
@@ -590,6 +617,7 @@ export function ImageStudio({
   }
 
   function changeHeadline(asset: StudioAsset, text: string) {
+    if (!usesExactFontOverlay(asset, state.jobs)) return;
     if (headlineSaveInProgress.current || downloadingAds) return;
     headlineSaveInProgress.current = true;
     startHeadlineSave(async () => {
@@ -614,7 +642,10 @@ export function ImageStudio({
     logo?: StudioLogoPosition,
   ) {
     const reviewedAssets = assets.flatMap((asset) => {
-      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      const text =
+        isVideoAsset(asset) || !usesExactFontOverlay(asset, state.jobs)
+          ? ""
+          : headlineForAsset(asset);
       return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
     });
     const reviewedProjects = [
@@ -641,8 +672,9 @@ export function ImageStudio({
           assets,
           logo,
           Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+          state.jobs,
         )
-      : await createStudioAdArchive(assets, logo);
+      : await createStudioAdArchive(assets, logo, undefined, state.jobs);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
       filename,
@@ -780,6 +812,20 @@ export function ImageStudio({
     if (refuseUnfilledSlots([source.prompt], source)) return;
     const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
+    const sourceJob =
+      job ??
+      state.jobs.find(
+        (candidate) => candidate.id === (source as StudioAsset).jobId,
+      );
+    const modelId = modelIdForRepeat(catalog, source.model) ?? "";
+    const letteringEdit =
+      source.lettering === "ideogram" && modelId === "ideogram-v3";
+    const exportHeadline =
+      from === "job"
+        ? job?.exportHeadline
+        : source.lettering === "ideogram"
+          ? headlineForAsset(source as StudioAsset) || sourceJob?.exportHeadline
+          : undefined;
     const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
     const request: QueuedGeneration = {
       id,
@@ -794,24 +840,35 @@ export function ImageStudio({
       ...(job?.variationIndex !== undefined
         ? { variationIndex: job.variationIndex }
         : {}),
-      modelId: modelIdForRepeat(catalog, source.model) ?? "",
+      modelId,
       modelLabel: source.model,
       // A re-roll is a fresh draw of the same brief: no seed, or the model
       // would hand back the picture it already made.
       settings: reroll
         ? { ...settingsOf(source), seed: null }
         : settingsOf(source),
-      parentAssetId: reroll
-        ? null
-        : from === "asset"
-          ? (source as StudioAsset).id
-          : (source as StudioJob).parentAssetId,
-      referenceAssetIds: reroll
-        ? []
-        : from === "asset"
-          ? [(source as StudioAsset).id]
-          : (source as StudioJob).referenceAssetIds,
+      parentAssetId:
+        reroll && !letteringEdit
+          ? null
+          : from === "asset"
+            ? letteringEdit
+              ? ((source as StudioAsset).parentId ?? (source as StudioAsset).id)
+              : (source as StudioAsset).id
+            : (source as StudioJob).parentAssetId,
+      referenceAssetIds:
+        reroll && !letteringEdit
+          ? []
+          : from === "asset"
+            ? [
+                letteringEdit
+                  ? ((source as StudioAsset).parentId ??
+                    (source as StudioAsset).id)
+                  : (source as StudioAsset).id,
+              ]
+            : (source as StudioJob).referenceAssetIds,
       ...(source.product ? { product: source.product } : {}),
+      ...(source.lettering ? { lettering: source.lettering } : {}),
+      ...(exportHeadline ? { exportHeadline } : {}),
       ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
         ? { referenceFileIds: job.referenceFileIds }
         : {}),
@@ -1461,8 +1518,10 @@ export function ImageStudio({
                       setTarget({
                         templateId: request.templateId,
                         modelIds: [request.modelId],
+                        modelSelection: undefined,
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
+                        lettering: request.lettering,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {
@@ -1604,6 +1663,7 @@ export function ImageStudio({
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
           assets={lightboxAssets}
+          jobs={state.jobs}
           onRate={readOnly ? undefined : handleRate}
           onHide={readOnly ? undefined : handleHide}
           onViewed={handleViewed}
@@ -1799,6 +1859,12 @@ export function ImageStudio({
             onSelectResult={(asset) => setAssistant({ open: true, asset })}
             projectId={activeProjectId}
             selectedAsset={assistant.asset}
+            studioModelId={pinnedModel?.id ?? null}
+            studioSettings={
+              pinnedModel
+                ? clampToModel(pinnedModel, target.settings)
+                : target.settings
+            }
           />
         </aside>
       ) : null}

@@ -21,7 +21,19 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/clients/polar.client", () => ({
   createPolarCheckout: m.createPolarCheckout,
+  ensurePolarOrganizationCustomer: async () => "cus_org_1",
   listPolarProducts: m.listPolarProducts,
+  updatePolarCustomerBilling: async () => undefined,
+}));
+vi.mock("@/services/stripe-customer-billing.service", () => ({
+  stripeCustomerBillingService: {
+    getOrganizationBillingDetailsById: async () => ({
+      stripeCustomerId: null,
+      email: null,
+      address: null,
+      taxIds: [],
+    }),
+  },
 }));
 
 const PROJECT = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
@@ -40,6 +52,8 @@ vi.mock("@/lib/db/prisma", () => ({
           : null,
     },
     member: { findFirst: m.member },
+    organization: { findUnique: async () => ({ name: "Acme Inc" }) },
+    user: { findUnique: async () => ({ email: "payer@acme.io" }) },
     workspace: { findUnique: async () => ({ organizationId: "org-1" }) },
     sokoBot: {
       findFirst: async () => ({
@@ -140,7 +154,8 @@ describe("POST /v1/cmo/projects/{projectId}/top-up", () => {
         "prod_top_up_10000",
         "prod_top_up_25000",
       ],
-      organizationId: "org-1",
+      customerId: "cus_org_1",
+      customerEmail: "payer@acme.io",
       metadata: {
         projectId: PROJECT,
         organizationId: "org-1",
@@ -150,6 +165,7 @@ describe("POST /v1/cmo/projects/{projectId}/top-up", () => {
       returnUrl: "https://cmo.xyz/?project=p",
       // No success marker: back from Polar lands where the top-up started.
       backUrl: "https://cmo.xyz/?project=p",
+      allowDiscountCodes: false,
     });
   });
 

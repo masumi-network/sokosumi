@@ -60,7 +60,9 @@ The live tree is `apps/core/src/`.
 | `services/`                                          | Longer-lived / legacy service modules                                                       |
 | `middleware/`                                        | Auth, org, workspace, coworker context                                                      |
 
-**OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`.
+**OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`. Hook and preview gotchas: [`docs/agents/auth.md`](../../docs/agents/auth.md).
+
+**CMO Projects are read-only** ([ADR 0066](../../docs/adr/0066-cmo-projects-are-read-only-in-sokosumi.md)): a new Project-scoped write route outside `/v1/cmo/**` applies the lock (a path the matcher in `routes/v1/projects/cmo-project-lock.ts` covers, or a direct `requireNotCmoProject` call listed in `DIRECT_LOCKED` in `routes/v1/cmo-lock-responses.openapi.test.ts`) and declares the 409 `cmo_project_read_only` in its OpenAPI. That test checks only the routes it knows, so a route missing from both passes green while CMO Projects stay writable through it.
 
 Email rendering lives in `@sokosumi/email`, not under Core `lib/email` or `locales/`.
 
@@ -303,6 +305,16 @@ Before adding, changing, or removing a `/v1` route (new route files, OpenAPI def
 Place `foo.test.ts` next to `foo.ts` (route handlers: `post.test.ts` beside `post.ts`). Use `__tests__/` only for tests that do not map 1:1 to a source file.
 
 Environment variables required by Vitest (or by code under test) must be set in **`src/test/setup.ts`**. Add new keys to the `envDefaults` object there so tests run with predictable values and without relying on `.env`. Do not add test-only env vars to `.env.example`; keep them in the test setup.
+
+The `unit` Vitest project runs with `isolate: false` and files in random order (`vitest.config.ts`); the `integration` project (`*.integration.test.ts`, real databases when their env is set) keeps per-file isolation. A unit worker runs many files in one process: `src/test/reset-per-file.ts` re-evaluates Core's modules and mock factories for each file, and at the end of each file restores real timers, unstubs globals and env, and puts evlog's `initLogger` config back to a fresh process's. Vitest restores `vi.spyOn` mocks. What it cannot undo is yours to clean up:
+
+- **Await background work.** Code that hands a promise to `waitUntil` or starts it without `await` keeps running after the test. If it imports a module, that import can finish inside the next file, without that file's mocks, and a random later file fails. Mock `waitUntil` to collect the promises and await them in `afterEach` (`src/services/soko-bot-integration-connection.service.test.ts`), or mock the background service.
+- **Restore process-wide state yourself** when a later test in the same file depends on it: `process.env` written directly, `globalThis` properties set without `vi.stubGlobal`, listeners on `process`, fake timers.
+- **No state in an external package.** Packages under `node_modules` load once per worker and keep their state across files (a client cached by an SDK, a global registry). Reset what you configure; evlog is already handled.
+
+**No unexpected console output.** `src/test/setup.ts` fails a test that writes a `console.error` or `console.warn` it did not declare, and a test that gives either a mock implementation (`vi.spyOn(console, "warn").mockImplementation(…)`), even one restored before the test ends. `console.log` stays allowed. Such output means the test ran something other than production, so fix its cause: a Prisma mock missing a model or method, a fixture production would reject (a row without a required column, bytes that are not an image), a client reaching a real service, a mock with the wrong signature. Only a test whose subject is that error path declares it, with `expectConsole(method, start, times = 1)` from `@sokosumi/utils/test-console`: the message must start with `start` and come exactly `times` times, and the return value holds the matched calls' arguments, so assert the reason or error on them. A library logger that prints a timestamp first takes a `^`-anchored RegExp, matched without terminal colors. Production code on a normal path does not warn: detail of a request belongs on its wide event (`tryUseLogger()?.set(…)`), but work in `waitUntil` runs after that event is emitted, so a routine note there is `console.info`. evlog prints its own events through `console[level]` too, so moving a log there is not a way to quiet a test.
+
+A failure that comes and goes with the order: the log prints `Running tests with seed "<seed>"`. Replay it with `pnpm --filter core test --sequence.seed=<seed>`; add `--maxWorkers=1` to make the whole order deterministic. `--detectAsyncLeaks` names files that leave work running. A run that selects an opt-in PostgreSQL or integration file keeps per-file isolation and its file order.
 
 ## Core API Gotchas
 

@@ -658,7 +658,11 @@ export function SeoFoldSummary({
 }
 
 const SEO_ROW_CONTROL_CLASS =
-  "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2";
+  "group/row press focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2";
+
+/** The arrow at the end of a row: it moves a little toward its target while the pointer is on the row. */
+export const SEO_ROW_ARROW_CLASS =
+  "text-muted-foreground size-4 shrink-0 motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out motion-safe:group-hover/row:translate-x-0.5";
 
 /** A row that is one button: the whole row opens its target, and an arrow at its end says so. */
 export const SEO_ROW_BUTTON_CLASS = cn(
@@ -685,7 +689,7 @@ export function SeoNextStepRow({
       onClick={onClick}
     >
       <span className="min-w-0 flex-1 font-medium">{children}</span>
-      <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+      <ChevronRight className={SEO_ROW_ARROW_CLASS} />
     </button>
   );
 }

@@ -116,7 +116,6 @@ function ChatActions({
         <SeoConnectionButton
           key={`${action.provider}:${index}`}
           provider={action.provider}
-          inRow
           onConnected={() => {
             void model.result.refetch();
           }}
