@@ -78,7 +78,10 @@ describe("getSocialReconnections", () => {
     ]);
   });
   it.each([
-    { lastError: "Social connection needs reconnecting" },
+    {
+      lastError: "Social connection needs reconnecting",
+      connectionNeedsReconnect: true,
+    },
     {
       lastAttempt: {
         attempt: 1,
@@ -192,6 +195,19 @@ describe("getSocialReconnections", () => {
       getSocialReconnections(
         [{ ...connection, connectedAt: new Date("2026-10-02") }],
         [post({ connectionNeedsReconnect: true })],
+      ),
+    ).toEqual([]);
+  });
+  it("does not blame a healthy account for a post that failed on a retired one", () => {
+    // Core moved this post off a disconnected row after it failed there.
+    const movedOver = post({
+      lastError: "Social connection needs reconnecting",
+      lastAttemptAt: new Date("2026-10-03"),
+    });
+    expect(
+      getSocialReconnections(
+        [{ ...connection, connectedAt: new Date("2026-10-02") }],
+        [movedOver],
       ),
     ).toEqual([]);
   });

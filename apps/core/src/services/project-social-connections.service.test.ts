@@ -1729,7 +1729,10 @@ describe("project social connections service", () => {
         socialConnectionId: SOCIAL_CONNECTION_ID,
         status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       },
-      data: { socialConnectionId: SOCIAL_CONNECTION_ID },
+      data: {
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        revision: { increment: 1 },
+      },
     });
   });
 
@@ -1772,7 +1775,10 @@ describe("project social connections service", () => {
         socialConnectionId: SOCIAL_CONNECTION_ID,
         status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       },
-      data: { socialConnectionId: replacementId },
+      data: {
+        socialConnectionId: replacementId,
+        revision: { increment: 1 },
+      },
     });
 
     socialPostUpdateManyMock.mockClear();
@@ -1789,7 +1795,10 @@ describe("project social connections service", () => {
         socialConnectionId: SOCIAL_CONNECTION_ID,
         status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
       },
-      data: { socialConnectionId: replacementId },
+      data: {
+        socialConnectionId: replacementId,
+        revision: { increment: 1 },
+      },
     });
   });
 

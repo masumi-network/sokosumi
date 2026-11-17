@@ -597,7 +597,10 @@ export async function finalizeProjectSocialConnection(
               socialConnectionId: target.id,
               status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
             },
-            data: { socialConnectionId: connection.id },
+            data: {
+              socialConnectionId: connection.id,
+              revision: { increment: 1 },
+            },
           });
         }
       }
