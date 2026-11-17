@@ -1,11 +1,10 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { signJWT, symmetricDecrypt } from "better-auth/crypto";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
-import { expectCoreLog } from "@/test/core-log";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import { auth } from "./auth";
 import {
   accountOptions,
@@ -218,7 +217,14 @@ describe("social provider options", () => {
   });
 
   it("falls back when social profile mapping fails", async () => {
-    expectConsole("error", "Failed to map profile to user");
+    const errors = expectCoreLogWhys(
+      "error",
+      "Signed a user in without their profile picture",
+      [
+        "Fetching or storing the provider's profile picture failed or timed out",
+      ],
+      ["upload failed"],
+    );
     uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
 
     await expect(
@@ -232,6 +238,10 @@ describe("social provider options", () => {
       emailVerified: true,
     });
     expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
+    expect(errors[0]?.event).toMatchObject({
+      profilePicture: { kind: "data-uri", length: 29 },
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Andreas");
   });
 });
 

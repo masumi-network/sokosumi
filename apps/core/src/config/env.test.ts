@@ -1,7 +1,8 @@
 import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import {
+  invalidVariables,
   isExplicitPreprod,
   resolveWebRelatedProjectFallbackHost,
   validateEnv,
@@ -27,15 +28,17 @@ function setSokoBotEnv(
 
 function expectInvalidEnvironment(
   message: string,
-  start = "❌ Invalid environment variables",
+  start = "Core cannot start, because environment variables are invalid",
 ) {
-  const errors = expectConsole("error", start);
+  const errors = expectCoreLog("error", start);
   vi.spyOn(process, "exit").mockImplementation((code) => {
     throw new Error(`process.exit(${code})`);
   });
 
   expect(() => validateEnv()).toThrow("process.exit(1)");
-  expect(JSON.stringify(errors)).toContain(message);
+  // The event names the variable, or says what is wrong with it.
+  expect(JSON.stringify(errors.map((entry) => entry.event))).toContain(message);
+  return errors;
 }
 
 afterEach(() => {
@@ -291,6 +294,72 @@ describe("Soko Bot deployment environment", () => {
   });
 });
 
+describe("invalid environment event", () => {
+  it("drops a message that quotes the variable's value", () => {
+    // Zod 4's own messages never quote the input; a refinement's can.
+    expect(
+      invalidVariables(
+        [
+          {
+            code: "custom",
+            path: ["SEO_ANALYSIS_EXECUTOR"],
+            message: 'rejected {"coworkerId":"seo-private-42"}',
+            input: undefined,
+          },
+          {
+            code: "too_small",
+            path: ["OAUTH_PROXY_SECRET"],
+            message: "Too small: expected string to have >=32 characters",
+            minimum: 32,
+            origin: "string",
+            input: undefined,
+          },
+        ],
+        {
+          SEO_ANALYSIS_EXECUTOR: '{"coworkerId":"seo-private-42"}',
+          OAUTH_PROXY_SECRET: "short",
+        },
+      ),
+    ).toEqual([
+      {
+        variable: "SEO_ANALYSIS_EXECUTOR",
+        path: "SEO_ANALYSIS_EXECUTOR",
+        code: "custom",
+      },
+      {
+        variable: "OAUTH_PROXY_SECRET",
+        path: "OAUTH_PROXY_SECRET",
+        code: "too_small",
+        message: "Too small: expected string to have >=32 characters",
+      },
+    ]);
+  });
+
+  it("names the variable and what is wrong, never its value", () => {
+    vi.stubEnv("OPENROUTER_DEFAULT_API_KEY", "sk-live-private-key-0042");
+    vi.stubEnv("OAUTH_PROXY_SECRET", "too-short-private-secret");
+
+    const errors = expectInvalidEnvironment("OPENROUTER_DEFAULT_API_KEY");
+
+    expect(errors[0]?.fix).toContain("invalidVariables");
+    expect(errors[0]?.event.invalidVariables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          variable: "OPENROUTER_DEFAULT_API_KEY",
+          code: "invalid_format",
+        }),
+        expect.objectContaining({
+          variable: "OAUTH_PROXY_SECRET",
+          code: "too_small",
+        }),
+      ]),
+    );
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("sk-live-private-key");
+    expect(drained).not.toContain("too-short-private-secret");
+  });
+});
+
 describe("Newsletter environment", () => {
   it("allows an omitted webhook secret", () => {
     vi.stubEnv("RESEND_NEWSLETTER_WEBHOOK_SECRET", undefined);
@@ -364,10 +433,22 @@ describe("CMO hire allowlist", () => {
 });
 
 describe("Turnstile deployment configuration", () => {
-  const UNSET_WARNING =
-    "TURNSTILE_SECRET_KEY is unset in a deployed environment";
-  const TEST_SECRET_WARNING =
-    "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview";
+  const expectUnsetWarning = () =>
+    expectCoreLogWhys(
+      "warn",
+      "Turnstile captcha verification is off in a deployed environment",
+      [
+        "TURNSTILE_SECRET_KEY is unset, so the auth email endpoints are unprotected from spam",
+      ],
+    );
+  const expectTestSecretWarning = () =>
+    expectCoreLogWhys(
+      "warn",
+      "Turnstile accepts every captcha token in this preview",
+      [
+        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret, so captcha verification accepts every token, including forged ones",
+      ],
+    );
 
   beforeEach(() => {
     vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
@@ -377,7 +458,7 @@ describe("Turnstile deployment configuration", () => {
     "allows an omitted secret in Node %s",
     (nodeEnv) => {
       // Only production counts as deployed here.
-      if (nodeEnv === "production") expectConsole("warn", UNSET_WARNING);
+      if (nodeEnv === "production") expectUnsetWarning();
       vi.stubEnv("NODE_ENV", nodeEnv);
       vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
       expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
@@ -386,7 +467,7 @@ describe("Turnstile deployment configuration", () => {
   it.each(["production", "preview"])(
     "allows an omitted secret on Vercel %s",
     (vercelEnv) => {
-      expectConsole("warn", UNSET_WARNING);
+      expectUnsetWarning();
       vi.stubEnv("VERCEL_ENV", vercelEnv);
       vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
       expect(validateEnv().TURNSTILE_SECRET_KEY).toBeUndefined();
@@ -398,13 +479,17 @@ describe("Turnstile deployment configuration", () => {
   });
 
   it("warns when the secret is omitted in a deployed environment", () => {
-    const warnings = expectConsole("warn", UNSET_WARNING);
+    const warnings = expectUnsetWarning();
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("TURNSTILE_SECRET_KEY", undefined);
 
     validateEnv();
 
-    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.fix).toContain("Set TURNSTILE_SECRET_KEY");
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "env_validation",
+      envVariable: "TURNSTILE_SECRET_KEY",
+    });
   });
 
   it("refuses to boot production with the always-passes test secret", () => {
@@ -416,7 +501,7 @@ describe("Turnstile deployment configuration", () => {
 
     expectInvalidEnvironment(
       "always-passes testing secret",
-      "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret",
+      "Core cannot start in production with Turnstile's testing secret",
     );
   });
 
@@ -426,12 +511,12 @@ describe("Turnstile deployment configuration", () => {
 
     expectInvalidEnvironment(
       "always-passes testing secret",
-      "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret",
+      "Core cannot start in production with Turnstile's testing secret",
     );
   });
 
   it("warns but boots on a preview holding the always-passes test secret", () => {
-    const warnings = expectConsole("warn", TEST_SECRET_WARNING);
+    const warnings = expectTestSecretWarning();
     // Previews are throwaway, and a test key there is what lets an agent drive
     // the sign-in form without answering a human check. Failing would close
     // that door along with the hole.
@@ -441,7 +526,9 @@ describe("Turnstile deployment configuration", () => {
     expect(validateEnv().TURNSTILE_SECRET_KEY).toBe(
       TURNSTILE_ALWAYS_PASS_SECRET,
     );
-    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.event).toMatchObject({
+      envVariable: "TURNSTILE_SECRET_KEY",
+    });
   });
 
   /**
@@ -453,7 +540,7 @@ describe("Turnstile deployment configuration", () => {
    * leaves NODE_ENV alone.
    */
   it("warns but boots on a Vercel preview, where NODE_ENV is production too", () => {
-    const warnings = expectConsole("warn", TEST_SECRET_WARNING);
+    const warnings = expectTestSecretWarning();
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
@@ -461,7 +548,9 @@ describe("Turnstile deployment configuration", () => {
     expect(validateEnv().TURNSTILE_SECRET_KEY).toBe(
       TURNSTILE_ALWAYS_PASS_SECRET,
     );
-    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.event).toMatchObject({
+      envVariable: "TURNSTILE_SECRET_KEY",
+    });
   });
 
   it("still refuses a Vercel production build holding the test secret", () => {
@@ -471,7 +560,7 @@ describe("Turnstile deployment configuration", () => {
 
     expectInvalidEnvironment(
       "always-passes testing secret",
-      "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret",
+      "Core cannot start in production with Turnstile's testing secret",
     );
   });
 
@@ -569,6 +658,28 @@ describe("Better Auth production URL", () => {
       publicBase: getBetterAuthPublicBaseUrl(),
     };
   }
+
+  it("warns when a preview has neither branch nor deployment URL", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Better Auth on this preview uses BETTER_AUTH_URL as its base URL",
+      [
+        "VERCEL_BRANCH_URL and VERCEL_URL are unset, so email links may point at the wrong host",
+      ],
+    );
+
+    const { publicBase } = await urls({
+      VERCEL_ENV: "preview",
+      VERCEL_URL: undefined,
+      VERCEL_BRANCH_URL: undefined,
+      BETTER_AUTH_URL: "https://app.example.com/",
+    });
+
+    expect(publicBase).toBe("https://app.example.com");
+    expect(warnings[0]?.event).toMatchObject({
+      envVariable: "BETTER_AUTH_URL",
+    });
+  });
 
   it.each(["core.example.com", undefined])(
     "is production's public base URL (VERCEL_PROJECT_PRODUCTION_URL: %s)",

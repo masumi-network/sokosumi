@@ -120,7 +120,7 @@ vi.mock("@sentry/node", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: vi.fn((promise: Promise<unknown>) => promise),
 }));
 
 vi.mock("@/helpers/notification-email-resend", () => ({

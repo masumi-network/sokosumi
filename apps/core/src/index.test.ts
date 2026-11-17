@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLog } from "@/test/core-log";
 
 const {
   createMarkdownFromOpenApiMock,
@@ -257,6 +258,8 @@ describe("core index", () => {
   });
 
   it("returns 500 when llms generation fails and retries on the next request", async () => {
+    // The failed request's event carries the error.
+    expectCoreLog("error", "boom");
     createMarkdownFromOpenApiMock
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce("# llms");

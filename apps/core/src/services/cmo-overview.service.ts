@@ -7,6 +7,7 @@ import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
@@ -277,7 +278,7 @@ export async function getCmoOverview(
     listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
   ]);
   if (project && project.sitePlatform === null) {
-    waitUntil(learnCmoSitePlatform(cuso));
+    waitUntil(runAsBackgroundWork(() => learnCmoSitePlatform(cuso)));
   }
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
@@ -374,10 +375,15 @@ export async function getCmoOverview(
     websiteUrl: cuso.websiteUrl,
     brain: brandBrain,
   }).catch((error) => {
-    console.warn("CMO brand media not read", {
-      projectId: cuso.projectId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_overview", project: { id: cuso.projectId } },
+      {
+        message: "Could not read the brand media for the CMO overview",
+        why: "Blob storage did not answer",
+        fix: "The overview shows no research pictures until storage answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+    );
     return null;
   });
   const brandVisual = await cmoBrandVisual(

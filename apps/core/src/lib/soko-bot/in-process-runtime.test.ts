@@ -91,8 +91,8 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   },
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import prisma from "@/lib/db/prisma";
+import { expectCoreLog } from "@/test/core-log";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
 import {
@@ -151,7 +151,7 @@ describe("InProcessSokoBotRuntime", () => {
   it("runs the turn and records the events the drain settles on", async () => {
     // The canned reply claims a delegation no receipt backs, so it is held.
     claimsActionMock.mockResolvedValueOnce(true);
-    const withheld = expectConsole("warn", "Soko Bot reply withheld");
+    const withheld = expectCoreLog("warn", "Withheld a Soko Bot reply");
     const runtime = new InProcessSokoBotRuntime();
 
     const ref = await runtime.createSession({
@@ -180,8 +180,8 @@ describe("InProcessSokoBotRuntime", () => {
       (event) => event.type === "message.completed",
     );
     expect(completed?.data.message).toBe("Nothing was changed in this turn.");
-    expect(withheld[0]?.[1]).toMatchObject({
-      reason: "claims_unconfirmed_change",
+    expect(withheld[0]?.event).toMatchObject({
+      replyWithheld: { reason: "claims_unconfirmed_change" },
     });
   });
 
@@ -485,7 +485,7 @@ describe("InProcessSokoBotRuntime", () => {
     async (capability) => {
       // The claim check reads the success prose as a claim no receipt backs.
       claimsActionMock.mockResolvedValueOnce(true);
-      const withheld = expectConsole("warn", "Soko Bot reply withheld");
+      const withheld = expectCoreLog("warn", "Withheld a Soko Bot reply");
       authorizeMock.mockResolvedValueOnce({
         turn: { id: TURN_ID, versionId: "v11" },
         grant: { capabilities: [capability] },
@@ -508,8 +508,8 @@ describe("InProcessSokoBotRuntime", () => {
         recordedEvents().find((event) => event.type === "message.completed")
           ?.data.message,
       ).toBe("Nothing was changed in this turn.");
-      expect(withheld[0]?.[1]).toMatchObject({
-        reason: "claims_unconfirmed_change",
+      expect(withheld[0]?.event).toMatchObject({
+        replyWithheld: { reason: "claims_unconfirmed_change" },
       });
       expect(executeToolMock).not.toHaveBeenCalled();
     },

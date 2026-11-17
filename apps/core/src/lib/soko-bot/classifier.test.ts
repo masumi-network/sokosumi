@@ -1,5 +1,4 @@
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { describe, expect, it, vi } from "vitest";
 import {
   type ClassifierContextSummary,
@@ -9,6 +8,7 @@ import {
   SOKO_BOT_ROUTE_MODEL,
   unwrapTitleTags,
 } from "@/lib/soko-bot/classifier";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { jevRoute } from "@/test/jev-routes";
 
 describe("unwrapTitleTags", () => {
@@ -508,7 +508,11 @@ describe("failing closed", () => {
   });
 
   it("reads only when Jev is unreachable", async () => {
-    const warn = expectConsole("warn", "Soko Bot classifier failed");
+    const warn = expectCoreLogWhys(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+      ["The routing model call failed, or its answer did not parse"],
+    );
     const result = await new JevTurnClassifier(async () => {
       throw new Error("gateway down");
     }).classify("Hire an agent", EMPTY_CONTEXT);
@@ -518,11 +522,20 @@ describe("failing closed", () => {
       usage: null,
       classification: { route: "CLARIFY", confidence: 0 },
     });
-    expect(warn).toHaveLength(1);
+    expect(warn[0]?.event).toMatchObject({
+      model: SOKO_BOT_ROUTE_MODEL,
+      failure: { errorName: "Error" },
+    });
+    // The user's message never reaches the log.
+    expect(JSON.stringify(warn[0]?.event)).not.toContain("Hire an agent");
   });
 
   it("rejects malformed answers and still reports what the call cost", async () => {
-    expectConsole("warn", "Soko Bot classifier failed");
+    expectCoreLogWhys(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+      ["The routing model call failed, or its answer did not parse"],
+    );
     const result = await new JevTurnClassifier(
       answering({
         ...jevRoute("DIRECT_RESPONSE"),

@@ -112,6 +112,7 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   cmoLearningState,
   cmoResearchEndAnswer,
@@ -402,6 +403,35 @@ describe("starting over", () => {
     });
   });
 
+  it("names every post it could not cancel on one warning, without their text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Starting over left Social posts unsent but not cancelled",
+      ["Cancelling the posts failed"],
+    );
+    cusoFind.mockResolvedValue({
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+    });
+    postFindMany.mockResolvedValue([
+      { id: "post-1", revision: 3 },
+      { id: "post-2", revision: 4 },
+    ]);
+    cancelSocialPost.mockRejectedValue(
+      new Error("Could not cancel SENTINEL-POST launch day words"),
+    );
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_start_over",
+      socialPosts: [
+        { id: "post-1", failure: { errorName: "Error" } },
+        { id: "post-2", failure: { errorName: "Error" } },
+      ],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
+  });
+
   it("leaves posts alone when the person may not archive him", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     archiveBot.mockRejectedValueOnce(new Error("Only an organization owner"));
@@ -502,6 +532,26 @@ describe("startCmoOnboarding", () => {
     // The hirer is seated and has no unpaid Cuso unless a test says otherwise.
     funding.requireMemberSeat.mockReset();
     unpaidCuso.mockResolvedValue(null);
+  });
+
+  it("keeps the hire when the onboarding turn does not start, logging no prompt", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Cuso's onboarding turn did not start",
+      ["Starting the research turn failed"],
+    );
+    startTurn.mockRejectedValue(
+      new Error("Turn refused for SENTINEL-PROMPT research acme.io"),
+    );
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_onboarding_turn",
+      sokoBot: { id: "bot-1" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
   });
 
   it("hires into an organization with no credits and grants no credits", async () => {

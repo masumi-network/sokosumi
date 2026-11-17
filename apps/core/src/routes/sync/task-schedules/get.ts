@@ -34,12 +34,11 @@ export default function mount(app: Hono) {
             })
           : null;
 
-        console.info("[sync/task-schedules] Completed sync", {
-          scheduleRelease,
-          runAtRelease,
-          invalidations,
+        context.log.set({
+          result: { scheduleRelease, runAtRelease, invalidations },
         });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

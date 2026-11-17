@@ -8,6 +8,7 @@ import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -85,8 +86,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
-    waitUntil(cancelNotificationEmails(clearedRows));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        publishClearedNotifications(clearedRows.map((row) => row.id)),
+      ),
+    );
+    waitUntil(runAsBackgroundWork(() => cancelNotificationEmails(clearedRows)));
 
     return ok(c, chatRoomThreadReadStateSchema.parse(state));
   });

@@ -1,5 +1,7 @@
 import { SOKO_BOT_INTEGRATION_PROVIDERS } from "@sokosumi/soko-bot";
 
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
+
 /**
  * What a log event may keep of an error that can quote a mail, a message or a
  * prompt. Every value is matched against a finite, Core-owned set; nothing is
@@ -28,6 +30,7 @@ const KNOWN_ERROR_NAMES: ReadonlySet<string> = new Set([
   "TypeError",
   "PrismaClientKnownRequestError",
   "PrismaClientUnknownRequestError",
+  "ProjectCloseScheduleError",
   "PrismaClientValidationError",
   // The AI SDK's runtime names, not its class names, for the calls Core makes.
   "AI_APICallError",
@@ -97,6 +100,15 @@ function read(target: unknown, key: string): unknown {
   }
 }
 
+/** The real class, not a name anyone can set: `instanceof` can throw on a proxy. */
+function isComposioToolError(value: unknown): boolean {
+  try {
+    return value instanceof ComposioToolError;
+  } catch {
+    return false;
+  }
+}
+
 function isError(value: unknown): boolean {
   try {
     return value instanceof Error;
@@ -121,12 +133,16 @@ export function safeErrorCode(error: unknown): string | undefined {
     : undefined;
 }
 
-/** An HTTP status from `details.status`, `status` or `statusCode`. */
+/**
+ * An HTTP status from `details.status`, `status` or `statusCode`, or a social
+ * provider's `providerStatus` on `ComposioToolError`, which keeps it there.
+ */
 export function safeHttpStatus(error: unknown): number | undefined {
   for (const status of [
     read(read(error, "details"), "status"),
     read(error, "status"),
     read(error, "statusCode"),
+    isComposioToolError(error) ? read(error, "providerStatus") : undefined,
   ]) {
     if (
       typeof status === "number" &&
@@ -148,11 +164,49 @@ export function safeOperation(error: unknown): string | undefined {
     : undefined;
 }
 
+/** Links of a `cause` chain read for codes, statuses and operations. */
+const MAX_CAUSE_DEPTH = 5;
+
+/**
+ * `error` and the errors under it through `cause`, outermost first: at most
+ * {@link MAX_CAUSE_DEPTH} more links, each read guarded, a cycle ending it.
+ */
+function causeChain(error: unknown): unknown[] {
+  const chain = [error];
+  let current = error;
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH; depth++) {
+    const cause = read(current, "cause");
+    if (cause === undefined || cause === null || chain.includes(cause)) break;
+    chain.push(cause);
+    current = cause;
+  }
+  return chain;
+}
+
+/** The first value `pick` finds along the chain, outermost first. */
+function firstInChain<T>(
+  chain: unknown[],
+  pick: (error: unknown) => T | undefined,
+): T | undefined {
+  for (const error of chain) {
+    const value = pick(error);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+/**
+ * The error's name, and the first known code, HTTP status and Composio
+ * operation along its `cause` chain, so a wrapper (`ProjectCloseScheduleError`
+ * around a Prisma failure) keeps what failed beneath it. Each value passes the
+ * same checks as on the error itself; a cause is never copied.
+ */
 export function messageSafeErrorFields(error: unknown): SafeErrorFields {
   try {
-    const code = safeErrorCode(error);
-    const status = safeHttpStatus(error);
-    const operation = safeOperation(error);
+    const chain = causeChain(error);
+    const code = firstInChain(chain, safeErrorCode);
+    const status = firstInChain(chain, safeHttpStatus);
+    const operation = firstInChain(chain, safeOperation);
     return {
       errorName: safeErrorName(error),
       ...(code ? { code } : {}),

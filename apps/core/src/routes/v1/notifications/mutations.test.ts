@@ -6,9 +6,13 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notificationFeedWhere } from "@/helpers/notification-feed";
-
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountMarkNotificationRead from "./[id]/read/patch";
 import mountMarkAllRead from "./read-all/patch";
@@ -46,9 +50,9 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilPromises.push(promise);
-  },
+  }),
 }));
 
 vi.mock("@/helpers/notifications", async (importOriginal) => ({
@@ -115,8 +119,10 @@ function createNotificationRow(
 function createApp(
   mount: (app: OpenAPIHonoWithAuth) => void,
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
+  options: { evlog?: boolean } = {},
 ) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -171,6 +177,39 @@ describe("PATCH /notifications/{id}/read", () => {
    * email handed over between the two is on the written row only, and a
    * cancel by the earlier row would find nothing to cancel.
    */
+  it("publishes the read and takes back its email as background work, so a failure inside either is not put on the request's event", async () => {
+    expectBackgroundProbe("publishClearedNotifications");
+    expectBackgroundProbe("cancelNotificationEmails");
+    publishClearedNotificationsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishClearedNotifications"),
+    );
+    cancelNotificationEmailsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("cancelNotificationEmails"),
+    );
+    const existing = createNotificationRow({
+      kind: NotificationKind.CHAT,
+      referenceId: "room_123",
+      messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+    });
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce({
+        ...existing,
+        isRead: true,
+        readAt: new Date("2026-06-16T15:00:00.000Z"),
+      });
+
+    const app = createApp(mountMarkNotificationRead, USER_AUTH_CONTEXT, {
+      evlog: true,
+    });
+    const response = await app.request("http://localhost/notif_123/read", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+  });
+
   it("takes back the email scheduled for the row it read", async () => {
     const existing = createNotificationRow({
       kind: NotificationKind.TASK,
@@ -546,6 +585,21 @@ describe("PATCH /notifications/read-all", () => {
     ]);
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(2);
+  });
+
+  it("publishes the cleared rows as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("publishClearedNotifications");
+    publishClearedNotificationsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("publishClearedNotifications"),
+    );
+
+    const app = createApp(mountMarkAllRead, USER_AUTH_CONTEXT, { evlog: true });
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
   });
 
   it("returns zero when no notifications changed", async () => {

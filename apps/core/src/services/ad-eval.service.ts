@@ -3,7 +3,11 @@ import sharp from "sharp";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
+import {
+  emitCoreWarning,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import {
   finalizeAdEval,
   reserveAdEval,
@@ -32,20 +36,22 @@ export function enqueueAdEval(jobId: string): void {
   try {
     if (!adEvalsEnabled()) return;
     waitUntil(
-      evaluateSettledAd(jobId).catch((error) => {
-        emitCoreWarning(
-          {
-            failure: messageSafeErrorFields(error),
-            operation: "ad_eval",
-            job: { id: jobId },
-          },
-          {
-            message: "Could not evaluate a delivered ad",
-            why: "An evaluation step threw",
-            fix: "The ad was delivered and only lacks its score. If this repeats, look up the error name and code under failure.",
-          },
-        );
-      }),
+      runAsBackgroundWork(() =>
+        evaluateSettledAd(jobId).catch((error) => {
+          emitCoreWarning(
+            {
+              failure: messageSafeErrorFields(error),
+              operation: "ad_eval",
+              job: { id: jobId },
+            },
+            {
+              message: "Could not evaluate a delivered ad",
+              why: "An evaluation step threw",
+              fix: "The ad was delivered and only lacks its score. If this repeats, look up the error name and code under failure.",
+            },
+          );
+        }),
+      ),
     );
   } catch (error) {
     // The request's event when a request settles the ad; standalone otherwise.

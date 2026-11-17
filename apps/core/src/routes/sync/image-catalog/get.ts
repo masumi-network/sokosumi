@@ -39,8 +39,9 @@ export default function mount(app: Hono) {
         const refreshed = await refreshImageCatalog({
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/image-catalog] Completed sync", { refreshed });
+        context.log.set({ result: { refreshed } });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

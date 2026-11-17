@@ -10,11 +10,7 @@ import { requestId } from "hono/request-id";
 import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
-import {
-  bindCoreRequestContext,
-  coreEvlogMiddleware,
-  initCoreLogger,
-} from "@/lib/evlog";
+import { bindCoreRequestContext, coreEvlogMiddleware } from "@/lib/evlog";
 import { betterAuthEvlogMiddleware } from "@/lib/evlog-better-auth";
 import { withPublicScheme } from "@/lib/request-scheme";
 import { initSentry } from "@/lib/sentry";
@@ -31,7 +27,6 @@ import wellKnownRouter from "@/routes/well-known/index";
 
 validateEnv();
 initSentry();
-initCoreLogger();
 
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
 

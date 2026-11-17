@@ -12,6 +12,7 @@ import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { unprocessableEntity } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { chargeTaskCreditsOrMarkOutOfCredits } from "@/helpers/task-event-charge";
+import { tryUseLiveLogger } from "@/lib/evlog";
 import type { createTaskEventRequestSchema } from "./schema";
 
 interface SettleTaskEventChargeParams {
@@ -43,8 +44,11 @@ export async function settleTaskEventCharge({
   tx,
 }: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
   if (masumiPayment) {
-    console.info("[tasks] masumi task payment: using masumiPayment", {
-      masumiPayment,
+    tryUseLiveLogger()?.set({
+      taskPayment: {
+        blockchainIdentifier: masumiPayment.blockchainIdentifier,
+        agentIdentifier: masumiPayment.agentIdentifier,
+      },
     });
     // V2 payments are gated exactly like the job flow: a payment node that
     // recently reported the payload's EXACT policy/contract source as

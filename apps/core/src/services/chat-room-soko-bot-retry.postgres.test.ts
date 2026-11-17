@@ -103,9 +103,9 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 }));
 vi.mock("@vercel/functions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/functions")>()),
-  waitUntil: (work: Promise<unknown>) => {
+  waitUntil: vi.fn((work: Promise<unknown>) => {
     background.push(work);
-  },
+  }),
 }));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
