@@ -1682,6 +1682,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   reply_to_task: sokoBotReplyToTaskInputSchema,
   update_assigned_task: sokoBotUpdateAssignedTaskInputSchema,
   link_tasks: sokoBotLinkTasksInputSchema,
+  list_followed_tasks: emptyInputSchema,
+  stop_following_task: sokoBotTaskIdInputSchema,
   find_agents: sokoBotSearchInputSchema,
   get_agent_input_schema: sokoBotAgentIdInputSchema,
   hire_agent: sokoBotHireAgentInputSchema,
@@ -1952,6 +1954,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Progress a Task that is assigned to you: RUNNING when you start, INPUT_REQUIRED to ask the owner one clear question, COMPLETED with the full result in the comment, FAILED with why. Only for Tasks where you are the assignee.",
   link_tasks:
     "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
+  list_followed_tasks:
+    "List the Tasks the owner follows with you: you tell them when one completes, fails, is canceled, goes overdue or has its due date moved later. Returns each Task's identifier, name, status and due date, newest follow first.",
+  stop_following_task:
+    "Stop following a Task for the owner, when they ask: you no longer post its updates in this chat. They stay a participant on the Task and keep getting its updates as notifications. Only for the owner's own request in their chat.",
   find_agents:
     "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer; `closest` then shows the nearest listings, which do related work, not this. Use when no Coworker suits the work.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",

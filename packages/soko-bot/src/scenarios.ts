@@ -295,6 +295,22 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "followed-tasks",
+    title: "Says which Tasks it follows for the owner",
+    intent:
+      "Reads the followed Tasks with list_followed_tasks and changes nothing it was not asked to.",
+    prompt: "Which Tasks are you following for me at the moment?",
+    rubric:
+      "The bot called list_followed_tasks and named only the Tasks it returned, with their status, or said plainly that it follows none. Naming a Task no tool returned is a fabrication and fails. It stops following nothing: the owner only asked.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
+      tools: ["list_followed_tasks"],
+      forbiddenTools: ["stop_following_task", "create_task"],
+      noDelegations: true,
+      noInventedIds: true,
+    },
+  },
+  {
     id: "ambiguous-request",
     rubric: "The bot asked one precise clarifying question and took no action.",
     title: "Ambiguous request",

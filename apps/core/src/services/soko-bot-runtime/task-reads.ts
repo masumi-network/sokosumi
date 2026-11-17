@@ -16,7 +16,7 @@ import { type AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
 
 /** A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day. */
-const calendarDay = (date: Date | null) =>
+export const calendarDay = (date: Date | null) =>
   date ? date.toISOString().slice(0, 10) : null;
 
 /** The owner's board, filtered; `readTask` gives one Task in full. */
