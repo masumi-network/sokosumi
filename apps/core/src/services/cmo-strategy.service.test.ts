@@ -1379,9 +1379,12 @@ describe("a patch", () => {
       (entry) => entry.approach === "educational",
     );
     // "Fewer setup posts": four skipped leave 8 of 20 educational (40%).
-    const skipped = educational
-      .slice(0, 4)
-      .map((entry) => ({ ...entry, status: "skipped" as const }));
+    // What else a skip sends on its piece (a new pillar) counts for nothing.
+    const skipped = educational.slice(0, 4).map((entry) => ({
+      ...entry,
+      status: "skipped" as const,
+      pillar: "Proof",
+    }));
 
     // Moving the shares by rewriting pieces is still refused.
     await expect(

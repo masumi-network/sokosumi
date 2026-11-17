@@ -321,6 +321,37 @@ describe("cmoPlanProblemsSince", () => {
       cmoPlanProblems(thin),
     );
   });
+
+  it("asks nothing of the pieces left when a change skips one, but names a piece it rewrites", () => {
+    // Six formats, one of them only on LinkedIn.
+    const six = plan({
+      calendar: [
+        entry("a", "seo", "article"),
+        entry("b", "instagram", "image post"),
+        entry("c", "instagram", "carousel"),
+        entry("d", "instagram", "reel"),
+        entry("e", "newsletter", "issue"),
+        entry("f", "linkedin", "text"),
+      ],
+    });
+    const at = (index: number, patch: object) => ({
+      ...six,
+      calendar: six.calendar.map((piece, i) =>
+        i === index ? { ...piece, ...patch } : piece,
+      ),
+    });
+    const formats = /calendar uses \d+ formats/;
+
+    expect(
+      cmoPlanProblemsSince(at(5, { status: "skipped" }), six).join("\n"),
+    ).not.toMatch(formats);
+    expect(
+      cmoPlanProblemsSince(
+        at(5, { channel: "seo", format: "article" }),
+        six,
+      ).join("\n"),
+    ).toMatch(formats);
+  });
 });
 
 describe("the funnel strategy", () => {

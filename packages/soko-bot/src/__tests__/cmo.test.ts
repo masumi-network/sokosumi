@@ -50,9 +50,14 @@ describe("CMO version", () => {
     expect(v2).toMatch(
       /still hold every piece the pace and each channel's cadence call for/,
     );
-    expect(v2).toMatch(/skip or move that channel's extra entries/);
-    expect(v2).toMatch(/never by changing the mix/);
-    expect(v1).not.toMatch(/still hold every piece|never by changing the mix/);
+    // ...and only that channel's: a change request once rewrote a newsletter
+    // to win the shares back.
+    expect(v2).toMatch(/changes that channel's entries only/);
+    expect(v2).toMatch(/Leave every other piece as it was/);
+    expect(v2).toMatch(/never by changing a piece the owner did not name/);
+    expect(v1).not.toMatch(
+      /still hold every piece|that channel's entries only/,
+    );
     // A new audience reaches every part that names the old one; titles make
     // their own point; a holiday needs a real reason.
     expect(v2).toMatch(/A change to the audience or focus rewrites every part/);

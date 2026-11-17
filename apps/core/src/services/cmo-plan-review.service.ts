@@ -94,23 +94,43 @@ export function cmoPlanRulesBrokenSince(
   const broken = cmoPlanRuleProblems(strategy);
   if (!before || before.calendar.length === 0) return broken;
   const ruleOf = (problem: string) => problem.match(/^Rule "[^"]+"/)?.[0];
-  const was = new Map(before.calendar.map((entry) => [entry.id, entry]));
-  const unskipped = {
-    ...strategy,
-    calendar: strategy.calendar.map((entry) => {
-      const status = was.get(entry.id)?.status;
-      return entry.status === "skipped" && status && status !== "skipped"
-        ? { ...entry, status }
-        : entry;
-    }),
-  };
   const had = new Set(cmoPlanRuleProblems(before).map(ruleOf));
-  const withoutSkips = new Set(cmoPlanRuleProblems(unskipped).map(ruleOf));
+  // Each share on its own: a skip that moves one does not excuse another.
+  const withoutSkips = new Set(
+    cmoPlanRuleProblems(withSkipsUndone(strategy, before)).map(counted),
+  );
   return broken.filter((problem) => {
     const rule = ruleOf(problem);
     if (had.has(rule)) return false;
-    return rule !== `Rule "${SHARES_RULE}"` || withoutSkips.has(rule);
+    return (
+      rule !== `Rule "${SHARES_RULE}"` || withoutSkips.has(counted(problem))
+    );
   });
+}
+
+/** A problem by its words, whatever the counts in it. */
+const counted = (problem: string) => problem.replace(/\d+/g, "#");
+
+/**
+ * The plan with each piece this change skipped back as it was before it:
+ * what else a skip sends on its piece (a new pillar) counts for nothing.
+ */
+function withSkipsUndone(
+  strategy: MarketingStrategyPlan,
+  before: MarketingStrategyPlan,
+): MarketingStrategyPlan {
+  const was = new Map(before.calendar.map((entry) => [entry.id, entry]));
+  return {
+    ...strategy,
+    calendar: strategy.calendar.map((entry) => {
+      const earlier = was.get(entry.id);
+      return entry.status === "skipped" &&
+        earlier &&
+        earlier.status !== "skipped"
+        ? earlier
+        : entry;
+    }),
+  };
 }
 
 /**
@@ -254,10 +274,17 @@ export function cmoPlanProblemsSince(
       ? problem.replace(/\d+/g, "#")
       : problem;
   const had = new Set(cmoPlanProblems(before, options).map(rule));
+  // The pieces a change skips ask nothing of the pieces left: a problem only
+  // the skips brought (a format gone with them, a week now thinner) is the
+  // owner's choice, not one to clear by rewriting pieces nobody named.
+  const withoutSkips = new Set(
+    cmoPlanProblems(withSkipsUndone(strategy, before), options).map(counted),
+  );
   // A month still missing weeks asks for them on every save.
   return problems.filter(
     (problem) =>
-      problem.startsWith("calendar covers ") || !had.has(rule(problem)),
+      problem.startsWith("calendar covers ") ||
+      (!had.has(rule(problem)) && withoutSkips.has(counted(problem))),
   );
 }
 
