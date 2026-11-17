@@ -469,6 +469,93 @@ describe("Saved keyword edits", () => {
     });
   });
 
+  it("tracks a keyword in a market off the list by its codes", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Add a keyword" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Track a keyword",
+    });
+    await user.type(within(dialog).getByLabelText("Keyword"), "Wallets");
+    // Canada and Canadian French are on no list; the code fields still take them.
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Other code" }));
+    const country = within(dialog).getByRole("textbox", {
+      name: "Country code",
+    });
+    expect(country).toHaveAccessibleDescription(
+      enMessages.App.Seo.keywords.countryHelp,
+    );
+    await user.type(country, "ca");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Other code" }));
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Language code" }),
+      "fr-CA",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      keyword: "Wallets",
+      countryCode: "CA",
+      languageCode: "fr-CA",
+    });
+  });
+
+  it("keeps a saved market off the list by name when its keyword is edited", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    saved.countryCode = "CA";
+    saved.languageCode = "fr-CA";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit keyword" });
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    ).toHaveTextContent("Canada");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    ).toHaveTextContent("Canadian French");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      keyword: "Stablecoins",
+      countryCode: "CA",
+      languageCode: "fr-CA",
+    });
+  });
+
+  it("names the target page once when the line above leaves the primary page out", () => {
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    pricingPage.relationship = "related";
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    // Before a check, the row's page is the saved target: the one primary page.
+    saved.pageUrl = workspace.pages[0].url;
+    renderWorkspace(workspace);
+    const row = screen.getByText("Stablecoins").closest("tr");
+    if (!row) throw new Error("The keyword row is missing");
+    expect(within(row).getByText("Target page: Home")).toBeVisible();
+    expect(within(row).queryByText(/No target page/)).toBeNull();
+  });
+
   it("says no target page once under a keyword without one", () => {
     const { workspace } = savedKeywordWorkspace();
     workspace.scope.pageIds = workspace.pages.map((page) => page.id);

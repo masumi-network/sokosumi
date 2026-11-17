@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -14,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { seoDefaultMarket } from "./seo-analysis-market-model";
-import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SeoField, SeoSelect, seoFieldHelpId } from "./seo-form-fields";
 import {
   SEO_COUNTRIES,
   SEO_LANGUAGES,
@@ -190,34 +191,34 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                 />
               </SeoField>
               <div className="grid gap-3 sm:grid-cols-2">
-                <SeoField id="seo-edit-country" label={t("analysis.country")}>
-                  <SeoSelect
-                    id="seo-edit-country"
-                    name="countryCode"
-                    required
-                    defaultValue={market.countryCode}
-                    disabled={!!editingKeyword}
-                    options={marketOptions(
-                      SEO_COUNTRIES,
-                      market.countryCode,
-                      (code) => seoMarketName(locale, code, null),
-                    )}
-                  />
-                </SeoField>
-                <SeoField id="seo-edit-language" label={t("analysis.language")}>
-                  <SeoSelect
-                    id="seo-edit-language"
-                    name="languageCode"
-                    required
-                    defaultValue={market.languageCode}
-                    disabled={!!editingKeyword}
-                    options={marketOptions(
-                      SEO_LANGUAGES,
-                      market.languageCode,
-                      (code) => seoMarketName(locale, "", code),
-                    )}
-                  />
-                </SeoField>
+                <SeoMarketField
+                  id="seo-edit-country"
+                  name="countryCode"
+                  label={t("analysis.country")}
+                  codeLabel={t("keywords.country")}
+                  codeHelp={t("keywords.countryHelp")}
+                  otherLabel={t("keywords.otherCode")}
+                  codes={SEO_COUNTRIES}
+                  current={market.countryCode}
+                  nameOf={(code) => seoMarketName(locale, code, null)}
+                  disabled={!!editingKeyword}
+                  pattern="[A-Za-z]{2}"
+                  maxLength={2}
+                />
+                <SeoMarketField
+                  id="seo-edit-language"
+                  name="languageCode"
+                  label={t("analysis.language")}
+                  codeLabel={t("keywords.language")}
+                  codeHelp={t("keywords.languageHelp")}
+                  otherLabel={t("keywords.otherCode")}
+                  codes={SEO_LANGUAGES}
+                  current={market.languageCode}
+                  nameOf={(code) => seoMarketName(locale, "", code)}
+                  disabled={!!editingKeyword}
+                  pattern="[a-z]{2,3}(-[A-Z]{2})?"
+                  maxLength={6}
+                />
               </div>
               <SeoField id="seo-edit-target" label={t("keywords.target")}>
                 <SeoSelect
@@ -275,13 +276,73 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
   );
 }
 
-/** Picker options by name. A saved code outside the list stays as an option, so the keyword shows its own market. */
-function marketOptions(
-  codes: readonly string[],
-  current: string,
-  name: (code: string) => string,
-) {
+/** Not a code: the picker's way to a typed code. */
+const SEO_OTHER_CODE = "other";
+
+/**
+ * A market part picked by name; the form saves its code. "Other code" opens a code field for a market off the
+ * list, so every code the field took before still saves. A saved code off the list stays as its own option.
+ */
+function SeoMarketField({
+  id,
+  name,
+  label,
+  codeLabel,
+  codeHelp,
+  otherLabel,
+  codes,
+  current,
+  nameOf,
+  disabled,
+  pattern,
+  maxLength,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  codeLabel: string;
+  codeHelp: string;
+  otherLabel: string;
+  codes: readonly string[];
+  current: string;
+  nameOf: (code: string) => string;
+  disabled: boolean;
+  pattern: string;
+  maxLength: number;
+}) {
+  const [other, setOther] = useState(false);
+  const codeId = `${id}-code`;
+  const listed =
+    !current || codes.includes(current) ? codes : [current, ...codes];
   return (
-    !current || codes.includes(current) ? codes : [current, ...codes]
-  ).map((value) => ({ value, label: name(value) }));
+    <div className="space-y-2">
+      <SeoField id={id} label={label}>
+        <SeoSelect
+          id={id}
+          // The typed code is the value while "Other code" is chosen.
+          name={other ? undefined : name}
+          required
+          defaultValue={current}
+          onValueChange={(value) => setOther(value === SEO_OTHER_CODE)}
+          disabled={disabled}
+          options={[
+            ...listed.map((value) => ({ value, label: nameOf(value) })),
+            ...(disabled ? [] : [{ value: SEO_OTHER_CODE, label: otherLabel }]),
+          ]}
+        />
+      </SeoField>
+      {other ? (
+        <SeoField id={codeId} label={codeLabel} help={codeHelp}>
+          <Input
+            id={codeId}
+            aria-describedby={seoFieldHelpId(codeId)}
+            name={name}
+            required
+            pattern={pattern}
+            maxLength={maxLength}
+          />
+        </SeoField>
+      ) : null}
+    </div>
+  );
 }
