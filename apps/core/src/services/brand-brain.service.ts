@@ -217,6 +217,9 @@ function withCorrections(
   });
 }
 
+/** A section's waiting correction, as the Brand Brain stores it. */
+const BRAND_FIX_NOTE_MAX = 400;
+
 /**
  * The owner says one section is wrong: the fix waits on that section until
  * Cuso (or a member) rewrites its answer. A second fix before then adds to
@@ -233,8 +236,15 @@ export async function requestBrandBrainFix(
       throw notFound("That section is not in the Brand Brain");
     }
     const open = section.fix && !section.fix.fixed ? section.fix.note : null;
+    const note = open ? `${open} ${input.note}` : input.note;
+    // Cut to fit, the newest correction would be lost while the owner reads
+    // that it was taken.
+    if (note.length > BRAND_FIX_NOTE_MAX)
+      throw conflict(
+        "This section already has a correction waiting for Cuso, and this one does not fit beside it. Wait until he has rewritten the section, or say it in fewer words.",
+      );
     const fix = {
-      note: (open ? `${open} ${input.note}` : input.note).slice(0, 400),
+      note,
       at: (input.at ?? new Date()).toISOString(),
       fixed: false,
     };

@@ -577,6 +577,43 @@ describe("Brand Brain fixes", () => {
     });
   });
 
+  it("adds a second correction to the waiting one, and refuses one that would not fit whole", async () => {
+    const waiting = (note: string) => ({
+      body: {
+        ...essentials,
+        profile: {
+          ...sixteen,
+          pricing: {
+            ...sixteen.pricing,
+            fix: { note, at: asked, fixed: false },
+          },
+        },
+        questions: [],
+      },
+    });
+    brainFindUnique.mockResolvedValueOnce(waiting("From 19 dollars."));
+    await requestBrandBrainFix(PROJECT_ID, {
+      section: "pricing",
+      note: "Teams pay per seat.",
+      at: new Date(asked),
+    });
+    expect(
+      brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
+    ).toBe("From 19 dollars. Teams pay per seat.");
+
+    // Cut to 400 from the start, the new correction would be lost.
+    brainUpdate.mockClear();
+    brainFindUnique.mockResolvedValueOnce(waiting("x".repeat(390)));
+    await expect(
+      requestBrandBrainFix(PROJECT_ID, {
+        section: "pricing",
+        note: "Teams pay per seat.",
+        at: new Date(asked),
+      }),
+    ).rejects.toThrow(/waiting/);
+    expect(brainUpdate).not.toHaveBeenCalled();
+  });
+
   it("marks the fix done when its section is rewritten, and leaves the other 15 untouched", async () => {
     const waiting = {
       ...sixteen,
