@@ -1,4 +1,5 @@
 import { MemberRole } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -138,9 +139,7 @@ describe("AdDataConsentSettings", () => {
       ],
     });
     mocks.getConsent.mockRejectedValue(new Error("Core unavailable"));
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to load ad data consent");
     await renderSettings("org-1");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Failed to load ad data preferences. Try again.",
@@ -149,6 +148,5 @@ describe("AdDataConsentSettings", () => {
       screen.getByRole("button", { name: "Try again" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("switch")).toBeNull();
-    consoleError.mockRestore();
   });
 });
