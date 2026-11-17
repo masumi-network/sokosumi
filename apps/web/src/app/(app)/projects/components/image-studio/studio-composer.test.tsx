@@ -22,6 +22,9 @@ import type { GenerationRequest } from "./use-generation-queue";
  * render their content inline, so every option is reachable by its text.
  */
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,

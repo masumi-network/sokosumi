@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 const fetchMock = vi.fn();
 const headersMock = vi.fn();
@@ -143,6 +144,24 @@ describe("auth.server", () => {
     ])(
       "uses the correct authenticated GET or verified prelogin POST (%o)",
       async ({ expired, signedIn, clientStatus, sessionStatus, named }) => {
+        // A refused read is logged: a warning for the status each read
+        // expects (404 for the client, 401 for the session), an error for an
+        // outage. The session is only read for a signed-in browser.
+        const clientLevel =
+          clientStatus === 404 ? "warn" : clientStatus >= 500 ? "error" : null;
+        if (clientLevel) {
+          expectConsole(clientLevel, "Failed to fetch OAuth client from Core");
+        }
+        const sessionLevel = !signedIn
+          ? null
+          : sessionStatus === 401
+            ? "warn"
+            : sessionStatus >= 500
+              ? "error"
+              : null;
+        if (sessionLevel) {
+          expectConsole(sessionLevel, "Failed to fetch session from Core");
+        }
         headersMock.mockResolvedValue(
           new Headers({
             host: "localhost:3000",
@@ -333,6 +352,7 @@ describe("auth.server", () => {
   });
 
   it("returns err, not ok(null), when Core responds with a non-ok status", async () => {
+    expectConsole("error", "Failed to fetch session from Core", 2);
     fetchMock.mockResolvedValue({
       ok: false,
       status: 500,
@@ -354,6 +374,8 @@ describe("auth.server", () => {
   });
 
   it("returns err, not ok(null), when the fetch rejects", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
+    expectConsole("error", "Failed to fetch session from Core");
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
     const { getSession, getSessionResult } = await import("./auth.server");
@@ -370,6 +392,8 @@ describe("auth.server", () => {
   });
 
   it("returns err with reason timeout when the session read times out", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
+    expectConsole("error", "Failed to fetch session from Core");
     fetchMock.mockRejectedValue(
       new DOMException("The operation timed out.", "TimeoutError"),
     );
@@ -409,6 +433,7 @@ describe("auth.server", () => {
   });
 
   it("returns err, not ok(null), when the response body is not valid JSON", async () => {
+    expectConsole("error", "Failed to fetch session from Core", 2);
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
@@ -438,6 +463,7 @@ describe("auth.server", () => {
    * back to `ok(null)`, which is the bug.
    */
   it("reports a Core timeout as an outage, not a signed-out browser", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
     const timeout = new Error("The operation was aborted due to timeout");
     timeout.name = "TimeoutError";
     fetchMock.mockRejectedValue(timeout);
@@ -460,6 +486,7 @@ describe("auth.server", () => {
    * outage.
    */
   it("reports a stall during the body read as a timeout", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
     const timeout = new Error("The operation was aborted due to timeout");
     timeout.name = "TimeoutError";
     fetchMock.mockResolvedValue({
@@ -480,6 +507,7 @@ describe("auth.server", () => {
   });
 
   it("reports a malformed body as invalid_json", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
@@ -519,6 +547,7 @@ describe("auth.server", () => {
    * retry a condition that never clears.
    */
   it("reads a Core 401 as signed out rather than an outage", async () => {
+    expectConsole("warn", "Failed to fetch session from Core");
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
@@ -540,6 +569,7 @@ describe("auth.server", () => {
    * out silently and hides the misconfiguration behind a sign-in page.
    */
   it.each([403, 404])("keeps a Core %i in the outage path", async (status) => {
+    expectConsole("error", "Failed to fetch session from Core");
     fetchMock.mockResolvedValue({
       ok: false,
       status,
@@ -558,6 +588,7 @@ describe("auth.server", () => {
   });
 
   it("reports an unexpected Core status as an outage", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
     fetchMock.mockResolvedValue({
       ok: false,
       status: 500,
@@ -599,6 +630,7 @@ describe("auth.server", () => {
    * loses the page they were on.
    */
   it("throws instead of redirecting to sign-in when Core cannot be read", async () => {
+    expectConsole("error", "Failed to fetch session from Core");
     const timeout = new Error("The operation was aborted due to timeout");
     timeout.name = "TimeoutError";
     fetchMock.mockRejectedValue(timeout);
@@ -676,6 +708,10 @@ describe("auth.server", () => {
   });
 
   it("returns err with reason invalid_json when list-accounts body is not an array", async () => {
+    expectConsole(
+      "error",
+      "Failed to fetch user accounts from Core: response was not an array",
+    );
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => null,
@@ -697,6 +733,7 @@ describe("auth.server", () => {
   });
 
   it("returns err when user accounts cannot be loaded", async () => {
+    expectConsole("error", "Failed to fetch user accounts from Core");
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
     const { listUserAccounts } = await import("./auth.server");
@@ -715,6 +752,7 @@ describe("auth.server", () => {
   });
 
   it("returns err with reason invalid_json when the body fails to parse", async () => {
+    expectConsole("error", "Failed to fetch user accounts from Core");
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
@@ -734,6 +772,7 @@ describe("auth.server", () => {
   });
 
   it("returns err with reason timeout when the request times out", async () => {
+    expectConsole("error", "Failed to fetch user accounts from Core");
     fetchMock.mockRejectedValue(
       new DOMException("The operation timed out.", "TimeoutError"),
     );
@@ -804,12 +843,10 @@ describe("auth.server", () => {
       status: 404,
       json: async () => null,
     });
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleWarnSpy = expectConsole(
+      "warn",
+      "Failed to fetch OAuth client from Core",
+    );
 
     const { getOAuthClientPublic } = await import("./auth.server");
 
@@ -820,17 +857,17 @@ describe("auth.server", () => {
       expect(result.value).toBeNull();
     }
     expect(captureMessageMock).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(consoleWarnSpy).toContainEqual([
       "Failed to fetch OAuth client from Core",
       {
         path: "/auth/oauth2/public-client",
         status: 404,
       },
-    );
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    ]);
   });
 
   it("returns err when public OAuth client metadata cannot be loaded", async () => {
+    expectConsole("error", "Failed to fetch OAuth client from Core");
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
     const { getOAuthClientPublic } = await import("./auth.server");
@@ -845,6 +882,7 @@ describe("auth.server", () => {
   });
 
   it("returns err with reason invalid_json when OAuth client body fails to parse", async () => {
+    expectConsole("error", "Failed to fetch OAuth client from Core");
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => {
@@ -864,6 +902,7 @@ describe("auth.server", () => {
   });
 
   it("returns err with reason timeout when OAuth client request times out", async () => {
+    expectConsole("error", "Failed to fetch OAuth client from Core");
     fetchMock.mockRejectedValue(
       new DOMException("The operation timed out.", "TimeoutError"),
     );

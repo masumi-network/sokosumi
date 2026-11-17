@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
-
+import { expectConsole } from "@/test/console";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 
@@ -33,7 +33,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 
 describe("InvitationActionsDropdown", () => {
   it("reports a failed resend as a failure only", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    expectConsole("error", "Failed to resend invitation");
     inviteMemberMock.mockResolvedValue({ error: { message: "rate limited" } });
 
     render(

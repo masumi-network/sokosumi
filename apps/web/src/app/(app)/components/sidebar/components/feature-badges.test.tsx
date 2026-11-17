@@ -263,12 +263,15 @@ describe("New badges in the sidebar", () => {
 
   it("keeps navigation available while the campaigns promise waits", async () => {
     const pending = new Promise<BadgeCampaignSummary[]>(() => {});
-    render(
-      <FeatureBadgesProvider userId="user_123" campaigns={pending}>
-        <SidebarFeatureLabel label="Drive" feature="DRIVE" />
-      </FeatureBadgesProvider>,
-      { wrapper: Wrapper },
-    );
+    // The provider suspends on the promise: render inside an awaited act.
+    await act(async () => {
+      render(
+        <FeatureBadgesProvider userId="user_123" campaigns={pending}>
+          <SidebarFeatureLabel label="Drive" feature="DRIVE" />
+        </FeatureBadgesProvider>,
+        { wrapper: Wrapper },
+      );
+    });
     expect(screen.getByText("Drive")).toBeVisible();
     expect(markSeenMock).not.toHaveBeenCalled();
   });

@@ -1,4 +1,5 @@
-import { act } from "react";
+// Testing Library's act turns on the act environment React's own act needs.
+import { act } from "@testing-library/react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";

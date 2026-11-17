@@ -109,7 +109,6 @@ function deleteRequest(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
   readRouteSessionMock.mockResolvedValue({
     status: "authenticated",
     session: adminSession,

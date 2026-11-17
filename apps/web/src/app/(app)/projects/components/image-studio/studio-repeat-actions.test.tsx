@@ -20,6 +20,9 @@ import type { StudioAsset, StudioJob } from "./types";
 
 const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), jobs: [] as StudioJob[] }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/studio",

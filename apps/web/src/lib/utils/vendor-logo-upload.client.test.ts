@@ -24,6 +24,7 @@ import {
   UserFileUploadError,
   uploadVendorLogoDirect,
 } from "@/lib/utils/vendor-logo-upload.client";
+import { expectConsole } from "@/test/console";
 
 interface MockXhrHandlers {
   onload: (() => void) | null;
@@ -159,9 +160,10 @@ describe("vendor-logo-upload.client", () => {
 
   it("soft-fails cleanup errors", async () => {
     cleanupVendorLogoMock.mockRejectedValue(new Error("boom"));
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Failed to cleanup previous vendor logo",
+    );
 
     await expect(
       cleanupVendorLogoBestEffort(
@@ -173,8 +175,7 @@ describe("vendor-logo-upload.client", () => {
     expect(cleanupVendorLogoMock).toHaveBeenCalledWith("vendor_123", {
       url: "https://blob.example/vendors/vendor_123/logos/old.png",
     });
-    expect(consoleError).toHaveBeenCalled();
-    consoleError.mockRestore();
+    expect(consoleError).not.toHaveLength(0);
   });
 
   it("skips cleanup when url or vendorId is empty", async () => {

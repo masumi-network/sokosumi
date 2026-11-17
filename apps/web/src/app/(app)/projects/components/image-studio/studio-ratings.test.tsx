@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => ({
   viewed: vi.fn(),
   toast: vi.fn(),
 }));
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/studio",

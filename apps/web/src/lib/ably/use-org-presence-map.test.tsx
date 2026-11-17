@@ -42,6 +42,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
+import { expectConsole } from "@/test/console";
 import { useOrgPresenceMap } from "./use-org-presence-map";
 
 function channelFor(name: string) {
@@ -204,6 +205,7 @@ describe("useOrgPresenceMap", () => {
   });
 
   it("does not attach when authorize fails", async () => {
+    expectConsole("error", "Ably authorize for presence map failed");
     authorizeMock.mockRejectedValue(new Error("token refresh failed"));
 
     renderHook(() => useOrgPresenceMap("active_org"));
@@ -241,6 +243,7 @@ describe("useOrgPresenceMap", () => {
   });
 
   it("re-syncs on connected after authorize fails then succeeds", async () => {
+    expectConsole("error", "Ably authorize for presence map failed");
     authorizeMock
       .mockRejectedValueOnce(new Error("token refresh failed"))
       .mockResolvedValueOnce(tokenWithOrgs("active_org"));
@@ -313,6 +316,7 @@ describe("useOrgPresenceMap", () => {
   });
 
   it("tears down an attached channel when reconnect authorize fails", async () => {
+    expectConsole("error", "Ably authorize for presence map failed");
     authorizeMock
       .mockResolvedValueOnce(tokenWithOrgs("active_org"))
       .mockRejectedValueOnce(new Error("token refresh failed"));

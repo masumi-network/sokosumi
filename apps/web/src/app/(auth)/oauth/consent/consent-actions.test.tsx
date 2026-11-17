@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import { ConsentActions } from "./consent-actions";
 
 const mockConsent = vi.hoisted(() => vi.fn());
@@ -80,6 +80,7 @@ describe("ConsentActions", () => {
   });
 
   it("re-enables Deny with a message when the consent call throws", async () => {
+    expectConsole("error", "OAuth deny error");
     mockConsent.mockRejectedValue(new Error("network down"));
     render(<ConsentActions oauthQuery={oauthQuery} />);
 

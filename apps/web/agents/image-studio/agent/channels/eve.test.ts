@@ -1,5 +1,6 @@
 import { SessionNotActiveError } from "eve/sessions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 
 /**
  * The studio channel's authorization and first-message policy.
@@ -548,6 +549,7 @@ describe("delivering the first message", () => {
   });
 
   it("reports an unreadable send as uncertain, and names the conversation", async () => {
+    expectConsole("error", "[eve:eve.channel] session-message request failed");
     // A thrown send may have been accepted first. Claiming nothing ran is the
     // assumption that duplicates a turn; claiming it ran is the one that loses
     // it. Neither is said.

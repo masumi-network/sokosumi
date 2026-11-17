@@ -35,7 +35,7 @@ async function submitForDrive() {
     target: { value: "DRIVE" },
   });
   await act(async () => {
-    fireEvent.submit(screen.getByRole("button", { name: "Form.create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Form.create" }));
   });
 }
 

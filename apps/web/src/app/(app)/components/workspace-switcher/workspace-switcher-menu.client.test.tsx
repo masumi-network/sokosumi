@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
-
+import { expectConsole } from "@/test/console";
 import { WorkspaceSwitcherProvider } from "./workspace-switcher.client";
 import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 
@@ -133,6 +133,8 @@ function renderSwitcher({
 describe("WorkspaceSwitcherMenu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks keeps implementations; an activation failure stays per test.
+    mocks.handleSelectWorkspace.mockReset();
     mocks.isPending = false;
   });
 
@@ -330,9 +332,7 @@ describe("WorkspaceSwitcherMenu", () => {
         code: WorkspaceGateErrorCode.LAST_WORKSPACE,
       },
     } satisfies Awaited<ReturnType<typeof createPersonalWorkspaceAction>>);
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Create personal workspace failed");
 
     renderSwitcher({
       workspaces: [orgWorkspace],
@@ -351,7 +351,6 @@ describe("WorkspaceSwitcherMenu", () => {
     expect(
       screen.getByTestId("workspace-switcher-create-choice"),
     ).toBeInTheDocument();
-    consoleErrorSpy.mockRestore();
   });
 
   it("opens the organization wizard after choosing Organization and Continue", async () => {
@@ -383,9 +382,7 @@ describe("WorkspaceSwitcherMenu", () => {
     vi.mocked(createPersonalWorkspaceAction).mockResolvedValue(
       createdPersonalWorkspace,
     );
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Create personal workspace activation failed");
 
     renderSwitcher({
       workspaces: [orgWorkspace],
@@ -400,7 +397,6 @@ describe("WorkspaceSwitcherMenu", () => {
       expect(toast.error).toHaveBeenCalledWith("personalActivateError");
     });
     expect(createPersonalWorkspaceAction).toHaveBeenCalledOnce();
-    consoleErrorSpy.mockRestore();
   });
 
   it("creates personal without a name dialog when the user has no name", async () => {
@@ -427,6 +423,7 @@ describe("WorkspaceSwitcherMenu", () => {
     });
     expect(authClient.updateUser).not.toHaveBeenCalled();
     expect(mocks.handleSelectWorkspace).toHaveBeenCalledWith(null);
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("toasts when the workspace already exists and activation throws", async () => {
@@ -440,9 +437,7 @@ describe("WorkspaceSwitcherMenu", () => {
         code: WorkspaceGateErrorCode.PERSONAL_WORKSPACE_ALREADY_EXISTS,
       },
     } satisfies Awaited<ReturnType<typeof createPersonalWorkspaceAction>>);
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Create personal workspace activation failed");
 
     renderSwitcher({
       workspaces: [orgWorkspace],
@@ -457,7 +452,6 @@ describe("WorkspaceSwitcherMenu", () => {
       expect(toast.error).toHaveBeenCalledWith("personalActivateError");
     });
     expect(mocks.handleSelectWorkspace).toHaveBeenCalledWith(null);
-    consoleErrorSpy.mockRestore();
   });
 
   it("lists personal and org workspaces when both exist", async () => {

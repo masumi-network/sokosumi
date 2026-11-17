@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
 import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
+import { expectConsole } from "@/test/console";
 
 const backMock = vi.fn();
 const pushMock = vi.fn();
@@ -196,6 +197,7 @@ describe("TaskWorkspaceSwitchDialog", () => {
   });
 
   it("shows an error toast and reports to Sentry when switching fails", async () => {
+    expectConsole("error", "Failed to switch organization");
     const switchError = new Error("setActive failed");
     vi.mocked(authClient.organization.setActive).mockRejectedValue(switchError);
 

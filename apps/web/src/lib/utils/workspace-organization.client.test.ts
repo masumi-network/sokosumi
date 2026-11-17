@@ -10,6 +10,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 }));
 
 import { getWorkspaceOrganizationId } from "@/lib/utils/workspace-organization.client";
+import { expectConsole } from "@/test/console";
 
 describe("getWorkspaceOrganizationId", () => {
   beforeEach(() => {
@@ -40,7 +41,10 @@ describe("getWorkspaceOrganizationId", () => {
   });
 
   it("does not cache a failed lookup", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = expectConsole(
+      "warn",
+      "Failed to resolve workspace organization id",
+    );
     getWorkspaceOrganizationIdMock
       .mockRejectedValueOnce(new Error("unavailable"))
       .mockResolvedValueOnce({
@@ -54,7 +58,6 @@ describe("getWorkspaceOrganizationId", () => {
       "org_retry",
     );
     expect(getWorkspaceOrganizationIdMock).toHaveBeenCalledTimes(2);
-    expect(warnSpy).toHaveBeenCalledOnce();
-    warnSpy.mockRestore();
+    expect(warnSpy).toHaveLength(1);
   });
 });

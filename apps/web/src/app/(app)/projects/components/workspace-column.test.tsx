@@ -4,7 +4,7 @@ import type {
 } from "@sokosumi/core-client";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import {
   NeedsYouPanel,
   panelFeed,
@@ -398,7 +398,7 @@ describe("RecentActivityPanel", () => {
 
 describe("panelFeed", () => {
   it("turns a failed feed into null so the panel can say so", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Workspace column feed failed");
     await expect(panelFeed(Promise.reject(new Error("down")))).resolves.toBe(
       null,
     );
@@ -410,7 +410,7 @@ describe("requestPanelFeed", () => {
   // A prefetch ends by rejecting `connection()`. Logging that as a failed
   // feed would fill the logs with one false warning per hover.
   it("reads nothing and logs nothing when a prefetch ends", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn");
     const read = vi.fn(async () => [1]);
     connectionMock.mockRejectedValueOnce(new Error("prerender aborted"));
 
