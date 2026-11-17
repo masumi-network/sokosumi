@@ -111,8 +111,11 @@ describe("findRepeats", () => {
     );
 
     expect(result).toEqual({ repeats: [null, null], costUsd: 0 });
-    expect(warned[0]?.why).toContain("Gateway timeout");
-    expect(warned[0]?.event.operation).toBe("repeats_check");
+    expect(warned[0]?.event).toMatchObject({
+      operation: "repeats_check",
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(warned[0]?.event)).not.toContain("Gateway timeout");
   });
 
   it("skips the check when the embedding model is slow, and keeps what it returns later", async () => {

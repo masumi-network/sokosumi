@@ -1,8 +1,6 @@
-import { createError } from "evlog";
 import pLimit from "p-limit";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
-import { getErrorMessage } from "@/lib/external-service-errors";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import {
   provisionOrganizationStripeCustomer,
   provisionUserStripeCustomer,
@@ -41,19 +39,18 @@ function logCreateFailure(
   id: string,
   error: unknown,
 ): void {
-  const log = createCoreLogger({ operation: OPERATION, [owner]: { id } });
-  log.error(
-    createError({
+  emitCoreError(
+    { operation: OPERATION, [owner]: { id } },
+    {
       message:
         owner === "user"
           ? "Could not create a Stripe customer for a user"
           : "Could not create a Stripe customer for an organization",
-      why: getErrorMessage(error) || "Stripe customer provisioning failed",
+      why: "Stripe did not create the customer",
       fix: `The next stripe-customers sync retries this ${owner}. If it fails every run, read the Stripe error under error.cause and fix the ${owner}'s billing details or the Stripe configuration.`,
-      cause: error instanceof Error ? error : undefined,
-    }),
+      cause: error,
+    },
   );
-  log.emit();
 }
 
 function getStripeRequestTimeoutMs(options: SyncExecutionOptions): number {

@@ -1,3 +1,4 @@
+export * from "./avatar/index.js";
 export {
   CMO_BRAND_SECTIONS,
   CMO_MEASUREMENT_SOURCES,

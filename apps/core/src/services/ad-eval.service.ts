@@ -3,6 +3,7 @@ import sharp from "sharp";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
 import {
   finalizeAdEval,
   reserveAdEval,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/image-studio/ad-eval-judge";
 import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
 import { CURATED_MODEL_IDS } from "@/lib/image-studio/catalog-overrides";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { studioBrandLookSchema } from "@/schemas/studio-brand-kit.schema";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 
@@ -30,14 +32,34 @@ export function enqueueAdEval(jobId: string): void {
   try {
     if (!adEvalsEnabled()) return;
     waitUntil(
-      evaluateSettledAd(jobId).catch(() => {
-        console.warn("[ad-evals] background evaluation failed", { jobId });
+      evaluateSettledAd(jobId).catch((error) => {
+        emitCoreWarning(
+          {
+            failure: messageSafeErrorFields(error),
+            operation: "ad_eval",
+            job: { id: jobId },
+          },
+          {
+            message: "Could not evaluate a delivered ad",
+            why: "An evaluation step threw",
+            fix: "The ad was delivered and only lacks its score. If this repeats, look up the error name and code under failure.",
+          },
+        );
       }),
     );
-  } catch {
-    console.warn("[ad-evals] could not register background evaluation", {
-      jobId,
-    });
+  } catch (error) {
+    // The request's event when a request settles the ad; standalone otherwise.
+    recordCoreWarning(
+      {
+        failure: messageSafeErrorFields(error),
+        operation: "ad_eval",
+        job: { id: jobId },
+      },
+      {
+        message: "Could not start the evaluation of a delivered ad",
+        why: "Registering the background work threw",
+      },
+    );
   }
 }
 

@@ -695,7 +695,6 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { buildSokoBotAudienceTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
   MAX_CHAT_CHAIN_DEPTH,
@@ -720,6 +719,7 @@ import {
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 import * as scheduleService from "@/services/soko-bot-schedule.service";
+import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
@@ -10544,7 +10544,10 @@ describe("Content Studio image tools", () => {
     });
 
     it("still reports the image when the copy fails", async () => {
-      expectConsole("warn", "[soko-bot] could not copy an image into Files");
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not copy a studio image into Files",
+      );
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(
@@ -10553,6 +10556,14 @@ describe("Content Studio image tools", () => {
           jobId: ready.id,
         }),
       ).resolves.toMatchObject({ status: "SUCCEEDED", file: null });
+      expect(warnings[0]).toMatchObject({ why: "The Files copy failed" });
+      expect(warnings[0]?.event).toMatchObject({
+        failure: { errorName: "Error" },
+      });
+      expect(warnings[0]?.event).toMatchObject({
+        operation: "soko_bot_studio_job",
+        imageJob: { id: expect.any(String) },
+      });
     });
   });
 

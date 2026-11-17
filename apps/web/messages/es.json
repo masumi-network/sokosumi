@@ -7005,13 +7005,6 @@
             "want": "Esperado"
           }
         },
-        "Avatar": {
-          "title": "Avatar",
-          "description": "Dale a este bot un avatar del grupo compartido, como lo haría su dueño.",
-          "apply": "Asignar avatar",
-          "done": "Avatar actualizado.",
-          "error": "No se pudo asignar el avatar."
-        },
         "Daily": {
           "title": "Últimos {days} días, UTC",
           "usersTitle": "Personas que escribieron a un Soko Bot",
@@ -7030,6 +7023,10 @@
           "tokens": "Tokens",
           "cost": "Soko Bots",
           "cmoCost": "CMO.xyz"
+        },
+        "Avatar": {
+          "title": "Aspecto",
+          "description": "Cambia el aspecto de este bot en el estudio de avatares, como lo haría su dueño."
         }
       },
       "MatchedChannels": {
@@ -10253,7 +10250,7 @@
         "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
         "continue": "Continuar",
         "back": "Atrás",
-        "pictureTitle": "Elige una imagen para {name}"
+        "pictureTitle": "Elige un aspecto para {name}"
       },
       "Memory": {
         "title": "Memoria",
@@ -10594,21 +10591,101 @@
         }
       },
       "Avatar": {
-        "title": "Imagen",
-        "description": "Una imagen única de la colección. Dos asistentes nunca comparten la misma.",
-        "save": "Usar esta imagen",
-        "edit": "Cambiar imagen",
-        "saved": "Imagen actualizada.",
-        "saveError": "No se pudo actualizar la imagen.",
-        "current": "Imagen actual",
-        "hint": "Elige una o pide otras opciones.",
-        "showOthers": "Ver otras",
-        "noneNew": "Ahora no hay imágenes nuevas. Inténtalo de nuevo en un minuto.",
-        "drawing": "Dibujando imágenes nuevas. Puede tardar un minuto.",
-        "noMore": "No hay más imágenes nuevas por ahora. Elige una de arriba.",
-        "pictures": "Imágenes",
-        "loadError": "No se pudieron cargar las imágenes.",
-        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
+        "edit": "Cambiar aspecto",
+        "saved": "Aspecto guardado.",
+        "saveError": "No se pudo guardar el aspecto."
+      },
+      "AvatarStudio": {
+        "title": "Diseña el aspecto",
+        "description": "Elige un animal, colores y detalles. Dos asistentes nunca comparten aspecto.",
+        "previewAlt": "Vista previa del avatar",
+        "stateLabel": "Estado de la vista previa",
+        "states": {
+          "idle": "En reposo",
+          "thinking": "Pensando",
+          "working": "Trabajando",
+          "needs_you": "Te necesita",
+          "done": "Listo",
+          "error": "Error",
+          "sleeping": "Durmiendo"
+        },
+        "shuffle": "Al azar",
+        "animal": "Animal",
+        "background": "Fondo",
+        "body": "Color del animal",
+        "mark": "Segundo color",
+        "corner": "Esquina",
+        "cornerLeft": "Abajo a la izquierda",
+        "cornerRight": "Abajo a la derecha",
+        "size": "Tamaño",
+        "sizes": {
+          "S": "Pequeño",
+          "M": "Mediano",
+          "L": "Grande"
+        },
+        "eyes": "Ojos",
+        "eyesOptions": {
+          "original": "Original",
+          "sparkle": "Brillo",
+          "happy": "Contento",
+          "sleepy": "Somnoliento",
+          "dots": "Puntos"
+        },
+        "mouth": "Boca",
+        "mouths": {
+          "original": "Original",
+          "smile": "Sonrisa",
+          "open": "Abierta",
+          "tongue": "Lengua"
+        },
+        "cheeks": "Mejillas",
+        "cheekOptions": {
+          "none": "Ninguna",
+          "blush": "Rubor"
+        },
+        "hat": "Sombrero",
+        "hats": {
+          "none": "Ninguno",
+          "party": "Gorro de fiesta",
+          "crown": "Corona",
+          "beanie": "Gorro",
+          "cap": "Gorra",
+          "star": "Estrella"
+        },
+        "cancel": "Cancelar",
+        "save": "Guardar aspecto",
+        "taken": "Ese aspecto ya está en uso. Cambia un detalle o elige al azar.",
+        "animals": {
+          "axolotl": "Ajolote",
+          "bear": "Oso",
+          "cat": "Gato",
+          "duckling": "Patito",
+          "elephant": "Elefante",
+          "fox": "Zorro",
+          "frog": "Rana",
+          "hedgehog": "Erizo",
+          "koala": "Koala",
+          "otter": "Nutria",
+          "owl": "Búho",
+          "penguin": "Pingüino",
+          "rabbit": "Conejo",
+          "robot": "Robot",
+          "sloth": "Perezoso",
+          "whale": "Ballena"
+        },
+        "colours": {
+          "crimson": "Carmesí",
+          "iris": "Iris",
+          "electric": "Rosa eléctrico",
+          "sakura": "Sakura",
+          "peach": "Melocotón",
+          "sand": "Arena",
+          "persimmon": "Caqui",
+          "scarlet": "Escarlata",
+          "golden": "Dorado",
+          "white": "Blanco",
+          "ink": "Tinta"
+        }
       },
       "Skills": {
         "builtIn": "Incluidos",

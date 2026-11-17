@@ -415,6 +415,7 @@ function createdMessage(
           name: "Nora",
           avatarImageUrl: null,
           avatarSeed: null,
+          avatarCode: null,
           sharedRoomId: null,
           userId: USER_ID,
           user: { name: "Patrick" },

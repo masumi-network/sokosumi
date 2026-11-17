@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 /**
  * Settling a job exactly once.
@@ -23,6 +24,9 @@ const {
   getEnvMock,
   adEventCreateMock,
   enqueueAdEvalMock,
+  jobFindManyMock,
+  fetchQueueResultMock,
+  waitUntilMock,
 } = vi.hoisted(() => ({
   jobFindUniqueMock: vi.fn(),
   jobUpdateMock: vi.fn(),
@@ -37,7 +41,12 @@ const {
   getEnvMock: vi.fn(),
   adEventCreateMock: vi.fn(),
   enqueueAdEvalMock: vi.fn(),
+  jobFindManyMock: vi.fn(),
+  fetchQueueResultMock: vi.fn(),
+  waitUntilMock: vi.fn(),
 }));
+
+vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
 vi.mock("@/services/ad-eval.service", () => ({
   enqueueAdEval: enqueueAdEvalMock,
@@ -59,7 +68,7 @@ vi.mock("@/lib/db/prisma", () => {
     projectImageJob: {
       findUnique: jobFindUniqueMock,
       findUniqueOrThrow: vi.fn(),
-      findMany: vi.fn().mockResolvedValue([]),
+      findMany: jobFindManyMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
       count: vi.fn(),
@@ -94,16 +103,20 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   )),
   downloadMedia: downloadMediaMock,
   fetchQueueStatus: fetchQueueStatusMock,
+  fetchQueueResult: fetchQueueResultMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import {
   reconcileJob,
+  reconcileProjectJobs,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+import { expectCoreLog } from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
 
 const JOB = {
@@ -135,6 +148,7 @@ beforeEach(() => {
     IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: STUDIO_BLOB_TOKEN,
   });
   jobFindUniqueMock.mockResolvedValue(JOB);
+  jobFindManyMock.mockResolvedValue([]);
   requireProjectAccessForUserMock.mockResolvedValue({
     projectId: "project-1",
     workspaceId: "workspace-1",
@@ -291,6 +305,60 @@ describe("automatic ad eval enqueue", () => {
     await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ad eval placement", () => {
+  it("records a failed ad-eval start on the image-studio GET that reconciled the job", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not start the evaluation of a delivered ad",
+    );
+    const { enqueueAdEval } = await vi.importActual<
+      typeof import("@/services/ad-eval.service")
+    >("@/services/ad-eval.service");
+    enqueueAdEvalMock.mockImplementation(enqueueAdEval);
+    onTestFinished(() => {
+      enqueueAdEvalMock.mockReset();
+      waitUntilMock.mockReset();
+    });
+    getEnvMock.mockReturnValue({
+      ...getEnvMock(),
+      AD_EVALS_ENABLED: true,
+      AD_EVALS_PAUSED: false,
+    });
+    // The ad eval registers first; the CMO month nudge after it must not throw.
+    waitUntilMock.mockImplementationOnce(() => {
+      throw new Error("registration unavailable");
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    // Reservation recovery finds nothing; then the project's one live job.
+    jobFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "job-1" }]);
+    fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "media",
+      media: [{ url: "https://v3b.fal.media/files/a.png" }],
+    });
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.get("/projects/:id/image-studio", async (c) => {
+      await reconcileProjectJobs(c.req.param("id"));
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/projects/project-1/image-studio");
+
+    expect(assetCreateMock).toHaveBeenCalledOnce();
+    expect(warnings[0]).toMatchObject({
+      why: "Registering the background work threw",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      method: "GET",
+      path: "/projects/project-1/image-studio",
+      job: { id: "job-1" },
+    });
   });
 });
 

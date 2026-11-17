@@ -10,6 +10,7 @@ import { AdminSokoBotAvatar } from "@/components/admin/soko-bots/admin-soko-bot-
 import { AdminSokoBotDangerZone } from "@/components/admin/soko-bots/admin-soko-bot-danger-zone.client";
 import { AdminSokoBotHeader } from "@/components/admin/soko-bots/admin-soko-bot-header";
 import { AdminSokoBotVersion } from "@/components/admin/soko-bots/admin-soko-bot-version.client";
+import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
@@ -47,13 +48,19 @@ export default async function AdminSokoBotAdvancedPage({
           }))}
           defaultVersionId={versionList.defaultVersionId}
         />
-        {/* The picker reads the owner console's copy, which the admin bag leaves out. */}
+        {/* The studio reads the owner console's copy, which the admin bag leaves out. */}
         <ClientMessageBoundary
-          paths={["App.Admin.SokoBots.Avatar", "App.SokoBot.Avatar"]}
+          paths={[
+            "App.Admin.SokoBots.Avatar",
+            "App.SokoBot.Avatar",
+            "App.SokoBot.AvatarStudio",
+          ]}
         >
           <AdminSokoBotAvatar
             sokoBotId={bot.id}
-            currentImageUrl={bot.avatarImageUrl ?? null}
+            avatarCode={bot.avatarCode ?? null}
+            avatarImageUrl={bot.avatarImageUrl ?? null}
+            seed={botFaceSeed(bot, bot.userId)}
           />
         </ClientMessageBoundary>
         <AdminDecisionsPanel decisions={bot.pendingDecisions ?? []} />

@@ -2,6 +2,8 @@ import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-cr
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import { persistSokoBotChatTurn } from "@/services/soko-bot-chat.service";
 import {
@@ -112,7 +114,18 @@ async function settleEndedTurn(
   });
   if (open) {
     await deliverSokoBotTurnOutbox(turnId).catch((error: unknown) => {
-      console.error("Soko Bot delivery push failed:", { turnId, error });
+      emitCoreError(
+        {
+          failure: messageSafeErrorFields(error),
+          operation: "chat_room_mention_dispatch",
+          sokoBotTurn: { id: turnId },
+        },
+        {
+          message: "Could not deliver a finished Soko Bot turn",
+          why: "Pushing the turn's delivery threw",
+          fix: "The delivery stays in the turn's outbox for the next delivery run.",
+        },
+      );
     });
   }
   if (status !== "COMPLETED") {
@@ -302,10 +315,18 @@ export async function runSokoBotMentionDispatch(params: {
         // bubble streaming that this worker never learned the id of. Marking the
         // mention failed without adopting it is how a placeholder outlives every
         // other signal, so look before giving up.
-        console.error("Soko Bot Thought placeholder create failed:", {
-          mentionId,
-          error: openError,
-        });
+        emitCoreError(
+          {
+            failure: messageSafeErrorFields(openError),
+            operation: "chat_room_mention_dispatch",
+            mention: { id: mentionId },
+          },
+          {
+            message: "Could not open the Soko Bot's thinking reply",
+            why: "Opening the reply threw",
+            fix: "If the reply was opened anyway it is adopted; otherwise the attempt fails and the asker can retry.",
+          },
+        );
         const committed = await findSokoBotReplyOpenedBy(
           mentionId,
           claim.stamp,
@@ -325,10 +346,18 @@ export async function runSokoBotMentionDispatch(params: {
           invalidateChatRoomMessageReaders({ roomId: mention.message.roomId }),
           publishChatRoomMessageRealtimeById(opened.replyId, "create"),
         ]).catch((publishError: unknown) => {
-          console.error("Soko Bot Thought placeholder publish failed:", {
-            mentionId,
-            error: publishError,
-          });
+          emitCoreError(
+            {
+              failure: messageSafeErrorFields(publishError),
+              operation: "chat_room_mention_dispatch",
+              mention: { id: mentionId },
+            },
+            {
+              message: "Could not announce the Soko Bot's thinking reply",
+              why: "Publishing the reply placeholder threw",
+              fix: "The reply is saved; readers see it when they next load the room.",
+            },
+          );
         });
       else if (opened?.eventType === "update")
         await publishChatRoomMessageRealtimeById(opened.replyId, "update");
@@ -427,11 +456,19 @@ export async function runSokoBotMentionDispatch(params: {
     // fail a newer attempt or a completed turn and discard its answer. The
     // mention stays `sent` for stale reclaim to settle.
     await failReply(error).catch((fenceError: unknown) => {
-      console.error("Soko Bot reply failure left for reclaim:", {
-        mentionId,
-        error,
-        fenceError,
-      });
+      emitCoreError(
+        {
+          failure: messageSafeErrorFields(fenceError),
+          operation: "chat_room_mention_dispatch",
+          mention: { id: mentionId },
+        },
+        {
+          message: "Could not fail a Soko Bot reply, so it is left for reclaim",
+          why: "The ownership-checked write threw",
+          fix: "Stale reclaim settles the mention. If this repeats, compare failure and replyFailure.",
+        },
+        { replyFailure: messageSafeErrorFields(error) },
+      );
     });
   }
 }

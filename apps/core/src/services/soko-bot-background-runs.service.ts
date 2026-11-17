@@ -6,6 +6,12 @@ import {
 import { waitUntil } from "@vercel/functions";
 import prisma from "@/lib/db/prisma";
 import {
+  createCoreLogger,
+  logCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
 } from "@/services/soko-bot-runtime.service";
@@ -106,18 +112,33 @@ export async function startBackgroundRun(
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
-      sokoBotControlPlane
-        .reconcileTurn(
-          started.turnId,
-          undefined,
-          started.reconciliationLeaseToken,
-        )
-        .catch((error: unknown) => {
-          console.warn("Soko Bot background run reconciliation stopped", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
-        }),
+      runAsBackgroundWork(() =>
+        sokoBotControlPlane
+          .reconcileTurn(
+            started.turnId,
+            undefined,
+            started.reconciliationLeaseToken,
+          )
+          .catch((error: unknown) => {
+            // After the tool call's response: its own event.
+            const log = createCoreLogger({
+              operation: "soko_bot_background_run",
+              turn: { id: started.turnId, parentId: authorized.turn.id },
+            });
+            logCoreWarning(
+              log,
+              {
+                message:
+                  "A Soko Bot background run stopped draining before it finished",
+                why: "Turn reconciliation threw",
+                fix: "The soko-bot-turns sync resumes the run. If it stays stuck, read the turn's events.",
+              },
+              // Only safe fields: turn work can echo its prompt.
+              { failure: messageSafeErrorFields(error) },
+            );
+            log.emit();
+          }),
+      ),
     );
   return {
     runId: started.turnId,

@@ -296,8 +296,9 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     });
     expect(summaries[0]?.stripeCustomerSync).toHaveProperty("stopped", null);
     expect(errors[0]).toMatchObject({
-      why: "Stripe answered 500",
+      why: "Stripe did not create the customer",
       fix: expect.stringContaining("next stripe-customers sync"),
+      cause: expect.objectContaining({ message: "Stripe answered 500" }),
     });
     expect(errors[0]?.event).toMatchObject({
       operation: "stripe_customer_sync",
@@ -320,8 +321,9 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     );
 
     expect(errors[0]).toMatchObject({
-      why: "Stripe timed out",
+      why: "Stripe did not create the customer",
       fix: expect.stringContaining("next stripe-customers sync"),
+      cause: expect.objectContaining({ message: "Stripe timed out" }),
     });
     expect(errors[0]?.event).toMatchObject({
       operation: "stripe_customer_sync",

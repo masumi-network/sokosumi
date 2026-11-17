@@ -6,8 +6,8 @@
  */
 import { createHash } from "node:crypto";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
-import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
-import { getErrorMessage } from "@/lib/external-service-errors";
+import { emitCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
  * Cosine similarity at which two texts say one thing, measured on real
@@ -122,13 +122,16 @@ export async function findRepeats(
       }),
     ]);
   } catch (error) {
-    const log = createCoreLogger({ operation: "repeats_check", kind });
-    logCoreWarning(log, {
-      message: "Repeat check skipped: the embedding model did not answer",
-      why: getErrorMessage(error) || "unknown error",
-      fix: "Nothing to do for this save. If it happens on every save, check the AI Gateway embedding model.",
-    });
-    log.emit();
+    // The texts are the owner's: the event keeps only what the error is.
+    emitCoreWarning(
+      { operation: "repeats_check", kind },
+      {
+        message: "Repeat check skipped: the embedding model did not answer",
+        why: "The embedding call failed or took longer than the check waits",
+        fix: "Nothing to do for this save. If it happens on every save, check the AI Gateway embedding model.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return none;
   } finally {
     clearTimeout(timer);

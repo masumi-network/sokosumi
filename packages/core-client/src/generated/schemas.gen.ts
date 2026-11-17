@@ -2257,34 +2257,6 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
-export const RestyleSokoBotAvatarsResultSchema = {
-    type: 'object',
-    properties: {
-        restyled: {
-            type: 'integer'
-        },
-        remaining: {
-            type: 'integer'
-        }
-    },
-    required: [
-        'restyled',
-        'remaining'
-    ]
-} as const;
-
-export const RestyleSokoBotAvatarsRequestSchema = {
-    type: 'object',
-    properties: {
-        limit: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 10,
-            default: 6
-        }
-    }
-} as const;
-
 export const AdminSokoBotChatRoomSchema = {
     type: 'object',
     properties: {
@@ -2733,6 +2705,13 @@ export const ChatRoomSokoBotParticipantSchema = {
                 'null'
             ],
             example: 'orb:user_123'
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Feature code of the live SVG avatar; null until the bot has one.'
         },
         ownerUserId: {
             type: [
@@ -4915,6 +4894,12 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         versionId: {
             type: [
                 'string',
@@ -5015,16 +5000,19 @@ export const AdminSokoBotActionRequestSchema = {
     additionalProperties: false
 } as const;
 
-export const ClaimSokoBotAvatarRequestSchema = {
+export const SokoBotAvatarCodeSchema = {
     type: 'object',
     properties: {
-        avatarId: {
-            type: 'string',
-            format: 'uuid'
+        avatarCode: {
+            type: 'string'
+        },
+        avatarImageUrl: {
+            type: 'string'
         }
     },
     required: [
-        'avatarId'
+        'avatarCode',
+        'avatarImageUrl'
     ]
 } as const;
 
@@ -32299,7 +32287,7 @@ export const MarketingStrategySchema = {
                                     'was'
                                 ]
                             },
-                            maxItems: 120,
+                            maxItems: 240,
                             default: []
                         }
                     },
@@ -34048,7 +34036,7 @@ export const MarketingStrategyRequestSchema = {
                             'was'
                         ]
                     },
-                    maxItems: 120,
+                    maxItems: 240,
                     default: []
                 }
             },
@@ -53288,7 +53276,7 @@ export const CmoPlanSchema = {
                     'was'
                 ]
             },
-            maxItems: 120,
+            maxItems: 240,
             default: []
         }
     },
@@ -54299,6 +54287,12 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
+                avatarCode: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
                 versionId: {
                     type: [
                         'string',
@@ -54430,6 +54424,12 @@ export const SharedSokoBotSummarySchema = {
                 'null'
             ]
         },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
@@ -54523,12 +54523,12 @@ export const CreateSokoBotRequestSchema = {
             ],
             maxLength: 200
         },
-        avatarId: {
+        avatarCode: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid'
+            maxLength: 120
         },
         personalityTone: {
             type: [
@@ -54747,31 +54747,6 @@ export const ResolveSokoBotDecisionRequestSchema = {
         'resolution'
     ],
     additionalProperties: false
-} as const;
-
-export const SokoBotAvatarSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        imageUrl: {
-            type: 'string'
-        },
-        subject: {
-            type: 'string'
-        },
-        background: {
-            type: 'string'
-        }
-    },
-    required: [
-        'id',
-        'imageUrl',
-        'subject',
-        'background'
-    ]
 } as const;
 
 export const SokoBotIntegrationsSchema = {
@@ -55296,6 +55271,12 @@ export const SokoBotTeamSchema = {
                                 ]
                             },
                             avatarImageUrl: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            avatarCode: {
                                 type: [
                                     'string',
                                     'null'
@@ -55941,12 +55922,12 @@ export const CreateScopedSokoBotRequestSchema = {
             ],
             maxLength: 200
         },
-        avatarId: {
+        avatarCode: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid'
+            maxLength: 120
         },
         personalityTone: {
             type: [
