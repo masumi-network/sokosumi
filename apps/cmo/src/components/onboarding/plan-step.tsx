@@ -17,6 +17,7 @@ import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
 import {
   Checklist,
+  type ChecklistItem,
   PLANNING_PHASES,
   useElapsed,
   workChecklist,
@@ -123,6 +124,24 @@ export function planningRows(
   return rows;
 }
 
+/**
+ * The planning checklist. Once the plan's idea and channels are saved, Cuso
+ * is on the calendar, whatever steps Core has reported so far; the checklist
+ * then agrees with the feed below it.
+ */
+export function planningChecklist(
+  steps: Step[],
+  strategy: Strategy | null,
+  running: boolean,
+): ChecklistItem[] {
+  const items = workChecklist(steps, PLANNING_PHASES, running);
+  if (!running || !strategy) return items;
+  return items.map((item, at) => ({
+    ...item,
+    state: at === items.length - 1 ? "working" : "done",
+  }));
+}
+
 const ANSWER_WORDS: Record<string, string> = {
   yes: "Yes",
   no: "No",
@@ -225,7 +244,11 @@ function Planning({
   const elapsed = useElapsed(work?.startedAt, running);
   const steps = work?.kind === "strategy" ? work.steps : [];
   const rows = planningRows(steps, overview.strategy ?? null, running);
-  const checklist = workChecklist(steps, PLANNING_PHASES, running);
+  const checklist = planningChecklist(
+    steps,
+    overview.strategy ?? null,
+    running,
+  );
   return (
     <section className="ob-wait">
       <div className="ob-lead">
