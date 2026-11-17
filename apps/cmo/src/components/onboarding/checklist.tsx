@@ -115,6 +115,17 @@ export function workChecklist(
   return items;
 }
 
+/** What Cuso is doing right now: his live step, else the working phase. */
+export function workNow(
+  steps: Work["steps"],
+  items: ChecklistItem[],
+): string | null {
+  const live = steps.findLast((step) => step.status === "running");
+  return (
+    live?.label ?? items.find((item) => item.state === "working")?.label ?? null
+  );
+}
+
 /** A section Cuso has not saved yet: a dashed outline, never a shimmer. */
 export function SkeletonTile() {
   return (

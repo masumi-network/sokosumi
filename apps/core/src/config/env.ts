@@ -513,6 +513,12 @@ const baseEnvSchema = z.object({
     .optional(),
   BUZZ_KEY_ENCRYPTION_SECRET: z.string().min(32).optional(),
   /**
+   * The private reference library store: old ads, posters and covers Cuso
+   * takes a style from (`services/reference-library.service.ts`). Unset, his
+   * pictures are made from the brand's own pictures only.
+   */
+  REFERENCE_LIBRARY_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls

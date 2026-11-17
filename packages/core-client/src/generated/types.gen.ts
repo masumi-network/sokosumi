@@ -8250,7 +8250,7 @@ export type QuestionAnswerRequest = {
     questionId: string;
     answer: 'yes' | 'no' | 'unsure';
     /**
-     * After a no: what is true instead, in the member's words.
+     * The member's own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.
      */
     note?: string;
 };
@@ -8481,6 +8481,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -8730,6 +8732,8 @@ export type MarketingStrategyRequest = {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
             story?: string;
             imageFileId?: string;
@@ -10402,6 +10406,8 @@ export type SocialPost = {
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
         story?: string;
     } | null;
@@ -12265,9 +12271,9 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'checkout' | 'done';
+    onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -12959,6 +12965,8 @@ export type CmoPlan = {
         socialPostId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
         story?: string;
         imageFileId?: string;

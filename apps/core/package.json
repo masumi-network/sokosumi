@@ -40,7 +40,8 @@
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
     "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts",
-    "cmo:lab": "tsx --env-file=.env scripts/cmo-lab.mts"
+    "cmo:lab": "tsx --env-file=.env scripts/cmo-lab.mts",
+    "reference-library": "tsx --env-file=.env scripts/reference-library.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.25",

@@ -48,6 +48,7 @@ const NOT_YET_COVERED = new Set([
   "export_contacts_to_table",
   "find_ad_targeting",
   "find_contact_duplicates",
+  "find_style_references",
   "find_integrations",
   "generate_image",
   "generate_video",

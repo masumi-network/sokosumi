@@ -29784,7 +29784,7 @@ export const QuestionAnswerRequestSchema = {
         note: {
             type: 'string',
             maxLength: 400,
-            description: 'After a no: what is true instead, in the member\'s words.'
+            description: 'The member\'s own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.'
         }
     },
     required: [
@@ -31072,6 +31072,15 @@ export const MarketingStrategySchema = {
                                             maxLength: 100
                                         },
                                         maxItems: 3
+                                    },
+                                    styleReferenceId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    headline: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 60
                                     },
                                     slides: {
                                         type: 'array',
@@ -32517,6 +32526,15 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 3
+                            },
+                            styleReferenceId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            headline: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 60
                             },
                             slides: {
                                 type: 'array',
@@ -38768,6 +38786,15 @@ export const SocialPostSchema = {
                         maxLength: 100
                     },
                     maxItems: 3
+                },
+                styleReferenceId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                headline: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 60
                 },
                 slides: {
                     type: 'array',
@@ -47289,11 +47316,11 @@ export const CmoOverviewSchema = {
             enum: [
                 'brandBrain',
                 'strategy',
-                'accounts',
                 'checkout',
+                'accounts',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
@@ -51077,6 +51104,15 @@ export const CmoPlanSchema = {
                             maxLength: 100
                         },
                         maxItems: 3
+                    },
+                    styleReferenceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
                     },
                     slides: {
                         type: 'array',

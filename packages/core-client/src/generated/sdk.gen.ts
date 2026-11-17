@@ -4124,7 +4124,7 @@ export const confirmProjectBrandBrain = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * A member answers one of the Brand Brain's yes/no questions: yes, no (with what is true instead) or not sure. A yes lands in its section as a confirmed finding; a no lands as what is true instead (or that the statement is not true) and stays uncorrected until the section is rewritten, which the next strategy request asks Cuso to do first.
+ * A member answers one of the Brand Brain's yes/no questions: yes, no or not sure, each with the member's optional details. A yes lands in its section as a confirmed finding (with the details); a not sure lands only its details; a no lands as what is true instead (or that the statement is not true) and stays uncorrected until the section is rewritten, which the next strategy request asks Cuso to do first.
  */
 export const answerProjectBrandBrainQuestion = <ThrowOnError extends boolean = false>(options: Options<AnswerProjectBrandBrainQuestionData, ThrowOnError>): RequestResult<AnswerProjectBrandBrainQuestionResponses, AnswerProjectBrandBrainQuestionErrors, ThrowOnError> => (options.client ?? client).post<AnswerProjectBrandBrainQuestionResponses, AnswerProjectBrandBrainQuestionErrors, ThrowOnError>({
     responseTransformer: answerProjectBrandBrainQuestionResponseTransformer,
@@ -6436,7 +6436,7 @@ export const confirmCmoBrandBrainForProject = <ThrowOnError extends boolean = fa
 });
 
 /**
- * A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no (with what is true instead) or not sure.
+ * A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no or not sure, each with the member's optional details.
  */
 export const answerCmoBrandBrainQuestionForProject = <ThrowOnError extends boolean = false>(options: Options<AnswerCmoBrandBrainQuestionForProjectData, ThrowOnError>): RequestResult<AnswerCmoBrandBrainQuestionForProjectResponses, AnswerCmoBrandBrainQuestionForProjectErrors, ThrowOnError> => (options.client ?? client).post<AnswerCmoBrandBrainQuestionForProjectResponses, AnswerCmoBrandBrainQuestionForProjectErrors, ThrowOnError>({
     responseTransformer: answerCmoBrandBrainQuestionForProjectResponseTransformer,

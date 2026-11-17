@@ -252,7 +252,7 @@ describe("TaskCard density", () => {
 
     rerender(<TaskCard task={task} compact={false} />);
     expect(screen.getByRole("article").className).toBe(normalClasses);
-    expect(screen.getByText("empty")).toBeInTheDocument();
+    expect(screen.queryByText("empty")).not.toBeInTheDocument();
     expect(screen.getByText("noProject")).toBeInTheDocument();
   });
 

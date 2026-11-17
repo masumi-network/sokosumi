@@ -186,6 +186,15 @@ export const richBrain: Brain = {
         detail: "Moonshot's homepage opens on a discount.",
       },
     ],
+    map: {
+      x: { low: "Self-serve", high: "Done for you" },
+      y: { low: "Cheap", high: "Premium" },
+      players: [
+        { name: "Acme", x: 68, y: 72, you: true },
+        { name: "Moonshot", x: 30, y: 35 },
+        { name: "LaunchPad", x: 82, y: 40 },
+      ],
+    },
     buyers: [
       {
         role: "Head of product",

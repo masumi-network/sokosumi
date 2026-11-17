@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { TaskCard } from "./task-card";
-import { TaskTagSection } from "./task-tags";
+import { TaskTags as CardTags, TaskTagSection } from "./task-tags";
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
 vi.mock("next-intl", () => ({
@@ -82,6 +82,22 @@ describe("TaskTagSection", () => {
     render(<TaskTagSection />);
     expect(screen.getByText("empty")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+describe("card tags", () => {
+  it("leaves no empty line on a card without tags", () => {
+    const { container } = render(<CardTags />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows the tags a card has", () => {
+    render(
+      <CardTags tags={{ manual: [], automatic: ["writing"], rejected: [] }} />,
+    );
+    expect(screen.getByLabelText("label")).toHaveTextContent(
+      "vocabulary.writing",
+    );
   });
 });
 
