@@ -4557,6 +4557,8 @@
       "errorRefreshFailed": "Could not refresh. Retrying.",
       "errorLoadOlderFailed": "Could not load older versions.",
       "composerTitle": "New images",
+      "advanced": "Advanced",
+      "autoModel": "Auto",
       "model": "Model",
       "aspectRatio": "Frame",
       "adPlacements": "Ad placements",
@@ -4641,7 +4643,6 @@
       "previousVersion": "Previous version",
       "nextVersion": "Next version",
       "moreOptions": "Options",
-      "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
@@ -6003,6 +6004,10 @@
           "evals": {
             "title": "Evals",
             "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
+          },
+          "adEvals": {
+            "title": "Ad evals",
+            "description": "Compare ad models, judge agreement and training exports."
           }
         }
       },
@@ -7036,13 +7041,6 @@
             "want": "Expected"
           }
         },
-        "Avatar": {
-          "title": "Avatar",
-          "description": "Give this bot an avatar from the shared pool, as its owner would.",
-          "apply": "Set avatar",
-          "done": "Avatar updated.",
-          "error": "Could not set the avatar."
-        },
         "Daily": {
           "title": "Last {days} days, UTC",
           "usersTitle": "People who wrote to a Soko Bot",
@@ -7061,6 +7059,10 @@
           "tokens": "Tokens",
           "cost": "Soko Bots",
           "cmoCost": "CMO.xyz"
+        },
+        "Avatar": {
+          "title": "Look",
+          "description": "Change this bot's look in the avatar studio, as its owner would."
         }
       },
       "MatchedChannels": {
@@ -7474,6 +7476,53 @@
           "before": "Daily run of {when}"
         },
         "labLink": "Try one scenario on your own bot"
+      },
+      "AdEvals": {
+        "title": "Ad evals",
+        "description": "Model quality across consenting workspaces.",
+        "unknownTemplate": "Unspecified template",
+        "Leaderboard": {
+          "title": "Leaderboard",
+          "help": "95% confidence intervals. Scores need at least {minimum} workspaces; n counts ads.",
+          "empty": "No ad evaluations from consenting workspaces yet.",
+          "model": "Model",
+          "adType": "Template / aspect",
+          "thumbs": "👍 rate",
+          "pairwise": "Pairwise win rate",
+          "judge": "Judge mean",
+          "n": "n",
+          "workspaces": "Workspaces",
+          "suppressed": "Fewer than 5 workspaces"
+        },
+        "Agreement": {
+          "title": "Judge vs human",
+          "help": "Spearman correlation by criterion. Review values below 0.3.",
+          "empty": "No matched judge scores and human feedback yet.",
+          "criterion": "Criterion",
+          "signal": "Human signal",
+          "correlation": "Spearman ρ",
+          "n": "n",
+          "status": "Status",
+          "thumb": "Thumbs",
+          "pairwise": "Pairwise",
+          "low": "Low agreement",
+          "insufficient": "Not enough variation"
+        },
+        "Criteria": {
+          "brief_adherence": "Brief adherence",
+          "brand_fit": "Brand fit",
+          "composition": "Composition",
+          "text_quality": "Text quality",
+          "product_fidelity": "Product fidelity",
+          "ad_effectiveness": "Ad effectiveness",
+          "overall": "Overall"
+        },
+        "Export": {
+          "title": "Export",
+          "help": "Training opt-ins only. Brand text omitted; image links expire in 10 minutes.",
+          "download": "Download JSONL",
+          "error": "Failed to export ad data. Try again."
+        }
       }
     },
     "Billing": {
@@ -10202,7 +10251,7 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}"
+        "pictureTitle": "Choose a look for {name}"
       },
       "Memory": {
         "title": "Memory",
@@ -10543,21 +10592,101 @@
         }
       },
       "Avatar": {
-        "title": "Picture",
-        "description": "A unique picture from the collection. No two assistants share one.",
-        "save": "Use this picture",
-        "edit": "Change picture",
-        "saved": "Picture updated.",
-        "saveError": "Could not update the picture.",
-        "current": "Current picture",
-        "hint": "Pick one, or ask for other options.",
-        "showOthers": "Show others",
-        "noneNew": "No new pictures right now. Try again in a minute.",
-        "drawing": "Drawing new pictures. This can take a minute.",
-        "noMore": "That is all the new pictures for now. Pick one above.",
-        "pictures": "Pictures",
-        "loadError": "Could not load pictures.",
-        "rateLimited": "Too many new pictures requested. Try again later."
+        "edit": "Change look",
+        "saved": "Look saved.",
+        "saveError": "Could not save the look."
+      },
+      "AvatarStudio": {
+        "title": "Design the look",
+        "description": "Pick an animal, colours and details. No two assistants share a look.",
+        "previewAlt": "Preview of the avatar",
+        "stateLabel": "Preview state",
+        "states": {
+          "idle": "Idle",
+          "thinking": "Thinking",
+          "working": "Working",
+          "needs_you": "Needs you",
+          "done": "Done",
+          "error": "Error",
+          "sleeping": "Sleeping"
+        },
+        "shuffle": "Shuffle",
+        "animal": "Animal",
+        "background": "Background",
+        "body": "Animal colour",
+        "mark": "Second colour",
+        "corner": "Corner",
+        "cornerLeft": "Lower left",
+        "cornerRight": "Lower right",
+        "size": "Size",
+        "sizes": {
+          "S": "Small",
+          "M": "Medium",
+          "L": "Large"
+        },
+        "eyes": "Eyes",
+        "eyesOptions": {
+          "original": "Original",
+          "sparkle": "Sparkle",
+          "happy": "Happy",
+          "sleepy": "Sleepy",
+          "dots": "Dots"
+        },
+        "mouth": "Mouth",
+        "mouths": {
+          "original": "Original",
+          "smile": "Smile",
+          "open": "Open",
+          "tongue": "Tongue"
+        },
+        "cheeks": "Cheeks",
+        "cheekOptions": {
+          "none": "None",
+          "blush": "Blush"
+        },
+        "hat": "Headwear",
+        "hats": {
+          "none": "None",
+          "party": "Party hat",
+          "crown": "Crown",
+          "beanie": "Beanie",
+          "cap": "Cap",
+          "star": "Star"
+        },
+        "cancel": "Cancel",
+        "save": "Save look",
+        "taken": "That look is taken. Change one thing or shuffle.",
+        "animals": {
+          "axolotl": "Axolotl",
+          "bear": "Bear",
+          "cat": "Cat",
+          "duckling": "Duckling",
+          "elephant": "Elephant",
+          "fox": "Fox",
+          "frog": "Frog",
+          "hedgehog": "Hedgehog",
+          "koala": "Koala",
+          "otter": "Otter",
+          "owl": "Owl",
+          "penguin": "Penguin",
+          "rabbit": "Rabbit",
+          "robot": "Robot",
+          "sloth": "Sloth",
+          "whale": "Whale"
+        },
+        "colours": {
+          "crimson": "Crimson",
+          "iris": "Iris",
+          "electric": "Electric pink",
+          "sakura": "Sakura",
+          "peach": "Peach",
+          "sand": "Sand",
+          "persimmon": "Persimmon",
+          "scarlet": "Scarlet",
+          "golden": "Golden",
+          "white": "White",
+          "ink": "Ink"
+        }
       },
       "Skills": {
         "builtIn": "Included",
@@ -13038,6 +13167,19 @@
           "help": "Searches that your users make before they need the product. An article on them brings readers who may need it later."
         }
       }
+    },
+    "AdDataConsent": {
+      "title": "Ad data",
+      "shareLabel": "Help improve Sokosumi",
+      "shareHelp": "Share ad data for internal model comparisons and judge calibration.",
+      "trainingLabel": "Allow training use",
+      "trainingHelp": "Allow dataset exports and model training; requires sharing above.",
+      "save": "Save preferences",
+      "saved": "Ad data preferences saved",
+      "saveError": "Failed to save preferences. Try again.",
+      "adminOnly": "Only workspace admins can change these preferences.",
+      "loadError": "Failed to load ad data preferences. Try again.",
+      "retry": "Try again"
     }
   },
   "Share": {

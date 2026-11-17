@@ -290,6 +290,7 @@ describe("deleteSokoBot", () => {
     const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
     expect(data.deletedAt).toBeInstanceOf(Date);
     expect(data.name).toBeNull();
+    expect(data.avatarCode).toBeNull(); // a deleted bot frees its look
   });
 
   it("erases everything the bot owned on either path", async () => {

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountRemoveChatRoomMessageUnfurl from "./post";
 
@@ -55,9 +60,9 @@ vi.mock("@/lib/chat-unfurl-snapshot", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void promise;
-  },
+  }),
 }));
 
 const { publishChatRoomMessageRealtimeMock } = vi.hoisted(() => ({
@@ -92,8 +97,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -231,6 +240,26 @@ describe("POST /chats/rooms/:id/messages/:messageId/unfurls/remove", () => {
       ROOM_ID,
       MESSAGE_ID,
     );
+  });
+
+  it("runs the snapshot delete as background work, off the request's event", async () => {
+    expectBackgroundProbe("deleteChatRoomUnfurlSnapshotsIfOwned");
+    // Shared code behind it calls `recordCoreError`, which would otherwise
+    // find this request still live.
+    deleteSnapshotsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("deleteChatRoomUnfurlSnapshotsIfOwned"),
+    );
+
+    const response = await createApp(userAuthContext, { evlog: true }).request(
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/unfurls/remove`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: ABLY_URL }),
+      },
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it("locks the message with FOR UPDATE before applying the remove", async () => {

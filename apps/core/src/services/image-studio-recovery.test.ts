@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -103,14 +104,16 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   reconcileJob,
+  reconcileProjectJobs,
   recoverUnclaimedReservations,
   requestCancel,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
-import { expectConsole } from "@/test/console";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 
 /** The default model's generate endpoint, from the catalog. */
 const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
@@ -467,7 +470,11 @@ describe("a reservation whose process died before it claimed submission", () => 
   });
 
   it("leaves one alone when the access check itself is unavailable", async () => {
-    expectConsole("warn", "[image-studio] recovery access check unavailable");
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not check access before recovering an image reservation",
+      ["The project access check failed without an answer"],
+    );
     jobFindManyMock.mockResolvedValue([
       {
         id: "job-12",
@@ -486,6 +493,12 @@ describe("a reservation whose process died before it claimed submission", () => 
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(result.denied).toBe(0);
     expect(result.abandoned).toBe(0);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_job_recovery",
+      imageJobs: [{ id: "job-12", failure: { errorName: "Error" } }],
+    });
+    // The failure sits on the job's own entry, not as a separate cause.
+    expect(warnings[0]?.cause).toBeUndefined();
   });
 
   it("only looks at the project it was asked about", async () => {
@@ -519,5 +532,166 @@ describe("a reservation whose process died before it claimed submission", () => 
         data: expect.objectContaining({ status: "FAILED" }),
       }),
     );
+  });
+});
+
+describe("several failing jobs in one request", () => {
+  /** Runs `work` inside a request, so every warning lands on its one event. */
+  async function inRequest(work: () => Promise<unknown>) {
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.get("/projects/:id/images", async (c) => {
+      await work();
+      return c.json({ ok: true });
+    });
+    await app.request("http://localhost/projects/project-1/images");
+  }
+
+  function prismaError(code: string) {
+    return Object.assign(new Error(`row ${code} failed`), {
+      name: "PrismaClientKnownRequestError",
+      code,
+    });
+  }
+
+  function reservation(id: string) {
+    return {
+      id,
+      createdAt: new Date(Date.now() - 120_000),
+      projectId: "project-1",
+      requestedByUserId: "user-1",
+    };
+  }
+
+  it("keeps each job's id and failure when a poll fails to reconcile two", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not reconcile an image job",
+      2,
+    );
+    jobFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "job-a" }, { id: "job-b" }]);
+    jobFindUniqueMock.mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        Promise.reject(prismaError(where.id === "job-a" ? "P2024" : "P2034")),
+    );
+
+    await inRequest(() => reconcileProjectJobs("project-1"));
+
+    expect(warnings[1]?.event.imageJobs).toEqual([
+      {
+        id: "job-a",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P2024" },
+      },
+      {
+        id: "job-b",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P2034" },
+      },
+    ]);
+  });
+
+  it("keeps each job's id when the access check is unavailable for two", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not check access before recovering an image reservation",
+      2,
+    );
+    jobFindManyMock.mockResolvedValue([
+      reservation("job-c"),
+      reservation("job-d"),
+    ]);
+    requireProjectAccessForUserMock.mockRejectedValue(
+      new Error("connection pool timeout"),
+    );
+
+    await inRequest(() => recoverUnclaimedReservations());
+
+    expect(warnings[1]?.event.imageJobs).toEqual([
+      { id: "job-c", failure: { errorName: "Error" } },
+      { id: "job-d", failure: { errorName: "Error" } },
+    ]);
+  });
+
+  it("keeps each access failure with its own job, around an unrelated warning", async () => {
+    const access = expectCoreLog(
+      "warn",
+      "Could not check access before recovering an image reservation",
+      2,
+    );
+    const sends = expectCoreLog(
+      "warn",
+      "Could not send a recovered image reservation",
+    );
+    jobFindManyMock.mockResolvedValue([
+      { ...reservation("job-g"), requestedByUserId: "user-g" },
+      { ...reservation("job-h"), requestedByUserId: "user-h" },
+      { ...reservation("job-i"), requestedByUserId: "user-i" },
+    ]);
+    requireProjectAccessForUserMock.mockImplementation(
+      ({ userId }: { userId: string }) =>
+        userId === "user-h"
+          ? Promise.resolve({
+              projectId: "project-1",
+              workspaceId: "workspace-1",
+              userId,
+              organizationId: null,
+            })
+          : Promise.reject(
+              prismaError(userId === "user-g" ? "P1001" : "P2024"),
+            ),
+    );
+    jobFindUniqueOrThrowMock.mockRejectedValue(prismaError("P2025"));
+
+    await inRequest(() => recoverUnclaimedReservations());
+
+    expect(sends).toHaveLength(1);
+    expect(access.map((warning) => warning.cause)).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(access[1]?.event.imageJobs).toEqual([
+      {
+        id: "job-g",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P1001" },
+      },
+      {
+        id: "job-h",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P2025" },
+      },
+      {
+        id: "job-i",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P2024" },
+      },
+    ]);
+  });
+
+  it("keeps each job's id and failure when two recovered sends fail", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not send a recovered image reservation",
+      2,
+    );
+    jobFindManyMock.mockResolvedValue([
+      reservation("job-e"),
+      reservation("job-f"),
+    ]);
+    jobFindUniqueOrThrowMock.mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        Promise.reject(prismaError(where.id === "job-e" ? "P2025" : "P2028")),
+    );
+
+    await inRequest(() => recoverUnclaimedReservations());
+
+    expect(warnings[1]?.event.imageJobs).toEqual([
+      {
+        id: "job-e",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P2025" },
+      },
+      {
+        id: "job-f",
+        failure: { errorName: "PrismaClientKnownRequestError", code: "P2028" },
+      },
+    ]);
   });
 });

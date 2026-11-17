@@ -149,6 +149,27 @@ function isRefineEndpoint(
   );
 }
 
+/** Recraft V3's schema caps prompts at 1000 characters, including brand context. */
+function fitRecraftV3Prompt(prompt: string): string {
+  const maxChars = 1000;
+  const characters = Array.from(prompt);
+  if (characters.length <= maxChars) return prompt;
+
+  const separator = "\n\nBrief:\n";
+  const briefIndex = prompt.startsWith("Follow this project's brand.\n\n")
+    ? prompt.lastIndexOf(separator)
+    : -1;
+  const brief =
+    briefIndex < 0 ? prompt : prompt.slice(briefIndex + separator.length);
+  const briefCharacters = Array.from(brief);
+  if (briefIndex < 0 || briefCharacters.length >= maxChars) {
+    return briefCharacters.slice(0, maxChars).join("");
+  }
+  const brandBudget = maxChars - separator.length - briefCharacters.length;
+  if (brandBudget <= 0) return brief;
+  return `${Array.from(prompt.slice(0, briefIndex)).slice(0, brandBudget).join("")}${separator}${brief}`;
+}
+
 /**
  * The id the queue's per-request routes are mounted under.
  *
@@ -189,7 +210,12 @@ export function buildFalInput(
     model.providerFields.includes(field);
   const inpaint = model.inpaintEndpoint === endpoint;
 
-  const body: Record<string, unknown> = { prompt: input.prompt };
+  const body: Record<string, unknown> = {
+    prompt:
+      endpoint === "fal-ai/recraft/v3/text-to-image"
+        ? fitRecraftV3Prompt(input.prompt)
+        : input.prompt,
+  };
   if (accepts("output_format")) body.output_format = input.outputFormat;
   // fal-ai/ideogram/v3/edit has no image_size: the output is the input size.
   // Sending one is a 422. Remix and the generate endpoint do take it.

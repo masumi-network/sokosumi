@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import type { OrganizationRecord } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -196,6 +197,7 @@ describe("TaskWorkspaceSwitchDialog", () => {
   });
 
   it("shows an error toast and reports to Sentry when switching fails", async () => {
+    expectConsole("error", "Failed to switch organization");
     const switchError = new Error("setActive failed");
     vi.mocked(authClient.organization.setActive).mockRejectedValue(switchError);
 

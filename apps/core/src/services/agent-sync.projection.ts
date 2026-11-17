@@ -18,6 +18,7 @@ import {
   type CardanoV2ReadySource,
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
+import { type CoreWarning, emitCoreWarning } from "@/lib/evlog";
 
 const POSTGRES_INT_MAX = 2_147_483_647;
 const MAX_PAYMENT_SOURCE_INDEX = 24;
@@ -27,6 +28,25 @@ const MAX_LEGACY_PRICING_AMOUNTS = 100;
 const MAX_REGISTRY_TAGS = 100;
 const MAX_REGISTRY_EXAMPLE_OUTPUTS = 100;
 const POSTGRES_BIGINT_MAX_STRING = POSTGRES_BIGINT_MAX.toString();
+
+const REGISTRY_ENTRY_FIX =
+  "The registry owner must fix the entry; the next agents sync reads it again once it changes.";
+
+/** The registry sync runs after the cron response, so each warning is its own event. */
+function warnRegistryEntry(
+  agentIdentifier: string,
+  warning: CoreWarning,
+  fields?: Record<string, unknown>,
+): void {
+  emitCoreWarning(
+    {
+      operation: "agent_registry_sync",
+      agent: { identifier: agentIdentifier },
+    },
+    warning,
+    fields,
+  );
+}
 
 function normalizeUnsignedInteger(value: unknown): string | null {
   if (typeof value !== "string" || !/^\d+$/.test(value)) {
@@ -258,9 +278,12 @@ function parseEntryAgentPricing(
   }
   const parsed = registryAgentPricingSchema.safeParse(pricing);
   if (!parsed.success) {
-    console.warn(
-      `[sync/agents] Malformed pricing for entry ${agentIdentifier}; storing as UNKNOWN (agent stays unavailable)`,
-    );
+    warnRegistryEntry(agentIdentifier, {
+      message:
+        "A registry entry's pricing is malformed, so its agent is stored with unknown pricing and stays unavailable",
+      why: "AgentPricing does not match the registry pricing schema",
+      fix: REGISTRY_ENTRY_FIX,
+    });
     return {
       pricingType: PricingType.UNKNOWN,
     };
@@ -283,9 +306,12 @@ function parseEntryAgentPricing(
         parsedAmounts.length === 0 ||
         validAmounts.length !== parsedAmounts.length
       ) {
-        console.warn(
-          `[sync/agents] Invalid fixed pricing amount for entry ${agentIdentifier}; storing as UNKNOWN (agent stays unavailable)`,
-        );
+        warnRegistryEntry(agentIdentifier, {
+          message:
+            "A registry entry has an invalid fixed price, so its agent is stored with unknown pricing and stays unavailable",
+          why: "A fixed pricing amount is missing, not a positive integer, or larger than a database BIGINT",
+          fix: REGISTRY_ENTRY_FIX,
+        });
         return {
           pricingType: PricingType.UNKNOWN,
         };
@@ -483,9 +509,12 @@ export function resolveRegistryAgentVersion(
 
   const parsed = parseVersionedAgentIdentifier(entry.agentIdentifier);
   if (!parsed) {
-    console.warn(
-      `[sync/agents] Invalid V2 version suffix for entry ${entry.agentIdentifier}; storing as unavailable`,
-    );
+    warnRegistryEntry(entry.agentIdentifier, {
+      message:
+        "A V2 registry entry has an invalid version suffix, so its agent is stored as unavailable",
+      why: "The identifier does not end in a valid version number",
+      fix: REGISTRY_ENTRY_FIX,
+    });
     return {
       registryIdentity: entry.agentIdentifier,
       registryVersion: 0,
@@ -512,8 +541,20 @@ function projectSourcePricing(
   switch (pricing.pricingType) {
     case "Fixed": {
       if (pricing.fixed.length > MAX_PAYMENT_SOURCE_AMOUNTS) {
-        console.warn(
-          `[sync/agents] Too many source pricing amounts for entry ${agentIdentifier}; storing as UNKNOWN`,
+        warnRegistryEntry(
+          agentIdentifier,
+          {
+            message:
+              "A registry payment source lists too many prices, so its pricing is stored as unknown",
+            why: "It lists more amounts than Core stores for one source",
+            fix: REGISTRY_ENTRY_FIX,
+          },
+          {
+            amounts: {
+              listed: pricing.fixed.length,
+              max: MAX_PAYMENT_SOURCE_AMOUNTS,
+            },
+          },
         );
         return { pricingType: PricingType.UNKNOWN };
       }
@@ -523,9 +564,12 @@ function projectSourcePricing(
       }));
       const validAmounts = amounts.filter(isParsedDatabaseAmount);
       if (amounts.length === 0 || validAmounts.length !== amounts.length) {
-        console.warn(
-          `[sync/agents] Invalid source pricing amount for entry ${agentIdentifier}; storing as UNKNOWN`,
-        );
+        warnRegistryEntry(agentIdentifier, {
+          message:
+            "A registry payment source has an invalid fixed price, so its pricing is stored as unknown",
+          why: "A fixed pricing amount is missing, not a positive integer, or larger than a database BIGINT",
+          fix: REGISTRY_ENTRY_FIX,
+        });
         return { pricingType: PricingType.UNKNOWN };
       }
       return {
@@ -588,9 +632,12 @@ function projectV2AgentPricing(
       (candidate) => !areProjectedPricingsEqual(pricing, candidate),
     )
   ) {
-    console.warn(
-      `[sync/agents] Entry ${entry.agentIdentifier} has ${isReadyProjection ? "purchase-ready" : "matching"} Cardano V2 sources with different pricing; storing as UNKNOWN (agent stays unavailable)`,
-    );
+    warnRegistryEntry(entry.agentIdentifier, {
+      message:
+        "A V2 registry entry's Cardano sources disagree on price, so its agent is stored with unknown pricing and stays unavailable",
+      why: `Its ${isReadyProjection ? "purchase-ready" : "matching"} Cardano V2 sources project different prices, and the catalogue shows one price per agent`,
+      fix: "The registry owner must give every Cardano V2 source of the agent the same price.",
+    });
     return { pricingType: PricingType.UNKNOWN };
   }
   return pricing;
@@ -673,8 +720,15 @@ export function warnOnUnbillableReadyV2Sources(
       projected.pricingType !== PricingType.FIXED ||
       !projected.fixedPricingAmounts?.length
     ) {
-      console.warn(
-        `[sync/agents] Entry ${entry.agentIdentifier} source ${source.sourceIndex} is purchase-ready but has no usable fixed pricing; selecting it strands a seller job`,
+      warnRegistryEntry(
+        entry.agentIdentifier,
+        {
+          message:
+            "A purchase-ready payment source has no usable fixed price, so a hire through it strands a seller job",
+          why: "The source's pricing is not a valid fixed price",
+          fix: "The registry owner must give the source a valid fixed price.",
+        },
+        { source: { index: source.sourceIndex } },
       );
       continue;
     }
@@ -682,8 +736,15 @@ export function warnOnUnbillableReadyV2Sources(
       .map((amount) => amount.unit)
       .filter((unit) => !creditCostUnits.has(unit));
     if (unbillableUnits.length > 0) {
-      console.warn(
-        `[sync/agents] Entry ${entry.agentIdentifier} source ${source.sourceIndex} is purchase-ready but prices in units with no CreditCost (${unbillableUnits.join(", ")}); selecting it strands a seller job`,
+      warnRegistryEntry(
+        entry.agentIdentifier,
+        {
+          message:
+            "A purchase-ready payment source prices in a unit Sokosumi cannot bill, so a hire through it strands a seller job",
+          why: "No CreditCost exists for its units",
+          fix: "Add a CreditCost for the unit, or the registry owner must price the source in a billable unit.",
+        },
+        { source: { index: source.sourceIndex, unbillableUnits } },
       );
     }
   }

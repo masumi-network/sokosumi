@@ -24,6 +24,9 @@ import type { StudioAsset } from "./types";
  * only that the list exists.
  */
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/studio",
@@ -725,13 +728,14 @@ describe("starting from a template", () => {
 
     // The default target is 1:1 (see `defaultModel` and the initial settings),
     // and only one selected model supports the story frame of 9:16.
+    // Auto now picks that one model, so the result keeps one consistent frame.
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
 
     pickTemplate("story-ad");
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(STORY_AD.prompt);
-    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
+    expect(screen.getByText("9:16 · 1K · png")).toBeInTheDocument();
   });
 
   it("does not submit, and leaves the caret in the prompt", () => {

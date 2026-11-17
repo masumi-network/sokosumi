@@ -124,29 +124,45 @@ export async function setStudioAssetFeedback(
       reasons: [...new Set(input.reasons ?? [])],
       comment: input.comment?.trim() || null,
     };
-    const where = {
-      userId_assetId: { userId, assetId },
-      kind: AdFeedbackKind.THUMB,
-    };
-    try {
-      await prisma.adFeedback.upsert({
-        where,
-        create: {
-          ...feedback,
-          userId,
-          assetId,
-          workspaceId: input.workspaceId,
-          projectId: input.projectId,
-          kind: AdFeedbackKind.THUMB,
-          batchId: asset.job.batchId ?? asset.job.batchSlot?.batchId,
-        },
-        update: feedback,
+    // Do not use `upsert`. Prisma 7's partialIndexes preview generates
+    // `ON CONFLICT ("userId", "assetId")` without `WHERE kind = 'THUMB'`, and
+    // Postgres then rejects every write (42P10): the only matching unique is
+    // the partial thumb index. See prisma/orm#30178.
+    const existing = await prisma.adFeedback.findFirst({
+      where: { userId, assetId, kind: AdFeedbackKind.THUMB },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.adFeedback.update({
+        where: { id: existing.id },
+        data: feedback,
       });
-    } catch (error) {
-      if (!isPrismaUniqueViolation(error)) throw error;
-      // Prisma may emulate this partial-index upsert; concurrent first votes
-      // can then race on create. Keep the last person's intended state.
-      await prisma.adFeedback.update({ where, data: feedback });
+    } else {
+      try {
+        await prisma.adFeedback.create({
+          data: {
+            ...feedback,
+            userId,
+            assetId,
+            workspaceId: input.workspaceId,
+            projectId: input.projectId,
+            kind: AdFeedbackKind.THUMB,
+            batchId: asset.job.batchId ?? asset.job.batchSlot?.batchId,
+          },
+        });
+      } catch (error) {
+        if (!isPrismaUniqueViolation(error)) throw error;
+        // Concurrent first votes can both miss the find and race on create.
+        const raced = await prisma.adFeedback.findFirst({
+          where: { userId, assetId, kind: AdFeedbackKind.THUMB },
+          select: { id: true },
+        });
+        if (!raced) throw error;
+        await prisma.adFeedback.update({
+          where: { id: raced.id },
+          data: feedback,
+        });
+      }
     }
   }
   return (await getStudioAssetRatings([assetId], userId)).get(assetId)!;

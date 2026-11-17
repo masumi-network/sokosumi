@@ -17,11 +17,20 @@ import {
 } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { createGateway, stepCountIs, type ToolSet, tool } from "ai";
+// Relative: the runner's own bundle has no `@/` alias.
+import { emitCoreError, initCoreLogger } from "../lib/evlog";
 import {
   MODEL_CALL_MAX_MS,
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
 
+import {
+  partTools,
+  TURN_PART_MAX_MS,
+  TURN_PART_MAX_STEPS,
+  type TurnPart,
+  withPartHandOvers,
+} from "../lib/soko-bot/turn-parts";
 import { searchWeb } from "../lib/soko-bot/web-search";
 import {
   citableSources,
@@ -46,6 +55,8 @@ interface TurnStart {
   maxSteps: number;
   /** A background run: keep working until it reports DONE. */
   background?: boolean;
+  /** Briefs to run side by side before the message; an older Core sends none. */
+  parts?: TurnPart[];
 }
 
 class CoreRejected extends Error {
@@ -58,10 +69,27 @@ class CoreRejected extends Error {
   }
 }
 
+// Its own process, outside any request: standalone events, on Core's drain.
+initCoreLogger();
+
 const coreUrl = process.env.SOKO_BOT_CORE_URL;
 const turnId = process.env.SOKO_BOT_TURN_ID;
 if (!coreUrl || !turnId) {
-  console.error("SOKO_BOT_CORE_URL and SOKO_BOT_TURN_ID are required");
+  emitCoreError(
+    { operation: "soko_bot_runner" },
+    {
+      message:
+        "The Soko Bot runner cannot start, because its environment is incomplete",
+      why: "SOKO_BOT_CORE_URL or SOKO_BOT_TURN_ID is unset",
+      fix: "Start the runner with SOKO_BOT_CORE_URL set to Core's public URL and SOKO_BOT_TURN_ID to the turn's id, as the sandbox runtime does.",
+    },
+    {
+      missingVariables: [
+        ...(coreUrl ? [] : ["SOKO_BOT_CORE_URL"]),
+        ...(turnId ? [] : ["SOKO_BOT_TURN_ID"]),
+      ],
+    },
+  );
   process.exit(2);
 }
 const base = `${coreUrl}/v1/soko-bot-runtime/turns/${turnId}`;
@@ -346,7 +374,20 @@ async function main(): Promise<void> {
   try {
     start = await callCore<TurnStart>("/start", {});
   } catch (error) {
-    console.error("Turn could not start:", (error as Error).message);
+    // On stderr like any error event, so the supervisor's failure report
+    // still quotes it.
+    emitCoreError(
+      { operation: "soko_bot_runner", turnId },
+      {
+        message: "A Soko Bot turn could not start in its sandbox",
+        why: "Core refused or did not answer the runner's start call",
+        fix: "coreResponse has Core's status and kind; Core's log for the start call has the rest.",
+        cause: error,
+      },
+      error instanceof CoreRejected
+        ? { coreResponse: { status: error.status, kind: error.kind } }
+        : {},
+    );
     process.exit(1);
   }
   // The model id header is checked by Core; the key is Core's, not ours.
@@ -364,14 +405,32 @@ async function main(): Promise<void> {
     const tools = buildTools(start.capabilities, gateway, start.model, {
       forSubagent: false,
     });
+    const deadline = Date.now() + budgetMs;
+    const message = await withPartHandOvers(
+      start.message,
+      start.parts ?? [],
+      async (part) =>
+        (
+          await runTurnLoop({
+            model: gateway(start.model),
+            system: start.system,
+            message: part.message,
+            tools: partTools(tools, part),
+            maxSteps: TURN_PART_MAX_STEPS,
+            background: false,
+            deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
+            stopped: stopped.signal,
+          })
+        ).text,
+    );
     const { text, finishReason, steps } = await runTurnLoop({
       model: gateway(start.model),
       system: start.system,
-      message: start.message,
+      message,
       tools,
       maxSteps: start.maxSteps,
       background: Boolean(start.background),
-      deadline: Date.now() + budgetMs,
+      deadline,
       stopped: stopped.signal,
     });
     await callCore("/complete", {

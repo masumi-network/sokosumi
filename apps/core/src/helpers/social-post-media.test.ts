@@ -1,13 +1,12 @@
 import { SsrfError } from "@sokosumi/net";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   downloadSocialPostMedia,
   parseSocialPostMedia,
   requireSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
-import { expectConsole } from "@/test/console";
 
 const { ssrfSafeFetchMock } = vi.hoisted(() => ({
   ssrfSafeFetchMock: vi.fn(),

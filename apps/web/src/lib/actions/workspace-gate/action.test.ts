@@ -58,6 +58,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler({ ...args, session: { user: { id: "user_1" } } }),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   clearPendingOrganizationJoinCookieAction,
   createPersonalWorkspaceAction,
@@ -125,9 +126,10 @@ describe("ensureOAuthWorkspaceAction", () => {
   });
 
   it("returns an error when workspace access cannot be checked", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to prepare workspace for OAuth CoreApiRequestError: Core backend timeout",
+    );
     getMyWorkspacesMock.mockRejectedValue(
       new CoreApiRequestError("Core backend timeout", { status: 503 }),
     );
@@ -141,7 +143,6 @@ describe("ensureOAuthWorkspaceAction", () => {
       }
       expect(createMyWorkspaceMock).not.toHaveBeenCalled();
     } finally {
-      consoleError.mockRestore();
     }
   });
 });
@@ -168,9 +169,10 @@ describe("createPersonalWorkspaceAction", () => {
   });
 
   it("maps Core 409 to PERSONAL_WORKSPACE_ALREADY_EXISTS", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to create personal workspace CoreApiRequestError: Personal workspace already exists",
+    );
     createMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError("Personal workspace already exists", {
         status: 409,
@@ -188,14 +190,14 @@ describe("createPersonalWorkspaceAction", () => {
         });
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 
   it("maps unexpected Core failures to INTERNAL_SERVER_ERROR", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to create personal workspace CoreApiRequestError: Core backend timeout",
+    );
     createMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError("Core backend timeout", { status: 503 }),
     );
@@ -208,7 +210,6 @@ describe("createPersonalWorkspaceAction", () => {
         expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 });
@@ -261,9 +262,10 @@ describe("deletePersonalWorkspaceAction", () => {
   });
 
   it("maps Core last-workspace 409", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to delete personal workspace CoreApiRequestError: Cannot delete the user's last",
+    );
     deleteMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError("Cannot delete the user's last workspace", {
         status: 409,
@@ -278,14 +280,14 @@ describe("deletePersonalWorkspaceAction", () => {
         expect(result.error.code).toBe(WorkspaceGateErrorCode.LAST_WORKSPACE);
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 
   it("maps Core dependents 409", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to delete personal workspace CoreApiRequestError: Cannot delete a personal",
+    );
     deleteMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError(
         "Cannot delete a personal workspace that still has jobs or tasks",
@@ -305,14 +307,14 @@ describe("deletePersonalWorkspaceAction", () => {
         );
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 
   it("does not treat an unclassified 409 as last workspace", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to delete personal workspace CoreApiRequestError: Conflict",
+    );
     deleteMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError("Conflict", { status: 409 }),
     );
@@ -327,7 +329,6 @@ describe("deletePersonalWorkspaceAction", () => {
         );
       }
     } finally {
-      consoleError.mockRestore();
     }
   });
 });
@@ -397,9 +398,10 @@ describe("clearPendingOrganizationJoinCookieAction", () => {
   });
 
   it("keeps the cookie when invite-link resolution fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole(
+      "error",
+      "Failed to resolve pending organization join token for cookie clear",
+    );
     getPendingOrganizationJoinTokenMock.mockResolvedValue("tok_other");
     resolveOrganizationInviteLinkMock.mockRejectedValue(
       new Error("Core backend timeout"),
@@ -416,7 +418,6 @@ describe("clearPendingOrganizationJoinCookieAction", () => {
       );
       expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
     } finally {
-      consoleError.mockRestore();
     }
   });
 });

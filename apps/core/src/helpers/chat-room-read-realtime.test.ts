@@ -34,7 +34,7 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { publishChatRoomReadRealtime } from "./chat-room-read-realtime";
 
 const ROOM_ID = "660e8400-e29b-41d4-a716-446655440000";

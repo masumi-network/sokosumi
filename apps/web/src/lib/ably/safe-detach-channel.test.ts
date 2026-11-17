@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import {
   isExpectedAblyChannelLifecycleError,
   safeDetachChannel,
@@ -82,9 +82,6 @@ describe("safeDetachChannel", () => {
   });
 
   it("swallows expected lifecycle rejections without logging", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
     const channel = {
       detach: vi
         .fn()
@@ -100,14 +97,10 @@ describe("safeDetachChannel", () => {
     // Allow microtask queue to flush the catch handler.
     await Promise.resolve();
     await Promise.resolve();
-
-    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("logs unexpected detach failures", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole("error", "Ably channel detach failed");
     const unexpected = new Error("network ACL misconfigured");
     const channel = {
       detach: vi.fn().mockRejectedValue(unexpected),
@@ -115,17 +108,14 @@ describe("safeDetachChannel", () => {
 
     safeDetachChannel(channel);
     await vi.waitFor(() => {
-      expect(consoleError).toHaveBeenCalledWith(
+      expect(consoleError).toContainEqual([
         "Ably channel detach failed",
         unexpected,
-      );
+      ]);
     });
   });
 
   it("handles synchronous detach throws", () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
     const channel = {
       detach: vi.fn(() => {
         throw new Error("Channel detached");
@@ -133,7 +123,6 @@ describe("safeDetachChannel", () => {
     };
 
     expect(() => safeDetachChannel(channel)).not.toThrow();
-    expect(consoleError).not.toHaveBeenCalled();
   });
 });
 
@@ -143,9 +132,6 @@ describe("safeSubscribeChannel", () => {
   });
 
   it("swallows network-unreachable subscribe rejections without logging", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
     const networkError = Object.assign(
       new Error("Unable to connect (network unreachable)"),
       { code: 80003, statusCode: 404 },
@@ -164,14 +150,13 @@ describe("safeSubscribeChannel", () => {
     });
     await Promise.resolve();
     await Promise.resolve();
-
-    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("logs unexpected subscribe failures", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = expectConsole(
+      "error",
+      "Ably channel subscribe failed",
+    );
     const unexpected = new Error("Unauthorized to subscribe");
     const listener = vi.fn();
     const channel = {
@@ -180,17 +165,14 @@ describe("safeSubscribeChannel", () => {
 
     safeSubscribeChannel(channel, "chat_membership_revoked", listener);
     await vi.waitFor(() => {
-      expect(consoleError).toHaveBeenCalledWith(
+      expect(consoleError).toContainEqual([
         "Ably channel subscribe failed",
         unexpected,
-      );
+      ]);
     });
   });
 
   it("handles synchronous subscribe throws", () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
     const channel = {
       subscribe: vi.fn(() => {
         throw new Error("Unable to connect (network unreachable)");
@@ -200,6 +182,5 @@ describe("safeSubscribeChannel", () => {
     expect(() =>
       safeSubscribeChannel(channel, "chat_membership_revoked", vi.fn()),
     ).not.toThrow();
-    expect(consoleError).not.toHaveBeenCalled();
   });
 });

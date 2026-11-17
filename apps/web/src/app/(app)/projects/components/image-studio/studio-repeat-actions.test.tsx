@@ -20,6 +20,9 @@ import type { StudioAsset, StudioJob } from "./types";
 
 const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), jobs: [] as StudioJob[] }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/studio",
@@ -297,7 +300,8 @@ describe("actions on a result", () => {
     );
     fireEvent.keyDown(prompt, { key: "Enter", metaKey: true });
     const [[requests]] = mocks.enqueue.mock.calls;
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].modelId).toBe(TEST_CATALOG.defaultModelId);
     for (const request of requests) {
       expect(request).toMatchObject({
         parentAssetId: null,

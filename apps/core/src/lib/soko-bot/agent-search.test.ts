@@ -6,7 +6,7 @@ vi.mock("ai", () => ({
   gateway: { evaluationModel: vi.fn() },
 }));
 
-import { expectConsole } from "@/test/console";
+import { expectCoreLogWhys } from "@/test/core-log";
 import {
   type AgentSearchCandidate,
   agentWordScore,
@@ -103,7 +103,11 @@ describe("rateAgentFit", () => {
   });
 
   it("returns null when Jev fails, so the word ranking stands", async () => {
-    expectConsole("warn", "Soko Bot agent fit rating failed");
+    expectCoreLogWhys(
+      "warn",
+      "Could not rate how well marketplace agents fit a request",
+      ["Jev, the judging model, failed or timed out"],
+    );
     evaluateMock.mockRejectedValueOnce(new Error("timeout"));
     await expect(rateAgentFit("blog", [agent("a")])).resolves.toBeNull();
   });

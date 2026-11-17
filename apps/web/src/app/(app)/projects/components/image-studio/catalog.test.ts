@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   clampToModel,
   defaultModel,
+  defaultVideoModel,
   modelIdForRepeat,
   modelVariants,
   resolveModel,
@@ -200,5 +201,31 @@ describe("modelVariants", () => {
       "seedream-lite": "lite",
       "hidream-dev": "dev",
     });
+  });
+});
+
+describe("automatic model selection", () => {
+  it("uses Gemini Pro even while Core's default is another model", () => {
+    const gemini = { ...MODEL_A, id: "gemini-pro" };
+    expect(
+      defaultModel({
+        ...TEST_CATALOG,
+        models: [...TEST_CATALOG.models, gemini],
+      })?.id,
+    ).toBe("gemini-pro");
+  });
+
+  it("uses H3 Max for both video inputs", () => {
+    const [text, image] = TEST_CATALOG.videoModels;
+    const catalog = {
+      ...TEST_CATALOG,
+      videoModels: [
+        ...TEST_CATALOG.videoModels,
+        { ...text!, id: "h3-max" },
+        { ...image!, id: "h3-max-animate" },
+      ],
+    };
+    expect(defaultVideoModel(catalog, "text")?.id).toBe("h3-max");
+    expect(defaultVideoModel(catalog, "image")?.id).toBe("h3-max-animate");
   });
 });

@@ -55,10 +55,6 @@ vi.mock("sonner", () => ({
 vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...a: unknown[]) => ensureRoomMock(...a),
 }));
-const claimAvatarMock = vi.fn();
-vi.mock("@/lib/actions/soko-bot/action", () => ({
-  claimSokoBotAvatarAction: (...a: unknown[]) => claimAvatarMock(...a),
-}));
 vi.mock("../chat/use-soko-bot-state", () => ({
   useSokoBotState: (...a: unknown[]) => useStateMock(...a),
 }));
@@ -84,25 +80,28 @@ vi.mock("../reset-memory-button.client", () => ({
 vi.mock("../skills-section.client", () => ({
   SkillsSection: () => <span data-testid="skills" />,
 }));
-vi.mock("../avatar-picker.client", () => ({
-  // Mounts loading, as the real picker does; picking settles the set.
-  AvatarPicker: ({
-    onChange,
-    onLoadingChange,
+vi.mock("../avatar-studio.client", () => ({
+  // The studio itself is tested on its own; here it stands for "the dialog is open".
+  AvatarStudioDialog: ({
+    initialCode,
+    onSaved,
+    onOpenChange,
   }: {
-    onChange: (avatar: { id: string; imageUrl: string }) => void;
-    onLoadingChange?: (loading: boolean) => void;
+    initialCode: string | null;
+    onSaved: () => void;
+    onOpenChange: (open: boolean) => void;
   }) => (
-    <button
-      type="button"
-      data-testid="avatar"
-      onClick={() => {
-        onLoadingChange?.(false);
-        onChange({ id: "avatar-7", imageUrl: "https://blob/avatar-7.png" });
-      }}
-    >
-      pick avatar-7
-    </button>
+    <div role="dialog" data-testid="avatar" data-code={initialCode}>
+      <button
+        type="button"
+        onClick={async () => {
+          await onSaved();
+          onOpenChange(false);
+        }}
+      >
+        save look
+      </button>
+    </div>
   ),
 }));
 vi.mock("../schedule-form.client", () => ({
@@ -434,17 +433,25 @@ describe("SokoBotConsole", () => {
     expect(screen.getByText("Settings.archiveDescription")).toBeInTheDocument();
   });
 
-  it("changes the own bot's avatar to the one picked in the console", async () => {
-    claimAvatarMock.mockResolvedValue({ ok: true });
-    renderConsole({ botId: null, sharedRoomId: null });
+  it("opens the studio on the bot's current look and refreshes once it is saved", async () => {
+    const refresh = vi.fn();
+    const element = consoleElement({
+      botId: null,
+      sharedRoomId: null,
+      initialState: stateWith({ avatarCode: "v1-code" }),
+    });
+    useStateMock.mockReturnValue({
+      state: stateWith({ avatarCode: "v1-code" }),
+      refresh,
+    });
+    render(element);
     fireEvent.click(screen.getByRole("button", { name: "edit" }));
-    // Save is held until the picker's first set has loaded.
-    expect(screen.getByRole("button", { name: "Avatar.save" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "pick avatar-7" }));
-    fireEvent.click(screen.getByRole("button", { name: "Avatar.save" }));
-    await waitFor(() =>
-      expect(claimAvatarMock).toHaveBeenCalledWith({ avatarId: "avatar-7" }),
+    expect(await screen.findByTestId("avatar")).toHaveAttribute(
+      "data-code",
+      "v1-code",
     );
+    fireEvent.click(screen.getByRole("button", { name: "save look" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
@@ -570,12 +577,11 @@ describe("SokoBotConsole header portrait", () => {
     expect(screen.queryByText(/Console\.lastTurnFailed/)).toBeNull();
   });
 
-  it("edits only the own bot's picture, from its avatar, never in a studio", () => {
+  it("edits only the own bot's picture, from its avatar", async () => {
     renderConsole({ botId: null, sharedRoomId: null });
     expect(screen.queryByTestId("avatar")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "edit" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByTestId("avatar")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "edit" })).toBeNull();
     cleanup();
     renderConsole({ canManage: true });

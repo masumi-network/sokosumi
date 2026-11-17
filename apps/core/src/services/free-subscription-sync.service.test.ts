@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
   closeOverdueLocalFreeSubscriptionMock,
@@ -321,6 +322,59 @@ describe("freeSubscriptionSyncService", () => {
       },
       expect.anything(),
     );
+  });
+
+  it("counts a renewal that fails and logs it as its own event", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not renew an overdue local free subscription",
+      ["The transaction that closes the period and starts the next failed"],
+      ["db down"],
+    );
+    subscriptionFindManyMock.mockImplementation(
+      ({ where }: { where: SubscriptionRenewalFindManyWhere }) =>
+        Promise.resolve(
+          !where.OR && isOverdueQuery(where)
+            ? [
+                {
+                  canceledAt: null,
+                  createdAt: new Date("2026-03-15T00:00:00.000Z"),
+                  endedAt: null,
+                  id: "sub-local-1",
+                  periodEnd: new Date("2026-04-15T00:00:00.000Z"),
+                  referenceId: "org-1",
+                  seats: null,
+                  stripeCustomerId: "cus_1",
+                  stripeSubscriptionId: null,
+                },
+              ]
+            : [],
+        ),
+    );
+    transitionToNextLocalFreeSubscriptionPeriodMock.mockRejectedValue(
+      new Error("db down"),
+    );
+
+    const { freeSubscriptionSyncService } = await import(
+      "./free-subscription-sync.service"
+    );
+
+    const result =
+      await freeSubscriptionSyncService.renewLocalFreeSubscriptions(
+        createSyncExecutionOptions(),
+      );
+
+    expect(result).toMatchObject({ renewalErrors: 1, renewed: 0 });
+    expect(errors[0]?.event).toMatchObject({
+      operation: "free_subscription_renewal",
+      subscription: { id: "sub-local-1", referenceId: "org-1" },
+    });
+    // The run's own event carries its counts.
+    expect(
+      coreLogEvents().find((event) => event.freeSubscriptionRenewal),
+    ).toMatchObject({
+      freeSubscriptionRenewal: { renewalErrors: 1, stopped: null },
+    });
   });
 
   it("closes overdue subscription when the next local free successor already exists", async () => {

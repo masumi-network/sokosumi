@@ -18,7 +18,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { leftChatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { removeOwnedSokoBotsFromChannel } from "../../../channel-membership";
+import {
+  recordMembershipPublishFailures,
+  removeOwnedSokoBotsFromChannel,
+} from "../../../channel-membership";
 import {
   membershipAccessForUser,
   requireChatRoomUserAccess,
@@ -233,18 +236,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         reason: "left",
       }),
     ]);
-    if (statusResults.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership status after leave",
-        statusResults.reason,
-      );
-    }
-    if (revokeResult.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership revoke after leave",
-        revokeResult.reason,
-      );
-    }
+    recordMembershipPublishFailures(
+      { operation: "chat_room_leave", roomId: result.id },
+      [
+        ["status_messages", statusResults],
+        ["membership_revoked", revokeResult],
+      ],
+    );
 
     return ok(c, leftChatRoomSchema.parse(result));
   });

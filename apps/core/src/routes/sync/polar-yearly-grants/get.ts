@@ -22,15 +22,13 @@ export default function mount(app: Hono) {
         // `finally`, so failing grants cannot stop a revoke.
         try {
           const result = await syncPolarYearlyGrants(context.shouldContinue);
-          console.info("[sync/polar-yearly-grants] Completed sync", result);
+          context.log.set({ result: { grants: result } });
         } finally {
           const revokes = await retryOwedPolarRevokes(context.shouldContinue);
-          console.info(
-            "[sync/polar-yearly-grants] Retried owed revokes",
-            revokes,
-          );
+          context.log.set({ result: { revokes } });
         }
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

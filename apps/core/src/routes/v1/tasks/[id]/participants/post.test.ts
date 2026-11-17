@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountPostTaskParticipant from "./post";
 
@@ -61,8 +66,9 @@ const auth = {
   role: "user",
 } as AuthenticationContext;
 
-function mountApp() {
+function mountApp(options: { evlog?: boolean } = {}) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
     c.set("authContext", auth);
     c.set("isAuthenticated", true);
@@ -130,6 +136,20 @@ describe("POST /{id}/participants", () => {
       expect.any(String),
       ["user_alice"],
     );
+  });
+
+  it("notifies as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("notifyTaskParticipantsAdded");
+    notifyTaskParticipantsAddedMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("notifyTaskParticipantsAdded"),
+    );
+
+    const response = await mountApp({ evlog: true }).request(
+      "http://localhost/tsk_123/participants",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it("is a no-op when the viewer is already a participant", async () => {

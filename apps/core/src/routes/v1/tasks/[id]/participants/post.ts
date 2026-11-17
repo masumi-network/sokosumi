@@ -10,6 +10,7 @@ import { ok } from "@/helpers/response";
 import { notifyTaskParticipantsAdded } from "@/helpers/task-notifications";
 import { addSelfAsTaskParticipant } from "@/helpers/task-participants";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskParticipantSchema } from "@/schemas/task.schema";
@@ -81,7 +82,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (addedUserIds.length > 0) {
       // Synthetic event id: createNotification needs one; no TaskEvent row.
       const eventId = randomUUID();
-      waitUntil(notifyTaskParticipantsAdded(id, eventId, addedUserIds));
+      waitUntil(
+        runAsBackgroundWork(() =>
+          notifyTaskParticipantsAdded(id, eventId, addedUserIds),
+        ),
+      );
     }
 
     return ok(

@@ -18,33 +18,21 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   createSokoBotAction: (...args: unknown[]) => createMock(...args),
 }));
 
-// Whether the mocked picker finishes its first set on mount.
-let pickerLoadsOnMount = true;
-const owl = { id: "owl-1", imageUrl: "https://blob.test/owl-1.png" };
+// Whether the mocked studio reports its first look on mount.
+let studioReportsOnMount = true;
 
-vi.mock("./avatar-picker.client", async () => {
+vi.mock("./avatar-studio.client", async () => {
   const { useEffect } = await import("react");
   return {
-    // Picks the first avatar on mount, as the real picker does for a new bot.
-    AvatarPicker: ({
-      onChange,
-      onLoadingChange,
-    }: {
-      onChange: (avatar: { id: string; imageUrl: string }) => void;
-      onLoadingChange?: (loading: boolean) => void;
-    }) => {
+    // Reports a random look on mount, as the real studio does.
+    AvatarStudio: ({ onChange }: { onChange: (code: string) => void }) => {
       useEffect(() => {
-        if (!pickerLoadsOnMount) return;
-        onLoadingChange?.(false);
-        onChange(owl);
-      }, [onChange, onLoadingChange]);
+        if (studioReportsOnMount) onChange("v1-first");
+      }, [onChange]);
       return (
-        <div data-testid="avatar-picker">
-          <button type="button" onClick={() => onChange(owl)}>
-            owl
-          </button>
-          <button type="button" onClick={() => onLoadingChange?.(false)}>
-            set loaded
+        <div data-testid="avatar-studio">
+          <button type="button" onClick={() => onChange("v1-owl")}>
+            owl look
           </button>
         </div>
       );
@@ -70,7 +58,7 @@ function renderCreate() {
 
 describe("CreateState", () => {
   afterEach(() => {
-    pickerLoadsOnMount = true;
+    studioReportsOnMount = true;
     pushMock.mockClear();
     vi.useRealTimers();
   });
@@ -90,17 +78,17 @@ describe("CreateState", () => {
       screen.getByRole("heading", { name: "Name your Soko Bot" }),
     ).toBeTruthy();
     expect(screen.getByRole("list", { name: "Step 1 of 3" })).toBeTruthy();
-    // The pictures already load behind the first step.
-    expect(screen.getByTestId("avatar-picker")).toBeTruthy();
+    // The studio already loads behind the first step.
+    expect(await screen.findByTestId("avatar-studio")).toBeTruthy();
     expect(
-      screen.queryByRole("heading", { name: "Pick a picture for Atlas" }),
+      screen.queryByRole("heading", { name: "Choose a look for Atlas" }),
     ).toBeNull();
 
     await user.type(screen.getByLabelText("Name"), "Atlas");
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
-      screen.getByRole("heading", { name: "Pick a picture for Atlas" }),
+      screen.getByRole("heading", { name: "Choose a look for Atlas" }),
     ).toBeTruthy();
     expect(screen.getByRole("list", { name: "Step 2 of 3" })).toBeTruthy();
 
@@ -133,7 +121,7 @@ describe("CreateState", () => {
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
     expect(
-      screen.getByRole("heading", { name: "Pick a picture for Atlas" }),
+      screen.getByRole("heading", { name: "Choose a look for Atlas" }),
     ).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "Back" }));
@@ -157,19 +145,21 @@ describe("CreateState", () => {
       expect(label).toHaveClass("truncate");
       expect(label.closest("button")).toHaveAccessibleName(`Create ${name}`);
       expect(
-        screen.getByRole("heading", { name: `Pick a picture for ${name}` }),
+        screen.getByRole("heading", { name: `Choose a look for ${name}` }),
       ).toHaveClass("wrap-anywhere");
     },
   );
 
-  it("locks the pictures while the bot is being created", async () => {
+  it("locks the studio while the bot is being created", async () => {
     const user = userEvent.setup();
     const created = Promise.withResolvers();
     createMock.mockReturnValue(created.promise);
     renderCreate();
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
-    const pictures = screen.getByTestId("avatar-picker").closest("fieldset");
+    const pictures = (await screen.findByTestId("avatar-studio")).closest(
+      "fieldset",
+    );
     expect(pictures).not.toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
@@ -200,26 +190,10 @@ describe("CreateState", () => {
     );
   });
 
-  it("offers no way to create without a picture", async () => {
+  it("holds Create until the studio has reported a look", async () => {
     const user = userEvent.setup();
-    pickerLoadsOnMount = false;
-    renderCreate();
-
-    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
-    expect(
-      screen.queryByRole("button", { name: /without a picture/ }),
-    ).toBeNull();
-    // Loaded with nothing picked: Create waits for a picture.
-    await user.click(screen.getByRole("button", { name: "set loaded" }));
-    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeDisabled();
-  });
-
-  it("holds Create while the pictures load", async () => {
-    const user = userEvent.setup();
-    pickerLoadsOnMount = false;
+    studioReportsOnMount = false;
     createMock.mockClear();
-    const created = Promise.withResolvers();
-    createMock.mockReturnValue(created.promise);
     renderCreate();
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
@@ -228,64 +202,42 @@ describe("CreateState", () => {
     await user.click(createButton);
     expect(createMock).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "set loaded" }));
-    await user.click(screen.getByRole("button", { name: "owl" }));
+    await user.click(await screen.findByRole("button", { name: "owl look" }));
     expect(createButton).not.toBeDisabled();
-    // A create left pending holds every later transition in this worker.
-    await act(async () =>
-      created.resolve({ ok: false, error: { message: "stopped" } }),
-    );
   });
 
-  it("creates the bot with the name from the first step, on the browser's clock", async () => {
+  it("creates the bot with the look picked in the studio", async () => {
     // The reveal holds the transition for 1.5s; run it out before the end.
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     createMock.mockResolvedValue({
       ok: true,
-      value: { id: "bot-1", name: "Atlas" },
+      value: {
+        id: "bot-1",
+        name: "Atlas",
+        userId: "u1",
+        avatarSeed: null,
+        avatarCode: "v1-owl",
+        avatarImageUrl: "https://blob.test/o.png",
+      },
     });
     renderCreate();
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    await user.click(await screen.findByRole("button", { name: "owl look" }));
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
 
     expect(createMock).toHaveBeenCalledWith({
       input: {
         name: "Atlas",
-        avatarId: "owl-1",
+        avatarCode: "v1-owl",
+        // Its stand-up and wraps run on the browser's clock, not Core's default.
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
     });
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     // Opened from Soko Bots, not setup: the bot still says hello in its room.
     expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
-    await act(() => vi.advanceTimersByTimeAsync(1500));
-    expect(pushMock).toHaveBeenCalled();
-  });
-
-  it("creates the bot with the picked picture", async () => {
-    // The reveal holds the transition for 1.5s; run it out before the end.
-    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    createMock.mockResolvedValue({
-      ok: true,
-      value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
-    });
-    renderCreate();
-
-    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
-    await user.click(screen.getByRole("button", { name: "owl" }));
-    await user.click(screen.getByRole("button", { name: "Create Atlas" }));
-
-    expect(createMock).toHaveBeenCalledWith({
-      input: {
-        name: "Atlas",
-        avatarId: "owl-1",
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
-    });
-    expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     await act(() => vi.advanceTimersByTimeAsync(1500));
     expect(pushMock).toHaveBeenCalled();
   });

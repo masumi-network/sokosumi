@@ -22,6 +22,9 @@ import type { GenerationRequest } from "./use-generation-queue";
  * render their content inline, so every option is reachable by its text.
  */
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
@@ -244,9 +247,12 @@ describe("what the composer says without being opened", () => {
     expect(screen.getAllByText("Model A").length).toBeGreaterThan(0);
   });
 
-  it("counts them once there are several", () => {
+  it("keeps model choice behind Advanced even with several models", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
-    expect(screen.getByText('modelCount:{"count":2}')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "advanced" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   it("summarises the frame, resolution and format", () => {

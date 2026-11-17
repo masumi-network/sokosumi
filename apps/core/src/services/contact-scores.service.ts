@@ -9,6 +9,8 @@ import type { ContactImportanceSource, Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "@/lib/soko-bot/jev";
 
 type Tx = Prisma.TransactionClient;
@@ -222,10 +224,21 @@ export async function judgeWorkspaceImportance(input: {
       input.stats.judged += 1;
     } catch (error) {
       input.stats.failed += 1;
-      console.error("Contact importance failed", {
-        contactId: pair.contactId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Runs in the contact capture cron. Jev reads the conversations, so
+      // content-free metadata only.
+      emitCoreError(
+        {
+          operation: "contact_importance",
+          workspace: { id: input.workspaceId },
+          contact: { id: pair.contactId },
+        },
+        {
+          message: "Could not judge a contact's importance",
+          why: "Judging the contact with Jev failed",
+          fix: "The pair stays due and the next contact capture run judges it again.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
   }
 }

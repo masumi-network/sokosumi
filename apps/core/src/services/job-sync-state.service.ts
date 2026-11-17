@@ -21,6 +21,8 @@ import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sourceImportService } from "@/services/source-import.service";
 
 type JobStatusValue =
@@ -184,7 +186,22 @@ export async function finalizeJobSyncResult(
     await sourceImportService
       .enqueueFromMarkdown(eventId, result)
       .catch((error) => {
-        console.error("Failed to enqueue source import:", error);
+        // Job sync runs only in the jobs cron, after its response.
+        emitCoreError(
+          {
+            operation: "job_sync",
+            job: { id: updatedJob.id },
+            jobEvent: { id: eventId },
+          },
+          {
+            message: "Could not queue the sources a job's result links to",
+            why: "Queueing the source import from the result failed",
+            fix: "The job's status is saved; only its linked sources are missing. Sentry has the error.",
+          },
+          // Only safe fields: the result is the agent's text, and an import
+          // error can quote it.
+          { failure: messageSafeErrorFields(error) },
+        );
         Sentry.captureException(error, {
           extra: {
             eventId,
@@ -229,7 +246,19 @@ export async function finalizeJobSyncResult(
       jobStatusSettled: updatedJob.jobStatusSettled,
     });
   } catch (error) {
-    console.error("Error publishing job status data", error);
+    emitCoreError(
+      {
+        operation: "job_sync",
+        job: { id: updatedJob.id, status: updatedJob.status },
+      },
+      {
+        message:
+          "Could not publish a job's new status to its owner's live view",
+        why: "Publishing the status to Ably failed",
+        fix: "The status is saved; the owner sees it on the next reload.",
+        cause: error,
+      },
+    );
   }
 }
 

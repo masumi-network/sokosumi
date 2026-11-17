@@ -16,31 +16,25 @@ export default function mount(app: Hono) {
       SOKO_BOT_EVENTS_SYNC_LOCK_KEY,
       async (context) => {
         const adopted = await adoptCoworkerSubtasks();
-        if (adopted)
-          console.info("[sync/soko-bot-events] Adopted Coworker sub-tasks", {
-            adopted,
-          });
+        context.log.set({ result: { adopted } });
         const watches = await syncSokoBotWatches({
           shouldContinue: context.shouldContinue,
         });
-        if (watches.checked)
-          console.info("[sync/soko-bot-events] Checked waits", watches);
+        context.log.set({ result: { watches } });
         if (!context.shouldContinue()) return;
         const result = await sokoBotEventsSyncService.syncDelegatedWork({
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/soko-bot-events] Completed sync", result);
+        context.log.set({ result: { delegatedWork: result } });
         if (!context.shouldContinue()) return;
         const taskboard = await sokoBotTaskboardSyncService.syncTaskboard({
           abortSignal: context.abortSignal,
           shouldContinue: context.shouldContinue,
         });
-        console.info(
-          "[sync/soko-bot-events] Completed taskboard sync",
-          taskboard,
-        );
+        context.log.set({ result: { taskboard } });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

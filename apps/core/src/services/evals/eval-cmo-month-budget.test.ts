@@ -1,5 +1,11 @@
 import { CMO_PRODUCTION_TURN_PREFIX } from "@sokosumi/soko-bot";
+import { Hono } from "hono";
+import { requestId } from "hono/request-id";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { errorHandler } from "@/helpers/error-handler";
+import { coreEvlogMiddleware, runAsBackgroundWork } from "@/lib/evlog";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 
 const boundary = vi.hoisted(() => ({
   advance: vi.fn(),
@@ -13,13 +19,18 @@ const boundary = vi.hoisted(() => ({
   resultCount: vi.fn(),
   finish: vi.fn(),
   finishRun: vi.fn(),
+  email: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     marketingStrategy: { findUniqueOrThrow: boundary.strategy },
     sokoBotTurn: { findMany: boundary.turns },
     socialPost: { updateMany: boundary.cancelPosts },
-    evalLane: { findUniqueOrThrow: boundary.lane },
+    evalLane: {
+      findUniqueOrThrow: boundary.lane,
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    sokoBot: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     evalRun: { findFirst: boundary.run, update: boundary.finishRun },
     evalResult: {
       findFirst: boundary.result,
@@ -27,6 +38,9 @@ vi.mock("@/lib/db/prisma", () => ({
       update: boundary.finish,
     },
   },
+}));
+vi.mock("./eval-report-email", () => ({
+  sendEvalRegressionEmail: boundary.email,
 }));
 vi.mock("@/services/cmo-production.service", () => ({
   advanceCmoProduction: boundary.advance,
@@ -302,6 +316,160 @@ describe("monthly eval hard-budget guard", () => {
     expect(await poll()).toEqual({ kind: "waiting" });
     expect(boundary.cancelPosts).not.toHaveBeenCalled();
     expect(boundary.advance).not.toHaveBeenCalled();
+  });
+
+  it("lists every failed lane on one error, without the lanes' error text", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not move an eval run's lanes on",
+      ["A lane's step threw"],
+    );
+    boundary.run.mockResolvedValue({
+      id: "run",
+      repeats: 2,
+      trigger: "MANUAL",
+    });
+    // A lane runs a Soko Bot turn, and its error can quote the prompt.
+    boundary.lane.mockRejectedValue(
+      new Error('prompt "Confidential merger with Acme" sk_live_abc123'),
+    );
+
+    expect(await tickEvalRuns()).toEqual({ runId: "run", completed: false });
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "eval_tick",
+      evalRun: { id: "run" },
+      evalLaneFailures: [
+        { lane: 1, errorName: "Error" },
+        { lane: 2, errorName: "Error" },
+      ],
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+  });
+
+  describe("a daily run's regression email", () => {
+    const EMAIL_WHY = "Sending the report email failed";
+
+    beforeEach(() => {
+      boundary.run.mockResolvedValue({
+        id: "run",
+        repeats: 1,
+        trigger: "DAILY",
+      });
+      boundary.resultCount.mockResolvedValue(0);
+      // A mail error can quote the report: prompts and model output.
+      boundary.email.mockRejectedValue(
+        new Error('report "Confidential merger with Acme" sk_live_abc123'),
+      );
+    });
+
+    it("logs a failed send once from the cron, without the report", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not send the daily eval regression email",
+        [EMAIL_WHY],
+      );
+
+      expect(await runAsBackgroundWork(() => tickEvalRuns())).toEqual({
+        runId: "run",
+        completed: true,
+      });
+
+      expect(errors[0]?.event).toMatchObject({
+        operation: "eval_tick",
+        evalRun: { id: "run" },
+        evalRegressionEmailFailure: { errorName: "Error" },
+      });
+      expect(errors[0]?.cause).toBeUndefined();
+      const drained = JSON.stringify(errors[0]?.event);
+      expect(drained).not.toContain("Confidential merger");
+      expect(drained).not.toContain("sk_live");
+    });
+
+    it("logs a failed send on the admin tick's request event", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not send the daily eval regression email",
+        [EMAIL_WHY],
+      );
+
+      await inRequest(() => tickEvalRuns());
+
+      // The request's own event: no standalone operation, the route's method.
+      expect(errors[0]?.event.operation).toBeUndefined();
+      expect(errors[0]?.event).toMatchObject({
+        method: "GET",
+        evalRegressionEmailFailure: { errorName: "Error" },
+      });
+    });
+
+    it("keeps a lane failure and the email failure on one error", async () => {
+      const errors = expectCoreLogWhys(
+        "error",
+        "Could not move an eval run's lanes on",
+        ["A lane's step threw"],
+      );
+      boundary.lane.mockRejectedValue(new Error("lane down"));
+
+      await inRequest(() => tickEvalRuns());
+
+      expect(errors[0]?.event).toMatchObject({
+        evalLaneFailures: [{ lane: 1, errorName: "Error" }],
+        evalRegressionEmailFailure: { errorName: "Error" },
+      });
+      expect(errors[0]?.fix).toContain("regression email failed too");
+    });
+  });
+
+  it("keeps a lane failure a standalone error in the cron when completing the run throws", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not move an eval run's lanes on",
+      ["A lane's step threw"],
+    );
+    boundary.lane.mockRejectedValue(new Error("lane down"));
+    boundary.resultCount.mockRejectedValue(new Error("count failed"));
+
+    // No request event carries the thrown error here, so nothing to make room for.
+    await expect(runAsBackgroundWork(() => tickEvalRuns())).rejects.toThrow(
+      "count failed",
+    );
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "eval_tick",
+      evalLaneFailures: [{ lane: 1, errorName: "Error" }],
+    });
+  });
+
+  it("keeps a lane failure beside an error thrown while completing the run", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not move an eval run's lanes on",
+      ["A lane's step threw"],
+    );
+    // The admin tick's request error, recorded by the real error handler.
+    const requestErrors = expectCoreLog("error", "count failed");
+    boundary.lane.mockRejectedValue(new Error("lane down"));
+    boundary.resultCount.mockRejectedValue(new Error("count failed"));
+    const app = new Hono();
+    app.use(requestId());
+    app.use(coreEvlogMiddleware());
+    app.onError(errorHandler);
+    app.post("/v1/admin/evals/tick", async (c) => c.json(await tickEvalRuns()));
+
+    const response = await app.request("http://localhost/v1/admin/evals/tick", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(500);
+    // Both on the request's one event: the lane warning survives the error.
+    expect(warnings[0]?.event).toBe(requestErrors[0]?.event);
+    expect(warnings[0]?.event).toMatchObject({
+      evalLaneFailures: [{ lane: 1, errorName: "Error" }],
+    });
+    expect(warnings[0]?.fix).toContain("evalLaneFailures");
   });
 
   it.each(["expiry", "post cleanup"] as const)(

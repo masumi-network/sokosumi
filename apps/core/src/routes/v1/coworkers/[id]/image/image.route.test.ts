@@ -1,7 +1,6 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { expectConsole } from "@/test/console";
 import { TEST_VENDOR_ID, testVendor } from "@/test-fixtures/vendor.js";
 import mountDeleteCoworkerImage from "./delete";
 import mountPostCoworkerImage from "./post";

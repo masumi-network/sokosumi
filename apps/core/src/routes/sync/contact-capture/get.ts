@@ -21,8 +21,9 @@ export default function mount(app: Hono) {
         const result = await contactCaptureService.sync({
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/contact-capture] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

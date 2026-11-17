@@ -82,16 +82,19 @@ export default function mount(app: Hono) {
         // ordering. `@@index([expiresAt])` existed for this sweep before
         // the sweep did.
         const prunedResultWindows = await pruneExpiredResultWindows();
-        console.info("[sync/drive-index] Completed sync", {
-          revived,
-          backfilled,
-          extraction,
-          suggestions,
-          tables,
-          prunedAdmissions,
-          prunedResultWindows,
+        context.log.set({
+          result: {
+            revived,
+            backfilled,
+            extraction,
+            suggestions,
+            tables,
+            prunedAdmissions,
+            prunedResultWindows,
+          },
         });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

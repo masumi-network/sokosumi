@@ -1,5 +1,8 @@
 import type { BrandBrain } from "@sokosumi/soko-bot";
+import { waitUntil } from "@vercel/functions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const db = vi.hoisted(() => ({
   workspace: { findUnique: vi.fn() },
@@ -73,6 +76,7 @@ import {
   cmoCompetitorPages,
   cmoOwnPages,
   listCmoBrandPictures,
+  scheduleCmoBrandMedia,
 } from "./cmo-brand-media.service";
 
 const finding = (sourceUrl: string) => ({
@@ -233,6 +237,25 @@ describe("captureCmoBrandMedia", () => {
       }),
     );
     expect(linked).toHaveLength(files.put.mock.calls.length);
+  });
+
+  it("logs a failed background capture without the page's words", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not capture the brand's pages for Cuso",
+      ["The brand media capture threw"],
+    );
+    cuso.findForBot.mockRejectedValue(
+      new Error("Page SENTINEL-PAGE our founder's story failed"),
+    );
+    scheduleCmoBrandMedia("bot-1");
+    await vi.mocked(waitUntil).mock.calls[0]?.[0];
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media",
+      sokoBot: { id: "bot-1" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PAGE");
   });
 
   it("does not capture again within minutes of the last capture", async () => {

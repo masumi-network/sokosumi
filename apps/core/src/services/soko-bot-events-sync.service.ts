@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
+import { createError } from "evlog";
 import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
@@ -209,6 +212,9 @@ const BACKGROUND_RUN_ACTIVE_STATUSES = new Set<string>([
  * path: one place, idempotent, and a busy bot simply gets the change on
  * the next tick. Runs from the same cron as the other Soko Bot syncs.
  */
+/** The events cron runs after its response, so its events stand alone. */
+const OPERATION = "soko_bot_events_sync";
+
 export class SokoBotEventsSyncService {
   async syncDelegatedWork(
     input: SokoBotEventsSyncInput,
@@ -538,13 +544,16 @@ export class SokoBotEventsSyncService {
         // Logged rather than skipped in silence: a bot that stops reacting to
         // its Coworkers looks identical to a broken sync from the outside,
         // and this is the line that tells the two apart.
-        console.info("[soko-bot-events] Wake withheld", {
-          sokoBotId: work.sokoBotId,
-          reason: gate.reason,
-          usedToday: gate.usedToday,
-          limit: gate.limit,
-          changes: work.changes.length,
-        });
+        createCoreLogger({
+          operation: OPERATION,
+          sokoBot: { id: work.sokoBotId },
+          wakeWithheld: {
+            reason: gate.reason,
+            usedToday: gate.usedToday,
+            limit: gate.limit,
+            changes: work.changes.length,
+          },
+        }).emit();
         // One deferral, matching the busy-bot case below: the counter is bots
         // whose wake did not happen, not changes.
         result.deferred += 1;
@@ -652,10 +661,21 @@ export class SokoBotEventsSyncService {
               started.reconciliationLeaseToken,
             )
             .catch((error) => {
-              console.error("Soko Bot event turn reconciliation failed", {
-                turnId: started.turnId,
-                error: error instanceof Error ? error.message : "unknown",
+              const log = createCoreLogger({
+                operation: OPERATION,
+                sokoBot: { id: work.sokoBotId },
+                turn: { id: started.turnId },
               });
+              log.error(
+                createError({
+                  message: "Soko Bot event turn reconciliation failed",
+                  why: "Turn reconciliation threw",
+                  fix: "The soko-bot-turns sync picks the turn up. If the turn stays stuck, check failure.errorName and failure.status.",
+                }),
+                // Only safe fields: turn work can echo its prompt.
+                { failure: messageSafeErrorFields(error) },
+              );
+              log.emit();
             });
         }
       } catch (error) {
@@ -665,10 +685,21 @@ export class SokoBotEventsSyncService {
           continue;
         }
         result.failed += 1;
-        console.error("Soko Bot event wake-up failed", {
-          sokoBotId: work.sokoBotId,
-          error: error instanceof Error ? error.message : "unknown",
+        const log = createCoreLogger({
+          operation: OPERATION,
+          sokoBot: { id: work.sokoBotId },
         });
+        log.error(
+          createError({
+            message:
+              "Could not wake a Soko Bot for changes in its delegated work",
+            why: "Starting the event turn threw",
+            fix: "The changes stay unseen, so the next soko-bot-events sync wakes the bot again. If it fails every run, check failure.errorName and failure.status.",
+          }),
+          // Only safe fields: turn work can echo its prompt.
+          { failure: messageSafeErrorFields(error) },
+        );
+        log.emit();
       }
     }
     if (input.shouldContinue() && !input.abortSignal.aborted) {

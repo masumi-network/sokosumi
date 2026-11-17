@@ -2,6 +2,7 @@ import {
   type SocialPostMediaKind,
   socialPostMaxBytesForKind,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
@@ -10,7 +11,6 @@ import {
   ComposioToolError,
 } from "@/clients/social-post-providers/tools";
 import { publishXPost } from "@/clients/social-post-providers/x";
-import { expectConsole } from "@/test/console";
 
 const X_IMAGE_MAX_BYTES = socialPostMaxBytesForKind("x", "image");
 

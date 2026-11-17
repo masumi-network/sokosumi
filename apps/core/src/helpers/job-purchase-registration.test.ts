@@ -1,7 +1,7 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
-import { expectConsole } from "@/test/console";
 import {
   PURCHASE_REGISTRATION_ATTEMPTS,
   registerJobPurchase,

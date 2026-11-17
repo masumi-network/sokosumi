@@ -1,5 +1,6 @@
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 
+import type { BrandSectionKey } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { AdActions } from "../ads";
 import type { StartTopUp } from "../top-up";
@@ -33,6 +34,11 @@ export interface OnboardingBrandActions {
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
+  /** A fix on one section, which Cuso makes after his current turn; Core's refusal or null. */
+  fixBrandSection: (
+    section: BrandSectionKey,
+    note: string,
+  ) => Promise<string | null>;
 }
 
 /** Ask for, check, and approve the plan. */
@@ -126,6 +132,7 @@ export function inertOnboardingActions(
     answerBrandQuestion: same,
     skipBrandQuestions: same,
     saveBrandBrain: same,
+    fixBrandSection: async () => null,
     answerPlanQuestion: same,
     applyPlanAnswers: result,
     finishAccounts: () => new Promise<never>(() => {}),

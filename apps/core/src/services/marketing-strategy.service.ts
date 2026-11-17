@@ -55,8 +55,21 @@ export function parseMarketingPlan(
   return parsed.success ? parsed.data : null;
 }
 
-/** `clientTurnId` prefix of a bot turn writing a new strategy version. */
+/**
+ * `clientTurnId` prefix of a bot turn writing a new strategy version: a
+ * plan (`cmo:strategy:<bot>:<time>`), a patch (`…:patch:<time>`) or a Brand
+ * Brain fix (`…:fix:<time>`).
+ */
 export const STRATEGY_TURN_PREFIX = "cmo:strategy:";
+
+/** What a plan turn is for, from its id: a fix, a patch, or null for a (re)plan. */
+export function cmoChangeKind(
+  clientTurnId: string | null,
+): "fix" | "patch" | null {
+  if (!clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)) return null;
+  const kind = clientTurnId.split(":")[3];
+  return kind === "fix" || kind === "patch" ? kind : null;
+}
 
 /** Every column but the plan: what a list of versions shows. */
 export const MARKETING_STRATEGY_VERSION_SELECT = {

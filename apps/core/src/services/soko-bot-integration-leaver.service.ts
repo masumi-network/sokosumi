@@ -1,6 +1,7 @@
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integrations.service";
 
 /**
@@ -114,10 +115,17 @@ export async function disconnectLeaverSokoBotIntegrationsBestEffort(
   try {
     await disconnectLeaverSokoBotIntegrations(userId, organizationId);
   } catch (error) {
-    console.error("Soko Bot leaver integration disconnect failed", {
-      userId,
-      organizationId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // Awaited inside the member removal request: its event carries this.
+    recordCoreError(
+      { operation: "soko_bot_leaver_integrations" },
+      {
+        message:
+          "Could not disconnect a leaving member's Soko Bot integrations",
+        why: "The disconnect failed",
+        fix: "The member was still removed. The hourly soko-bot-ingest sync sweeps leavers and disconnects these integrations.",
+        cause: error,
+      },
+      { leaver: { userId, organizationId } },
+    );
   }
 }

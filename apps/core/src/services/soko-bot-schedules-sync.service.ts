@@ -12,6 +12,7 @@ import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
@@ -643,10 +644,22 @@ export class SokoBotSchedulesSyncService {
             leaseToken: reconciliationLeaseToken,
           });
         } catch (error) {
-          console.warn("Failed to enqueue scheduled turn reconciliation", {
-            turnId,
-            error: error instanceof Error ? error.message : "unknown",
+          // The schedules cron runs after its response: its own event.
+          const log = createCoreLogger({
+            operation: "soko_bot_schedules_sync",
+            turn: { id: turnId },
           });
+          logCoreWarning(
+            log,
+            {
+              message: "Could not start draining a scheduled Soko Bot turn",
+              why: "Enqueueing the reconciliation threw",
+              fix: "The turn has started; the soko-bot-turns sync drains it instead.",
+            },
+            // The raw error is redacted detail, never the why.
+            { cause: error },
+          );
+          log.emit();
         }
       }
       return "deferred";

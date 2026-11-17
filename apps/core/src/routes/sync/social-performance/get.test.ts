@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents } from "@/test/core-log";
 import mountSyncSocialPerformance from "./get";
 
 const collect = vi.hoisted(() => vi.fn());
@@ -17,14 +18,20 @@ vi.mock("../handler.js", () => ({
       deadlineMs: number;
       msRemaining: () => number;
       shouldContinue: () => boolean;
+      log: import("../handler.js").SyncRunContext["log"];
     }) => Promise<void>,
   ) => {
+    // The run's event, as the real handler sends it when the run ends.
+    const { createCoreLogger } = await import("@/lib/evlog");
+    const log = createCoreLogger({ operation: "cron_sync" });
     await operation({
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       msRemaining: () => 60_000,
       shouldContinue: () => true,
+      log,
     });
+    log.emit();
     return c.json({ ok: true });
   },
 }));
@@ -44,16 +51,16 @@ describe("GET /sync/social-performance", () => {
   });
 
   it("logs collected and failed counts from the writer", async () => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const app = new Hono();
     mountSyncSocialPerformance(app);
     const response = await app.request("http://localhost/social-performance");
     expect(response.status).toBe(200);
     expect(collect).toHaveBeenCalledOnce();
-    expect(info).toHaveBeenCalledWith(
-      "[sync/social-performance-sync] collected",
-      expect.objectContaining({ refreshed: 2, failed: 1 }),
-    );
-    info.mockRestore();
+    expect(coreLogEvents()).toEqual([
+      expect.objectContaining({
+        operation: "cron_sync",
+        result: expect.objectContaining({ refreshed: 2, failed: 1 }),
+      }),
+    ]);
   });
 });

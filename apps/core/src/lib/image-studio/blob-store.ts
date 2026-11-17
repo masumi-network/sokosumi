@@ -1,5 +1,6 @@
 import { getEnv } from "@/config/env";
 import { serviceUnavailable } from "@/helpers/error";
+import { recordCoreError } from "@/lib/evlog";
 
 /**
  * The image studio's private Blob store.
@@ -59,8 +60,14 @@ export function requireStudioBlobToken(): string {
   const token = readStudioBlobToken();
   if (!token) {
     // The actionable half, for whoever can act on it.
-    console.error(
-      "[image-studio] IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set. The studio needs its own private-access Blob store and will refuse to generate until one is configured; it will not fall back to the shared public store named by BLOB_READ_WRITE_TOKEN.",
+    recordCoreError(
+      { operation: "image_studio_storage" },
+      {
+        message:
+          "Refused an image studio request, because its private storage is not configured",
+        why: "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is unset, and the studio never falls back to the shared public store named by BLOB_READ_WRITE_TOKEN",
+        fix: "Set IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN to the read-write token of a private-access Vercel Blob store.",
+      },
     );
     throw serviceUnavailable(STORAGE_UNAVAILABLE_MESSAGE);
   }

@@ -14,10 +14,6 @@ export default function mount(app: Hono) {
       c,
       CHAT_ROOM_GUEST_INVITATIONS_EXPIRE_SYNC_LOCK_KEY,
       async (context) => {
-        console.info(
-          "[sync/chat-room-guest-invitations-expire] Starting stale guest invitation expiry",
-        );
-        const startedAt = Date.now();
         // When already aborted (sync deadline), skip the write.
         const expired = context.abortSignal.aborted
           ? 0
@@ -25,14 +21,9 @@ export default function mount(app: Hono) {
               now: new Date(),
             });
 
-        console.info(
-          "[sync/chat-room-guest-invitations-expire] Completed sync",
-          {
-            durationMs: Date.now() - startedAt,
-            expired,
-          },
-        );
+        context.log.set({ result: { expired } });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

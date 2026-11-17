@@ -4,7 +4,9 @@ import {
   sokoBotGetImageInputSchema as getImageInputSchema,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { cusoDrive } from "@/services/cuso-project-files.service";
 import { loadLiveResources } from "@/services/file-search.service";
@@ -205,10 +207,23 @@ export async function getStudioJob(
             prompt: job.prompt,
           })
           .catch((error: unknown) => {
-            console.warn("[soko-bot] could not copy an image into Files", {
-              jobId: job.id,
-              error: error instanceof Error ? error.message : "unknown",
+            // A tool call in a background turn: its own event.
+            const log = createCoreLogger({
+              operation: "soko_bot_studio_job",
+              imageJob: { id: job.id },
+              turn: { id: authorized.turn.id },
             });
+            logCoreWarning(
+              log,
+              {
+                message: "Could not copy a studio image into Files",
+                why: "The Files copy failed",
+                fix: "The image stays in the studio and the bot is told there is no Files copy; asking for the job again retries the copy.",
+              },
+              // Only safe fields: turn work can echo its prompt.
+              { failure: messageSafeErrorFields(error) },
+            );
+            log.emit();
             return null;
           })
       : null;

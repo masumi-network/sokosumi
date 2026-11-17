@@ -1,3 +1,5 @@
+import { APICallError } from "ai";
+import { Hono } from "hono";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,7 +37,9 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   downloadStudioFileReference: mocks.reference,
 }));
 
-import { expectConsole } from "@/test/console";
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+
 import { enqueueAdEval } from "./ad-eval.service";
 
 const ENV = {
@@ -310,18 +314,80 @@ describe("background ad evaluations", () => {
   it.each(["reserve", "readBytes", "judge", "update"] as const)(
     "contains %s failures without rejecting background work",
     async (failingStep) => {
-      expectConsole("warn", "[ad-evals] background evaluation failed");
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not evaluate a delivered ad",
+      );
       mocks[failingStep].mockRejectedValue(new Error("test failure"));
       expect(() => enqueueAdEval("job-1")).not.toThrow();
       await expect(finishBackground()).resolves.toBeUndefined();
+      expect(warnings[0]).toMatchObject({ why: "An evaluation step threw" });
+      // The ad's prompt can reach the judge's error text: only its shape is logged.
+      expect(JSON.stringify(warnings[0]?.event)).not.toContain("test failure");
+      expect(warnings[0]?.event).toMatchObject({
+        operation: "ad_eval",
+        job: { id: "job-1" },
+      });
       vi.restoreAllMocks();
     },
   );
 
+  it.each([
+    [
+      "a provider error carrying a subject and key",
+      Object.assign(new Error("Subject: Confidential merger with Acme"), {
+        name: "Confidential merger with Acme sk_live_abc123",
+        code: "sk_live_abc123",
+        statusCode: 429,
+        details: { operation: "Confidential merger", status: "sk_live_abc123" },
+      }),
+      { errorName: "Error", status: 429 },
+    ],
+    [
+      "an AI SDK call error",
+      new APICallError({
+        message: "Subject: Confidential merger with Acme",
+        url: "https://example.com/model",
+        requestBodyValues: { prompt: "Confidential merger sk_live_abc123" },
+        responseBody: "Confidential merger sk_live_abc123",
+        statusCode: 403,
+      }),
+      { errorName: "AI_APICallError", status: 403 },
+    ],
+    [
+      "a Prisma error",
+      Object.assign(new Error("Confidential merger with Acme"), {
+        name: "PrismaClientKnownRequestError",
+        code: "P2025",
+      }),
+      { errorName: "PrismaClientKnownRequestError", code: "P2025" },
+    ],
+  ])(
+    "logs only the known fields of %s from the judge",
+    async (_kind, error, failure) => {
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not evaluate a delivered ad",
+      );
+      mocks.judge.mockRejectedValue(error);
+      enqueueAdEval("job-1");
+      await finishBackground();
+
+      const event = JSON.stringify(warnings[0]?.event);
+      expect(event).not.toContain("Confidential");
+      expect(event).not.toContain("sk_live");
+      expect(warnings[0]?.event).toMatchObject({ failure });
+      expect(
+        (warnings[0]?.event as { failure: unknown } | undefined)?.failure,
+      ).toEqual(failure);
+      expect(coreLogEvents()).toHaveLength(1);
+    },
+  );
+
   it("contains a background registration failure", async () => {
-    const warning = expectConsole(
+    const warning = expectCoreLog(
       "warn",
-      "[ad-evals] could not register background evaluation",
+      "Could not start the evaluation of a delivered ad",
     );
     mocks.reserve.mockResolvedValue(null);
     mocks.waitUntil.mockImplementation(() => {
@@ -330,6 +396,41 @@ describe("background ad evaluations", () => {
     expect(() => enqueueAdEval("job-1")).not.toThrow();
     await finishBackground();
     expect(warning).toHaveLength(1);
+    expect(warning[0]).toMatchObject({
+      why: "Registering the background work threw",
+    });
+    expect(warning[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
+    vi.restoreAllMocks();
+  });
+
+  it("records a registration failure on the request's event when a request settles the ad", async () => {
+    const warning = expectCoreLog(
+      "warn",
+      "Could not start the evaluation of a delivered ad",
+    );
+    // The evaluation starts before waitUntil throws and nothing awaits it:
+    // it must end at once, not log into a later file.
+    mocks.reserve.mockResolvedValue(null);
+    mocks.waitUntil.mockImplementation(() => {
+      throw new Error("registration unavailable");
+    });
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/webhooks/fal", (c) => {
+      enqueueAdEval("job-1");
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/webhooks/fal", { method: "POST" });
+
+    expect(warning).toHaveLength(1);
+    expect(warning[0]?.event).toMatchObject({
+      method: "POST",
+      path: "/webhooks/fal",
+      job: { id: "job-1" },
+    });
     vi.restoreAllMocks();
   });
 });

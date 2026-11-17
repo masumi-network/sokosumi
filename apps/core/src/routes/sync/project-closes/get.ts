@@ -17,8 +17,9 @@ export default function mount(app: Hono) {
           deadlineMs: context.deadlineMs,
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/project-closes] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

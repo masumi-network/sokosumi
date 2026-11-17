@@ -1,12 +1,11 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-import { expectConsole } from "@/test/console";
 import mountGetUserBillingDetails from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {

@@ -4,6 +4,7 @@ import {
   SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostProvider,
 } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import {
@@ -13,7 +14,7 @@ import {
 import { forbidden } from "@/helpers/error";
 import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
-import { expectConsole } from "@/test/console";
+import { causeMessage, coreLogEvents, expectCoreLog } from "@/test/core-log";
 
 const {
   publishingAccessMock,
@@ -427,7 +428,7 @@ describe("social post publisher service", () => {
     });
 
     it("flags dependent quotes immediately when their target fails before its first part", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       socialPostFindManyMock.mockResolvedValue([
         { id: TARGET_ID, status: "SCHEDULED" },
       ]);
@@ -583,7 +584,7 @@ describe("social post publisher service", () => {
     });
 
     it("retains provider retries after an unlimited dependency wait", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       vi.setSystemTime(new Date(SCHEDULED_AT.getTime() + 7 * 24 * 60 * 60_000));
       prepare(target);
       publishXPostMock.mockRejectedValueOnce(
@@ -764,7 +765,7 @@ describe("social post publisher service", () => {
     });
 
     it("uses normal provider failure handling when X refuses a deleted external post", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       prepare(target);
       publishXPostMock.mockRejectedValueOnce(
         new ComposioToolError({
@@ -964,7 +965,7 @@ describe("social post publisher service", () => {
     });
 
     it("fails before any X call when a part exceeds the non-Premium limit", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       state.threadParts[1].text = "界".repeat(141);
       resolveXSubscriptionTypeMock.mockResolvedValue("None");
       const { publishDueSocialPosts } = await loadService();
@@ -978,7 +979,7 @@ describe("social post publisher service", () => {
     });
 
     it("flags the connection for reconnect when X refuses the login on a later part", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       publishXPostMock.mockResolvedValueOnce(result("1907")).mockRejectedValue(
         new ComposioToolError({
           message: "X refused the post",
@@ -997,7 +998,7 @@ describe("social post publisher service", () => {
     });
 
     it("persists the head on failure at part 2 and post-now resumes only parts 2..3", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       socialPostFindManyMock.mockResolvedValue([
         { id: "dependent-quote", status: "SCHEDULED" },
       ]);
@@ -1061,7 +1062,7 @@ describe("social post publisher service", () => {
     });
 
     it("flags the connection for reconnect when X refuses the login on a later part", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       publishXPostMock
         .mockResolvedValueOnce(result("1907"))
         .mockRejectedValueOnce(
@@ -1087,7 +1088,7 @@ describe("social post publisher service", () => {
     });
 
     it("blocks retry when X confirms a part without returning its id", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       publishXPostMock
         .mockResolvedValueOnce(result("1907"))
         .mockResolvedValueOnce({ externalId: null, publishedUrl: null });
@@ -1106,7 +1107,7 @@ describe("social post publisher service", () => {
     });
 
     it("resumes an automatic transient retry from the stored head", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       publishXPostMock
         .mockResolvedValueOnce(result("1907"))
         .mockRejectedValueOnce(
@@ -1133,7 +1134,7 @@ describe("social post publisher service", () => {
     });
 
     it("recovers a worker crash between parts without duplicating the stored head", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       let reads = 0;
       socialPostFindFirstMock.mockImplementation((input) => {
         if (input.where.leaseToken && ++reads === 2)
@@ -1184,7 +1185,7 @@ describe("social post publisher service", () => {
     });
 
     it("blocks an unconfirmed create after a crash instead of duplicating it", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       state.status = "PUBLISHING";
       state.leaseExpiresAt = new Date(NOW.getTime() - 1);
       state.publishedExternalId = "1907";
@@ -1229,7 +1230,7 @@ describe("social post publisher service", () => {
     });
 
     it("keeps the in-flight marker if storage fails after X creates a part", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       state.publishedExternalId = "1907";
       threadPartUpdateMock.mockRejectedValueOnce(
         new Error("Storage unavailable after X returned an id"),
@@ -1262,7 +1263,7 @@ describe("social post publisher service", () => {
     });
 
     it("retains the marker when X returns an ambiguous outcome", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       publishXPostMock.mockRejectedValueOnce(
         new ComposioPublishOutcomeUnknownError("X"),
       );
@@ -1295,7 +1296,7 @@ describe("social post publisher service", () => {
   });
 
   it("fails a Premium-written post after a fresh downgrade without calling X", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock
       .mockReset()
       .mockResolvedValueOnce({ ...duePost, text: "x".repeat(1240) })
@@ -1358,7 +1359,7 @@ describe("social post publisher service", () => {
   });
 
   it("uses weighted counts in the publish guard", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock
       .mockReset()
       .mockResolvedValueOnce({ ...duePost, text: "界".repeat(141) })
@@ -1371,7 +1372,7 @@ describe("social post publisher service", () => {
   });
 
   it("checks a long first comment before publishing the main post", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock
       .mockReset()
       .mockResolvedValueOnce({ ...duePost, firstComment: "x".repeat(5000) })
@@ -1388,7 +1389,7 @@ describe("social post publisher service", () => {
   });
 
   it("applies the downgrade guard to Post now", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock.mockReset().mockResolvedValueOnce({
       ...duePost,
       status: "DRAFT",
@@ -1450,7 +1451,7 @@ describe("social post publisher service", () => {
   });
 
   it("does not requeue a transient failure after its Project closes", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockImplementation(async () => {
       projectFindFirstMock.mockResolvedValue({
         id: PROJECT_ID,
@@ -1521,7 +1522,7 @@ describe("social post publisher service", () => {
   });
 
   it("aborts provider work at the execution deadline and settles before the lease expires", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     vi.useRealTimers();
     const { publishDueSocialPosts } = await loadService();
     const now = Date.now();
@@ -1554,7 +1555,7 @@ describe("social post publisher service", () => {
   });
 
   it("cancels provider work without publishing and durably settles the attempt", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     const controller = new AbortController();
     publishXPostMock.mockImplementation(async () => {
       controller.abort();
@@ -1694,18 +1695,94 @@ describe("social post publisher service", () => {
   });
 
   it("keeps the post published when the first comment fails", async () => {
-    expectConsole("warn", "[social-post-publisher] First comment failed");
+    expectCoreLog("warn", "Published a Social post without its first comment");
     socialPostFindFirstMock.mockReset();
     socialPostFindFirstMock
       .mockResolvedValueOnce({ ...duePost, firstComment: "#launch" })
       .mockResolvedValue(null);
-    publishFirstCommentMock.mockRejectedValue(new Error("refused"));
+    publishFirstCommentMock.mockRejectedValue(
+      new Error("refused: SECRET-COMMENT #launch"),
+    );
     const { publishDueSocialPosts } = await loadService();
 
     const result = await publishDueSocialPosts(syncContext);
 
     expect(result).toMatchObject({ published: 1, failed: 0 });
     expect(settleCall().data.status).toBe("PUBLISHED");
+    // The provider's error can quote the comment: only its name reaches the log.
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SECRET-COMMENT");
+    expect(coreLogEvents()).toContainEqual(
+      expect.objectContaining({ failure: { errorName: "Error" } }),
+    );
+  });
+
+  it("logs a failed publish without the provider's text", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "A Social post publish attempt failed",
+    );
+    publishXPostMock.mockRejectedValue(
+      new ComposioToolError({
+        message: "X refused SECRET-POST-TEXT",
+        providerMessage: "Duplicate: SECRET-POST-TEXT",
+        providerStatus: 403,
+      }),
+    );
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SECRET-POST-TEXT");
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "social_post_publish",
+      socialPost: { attempt: 1, provider: "x" },
+      // The provider's own HTTP status, without its message.
+      failure: { errorName: "ComposioToolError", status: 403 },
+    });
+  });
+
+  it("records a failed publish when reading the provider's error throws", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "A Social post publish attempt failed",
+    );
+    const error = new Error("X refused the post");
+    for (const key of ["name", "code", "status", "statusCode", "details"])
+      Object.defineProperty(error, key, {
+        get() {
+          throw new Error("getter exploded");
+        },
+      });
+    publishXPostMock.mockRejectedValue(error);
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    // The attempt is still written: logging never interrupts the record.
+    expect(attemptUpdateMock).toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("keeps content in the provider error's name and code out of the drain", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "A Social post publish attempt failed",
+    );
+    publishXPostMock.mockRejectedValue(
+      Object.assign(new Error("X refused SECRET-POST-TEXT"), {
+        name: "SECRET-POST-TEXT in the name",
+        code: "SECRET_POST_CODE",
+      }),
+    );
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(warnings[0]?.event.failure).toEqual({ errorName: "Error" });
+    expect(JSON.stringify(coreLogEvents())).not.toMatch(/SECRET[-_]POST/);
   });
 
   it("stores the published URL the adapter returned", async () => {
@@ -2116,7 +2193,7 @@ describe("social post publisher service", () => {
   );
 
   it("does not retry an ambiguous create-post timeout", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockRejectedValue(
       new ComposioPublishOutcomeUnknownError("X"),
     );
@@ -2324,7 +2401,7 @@ describe("social post publisher service", () => {
   );
 
   it("re-schedules a transient failure with a backoff and records the attempt", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockRejectedValue(
       new ComposioApiError(429, undefined, "publish X post failed (429)"),
     );
@@ -2358,7 +2435,7 @@ describe("social post publisher service", () => {
   });
 
   it("uses the longer backoff for the second retry", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock.mockReset();
     socialPostFindFirstMock
       .mockResolvedValueOnce({ ...duePost, attemptCount: 1 })
@@ -2379,7 +2456,7 @@ describe("social post publisher service", () => {
   });
 
   it("fails permanently on the third transient failure", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock.mockReset();
     socialPostFindFirstMock
       .mockResolvedValueOnce({ ...duePost, attemptCount: 2 })
@@ -2412,7 +2489,7 @@ describe("social post publisher service", () => {
   });
 
   it("fails permanently when a retry would land outside the retry window", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     socialPostFindFirstMock.mockReset();
     socialPostFindFirstMock
       .mockResolvedValueOnce({
@@ -2432,7 +2509,7 @@ describe("social post publisher service", () => {
   });
 
   it("fails permanently on a rejected post at the first try", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockRejectedValue(
       new ComposioToolError({
         message: "X refused the post",
@@ -2468,7 +2545,7 @@ describe("social post publisher service", () => {
 
   // A later post on the flagged connection is covered by "fails a post whose connection is not active without calling X".
   it("flags the connection for reconnect when the provider refuses the login", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockRejectedValue(
       new ComposioToolError({
         message: "X refused the post",
@@ -2489,11 +2566,11 @@ describe("social post publisher service", () => {
   });
 
   it("still fails the post when flagging the connection fails", async () => {
-    expectConsole(
+    const flagWarnings = expectCoreLog(
       "warn",
-      "[social-post-publisher] Could not flag connection for reconnect",
+      "Could not flag a Social connection for reconnect",
     );
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockRejectedValue(
       new ComposioToolError({
         message: "X refused the post",
@@ -2508,6 +2585,12 @@ describe("social post publisher service", () => {
 
     expect(result).toMatchObject({ retried: 0, failed: 1 });
     expect(settleCall().data.status).toBe("FAILED");
+    expect(flagWarnings[0]).toMatchObject({
+      why: "The database update failed",
+    });
+    expect(causeMessage(flagWarnings[0]?.cause)).toBe("db down");
+    // The all-digit test UUIDs read as card numbers to redaction, so only the key.
+    expect(flagWarnings[0]?.event).toHaveProperty("socialConnection.id");
   });
 
   it.each([
@@ -2524,7 +2607,7 @@ describe("social post publisher service", () => {
       }),
     ],
   ])("does not flag the connection for %s", async (_name, error) => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockRejectedValue(error);
     const { publishDueSocialPosts } = await loadService();
 
@@ -2536,7 +2619,7 @@ describe("social post publisher service", () => {
   });
 
   it("redacts provider secrets from both persisted failure summaries", async () => {
-    expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+    expectCoreLog("warn", "A Social post publish attempt failed");
     const opaqueId = "opaque_1234567890abcdefghijklmnopqrstuvwxyz";
     publishXPostMock.mockRejectedValue(
       new ComposioToolError({
@@ -2632,7 +2715,7 @@ describe("social post publisher service", () => {
     });
 
     it("fails permanently when stored media violates the provider rules", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       claimWithMedia([IMAGE_REF, CLIP_REF]);
       const { publishDueSocialPosts } = await loadService();
 
@@ -2653,7 +2736,7 @@ describe("social post publisher service", () => {
     });
 
     it("fails permanently when the stored media cannot be read", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       expectConsole("warn", "[social-post] Unreadable media refs");
       claimWithMedia([{ pathname: 1 }]);
       const { publishDueSocialPosts } = await loadService();
@@ -2693,7 +2776,7 @@ describe("social post publisher service", () => {
     });
 
     it("fails an Instagram post without media before contacting the provider", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       socialPostFindFirstMock
         .mockReset()
         .mockResolvedValueOnce({
@@ -2740,9 +2823,9 @@ describe("social post publisher service", () => {
   });
 
   it("does not overwrite a post whose lease was lost mid-publish", async () => {
-    const leaseWarnings = expectConsole(
+    const leaseWarnings = expectCoreLog(
       "warn",
-      "[social-post-publisher] Lost lease; leaving post untouched",
+      "Left a Social post untouched after losing its publish lease",
     );
     socialPostUpdateManyMock
       .mockResolvedValueOnce({ count: 1 })
@@ -2754,10 +2837,13 @@ describe("social post publisher service", () => {
     expect(result).toMatchObject({ claimed: 1, published: 0, skipped: 1 });
     expect(socialPostUpdateManyMock).toHaveBeenCalledTimes(2);
     expect(attemptUpdateMock).toHaveBeenCalledTimes(1);
-    expect(leaseWarnings).toContainEqual([
-      expect.stringContaining("lease"),
-      expect.objectContaining({ postId: POST_ID }),
-    ]);
+    expect(leaseWarnings[0]).toMatchObject({
+      why: "Another worker took over the post's publish lease first",
+    });
+    expect(leaseWarnings[0]?.event).toMatchObject({
+      operation: "social_post_publish",
+      socialPost: { status: "PUBLISHED" },
+    });
   });
 
   it("stops claiming once the sync context asks to stop", async () => {
@@ -2885,7 +2971,7 @@ describe("social post publisher service", () => {
     });
 
     it("returns the failed post when X rejects a publish-now", async () => {
-      expectConsole("warn", "[social-post-publisher] Publish attempt failed");
+      expectCoreLog("warn", "A Social post publish attempt failed");
       publishXPostMock.mockRejectedValue(
         new ComposioToolError({
           message: "X refused the post",

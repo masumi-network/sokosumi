@@ -3,15 +3,41 @@ import type Stripe from "stripe";
 
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 
-function warnMissingStripeCustomerOwner(params: {
-  customerId: string;
-  ownerId: string;
-  ownerType: "organization" | "user";
-}): void {
+const SKIPPED_WRITE_BACK =
+  "Skipped writing a Stripe customer id back to its owner";
+
+/** On the Stripe webhook's request event while it is live. */
+function warnSkippedWriteBack(
+  customer: Stripe.Customer,
+  why: string,
+  owner?: { id: string; type: "organization" | "user" },
+): void {
+  recordCoreWarning(
+    { operation: "stripe_customer_created" },
+    { message: SKIPPED_WRITE_BACK, why },
+    {
+      stripeCustomer: {
+        id: customer.id,
+        customerType: customer.metadata?.customerType,
+      },
+      ...(owner ? { owner } : {}),
+    },
+  );
+}
+
+function warnMissingStripeCustomerOwner(
+  customer: Stripe.Customer,
+  owner: { id: string; type: "organization" | "user" },
+): void {
   // Soft-ack only: captureException kept SOKOSUMI-CORE-2V unresolved.
-  console.warn(
-    `Skipping Stripe customer ${params.customerId} write-back: ${params.ownerType} ${params.ownerId} no longer exists`,
+  warnSkippedWriteBack(
+    customer,
+    owner.type === "user"
+      ? "The user no longer exists"
+      : "The organization no longer exists",
+    owner,
   );
 }
 
@@ -33,9 +59,7 @@ export async function handleCustomerCreatedEvent(
     case "user": {
       const userId = metadata.userId;
       if (!userId) {
-        console.warn(
-          `Skipping Stripe customer ${customer.id} write-back: missing userId metadata`,
-        );
+        warnSkippedWriteBack(customer, "The customer's metadata has no userId");
         break;
       }
 
@@ -46,10 +70,9 @@ export async function handleCustomerCreatedEvent(
         });
       } catch (error) {
         if (isPrismaRecordNotFoundError(error)) {
-          warnMissingStripeCustomerOwner({
-            customerId: customer.id,
-            ownerId: userId,
-            ownerType: "user",
+          warnMissingStripeCustomerOwner(customer, {
+            id: userId,
+            type: "user",
           });
           break;
         }
@@ -60,8 +83,9 @@ export async function handleCustomerCreatedEvent(
     case "organization": {
       const organizationId = metadata.organizationId;
       if (!organizationId) {
-        console.warn(
-          `Skipping Stripe customer ${customer.id} write-back: missing organizationId metadata`,
+        warnSkippedWriteBack(
+          customer,
+          "The customer's metadata has no organizationId",
         );
         break;
       }
@@ -74,10 +98,9 @@ export async function handleCustomerCreatedEvent(
         });
       } catch (error) {
         if (isPrismaRecordNotFoundError(error)) {
-          warnMissingStripeCustomerOwner({
-            customerId: customer.id,
-            ownerId: organizationId,
-            ownerType: "organization",
+          warnMissingStripeCustomerOwner(customer, {
+            id: organizationId,
+            type: "organization",
           });
           break;
         }

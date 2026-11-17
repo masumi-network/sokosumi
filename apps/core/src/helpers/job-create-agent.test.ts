@@ -2,12 +2,11 @@ import { PaymentType, PricingType } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
-import { expectConsole } from "@/test/console";
 import { createAgentJobForUser } from "./job";
 
 const {

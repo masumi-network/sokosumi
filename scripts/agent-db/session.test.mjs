@@ -160,15 +160,23 @@ describe("withLock", () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
     const file = path.join(dir, "lock");
     const order = [];
+    // The lock promises one holder at a time, not first come first served:
+    // start the second caller only once the first holds it.
+    let held;
+    const aHolds = new Promise((resolve) => {
+      held = resolve;
+    });
     const slow = withLock(
       file,
       async () => {
         order.push("a:start");
+        held();
         await new Promise((r) => setTimeout(r, 30));
         order.push("a:end");
       },
       { pollMs: 5 },
     );
+    await aHolds;
     const fast = withLock(file, async () => order.push("b"), { pollMs: 5 });
     await Promise.all([slow, fast]);
     assert.deepEqual(order, ["a:start", "a:end", "b"]);
