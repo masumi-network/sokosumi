@@ -76,20 +76,22 @@ function useCatalog(query: string, enabled: boolean) {
     refetchOnWindowFocus: false,
     staleTime: 5 * 60_000,
   });
+  // Running or paused offline: either way no answer is in yet.
+  const inFlight = catalog.fetchStatus !== "idle";
   // A retry with no answer yet puts the query back to pending; its last
   // outcome is still the failure.
   const failed =
     catalog.isError ||
-    (catalog.isFetching && catalog.errorUpdatedAt > catalog.dataUpdatedAt);
+    (inFlight && catalog.errorUpdatedAt > catalog.dataUpdatedAt);
   const phase: "searching" | "failed" | "done" =
     query.trim() !== debounced.trim()
       ? "searching"
       : failed
         ? "failed"
-        : catalog.isFetching
+        : inFlight
           ? "searching"
           : "done";
-  return { ...catalog, phase };
+  return { ...catalog, inFlight, phase };
 }
 
 /**
@@ -112,7 +114,10 @@ export function ToolConnectors({
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const { busy, connect, disconnect } = useIntegrationActions();
-  const [query, setQuery] = useState(focusProvider ?? "");
+  // A connect link's search obeys the same limit as a typed one.
+  const [query, setQuery] = useState(() =>
+    (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH),
+  );
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -191,8 +196,17 @@ export function ToolConnectors({
         <SearchOutcome
           query={query.trim()}
           catalog={catalog}
-          // The results replace Try again, so focus goes back to the search.
-          onFound={() => searchInput.current?.focus()}
+          // The results replace Try again, so focus goes back to the search,
+          // unless the user moved it or searched for something else meanwhile.
+          onFound={(retry, term) => {
+            const lost =
+              retry !== null &&
+              (document.activeElement === retry ||
+                (!retry.isConnected &&
+                  document.activeElement === document.body));
+            if (lost && searchInput.current?.value.trim() === term)
+              searchInput.current.focus();
+          }}
         />
       ) : (
         <ul
@@ -257,7 +271,7 @@ function SearchOutcome({
 }: {
   query: string;
   catalog: ReturnType<typeof useCatalog>;
-  onFound: () => void;
+  onFound: (retry: Element | null, term: string) => void;
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
   if (catalog.phase === "searching") return <SearchPlaceholder query={query} />;
@@ -266,12 +280,13 @@ function SearchOutcome({
       <LoadErrorState
         data-testid="app-search-error"
         description={t("searchFailedHelp")}
-        retrying={catalog.isFetching}
+        retrying={catalog.inFlight}
         retryLabel={t("tryAgain")}
         title={t("searchFailed")}
         variant="banner"
         onRetry={async () => {
-          if (!(await catalog.refetch()).isError) onFound();
+          const retry = document.activeElement;
+          if (!(await catalog.refetch()).isError) onFound(retry, query);
         }}
       />
     );

@@ -2,11 +2,15 @@ import type {
   SokoBotIntegration,
   SokoBotIntegrationCatalogEntry,
 } from "@sokosumi/core-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../../messages/en.json";
 import { ToolConnectors } from "./tool-connectors.client";
@@ -57,6 +61,11 @@ beforeEach(() => {
     ok: true,
     value: catalog.filter((entry) => entry.provider.includes(query)),
   }));
+});
+
+afterEach(() => {
+  onlineManager.setOnline(true);
+  document.body.querySelector("#elsewhere")?.remove();
 });
 
 function renderConnectors(
@@ -329,6 +338,87 @@ describe("ToolConnectors", () => {
     );
     expect(await screen.findByText("Nothing found.")).toBeTruthy();
     expect(screen.queryByTestId("app-search-error")).toBeNull();
+  });
+
+  it("waits offline instead of saying nothing matched, and searches once back", async () => {
+    const user = userEvent.setup();
+    renderConnectors([]);
+    act(() => onlineManager.setOnline(false));
+
+    await user.type(screen.getByRole("searchbox"), "fig");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+    expect(screen.queryByText("Nothing found.")).toBeNull();
+    expect(searchCatalog).not.toHaveBeenCalledWith({ query: "fig" });
+    act(() => onlineManager.setOnline(true));
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+  });
+
+  it("keeps a retry made offline busy on its banner, not an empty answer", async () => {
+    const user = userEvent.setup();
+    renderConnectors([]);
+    searchCatalog.mockResolvedValue({ ok: false, error: "down" });
+    await user.type(screen.getByRole("searchbox"), "fig");
+    const retry = within(
+      await screen.findByTestId("app-search-error"),
+    ).getByRole("button", { name: "Try again" });
+    searchCatalog.mockResolvedValue({
+      ok: true,
+      value: catalog.filter((e) => e.provider === "figma"),
+    });
+    act(() => onlineManager.setOnline(false));
+
+    await user.click(retry);
+
+    await waitFor(() => expect(retry).toHaveAttribute("aria-busy", "true"));
+    expect(screen.queryByText("Nothing found.")).toBeNull();
+    act(() => onlineManager.setOnline(true));
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+  });
+
+  it("leaves focus where the user moved it while Try again ran", async () => {
+    const user = userEvent.setup();
+    renderConnectors([]);
+    searchCatalog.mockResolvedValue({ ok: false, error: "down" });
+    await user.type(screen.getByRole("searchbox"), "fig");
+    const retry = within(
+      await screen.findByTestId("app-search-error"),
+    ).getByRole("button", { name: "Try again" });
+    let answer = (_value: unknown) => {};
+    searchCatalog.mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    const elsewhere = document.body.appendChild(
+      document.createElement("button"),
+    );
+    elsewhere.id = "elsewhere";
+
+    retry.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(searchCatalog).toHaveBeenCalled());
+    elsewhere.focus();
+    answer({ ok: true, value: catalog.filter((e) => e.provider === "figma") });
+
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it("caps a connect link's search at the same 100 characters", async () => {
+    renderConnectors([], "b".repeat(101));
+
+    expect(screen.getByRole("searchbox")).toHaveValue("b".repeat(100));
+    await waitFor(() =>
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "b".repeat(100) }),
+    );
+    expect(searchCatalog).not.toHaveBeenCalledWith({ query: "b".repeat(101) });
   });
 
   it("says nothing matched only when the search worked", async () => {
