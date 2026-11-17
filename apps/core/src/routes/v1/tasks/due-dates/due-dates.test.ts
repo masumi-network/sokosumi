@@ -21,6 +21,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const mocks = vi.hoisted(() => ({
   captureException: vi.fn(),
   deliverCalendarInvalidationsNow: vi.fn(),
+  dueDateChangeCreate: vi.fn(),
   findMany: vi.fn(),
   findUniqueOrThrow: vi.fn(),
   lockCalendarScope: vi.fn(),
@@ -59,6 +60,7 @@ const tx = {
     updateMany: mocks.updateMany,
     findUniqueOrThrow: mocks.findUniqueOrThrow,
   },
+  taskDueDateChange: { create: mocks.dueDateChangeCreate },
 };
 
 /** A Task as the move picks it: id and the due day it had then. */
@@ -170,6 +172,15 @@ describe("POST /due-dates/move-overdue", () => {
       },
       data: { dueOn: new Date("2026-11-13T00:00:00.000Z") },
     });
+    // A forward move is the "due date moved later" moment for followers.
+    expect(mocks.dueDateChangeCreate).toHaveBeenCalledWith({
+      data: {
+        taskId: "tsk_a",
+        fromDueOn: new Date("2026-11-02T00:00:00.000Z"),
+        toDueOn: new Date("2026-11-13T00:00:00.000Z"),
+        actorUserId: USER_ID,
+      },
+    });
     expect(mocks.deliverCalendarInvalidationsNow).toHaveBeenCalledWith(
       WORKSPACE_ID,
     );
@@ -271,6 +282,8 @@ describe("POST /due-dates/undo", () => {
       },
       data: { dueOn: new Date("2026-11-02T00:00:00.000Z") },
     });
+    // Moving back to an earlier day is no moment.
+    expect(mocks.dueDateChangeCreate).not.toHaveBeenCalled();
   });
 
   it("keeps the Tasks it restored when a later one fails", async () => {

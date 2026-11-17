@@ -30,6 +30,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   deliverCalendarInvalidationsNowMock,
+  dueDateChangeCreateMock,
   mapTaskMock,
   markTaskAssignedReadMock,
   notifyTaskHumanAssigneeMock,
@@ -44,6 +45,7 @@ const {
   taskUpdateMock,
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
+  dueDateChangeCreateMock: vi.fn(),
   mapTaskMock: vi.fn(),
   markTaskAssignedReadMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
@@ -371,6 +373,7 @@ describe("PATCH /tasks/{id}", () => {
         task: {
           update: taskUpdateMock,
         },
+        taskDueDateChange: { create: dueDateChangeCreateMock },
       });
     });
   });
@@ -575,6 +578,38 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("records a due date moved later, and nothing for an earlier one", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.RUNNING,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      dueOn: new Date("2026-11-10T00:00:00.000Z"),
+    });
+    const patchDueOn = (dueOn: string) =>
+      createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueOn }),
+      });
+
+    expect((await patchDueOn("2026-11-05")).status).toBe(200);
+    expect(dueDateChangeCreateMock).not.toHaveBeenCalled();
+
+    expect((await patchDueOn("2026-11-20")).status).toBe(200);
+    expect(dueDateChangeCreateMock).toHaveBeenCalledWith({
+      data: {
+        taskId: "tsk_123",
+        fromDueOn: new Date("2026-11-10T00:00:00.000Z"),
+        toDueOn: new Date("2026-11-20T00:00:00.000Z"),
+        actorUserId: "user_123",
+      },
+    });
   });
 
   it("clears dueOn on a running Task, outside the editable statuses", async () => {
