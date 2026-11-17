@@ -11818,8 +11818,6 @@
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
         "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
-        "dailyValues": "Valores diarios",
-        "day": "Día",
         "synced": "Última sincronización",
         "windowDays": "Últimos 7 días: {current}. 7 días anteriores: {previous}. Ambos terminan en el día más reciente que informó Google.",
         "noComparison": "No hay días suficientes para comparar",
@@ -11857,12 +11855,16 @@
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
         "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
-        "changeMarker": "Cambio registrado el {day}: {changes}",
         "points": "{value} p. p.",
         "googleUpdate": "{name}: del {from} al {to}",
-        "googleUpdateOpen": "{name}: desde el {from}, en curso",
+        "googleUpdateOpen": "{name}: desde el {from}",
         "googleUpdateDay": "{name}: {day}",
-        "googleUpdatesAsOf": "Actualizaciones de Google a fecha del {day}"
+        "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}",
+        "markerKind": "{kind, select, change {Cambio de página} audit {Auditoría} task {Tarea hecha} verified {Corrección confirmada} other {Evento}}",
+        "markerEvent": "{kind}: {label}",
+        "day": "Día",
+        "markerEvents": "Eventos",
+        "markerLater": "{day} (aún sin datos de búsqueda): {events}"
       },
       "keywords": {
         "title": "Palabras clave",
@@ -11944,7 +11946,7 @@
           "subtitle": "Búsquedas al mes frente a la dificultad. Arriba a la izquierda es lo mejor.",
           "checked": "Sus palabras clave",
           "idea": "Idea",
-          "hint": "Use las flechas izquierda y derecha para moverse entre las palabras clave, y + o - para hacer zoom.",
+          "hint": "Use las flechas izquierda y derecha para moverse entre las palabras clave, Intro para abrir una, y + o - para hacer zoom.",
           "axis": "Dificultad",
           "difficulty": "Dificultad {value} de 100",
           "top10": "{clicks, plural, =0 {Top 10: sin clics adicionales} one {Top 10: +# clic al mes} other {Top 10: +# clics al mes}}",
@@ -11954,7 +11956,14 @@
           "source": "Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO.",
           "zoomIn": "Acercar",
           "zoomOut": "Alejar",
-          "zoomReset": "Mostrar todo el mapa"
+          "zoomReset": "Mostrar todo el mapa",
+          "yours": "Su palabra clave",
+          "gainShort": "Clics extra en el top 3",
+          "contentTask": "Crear tarea de contenido",
+          "ask": "Preguntar al agente SEO",
+          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}». La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
+          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»? La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
+          "noGain": "Desconocido"
         },
         "historyShow": "Historial",
         "historyPaidTitle": "Posiciones en comprobaciones de pago",
@@ -12060,7 +12069,6 @@
         "createTask": "Crear borrador de tarea",
         "why": "Por qué es importante",
         "effect": "Efecto esperado",
-        "whyDetails": "Motivo y pruebas",
         "effort": "Esfuerzo",
         "before": "Antes",
         "after": "Cambio sugerido",
@@ -12076,9 +12084,6 @@
         "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
         "unplannedIssues": "Todavía no hay acciones recomendadas",
         "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o pregunta al agente SEO cuál es el siguiente paso.",
-        "fixesTitle": "Correcciones de los problemas",
-        "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
-        "opportunitiesTitle": "Sugerencias de los datos de búsqueda",
         "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
         "noOpportunitiesBody": "La última comprobación no encontró nada que corregir. El resumen muestra lo que el agente SEO sugiere a continuación.",
         "kind": {
@@ -12086,7 +12091,19 @@
           "opportunity": "Sugerencia"
         },
         "problem": "{check}. Hallazgo: {found}",
-        "impactLine": "{level}: {hint}"
+        "copyFix": "Copiar cambio",
+        "copyInstructions": "Copiar instrucciones para agente",
+        "copyPage": "Página",
+        "copied": "Copiado al portapapeles",
+        "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo a mano.",
+        "copyAgentLead": "Aplica este cambio SEO en el sitio web. Cambia solo lo que indica y luego revisa la página.",
+        "evidence": "Pruebas",
+        "change": "El cambio",
+        "filter": {
+          "label": "Filtrar acciones",
+          "all": "Todas",
+          "suggestions": "Sugerencias"
+        }
       },
       "pages": {
         "title": "Páginas",
@@ -12507,6 +12524,15 @@
         "refreshing": "Cargando estadísticas de Google.",
         "refreshFailed": "No se pudieron cargar las estadísticas de Google. Inténtalo de nuevo.",
         "nextTitle": "El agente propone",
+        "chart": "Gráfico que se muestra",
+        "chartKeywords": "Búsquedas de palabras clave",
+        "statistics": "{analytics, select, missing {Estadísticas de Google: Analytics no está conectado} no_property {Estadísticas de Google: esta cuenta de Google no tiene ninguna propiedad de Analytics} choose {Estadísticas de Google: no hay ninguna propiedad de Analytics elegida para {site}. Elige una de tus {count, plural, one {# propiedad} other {# propiedades}}.} empty {Estadísticas de Google: la propiedad de Analytics {property} aún no tiene visitas para estas páginas} other {Estadísticas de Google}}",
+        "figures": {
+          "label": "Cifras clave",
+          "rankings": "{depth, select, same {{found} de {read} {count, plural, one {palabra clave encontrada} other {palabras clave encontradas}} · {max} resultados leídos por palabra clave} range {{found} de {read} {count, plural, one {palabra clave encontrada} other {palabras clave encontradas}} · {min} a {max} resultados leídos por palabra clave} other {{found} de {read} {count, plural, one {palabra clave encontrada} other {palabras clave encontradas}}}}",
+          "searches": "{partial, select, yes {{total, plural, one {# búsqueda} other {# búsquedas}} al mes para {keywords, number} de {of, number} palabras clave} other {{total, plural, one {# búsqueda} other {# búsquedas}} al mes}}",
+          "traffic": "{clicks, plural, one {# clic} other {# clics}} · {impressions, plural, one {# impresión} other {# impresiones}}"
+        },
         "nothingNext": "No hay tareas pendientes. Las estadísticas de Google se cargan automáticamente para las páginas seleccionadas y se actualizan cuando sea necesario.",
         "steps": {
           "refresh": {
@@ -12556,18 +12582,16 @@
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
-        "openTraffic": "Abrir tráfico",
-        "openRankings": "Abrir posiciones",
-        "toSteps": "Empezar por el primer paso",
         "draftFix": "Pedir una corrección al agente",
-        "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
-        "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
         "statisticsMissing": "Las estadísticas no están configuradas",
         "demand": {
           "title": "Palabras clave comprobadas con más búsquedas",
           "unit": "Búsquedas al mes",
           "position": "Posición {position}"
-        }
+        },
+        "openAction": "Abrir acción",
+        "changeProperty": "Cambiar propiedad",
+        "chooseProperty": "Elegir propiedad"
       },
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
@@ -12766,15 +12790,10 @@
         "issues": "Problemas",
         "issuesNone": "Ninguno encontrado",
         "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
-        "keywords": "Palabras clave en los primeros resultados de Google",
         "of": "de {total}",
-        "searches": "Búsquedas de tus palabras clave",
-        "searchesFor": "Para {keywords} de {of} palabras clave comprobadas",
         "tests": "Pruebas completadas",
         "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
-        "testsAll": "Todas las pruebas tienen resultado",
-        "aMonth": "al mes",
-        "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
+        "testsAll": "Todas las pruebas tienen resultado"
       },
       "traffic": {
         "searchType": "Tipo de búsqueda",

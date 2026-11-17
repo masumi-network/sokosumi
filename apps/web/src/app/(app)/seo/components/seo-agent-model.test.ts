@@ -119,7 +119,7 @@ describe("SEO agent brief", () => {
     ).toBe(false);
   });
 
-  it("puts confirmed fixes before review opportunities and caps the list", () => {
+  it("puts confirmed fixes before review opportunities and lists every one", () => {
     const workspace = connected();
     workspace.actions = [
       opportunity("o1"),
@@ -132,7 +132,7 @@ describe("SEO agent brief", () => {
       brief.steps.flatMap((step) =>
         step.kind === "action" ? [step.action.id] : [],
       ),
-    ).toEqual(["f1", "o1", "o2"]);
+    ).toEqual(["f1", "o1", "o2", "o3"]);
     expect(brief).toMatchObject({ fixes: 1, opportunities: 3 });
   });
 

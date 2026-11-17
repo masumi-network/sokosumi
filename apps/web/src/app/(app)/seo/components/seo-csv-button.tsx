@@ -3,6 +3,7 @@
 import { Download } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { seoCsv } from "./seo-csv";
 import type { SeoExport } from "./seo-export-model";
 
@@ -14,11 +15,14 @@ export function SeoCsvButton({
   name,
   title,
   table,
+  className,
 }: {
   name: string;
   /** The table's title: a tab can hold two tables, so the button's name says which one it saves. */
   title: string;
   table: () => SeoExport;
+  /** Its place in a line of controls, where the margin to the list's text edge does not apply. */
+  className?: string;
 }) {
   const t = useTranslations("App.Seo");
   const locale = useLocale();
@@ -27,7 +31,7 @@ export function SeoCsvButton({
       variant="ghost"
       size="sm"
       // A quiet line under its list: the icon stands on the text edge of the list.
-      className="text-muted-foreground -ms-2.5"
+      className={cn("text-muted-foreground -ms-2.5", className)}
       aria-label={t("export.csvLabel", { table: title })}
       onClick={() => {
         const { header, rows } = table();

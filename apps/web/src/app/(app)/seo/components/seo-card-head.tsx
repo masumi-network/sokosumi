@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { HOLDER_ITEM_HOVER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
-/** The title row of an action card: a button that opens and closes the card, or plain text where the card stays open. */
+/** The title row of an action card: a button that opens and closes the card. */
 export function SeoActionCardHead({
   bodyId,
   open,
@@ -14,18 +14,11 @@ export function SeoActionCardHead({
 }: {
   bodyId: string;
   open: boolean;
-  /** Absent where the card stays open. */
-  onToggle: (() => void) | undefined;
+  onToggle: () => void;
   children: ReactNode;
 }) {
   // An open card has its page link directly under the title: the head ends close over it.
   const pad = open ? "pt-3 pb-1" : "py-3";
-  if (!onToggle)
-    return (
-      <span className={cn("flex items-center gap-3 px-4", pad)}>
-        {children}
-      </span>
-    );
   return (
     <button
       type="button"

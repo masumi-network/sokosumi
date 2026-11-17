@@ -41871,6 +41871,16 @@ export const ProjectSeoActionSchema = {
                 'verified'
             ]
         },
+        completedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        verifiedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         kind: {
             type: 'string',
             enum: [
