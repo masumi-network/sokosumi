@@ -1,6 +1,6 @@
 ---
 name: verify-sokosumi
-description: Drive the Sokosumi web app (and Core API) the way a user does — launch local web+core, doctor health, browser login via agent-browser, capture proof. Use when proving a UI/API change works, after feature work, or when a task needs end-to-end evidence beyond unit tests.
+description: Drive the Sokosumi web app (and Core API) the way a user does — start a self-contained local stack (bin/local-stack), sign in, run recorded journeys (bin/drive.mjs) for screenshots and video, or use the portless + agent-browser path. Use when proving a UI/API change works, after feature work, or when a task needs end-to-end evidence beyond unit tests.
 ---
 
 # Verify Sokosumi
