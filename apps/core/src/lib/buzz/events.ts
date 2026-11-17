@@ -261,23 +261,26 @@ export function channelIdOf(event: Event): string | null {
   return tagValues(event, "h")[0] ?? null;
 }
 
-/** The event a reply answers: a `reply` marker, else `root`, else the last `e`. */
-function replyTarget(event: Event): string | null {
+/**
+ * The events a reply answers, nearest first: its `reply` marker, then its
+ * `root` (kept for when the nearer one never arrives), else the last `e`.
+ */
+function replyTargets(event: Event): string[] {
   const eTags = event.tags.filter(
     (tag) => tag[0] === "e" && typeof tag[1] === "string",
   );
-  return (
-    eTags.find((tag) => tag[3] === "reply")?.[1] ??
-    eTags.find((tag) => tag[3] === "root")?.[1] ??
-    eTags.at(-1)?.[1] ??
-    null
+  const marked = ["reply", "root"].flatMap(
+    (marker) => eTags.find((tag) => tag[3] === marker)?.[1] ?? [],
   );
+  const targets = marked.length > 0 ? marked : eTags.slice(-1).map((t) => t[1]);
+  return [...new Set(targets as string[])];
 }
 
 export type InboundChange =
   | {
       type: "message";
-      replyToEventId: string | null;
+      /** Nearest first; the first one linked in Sokosumi is the parent. */
+      replyToEventIds: string[];
       content: string;
       mentionPubkeys: string[];
     }
@@ -314,7 +317,7 @@ export function readInbound(event: Event): InboundChange {
     case BUZZ_KIND.richMessage:
       return {
         type: "message",
-        replyToEventId: replyTarget(event),
+        replyToEventIds: replyTargets(event),
         content:
           event.kind === BUZZ_KIND.richMessage
             ? richMessageText(event.content)

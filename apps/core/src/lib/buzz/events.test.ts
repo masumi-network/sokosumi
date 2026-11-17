@@ -47,7 +47,7 @@ describe("messageDraft", () => {
 });
 
 describe("readInbound", () => {
-  it("reads a reply's target from its reply marker before any other e tag", () => {
+  it("reads a reply's targets: its reply marker first, then its root", () => {
     expect(
       readInbound(
         event(
@@ -60,7 +60,10 @@ describe("readInbound", () => {
           "hey",
         ),
       ),
-    ).toMatchObject({ type: "message", replyToEventId: ROOT });
+    ).toMatchObject({
+      type: "message",
+      replyToEventIds: [ROOT, "d".repeat(64)],
+    });
   });
 
   it("turns a NIP-25 like into a thumbs up", () => {

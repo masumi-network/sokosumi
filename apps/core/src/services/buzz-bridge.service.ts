@@ -2924,10 +2924,7 @@ async function reconcileReactions(input: {
       }),
     );
     if (pending.kind === BUZZ_KIND.deletion) {
-      await prisma.$transaction([
-        rememberUndone(link.duplicateEventIds),
-        prisma.buzzReactionLink.delete({ where: { id: link.id } }),
-      ]);
+      await finishReactionRemoval(link, tagValues(pending, "e")[0] ?? "");
     } else {
       await prisma.buzzReactionLink.update({
         where: { id: link.id },
@@ -3043,13 +3040,31 @@ async function reconcileReactions(input: {
         data: { pendingEvent: fresh as unknown as object },
       }),
     );
-    // Taken back on Buzz; a copy signed with their other key cannot be, so
-    // it is remembered as undone.
-    await prisma.$transaction([
-      rememberUndone(link.duplicateEventIds),
-      prisma.buzzReactionLink.delete({ where: { id: link.id } }),
-    ]);
+    await finishReactionRemoval(link, link.eventId);
   }
+}
+
+/**
+ * Ends a reaction taken back on Buzz. A copy signed with their other key
+ * cannot be, so it is remembered as undone. One added again on Buzz while
+ * this was pending has replaced the link's event: it stays.
+ */
+async function finishReactionRemoval(
+  link: { id: string; eventId: string; duplicateEventIds: string[] },
+  removedEventId: string,
+) {
+  await prisma.$transaction([
+    rememberUndone(
+      link.eventId === removedEventId ? link.duplicateEventIds : [],
+    ),
+    prisma.buzzReactionLink.deleteMany({
+      where: { id: link.id, eventId: removedEventId },
+    }),
+    prisma.buzzReactionLink.updateMany({
+      where: { id: link.id },
+      data: { pendingEvent: PrismaNull.DbNull },
+    }),
+  ]);
 }
 
 function rememberUndone(eventIds: string[]) {
@@ -4067,13 +4082,20 @@ export async function applyInboundEvent(
         : null;
       if (!channel?.roomId) return "ignored";
       let parentMessageId: string | undefined;
-      if (change.replyToEventId) {
-        const parent = await prisma.buzzMessageLink.findUnique({
-          where: { eventId: change.replyToEventId },
-          select: { message: { select: { id: true, parentMessageId: true } } },
+      if (change.replyToEventIds.length > 0) {
+        const links = await prisma.buzzMessageLink.findMany({
+          where: { eventId: { in: change.replyToEventIds } },
+          select: {
+            eventId: true,
+            message: { select: { id: true, parentMessageId: true } },
+          },
         });
+        // The nearest one linked; a missing reply falls back to its root.
+        const parent = change.replyToEventIds
+          .map((id) => links.find((link) => link.eventId === id))
+          .find((link) => link !== undefined);
         if (!parent && !options.finalAttempt) {
-          throw new BuzzTargetPendingError(change.replyToEventId);
+          throw new BuzzTargetPendingError(change.replyToEventIds[0] as string);
         }
         // Sokosumi threads are one level deep: answer the thread's root.
         parentMessageId = parent
@@ -4385,7 +4407,13 @@ export async function applyInboundEvent(
           },
         },
       });
-      if (existing) {
+      const known =
+        existing &&
+        (existing.eventId === event.id ||
+          existing.duplicateEventIds.includes(event.id));
+      const beingRemoved =
+        asPending(existing?.pendingEvent)?.kind === BUZZ_KIND.deletion;
+      if (existing && (known || !beingRemoved)) {
         // The same reaction signed with their other key: remembered, so
         // taking it back covers this one too.
         await rememberDuplicate(existing, event.id);
@@ -4395,6 +4423,18 @@ export async function applyInboundEvent(
         method: "PUT",
         path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
       });
+      if (existing) {
+        // Added again on Buzz while Sokosumi takes the old one back: the new
+        // event replaces it, and the old ones stay undone.
+        await prisma.$transaction([
+          rememberUndone([existing.eventId, ...existing.duplicateEventIds]),
+          prisma.buzzReactionLink.update({
+            where: { id: existing.id },
+            data: { eventId: event.id, signerPubkey, duplicateEventIds: [] },
+          }),
+        ]);
+        return "reacted";
+      }
       try {
         await prisma.buzzReactionLink.create({
           data: {

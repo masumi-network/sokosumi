@@ -429,6 +429,49 @@ describe("applyInboundEvent", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
+  it("applies a reaction added again on Buzz while Sokosumi still takes the old one back", async () => {
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "f".repeat(64)
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId
+          ? null
+          : {
+              id: "link",
+              eventId: "old",
+              duplicateEventIds: ["old-copy"],
+              pendingEvent: { kind: 5, tags: [["e", "old"]] },
+            },
+    );
+    const again = nostrEvent({
+      kind: 7,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "f".repeat(64)],
+      ],
+      content: "👍",
+    });
+    await expect(applyInboundEvent(again, core)).resolves.toBe("reacted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PUT",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    expect(db.buzzUndoneEvent.createMany).toHaveBeenCalledWith({
+      data: [{ eventId: "old" }, { eventId: "old-copy" }],
+      skipDuplicates: true,
+    });
+    expect(db.buzzReactionLink.update).toHaveBeenCalledWith({
+      where: { id: "link" },
+      data: { eventId: again.id, signerPubkey: null, duplicateEventIds: [] },
+    });
+  });
+
   it("ignores replays of a reaction undone in Sokosumi, however often it was added again", async () => {
     const reaction = (more: string[][] = []) =>
       nostrEvent({
@@ -471,12 +514,14 @@ describe("applyInboundEvent", () => {
       roomId: "room",
       channelId: CHANNEL,
     });
-    db.buzzMessageLink.findUnique
-      .mockResolvedValueOnce(null)
-      // The parent is itself a reply: Sokosumi threads have one level.
-      .mockResolvedValueOnce({
+    db.buzzMessageLink.findUnique.mockResolvedValueOnce(null);
+    // The parent is itself a reply: Sokosumi threads have one level.
+    db.buzzMessageLink.findMany.mockResolvedValueOnce([
+      {
+        eventId: "f".repeat(64),
         message: { id: "reply-1", parentMessageId: "root-1" },
-      });
+      },
+    ]);
     db.buzzIdentity.findMany.mockResolvedValue([
       {
         pubkey: BOT_PUBKEY,
@@ -714,6 +759,7 @@ describe("applyInboundEvent ordering", () => {
       encryptedApiKey: sealSecret("bob-api-key", SECRET),
     });
     db.buzzIdentity.findMany.mockResolvedValue([]);
+    db.buzzMessageLink.findMany.mockResolvedValue([]);
   });
 
   it("waits for a reply's parent instead of starting a new thread", async () => {
@@ -732,6 +778,27 @@ describe("applyInboundEvent ordering", () => {
     await expect(
       applyInboundEvent(reply, core, { finalAttempt: true }),
     ).resolves.toBe("posted");
+  });
+
+  it("answers a reply's thread root when the reply it answers never arrived", async () => {
+    const root = "d".repeat(64);
+    db.buzzMessageLink.findMany.mockResolvedValueOnce([
+      { eventId: root, message: { id: "root-1", parentMessageId: null } },
+    ]);
+    const reply = nostrEvent({
+      tags: [
+        ["h", CHANNEL],
+        ["e", root, "", "root"],
+        ["e", "f".repeat(64), "", "reply"],
+      ],
+      content: "the reply before me was deleted",
+    });
+    await expect(applyInboundEvent(reply, core)).resolves.toBe("posted");
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ parentMessageId: "root-1" }),
+      }),
+    );
   });
 
   it("remembers a newer edit that matches the text, so an older one cannot win later", async () => {
