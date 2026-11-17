@@ -2,6 +2,7 @@ import { FileExtractionState, FileMetadataState } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
+import { tryUseLiveLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
   buildAuthorizedResourceSql,
@@ -252,13 +253,16 @@ export async function findRelatedFiles(input: {
     const state = seed.extractionState;
     if (state !== null && !EXTRACTION_STILL_RUNNING.includes(state)) {
       if (state === FileExtractionState.INDEXED) {
-        console.info("[files] indexed document has no chunks", {
-          resourceId: seed.id,
-          contentRevision: seed.contentRevision,
-          consequence:
-            "Reported as having no readable text. Extraction reported " +
-            "success, so this is more likely an extraction fault than a " +
-            "document without text.",
+        // Reported as having no readable text. Extraction reported success,
+        // so this is more likely an extraction fault than a document
+        // without text. Read in a request: a field on its event.
+        tryUseLiveLogger()?.set({
+          relatedFiles: {
+            indexedWithoutChunks: {
+              resourceId: seed.id,
+              contentRevision: seed.contentRevision,
+            },
+          },
         });
       }
       return { items: [], state: "no-text" };

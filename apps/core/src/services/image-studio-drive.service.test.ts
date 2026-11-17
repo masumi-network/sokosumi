@@ -42,13 +42,13 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   ensureStudioAssetDriveFile,
   moveLegacyStudioFolderTasks,
   publishStudioAssetToFiles,
   studioAssetFileName,
 } from "@/services/image-studio-drive.service";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const INPUT = {
   projectId: "project-1",
@@ -184,8 +184,15 @@ describe("publishStudioAssetToFiles", () => {
   });
 
   it("never fails settlement when Files is unavailable", async () => {
-    expectConsole("warn", "[image-studio] could not add the asset to Files");
-    mocks.reserve.mockRejectedValue(new Error("down"));
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not add a generated image to Files",
+      ["Writing the image into the Content Studio folder failed"],
+    );
+    // The file name comes from the prompt, and an error can quote it.
+    mocks.reserve.mockRejectedValue(
+      new Error("down: a-SECRET-PROMPT-SENTINEL-3f2a9c1d.png"),
+    );
     await expect(
       publishStudioAssetToFiles({
         assetId: INPUT.assetId,
@@ -198,6 +205,14 @@ describe("publishStudioAssetToFiles", () => {
         contentType: "image/png",
       }),
     ).resolves.toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_job_settle",
+      imageJobs: [{ failure: { errorName: "Error" } }],
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
   });
 });
 
@@ -280,9 +295,10 @@ describe("moveLegacyStudioFolderTasks", () => {
   });
 
   it("keeps the Task when a file cannot be copied", async () => {
-    expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[image-studio] could not move a folder Task to Files",
+      "Could not move an old studio folder Task to Files",
+      ["Copying its files into the Content Studio folder failed"],
     );
     mocks.taskFindMany.mockResolvedValueOnce([folderTask]);
     vi.stubGlobal(
@@ -296,6 +312,10 @@ describe("moveLegacyStudioFolderTasks", () => {
     expect(mocks.taskUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { archivedAt: expect.any(Date) } }),
     );
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_studio_legacy_folder_move",
+      tasks: [{ id: "task-1", failure: expect.any(Object) }],
+    });
   });
 
   it("stops looking once no folder Task is left", async () => {

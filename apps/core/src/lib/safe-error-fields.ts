@@ -1,5 +1,7 @@
 import { SOKO_BOT_INTEGRATION_PROVIDERS } from "@sokosumi/soko-bot";
 
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
+
 /**
  * What a log event may keep of an error that can quote a mail, a message or a
  * prompt. Every value is matched against a finite, Core-owned set; nothing is
@@ -98,6 +100,15 @@ function read(target: unknown, key: string): unknown {
   }
 }
 
+/** The real class, not a name anyone can set: `instanceof` can throw on a proxy. */
+function isComposioToolError(value: unknown): boolean {
+  try {
+    return value instanceof ComposioToolError;
+  } catch {
+    return false;
+  }
+}
+
 function isError(value: unknown): boolean {
   try {
     return value instanceof Error;
@@ -122,12 +133,16 @@ export function safeErrorCode(error: unknown): string | undefined {
     : undefined;
 }
 
-/** An HTTP status from `details.status`, `status` or `statusCode`. */
+/**
+ * An HTTP status from `details.status`, `status` or `statusCode`, or a social
+ * provider's `providerStatus` on `ComposioToolError`, which keeps it there.
+ */
 export function safeHttpStatus(error: unknown): number | undefined {
   for (const status of [
     read(read(error, "details"), "status"),
     read(error, "status"),
     read(error, "statusCode"),
+    isComposioToolError(error) ? read(error, "providerStatus") : undefined,
   ]) {
     if (
       typeof status === "number" &&

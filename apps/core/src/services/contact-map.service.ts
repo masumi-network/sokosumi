@@ -7,6 +7,8 @@ import type { ContactKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   generateWithContactModel,
   parseJsonObject,
@@ -134,10 +136,17 @@ async function lookUpPlaces(queries: string[], geocode: Geocode) {
           skipDuplicates: true,
         });
       } catch (error) {
-        console.warn("Contact place lookup failed", {
-          places: batch.length,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        // After the response, so its own event. The places are contacts'
+        // locations: a count and content-free metadata only.
+        emitCoreWarning(
+          { operation: "contact_place_lookup", places: batch.length },
+          {
+            message: "Could not look up contact places for the map",
+            why: "The geocoding call or saving its answers failed",
+            fix: "The places stay unplaced until the map is opened again, which asks for them again.",
+          },
+          { failure: messageSafeErrorFields(error) },
+        );
       } finally {
         for (const query of batch) inFlight.delete(query);
       }
@@ -212,7 +221,7 @@ export async function contactMap(
     .slice(0, MAX_NEW_PLACES);
   if (missing.length > 0) {
     for (const query of missing) inFlight.add(query);
-    schedule(lookUpPlaces(missing, geocode));
+    schedule(runAsBackgroundWork(() => lookUpPlaces(missing, geocode)));
   }
   const places = new Map<string, ContactMap["places"][number]>();
   let unplaced = 0;

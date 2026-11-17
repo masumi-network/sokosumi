@@ -158,6 +158,7 @@ import {
   recoverUnclaimedReservations,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 /**
  * The default model's endpoints, taken from the catalog rather than written out.
@@ -324,14 +325,26 @@ describe("image studio job submission", () => {
   );
 
   it("classifies a definite provider refusal as failed and therefore retryable", async () => {
-    expectConsole("warn", "[image-studio] provider refused a submission");
+    const refusals = expectCoreLogWhys(
+      "warn",
+      "The image provider refused a generation",
+      ["fal answered the submission with a rejection"],
+    );
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
-      message: "prompt rejected",
+      message: "prompt rejected: SECRET-PROMPT-SENTINEL",
     });
 
     const job = await createImageJob(BASE_INPUT);
+
+    // The provider's message can quote the prompt: only its status is logged.
+    expect(refusals[0]?.event).toMatchObject({
+      imageJobs: [{ id: "job-1", provider: { name: "fal", status: 422 } }],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
 
     expect(job.status).toBe("FAILED");
     expect(jobUpdateMock).toHaveBeenCalledWith(
@@ -342,13 +355,20 @@ describe("image studio job submission", () => {
   });
 
   it("classifies a lost answer as uncertain, never as failed", async () => {
-    expectConsole("warn", "[image-studio] submission outcome unknown");
+    expectCoreLogWhys(
+      "warn",
+      "Could not tell whether the image provider received a generation",
+      ["The submission to fal ended without a clear answer"],
+    );
     submitToQueueMock.mockResolvedValue({
       kind: "uncertain",
-      message: "The operation timed out",
+      message: "The operation timed out: SECRET-PROMPT-SENTINEL",
     });
 
     const job = await createImageJob(BASE_INPUT);
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
 
     // The distinction is the whole point: a retry here could be a second
     // charge, so it must not look like an ordinary failure.
@@ -570,9 +590,10 @@ describe("image studio job submission", () => {
   ])(
     "blocks a recovered job without photo access ($idempotencyKey)",
     async ({ idempotencyKey, kind }) => {
-      expectConsole(
+      expectCoreLogWhys(
         "warn",
-        "[image-studio] a generation could not be prepared",
+        "An image generation failed before it was sent",
+        ["Preparing the request for the image provider threw"],
       );
       const now = new Date("2026-11-10T12:00:00Z");
       const pending = jobRow({
@@ -1064,21 +1085,29 @@ describe("image studio job submission", () => {
   });
 
   it("queues the job and logs a snapshot failure", async () => {
-    const warning = expectConsole(
+    const warnings = expectCoreLogWhys(
       "warn",
-      "[image-studio] could not save a prompt snapshot",
+      "Could not save the prompt snapshot of an image generation",
+      ["The database write of the snapshot failed"],
     );
-    snapshotUpsertMock.mockRejectedValueOnce(new Error("snapshot unavailable"));
+    snapshotUpsertMock.mockRejectedValueOnce(
+      new Error("snapshot unavailable: SECRET-PROMPT-SENTINEL"),
+    );
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
     await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
       status: "QUEUED",
     });
     await Promise.all(waitUntilMock.mock.calls.map(([work]) => work));
-    expect(warning).toContainEqual([
-      "[image-studio] could not save a prompt snapshot",
-      { jobId: "job-1", error: "snapshot unavailable" },
-    ]);
+    // Its own event, after the response; the write's error can quote the prompt.
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_prompt_snapshot",
+      imageJobs: [{ id: "job-1", failure: { errorName: "Error" } }],
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
   });
 
   it("does not wait for a snapshot write before submitting or returning the job", async () => {

@@ -10,6 +10,12 @@ import {
 import { waitUntil } from "@vercel/functions";
 
 import prisma from "@/lib/db/prisma";
+import {
+  emitCoreWarning,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
@@ -423,18 +429,29 @@ async function startProductionRun(
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
-      sokoBotControlPlane
-        .reconcileTurn(
-          started.turnId,
-          undefined,
-          started.reconciliationLeaseToken,
-        )
-        .catch((error: unknown) => {
-          console.warn("CMO production run reconciliation stopped", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
-        }),
+      runAsBackgroundWork(() =>
+        sokoBotControlPlane
+          .reconcileTurn(
+            started.turnId,
+            undefined,
+            started.reconciliationLeaseToken,
+          )
+          .catch((error: unknown) => {
+            // A turn's error can quote its prompt, so only its name and code.
+            emitCoreWarning(
+              {
+                operation: "cmo_production_run",
+                sokoBotTurn: { id: started.turnId },
+                failure: messageSafeErrorFields(error),
+              },
+              {
+                message: "Stopped following a CMO production run",
+                why: "Reconciling the production turn threw",
+                fix: "The turn's own reconciliation picks it up again. If it repeats, look up the error name and code under failure.",
+              },
+            );
+          }),
+      ),
     );
   return started.turnId;
 }
@@ -670,10 +687,16 @@ export async function advanceCmoProduction(
       { cuso, versionId: version.id, connected },
       pieces,
     ).catch((error: unknown) => {
-      console.warn("CMO media could not move on", {
-        sokoBotId: cuso.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Media errors can quote a prompt or a post, so only name and code.
+      recordCoreWarning(
+        { operation: "cmo_media", sokoBot: { id: cuso.sokoBotId } },
+        {
+          message: "CMO pictures did not move on this round",
+          why: "Advancing the month's pictures threw",
+          fix: "The next production sync tries again. If it repeats, look up the error name and code under failure.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     });
   if (!strategy || !approvedAt || working) return current;
   // A made month is reviewed for its pillars, skills and voice, and the
@@ -725,14 +748,25 @@ export async function advanceCmoProduction(
 /** Starts production in the background; the caller's request does not wait. */
 export function kickCmoProduction(sokoBotId: string): void {
   waitUntil(
-    findCusoForBot(sokoBotId)
-      .then((cuso) => (cuso ? advanceCmoProduction(cuso) : null))
-      .catch((error: unknown) => {
-        console.warn("CMO production could not start", {
-          sokoBotId,
-          error: error instanceof Error ? error.message : "unknown",
-        });
-      }),
+    runAsBackgroundWork(() =>
+      findCusoForBot(sokoBotId)
+        .then((cuso) => (cuso ? advanceCmoProduction(cuso) : null))
+        .catch((error: unknown) => {
+          // Production errors can quote the plan or a prompt: name and code.
+          emitCoreWarning(
+            {
+              operation: "cmo_production",
+              sokoBot: { id: sokoBotId },
+              failure: messageSafeErrorFields(error),
+            },
+            {
+              message: "CMO production did not start",
+              why: "Advancing production threw",
+              fix: "The next CMO production sync, every 10 minutes, tries again. If it repeats, look up the error name and code under failure.",
+            },
+          );
+        }),
+    ),
   );
 }
 
@@ -782,10 +816,16 @@ export async function syncCmoProduction(
       await advanceCmoProduction(cuso);
       checked += 1;
     } catch (error) {
-      console.warn("CMO production sync skipped a Cuso", {
-        sokoBotId: cuso.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // One event per Cuso skipped; the error can quote the plan or a prompt.
+      recordCoreWarning(
+        { operation: "cmo_production_sync", sokoBot: { id: cuso.sokoBotId } },
+        {
+          message: "CMO production sync skipped a Cuso",
+          why: "Advancing this Cuso's production threw",
+          fix: "The next sync tries again. If it repeats, look up the error name and code under failure.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
   }
   return { checked };

@@ -25,6 +25,7 @@ vi.mock("@/lib/files/index-jobs", () => ({
   enqueueFileIndexJob: vi.fn(),
 }));
 
+import { coreLogEvents } from "@/test/core-log";
 import {
   downloadBlob,
   EXTRACTION_JOB_WORST_CASE_MS,
@@ -55,7 +56,6 @@ const RESERVE = EXTRACTION_JOB_WORST_CASE_MS + SYNC_TAIL_RESERVE_MS;
 beforeEach(() => {
   leaseNextFileIndexJob.mockReset().mockResolvedValue(null);
   headMock.mockReset();
-  vi.spyOn(console, "info").mockImplementation(() => {});
 });
 
 describe("the extraction drain stays inside the sync window", () => {
@@ -69,6 +69,15 @@ describe("the extraction drain stays inside the sync window", () => {
 
     expect(leaseNextFileIndexJob).not.toHaveBeenCalled();
     expect(result).toEqual({ processed: 0, indexed: 0, failed: 0 });
+    expect(coreLogEvents()).toEqual([
+      expect.objectContaining({
+        operation: "files_extraction",
+        fileExtraction: expect.objectContaining({
+          processed: 0,
+          reserveMs: RESERVE,
+        }),
+      }),
+    ]);
   });
 
   it("leases when the budget is exactly enough", async () => {
