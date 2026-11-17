@@ -405,6 +405,17 @@ export const cmoCalendarEntrySchema = z.object({
   visual: longText.optional(),
   /** Brand pictures (brandPictures fileIds) the visual is made from. */
   visualFileIds: z.array(z.string().max(100)).max(3).optional(),
+  /**
+   * A reference library image (find_style_references) whose look the
+   * picture borrows: an old ad, poster or label. Core makes it in that style
+   * with the brand's logo, colours and DESIGN.md.
+   */
+  styleReferenceId: z.string().uuid().optional(),
+  /**
+   * The few words lettered into a styled picture, spelled exactly; left out,
+   * the picture carries no words.
+   */
+  headline: z.string().trim().min(1).max(60).optional(),
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
   /**
@@ -457,6 +468,8 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   campaignId: true,
   visual: true,
   visualFileIds: true,
+  styleReferenceId: true,
+  headline: true,
   slides: true,
   story: true,
 });
