@@ -123,9 +123,13 @@ export class SokoBotTurnsSyncService {
         ...scope,
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
-        reconcilerHeartbeatAt: null,
-        createdAt: { lte: abandonBefore },
         deadlineAt: { gt: now },
+        // A recovery claim, or a start that retained its lease after a failed
+        // acknowledgement, sets the heartbeat; its holder may then have died.
+        OR: [
+          { reconcilerHeartbeatAt: null, createdAt: { lte: abandonBefore } },
+          { reconcilerHeartbeatAt: { lte: abandonBefore } },
+        ],
       },
       select: { id: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],

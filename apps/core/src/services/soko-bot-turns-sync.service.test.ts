@@ -196,20 +196,25 @@ describe("SokoBotTurnsSyncService", () => {
       where: {
         status: string;
         eveSessionId: null;
-        createdAt: { lte: Date };
+        OR: [
+          { reconcilerHeartbeatAt: null; createdAt: { lte: Date } },
+          { reconcilerHeartbeatAt: { lte: Date } },
+        ];
       };
     };
     expect(abandonQuery.where).toEqual(
       expect.objectContaining({
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
-        reconcilerHeartbeatAt: null,
       }),
     );
-    const abandonCutoff = abandonQuery.where.createdAt.lte.getTime();
+    const [neverClaimed, staleClaim] = abandonQuery.where.OR;
+    expect(neverClaimed.reconcilerHeartbeatAt).toBeNull();
+    const abandonCutoff = neverClaimed.createdAt.lte.getTime();
     expect(Date.now() - abandonCutoff).toBeGreaterThanOrEqual(
       SOKO_BOT_TURN_STARTING_ABANDON_MS - 50,
     );
+    expect(staleClaim.reconcilerHeartbeatAt.lte.getTime()).toBe(abandonCutoff);
   });
 
   it("only selects no-session STARTING turns for durable replay", async () => {
