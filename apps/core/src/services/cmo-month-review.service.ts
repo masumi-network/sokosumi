@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import {
   evaluateWithJev,
   type JevAnswer,
@@ -593,18 +594,22 @@ export async function advanceCmoMonthReview(input: {
     facts: input.facts,
     pieces: made,
   });
-  console.info("CMO month review", {
-    marketingStrategyId: version.id,
-    round,
-    made: made.length,
-    read: Object.keys(read.writing).length,
-    offSkill: Object.values(read.writing).filter(
-      (w) => !w.followsSkill || w.problems.length > 0,
-    ).length,
-    offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
-      .length,
-    costUsd: read.costUsd,
-  });
+  // Production runs in the cron or after a response, so its own event.
+  createCoreLogger({
+    operation: "cmo_month_review",
+    marketingStrategy: { id: version.id },
+    cmoMonthReview: {
+      round,
+      made: made.length,
+      read: Object.keys(read.writing).length,
+      offSkill: Object.values(read.writing).filter(
+        (w) => !w.followsSkill || w.problems.length > 0,
+      ).length,
+      offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
+        .length,
+      costUsd: read.costUsd,
+    },
+  }).emit();
   const charge = await recordSokoBotCheckUsage({
     sokoBotId: input.sokoBotId,
     key: `cmo-review:${version.id}:${round}`,
