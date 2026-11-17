@@ -11,6 +11,8 @@ import { z } from "zod";
 import { conflict, notFound } from "@/helpers/error";
 import { literalSubstringPattern } from "@/helpers/project-activity";
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   generateWithContactModel,
   parseJsonObject,
@@ -749,10 +751,21 @@ export async function enrichCompanies(
         if (value) facts[key] = value;
       }
     } catch (error) {
-      console.error("Company lookup failed", {
-        domain: row.domain,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Runs in the contact capture cron. The page and the model answer are
+      // the company's site text, so content-free metadata only.
+      emitCoreWarning(
+        {
+          operation: "contact_company_lookup",
+          workspace: { id: workspaceId },
+          contactCompany: { id: row.id },
+        },
+        {
+          message: "Could not look up a company's website",
+          why: "Fetching or reading the company's site failed",
+          fix: "The company keeps what was already known. Nothing to do unless it repeats for many companies.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
     // Fills only what is still empty at write time, in one statement, and
     // bumps the version when it filled something.

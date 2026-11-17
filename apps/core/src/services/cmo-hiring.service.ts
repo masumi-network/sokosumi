@@ -13,6 +13,12 @@ import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
+import {
+  emitCoreWarning,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
   brandBrainSectionHeadlines,
@@ -316,7 +322,11 @@ export async function retryCmoOnboarding(
     select: { designMdUrl: true },
   });
   if (!project?.designMdUrl) {
-    waitUntil(learnCmoBrandVisual(cuso).catch(() => undefined));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        learnCmoBrandVisual(cuso).catch(() => undefined),
+      ),
+    );
   }
   return startCmoResearch(cuso, userId);
 }
@@ -360,6 +370,10 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
     select: { id: true, revision: true },
   });
   const { cancelSocialPost } = await import("@/services/social-posts.service");
+  const leftPosts: {
+    id: string;
+    failure: ReturnType<typeof messageSafeErrorFields>;
+  }[] = [];
   for (const post of posts) {
     await cancelSocialPost({
       projectId: cuso.projectId,
@@ -368,12 +382,23 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
       postId: post.id,
       revision: post.revision,
     }).catch((error) => {
-      console.warn("Starting over left a Social post", {
-        postId: post.id,
-        error: error instanceof Error ? error.message : "unknown",
+      // A post's error can quote its text, so only its name and code.
+      leftPosts.push({
+        id: post.id,
+        failure: messageSafeErrorFields(error),
       });
     });
   }
+  if (leftPosts.length > 0)
+    recordCoreWarning(
+      { operation: "cmo_start_over", project: { id: cuso.projectId } },
+      {
+        message: "Starting over left Social posts unsent but not cancelled",
+        why: "Cancelling the posts failed",
+        fix: "Cancel the posts listed under socialPosts in the Social queue, or they may still publish.",
+      },
+      { socialPosts: leftPosts },
+    );
 }
 
 /**
@@ -637,11 +662,15 @@ export async function startCmoOnboarding(input: {
     await prisma.project
       .delete({ where: { id: project.id } })
       .catch((cleanupError) => {
-        console.warn("Hiring Cuso cleanup failed", {
-          projectId: project.id,
-          error:
-            cleanupError instanceof Error ? cleanupError.message : "unknown",
-        });
+        recordCoreWarning(
+          { operation: "cmo_hire_cleanup", project: { id: project.id } },
+          {
+            message: "Could not delete the Project of a failed Cuso hire",
+            why: "The database delete failed",
+            fix: "Delete the Project under project.id by hand; it holds no Cuso. Read the database error under warnings[].cause.",
+            cause: cleanupError,
+          },
+        );
       });
     throw error;
   }
@@ -649,22 +678,42 @@ export async function startCmoOnboarding(input: {
   // The brand's look (logo, colours, fonts, DESIGN.md) is read alongside
   // Cuso's research; it never holds up onboarding.
   waitUntil(
-    learnCmoBrandVisual(created).catch((error) => {
-      console.warn("CMO brand visual failed", {
-        sokoBotId: created.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    }),
+    runAsBackgroundWork(() =>
+      learnCmoBrandVisual(created).catch((error) => {
+        emitCoreWarning(
+          {
+            operation: "cmo_brand_visual",
+            sokoBot: { id: created.sokoBotId },
+            failure: messageSafeErrorFields(error),
+          },
+          {
+            message: "Could not learn the brand's look for a new Cuso",
+            why: "Reading the logo, colours, fonts and DESIGN.md threw",
+            fix: "Onboarding goes on without them; retrying Cuso's onboarding reads them again. If it repeats, look up the error name and code under failure.",
+          },
+        );
+      }),
+    ),
   );
   // The homepage screenshots need no research either, so the Brand Brain
   // opens with them instead of waiting for the full capture.
   waitUntil(
-    captureCmoHomepage(created).catch((error) => {
-      console.warn("CMO homepage capture failed", {
-        sokoBotId: created.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    }),
+    runAsBackgroundWork(() =>
+      captureCmoHomepage(created).catch((error) => {
+        emitCoreWarning(
+          {
+            operation: "cmo_homepage_capture",
+            sokoBot: { id: created.sokoBotId },
+            failure: messageSafeErrorFields(error),
+          },
+          {
+            message: "Could not capture the brand's homepage for a new Cuso",
+            why: "The homepage screenshot capture threw",
+            fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
+          },
+        );
+      }),
+    ),
   );
 
   // A turn that cannot start (no Seat, Cuso busy) leaves the hire ready:
@@ -674,10 +723,16 @@ export async function startCmoOnboarding(input: {
     message: onboardingMessage(created),
     route: CMO_ONBOARDING_ROUTE,
   }).catch((error) => {
-    console.warn("CMO onboarding turn did not start", {
-      sokoBotId: created.sokoBotId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    // A turn's error can quote its prompt, so only its name and code.
+    recordCoreWarning(
+      { operation: "cmo_onboarding_turn", sokoBot: { id: created.sokoBotId } },
+      {
+        message: "Cuso's onboarding turn did not start",
+        why: "Starting the research turn failed",
+        fix: "The hire stays ready: the learning card offers Try again. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
   });
 
   return created;
