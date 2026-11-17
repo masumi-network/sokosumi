@@ -117,7 +117,10 @@ export function cmoPieceSlides(
   return Math.min(range[1], Math.max(range[0], entry.slides?.length ?? 0));
 }
 
-function isVideo(entry: Pick<CmoCalendarEntry, "channel" | "format">) {
+/** Whether the piece is a video Core animates from a still. */
+export function cmoPieceIsVideo(
+  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+) {
   return Boolean(formatOf(entry)?.video);
 }
 
@@ -241,7 +244,7 @@ export function cmoSlotAction(
       sourceAssetId,
     };
   };
-  if (!isVideo(piece)) return next("image", null);
+  if (!cmoPieceIsVideo(piece)) return next("image", null);
   // A video animates a still made from the brand's own pictures: the still
   // first, then the video from it, each retried on its own.
   const still = next("still", null);
@@ -337,7 +340,8 @@ export async function listCmoMediaJobs(
 
 /** The aspect ratio a network shows this piece at. */
 function aspectRatio(piece: CmoMediaPiece): string {
-  if (isVideo(piece) || /story|reel|short/.test(piece.format)) return "9:16";
+  if (cmoPieceIsVideo(piece) || /story|reel|short/.test(piece.format))
+    return "9:16";
   if (piece.channel === "instagram" || piece.channel === "facebook")
     return piece.format === "carousel_ad" ? "1:1" : "4:5";
   if (piece.channel === "linkedin") return "4:5";
@@ -366,7 +370,7 @@ export function cmoImagePrompt(input: {
     slides > 0
       ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.${slide ? ` This slide: ${slide}` : ""}`
       : "",
-    isVideo(piece)
+    cmoPieceIsVideo(piece)
       ? "A vertical still with one clear subject and room to move: it becomes a five-second video."
       : "",
     input.references > 0
