@@ -437,6 +437,27 @@ describe("Saved keyword edits", () => {
     ).toBeInTheDocument();
   });
 
+  it("says what the country and language codes look like", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit keyword" });
+    expect(
+      within(dialog).getByLabelText("Country code"),
+    ).toHaveAccessibleDescription(enMessages.App.Seo.keywords.countryHelp);
+    expect(
+      within(dialog).getByLabelText("Language code"),
+    ).toHaveAccessibleDescription(enMessages.App.Seo.keywords.languageHelp);
+  });
+
   it("edits a saved keyword target and priority with the version shown when editing began", async () => {
     const user = userEvent.setup();
     const { workspace, pricingPage } = savedKeywordWorkspace();

@@ -76,6 +76,26 @@ describe("SEO audit list", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it("takes a website typed without https://", async () => {
+    vi.mocked(createSeoAuditAction).mockResolvedValue({
+      ok: true,
+      value: { auditId: AUDIT.id },
+    } as never);
+    show([], false);
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /URL/ }),
+      "example.com",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() =>
+      expect(createSeoAuditAction).toHaveBeenCalledExactlyOnceWith({
+        body: expect.objectContaining({
+          firstPage: { url: "https://example.com/" },
+        }),
+      }),
+    );
+  });
+
   it("keeps the form closed on a plain link, and the address when the user closes it", async () => {
     show([AUDIT], false);
     expect(screen.queryByRole("dialog")).toBeNull();

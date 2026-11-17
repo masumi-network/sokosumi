@@ -167,6 +167,21 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
+  it("links SEO between Social and Ads, as the sidebar does", () => {
+    renderYouPage();
+
+    const seo = screen.getByTestId("you-seo");
+    expect(seo).toHaveAttribute("href", "/seo");
+    expect(
+      screen.getByTestId("you-social").compareDocumentPosition(seo) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      seo.compareDocumentPosition(screen.getByTestId("you-ads")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("shows Ads by default", () => {
     renderYouPage();
 

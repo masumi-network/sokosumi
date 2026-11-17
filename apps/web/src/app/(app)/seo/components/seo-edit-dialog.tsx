@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SeoField, SeoSelect, seoFieldHelpId } from "./seo-form-fields";
 import {
   SEO_NO_RELATED_PAGE,
   SEO_NO_TARGET_PAGE,
@@ -89,7 +89,9 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
               <Input
                 id="seo-edit-url"
                 name="url"
-                type="url"
+                // Not type="url": it refuses "example.com", which the command completes to https://.
+                inputMode="url"
+                autoComplete="url"
                 defaultValue={
                   kind === "page"
                     ? (form.workspace.websiteUrl ?? undefined)
@@ -176,9 +178,14 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                 />
               </SeoField>
               <div className="grid gap-3 sm:grid-cols-2">
-                <SeoField id="seo-edit-country" label={t("keywords.country")}>
+                <SeoField
+                  id="seo-edit-country"
+                  label={t("keywords.country")}
+                  help={t("keywords.countryHelp")}
+                >
                   <Input
                     id="seo-edit-country"
+                    aria-describedby={seoFieldHelpId("seo-edit-country")}
                     name="countryCode"
                     required
                     pattern="[A-Za-z]{2}"
@@ -187,9 +194,14 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                     readOnly={!!editingKeyword}
                   />
                 </SeoField>
-                <SeoField id="seo-edit-language" label={t("keywords.language")}>
+                <SeoField
+                  id="seo-edit-language"
+                  label={t("keywords.language")}
+                  help={t("keywords.languageHelp")}
+                >
                   <Input
                     id="seo-edit-language"
+                    aria-describedby={seoFieldHelpId("seo-edit-language")}
                     name="languageCode"
                     required
                     pattern="[a-z]{2,3}(-[A-Z]{2})?"
