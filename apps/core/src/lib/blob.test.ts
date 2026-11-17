@@ -1,5 +1,5 @@
-import { expectConsole } from "@sokosumi/utils/test-console";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 import {
   createOrganizationLogoUploadSession,
   createUserFileUploadSession,
@@ -15,6 +15,17 @@ import {
   uploadProfileImage,
   uploadProjectLogoBytes,
 } from "./blob";
+
+function expectBlobStorageUnset(kind: string): void {
+  const warnings = expectCoreLogWhys(
+    "warn",
+    "Skipped an image upload, because blob storage is not configured",
+    ["BLOB_READ_WRITE_TOKEN is unset"],
+  );
+  onTestFinished(() => {
+    expect(warnings[0]?.event).toMatchObject({ skippedUpload: { kind } });
+  });
+}
 
 const {
   listMock,
@@ -330,10 +341,7 @@ describe("uploadCoworkerImage", () => {
   });
 
   it("returns null when blob storage is not configured", async () => {
-    expectConsole(
-      "warn",
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping coworker image upload",
-    );
+    expectBlobStorageUnset("coworker_image");
     getEnvMock.mockReturnValue({});
 
     await expect(
@@ -489,10 +497,7 @@ describe("uploadOrganizationLogoBytes", () => {
   });
 
   it("returns null when blob storage is not configured", async () => {
-    expectConsole(
-      "warn",
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping org logo upload",
-    );
+    expectBlobStorageUnset("organization_logo");
     getEnvMock.mockReturnValue({});
 
     await expect(

@@ -514,12 +514,14 @@ export const auth = betterAuth({
       },
       afterDelete: async (user) => {
         waitUntil(
-          deleteStripeCustomerBestEffort({
-            stripeCustomerId: (user as { stripeCustomerId?: string | null })
-              .stripeCustomerId,
-            ownerType: "user",
-            ownerId: user.id,
-          }),
+          runAsBackgroundWork(() =>
+            deleteStripeCustomerBestEffort({
+              stripeCustomerId: (user as { stripeCustomerId?: string | null })
+                .stripeCustomerId,
+              ownerType: "user",
+              ownerId: user.id,
+            }),
+          ),
         );
       },
     },

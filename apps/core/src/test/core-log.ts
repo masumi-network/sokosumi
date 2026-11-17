@@ -236,14 +236,52 @@ export function evlogConfigAtFileStart(): Record<string, unknown> | undefined {
   return configAtFileStart;
 }
 
-/** Registers the per-test drain and check. Called once per file from `setup.ts`. */
-export function installCoreLogDrain(): void {
+/**
+ * `expectCoreLog` for an entry logged while the test file loads, before any
+ * test: call it at the top of the file, before the import that logs. The
+ * file's first test fails when the count differs.
+ */
+export function expectCoreLogAtLoad(
+  level: CoreLogLevel,
+  start: string,
+  times = 1,
+): CoreLogEntry[] {
+  return expectCoreLog(level, start, times);
+}
+
+/**
+ * Registers the drain and the per-test check. Called once per file from
+ * `setup.ts`, before the file's modules load: a module that logs at import
+ * lands in the silent, redacting test drain too, and counts against the
+ * file's first test unless `expectCoreLogAtLoad` declared it.
+ */
+export async function installCoreLogDrain(): Promise<void> {
   const config = (
     globalThis as Record<symbol, { config?: Record<string, unknown> }>
   )[EVLOG_REGISTRY]?.config;
   configAtFileStart = config ? { ...config } : undefined;
 
+  declarations.length = 0;
+  recorded.length = 0;
+  events.length = 0;
+  // A copy of its own, by query: the file's `@/lib/evlog` still loads after
+  // the file's `vi.mock`s apply. The drain is evlog's process-wide config,
+  // so this copy's call holds for the file's copy too.
+  const ownCopy = "@/lib/evlog?test-drain";
+  const evlog = (await import(ownCopy)) as typeof import("@/lib/evlog");
+  evlog.initCoreLogger({ silent: true, drain: coreLogDrain });
+  let loading = true;
+
   beforeEach(async ({ task, onTestFinished }) => {
+    if (loading) {
+      loading = false;
+      const failures = takeCoreLogFailures();
+      if (failures.length > 0) {
+        throw new Error(
+          `While the test file loaded:\n${failures.join("\n")}\nFix its cause, or declare it with expectCoreLogAtLoad() from "@/test/core-log".`,
+        );
+      }
+    }
     declarations.length = 0;
     recorded.length = 0;
     events.length = 0;

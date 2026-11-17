@@ -5,6 +5,7 @@ import type { BetterAuthOptions } from "better-auth/minimal";
 import pTimeout from "p-timeout";
 import { getEnv } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob";
+import { recordCoreError } from "@/lib/evlog";
 
 const env = getEnv();
 
@@ -77,13 +78,21 @@ async function mapProfileToUser(profile: {
     });
   } catch (error) {
     Sentry.captureException(error);
-    console.error("Failed to map profile to user", {
-      name: profile.name,
-      pictureKind: profile.picture?.startsWith("data:")
-        ? `data-uri(${profile.picture.length}b)`
-        : "url",
-      error,
-    });
+    // In the OAuth callback's request. The name stays out: personal data.
+    recordCoreError(
+      { operation: "social_profile_mapping" },
+      {
+        message: "Signed a user in without their profile picture",
+        why: "Fetching or storing the provider's profile picture failed or timed out",
+        fix: "Nothing for the user; they can upload a picture later. Sentry has the error.",
+        cause: error,
+      },
+      {
+        profilePicture: profile.picture?.startsWith("data:")
+          ? { kind: "data-uri", length: profile.picture.length }
+          : { kind: "url" },
+      },
+    );
     mapped = {
       name: profile.name,
       image: undefined,

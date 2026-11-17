@@ -118,5 +118,12 @@ vi.mock("@sentry/node", () => {
 });
 
 installConsoleGuard();
-installCoreLogDrain();
+// The test drain owns evlog's setup here: `lib/evlog-init.ts`, which
+// `config/env.ts` imports, must neither start Core's logger over it nor read
+// `@/lib/evlog`, which 16 files mock without `initCoreLogger`. Its own test
+// clears this flag.
+(globalThis as Record<symbol, unknown>)[
+  Symbol.for("sokosumi.core.logger-started")
+] = true;
+await installCoreLogDrain();
 installWaitUntilDrain();

@@ -149,7 +149,6 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
@@ -670,9 +669,12 @@ describe("image studio job submission", () => {
   });
 
   it("refuses to generate before spending anything when there is no private store", async () => {
-    expectConsole(
+    expectCoreLogWhys(
       "error",
-      "[image-studio] IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is not set. The studio needs its own",
+      "Refused an image studio request, because its private storage is not configured",
+      [
+        "IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN is unset, and the studio never falls back to the shared public store named by BLOB_READ_WRITE_TOKEN",
+      ],
     );
     // Checked ahead of the reservation and the provider call, because the
     // alternative is paying fal for an image the studio is not allowed to
