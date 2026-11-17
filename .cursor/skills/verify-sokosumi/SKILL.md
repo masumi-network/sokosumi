@@ -173,6 +173,12 @@ Proof standards:
 - Confirm side effects when the feature mutates (new row visible on reload, URL change, second view)
 - Chat may show an Ably error modal when keys are placeholders — that does **not** prove chat works; prove landing/redirect or non-realtime surfaces instead unless Ably is configured
 
+Proof in a PR (required for a UI change, see [delivery rules](../../../docs/agents/delivery.md)):
+
+- Copy the screenshots that show the change from the run's evidence dir to `apps/web/docs/images/<topic>/` and commit them on the PR's own branch. For a flow, add the run's `video.webm`.
+- Embed each image in the PR body as `https://raw.githubusercontent.com/masumi-network/sokosumi/<sha>/apps/web/docs/images/<topic>/<file>.png`, link the video the same way, and list the console errors and 5xx from `summary.json`.
+- Never push a separate branch to host images.
+
 ## Cleanup
 
 ```bash
