@@ -2,6 +2,7 @@ import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
 import {
+  seoKeywordsExport,
   seoKeywordsTableExport,
   seoTablePlan,
   seoTopPagesExport,
@@ -162,5 +163,27 @@ describe("seoTablePlan", () => {
       "key-3",
     );
     expect(plan.table.columns[0].type).toBe("text");
+  });
+});
+
+describe("seoKeywordsExport", () => {
+  it("keeps the Keywords CSV columns and values as they were; Difficulty goes to the Table only", () => {
+    const { checked } = keywordGroups([
+      seoTestKeyword({ volume: 1200, difficulty: 35 }),
+    ]);
+    const csv = seoKeywordsExport(checked, t);
+    expect(csv.header).toEqual([
+      "Keyword",
+      "Page",
+      "Country code",
+      "Language code",
+      "Searches a month",
+      "Position",
+      "Last checked",
+      "Priority",
+    ]);
+    expect(csv.rows[0]).not.toContain(35);
+    expect(csv.rows[0]).toHaveLength(8);
+    expect(csv.rows[0][4]).toBe(1200);
   });
 });

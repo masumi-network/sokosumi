@@ -1816,6 +1816,15 @@ describe("One keyword copy across the Keywords and Ideas lists", () => {
       .getAllByRole("button", { name: "Copy to a table: Keywords" })
       .filter((button) => !button.closest(".hidden"));
 
+  it("hides the copy on the Competitors list", async () => {
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    expect(shownCopies()).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Competitors" }));
+    expect(shownCopies()).toHaveLength(0);
+  });
+
   it("keeps a copy in flight busy when the list switches, so it cannot start twice", async () => {
     let finish: (table: { id: string }) => void = () => {};
     tables.create.mockImplementationOnce(

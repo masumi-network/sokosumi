@@ -110,29 +110,17 @@ export function seoKeywordsExport(
       t("keywords.country"),
       t("keywords.language"),
       t("keywords.volume"),
-      t("keywords.difficulty.title"),
       t("keywords.position"),
       t("observed"),
       t("keywords.priority"),
     ],
-    types: [
-      "text",
-      "url",
-      "text",
-      "text",
-      "number",
-      "number",
-      "number",
-      "date",
-      "text",
-    ],
-    rows: groups.map(({ lead, volume, difficulty, best, reads }) => [
+    types: ["text", "url", "text", "text", "number", "number", "date", "text"],
+    rows: groups.map(({ lead, volume, best, reads }) => [
       lead.keyword,
       lead.pageUrl,
       lead.countryCode,
       lead.languageCode,
       volume,
-      difficulty,
       best,
       day(reads[0]?.observedAt ?? null),
       t(`priority.${lead.priority}`),
@@ -140,24 +128,34 @@ export function seoKeywordsExport(
   };
 }
 
-/** The checked keywords, then the ideas, with a last column that names each row's list. */
+/**
+ * The checked keywords, then the ideas: the CSV's columns with Difficulty after the searches, and a last column
+ * that names each row's list. The CSV keeps its columns, for the sheets already built on it.
+ */
 export function seoKeywordsTableExport(
   checked: SeoKeywordGroup[],
   ideas: SeoKeywordGroup[],
   t: Label,
 ): SeoExport {
-  const {
-    header,
-    types = [],
-    rows,
-  } = seoKeywordsExport([...checked, ...ideas], t);
+  const groups = [...checked, ...ideas];
+  const { header, types = [], rows } = seoKeywordsExport(groups, t);
+  // After "Searches a month", the fifth column.
+  const add = <T>(row: T[], difficulty: T, list: T) => [
+    ...row.slice(0, 5),
+    difficulty,
+    ...row.slice(5),
+    list,
+  ];
   return {
-    header: [...header, t("export.list")],
-    types: [...types, "text"],
-    rows: rows.map((row, i) => [
-      ...row,
-      i < checked.length ? t("keywords.title") : t("keywords.ideas.short"),
-    ]),
+    header: add(header, t("keywords.difficulty.title"), t("export.list")),
+    types: add(types, "number", "text"),
+    rows: rows.map((row, i) =>
+      add(
+        row,
+        groups[i].difficulty,
+        i < checked.length ? t("keywords.title") : t("keywords.ideas.short"),
+      ),
+    ),
   };
 }
 

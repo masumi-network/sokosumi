@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
+import type { SeoExport } from "./seo-export-model";
 import { SeoTableButton } from "./seo-table-button";
 
 const m = vi.hoisted(() => ({
@@ -24,7 +25,7 @@ const table = () => ({
   rows: Array.from({ length: 150 }, (_, i) => [`keyword ${i}`, i ? i : null]),
 });
 
-function show() {
+function show(site = "example.com", rows: () => SeoExport = table) {
   render(
     <NextIntlClientProvider
       locale="en"
@@ -34,9 +35,9 @@ function show() {
     >
       <SeoTableButton
         title="Keywords"
-        site="example.com"
+        site={site}
         projectId={null}
-        table={table}
+        table={rows}
       />
     </NextIntlClientProvider>,
   );
@@ -90,5 +91,26 @@ describe("SeoTableButton", () => {
     expect(keys).toHaveLength(3);
     expect(keys[2]).toBe(keys[1]);
     expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("shortens a long project name so the Table title fits, and keeps the date", async () => {
+    // A project name may hold 200 characters; a Table title 160.
+    const user = userEvent.setup();
+    await user.click(show("p".repeat(200)));
+    await waitFor(() => expect(m.success).toHaveBeenCalledOnce());
+    const [body] = m.create.mock.calls[0];
+    expect(body.title).toHaveLength(160);
+    expect(body.title).toMatch(/^Keywords · p+… · \w{3} \d{1,2}, \d{4}$/);
+  });
+
+  it("reports a copy it cannot plan and frees the button", async () => {
+    const user = userEvent.setup();
+    const button = show("example.com", () => {
+      throw new Error("bad table");
+    });
+    await user.click(button);
+    await waitFor(() => expect(m.error).toHaveBeenCalledOnce());
+    expect(m.create).not.toHaveBeenCalled();
+    await waitFor(() => expect(button).not.toHaveAttribute("aria-busy"));
   });
 });
