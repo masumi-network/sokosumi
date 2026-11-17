@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import type { RequestLogger } from "evlog";
@@ -31,8 +32,6 @@ export interface SyncRunContext extends SyncExecutionContext {
    * with `logCoreWarning`. A failure it survives is its own error event.
    */
   log: Pick<RequestLogger, "set" | "warn" | "getContext">;
-  /** This run's id, as `sync.runId` on every event it sends. */
-  runId: string;
 }
 
 type SyncOperation = (context: SyncRunContext) => Promise<void>;
@@ -85,7 +84,6 @@ type LockReleaseResult = "released" | "ownership_changed" | "release_failed";
 
 async function releaseOwnedLock(
   lock: AcquiredSyncLock,
-  runId: string,
 ): Promise<LockReleaseResult> {
   try {
     const isReleased = await syncLockService.releaseLock(
@@ -96,7 +94,7 @@ async function releaseOwnedLock(
   } catch (error) {
     // Its own event: the run event can hold one error, the sync's.
     emitCoreError(
-      { operation: CRON_SYNC_OPERATION, sync: { lockKey: lock.key, runId } },
+      { operation: CRON_SYNC_OPERATION, sync: { lockKey: lock.key } },
       {
         message: "Could not release a scheduled sync's lock",
         why: "The database update that frees the lock failed",
@@ -130,29 +128,32 @@ function runBackgroundSync(
     const cancellationController = new AbortController();
     // One standalone event per run: its outcome, the lock, and the sync's
     // own counts (`context.log`). The request's event is already emitted.
-    // The run id ties its other events to it when runs overlap.
-    const runId = randomUUID();
     const log = createCoreLogger({
       operation: CRON_SYNC_OPERATION,
-      sync: { lockKey: lock.key, runId },
+      sync: { lockKey: lock.key },
     });
-    const cancellationTimeout = setTimeout(() => {
-      // Its own event, sent now: a sync that ignores the cancellation never
-      // settles, and the run event would never be sent.
-      emitCoreWarning(
-        {
-          operation: CRON_SYNC_OPERATION,
-          sync: { lockKey: lock.key, runId, timeoutMs },
-        },
-        {
-          message:
-            "A scheduled sync reached its deadline and was asked to stop",
-          why: "It ran longer than its time budget, LOCK_TIMEOUT minus LOCK_TIMEOUT_BUFFER",
-          fix: "Nothing to do when it happens now and then: the sync stops at a safe point and the next run continues. If it happens every run, its run events show where the time goes.",
-        },
-      );
-      cancellationController.abort();
-    }, timeoutMs);
+    // Bound so the warning keeps the run's `syncRunId` on any timer
+    // implementation, fake timers in tests included.
+    const cancellationTimeout = setTimeout(
+      AsyncLocalStorage.bind(() => {
+        // Its own event, sent now: a sync that ignores the cancellation never
+        // settles, and the run event would never be sent.
+        emitCoreWarning(
+          {
+            operation: CRON_SYNC_OPERATION,
+            sync: { lockKey: lock.key, timeoutMs },
+          },
+          {
+            message:
+              "A scheduled sync reached its deadline and was asked to stop",
+            why: "It ran longer than its time budget, LOCK_TIMEOUT minus LOCK_TIMEOUT_BUFFER",
+            fix: "Nothing to do when it happens now and then: the sync stops at a safe point and the next run continues. If it happens every run, its run events show where the time goes.",
+          },
+        );
+        cancellationController.abort();
+      }),
+      timeoutMs,
+    );
 
     const context: SyncRunContext = {
       abortSignal: cancellationController.signal,
@@ -166,7 +167,6 @@ function runBackgroundSync(
         );
       },
       log,
-      runId,
     };
 
     const startedAt = Date.now();
@@ -195,7 +195,7 @@ function runBackgroundSync(
       );
     } finally {
       clearTimeout(cancellationTimeout);
-      const releaseResult = await releaseOwnedLock(lock, runId);
+      const releaseResult = await releaseOwnedLock(lock);
       log.set({
         sync: { durationMs: Date.now() - startedAt, lock: releaseResult },
       });
@@ -247,9 +247,12 @@ export async function handleSyncRequest(
   }
 
   // Known background work: its events stay standalone even while this
-  // request's event is still live (`recordCoreError` in shared code).
-  const backgroundPromise = runAsBackgroundWork(() =>
-    runBackgroundSync(acquiredLock, syncOperation, errorDetail),
+  // request's event is still live (`recordCoreError` in shared code). Every
+  // event the run sends, its services' included, carries `syncRunId`, which
+  // ties them to this run when runs overlap.
+  const backgroundPromise = runAsBackgroundWork(
+    () => runBackgroundSync(acquiredLock, syncOperation, errorDetail),
+    { syncRunId: randomUUID() },
   );
   waitUntil(backgroundPromise);
 
