@@ -48,11 +48,18 @@ const messages = withKeys(enMessages as Messages, {
   },
 });
 
-const { mutate, viewer } = vi.hoisted(() => ({
+const { mutate, viewer, tables } = vi.hoisted(() => ({
+  tables: {
+    create: vi.fn(async () => ({ id: "table-1" })),
+    batch: vi.fn(async () => ({})),
+  },
   mutate: vi.fn(),
   viewer: { userId: "owner" as string | null },
 }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("@/lib/services/data-table.client", () => ({
+  dataTableService: tables,
+}));
 // The Table export opens its Table from a toast.
 vi.mock("next/navigation", async (actual) => ({
   ...(await actual<typeof import("next/navigation")>()),
@@ -1745,7 +1752,7 @@ describe("Keyword exports", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers the ideas of a check as a Table, with no CSV of checked keywords to give", async () => {
+  it("copies the ideas of a check from the Ideas list it opens on, with no CSV of checked keywords to give", async () => {
     const workspace = seoTestWorkspace();
     workspace.keywords.push(
       seoTestKeyword({
@@ -1760,12 +1767,27 @@ describe("Keyword exports", () => {
         device: null,
       }),
     );
+    const user = userEvent.setup();
     renderWorkspace(workspace);
+    // With ideas only, the tab opens on the Ideas list.
     expect(
-      await screen.findByRole("button", { name: "Copy to a table: Keywords" }),
+      await screen.findByRole("button", { name: "Ideas", pressed: true }),
     ).toBeInTheDocument();
+    // happy-dom applies no Tailwind: a list switched away is a `hidden` ancestor, so only one copy counts.
+    const shown = screen
+      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+      .filter((button) => !button.closest(".hidden"));
+    expect(shown).toHaveLength(1);
     expect(
       screen.queryByRole("button", { name: "Download CSV: Keywords" }),
     ).not.toBeInTheDocument();
+    await user.click(shown[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    const [, batch] = tables.batch.mock.calls[0] as unknown as [
+      string,
+      { insert: { values: Record<string, unknown> }[] },
+    ];
+    expect(batch.insert).toHaveLength(1);
+    expect(Object.values(batch.insert[0].values)).toContain("battery saver");
   });
 });

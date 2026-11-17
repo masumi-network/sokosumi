@@ -222,6 +222,19 @@ export function SeoKeywords({
       : 0;
   // One search box filters keywords and ideas: while it holds text, both lists show their matches.
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
+  // The Table copy holds both lists, so it shows under whichever list shows.
+  const copy = (className?: string) => (
+    <SeoTableButton
+      title={t("keywords.title")}
+      site={seoAuditName(
+        model.data.auditName ?? "",
+        model.data.websiteUrl ?? "",
+      )}
+      projectId={model.data.projectId}
+      table={() => seoKeywordsTableExport(checked, ideas, t)}
+      className={className}
+    />
+  );
   return (
     <div className="space-y-5">
       <div className={seoSectionClass(bothLists || section === "keywords")}>
@@ -685,16 +698,7 @@ export function SeoKeywords({
                   table={() => seoKeywordsExport(checked, t)}
                 />
               ) : null}
-              <SeoTableButton
-                title={t("keywords.title")}
-                site={seoAuditName(
-                  model.data.auditName ?? "",
-                  model.data.websiteUrl ?? "",
-                )}
-                projectId={model.data.projectId}
-                table={() => seoKeywordsTableExport(checked, ideas, t)}
-                className={checked.length ? undefined : "-ms-2.5"}
-              />
+              {copy(checked.length ? undefined : "-ms-2.5")}
             </div>
           ) : null}
           <SeoStrategyFold
@@ -718,6 +722,10 @@ export function SeoKeywords({
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>
         <SeoKeywordIdeas model={model} ideas={ideas} />
+        {/* Alone, the Ideas list shows the same copy: the Keywords list, and its copy, are hidden then. */}
+        {!bothLists && ideas.length ? (
+          <div className="mt-2 px-2">{copy("-ms-2.5")}</div>
+        ) : null}
       </div>
     </div>
   );
