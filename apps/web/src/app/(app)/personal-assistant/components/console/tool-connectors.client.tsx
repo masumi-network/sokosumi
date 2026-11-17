@@ -310,10 +310,20 @@ function SearchPlaceholder({ query }: { query: string }) {
             )}
           >
             <Skeleton className="size-9 shrink-0" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-3 w-40 max-w-full" />
+            {/* A real card's line boxes: name (text-sm) over a two-line
+                caption (text-xs), then its Connect button. */}
+            <div className="min-w-0 flex-1">
+              <div className="flex h-5 items-center">
+                <Skeleton className="h-3.5 w-24" />
+              </div>
+              <div className="flex h-4 items-center">
+                <Skeleton className="h-3 w-full max-w-40" />
+              </div>
+              <div className="flex h-4 items-center">
+                <Skeleton className="h-3 w-3/4 max-w-28" />
+              </div>
             </div>
+            <Skeleton className="h-8 w-20 shrink-0" />
           </li>
         ))}
       </ul>
