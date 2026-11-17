@@ -11202,13 +11202,15 @@
       "presets": {
         "all": "Todos los contactos",
         "mine": "Mis contactos",
-        "recent": "Añadidos recientemente"
+        "recent": "Añadidos recientemente",
+        "archived": "Contactos archivados"
       },
       "emptyViews": {
         "all": "Todavía no hay contactos.",
         "mine": "Todavía nadie con quien hayas hablado. Aquí aparece cada persona a la que escribes o con quien te reúnes.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
-        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí."
+        "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
+        "archived": "No hay contactos archivados. Las personas que archives aparecerán aquí, listas para restaurar."
       },
       "views": {
         "label": "Vistas de contactos",
@@ -11226,7 +11228,8 @@
         "clearCompany": "Mostrar todas las empresas",
         "companyLists": "Listas de empresas",
         "newCompanyList": "Nueva lista de empresas",
-        "noCompanyLists": "Aún no hay listas de empresas."
+        "noCompanyLists": "Aún no hay listas de empresas.",
+        "backToContacts": "Volver a los contactos"
       },
       "columns": {
         "name": "Nombre",
@@ -11569,7 +11572,12 @@
         "enriched": "{fields} completado desde la web · 1 crédito",
         "enrichedNone": "No se encontró nada nuevo en la web. No se usaron créditos.",
         "enrichFailed": "No se pudo buscar. Inténtalo de nuevo.",
-        "connectedVia": "Conectado por"
+        "connectedVia": "Conectado por",
+        "restore": "Restaurar",
+        "restoreName": "Restaurar a {name}",
+        "restored": "{name} restaurado",
+        "restoreFailed": "No se pudo restaurar a {name}. El contacto sigue archivado.",
+        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures."
       },
       "stageGroups": {
         "general": "General",
