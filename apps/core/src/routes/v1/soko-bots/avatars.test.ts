@@ -66,9 +66,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { LIMITS } from "@/config/constants";
 import { errorHandler } from "@/helpers/error-handler";
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import { expectCoreLog } from "@/test/core-log";
 import app from "./index";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -85,6 +86,8 @@ function createApp() {
       };
     };
   }>();
+  // The request's wide event, so a top-up's failure is asserted where it lands.
+  parent.use(coreEvlogMiddleware());
   parent.use("*", async (c, next) => {
     c.set("requestId", "req_avatars");
     c.set("authContext", {
@@ -259,10 +262,10 @@ describe("Soko Bot avatar picker", () => {
 
     it("answers Show others with nothing when its paid draw could not be stored", async () => {
       store.seed();
-      // Quiet the failure's log line; the outcome is what is checked.
-      expectConsole(
+      // The failure sits on the top-up request's event.
+      const errors = expectCoreLog(
         "error",
-        "Soko Bot avatar generation failed; skipping this run",
+        "Stopped drawing Soko Bot avatars after the first image failed",
       );
       putMock.mockRejectedValue(new Error("blob down"));
 
@@ -272,6 +275,17 @@ describe("Soko Bot avatar picker", () => {
       expect(status).toBe(200);
       expect(avatars).toEqual([]);
       expect(drawMock).toHaveBeenCalledTimes(1);
+      expect(errors[0]).toMatchObject({
+        why: "Generating or storing the image failed",
+      });
+      expect(errors[0]?.event.error).toMatchObject({
+        cause: { message: "blob down" },
+      });
+      expect(errors[0]?.event).toMatchObject({
+        method: "POST",
+        path: "/avatars/top-up",
+        avatarDraw: { attempted: 6 },
+      });
     });
 
     it("answers 409 and buys nothing while the user's own draw is in flight", async () => {

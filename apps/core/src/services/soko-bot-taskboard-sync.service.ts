@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { createError } from "evlog";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   SOKO_BOT_OWNER_NAME_SELECT,
   type SokoBotOwnerNameSource,
 } from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -193,10 +196,21 @@ export class SokoBotTaskboardSyncService {
           continue;
         }
         result.failed += 1;
-        console.error("Soko Bot taskboard sync failed", {
-          sokoBotId: bot.id,
-          error: error instanceof Error ? error.message : "unknown",
+        // The events cron runs after its response: its own event.
+        const log = createCoreLogger({
+          operation: "soko_bot_taskboard_sync",
+          sokoBot: { id: bot.id },
         });
+        log.error(
+          createError({
+            message: "Could not check a Soko Bot's taskboard",
+            why: "The taskboard check threw",
+            fix: "The next soko-bot-events sync checks this bot again. If it fails every run, check failure.errorName and failure.status.",
+          }),
+          // Only safe fields: turn work can echo its prompt.
+          { failure: messageSafeErrorFields(error) },
+        );
+        log.emit();
       }
     }
     if (input.shouldContinue() && !input.abortSignal.aborted)
@@ -553,10 +567,22 @@ export class SokoBotTaskboardSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
-          console.error("Soko Bot taskboard turn reconciliation failed", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
+          const log = createCoreLogger({
+            operation: "soko_bot_taskboard_sync",
+            sokoBot: { id: bot.id },
+            turn: { id: started.turnId },
           });
+          log.error(
+            createError({
+              message:
+                "Could not reconcile a Soko Bot turn that the taskboard started",
+              why: "Turn reconciliation threw",
+              fix: "The soko-bot-turns sync picks the turn up. If the turn stays stuck, check failure.errorName and failure.status.",
+            }),
+            // Only safe fields: turn work can echo its prompt.
+            { failure: messageSafeErrorFields(error) },
+          );
+          log.emit();
         });
     }
     return true;

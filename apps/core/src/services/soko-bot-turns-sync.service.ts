@@ -4,6 +4,8 @@ import { SokoBotTurnStatus } from "@sokosumi/database";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   SOKO_BOT_START_RECOVERY_GRACE_MS,
   sokoBotControlPlane,
@@ -35,6 +37,32 @@ export interface SokoBotTurnsSyncResult {
   reconciled: number;
   expired: number;
   interrupted: number;
+}
+
+/**
+ * The turns cron runs after its response, so each turn it could not pick up
+ * is its own event. The turn stays active; the next tick tries again.
+ */
+function logInterrupted(
+  turnId: string | undefined,
+  reason: unknown,
+  warning: { message: string; why: string },
+): void {
+  const log = createCoreLogger({
+    operation: "soko_bot_turns_sync",
+    turn: { id: turnId },
+  });
+  logCoreWarning(
+    log,
+    {
+      message: warning.message,
+      why: warning.why,
+      fix: "The next soko-bot-turns sync tries the turn again, and its deadline expires it if it never recovers.",
+    },
+    // Only safe fields: turn work can echo its prompt.
+    { failure: messageSafeErrorFields(reason) },
+  );
+  log.emit();
 }
 
 export class SokoBotTurnsSyncService {
@@ -113,7 +141,7 @@ export class SokoBotTurnsSyncService {
         sokoBotControlPlane.recoverStartingTurn(turn.id),
       ),
     );
-    for (const outcome of recoveredStarts) {
+    for (const [index, outcome] of recoveredStarts.entries()) {
       if (outcome.status === "fulfilled") {
         if (outcome.value) {
           result.claimed += 1;
@@ -122,9 +150,9 @@ export class SokoBotTurnsSyncService {
         continue;
       }
       result.interrupted += 1;
-      console.warn("Soko Bot durable start recovery interrupted", {
-        error:
-          outcome.reason instanceof Error ? outcome.reason.message : "unknown",
+      logInterrupted(startsToRecover[index]?.id, outcome.reason, {
+        message: "Could not recover a Soko Bot turn whose start was abandoned",
+        why: "Recovering the start threw",
       });
     }
 
@@ -192,15 +220,15 @@ export class SokoBotTurnsSyncService {
         sokoBotControlPlane.reconcileTurn(id, input.abortSignal, leaseToken),
       ),
     );
-    for (const outcome of outcomes) {
+    for (const [index, outcome] of outcomes.entries()) {
       if (outcome.status === "fulfilled") {
         result.reconciled += 1;
         continue;
       }
       result.interrupted += 1;
-      console.warn("Soko Bot watchdog reconciliation interrupted", {
-        error:
-          outcome.reason instanceof Error ? outcome.reason.message : "unknown",
+      logInterrupted(claimed[index]?.id, outcome.reason, {
+        message: "Could not resume a stalled Soko Bot turn",
+        why: "Turn reconciliation threw",
       });
     }
 
