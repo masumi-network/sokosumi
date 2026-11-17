@@ -103,6 +103,20 @@ describe("SeoTableButton", () => {
     expect(body.title).toMatch(/^Keywords · p+… · \w{3} \d{1,2}, \d{4}$/);
   });
 
+  it.each(["🚀".repeat(100), `p${"🚀".repeat(100)}`])(
+    "never cuts an emoji of a long project name in half",
+    async (site) => {
+      // Both parities: whatever the length of the date, one of the two names puts a pair on the cut.
+      const user = userEvent.setup();
+      await user.click(show(site));
+      await waitFor(() => expect(m.success).toHaveBeenCalledOnce());
+      const [body] = m.create.mock.calls[0];
+      expect(body.title.length).toBeLessThanOrEqual(160);
+      expect(body.title.isWellFormed()).toBe(true);
+      expect(body.title).toMatch(/🚀… · \w{3} \d{1,2}, \d{4}$/u);
+    },
+  );
+
   it("reports a copy it cannot plan and frees the button", async () => {
     const user = userEvent.setup();
     const button = show("example.com", () => {

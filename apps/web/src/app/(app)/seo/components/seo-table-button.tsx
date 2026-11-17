@@ -54,7 +54,10 @@ export function SeoTableButton({
         date: format.dateTime(now, { dateStyle: "medium" }),
       });
     const over = name(site).length - TITLE_MAX;
-    return over > 0 ? name(`${site.slice(0, -over - 1)}…`) : name(site);
+    if (over <= 0) return name(site);
+    // The limit counts UTF-16 units: a cut inside an emoji drops its lone first half.
+    const cut = site.slice(0, -over - 1).replace(/[\uD800-\uDBFF]$/, "");
+    return name(`${cut}…`);
   }
 
   async function copy() {
