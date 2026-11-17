@@ -1,9 +1,9 @@
 "use client";
 
 import type {
-  DataRoomQuestion,
   DataRoomTreeRow,
   DataRoomView,
+  DataRoomViewerQuestion,
 } from "@sokosumi/core-client";
 import {
   ChevronRight,
@@ -172,6 +172,11 @@ function RoomWelcome({
   const files = room.rows.filter((row) => row.kind === "file");
   const folders = room.rows.length - files.length;
   const first = files[0];
+  const [questions] = useRoomQuestions(`${base}/questions`);
+  const shared = questions.flatMap((question) => {
+    const row = room.rows.find((r) => r.path === question.path);
+    return question.shared && question.answer && row ? [{ question, row }] : [];
+  });
 
   return (
     <article className="grid max-w-2xl gap-5 rounded-lg border p-5 md:p-6">
@@ -207,6 +212,30 @@ function RoomWelcome({
           </Button>
         ) : null}
       </div>
+      {shared.length > 0 ? (
+        <section className="grid gap-3 border-t pt-4">
+          <h3 className="text-sm font-medium">{t("sharedTitle")}</h3>
+          <ul className="grid gap-4">
+            {shared.map(({ question, row }) => (
+              <li key={question.id} className="grid gap-1 text-sm">
+                <button
+                  type="button"
+                  onClick={() => onOpenFile(row.path)}
+                  className="text-muted-foreground hover:text-foreground inline-flex min-h-6 min-w-0 items-center gap-1.5 justify-self-start text-left text-xs underline-offset-4 hover:underline"
+                >
+                  <File aria-hidden className="size-3.5 shrink-0" />
+                  <span className="tabular-nums">{row.number}</span>
+                  <span className="truncate">{fileTitle(row.name)}</span>
+                </button>
+                <p className="font-medium">{question.body}</p>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {question.answer}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </article>
   );
 }
@@ -344,23 +373,12 @@ function RoomQuestions({
 }) {
   const t = useTranslations("Share.Room");
   const questionId = useId();
-  const [questions, setQuestions] = useState<DataRoomQuestion[]>([]);
+  const [questions, setQuestions] = useRoomQuestions(
+    `${base}/questions?resourceId=${encodeURIComponent(resourceId)}`,
+  );
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let current = true;
-    fetch(`${base}/questions?resourceId=${encodeURIComponent(resourceId)}`)
-      .then((response) => (response.ok ? response.json() : []))
-      .then((loaded: DataRoomQuestion[]) => {
-        if (current) setQuestions(loaded);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [base, resourceId]);
 
   return (
     <div className="grid gap-3 border-t pt-4">
@@ -369,6 +387,11 @@ function RoomQuestions({
         <ul className="grid gap-3">
           {questions.map((question) => (
             <li key={question.id} className="grid gap-1 text-sm">
+              {question.shared ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("sharedNote")}
+                </p>
+              ) : null}
               <p>{question.body}</p>
               <p className="text-muted-foreground">
                 {question.answer ?? t("awaitingAnswer")}
@@ -391,7 +414,7 @@ function RoomQuestions({
               body: JSON.stringify({ resourceId, body }),
             });
             if (!response.ok) throw new Error("ask failed");
-            const asked = (await response.json()) as DataRoomQuestion;
+            const asked = (await response.json()) as DataRoomViewerQuestion;
             setQuestions((previous) => [asked, ...previous]);
             setBody("");
           } catch {
@@ -426,4 +449,23 @@ function RoomQuestions({
       </form>
     </div>
   );
+}
+
+/** The viewer's own questions and the room's shared answers at `url`. */
+function useRoomQuestions(url: string) {
+  const state = useState<DataRoomViewerQuestion[]>([]);
+  const setQuestions = state[1];
+  useEffect(() => {
+    let current = true;
+    fetch(url)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((loaded: DataRoomViewerQuestion[]) => {
+        if (current) setQuestions(loaded);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [url, setQuestions]);
+  return state;
 }

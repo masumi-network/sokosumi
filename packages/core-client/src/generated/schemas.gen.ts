@@ -17375,6 +17375,17 @@ export const DataRoomQuestionSchema = {
                 }
             ]
         },
+        sharedAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the answer was shown to everyone in the room who may open the document; null while only the asker sees it.'
+        },
         email: {
             type: 'string'
         },
@@ -17396,6 +17407,7 @@ export const DataRoomQuestionSchema = {
         'body',
         'answer',
         'answeredAt',
+        'sharedAt',
         'email',
         'name'
     ]
@@ -17953,6 +17965,10 @@ export const AnswerDataRoomQuestionRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 5000
+        },
+        shared: {
+            type: 'boolean',
+            description: 'Show the question and answer to everyone in the room who may open the document, without who asked. Left out keeps the current choice.'
         }
     },
     required: [
@@ -46716,6 +46732,69 @@ export const DataRoomSessionRequestSchema = {
     required: [
         'email',
         'code'
+    ]
+} as const;
+
+export const DataRoomViewerQuestionsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DataRoomViewerQuestion'
+    }
+} as const;
+
+export const DataRoomViewerQuestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        path: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        answer: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        answeredAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mine: {
+            type: 'boolean',
+            description: 'The viewer asked it.'
+        },
+        shared: {
+            type: 'boolean',
+            description: 'The owner showed the answer to everyone in the room.'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'path',
+        'body',
+        'answer',
+        'answeredAt',
+        'mine',
+        'shared'
     ]
 } as const;
 

@@ -3,10 +3,12 @@
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -92,7 +94,9 @@ function QuestionItem({
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const format = useFormatter();
   const [answer, setAnswer] = useState(question.answer ?? "");
+  const [shared, setShared] = useState(question.sharedAt !== null);
   const [busy, setBusy] = useState(false);
+  const shareHintId = useId();
   const answerRef = useRef<HTMLTextAreaElement>(null);
 
   // Opened from Needs you: bring the question into view with its answer box
@@ -131,8 +135,9 @@ function QuestionItem({
               roomId,
               questionId: question.id,
               answer,
+              shared,
             });
-            toast.success(t("answered"));
+            toast.success(shared ? t("answeredShared") : t("answered"));
             onAnswered();
           } catch (error) {
             toast.error(dataRoomRefusal(error) ?? t("answerFailed"));
@@ -149,13 +154,30 @@ function QuestionItem({
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
         />
+        <div className="grid gap-1">
+          <Label className="flex items-center gap-2 font-normal">
+            <Checkbox
+              checked={shared}
+              onCheckedChange={(checked) => setShared(checked === true)}
+              aria-describedby={shareHintId}
+            />
+            {t("shareLabel")}
+          </Label>
+          <p id={shareHintId} className="text-muted-foreground text-xs">
+            {t("shareHint")}
+          </p>
+        </div>
         <Button
           type="submit"
           variant="outline"
           size="sm"
           className="justify-self-start"
           loading={busy}
-          disabled={!answer.trim() || answer === question.answer}
+          disabled={
+            !answer.trim() ||
+            (answer === question.answer &&
+              shared === (question.sharedAt !== null))
+          }
         >
           {question.answer ? t("updateAnswer") : t("answer")}
         </Button>

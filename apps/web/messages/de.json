@@ -10187,7 +10187,10 @@
           "answer": "Antworten",
           "updateAnswer": "Antwort ändern",
           "answered": "Antwort gespeichert",
-          "answerFailed": "Antwort konnte nicht gespeichert werden"
+          "answerFailed": "Antwort konnte nicht gespeichert werden",
+          "shareLabel": "Allen im Datenraum zeigen",
+          "shareHint": "Alle, die dieses Dokument öffnen können, sehen die Frage und deine Antwort, aber nicht, wer gefragt hat.",
+          "answeredShared": "Antwort gespeichert und mit dem Datenraum geteilt"
         },
         "Contents": {
           "hint": "Die Reihenfolge, die Besucher sehen. Sie nummeriert den Raum (1, 1.1, 1.2).",
@@ -13270,7 +13273,9 @@
       "welcome": "Willkommen",
       "welcomeTitle": "Willkommen im Datenraum {title}",
       "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
-      "openFirst": "{name} öffnen"
+      "openFirst": "{name} öffnen",
+      "sharedTitle": "Für alle beantwortet",
+      "sharedNote": "Für alle im Datenraum beantwortet"
     }
   },
   "NotFound": {

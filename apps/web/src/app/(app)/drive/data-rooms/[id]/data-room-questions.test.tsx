@@ -26,6 +26,7 @@ function question(id: string, body: string) {
     body,
     answer: null,
     answeredAt: null,
+    sharedAt: null as string | null,
     email: "viewer@example.com",
     name: null,
   };
@@ -84,5 +85,48 @@ describe("DataRoomQuestions", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,
     });
+  });
+
+  it("shares an answer with everyone in the room when the owner ticks it", async () => {
+    api.answerDataRoomQuestion.mockResolvedValue(undefined);
+    renderQuestions();
+
+    await screen.findByText("First?");
+    const user = userEvent.setup();
+    await user.type(
+      screen.getAllByRole("textbox", { name: "answerLabel" })[0]!,
+      "Churn is 2% a month.",
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "shareLabel" })[0]!,
+    );
+    await user.click(screen.getAllByRole("button", { name: "answer" })[0]!);
+
+    expect(api.answerDataRoomQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({ questionId: "q1", shared: true }),
+    );
+  });
+
+  it("takes a shared answer back to the asker alone", async () => {
+    api.answerDataRoomQuestion.mockResolvedValue(undefined);
+    api.fetchDataRoomQuestions.mockResolvedValue([
+      {
+        ...question("q1", "First?"),
+        answer: "Net.",
+        answeredAt: "2026-11-15T11:00:00.000Z",
+        sharedAt: "2026-11-15T11:00:00.000Z",
+      },
+    ]);
+    renderQuestions();
+
+    const box = await screen.findByRole("checkbox", { name: "shareLabel" });
+    expect(box).toBeChecked();
+    const user = userEvent.setup();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "updateAnswer" }));
+
+    expect(api.answerDataRoomQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({ questionId: "q1", shared: false }),
+    );
   });
 });
