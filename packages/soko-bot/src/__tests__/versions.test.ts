@@ -18,9 +18,19 @@ describe("cmo-v3", () => {
     const v3 = getSokoBotVersion("cmo-v3");
     expect(v3.skills).toEqual(
       v2.skills.map((skill) =>
-        skill === "cmo-strategy-patches" ? "cmo-strategy-weekly" : skill,
+        skill === "cmo-strategy-patches"
+          ? "cmo-strategy-weekly"
+          : skill === "cmo-production"
+            ? "cmo-production-styles"
+            : skill,
       ),
     );
+    // Picture styles wait for the reference library's tool; until then the
+    // production skill is cmo-production's word for word.
+    const styles = getSokoBotSkill("cmo-production-styles")?.content ?? "";
+    const production = getSokoBotSkill("cmo-production")?.content ?? "";
+    expect(production).not.toContain("styleReferenceId");
+    expect(styles.startsWith(production.trimEnd())).toBe(true);
     const weekly = getSokoBotSkill("cmo-strategy-weekly")?.content ?? "";
     const patches = getSokoBotSkill("cmo-strategy-patches")?.content ?? "";
     expect(weekly).toContain("Do you want to try Google Ads");

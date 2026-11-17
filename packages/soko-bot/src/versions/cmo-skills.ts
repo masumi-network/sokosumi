@@ -1,6 +1,7 @@
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
+import { productionWithStyles } from "./cmo-production-styles.js";
 import { weeklyStrategy } from "./cmo-strategy-weekly.js";
 import type { SokoBotSkill } from "./skills.js";
 
@@ -279,7 +280,7 @@ Each part saves its group's sections with save_brand_brain in \`sections\`; a sa
 When every part is done, send the essentials in \`brandBrain\` with \`reveal\`, \`questions\` and \`marketingToday\` in the same save_brand_brain call, drawn from the hand-overs (customers' quotes go in voiceOfCustomer, copied as handed over). Research again only what a hand-over left open, or a group whose part failed; then save its sections too. The essentials are`;
 
 /** Skills only CMO (Cuso) versions include. */
-export const CMO_SKILLS: readonly SokoBotSkill[] = [
+const SKILLS: readonly SokoBotSkill[] = [
   {
     id: "cmo-brand-brain",
     name: "Brand Brain",
@@ -448,4 +449,12 @@ upload_file with workspacePath "video/out/final.mp4" and a clear filename, then 
 
 Make one, get the owner's yes on the style, and only then make more in the same style.`,
   },
+];
+
+const production = SKILLS.find((skill) => skill.id === "cmo-production");
+if (!production) throw new Error("cmo-production is missing");
+
+export const CMO_SKILLS: readonly SokoBotSkill[] = [
+  ...SKILLS,
+  productionWithStyles(production),
 ];
