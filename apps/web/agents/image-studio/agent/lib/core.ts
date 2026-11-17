@@ -1,4 +1,5 @@
 import {
+  type ProjectImageStudioCatalog,
   readStudioAgentAdHeadline,
   type SaveStudioAgentAdHeadline,
   saveStudioAgentAdHeadline,
@@ -411,9 +412,12 @@ function readDeliveryFacts(value: unknown): DeliveryFacts | null {
   };
 }
 
-export async function listImageOptions(
-  identity: AgentIdentity,
-): Promise<{ catalog: unknown }> {
+export async function listImageOptions(identity: AgentIdentity): Promise<{
+  catalog: Pick<
+    ProjectImageStudioCatalog,
+    "defaultModelId" | "models" | "snapshotDate" | "refreshedAt"
+  >;
+}> {
   return await call(identity, "/image-studio-agent/options", { method: "GET" });
 }
 

@@ -303,7 +303,7 @@ describe("Content Studio composer toolbar", () => {
       expect(
         await page.getByRole("radio", { name: "Video", exact: true }).count(),
       ).toBe(1);
-      expect(await page.getByRole("button", { name: /^Model/ }).count()).toBe(
+      expect(await page.getByRole("button", { name: "Advanced" }).count()).toBe(
         1,
       );
       expect(await page.getByRole("button", { name: /^Options/ }).count()).toBe(
@@ -406,7 +406,7 @@ describe("Content Studio video composer toolbar", () => {
       expect(
         await page.getByRole("radio", { name: "Video", exact: true }).count(),
       ).toBe(1);
-      expect(await page.getByRole("button", { name: /^Model/ }).count()).toBe(
+      expect(await page.getByRole("button", { name: "Advanced" }).count()).toBe(
         1,
       );
       await expectToolbarFits(/^Options/);
@@ -415,7 +415,7 @@ describe("Content Studio video composer toolbar", () => {
 
   it("shows the whole model name on a phone", async () => {
     await showVideoComposer(390);
-    const model = page.getByRole("button", { name: /^Model/ });
+    const model = page.getByRole("button", { name: "Advanced" });
     expect(
       await model.evaluate((element) =>
         [...element.querySelectorAll("span:not(.sr-only)")].every(

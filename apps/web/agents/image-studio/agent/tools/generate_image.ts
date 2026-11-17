@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
+import { CURATED_IMAGE_MODEL_IDS, pinnedSelectionFrom } from "../lib/models";
 
 export default defineTool({
   description:
@@ -32,10 +33,10 @@ export default defineTool({
         "Requested variant index within this turn; use 1 unless the user requested multiple images.",
       ),
     modelId: z
-      .enum(["muse-image", "gemini-flash", "gemini-pro", "flux-2-pro"])
-      .default("muse-image")
+      .enum(CURATED_IMAGE_MODEL_IDS)
+      .default("gemini-pro")
       .describe(
-        "Supported Studio model. Consult list_image_options for capabilities; never invent endpoints.",
+        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. An Advanced model selection overrides this choice.",
       ),
     placementId: z
       .string()
@@ -54,22 +55,23 @@ export default defineTool({
   label: { start: ({ prompt }) => `Generate: ${prompt.slice(0, 60)}` },
   async execute(input, ctx) {
     const identity = identityFrom(ctx);
+    const selection = { ...input, ...pinnedSelectionFrom(ctx) };
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
       parentAssetId: null,
       referenceAssetIds: [],
-      aspectRatio: input.aspectRatio,
-      resolution: input.resolution,
-      modelId: input.modelId,
+      aspectRatio: selection.aspectRatio,
+      resolution: selection.resolution,
+      modelId: selection.modelId,
       ...(input.catalogProductId
         ? { catalogProductId: input.catalogProductId }
         : {}),
       placementId: input.placementId,
-      outputFormat: input.outputFormat,
-      seed: input.seed,
+      outputFormat: selection.outputFormat,
+      seed: selection.seed,
       idempotencyKey: idempotencyKeyFor(
         ctx,
-        `generate:${JSON.stringify(input)}`,
+        `generate:${JSON.stringify(selection)}`,
       ),
     });
     return {
