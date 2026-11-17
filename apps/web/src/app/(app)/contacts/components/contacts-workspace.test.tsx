@@ -25,6 +25,7 @@ vi.mock("./use-contact-update", () => ({
   useImportanceUpdate: () => vi.fn(),
 }));
 vi.mock("./list-overview", () => ({ ListOverview: () => null }));
+vi.mock("./companies-view", () => ({ CompaniesView: () => null }));
 // The phone list stands in for the Archived rows: a Restore button per row
 // when the workspace passes `onRestore`.
 vi.mock("./contacts-list", () => ({
@@ -256,6 +257,62 @@ describe("ContactsWorkspace Archived view", () => {
       screen.queryByRole("heading", { name: "presets.archived" }),
     ).toBeNull();
     expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBeNull();
+  });
+
+  it("keeps the live layouts out of the archive, even from a mixed link", async () => {
+    const onUrlUpdate = renderAt("?list=archived&layout=companies");
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radio", { name: "layout.companies" }),
+    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        onUrlUpdate.mock.lastCall?.[0].searchParams.get("layout"),
+      ).toBeNull(),
+    );
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBe(
+      "archived",
+    );
+  });
+
+  it("opens the archive from the Companies layout as the archive list", async () => {
+    const onUrlUpdate = renderAt("?layout=companies");
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radio", { name: "layout.companies" }),
+    ).toBeNull();
+    const url = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(url?.get("layout")).toBeNull();
+    expect(url?.get("list")).toBe("archived");
+  });
+
+  it("moves keyboard focus to the archive heading on entry and to All contacts on the way back", async () => {
+    renderAt("");
+    screen.getByRole("button", { name: "toolbar.more" }).focus();
+    await userEvent.keyboard("{Enter}");
+    const item = await screen.findByRole("menuitem", {
+      name: "presets.archived",
+    });
+    item.focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "presets.archived" }),
+      ).toHaveFocus(),
+    );
+
+    screen.getByRole("button", { name: "views.backToContacts" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "presets.all" })).toHaveFocus(),
+    );
   });
 
   it("lists archived people read-only, without the editable grid or bulk actions", () => {

@@ -26,7 +26,8 @@ import {
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
@@ -173,10 +174,20 @@ export function ContactsWorkspace({
     parseAsStringLiteral(["asc", "desc"] as const),
   );
   const [openId, setOpenId] = useQueryState("contact");
-  const [layout, setLayout] = useQueryState(
+  const [urlLayout, setLayout] = useQueryState(
     "layout",
     parseAsStringLiteral(["map", "companies"] as const),
   );
+  // The archive is a plain list: the live layouts never show archived people,
+  // and a link that names both opens the archive.
+  const archived = view === "archived";
+  const layout = archived ? null : urlLayout;
+  useEffect(() => {
+    if (archived && urlLayout) void setLayout(null);
+  }, [archived, urlLayout, setLayout]);
+  const viewSlot = useRef<HTMLDivElement>(null);
+  const archiveHeading = useRef<HTMLHeadingElement>(null);
+  const enteringArchive = useRef(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -394,12 +405,12 @@ export function ContactsWorkspace({
       <div className="flex min-w-0 flex-col gap-3">
         <header className="flex min-w-0 items-start gap-2">
           <h1 className="sr-only">{t("title")}</h1>
-          <div className="min-w-0 flex-1">
+          <div ref={viewSlot} className="min-w-0 flex-1">
             {showCompanies ? (
               <h2 className="flex h-10 items-center text-sm font-medium md:h-8">
                 {t("views.companies")}
               </h2>
-            ) : view === "archived" ? (
+            ) : archived ? (
               // Archived is a side room, not a tab: name it while it is open
               // and lead straight back to the live contacts.
               <div className="flex min-w-0 items-center gap-1">
@@ -408,11 +419,22 @@ export function ContactsWorkspace({
                   variant="ghost"
                   aria-label={t("views.backToContacts")}
                   className="size-10 shrink-0 md:size-8"
-                  onClick={() => changeView("all")}
+                  onClick={() => {
+                    // The button unmounts; keep the keyboard on the view
+                    // control that replaces it.
+                    flushSync(() => changeView("all"));
+                    viewSlot.current
+                      ?.querySelector<HTMLElement>('[aria-checked="true"]')
+                      ?.focus();
+                  }}
                 >
                   <ArrowLeft aria-hidden className="size-4" />
                 </Button>
-                <h2 className="flex h-10 min-w-0 items-center gap-2 text-sm font-medium md:h-8">
+                <h2
+                  ref={archiveHeading}
+                  tabIndex={-1}
+                  className="flex h-10 min-w-0 items-center gap-2 text-sm font-medium outline-none md:h-8"
+                >
                   <Archive
                     aria-hidden
                     className="text-muted-foreground size-4 shrink-0"
@@ -425,43 +447,45 @@ export function ContactsWorkspace({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <ToggleGroup
-              type="single"
-              value={layout ?? "table"}
-              onValueChange={(next) => {
-                if (
-                  next === "table" ||
-                  next === "map" ||
-                  next === "companies"
-                ) {
-                  void setLayout(next === "table" ? null : next);
-                  setSelected([]);
-                }
-              }}
-              aria-label={t("layout.label")}
-            >
-              <ToggleGroupItem
-                value="table"
-                aria-label={t("layout.table")}
-                className="size-10 px-0 md:size-8"
+            {archived ? null : (
+              <ToggleGroup
+                type="single"
+                value={layout ?? "table"}
+                onValueChange={(next) => {
+                  if (
+                    next === "table" ||
+                    next === "map" ||
+                    next === "companies"
+                  ) {
+                    void setLayout(next === "table" ? null : next);
+                    setSelected([]);
+                  }
+                }}
+                aria-label={t("layout.label")}
               >
-                <Table2 aria-hidden className="size-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="map"
-                aria-label={t("layout.map")}
-                className="size-10 px-0 md:size-8"
-              >
-                <Globe aria-hidden className="size-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="companies"
-                aria-label={t("layout.companies")}
-                className="size-10 px-0 md:size-8"
-              >
-                <Building2 aria-hidden className="size-4" />
-              </ToggleGroupItem>
-            </ToggleGroup>
+                <ToggleGroupItem
+                  value="table"
+                  aria-label={t("layout.table")}
+                  className="size-10 px-0 md:size-8"
+                >
+                  <Table2 aria-hidden className="size-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="map"
+                  aria-label={t("layout.map")}
+                  className="size-10 px-0 md:size-8"
+                >
+                  <Globe aria-hidden className="size-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="companies"
+                  aria-label={t("layout.companies")}
+                  className="size-10 px-0 md:size-8"
+                >
+                  <Building2 aria-hidden className="size-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            )}
             <Button
               size="sm"
               variant="primary"
@@ -483,7 +507,17 @@ export function ContactsWorkspace({
                   <MoreHorizontal aria-hidden className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent
+                align="end"
+                onCloseAutoFocus={(event) => {
+                  // Opening the archive lands on its heading, not the menu
+                  // button, so a screen reader announces the new view.
+                  if (!enteringArchive.current) return;
+                  enteringArchive.current = false;
+                  event.preventDefault();
+                  archiveHeading.current?.focus();
+                }}
+              >
                 <DropdownMenuItem onClick={() => void handleExport()}>
                   <Download aria-hidden className="size-4" />
                   {t("toolbar.export")}
@@ -499,7 +533,7 @@ export function ContactsWorkspace({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
-                    void setLayout(null);
+                    enteringArchive.current = true;
                     changeView("archived");
                   }}
                 >
@@ -708,7 +742,7 @@ export function ContactsWorkspace({
                       ) : undefined
                     }
                   />
-                ) : view === "archived" ? (
+                ) : archived ? (
                   // Archived people are read-only: no editable grid, no bulk
                   // actions, one Restore per row.
                   <ContactsList

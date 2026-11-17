@@ -84,8 +84,20 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         "Archived is a tab",
       );
       await page.getByRole("button", { name: "More actions" }).click();
-      await page.getByRole("menuitem", { name: "Archived contacts" }).click();
-      await page.getByRole("heading", { name: "Archived contacts" }).waitFor();
+      // Keyboard entry: the menu item by Enter, then focus on the heading.
+      await page
+        .getByRole("menuitem", { name: "Archived contacts" })
+        .press("Enter");
+      const heading = page.getByRole("heading", { name: "Archived contacts" });
+      await heading.waitFor();
+      await page.waitForFunction(
+        () => document.activeElement?.tagName === "H2",
+      );
+      assert.equal(
+        await page.getByRole("radio", { name: "Companies" }).count(),
+        0,
+        "live layouts show in the archive",
+      );
       const row = page.getByRole("button", { name: NAME, exact: true });
       await row.waitFor();
       await shot(page, size, "1-archived");
@@ -103,10 +115,19 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: `Restore ${NAME}` }).click();
       await page.getByText(`${NAME} restored`).waitFor();
-      await page.getByRole("button", { name: "Back to contacts" }).click();
       await page
-        .getByRole("radio", { name: "All contacts", checked: true })
-        .waitFor();
+        .getByRole("button", { name: "Back to contacts" })
+        .press("Enter");
+      const all = page.getByRole("radio", {
+        name: "All contacts",
+        checked: true,
+      });
+      await all.waitFor();
+      assert.equal(
+        await all.evaluate((tab) => tab === document.activeElement),
+        true,
+        "focus left All contacts",
+      );
       await page.getByRole("button", { name: NAME }).first().waitFor();
       await shot(page, size, "3-back");
 
