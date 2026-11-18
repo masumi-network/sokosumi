@@ -26,10 +26,10 @@ const {
   turnFindUniqueMock,
   turnUpdateManyMock,
   stopSandboxMock,
-  reconcileTurnMock,
+  reconcileRuntimeCompletionMock,
   afterCommit,
 } = vi.hoisted(() => ({
-  reconcileTurnMock: vi.fn(),
+  reconcileRuntimeCompletionMock: vi.fn(),
   /** Runs once after the next locked append commits: who waited on its lock. */
   afterCommit: { next: null as null | (() => Promise<void>) },
   turnFindUniqueMock: vi.fn(),
@@ -99,7 +99,9 @@ vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
   stopTurnSandbox: stopSandboxMock,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
+  sokoBotControlPlane: {
+    reconcileRuntimeCompletion: reconcileRuntimeCompletionMock,
+  },
 }));
 
 import {
@@ -112,6 +114,7 @@ import {
 } from "./soko-bot-sandbox-turn.service";
 
 const claims = {
+  reconciliationLeaseToken: "launch-lease",
   turnId: "01960001-0001-7001-8001-000000000001",
   sessionId: "sess_1",
   expiresAt: Date.now() + 60_000,
@@ -1225,7 +1228,7 @@ describe("sandbox turn service", () => {
 
       it("logs the report that failed the turn, though a duplicate settles it right after", async () => {
         // Settling marks the row FAILED.
-        reconcileTurnMock.mockImplementation(async () => {
+        reconcileRuntimeCompletionMock.mockImplementation(async () => {
           row.status = "FAILED";
         });
         findFirstEventMock.mockImplementation(
