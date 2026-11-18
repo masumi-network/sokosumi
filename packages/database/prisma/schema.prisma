@@ -487,6 +487,8 @@ model Project {
   seoCompetitors          ProjectSeoCompetitor[]
   seoAnalyses             ProjectSeoAnalysis[]
   seoActionTasks          ProjectSeoActionTask[]
+  seoSuggestions          ProjectSeoSuggestion[]
+  seoResearch             ProjectSeoResearch[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
@@ -528,6 +530,10 @@ model Project {
   newsletterIssues        NewsletterIssue[]
 
   marketingStrategies MarketingStrategy[]
+
+  trackedCompetitors TrackedCompetitor[]
+  competitorSignals  CompetitorSignal[]
+  competitorChecks   CompetitorCheck[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]

@@ -3,10 +3,10 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   requestSeoAnalysisSchema,
-  SEO_MAX_MONITOR_RUNS,
   seoIdSchema,
 } from "@/schemas/project-seo.schema";
 import {
+  SEO_MAX_MONITOR_RUNS,
   type SeoMonitorRule,
   seoMonitorRuleSchema,
 } from "@/schemas/project-seo-monitor.schema";

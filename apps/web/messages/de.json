@@ -10715,6 +10715,8 @@
           "sleeping": "Schläft"
         },
         "shuffle": "Zufall",
+        "moreDetails": "Mehr Details",
+        "moreDetailsHint": "Farben, Gesicht, Kopfbedeckung, Ecke und Größe",
         "animal": "Tier",
         "background": "Hintergrund",
         "body": "Tierfarbe",
