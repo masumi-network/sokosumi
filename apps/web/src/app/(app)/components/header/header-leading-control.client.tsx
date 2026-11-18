@@ -28,6 +28,8 @@ import { SokosumiIcon } from "@/components/masumi-logos";
  * - nested tasks → back to stored list URL (view/filters) when present; a
  *   task opened from the Calendar → back to that Calendar view
  * - other nested list pages → back to list root
+ * - Developer sections → back to the You → Developer menu; their detail
+ *   pages → back to the section list
  * - non-tab hub roots → back to chats
  * - otherwise → back to chats
  */
