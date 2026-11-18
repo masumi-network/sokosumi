@@ -458,6 +458,40 @@ export const imageStudioStateQuerySchema = z.object({
   beforeId: z.string().uuid().optional(),
 });
 
+/** A Project's talking videos: its jobs, newest first, and their videos. */
+export const imageStudioTalkingVideosSchema = z
+  .object({
+    jobs: z.array(imageStudioJobSchema),
+    assets: z.array(imageStudioAssetSchema),
+  })
+  .openapi("ProjectTalkingVideos");
+
+export const writeTalkingVideoScriptsRequestSchema = z
+  .object({
+    /** What the videos should be about. Omitted, the brand picks. */
+    topic: z.string().trim().min(1).max(500).optional(),
+    /** ISO 639-1 language to write in. */
+    languageCode: z
+      .string()
+      .trim()
+      .regex(/^[a-z]{2}$/)
+      .default("en"),
+  })
+  .openapi("WriteProjectTalkingVideoScriptsRequest");
+
+export const talkingVideoScriptsSchema = z
+  .object({
+    scripts: z.array(
+      z.object({
+        /** The first sentence, which has to stop the scroll. */
+        hook: z.string(),
+        /** The whole script, hook included, as it is spoken. */
+        script: z.string(),
+      }),
+    ),
+  })
+  .openapi("ProjectTalkingVideoScripts");
+
 /**
  * One catalog row, and the whole contract a client has about a model.
  *

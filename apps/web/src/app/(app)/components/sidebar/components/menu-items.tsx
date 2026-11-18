@@ -4,6 +4,7 @@ import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
   CalendarDays,
+  Clapperboard,
   FolderKanban,
   HardDrive,
   House,
@@ -219,6 +220,15 @@ function ScopedMenuItems({
       label: t("contentStudio"),
       Icon: ImagePlus,
       feature: AnnouncedFeature.CONTENT_STUDIO,
+      group: "marketing",
+      prefetchContent: true,
+    },
+    // Talking videos, scoped by `?projectId=` like the studio beside it.
+    {
+      key: "tiktok-studio",
+      href: "/tiktok-studio",
+      label: t("tiktokStudio"),
+      Icon: Clapperboard,
       group: "marketing",
       prefetchContent: true,
     },

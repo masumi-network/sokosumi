@@ -162,6 +162,35 @@ export function creditsPerTalkingVideo(
   return creditsPerTalkingVideoCents(model.price, script);
 }
 
+/**
+ * Phrases a customer says about a product they bought or used. A generated
+ * presenter saying them is an invented testimonial.
+ */
+const CUSTOMER_TESTIMONIAL_PATTERNS = [
+  /\bas an? (happy |loyal |long[- ]time |real )?(customer|client|user|patient|buyer)\b/i,
+  /\bi(['’]ve| have) been (using|a customer|buying|taking)\b/i,
+  /\bi (bought|ordered|purchased|tried|switched to|started using|signed up for)\b/i,
+  /\b(since|after|before) i (started|began|tried|bought|switched)\b/i,
+  /\b(changed|saved|transformed) my (life|business|skin|sleep|health)\b/i,
+  /\bals (kundin|kunde|nutzerin|nutzer)\b/i,
+  /\bich (habe|hab) .{0,40}(gekauft|bestellt|ausprobiert|getestet)\b/i,
+  /\bseit ich .{0,40}(nutze|benutze|verwende|nehme)\b/i,
+  /\bcomo (cliente|usuaria|usuario)\b/i,
+  /\b(compré|probé|llevo .{0,20}(usando|tomando))\b/i,
+];
+
+/**
+ * True when a script speaks as a customer of the product. A talking video
+ * shows a generated person, so it may speak for the brand but never give a
+ * customer's account of it.
+ */
+export function posesAsCustomerTestimonial(script: string): boolean {
+  return CUSTOMER_TESTIMONIAL_PATTERNS.some((pattern) => pattern.test(script));
+}
+
+export const TALKING_VIDEO_TESTIMONIAL_MESSAGE =
+  "A talking video shows a generated presenter, so it cannot speak as a customer. Write it in the brand's own voice.";
+
 /** A talking video's stored settings: a video's, plus who speaks and how. */
 export interface TalkingVideoSettings extends VideoSettings {
   voice: string;

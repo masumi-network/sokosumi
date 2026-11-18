@@ -89,10 +89,12 @@ import {
   creditsPerTalkingVideo,
   findTalkingVideoPresenter,
   frameTalkingVideoPresenter,
+  posesAsCustomerTestimonial,
   readTalkingVideoSettings,
   TALKING_VIDEO_ASPECT_RATIO,
   TALKING_VIDEO_CAPTION_ENDPOINT,
   TALKING_VIDEO_RESOLUTION,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
   type TalkingVideoModel,
   type TalkingVideoSettings,
   talkingVideoModel,
@@ -1156,6 +1158,10 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
       { kind: "invalid_video_settings" },
     );
   }
+  if (posesAsCustomerTestimonial(input.script))
+    throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
+      kind: "talking_video_testimonial",
+    });
   if (
     input.presenter.kind === "stock" &&
     !findTalkingVideoPresenter(input.presenter.id)
