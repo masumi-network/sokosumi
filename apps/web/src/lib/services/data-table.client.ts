@@ -24,6 +24,10 @@ import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 function options() {
   return { client: getBrowserCoreClient(), throwOnError: true as const };
 }
+/** Binds a write to the workspace it was confirmed in: Core refuses it once the active workspace differs. */
+function inWorkspace(workspace?: string) {
+  return workspace ? { headers: { "X-Table-Workspace": workspace } } : {};
+}
 export const dataTableService = {
   async projects() {
     return (await getProjects({ ...options(), query: { limit: 100 } })).data
@@ -54,8 +58,10 @@ export const dataTableService = {
   async get(id: string) {
     return (await getDriveTablesById({ ...options(), path: { id } })).data.data;
   },
-  async create(body: PostDriveTablesData["body"]) {
-    return (await postDriveTables({ ...options(), body })).data.data;
+  async create(body: PostDriveTablesData["body"], workspace?: string) {
+    return (
+      await postDriveTables({ ...options(), ...inWorkspace(workspace), body })
+    ).data.data;
   },
   async query(id: string, body: PostDriveTablesByIdQueryData["body"]) {
     const { data } = await postDriveTablesByIdQuery({
@@ -69,9 +75,19 @@ export const dataTableService = {
       total: data.meta.pagination.total,
     };
   },
-  async batch(id: string, body: PostDriveTablesByIdRowsData["body"]) {
-    return (await postDriveTablesByIdRows({ ...options(), path: { id }, body }))
-      .data.data;
+  async batch(
+    id: string,
+    body: PostDriveTablesByIdRowsData["body"],
+    workspace?: string,
+  ) {
+    return (
+      await postDriveTablesByIdRows({
+        ...options(),
+        ...inWorkspace(workspace),
+        path: { id },
+        body,
+      })
+    ).data.data;
   },
   async update(id: string, body: PatchDriveTablesByIdData["body"]) {
     return (await patchDriveTablesById({ ...options(), path: { id }, body }))

@@ -1,7 +1,7 @@
 "use client";
 
 import type { createDataTableSchema, tableBatchSchema } from "@sokosumi/utils";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { z } from "zod";
 import { dataTableService } from "@/lib/services/data-table.client";
 
@@ -11,56 +11,91 @@ export type TableCopyPlan = {
   batches: z.infer<typeof tableBatchSchema>[];
 };
 
+type Attempt = {
+  plan: TableCopyPlan;
+  workspace?: string;
+  tableId?: string;
+  done: number;
+};
+
 const rowCount = (plan: TableCopyPlan) =>
   plan.batches.reduce((sum, b) => sum + b.insert.length, 0);
 
 /**
  * Copies rows into a new Files Table. The plan is built on the first press only: a failed copy finishes on the
- * next press with the same Table and the batches not yet saved, under the same keys. `copy` throws when a request
- * fails and returns the new Table's id and how many rows it holds.
+ * next press with the same Table and the batches not yet saved, under the same keys, or is discarded to start over.
+ * `copy` throws when a request fails and returns the new Table's id and how many rows it holds.
+ *
+ * Given a `workspace` (an organization id, or `personal`), every request names it, and Core writes nothing once the
+ * active workspace differs. A switch also fences the page: a saved copy, its pending state and its outcome belong to
+ * the workspace it was confirmed in, so after a switch `copy` returns null and the next copy starts fresh.
  */
-export function useTableCopy() {
-  const [pending, setPending] = useState(false);
+export function useTableCopy(workspace?: string) {
+  const [pendingIn, setPendingIn] = useState<string | null>(null);
   /**
    * A copy failed part way: the next press finishes this one, the rows planned then into the Table titled then,
-   * whatever the page shows now.
+   * whatever the page shows now. `tableCreated`: the Table is already in Files, with any rows saved so far.
    */
   const [unfinished, setUnfinished] = useState<{
     rows: number;
     title: string;
+    tableCreated: boolean;
+    workspace?: string;
   } | null>(null);
-  const attempt = useRef<{
-    plan: TableCopyPlan;
-    tableId?: string;
-    done: number;
-  } | null>(null);
+  const attempt = useRef<Attempt | null>(null);
+  // The workspace the page shows now, read after a request returns.
+  const latest = useRef(workspace);
+  useLayoutEffect(() => {
+    latest.current = workspace;
+  }, [workspace]);
+
+  function discard() {
+    attempt.current = null;
+    setUnfinished(null);
+  }
 
   async function copy(plan: () => TableCopyPlan) {
-    setPending(true);
+    if (attempt.current && attempt.current.workspace !== workspace)
+      attempt.current = null;
+    attempt.current ??= { plan: plan(), workspace, done: 0 };
+    const current = attempt.current;
+    const key = current.workspace ?? "";
+    setPendingIn(key);
     try {
-      attempt.current ??= { plan: plan(), done: 0 };
-      const current = attempt.current;
       current.tableId ??= (
-        await dataTableService.create(current.plan.table)
+        await dataTableService.create(current.plan.table, current.workspace)
       ).id;
       // One batch at a time, in order: a retry resumes at the first batch not saved.
       for (; current.done < current.plan.batches.length; current.done++)
         await dataTableService.batch(
           current.tableId,
           current.plan.batches[current.done],
+          current.workspace,
         );
-      attempt.current = null;
-      setUnfinished(null);
+      if (attempt.current === current) discard();
+      if (latest.current !== current.workspace) return null;
       return { id: current.tableId, rows: rowCount(current.plan) };
     } catch (error) {
-      const { plan } = attempt.current ?? {};
-      if (plan)
-        setUnfinished({ rows: rowCount(plan), title: plan.table.title });
+      if (latest.current !== current.workspace) {
+        if (attempt.current === current) discard();
+        return null;
+      }
+      setUnfinished({
+        rows: rowCount(current.plan),
+        title: current.plan.table.title,
+        tableCreated: current.tableId !== undefined,
+        workspace: current.workspace,
+      });
       throw error;
     } finally {
-      setPending(false);
+      setPendingIn((now) => (now === key ? null : now));
     }
   }
 
-  return { pending, unfinished, copy };
+  return {
+    pending: pendingIn === (workspace ?? ""),
+    unfinished: unfinished?.workspace === workspace ? unfinished : null,
+    copy,
+    discard,
+  };
 }

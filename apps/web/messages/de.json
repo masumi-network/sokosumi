@@ -2588,7 +2588,10 @@
         },
         "private": "{count, plural, one {# privater Task bleibt außen vor, weil nur du ihn sehen kannst.} other {# private Tasks bleiben außen vor, weil nur du sie sehen kannst.}}",
         "resume": "{count, plural, one {Das letzte Kopieren wurde nicht fertig. Es kopiert den # Task, den du damals bestätigt hast, in „{title}“ in Dateien, nicht die Tasks, die jetzt auf dem Board sind.} other {Das letzte Kopieren wurde nicht fertig. Es kopiert die # Tasks, die du damals bestätigt hast, in „{title}“ in Dateien, nicht die Tasks, die jetzt auf dem Board sind.}}",
-        "finish": "Kopieren abschließen"
+        "finish": "Kopieren abschließen",
+        "startOver": "Oder beginne neu mit den Tasks, die jetzt auf dem Board sind.",
+        "startOverPartial": "Oder beginne neu mit den Tasks, die jetzt auf dem Board sind: Die unvollständige Tabelle bleibt in Dateien, wo du sie löschen kannst.",
+        "startOverButton": "Neu beginnen"
       }
     },
     "Projects": {

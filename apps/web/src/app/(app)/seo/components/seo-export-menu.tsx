@@ -97,7 +97,8 @@ export function SeoExportMenu({
 
   async function copy() {
     try {
-      const { id, rows } = await tableCopy.copy(() => {
+      // Not bound to a workspace yet: Core checks only the audit's project, when it has one.
+      const copied = await tableCopy.copy(() => {
         const now = new Date();
         return seoTablePlan(
           tableRows(),
@@ -111,6 +112,8 @@ export function SeoExportMenu({
           crypto.randomUUID(),
         );
       });
+      if (!copied) return;
+      const { id, rows } = copied;
       toast.success(t("tableCopied", { count: rows }), {
         ...STAY,
         action: {

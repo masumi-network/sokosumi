@@ -31,13 +31,15 @@ const STAY = { duration: Infinity, closeButton: true };
 /**
  * Copies the Tasks the board shows into a new Files Table, a snapshot that does not follow the Tasks. Before it
  * copies, it says how many Tasks go in and which stay out: private ones, and ones matching the filters but not
- * loaded. After a failure it offers only to finish that copy, the Tasks confirmed then, until it is done.
+ * loaded. After a failure it offers to finish that copy, the Tasks confirmed then, or to start over, leaving any
+ * partial Table in Files. The copy is bound to the workspace it was confirmed in: a switch writes nothing more.
  */
 export function TasksTableCopy({
   tasks,
   notLoaded,
   projectId,
   statusLabels,
+  workspace,
 }: {
   /** The Tasks on the board now, under its filters. */
   tasks: TaskWithCoworker[];
@@ -46,11 +48,13 @@ export function TasksTableCopy({
   /** The board's project filter: the Table joins that project. */
   projectId: string | null;
   statusLabels: Record<TaskStatus, string>;
+  /** The board's workspace: an organization id, or `personal`. */
+  workspace: string;
 }) {
   const t = useTranslations("App.Tasks.TableCopy");
   const format = useFormatter();
   const router = useRouter();
-  const { pending, unfinished, copy } = useTableCopy();
+  const { pending, unfinished, copy, discard } = useTableCopy(workspace);
   const [open, setOpen] = useState(false);
   const count = sharedTasks(tasks).length;
   const privateCount = tasks.filter(
@@ -58,7 +62,10 @@ export function TasksTableCopy({
   ).length;
   // One description, so a screen reader hears every Task that stays out along with the count.
   const description = unfinished
-    ? t("resume", { count: unfinished.rows, title: unfinished.title })
+    ? [
+        t("resume", { count: unfinished.rows, title: unfinished.title }),
+        t(unfinished.tableCreated ? "startOverPartial" : "startOver"),
+      ].join(" ")
     : [
         t("description", { count }),
         privateCount ? t("private", { count: privateCount }) : null,
@@ -73,7 +80,7 @@ export function TasksTableCopy({
 
   async function handleCopy() {
     try {
-      const { id, rows } = await copy(() => {
+      const copied = await copy(() => {
         const now = new Date();
         return tasksTablePlan(
           tasks,
@@ -105,6 +112,9 @@ export function TasksTableCopy({
         );
       });
       setOpen(false);
+      // The workspace changed while it ran: its outcome belongs to the other workspace.
+      if (!copied) return;
+      const { id, rows } = copied;
       toast.success(t("copied", { count: rows }), {
         ...STAY,
         action: {
@@ -139,6 +149,11 @@ export function TasksTableCopy({
           <AlertDialogCancel disabled={pending}>
             {t("cancel")}
           </AlertDialogCancel>
+          {unfinished ? (
+            <Button variant="outline" disabled={pending} onClick={discard}>
+              {t("startOverButton")}
+            </Button>
+          ) : null}
           <AlertDialogAction
             disabled={!unfinished && !count}
             loading={pending}

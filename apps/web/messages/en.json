@@ -2588,7 +2588,10 @@
         },
         "private": "{count, plural, one {# private Task stays out, because only you can see it.} other {# private Tasks stay out, because only you can see them.}}",
         "resume": "{count, plural, one {The last copy stopped before it finished. It copies the # Task you confirmed then into “{title}” in Files, not the Tasks on the board now.} other {The last copy stopped before it finished. It copies the # Tasks you confirmed then into “{title}” in Files, not the Tasks on the board now.}}",
-        "finish": "Finish copy"
+        "finish": "Finish copy",
+        "startOver": "Or start over with the Tasks on the board now.",
+        "startOverPartial": "Or start over with the Tasks on the board now: the unfinished table stays in Files, where you can delete it.",
+        "startOverButton": "Start over"
       }
     },
     "Projects": {

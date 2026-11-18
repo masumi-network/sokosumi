@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +34,7 @@ const tasks = Array.from(
 function view(props: {
   notLoaded: number | "unknown" | 0;
   shown?: TaskWithCoworker[];
+  workspace?: string;
 }) {
   return (
     <NextIntlClientProvider
@@ -47,6 +48,7 @@ function view(props: {
         notLoaded={props.notLoaded}
         projectId={null}
         statusLabels={{ READY: "To do" } as never}
+        workspace={props.workspace ?? "org-a"}
       />
     </NextIntlClientProvider>
   );
@@ -182,5 +184,90 @@ describe("TasksTableCopy", () => {
     // Done: the next copy is a new one, of the board as it is.
     await openDialog();
     expect(screen.getByRole("button", { name: "Copy 0 Tasks" })).toBeDisabled();
+  });
+  it("binds every write to the workspace the copy was confirmed in", async () => {
+    show({ notLoaded: 0 });
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await waitFor(() => expect(m.success).toHaveBeenCalled());
+    expect(m.create.mock.calls[0][1]).toBe("org-a");
+    expect(m.batch.mock.calls[0][2]).toBe("org-a");
+  });
+
+  it("drops a failed copy when the workspace changes, and copies afresh there", async () => {
+    m.create.mockRejectedValueOnce(new Error("offline"));
+    const update = show({ notLoaded: 0 });
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await waitFor(() => expect(m.error).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    update({ notLoaded: 0, shown: [tasks[0]], workspace: "org-b" });
+    await openDialog();
+    expect(screen.queryByText(/The last copy stopped/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 1 Task" }));
+    await waitFor(() => expect(m.success).toHaveBeenCalled());
+    expect(m.create.mock.calls[1][1]).toBe("org-b");
+    expect(m.create.mock.calls[1][0].key).not.toBe(
+      m.create.mock.calls[0][0].key,
+    );
+    expect(m.batch.mock.calls[0][1].insert).toHaveLength(1);
+  });
+
+  it("keeps a request that returns after a switch bound to the old workspace, and reports nothing in the new one", async () => {
+    const created = Promise.withResolvers<{ id: string }>();
+    m.create.mockReturnValueOnce(created.promise);
+    // Core refuses the write: the session's workspace is no longer the confirmed one.
+    m.batch.mockRejectedValueOnce(
+      new Error("409 The active workspace changed"),
+    );
+    const update = show({ notLoaded: 0 });
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+
+    update({ notLoaded: 0, workspace: "org-b" });
+    await act(async () => created.resolve({ id: "table-1" }));
+    await waitFor(() => expect(m.batch).toHaveBeenCalled());
+    expect(m.batch.mock.calls[0][2]).toBe("org-a");
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(m.error).not.toHaveBeenCalled();
+    expect(m.success).not.toHaveBeenCalled();
+
+    await openDialog();
+    expect(screen.getByRole("button", { name: "Copy 3 Tasks" })).toBeEnabled();
+    expect(screen.queryByText(/The last copy stopped/)).not.toBeInTheDocument();
+  });
+
+  it("starts over after a failure, saying the partial table stays in Files", async () => {
+    m.batch.mockRejectedValueOnce(new Error("offline"));
+    const update = show({ notLoaded: 0 });
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await waitFor(() => expect(m.error).toHaveBeenCalled());
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription(
+      /Or start over with the Tasks on the board now: the unfinished table stays in Files, where you can delete it\./,
+    );
+
+    update({ notLoaded: 0, shown: [tasks[0]] });
+    await userEvent.click(screen.getByRole("button", { name: "Start over" }));
+    await userEvent.click(screen.getByRole("button", { name: "Copy 1 Task" }));
+    await waitFor(() => expect(m.success).toHaveBeenCalled());
+    expect(m.create).toHaveBeenCalledTimes(2);
+    expect(m.batch.mock.calls[1][1].insert).toHaveLength(1);
+  });
+
+  it("offers to start over without a partial-table notice when no table was made", async () => {
+    m.create.mockRejectedValueOnce(new Error("Project closed"));
+    show({ notLoaded: 0 });
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await waitFor(() => expect(m.error).toHaveBeenCalled());
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveAccessibleDescription(
+      /Or start over with the Tasks on the board now\.$/,
+    );
+    expect(dialog).not.toHaveAccessibleDescription(/unfinished table/);
   });
 });

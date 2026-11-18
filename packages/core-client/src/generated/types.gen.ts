@@ -47072,6 +47072,10 @@ export type PostDriveTablesData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
+         * Workspace the caller confirmed the write in: an organization id, or `personal`. A different active workspace returns 409 before anything is written.
+         */
+        'X-Table-Workspace'?: string;
+        /**
          * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
@@ -47681,6 +47685,10 @@ export type PostDriveTablesByIdRowsData = {
          * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
          */
         'X-Context-Organization-Id'?: string;
+        /**
+         * Workspace the caller confirmed the write in: an organization id, or `personal`. A different active workspace returns 409 before anything is written.
+         */
+        'X-Table-Workspace'?: string;
         /**
          * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */

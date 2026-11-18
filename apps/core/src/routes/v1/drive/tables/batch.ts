@@ -17,6 +17,10 @@ const route = withCoworkerContextHeaderParameters(
     tags: ["Tables"],
     request: {
       headers: z.object({
+        "X-Table-Workspace": z.string().max(200).optional().openapi({
+          description:
+            "Workspace the caller confirmed the write in: an organization id, or `personal`. A different active workspace returns 409 before anything is written.",
+        }),
         "X-Table-Task-Id": z.string().max(200).optional().openapi({
           description:
             "Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.",

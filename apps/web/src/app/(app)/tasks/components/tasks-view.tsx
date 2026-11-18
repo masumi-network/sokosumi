@@ -287,6 +287,7 @@ export function TasksView(props: TasksViewProps) {
                   : "unknown",
             projectId: routeFilters.projectId,
             statusLabels: labels.filters.statusOptions,
+            workspace: activeOrganizationId ?? "personal",
           }}
         />
       </div>

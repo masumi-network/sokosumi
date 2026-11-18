@@ -2588,7 +2588,10 @@
         },
         "private": "{count, plural, one {# tarea privada queda fuera, porque solo tú puedes verla.} other {# tareas privadas quedan fuera, porque solo tú puedes verlas.}}",
         "resume": "{count, plural, one {La última copia no terminó. Copia la # tarea que confirmaste entonces en «{title}» en Archivos, no las tareas que hay ahora en el tablero.} other {La última copia no terminó. Copia las # tareas que confirmaste entonces en «{title}» en Archivos, no las tareas que hay ahora en el tablero.}}",
-        "finish": "Terminar copia"
+        "finish": "Terminar copia",
+        "startOver": "O empieza de nuevo con las tareas que hay ahora en el tablero.",
+        "startOverPartial": "O empieza de nuevo con las tareas que hay ahora en el tablero: la tabla incompleta se queda en Archivos, donde puedes eliminarla.",
+        "startOverButton": "Empezar de nuevo"
       }
     },
     "Projects": {
