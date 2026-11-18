@@ -2,8 +2,12 @@ import { z } from "@hono/zod-openapi";
 import type { ProjectSeoObservation } from "@sokosumi/database";
 
 import { getEnv } from "@/config/env";
-import { conflict, unprocessableEntity } from "@/helpers/error";
-import prisma from "@/lib/db/prisma";
+import {
+  conflict,
+  serviceUnavailable,
+  unprocessableEntity,
+} from "@/helpers/error";
+import prisma, { type DbClient } from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   GSC_INSPECT_TOOL,
@@ -24,6 +28,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type SeoTaskIndexingReceipt,
   type SeoTaskIndexingResultRequest,
+  seoReusedInspectionTimesSchema,
   seoTaskIndexingReceiptSchema,
   seoTaskIndexingResultSchema,
 } from "@/schemas/seo-task-indexing.schema";
@@ -49,15 +54,57 @@ const persistedReceiptSchema = seoTaskIndexingReceiptSchema.omit({
 const storedReceiptSchema = z.strictObject({
   contextFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   propertyId: z.string().max(500).nullable(),
+  providerAnsweredAll: z.literal(true).optional(),
+  reusedCheckedAt: seoReusedInspectionTimesSchema.optional(),
+  retainedAssessments: seoTaskIndexingResultSchema.shape.assessments.optional(),
   receipt: persistedReceiptSchema,
 });
 type StoredReceipt = z.infer<typeof storedReceiptSchema>;
 
+/** Older receipts did not distinguish a missing provider answer from Google's explicit unknown verdict. */
+function shouldRetryInspection({
+  receipt,
+  propertyId,
+  providerAnsweredAll,
+}: StoredReceipt) {
+  if (providerAnsweredAll) return false;
+  if (!propertyId) return receipt.status === "unavailable";
+  return receipt.pages.some(
+    (page) =>
+      page.verdict === "VERDICT_UNSPECIFIED" &&
+      gscPropertyCovers(propertyId, [page.pageUrl]),
+  );
+}
+
 const receiptKey = (context: SeoTaskIndexingContext) =>
   `task-indexing:${context.taskId}:${context.contextFingerprint}`;
 
-async function savedReceipt(context: SeoTaskIndexingContext) {
-  const saved = await prisma.projectSeoObservation.findUnique({
+function fresh(checkedAt: string, lifetime: number) {
+  const age = Date.now() - Date.parse(checkedAt);
+  return age >= 0 && age < lifetime;
+}
+
+function currentReceipt(saved: StoredReceipt) {
+  const { receipt } = saved;
+  const partial =
+    receipt.status !== "available" ||
+    receipt.pages.some((page) => page.verdict === "VERDICT_UNSPECIFIED");
+  return (
+    fresh(
+      receipt.checkedAt,
+      partial ? SEO_INDEXING_RETRY_MS : SEO_INDEXING_FRESH_MS,
+    ) &&
+    Object.values(saved.reusedCheckedAt ?? {}).every((at) =>
+      fresh(at, SEO_INDEXING_FRESH_MS),
+    )
+  );
+}
+
+async function savedReceipt(
+  context: SeoTaskIndexingContext,
+  client: DbClient = prisma,
+) {
+  const saved = await client.projectSeoObservation.findUnique({
     where: seoOwnerUnique(context.actor, "sourceKey", {
       sourceKey: receiptKey(context),
     }),
@@ -90,30 +137,26 @@ async function savedReceipt(context: SeoTaskIndexingContext) {
     )
   )
     return null;
-  const age = Date.now() - new Date(receipt.checkedAt).getTime();
-  const partial =
-    receipt.status !== "available" ||
-    receipt.pages.some((page) => page.verdict === "VERDICT_UNSPECIFIED");
-  return age >= 0 &&
-    age < (partial ? SEO_INDEXING_RETRY_MS : SEO_INDEXING_FRESH_MS)
-    ? parsed.data
-    : null;
+  return fresh(receipt.checkedAt, SEO_INDEXING_FRESH_MS) ? parsed.data : null;
 }
 
 function makeReceipt(
   context: SeoTaskIndexingContext,
   data: Omit<SeoTaskIndexingReceipt, "receiptHash" | "assessmentSaved">,
   propertyId: string | null,
+  reusedCheckedAt?: Record<string, string>,
 ): StoredReceipt {
   return {
     contextFingerprint: context.contextFingerprint,
     propertyId,
+    ...(reusedCheckedAt && { reusedCheckedAt }),
     receipt: persistedReceiptSchema.parse({
       ...data,
       receiptHash: sha256(
         JSON.stringify({
           context: context.contextFingerprint,
           propertyId,
+          ...(reusedCheckedAt && { reusedCheckedAt }),
           ...data,
         }),
       ),
@@ -132,7 +175,8 @@ async function collect(
     pages: context.inspectionPageUrls.map(unavailableGscTaskInspection),
   };
   const integration = context.integration;
-  const saved = await savedReceipt(context);
+  const previous = await savedReceipt(context);
+  const saved = previous && currentReceipt(previous) ? previous : null;
   if (!integration)
     return (
       saved ?? makeReceipt(context, { ...base, status: "not_connected" }, null)
@@ -202,11 +246,26 @@ async function collect(
     )
       return saved;
     const inspectionTool = toolFor(GSC_INSPECT_TOOL);
+    const retained = new Map(
+      previous?.propertyId === property
+        ? previous.receipt.pages.flatMap((page) => {
+            const at =
+              previous.reusedCheckedAt?.[page.pageUrl] ??
+              previous.receipt.checkedAt;
+            return page.verdict !== "VERDICT_UNSPECIFIED" &&
+              gscPropertyCovers(property, [page.pageUrl]) &&
+              fresh(at, SEO_INDEXING_FRESH_MS)
+              ? [[page.pageUrl, { page, at }] as const]
+              : [];
+          })
+        : [],
+    );
     const results = await Promise.allSettled(
       context.inspectionPageUrls.map(async (pageUrl) =>
         !gscPropertyCovers(property, [pageUrl])
           ? unavailableGscTaskInspection(pageUrl)
-          : normalizeGscTaskInspection(
+          : (retained.get(pageUrl)?.page ??
+            normalizeGscTaskInspection(
               pageUrl,
               unwrapNativeStatistics(
                 await read(
@@ -215,13 +274,13 @@ async function collect(
                 ),
                 ["inspectionResult"],
               ),
-            ),
+            )),
       ),
     );
     const pages = results.map((result, index) =>
       result.status === "fulfilled" ? result.value : base.pages[index]!,
     );
-    return makeReceipt(
+    const collected = makeReceipt(
       context,
       {
         ...base,
@@ -231,9 +290,27 @@ async function collect(
         pages,
       },
       property,
+      retained.size
+        ? Object.fromEntries([...retained].map(([url, item]) => [url, item.at]))
+        : undefined,
     );
+    // Preserve the legacy storage shape unless Google's explicit unknown would look like a failed read.
+    if (
+      results.every((result) => result.status === "fulfilled") &&
+      shouldRetryInspection(collected)
+    )
+      collected.providerAnsweredAll = true;
+    return collected;
   } catch {
     // Upstream failures can contain account data. No raw error crosses the Task boundary.
+    if (
+      previous?.receipt.pages.some(
+        (page) => page.verdict !== "VERDICT_UNSPECIFIED",
+      )
+    )
+      throw serviceUnavailable(
+        "Could not confirm Google access. Retry this indexing check.",
+      );
     return makeReceipt(context, { ...base, status: "unavailable" }, null);
   }
 }
@@ -291,13 +368,56 @@ export function hasSavedSeoIndexingAssessment(
   );
 }
 
+async function withRetainedAssessments(
+  payload: StoredReceipt,
+  context: SeoTaskIndexingContext,
+  tx: DbClient,
+) {
+  if (!payload.reusedCheckedAt) return payload;
+  const previous = await savedReceipt(context, tx);
+  if (
+    !previous ||
+    previous.propertyId !== payload.propertyId ||
+    previous.receipt.receiptHash === payload.receipt.receiptHash
+  )
+    return payload;
+  const row = await tx.projectSeoObservation.findUnique({
+    where: seoOwnerUnique(context.actor, "sourceKey", {
+      sourceKey: `task-index-triage:${context.taskId}:${previous.receipt.receiptHash}`,
+    }),
+  });
+  const assessments =
+    row &&
+    hasSavedSeoIndexingAssessment(
+      row,
+      previous.receipt,
+      context.actor.userId,
+      context.auditPageUrl,
+    )
+      ? seoTaskIndexingResultSchema.parse(row.payload).assessments
+      : previous.retainedAssessments;
+  // Keep confirmed evidence through repeated partial reads, including a lost result submission.
+  const retained = assessments?.filter((page) => {
+    const original =
+      previous.reusedCheckedAt?.[page.pageUrl] ?? previous.receipt.checkedAt;
+    return (
+      page.status !== "review" &&
+      page.status !== "unavailable" &&
+      payload.reusedCheckedAt?.[page.pageUrl] === original
+    );
+  });
+  return retained?.length
+    ? { ...payload, retainedAssessments: retained }
+    : payload;
+}
+
 /** Only the Task's fixed pages are read. All provider I/O is outside database transactions. */
 export async function readSeoTaskIndexing(
   auth: AuthenticationContext,
   taskId: string,
   expected: TaskWorkerContext,
   auditPageUrlHint?: string,
-): Promise<SeoTaskIndexingReceipt> {
+): Promise<{ receipt: SeoTaskIndexingReceipt; retryable: boolean }> {
   const context = await readSeoTaskIndexingContext(
     auth,
     taskId,
@@ -336,6 +456,7 @@ export async function readSeoTaskIndexing(
       if (!held.count)
         throw conflict("The indexing collection lease expired. Please retry");
       const sourceKey = receiptKey(context);
+      const stored = await withRetainedAssessments(payload, context, tx);
       await tx.projectSeoObservation.upsert({
         where: seoOwnerUnique(context.actor, "sourceKey", { sourceKey }),
         create: {
@@ -349,11 +470,11 @@ export async function readSeoTaskIndexing(
           pageIds: context.analysis.pageIds,
           scopeVersion: context.analysis.scopeVersion,
           artifactHash: receipt.receiptHash,
-          payload,
+          payload: stored,
           observedAt: new Date(receipt.checkedAt),
         },
         update: {
-          payload,
+          payload: stored,
           artifactHash: receipt.receiptHash,
           observedAt: new Date(receipt.checkedAt),
         },
@@ -363,14 +484,16 @@ export async function readSeoTaskIndexing(
           sourceKey: `task-index-triage:${taskId}:${receipt.receiptHash}`,
         }),
       });
-      return hasSavedSeoIndexingAssessment(
+      const saved = hasSavedSeoIndexingAssessment(
         assessment,
         receipt,
         context.actor.userId,
         context.auditPageUrl,
-      )
-        ? { ...receipt, assessmentSaved: true as const }
-        : receipt;
+      );
+      return {
+        receipt: saved ? { ...receipt, assessmentSaved: true } : receipt,
+        retryable: shouldRetryInspection(payload),
+      };
     }, "The audit changed before its indexing evidence could be saved. Please retry.");
   } finally {
     await syncLockService.releaseLock(key, lock.ownerToken);
@@ -413,14 +536,7 @@ export async function recordSeoTaskIndexingResult(
     )
       throw conflict("The indexing receipt is no longer current");
     const receipt = parsed.data.receipt;
-    const age = Date.now() - new Date(receipt.checkedAt).getTime();
-    const partial =
-      receipt.status !== "available" ||
-      receipt.pages.some((page) => page.verdict === "VERDICT_UNSPECIFIED");
-    if (
-      age < 0 ||
-      age >= (partial ? SEO_INDEXING_RETRY_MS : SEO_INDEXING_FRESH_MS)
-    )
+    if (!currentReceipt(parsed.data))
       throw conflict(
         "The indexing receipt expired. Read it again before assessment",
       );
@@ -455,7 +571,14 @@ export async function recordSeoTaskIndexingResult(
       receiptHash: input.receiptHash,
       checkedAt: receipt.checkedAt,
       auditPageUrl: context.auditPageUrl,
-      assessments: input.assessments,
+      assessments: input.assessments.map((page) => {
+        const checkedAt = parsed.data.reusedCheckedAt?.[page.pageUrl];
+        if (!checkedAt) return page;
+        const retained = parsed.data.retainedAssessments?.find(
+          (assessment) => assessment.pageUrl === page.pageUrl,
+        );
+        return { ...(retained ?? page), checkedAt };
+      }),
     });
     const artifactHash = sha256(JSON.stringify(result));
     const sourceKey = `task-index-triage:${taskId}:${input.receiptHash}`;

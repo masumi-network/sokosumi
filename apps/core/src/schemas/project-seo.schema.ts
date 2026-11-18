@@ -516,6 +516,7 @@ export const seoIndexedPageSchema = z
     lastCrawlTime: z.string().datetime({ offset: true }).nullable(),
     googleCanonical: z.string().max(2048).nullable(),
     userCanonical: z.string().max(2048).nullable(),
+    indexingState: z.string().max(100).nullable().optional(),
   })
   .strict()
   .openapi("ProjectSeoIndexedPage");
