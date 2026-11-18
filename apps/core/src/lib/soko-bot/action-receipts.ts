@@ -76,6 +76,7 @@ export const ACTION_CAPABILITIES = new Set([
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
+  "stop_following_task",
   "post_chat",
   "open_direct_chat",
   "ask_coworker",

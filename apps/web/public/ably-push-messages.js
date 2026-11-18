@@ -53,6 +53,9 @@ globalThis.MESSAGES = {
     "Notifications.Task.completed": "{coworkerName} completed {taskName}",
     "Notifications.Task.failed": "{coworkerName} failed to complete {taskName}",
     "Notifications.Task.canceled": "{taskName} was canceled",
+    "Notifications.Task.overdue": "{taskName} is past its due date",
+    "Notifications.Task.dueDateMovedLater":
+      "The due date of {taskName} moved later",
     "Notifications.Task.scheduleRepaired":
       "The schedule for {taskName} was repaired",
     "Notifications.Task.scheduleRemovedByOperator":
@@ -134,6 +137,9 @@ globalThis.MESSAGES = {
     "Notifications.Task.failed":
       "{coworkerName} konnte {taskName} nicht abschließen",
     "Notifications.Task.canceled": "{taskName} wurde abgebrochen",
+    "Notifications.Task.overdue": "{taskName} ist überfällig",
+    "Notifications.Task.dueDateMovedLater":
+      "Das Fälligkeitsdatum von {taskName} wurde nach hinten verschoben",
     "Notifications.Task.scheduleRepaired":
       "Der Zeitplan für {taskName} wurde repariert",
     "Notifications.Task.scheduleRemovedByOperator":
@@ -217,6 +223,9 @@ globalThis.MESSAGES = {
     "Notifications.Task.completed": "{coworkerName} completó {taskName}",
     "Notifications.Task.failed": "{coworkerName} no pudo completar {taskName}",
     "Notifications.Task.canceled": "{taskName} fue cancelado",
+    "Notifications.Task.overdue": "{taskName} superó su fecha límite",
+    "Notifications.Task.dueDateMovedLater":
+      "La fecha límite de {taskName} se pospuso",
     "Notifications.Task.scheduleRepaired":
       "Se reparó la programación de {taskName}",
     "Notifications.Task.scheduleRemovedByOperator":

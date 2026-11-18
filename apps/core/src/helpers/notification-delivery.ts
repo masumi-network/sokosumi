@@ -117,6 +117,12 @@ export interface NotificationDeliveryInput {
   preferences: readonly StoredNotificationPreference[];
   /** The account-wide push consent. Off means no banner, whatever the row says. */
   pushOptIn: boolean;
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 /** Where one Notification goes. */
@@ -212,13 +218,14 @@ function isEnabled(
   category: NotificationCategory | null,
   channel: NotificationChannel,
   preferences: readonly StoredNotificationPreference[],
+  fallback = notificationDefault(category, channel),
 ): boolean {
   const stored = preferences.find(
     (preference) =>
       preference.category === category && preference.channel === channel,
   );
 
-  return stored?.enabled ?? notificationDefault(category, channel);
+  return stored?.enabled ?? fallback;
 }
 
 /**
@@ -233,10 +240,15 @@ export function resolveNotificationDelivery({
   category,
   preferences,
   pushOptIn,
+  osBannerDefaultOn,
 }: NotificationDeliveryInput): NotificationDelivery {
   return {
     inApp: isEnabled(category, "IN_APP", preferences),
-    osBanner: pushOptIn && isEnabled(category, "OS_BANNER", preferences),
+    osBanner:
+      pushOptIn &&
+      (osBannerDefaultOn
+        ? isEnabled(category, "OS_BANNER", preferences, true)
+        : isEnabled(category, "OS_BANNER", preferences)),
     // Gated on the category the way the banner is gated on the account-wide
     // consent: a category that sends no email has none to send however the
     // stored row reads. The preferences route does not refuse such a row, and

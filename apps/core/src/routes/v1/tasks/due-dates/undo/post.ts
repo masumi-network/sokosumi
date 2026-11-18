@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { recordTaskDueDateMovedLater } from "@/helpers/task-due-date-change";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -98,7 +99,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           data: { dueOn: dueDay(undo.from) },
         });
-        return count === 1 ? task.id : null;
+        if (count !== 1) return null;
+        // An undo normally moves earlier and records nothing.
+        await recordTaskDueDateMovedLater(tx, {
+          taskId: task.id,
+          from: dueDay(to),
+          to: dueDay(undo.from),
+          actorUserId: userContext.userId,
+        });
+        return task.id;
       },
     );
 
