@@ -5,6 +5,7 @@ import {
   socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 
+import { socialProviderWorkspace } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
@@ -79,7 +80,7 @@ export async function listUserWorkspaces(
       role: null,
       memberCount: null,
       enabledSocialProviders: [
-        ...socialProvidersForWorkspace({ organizationSlug: null }),
+        ...socialProvidersForWorkspace(socialProviderWorkspace(null)),
       ],
       logo: null,
       websiteUrl: null,
@@ -104,7 +105,9 @@ export async function listUserWorkspaces(
       role: memberRoleSchema.safeParse(role).data ?? null,
       memberCount: organization._count.members,
       enabledSocialProviders: [
-        ...socialProvidersForWorkspace({ organizationSlug: organization.slug }),
+        ...socialProvidersForWorkspace(
+          socialProviderWorkspace(organization.slug),
+        ),
       ],
       logo: organization.logo,
       websiteUrl: getOrganizationMetadata(organization.metadata).url,

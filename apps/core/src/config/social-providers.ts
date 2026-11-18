@@ -3,6 +3,7 @@ import {
   type SocialProviderWorkspace,
   socialProviderUnavailableMessage,
 } from "@sokosumi/utils";
+import { getEnv } from "@/config/env";
 import { badRequest } from "@/helpers/error";
 
 export const PROJECT_SOCIAL_PROVIDERS = {
@@ -53,6 +54,17 @@ export function socialProviderForToolkit(toolkitSlug: string) {
   );
 }
 
+export function socialProviderWorkspace(
+  organizationSlug: string | null,
+): SocialProviderWorkspace {
+  return {
+    organizationSlug,
+    tiktokSandbox:
+      process.env.VERCEL_ENV === "preview" &&
+      Boolean(getEnv().COMPOSIO_TIKTOK_AUTH_CONFIG_ID),
+  };
+}
+
 /** Always resolve availability from the owning Project, never the actor's memberships. */
 export const socialProviderProjectSelect = {
   workspace: { select: { organization: { select: { slug: true } } } },
@@ -65,7 +77,7 @@ type SocialProviderProject = Prisma.ProjectGetPayload<{
 export function socialProviderWorkspaceForProject(
   project: SocialProviderProject,
 ): SocialProviderWorkspace {
-  return { organizationSlug: project.workspace.organization?.slug ?? null };
+  return socialProviderWorkspace(project.workspace.organization?.slug ?? null);
 }
 
 /** Shared by connection flows and post mutations before any external effect. */

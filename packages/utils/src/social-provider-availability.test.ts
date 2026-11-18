@@ -35,6 +35,15 @@ describe("Social provider availability", () => {
     },
   );
 
+  it("enables TikTok for the configured sandbox", () => {
+    expect(
+      isSocialProviderEnabled("tiktok", {
+        organizationSlug: null,
+        tiktokSandbox: true,
+      }),
+    ).toBe(true);
+  });
+
   it.each(["tiktok"] as const)(
     "explains %s availability using the public list in every workspace",
     (provider) => {

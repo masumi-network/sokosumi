@@ -4,6 +4,10 @@ import type {
   SocialPostProvider,
 } from "@sokosumi/utils";
 
+import type { z } from "zod";
+import type { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
+export type TikTokPostSettings = z.infer<typeof tikTokPostSettingsSchema>;
+
 /** One publish attempt's provider-independent input. Media stays as refs. */
 export interface SocialPostPublishContext {
   provider: SocialPostProvider;
@@ -16,6 +20,7 @@ export interface SocialPostPublishContext {
   media: readonly SocialPostMediaRef[];
   /** X thread replies target the preceding part's confirmed id. */
   replyToExternalId?: string;
+  tikTokSettings?: TikTokPostSettings;
   quoteExternalId?: string;
   signal?: AbortSignal;
 }

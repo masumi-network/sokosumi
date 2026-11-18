@@ -30,13 +30,16 @@ export const SOCIAL_PUBLIC_PROVIDERS = [
 
 export interface SocialProviderWorkspace {
   organizationSlug: string | null;
+  tiktokSandbox?: boolean;
 }
 
 /** Every workspace gets the public list; the workspace argument keeps call sites stable. */
 export function socialProvidersForWorkspace(
-  _workspace: SocialProviderWorkspace,
+  workspace: SocialProviderWorkspace,
 ): readonly SocialPostProvider[] {
-  return SOCIAL_PUBLIC_PROVIDERS;
+  return workspace.tiktokSandbox
+    ? [...SOCIAL_PUBLIC_PROVIDERS, "tiktok"]
+    : SOCIAL_PUBLIC_PROVIDERS;
 }
 
 export function isSocialProviderEnabled(

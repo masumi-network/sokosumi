@@ -185,6 +185,7 @@ interface RecycleProjectSocialAccountPostParameters
 }
 
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
+  tikTokSettings?: import("@sokosumi/core-client").TikTokPostSettings;
   projectId: string;
   postId: string;
   revision: number;
@@ -1135,12 +1136,26 @@ export const recycleProjectSocialAccountPost = withSession<
 export const publishProjectSocialPost = withSession<
   PublishProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, revision }) => {
-  const parsed = publishProjectSocialPostSchema.safeParse({
-    projectId,
-    postId,
-    revision,
-  });
+>(async ({ projectId, postId, revision, tikTokSettings }) => {
+  const parsed = publishProjectSocialPostSchema
+    .extend({
+      tikTokSettings: z
+        .object({
+          privacyLevel: z.literal("SELF_ONLY"),
+          allowComment: z.boolean(),
+          allowDuet: z.boolean(),
+          allowStitch: z.boolean(),
+          promotesOwnBrand: z.boolean(),
+          acceptedMusicUsage: z.literal(true),
+        })
+        .optional(),
+    })
+    .safeParse({
+      projectId,
+      postId,
+      tikTokSettings,
+      revision,
+    });
   if (!parsed.success) {
     return badSocialPostInput(parsed);
   }
@@ -1149,7 +1164,12 @@ export const publishProjectSocialPost = withSession<
     const post = await projectService.publishSocialPost(
       parsed.data.projectId,
       parsed.data.postId,
-      { revision: parsed.data.revision },
+      {
+        revision: parsed.data.revision,
+        ...(parsed.data.tikTokSettings
+          ? { tikTokSettings: parsed.data.tikTokSettings }
+          : {}),
+      },
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));
