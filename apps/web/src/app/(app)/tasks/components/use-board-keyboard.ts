@@ -67,8 +67,8 @@ export function boardFocusTarget(
 }
 
 /**
- * Board keys: the arrows move between cards once a card has the focus, and
- * `c` opens the New Task wizard. Enter needs nothing: the focus is on the
+ * Tasks page keys: on the board the arrows move between cards once a card
+ * has the focus, and in every view `c` opens the New Task wizard. Enter needs nothing: the focus is on the
  * card's link. A key typed into a field, a dialog or a menu is not ours.
  */
 export function useBoardKeyboard() {
@@ -85,7 +85,8 @@ export function useBoardKeyboard() {
     ) {
       return;
     }
-    if (event.key === NEW_TASK_KEY) {
+    // Lower case, so Caps Lock does not turn the key off.
+    if (event.key.toLowerCase() === NEW_TASK_KEY) {
       if (event.repeat || !openNewTask) return;
       event.preventDefault();
       openNewTask();
