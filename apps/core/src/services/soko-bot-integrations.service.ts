@@ -79,6 +79,7 @@ async function loadCatalog(): Promise<SokoBotIntegrationCatalogEntry[] | null> {
       .filter(
         (toolkit) =>
           toolkit.slug.toLowerCase() !== "composio" &&
+          toolkit.slug.toLowerCase() !== "tiktok" &&
           !adProviderForToolkit(toolkit.slug) &&
           connectable(toolkit),
       )
