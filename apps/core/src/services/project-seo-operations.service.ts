@@ -229,6 +229,18 @@ export async function requestProjectSeoAnalysisInTransaction(
   plannedMonitorRun?: PlannedSeoMonitorRun,
 ) {
   requireSeoAnalysisDispatch();
+  const humanOneOff =
+    !actor.sokoBotId && !plannedMonitorRun && !requireScheduledExecutor;
+  if (input.sharedBrief && (!humanOneOff || input.kind !== "audit_full"))
+    throw badRequest(
+      "Choose the goals to share for each full audit in your own session",
+    );
+  if (
+    input.setupGoal &&
+    (!humanOneOff ||
+      (input.kind !== "audit_full" && input.kind !== "page_check"))
+  )
+    throw badRequest("Set a page goal for a one-off check in your own session");
   const requestHash = sha256(JSON.stringify(input));
   await requireLockedSeoOwner(tx, actor, !plannedMonitorRun);
   if (plannedMonitorRun)
@@ -283,27 +295,15 @@ export async function requestProjectSeoAnalysisInTransaction(
       requestedBy: actor.userId,
     },
   });
-  if (
-    input.sharedBrief &&
-    (actor.sokoBotId ||
-      plannedMonitorRun ||
-      requireScheduledExecutor ||
-      input.kind !== "audit_full")
-  )
-    throw badRequest(
-      "Choose the goals to share for each full audit in your own session",
-    );
   const context =
-    input.kind === "audit_full" &&
-    !actor.sokoBotId &&
-    !plannedMonitorRun &&
-    !requireScheduledExecutor
+    humanOneOff && (input.kind === "audit_full" || input.setupGoal)
       ? await pinSeoAuditBrief(
           tx,
           actor,
           analysis.id,
           scope.pages,
           input.sharedBrief,
+          input.setupGoal,
         )
       : undefined;
   const packet = seoTaskPacket(input, pageUrls, analysis.id, context);

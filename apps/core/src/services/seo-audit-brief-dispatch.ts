@@ -9,7 +9,7 @@ import {
   seoBriefContent,
 } from "@/schemas/seo-audit-brief.schema";
 import { seoOwnerWhere, sha256 } from "./project-seo-store";
-import { currentBrief } from "./seo-audit-brief.service";
+import { applySeoSetupGoal, currentBrief } from "./seo-audit-brief.service";
 
 type PageGoal = SeoBriefContent["pages"][number];
 export type PublicPageGoals = {
@@ -54,11 +54,24 @@ export async function pinSeoAuditBrief(
   analysisId: string,
   scope: readonly { id: string; url: string }[],
   approval: RequestSeoAnalysis["sharedBrief"],
+  setupGoal?: RequestSeoAnalysis["setupGoal"],
 ) {
-  const current = await currentBrief(actor, tx);
-  if (approval && approval.revision !== current?.scopeVersion)
+  if (setupGoal && !scope.some((page) => page.id === setupGoal.pageId))
+    throw badRequest("Set a goal for one of the audited pages");
+  const base = await currentBrief(actor, tx);
+  if (
+    approval &&
+    (approval.revision !== (base?.scopeVersion ?? 0) || (!base && !setupGoal))
+  )
     throw conflict("The page goals changed. Reload the brief before sharing.");
-  if (!current) return undefined;
+  const current = setupGoal
+    ? await applySeoSetupGoal(tx, actor, base, setupGoal)
+    : base;
+  if (!current) {
+    if (approval)
+      throw badRequest("Choose a saved page role or action to share");
+    return undefined;
+  }
   const context = approval
     ? publicPageGoals(
         seoBriefContent.parse(current.payload),

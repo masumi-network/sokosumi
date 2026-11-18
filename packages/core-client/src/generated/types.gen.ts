@@ -11863,6 +11863,11 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    setupGoal?: {
+        pageId: string;
+        expectedRevision: number;
+        action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+    };
     sharedBrief?: {
         revision: number;
         pageIds: Array<string>;

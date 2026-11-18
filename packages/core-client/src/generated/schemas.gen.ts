@@ -46073,12 +46073,50 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 750
             ]
         },
+        setupGoal: {
+            type: 'object',
+            properties: {
+                pageId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                action: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'sign up',
+                        'buy',
+                        'contact sales',
+                        'book',
+                        'subscribe',
+                        'download',
+                        'call',
+                        'visit',
+                        'read',
+                        'none',
+                        null
+                    ]
+                }
+            },
+            required: [
+                'pageId',
+                'expectedRevision',
+                'action'
+            ],
+            additionalProperties: false
+        },
         sharedBrief: {
             type: 'object',
             properties: {
                 revision: {
                     type: 'integer',
-                    exclusiveMinimum: 0
+                    minimum: 0
                 },
                 pageIds: {
                     type: 'array',

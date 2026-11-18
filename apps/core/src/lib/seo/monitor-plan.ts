@@ -67,6 +67,8 @@ export function parseSeoMonitorPlan(
   if (
     !parsed.success ||
     parsed.data.analysis.scopeId ||
+    parsed.data.analysis.setupGoal ||
+    parsed.data.analysis.sharedBrief ||
     !parsed.data.analysis.pageIds?.length ||
     !parsed.data.analysis.coworkerId
   )

@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
-import { SEO_MAX_PAGES, seoIdSchema } from "./project-seo.schema";
+import { SEO_MAX_PAGES, seoBriefAction, seoIdSchema } from "./seo-page.schema";
+
+export { seoBriefAction } from "./seo-page.schema";
 
 import {
   seoBriefOutcome,
@@ -14,18 +16,6 @@ export const seoBriefPageRole = z.enum([
   "support",
   "comparison",
   "other",
-]);
-export const seoBriefAction = z.enum([
-  "sign up",
-  "buy",
-  "contact sales",
-  "book",
-  "subscribe",
-  "download",
-  "call",
-  "visit",
-  "read",
-  "none",
 ]);
 
 export const seoBriefSuggestionQuery = z.strictObject({ pageId: seoIdSchema });
