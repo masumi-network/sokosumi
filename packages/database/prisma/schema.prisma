@@ -479,6 +479,10 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  /// The owner's photo (a Files id) for talking videos they front.
+  presenterFileId         String?                 @db.Uuid
+  /// When the owner confirmed they may use that photo in videos.
+  presenterConsentAt      DateTime?
   seoAudits               SeoAudit[]
   seoPages                ProjectSeoPage[]
   seoScopes               ProjectSeoScope[]

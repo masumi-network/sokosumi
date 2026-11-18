@@ -39,6 +39,7 @@ function mapOverview(overview: CmoOverview) {
     activity: overview.activity,
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
+    presenterSet: overview.presenterSet,
     onboardingStep: overview.onboardingStep,
     routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,

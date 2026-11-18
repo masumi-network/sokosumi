@@ -75,6 +75,7 @@ export const cmoV1: SokoBotVersion = {
     "get_image",
     "generate_video",
     "get_video",
+    "generate_talking_video",
     "generate_voiceover",
     "list_tables",
     "read_table",

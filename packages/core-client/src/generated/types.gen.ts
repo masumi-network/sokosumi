@@ -8657,6 +8657,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -8710,6 +8714,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                script?: string;
+                presenter?: string;
+                voice?: string;
+                languageCode?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -8957,6 +8965,10 @@ export type MarketingStrategyRequest = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -9010,6 +9022,10 @@ export type MarketingStrategyRequest = {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                script?: string;
+                presenter?: string;
+                voice?: string;
+                languageCode?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -10687,6 +10703,10 @@ export type SocialPost = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        script?: string;
+        presenter?: string;
+        voice?: string;
+        languageCode?: string;
         story?: string;
     } | null;
     createdAt: Date;
@@ -12614,6 +12634,7 @@ export type CmoOverview = {
     activity: CmoActivity | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
+    presenterSet: boolean;
     /**
      * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
@@ -13409,6 +13430,10 @@ export type CmoPlan = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        script?: string;
+        presenter?: string;
+        voice?: string;
+        languageCode?: string;
         story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
@@ -13462,6 +13487,10 @@ export type CmoPlan = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -13657,6 +13686,11 @@ export type CmoPlanChange = {
 
 export type CmoCustomerPortal = {
     url: string;
+};
+
+export type CmoPresenterPhoto = {
+    photo: string;
+    consent: true;
 };
 
 export type CmoAdBudgetRequest = {
@@ -86453,6 +86487,175 @@ export type SkipCmoSubscriptionForProjectResponses = {
 };
 
 export type SkipCmoSubscriptionForProjectResponse = SkipCmoSubscriptionForProjectResponses[keyof SkipCmoSubscriptionForProjectResponses];
+
+export type ClearCmoPresenterForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/presenter';
+};
+
+export type ClearCmoPresenterForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ClearCmoPresenterForProjectError = ClearCmoPresenterForProjectErrors[keyof ClearCmoPresenterForProjectErrors];
+
+export type ClearCmoPresenterForProjectResponses = {
+    /**
+     * Photo removed
+     */
+    200: {
+        data: {
+            presenterSet: false;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ClearCmoPresenterForProjectResponse = ClearCmoPresenterForProjectResponses[keyof ClearCmoPresenterForProjectResponses];
+
+export type SetCmoPresenterForProjectData = {
+    body: CmoPresenterPhoto;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/presenter';
+};
+
+export type SetCmoPresenterForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a usable photo
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoPresenterForProjectError = SetCmoPresenterForProjectErrors[keyof SetCmoPresenterForProjectErrors];
+
+export type SetCmoPresenterForProjectResponses = {
+    /**
+     * Photo saved
+     */
+    200: {
+        data: {
+            presenterSet: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoPresenterForProjectResponse = SetCmoPresenterForProjectResponses[keyof SetCmoPresenterForProjectResponses];
 
 export type SetCmoAdBudgetForProjectData = {
     body?: CmoAdBudgetRequest;

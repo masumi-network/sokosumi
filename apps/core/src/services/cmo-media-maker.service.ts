@@ -1,8 +1,15 @@
 import { createHash } from "node:crypto";
 
 import { ProjectImageJobStatus } from "@sokosumi/database";
-import type { CmoCalendarEntry } from "@sokosumi/soko-bot";
-import { CMO_CHANNELS, socialPostMediaKindForMime } from "@sokosumi/utils";
+import {
+  type CmoCalendarEntry,
+  SOKO_BOT_VOICEOVER_VOICES,
+} from "@sokosumi/soko-bot";
+import {
+  CMO_CHANNELS,
+  isCmoTalkingFormat,
+  socialPostMediaKindForMime,
+} from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
@@ -14,6 +21,11 @@ import { recordCoreWarning } from "@/lib/evlog";
 import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import {
+  DEFAULT_TALKING_VIDEO_VOICE,
+  findTalkingVideoPresenter,
+  TALKING_VIDEO_PRESENTERS,
+} from "@/lib/image-studio/talking-video";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -32,6 +44,7 @@ import {
 } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createTalkingVideoJob,
   createVideoJob,
   DEFAULT_SETTINGS,
 } from "@/services/image-studio-jobs.service";
@@ -92,6 +105,7 @@ type Format = {
   name?: string;
   image: boolean;
   video?: boolean;
+  talking?: boolean;
   slides?: readonly [number, number];
 };
 type Channel = { name?: string; formats: Record<string, Format> };
@@ -129,6 +143,22 @@ export function cmoPieceIsVideo(
   return Boolean(formatOf(entry)?.video);
 }
 
+/** Whether the piece is a talking video Core makes from its script. */
+export function cmoPieceIsTalking(
+  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+): boolean {
+  return isCmoTalkingFormat(entry.channel, entry.format);
+}
+
+/** What Core makes a piece's media from: its visual, or a talking video's script. */
+function hasBrief(
+  piece: Pick<CmoMediaPiece, "channel" | "format" | "visual" | "script">,
+): boolean {
+  return Boolean(
+    cmoPieceIsTalking(piece) ? piece.script?.trim() : piece.visual?.trim(),
+  );
+}
+
 /** A piece as the media maker reads it. */
 export interface CmoMediaPiece
   extends Pick<
@@ -143,6 +173,10 @@ export interface CmoMediaPiece
     | "styleReferenceId"
     | "headline"
     | "slides"
+    | "script"
+    | "presenter"
+    | "voice"
+    | "languageCode"
     | "socialPostId"
   > {
   /** What is on it already: a post's file pathnames, a file piece's file ids. */
@@ -154,7 +188,7 @@ export interface CmoMediaJob {
   id: string;
   pieceId: string;
   slot: number;
-  step: "image" | "still" | "video";
+  step: "image" | "still" | "video" | "talking";
   visualKey: string;
   status: ProjectImageJobStatus;
   assetId: string | null;
@@ -190,9 +224,24 @@ export type CmoSlotAction =
 export function cmoVisualKey(
   piece: Pick<
     CmoMediaPiece,
-    "visual" | "visualFileIds" | "slides" | "styleReferenceId" | "headline"
+    | "visual"
+    | "visualFileIds"
+    | "slides"
+    | "styleReferenceId"
+    | "headline"
+    | "script"
+    | "presenter"
+    | "voice"
   >,
 ): string {
+  // A talking video is made from its script and who speaks it.
+  if (piece.script?.trim())
+    return createHash("sha256")
+      .update(
+        `talking|${piece.script.trim()}|${piece.presenter ?? ""}|${piece.voice ?? ""}`,
+      )
+      .digest("hex")
+      .slice(0, 10);
   // A style or headline joins the key only when set, so the keys of pieces
   // made before them do not change.
   const style = piece.styleReferenceId
@@ -249,6 +298,7 @@ export function cmoSlotAction(
       sourceAssetId,
     };
   };
+  if (cmoPieceIsTalking(piece)) return next("talking", null);
   if (!cmoPieceIsVideo(piece)) return next("image", null);
   // A video animates a still made from the brand's own pictures: the still
   // first, then the video from it, each retried on its own.
@@ -264,7 +314,7 @@ export function cmoMediaState(
 ): CmoMediaState {
   if (!cmoPieceNeedsMedia(piece) || piece.media.length >= slotsOf(piece))
     return "made";
-  if (!piece.visual?.trim()) return "no_visual";
+  if (!hasBrief(piece)) return "no_visual";
   const key = cmoVisualKey(piece);
   for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
     const action = cmoSlotAction(
@@ -324,7 +374,10 @@ export async function listCmoMediaJobs(
     if (
       !pieceId ||
       !visualKey ||
-      (step !== "image" && step !== "still" && step !== "video")
+      (step !== "image" &&
+        step !== "still" &&
+        step !== "video" &&
+        step !== "talking")
     )
       return [];
     return [
@@ -480,7 +533,7 @@ export async function advanceCmoMedia(
     (piece) =>
       piece.status !== "published" &&
       piece.status !== "skipped" &&
-      piece.visual?.trim() &&
+      hasBrief(piece) &&
       cmoMediaState(piece, []) !== "made",
   );
   // A post whose words changed after its picture went on is back to a
@@ -532,7 +585,9 @@ export async function advanceCmoMedia(
             drive,
             piece,
             action.job,
-            styled(piece) && action.job.step !== "video"
+            styled(piece) &&
+              action.job.step !== "video" &&
+              action.job.step !== "talking"
               ? await brandFor()
               : null,
           );
@@ -546,9 +601,11 @@ export async function advanceCmoMedia(
         slot,
         action,
         references:
-          action.step === "video" ? [] : references(piece, brandPictures),
+          action.step === "video" || action.step === "talking"
+            ? []
+            : references(piece, brandPictures),
         colours:
-          styled(piece) && action.step !== "video"
+          styled(piece) && action.step !== "video" && action.step !== "talking"
             ? (await brandFor()).colours
             : [],
       });
@@ -557,6 +614,51 @@ export async function advanceCmoMedia(
       capacity = started ? capacity - 1 : 0;
     }
   }
+}
+
+/**
+ * Who speaks a talking video. The owner's photo needs their recorded
+ * consent; without it, or with a presenter or voice no catalog has, a stock
+ * presenter and voice speak instead, so the month is not held up.
+ */
+async function talkingVoiceAndPresenter(
+  context: MediaContext,
+  drive: { workspaceId: string; userId: string },
+  piece: CmoMediaPiece,
+) {
+  const voice = (SOKO_BOT_VOICEOVER_VOICES as readonly string[]).includes(
+    piece.voice ?? "",
+  )
+    ? (piece.voice as (typeof SOKO_BOT_VOICEOVER_VOICES)[number])
+    : DEFAULT_TALKING_VIDEO_VOICE;
+  if (piece.presenter === "owner") {
+    const project = await prisma.project.findUnique({
+      where: { id: context.cuso.projectId },
+      select: {
+        presenterFileId: true,
+        presenterConsentAt: true,
+        workspace: { select: { organizationId: true } },
+      },
+    });
+    if (project?.presenterFileId && project.presenterConsentAt)
+      return {
+        voice,
+        presenter: {
+          kind: "file" as const,
+          fileId: project.presenterFileId,
+          consentAt: project.presenterConsentAt,
+          actor: {
+            kind: "soko_bot" as const,
+            userId: drive.userId,
+            organizationId: project.workspace.organizationId,
+          },
+        },
+      };
+  }
+  const stock =
+    findTalkingVideoPresenter(piece.presenter ?? "") ??
+    TALKING_VIDEO_PRESENTERS[0]!;
+  return { voice, presenter: { kind: "stock" as const, id: stock.id } };
 }
 
 /** Starts one job; false when the studio refused (credits, the limit). */
@@ -588,6 +690,18 @@ async function start(
     idempotencyKey,
   };
   try {
+    if (action.step === "talking") {
+      await createTalkingVideoJob({
+        projectId: scope.projectId,
+        workspaceId: scope.workspaceId,
+        userId: scope.userId,
+        idempotencyKey,
+        script: piece.script?.trim() ?? "",
+        ...(await talkingVoiceAndPresenter(context, drive, piece)),
+        languageCode: piece.languageCode ?? "en",
+      });
+      return true;
+    }
     if (action.step === "video") {
       if (!action.sourceAssetId) return true;
       await createVideoJob({

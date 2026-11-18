@@ -162,6 +162,7 @@ export {
   CMO_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";

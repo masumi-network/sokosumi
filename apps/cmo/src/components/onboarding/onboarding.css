@@ -2730,3 +2730,22 @@ body:has(.ob) .site-header {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
+
+.ob-presenter {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px;
+}
+
+.ob-presenter-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ob-presenter-consent input {
+  margin-top: 2px;
+}
