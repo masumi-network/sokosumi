@@ -1156,6 +1156,35 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
     : null;
 }
 
+/**
+ * A no the strategy does not show yet (CMO's `planUnfitted`): Core clears
+ * `changes` when a new or changed no lands, and Cuso's fit fills it again.
+ */
+export function cmoStrategyUnfitted(plan: unknown): boolean {
+  const parsed = parseMarketingPlan(plan);
+  return (
+    parsed !== null &&
+    parsed.questions.some((question) => question.answer === "no") &&
+    (parsed.changes ?? []).length === 0
+  );
+}
+
+/** The owner approves what they read: never a strategy that still shows an answer they said no to. */
+export async function requireCmoStrategyFitted(
+  cuso: Pick<Cuso, "projectId">,
+  strategyId: string,
+): Promise<void> {
+  const version = await prisma.marketingStrategy.findFirst({
+    where: { id: strategyId, projectId: cuso.projectId },
+    select: { plan: true, approvedAt: true },
+  });
+  if (version && !version.approvedAt && cmoStrategyUnfitted(version.plan)) {
+    throw new CmoConflictError(
+      "You answered no to one of the checks. Update the strategy first, then approve it.",
+    );
+  }
+}
+
 /** Cuso patches the plan where the owner's answers say it was wrong. */
 export async function applyCmoPlanAnswers(
   target: CusoTarget,
