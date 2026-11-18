@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { ForesightManager } from "js.foresight";
 import type { ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ROOM_APPROACH_REUSE_MS } from "@/app/chat/utils/room-transcript-cache";
 import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
@@ -379,6 +380,20 @@ describe("app chrome while a room paints ahead of its route", () => {
 
     await waitFor(() => expect(chromePath()).toBe("/chat"));
     expect(mockPathname()).toBe("/chat/rooms/room-b");
+  });
+
+  // A room URL opened directly renders on the server first; a throw there
+  // drops the page to client rendering (React error 419).
+  it("renders on the server", () => {
+    mockPathname.mockImplementation(() => "/chat/rooms/room-b");
+
+    const html = renderToString(
+      <CacheWrapper>
+        <ChromePath />
+      </CacheWrapper>,
+    );
+
+    expect(html).toContain("/chat/rooms/room-b");
   });
 
   it("follows the route outside a painted room", () => {

@@ -175,6 +175,8 @@ function PaintedRoomProvider({
       requestedId
         ? cache.client.getQueryData<RoomTranscriptEntry>(cache.key(requestedId))
         : undefined,
+    // The server and hydration have no click read to wait for.
+    () => undefined,
   );
   const [paintedId, setPaintedId] = useState(requestedId);
   // A click updates the target before the next page can register. Painting
