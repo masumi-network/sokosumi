@@ -27,18 +27,41 @@ const timingSchema = z.object({
   end_time: z.number().optional(),
 });
 
-/** One timing in a shape we know, or null for one we don't. */
-function readTiming(
-  raw: unknown,
-): { text: string; start: number; end: number } | null {
+/** fal's ElevenLabs answer: chunks of characters with their times beside them. */
+const chunkSchema = z.object({
+  characters: z.array(z.string()),
+  character_start_times_seconds: z.array(z.number()),
+  character_end_times_seconds: z.array(z.number()),
+});
+
+interface Timing {
+  text: string;
+  start: number;
+  end: number;
+}
+
+/** The timings in one item, or none for a shape we don't know. */
+function readTimings(raw: unknown): Timing[] {
+  const chunk = chunkSchema.safeParse(raw);
+  if (chunk.success) {
+    const starts = chunk.data.character_start_times_seconds;
+    const ends = chunk.data.character_end_times_seconds;
+    return chunk.data.characters.flatMap((text, index) => {
+      const start = starts[index];
+      const end = ends[index];
+      return start === undefined || end === undefined
+        ? []
+        : [{ text, start, end }];
+    });
+  }
   const parsed = timingSchema.safeParse(raw);
-  if (!parsed.success) return null;
+  if (!parsed.success) return [];
   const { text, word, character, start, start_time, end, end_time } =
     parsed.data;
   const begins = start ?? start_time;
   const ends = end ?? end_time;
-  if (begins === undefined || ends === undefined) return null;
-  return { text: text ?? word ?? character ?? "", start: begins, end: ends };
+  if (begins === undefined || ends === undefined) return [];
+  return [{ text: text ?? word ?? character ?? "", start: begins, end: ends }];
 }
 
 /** Answers fal gives before any model runs, so nothing is charged. */
@@ -94,9 +117,7 @@ export async function speakVoiceover(input: {
     MAX_AUDIO_BYTES,
     "audio/mpeg",
   );
-  const timings = (parsed.data.timestamps ?? [])
-    .map(readTiming)
-    .filter((timing) => timing !== null);
+  const timings = (parsed.data.timestamps ?? []).flatMap(readTimings);
   return {
     bytes,
     costUsd: (input.text.length / 1000) * USD_PER_1000_CHARACTERS,
