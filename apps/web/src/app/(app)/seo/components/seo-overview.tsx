@@ -12,7 +12,6 @@ import {
   seoOverviewModel,
 } from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
-import { seoCheckRunning } from "./seo-setup-model";
 import {
   SeoDate,
   SeoPageLink,
@@ -25,7 +24,6 @@ import {
   seoSiteUrl,
 } from "./seo-shared";
 import { useSeoTileDay } from "./seo-summary-tiles";
-import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** The words that start every row of a list ("Not passed:"): quiet, so the part that differs leads. */
@@ -39,7 +37,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const { data } = model;
   const overview = seoOverviewModel(data);
   const sameDayAsTile = useSeoTileDay(data);
-  const checkRunning = seoCheckRunning(data);
   // The check's own time; its rows may carry later times per device.
   const checkedAt = (finding: Parameters<typeof seoCheckedAt>[1]) =>
     seoCheckedAt(data, finding);
@@ -201,19 +198,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         </SeoSection>
       ) : null}
       <SeoPages model={model} />
-      {/* History is the last block of the tab: the issues and the pages are the result. The page details close the Actions list. */}
-      <SeoTimeline
-        // With several pages each page row gives its last check: its issues, and its day and the results link
-        // when the check is not the one the tests tile dates and links.
-        // With one page only the History row links the results.
-        summarized={data.pages.length > 1}
-        workspace={data}
-        onRetry={
-          data.availableActions.canRequestAnalysis && !checkRunning
-            ? () => model.setDialog("analysis")
-            : undefined
-        }
-      />
     </div>
   );
 }

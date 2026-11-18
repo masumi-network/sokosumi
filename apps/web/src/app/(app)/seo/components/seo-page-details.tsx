@@ -309,7 +309,7 @@ export function SeoPageDetails({
   const t = useTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
-  // History rows carry their own check's coverage; only checks without a row are listed here.
+  // The details of a day of the runs row carry each check's coverage; only checks without a row there are listed here.
   const onTimeline = new Set(data.timeline.map((event) => event.observationId));
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
@@ -428,7 +428,7 @@ export function SeoPageDetails({
       </summary>
       <div className="border-border space-y-5 border-t p-4">
         {oneCheck ? (
-          // The date of the tests tile, the check's History row or its page card links its results.
+          // The date of the tests tile, the check's row in the details of its day or its page card links its results.
           <p className="text-muted-foreground text-xs">
             {t.rich("overview.fromCheck", {
               date: () => <SeoDate value={oneCheckAt} />,
