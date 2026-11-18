@@ -9,6 +9,7 @@ const price = {
   perSecondUsd: 0.05,
   voicePer1000CharactersUsd: 0.08,
   captionsPerMinuteUsd: 0.03,
+  cutoutPerSecondUsd: 0.0067,
 };
 
 describe("talkingVideoQuotedSeconds", () => {
@@ -35,6 +36,13 @@ describe("creditsPerTalkingVideoCents", () => {
   it("charges a short video by its seconds, with no minimum", () => {
     // 3 s: 15 cents of video, 0.31 of voice, 0.15 of captions.
     expect(creditsPerTalkingVideoCents(price, "a".repeat(39))).toBe(16);
+  });
+
+  it("adds the cut-out when the site is shown", () => {
+    // 10 s: 6.7 cents on top of 51.54.
+    expect(
+      creditsPerTalkingVideoCents(price, "a".repeat(130), { siteShots: true }),
+    ).toBe(59);
   });
 
   it("doubles the video part on a model at twice the price", () => {
