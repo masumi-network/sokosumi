@@ -200,6 +200,12 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
+    sharedBrief: z
+      .strictObject({
+        revision: z.number().int().positive(),
+        pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
+      })
+      .optional(),
     fullAuditLimits: z
       .object({
         usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),

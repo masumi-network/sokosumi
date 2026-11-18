@@ -45412,6 +45412,29 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 750
             ]
         },
+        sharedBrief: {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    minItems: 1,
+                    maxItems: 10
+                }
+            },
+            required: [
+                'revision',
+                'pageIds'
+            ],
+            additionalProperties: false
+        },
         fullAuditLimits: {
             type: 'object',
             properties: {
@@ -45755,6 +45778,349 @@ export const SaveProjectSeoBrandTermsRequestSchema = {
     },
     required: [
         'terms'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoAuditBriefSchema = {
+    type: 'object',
+    properties: {
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sales',
+                'traffic',
+                'support',
+                null
+            ]
+        },
+        audience: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        constraints: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 600
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'guide',
+                            'product',
+                            'pricing',
+                            'support',
+                            'comparison',
+                            'other',
+                            null
+                        ]
+                    },
+                    job: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    action: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'sign up',
+                            'buy',
+                            'contact sales',
+                            'book',
+                            'subscribe',
+                            'download',
+                            'call',
+                            'visit',
+                            'read',
+                            'none',
+                            null
+                        ]
+                    },
+                    indexIntent: {
+                        type: 'string',
+                        enum: [
+                            'index',
+                            'exclude',
+                            'unknown'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'role',
+                    'job',
+                    'action',
+                    'indexIntent'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        updatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        followUps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    changedAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    lastCrawlAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'awaiting_recrawl',
+                            'recrawled',
+                            'unknown'
+                        ]
+                    },
+                    indexReview: {
+                        type: 'string',
+                        enum: [
+                            'expected_exclusion',
+                            'review_exclusion',
+                            'review_indexing',
+                            'unknown',
+                            'matches_intent'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'changedAt',
+                    'lastCrawlAt',
+                    'status',
+                    'indexReview'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        priorities: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    why: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    nextStep: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'pageId',
+                    'why',
+                    'nextStep'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'objective',
+        'audience',
+        'outcome',
+        'constraints',
+        'pages',
+        'revision',
+        'updatedAt',
+        'followUps',
+        'priorities'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SaveSeoAuditBriefRequestSchema = {
+    type: 'object',
+    properties: {
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sales',
+                'traffic',
+                'support',
+                null
+            ]
+        },
+        audience: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        constraints: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 600
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'guide',
+                            'product',
+                            'pricing',
+                            'support',
+                            'comparison',
+                            'other',
+                            null
+                        ]
+                    },
+                    job: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    action: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'sign up',
+                            'buy',
+                            'contact sales',
+                            'book',
+                            'subscribe',
+                            'download',
+                            'call',
+                            'visit',
+                            'read',
+                            'none',
+                            null
+                        ]
+                    },
+                    indexIntent: {
+                        type: 'string',
+                        enum: [
+                            'index',
+                            'exclude',
+                            'unknown'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'role',
+                    'job',
+                    'action',
+                    'indexIntent'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'objective',
+        'audience',
+        'outcome',
+        'constraints',
+        'pages',
+        'expectedRevision'
     ],
     additionalProperties: false
 } as const;

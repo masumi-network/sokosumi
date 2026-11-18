@@ -50,6 +50,8 @@ export async function createProjectSeoMonitor(
 ) {
   if (actor.sokoBotId)
     throw forbidden("A person must approve recurring public SEO work");
+  if (input.analysis.sharedBrief)
+    throw badRequest("Share page goals for one full audit at a time");
   requireSeoAnalysisDispatch();
   const owner = await requireSeoOwner(actor, prisma, true);
   const executor = await requireSeoAnalysisExecutor(actor, input.analysis);
