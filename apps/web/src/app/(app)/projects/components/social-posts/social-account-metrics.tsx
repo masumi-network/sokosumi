@@ -45,7 +45,7 @@ const ACCOUNT_METRIC_LABELS: Record<string, string> = {
   crossposted_views: "crosspostedViews",
 };
 
-interface SocialAccountMetricsProps {
+interface SocialMetricTilesProps {
   metrics: SocialAccountMetric[];
   showLifetime?: boolean;
 }
@@ -53,7 +53,7 @@ interface SocialAccountMetricsProps {
 export function SocialMetricTiles({
   metrics,
   showLifetime = true,
-}: SocialAccountMetricsProps) {
+}: SocialMetricTilesProps) {
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const formatter = useFormatter();
 
@@ -104,13 +104,5 @@ export function SocialMetricTiles({
         );
       })}
     </>
-  );
-}
-
-export function SocialAccountMetrics(props: SocialAccountMetricsProps) {
-  return (
-    <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-      <SocialMetricTiles {...props} />
-    </dl>
   );
 }
