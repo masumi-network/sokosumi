@@ -12,7 +12,7 @@ import {
 } from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
-function taskNotificationPayload(task: {
+export function taskNotificationPayload(task: {
   name: string | null;
   projectId: string | null;
   workspaceId: string | null;
@@ -362,8 +362,8 @@ export async function notifyTaskParticipantsAdded(
 
 /**
  * Null when the Task is archived or settled after the mentioning event.
- * Missing TaskEvent (self-join synthetic eventId) still alerts when the Task
- * is not archived and its current status is not settled.
+ * A missing TaskEvent still alerts when the Task is not archived and its
+ * current status is not settled.
  */
 async function findTaskForParticipantAlert(
   taskId: string,

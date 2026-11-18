@@ -17,6 +17,7 @@ import { dispatchOtherTools } from "./dispatch-other";
 import { dispatchSchedulesTools } from "./dispatch-schedules";
 import { dispatchSocialTools } from "./dispatch-social";
 import { dispatchTablesTools } from "./dispatch-tables";
+import { dispatchTaskInterestTools } from "./dispatch-task-interest";
 import { dispatchTasksTools } from "./dispatch-tasks";
 import { type RuntimeOperations } from "./operations";
 
@@ -140,6 +141,9 @@ export async function executeAuthorizedTool(
     case "write_table_rows":
     case "update_table_columns":
       return dispatchTablesTools(runtime, input, authorized);
+    case "list_followed_tasks":
+    case "stop_following_task":
+      return dispatchTaskInterestTools(runtime, input, authorized);
     case "create_task":
     case "update_task":
     case "archive_task":

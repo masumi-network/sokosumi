@@ -5,8 +5,10 @@ import { TaskVisibility } from "@sokosumi/core-client";
 import type { Session, SubscriptionPlanName } from "@sokosumi/utils";
 import { cacheLife } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
+import type { ViewerSokoBotFace } from "@/app/tasks/components/task-follow-control";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { getPrivateCachedSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
@@ -69,6 +71,37 @@ async function getPrivateCachedViewerPlan(
   return resolveTaskDetailViewerPlan(forceReadOnly, session, organizationId);
 }
 
+/** The face a read failure shows: the default Soko Bot orb. */
+const UNKNOWN_SOKO_BOT_FACE: ViewerSokoBotFace = {
+  imageUrl: null,
+  avatarCode: null,
+  seed: "soko-bot",
+};
+
+/**
+ * The viewer's personal Soko Bot here, as a face; Core answers 404 for none.
+ * The activity read, not the full state: it is one small indexed read.
+ */
+async function getPrivateCachedViewerSokoBot(): Promise<ViewerSokoBotFace | null> {
+  "use cache: private";
+  cacheLife({ stale: PREFETCHED_CONTENT_STALE_SECONDS });
+  try {
+    const { data: bot } = await coreClient.getMySokoBotActivity();
+    // A Core that predates the face fields: a bot, with the default face.
+    if (!bot.id) return UNKNOWN_SOKO_BOT_FACE;
+    return {
+      imageUrl: bot.avatarImageUrl,
+      avatarCode: bot.avatarCode,
+      seed: botFaceSeed(bot, bot.userId),
+    };
+  } catch (error) {
+    if (error instanceof CoreApiRequestError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function getPrivateCachedMentionableMembers(
   organizationId: string | null,
 ): Promise<MentionableMembers> {
@@ -113,6 +146,15 @@ export function startPrivateTaskDetailReads(
       forceReadOnly || task.visibility === TaskVisibility.PRIVATE
         ? Promise.resolve<MentionableMembers>([])
         : getPrivateCachedMentionableMembers(organizationId),
+    // Read-only views show no follow control.
+    // Any failure but "no bot" offers to follow rather than sending the
+    // viewer to setup; kept outside the cache, as above.
+    viewerSokoBotPromise: forceReadOnly
+      ? Promise.resolve(null)
+      : getPrivateCachedViewerSokoBot().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return UNKNOWN_SOKO_BOT_FACE;
+        }),
     projectPromise: task.projectId
       ? getPrivateCachedProject(task.projectId).catch(() => null)
       : Promise.resolve(null),

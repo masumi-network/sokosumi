@@ -350,6 +350,8 @@ export async function postSokoBotOwnerNotice(input: {
   content: string;
   key: string;
   mentionUserId?: string | null;
+  /** Push the owner's Direct row unless they turned that push off. */
+  osBannerDefaultOn?: boolean;
 }): Promise<{ messageId: string } | null> {
   const bot = await prisma.sokoBot.findFirst({
     where: { id: input.sokoBotId, archivedAt: null },
@@ -394,6 +396,7 @@ export async function postSokoBotOwnerNotice(input: {
   await emitChatMessageNotifications({
     messageId: message.id,
     mentionedUserIds: room.mentionUserId === null ? [] : [room.mentionUserId],
+    ...(input.osBannerDefaultOn ? { osBannerDefaultOn: true } : {}),
   });
   return { messageId: message.id };
 }

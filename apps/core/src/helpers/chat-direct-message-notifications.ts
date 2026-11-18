@@ -35,6 +35,12 @@ export interface EmitChatDirectMessageNotificationsParams {
   mentionedUserIds?: readonly string[];
   /** The Thread this message replies in, so muted readers are left out. */
   parentMessageId?: string | null;
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 /**

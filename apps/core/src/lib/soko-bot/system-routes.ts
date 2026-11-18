@@ -86,6 +86,12 @@ export const SYSTEM_TURN_ROUTES = {
     writeScope: "MEMORY",
     reason: "End of day: summarise and note priorities.",
   },
+  /** A Task the owner follows completed: read it and report, change nothing. */
+  "task-summary": {
+    route: "DIRECT_RESPONSE",
+    reason:
+      "Task summary: report what a followed Task delivered, change nothing.",
+  },
   /** Offers drafts in chat; sending stays the owner's. */
   "follow-ups": {
     route: "DIRECT_RESPONSE",
@@ -196,3 +202,9 @@ export function withOwnScheduleTools(
 ): SokoBotCapability[] {
   return [...new Set([...capabilities, ...OWN_SCHEDULE_CAPABILITIES])];
 }
+
+/**
+ * Client turn id prefix of a followed Task's completion summary. Its reply
+ * pushes like a Direct the owner never turned off, as other Task notices do.
+ */
+export const TASK_SUMMARY_CLIENT_TURN_PREFIX = "task-interest:";

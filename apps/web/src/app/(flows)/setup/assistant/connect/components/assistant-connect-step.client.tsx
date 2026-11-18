@@ -22,8 +22,8 @@ interface AssistantConnectStepProps {
   botImageUrl: string | null;
   botOrbSeed: string;
   offers: SokoBotConnectOffer[];
-  /** The bot's chat, where this step ends. */
-  chatUrl: string;
+  /** Where this step ends: the bot's chat, or the Task being followed. */
+  doneUrl: string;
   /** This page, where OAuth comes back to. */
   returnTo: string;
 }
@@ -34,7 +34,7 @@ export function AssistantConnectStep({
   botImageUrl,
   botOrbSeed,
   offers,
-  chatUrl,
+  doneUrl,
   returnTo,
 }: AssistantConnectStepProps) {
   const t = useTranslations("WorkspaceGate.Assistant");
@@ -97,7 +97,7 @@ export function AssistantConnectStep({
         variant={anyConnected ? "default" : "ghost"}
         className="w-full"
       >
-        <Link href={chatUrl} replace>
+        <Link href={doneUrl} replace>
           {t(anyConnected ? "continue" : "skip")}
         </Link>
       </Button>
