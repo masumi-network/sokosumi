@@ -19,6 +19,7 @@ import {
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
@@ -441,6 +442,31 @@ export async function prepareCmoChatCase(
     ids[comment.key] = created.id;
   }
   return { comments: ids };
+}
+
+/**
+ * The picture of the chat post case: started as a job with a reference
+ * library image. No check where the library is not set up.
+ */
+export async function styledPictureChecks(
+  lane: EvalLaneRecord,
+  since: Date,
+): Promise<ScenarioCheck[]> {
+  if (!referenceLibraryAvailable()) return [];
+  const styled = await prisma.projectImageJob.count({
+    where: {
+      projectId: lane.cusoProjectId,
+      createdAt: { gte: since },
+      referenceLibraryIds: { isEmpty: false },
+    },
+  });
+  return [
+    {
+      label: "Starts the picture in a reference library style",
+      pass: styled > 0,
+      actual: `${styled} styled job${styled === 1 ? "" : "s"}`,
+    },
+  ];
 }
 
 /**
