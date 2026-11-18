@@ -5622,7 +5622,8 @@
       "thisWeek": {
         "title": "This week",
         "checked": "Check of {date}",
-        "none": "No summary yet. Everything the checks find is listed below with its source.",
+        "none": "No summary yet. Ask a Soko Bot to write up this week's competitor moves; everything the checks find is listed below with its source.",
+        "noneReadOnly": "No summary yet. Everything the checks find is listed below with its source.",
         "quiet": "A quiet week: nothing to report.",
         "unknown": "A competitor",
         "big": "Big move",
