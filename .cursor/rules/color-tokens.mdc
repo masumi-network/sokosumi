@@ -13,7 +13,8 @@ value.
 The values follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide)
 (section 5.2). Iris Flower `--primary` is a fill that carries Neutral 950
 text; it is never text, a border or a thin mark on the page, where it
-measures 2.67:1. The staff-only preview at `/admin/design-system` paints the
+measures 2.67:1. The navigation progress bar is the one exception
+(`apps/web/DESIGN.md`, **Motion**). The staff-only preview at `/admin/design-system` paints the
 guide's raw swatches from `tokens.ts` beside it; that table is not product UI
 and its values are never copied into components.
 

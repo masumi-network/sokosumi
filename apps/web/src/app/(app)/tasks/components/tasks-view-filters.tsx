@@ -2,9 +2,11 @@
 
 import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 import {
+  AtSign,
   Building2,
   CircleDashed,
   Eye,
+  Hand,
   Hourglass,
   Tag,
   Users,
@@ -34,24 +36,34 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { cn } from "@/lib/utils";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
 
 /**
  * Focuses the first visible toolbar button outside the chip list. A removed
  * chip or a cleared empty state unmounts the focused button, which would
- * otherwise drop keyboard focus to the page.
+ * otherwise drop keyboard focus to the page. The Filters menu is preferred:
+ * a quick filter is a toggle, and one more press there would set a filter.
  */
 export function focusToolbarControl(toolbar: Element | null | undefined) {
-  Array.from(toolbar?.querySelectorAll("button") ?? [])
-    .find((button) => !button.closest("ul") && button.offsetParent !== null)
-    ?.focus();
+  const buttons = Array.from(toolbar?.querySelectorAll("button") ?? []).filter(
+    (button) => !button.closest("ul") && button.offsetParent !== null,
+  );
+  (
+    buttons.find((button) => button.closest(`[${FILTERS_MENU_ATTRIBUTE}]`)) ??
+    buttons[0]
+  )?.focus();
 }
+
+const FILTERS_MENU_ATTRIBUTE = "data-filters-menu";
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
   /** The viewer, for the My tasks toggle; hidden when they are not an option. */
   userId?: string | null;
+  /** The Display control, shown after the quick filters. */
+  display?: React.ReactNode;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -76,6 +88,7 @@ interface TasksViewFiltersProps {
 export function TasksViewFilters({
   activeOrganizationId,
   userId,
+  display,
   coworkerOptions,
   projectOptions,
   labels,
@@ -161,26 +174,30 @@ export function TasksViewFilters({
     const nextSections: FilterDropdownMenuSection[] = [];
 
     if (activeOrganizationId !== null) {
-      nextSections.push({
-        id: "scope",
-        label: labels.scopeLabel,
-        icon: Building2,
-        value: filters.scope,
-        onChange: (scope) =>
-          handleFilterChange({
-            scope: (scope as TasksFilters["scope"]) ?? "workspace",
-          }),
-        options: [
-          {
-            value: "workspace",
-            label: labels.scopeWorkspace,
-          },
-          {
-            value: "owned",
-            label: labels.scopeOwned,
-          },
-        ],
-      });
+      // Needs me reads the reader's own Tasks, so a scope has no effect.
+      // Mentions reads the whole workspace, so it has none there either.
+      if (!filters.needsMe && !filters.mentions) {
+        nextSections.push({
+          id: "scope",
+          label: labels.scopeLabel,
+          icon: Building2,
+          value: filters.scope,
+          onChange: (scope) =>
+            handleFilterChange({
+              scope: (scope as TasksFilters["scope"]) ?? "workspace",
+            }),
+          options: [
+            {
+              value: "workspace",
+              label: labels.scopeWorkspace,
+            },
+            {
+              value: "owned",
+              label: labels.scopeOwned,
+            },
+          ],
+        });
+      }
 
       nextSections.push({
         id: "visibility",
@@ -306,13 +323,18 @@ export function TasksViewFilters({
   const assigneeId =
     filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId;
   const chips = [
-    filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
-      id: "scope",
-      label: labels.scopeLabel,
-      value:
-        filters.scope === "owned" ? labels.scopeOwned : labels.scopeWorkspace,
-      clear: { scope: getDefaultTasksScope(activeOrganizationId) },
-    },
+    // Needs me reads the reader's own Tasks whatever the scope says, so the
+    // scope chip would name a scope that is not the one shown. Mentions
+    // reads the whole workspace, with the same result.
+    !filters.needsMe &&
+      !filters.mentions &&
+      filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
+        id: "scope",
+        label: labels.scopeLabel,
+        value:
+          filters.scope === "owned" ? labels.scopeOwned : labels.scopeWorkspace,
+        clear: { scope: getDefaultTasksScope(activeOrganizationId) },
+      },
     filters.visibility === TaskVisibility.PRIVATE && {
       id: "visibility",
       label: labels.visibilityLabel,
@@ -348,7 +370,84 @@ export function TasksViewFilters({
   ].filter((chip) => !!chip);
 
   return (
-    <>
+    // Anchored to the board's left edge: the quick filters first, then how
+    // the Tasks are shown, then what is active, because those are what a
+    // reader changes most. Chips wrap under them. The menu holds the rest
+    // and sits at the right edge.
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      {me ? (
+        <Button
+          variant={showingMine ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={showingMine}
+          // On is a fill and an outline: the fill alone is too close to the
+          // page to read as pressed.
+          className={cn("ps-1.5", showingMine && "border-control-border")}
+          onClick={() =>
+            handleFilterChange({
+              assigneeId: null,
+              assigneeSokoBotId: null,
+              assigneeUserId: showingMine ? null : (userId ?? null),
+            })
+          }
+        >
+          <Avatar aria-hidden className="size-5 shrink-0">
+            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
+            <AvatarFallback className="bg-muted text-2xs font-medium">
+              {me.name.trim().charAt(0).toUpperCase() || "?"}
+            </AvatarFallback>
+          </Avatar>
+          {labels.assignedToMe}
+        </Button>
+      ) : null}
+      <Button
+        variant={filters.stuck ? "secondary" : "ghost"}
+        size="sm"
+        aria-pressed={filters.stuck}
+        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
+        className={cn("hit-area", filters.stuck && "border-control-border")}
+        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
+      >
+        <Hourglass aria-hidden />
+        {/* Icon only on a phone, so the toolbar stays one row. */}
+        <span className="max-sm:sr-only">
+          {t("stuck", { days: STUCK_AFTER_DAYS })}
+        </span>
+      </Button>
+      {userId ? (
+        <Button
+          variant={filters.needsMe ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={!!filters.needsMe}
+          title={t("needsMeHint")}
+          className={cn("hit-area", filters.needsMe && "border-control-border")}
+          onClick={() => handleFilterChange({ needsMe: !filters.needsMe })}
+        >
+          <Hand aria-hidden />
+          {/* Icon only below lg, so the toolbar stays one row beside an
+              open sidebar. */}
+          <span className="max-lg:sr-only">{t("needsMe")}</span>
+        </Button>
+      ) : null}
+      {userId ? (
+        <Button
+          variant={filters.mentions ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={!!filters.mentions}
+          title={t("mentionsHint")}
+          className={cn(
+            "hit-area",
+            filters.mentions && "border-control-border",
+          )}
+          onClick={() => handleFilterChange({ mentions: !filters.mentions })}
+        >
+          <AtSign aria-hidden />
+          {/* Icon only below lg, so the toolbar stays one row beside an
+              open sidebar. */}
+          <span className="max-lg:sr-only">{t("mentions")}</span>
+        </Button>
+      ) : null}
+      {display}
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -356,7 +455,7 @@ export function TasksViewFilters({
             return (
               <li
                 key={chip.id}
-                className="bg-muted text-foreground inline-flex min-w-0 items-center rounded-full ps-3 text-sm"
+                className="bg-muted text-foreground inline-flex min-h-8 min-w-0 items-center rounded-full ps-3 text-sm"
               >
                 {chip.id === "tag" && filters.tag && (
                   <span className="me-1.5 flex">
@@ -379,46 +478,16 @@ export function TasksViewFilters({
           })}
         </ul>
       ) : null}
-      {me ? (
-        <Button
-          variant={showingMine ? "secondary" : "outline"}
-          size="sm"
-          aria-pressed={showingMine}
-          className="ps-1.5"
-          onClick={() =>
-            handleFilterChange({
-              assigneeId: null,
-              assigneeSokoBotId: null,
-              assigneeUserId: showingMine ? null : (userId ?? null),
-            })
-          }
-        >
-          <Avatar aria-hidden className="size-5 shrink-0">
-            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
-            <AvatarFallback className="bg-muted text-2xs font-medium">
-              {me.name.trim().charAt(0).toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-          {labels.assignedToMe}
-        </Button>
-      ) : null}
-      <Button
-        variant={filters.stuck ? "secondary" : "outline"}
-        size="sm"
-        aria-pressed={filters.stuck}
-        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
-        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
-      >
-        <Hourglass aria-hidden />
-        {t("stuck", { days: STUCK_AFTER_DAYS })}
-      </Button>
-      <FilterDropdownMenu
-        buttonLabel={labels.title}
-        searchPlaceholder={labels.searchPlaceholder}
-        emptyResultsLabel={labels.emptyResults}
-        sections={sections}
-        showActiveIndicator={showActiveIndicator}
-      />
-    </>
+      <span className="ms-auto flex" data-filters-menu>
+        <FilterDropdownMenu
+          buttonLabel={labels.title}
+          searchPlaceholder={labels.searchPlaceholder}
+          emptyResultsLabel={labels.emptyResults}
+          sections={sections}
+          showActiveIndicator={showActiveIndicator}
+          align="end"
+        />
+      </span>
+    </div>
   );
 }

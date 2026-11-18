@@ -159,8 +159,8 @@ export function HistorySearchDialog({
         // keyboard does not cover the results.
         className:
           "max-sm:top-[calc(env(safe-area-inset-top)+1rem)] max-sm:translate-y-0",
-        onCloseAutoFocus: handleCloseAutoFocus,
       }}
+      onCloseAutoFocus={handleCloseAutoFocus}
     >
       <CommandInput
         placeholder={labels.searchPlaceholder}

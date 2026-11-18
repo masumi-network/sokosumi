@@ -1,30 +1,20 @@
 import { randomUUID } from "node:crypto";
-
 import { SokoBotTurnStatus } from "@sokosumi/database";
-
 import { getEnv } from "@/config/env";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
-  SOKO_BOT_START_RECOVERY_GRACE_MS,
+  ACTIVE_TURN_STATUSES,
   sokoBotControlPlane,
+  staleTurnLeaseWhere,
+  startRecoveryEligibility,
+  TURN_LEASE_MS,
 } from "@/services/soko-bot-control-plane.service";
 
 const BATCH_SIZE = 20;
-const TURN_LEASE_MS = 16 * 60 * 1_000;
-export const SOKO_BOT_TURN_STALE_HEARTBEAT_MS = 45_000;
-export const SOKO_BOT_TURN_STARTING_GRACE_MS = 30_000;
-export const SOKO_BOT_TURN_STARTING_ABANDON_MS =
-  SOKO_BOT_START_RECOVERY_GRACE_MS;
-
-const ACTIVE_STATUSES = [
-  SokoBotTurnStatus.QUEUED,
-  SokoBotTurnStatus.STARTING,
-  SokoBotTurnStatus.RUNNING,
-  SokoBotTurnStatus.CANCEL_REQUESTED,
-] as const;
 
 export interface SokoBotTurnsSyncInput {
   abortSignal: AbortSignal;
@@ -87,7 +77,7 @@ export class SokoBotTurnsSyncService {
       await prisma.sokoBotTurn.findMany({
         where: {
           ...scope,
-          status: { in: [...ACTIVE_STATUSES] },
+          status: { in: [...ACTIVE_TURN_STATUSES] },
           deadlineAt: { lte: now },
         },
         select: { id: true },
@@ -116,17 +106,14 @@ export class SokoBotTurnsSyncService {
     // A process can disappear after committing STARTING but before Eve create.
     // Replay these turns with their immutable turn id instead of expiring the
     // user's message. recoverStartingTurn owns the lease CAS.
-    const abandonBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STARTING_ABANDON_MS,
-    );
+    const recoveryNow = await databaseNow();
     const abandonedStarts = await prisma.sokoBotTurn.findMany({
       where: {
         ...scope,
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
-        reconcilerHeartbeatAt: null,
-        createdAt: { lte: abandonBefore },
-        deadlineAt: { gt: now },
+        deadlineAt: { gt: recoveryNow },
+        AND: [staleTurnLeaseWhere(recoveryNow), startRecoveryEligibility()],
       },
       select: { id: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -159,36 +146,21 @@ export class SokoBotTurnsSyncService {
 
     if (!input.shouldContinue()) return result;
 
-    const staleBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
-    );
-    const graceBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STARTING_GRACE_MS,
-    );
+    const drainScanAt = await databaseNow();
     const stale = await prisma.sokoBotTurn.findMany({
       where: {
         ...scope,
-        status: { in: [...ACTIVE_STATUSES] },
-        deadlineAt: { gt: now },
+        status: { in: [...ACTIVE_TURN_STATUSES] },
+        deadlineAt: { gt: drainScanAt },
         eveSessionId: { not: null },
-        NOT: {
-          status: SokoBotTurnStatus.STARTING,
-          createdAt: { gt: graceBefore },
-        },
-        OR: [
-          { reconcilerHeartbeatAt: { lte: staleBefore } },
-          {
-            reconcilerHeartbeatAt: null,
-            status: { not: SokoBotTurnStatus.STARTING },
-          },
-          {
-            reconcilerHeartbeatAt: null,
-            status: SokoBotTurnStatus.STARTING,
-            createdAt: { lte: graceBefore },
-          },
-        ],
+        ...staleTurnLeaseWhere(drainScanAt),
       },
-      select: { id: true, reconcilerHeartbeatAt: true },
+      select: {
+        id: true,
+        eveSessionId: true,
+        leaseToken: true,
+        reconcilerHeartbeatAt: true,
+      },
       orderBy: [{ reconcilerHeartbeatAt: "asc" }, { id: "asc" }],
       take: BATCH_SIZE,
     });
@@ -196,19 +168,26 @@ export class SokoBotTurnsSyncService {
     const claimed: { id: string; leaseToken: string }[] = [];
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
-      const claimedAt = await databaseNow();
       const leaseToken = randomUUID();
-      const updated = await prisma.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          status: { in: [...ACTIVE_STATUSES] },
-          reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
-        },
-        data: {
-          leaseToken,
-          leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
-          reconcilerHeartbeatAt: claimedAt,
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turn.id}::uuid
+          FOR NO KEY UPDATE
+        `;
+        const claimedAt = await databaseNow(tx);
+        return tx.sokoBotTurn.updateMany({
+          where: {
+            ...turn,
+            status: { in: [...ACTIVE_TURN_STATUSES] },
+            deadlineAt: { gt: claimedAt },
+            ...staleTurnLeaseWhere(claimedAt),
+          },
+          data: {
+            leaseToken,
+            leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: claimedAt,
+          },
+        });
       });
       if (updated.count === 0) continue;
       claimed.push({ id: turn.id, leaseToken });
@@ -226,8 +205,14 @@ export class SokoBotTurnsSyncService {
         result.reconciled += 1;
         continue;
       }
+      const turnId = claimed[index]?.id;
+      if (
+        turnId &&
+        reportSokoBotReconciliationLeaseLoss(turnId, outcome.reason)
+      )
+        continue;
       result.interrupted += 1;
-      logInterrupted(claimed[index]?.id, outcome.reason, {
+      logInterrupted(turnId, outcome.reason, {
         message: "Could not resume a stalled Soko Bot turn",
         why: "Turn reconciliation threw",
       });

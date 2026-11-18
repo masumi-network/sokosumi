@@ -258,6 +258,11 @@ const baseEnvSchema = z.object({
     .default(
       "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
     ),
+  /**
+   * A local ffmpeg built with libass and libx264, for the talking video edit.
+   * Unset, Core downloads its pinned linux-x64 build (Vercel).
+   */
+  FFMPEG_PATH: z.string().min(1).optional(),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**

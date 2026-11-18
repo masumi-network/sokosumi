@@ -1,7 +1,12 @@
+import type { z } from "@hono/zod-openapi";
 import { TaskLinkType } from "@sokosumi/database";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
-import { badRequest } from "@/helpers/error";
+import {
+  badRequest,
+  formatZodErrorMessage,
+  unprocessableEntity,
+} from "@/helpers/error";
 import {
   type TaskLinkRelationResponse,
   type TaskLinkResponse,
@@ -64,10 +69,44 @@ export function assertTaskLinkAllowed(
   }
 }
 
+const RETIRED_PARENT_LINK_RELATIONS: readonly unknown[] = ["parent", "child"];
+
+export const PARENT_LINK_RETIRED_MESSAGE =
+  "Parent links are now sub-tasks. Use POST /v1/tasks/{id}/move with parentTaskId.";
+
+/**
+ * Validation hook for the link write routes. A `parent` or `child` relation
+ * fails the request schema; it gets a 400 that names the replacement instead
+ * of the generic 422 of `defaultValidationHook`, which handles the rest.
+ */
+export function taskLinkWriteValidationHook(result: {
+  success: boolean;
+  target: string;
+  data?: unknown;
+  error?: z.ZodError;
+}): undefined {
+  if (result.success || !result.error) return undefined;
+  const relation =
+    result.target === "json" &&
+    typeof result.data === "object" &&
+    result.data !== null &&
+    "relation" in result.data
+      ? result.data.relation
+      : undefined;
+  if (RETIRED_PARENT_LINK_RELATIONS.includes(relation)) {
+    throw badRequest(PARENT_LINK_RETIRED_MESSAGE);
+  }
+  throw unprocessableEntity(formatZodErrorMessage(result.error));
+}
+
+/**
+ * Takes every relation, `parent` and `child` included. Callers refuse those
+ * two first: user routes by schema, Soko Bot's `link_tasks` in its handler.
+ */
 export function mapTaskLinkRelationToWriteData(
   taskId: string,
   peerTaskId: string,
-  relation: UserWritableTaskLinkRelationResponse,
+  relation: TaskLinkRelationResponse,
 ): TaskLinkWriteData {
   switch (relation) {
     case "related":

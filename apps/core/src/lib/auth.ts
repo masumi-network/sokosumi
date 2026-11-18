@@ -78,6 +78,7 @@ import {
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
+  signsInToCmo,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import {
@@ -86,6 +87,7 @@ import {
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { pendingEmailChange } from "./auth-pending-email-change";
+import { createAuthRateLimitStorage } from "./auth-rate-limit";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -345,8 +347,12 @@ export const auth = betterAuth({
     "/change-email",
   ],
   rateLimit: {
-    storage: "database",
+    storage: "secondary-storage",
   },
+  // Sessions already use storeSessionInDatabase. Keep verification values
+  // there too and use secondary storage only for rate-limit counters.
+  verification: { storeInDatabase: true },
+  secondaryStorage: createAuthRateLimitStorage(betterAuthCookiePrefix),
   trustedOrigins: Array.from(
     new Set([
       "https://app.sokosumi.com",
@@ -564,6 +570,7 @@ export const auth = betterAuth({
           const { renderEmailCodeEmail } = await import("@sokosumi/email");
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
+            brand: (await signsInToCmo()) ? "cmo" : undefined,
             code: otp,
             expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
           });

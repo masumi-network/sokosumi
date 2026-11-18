@@ -2,6 +2,7 @@
 
 import type { SetStudioAssetFeedbackData } from "@sokosumi/core-client";
 import {
+  CalendarClock,
   Check,
   Columns2,
   Dices,
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,6 +64,7 @@ export function StudioGallery({
   onCancelJob,
   onCompare,
   onOpen,
+  onSchedule,
   onRate,
   onHide,
   ratingBusyIds = [],
@@ -84,6 +86,7 @@ export function StudioGallery({
   /** Omitted, with the draw actions below, in a read-only studio. */
   onCancelJob?: (jobId: string) => void;
   onCompare?: (asset: StudioAsset) => void;
+  onSchedule?: (asset: StudioAsset) => Promise<void>;
   onOpen: (assetId: string) => void;
   onRate?: (
     asset: StudioAsset,
@@ -104,6 +107,7 @@ export function StudioGallery({
   queued: QueuedGeneration[];
   selectedIds: string[];
 }) {
+  const [scheduling, startScheduling] = useTransition();
   const format = useFormatter();
   const t = useTranslations("App.Studio");
   const [groupByProduct, setGroupByProduct] = useState(true);
@@ -423,6 +427,18 @@ export function StudioGallery({
                       </Tooltip>
                     )}
                   </figure>
+                  {onSchedule && !video ? (
+                    <Button
+                      className="mt-1"
+                      size="sm"
+                      variant="ghost"
+                      disabled={scheduling}
+                      onClick={() => startScheduling(() => onSchedule(asset))}
+                    >
+                      <CalendarClock aria-hidden />
+                      {labels.schedule}
+                    </Button>
+                  ) : null}
                 </li>
               );
             })}

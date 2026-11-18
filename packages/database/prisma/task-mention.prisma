@@ -1,0 +1,26 @@
+/// A person named with an @-mention in a Task comment. One row per comment
+/// and person, written by the route that stores the comment, inside its
+/// transaction. `answeredAt` is set when that person next comments on the
+/// Task; a row without it is a mention the person has not answered.
+model TaskEventMention {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  taskEventId String
+  taskEvent   TaskEvent @relation(fields: [taskEventId], references: [id], onDelete: Cascade)
+
+  /// The Task of the comment, kept here so a Task list can filter on it
+  /// without a join through the event.
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TaskEventMentionUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  answeredAt DateTime?
+
+  @@unique([taskEventId, userId])
+  @@index([userId, answeredAt, taskId])
+  @@index([taskId])
+  @@map("task_event_mention")
+}

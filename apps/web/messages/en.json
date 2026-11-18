@@ -1264,8 +1264,7 @@
       "termsOfServices": "Terms of Service",
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
-      "acceptableUse": "Acceptable Use",
-      "usesSokosumi": "Uses your Sokosumi account."
+      "acceptableUse": "Acceptable Use"
     },
     "Aside": {
       "titleLine1": "AI coworkers",
@@ -1281,8 +1280,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Log in / Register",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Log in / Register",
+        "template": "{product} - %s"
       },
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
@@ -1474,6 +1473,7 @@
       "chooseAccountTitle": "Choose an account",
       "chooseAccountTitleFor": "Choose an account for {client}",
       "signedInAs": "Logged in to Sokosumi as <account>{email}</account>",
+      "signedInAsCmo": "Logged in as <account>{email}</account>",
       "continueAs": "Continue as {account}",
       "useAnotherAccount": "Use another account",
       "accountCheckError": "Could not check your account. Try again.",
@@ -1483,7 +1483,7 @@
       "backTo": "Back to {client}"
     },
     "SignInError": {
-      "accountNotLinked": "This email already has a Sokosumi account. Log in with your password or an email code first, then connect Google or Microsoft under Connections.",
+      "accountNotLinked": "This email already has an account. Log in with your password or an email code first, then connect Google or Microsoft under Connections.",
       "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
       "generic": "We could not log you in. Please try again.",
       "expired": "That sign-in took too long or was started in another browser. Please try again.",
@@ -1846,6 +1846,8 @@
         "loading": "Loading...",
         "loadMore": "Load more"
       },
+      "noTitle": "(No title)",
+      "unansweredMention": "You have an unanswered mention",
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1913,17 @@
         "workspaceTags": "Workspace tags",
         "archivedTags": "Archived tags",
         "topicTags": "Default topics",
-        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more"
+        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more",
+        "needsMe": "Needs me",
+        "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
+        "mentions": "Mentions",
+        "mentionsHint": "Tasks where a comment mentions you and you have not commented since"
       },
       "Detail": {
         "back": "Back to tasks",
         "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
-        "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
@@ -1931,6 +1936,8 @@
         "updated": "Updated",
         "description": "Description",
         "context": "Context",
+        "subtasks": "Sub-tasks",
+        "subtaskOf": "Sub-task of",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",
@@ -1997,12 +2004,16 @@
           "archive": "Archive",
           "archiveError": "Failed to archive task",
           "reopenToReady": "Reopen to Ready",
-          "reopenToReadyTitle": "Reopen task",
-          "reopenToReadyDescription": "Add a comment so your coworker knows what to do next. The task will move back to Ready.",
-          "reopenToReadyCommentLabel": "Comment",
-          "reopenToReadyCommentPlaceholder": "Describe what still needs to be done…",
           "reopenToReadyCommentRequired": "A comment is required to reopen this task",
-          "reopenToReadyConfirm": "Reopen to Ready",
+          "sendBack": {
+            "title": "Send back to {assignee}?",
+            "description": "Reopening moves it to Ready, and {assignee} starts a new run. Tell {assignee} what to do.",
+            "commentLabel": "What to fix",
+            "commentPlaceholder": "What should {assignee} change or redo?",
+            "confirm": "Send back to {assignee}",
+            "reopenAsDraft": "Reopen as draft",
+            "cancel": "Not now"
+          },
           "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
@@ -2020,9 +2031,6 @@
           "removeRelated": "Remove related",
           "removeRelatedSuccess": "Related task removed",
           "removeRelatedError": "Failed to remove related task",
-          "removeParent": "Remove parent",
-          "removeParentSuccess": "Parent removed",
-          "removeParentError": "Failed to remove parent",
           "linkTaskSuccess": "Task linked",
           "linkTaskError": "Failed to link task",
           "createRelatedSuccess": "Related task created",
@@ -2039,10 +2047,7 @@
             "related": "Related",
             "blocks": "Blocking",
             "blockedBy": "Blocked by",
-            "parent": "Parent task",
-            "subtask": "Sub-task",
-            "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task"
+            "duplicate": "Duplicate"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -2072,6 +2077,23 @@
             "refused": "This chat can't receive this task anymore. Choose another one.",
             "retry": "Send again",
             "retryHint": "The last send may not have arrived. Sending again won't post it twice; changing the chat or message sends a new one."
+          },
+          "subtasks": {
+            "add": "Add sub-task…",
+            "addExisting": "Add existing Task as sub-task…",
+            "addExistingTitle": "Add existing Task as sub-task",
+            "addExistingDescription": "Choose a task. It becomes the last sub-task of this task.",
+            "addExistingSuccess": "Sub-task added",
+            "moveUnder": "Move under…",
+            "moveUnderTitle": "Move under another Task",
+            "moveUnderDescription": "Choose a task. This task becomes its last sub-task.",
+            "moveUnderSuccess": "Task moved",
+            "removeFromParent": "Remove from parent",
+            "removeFromParentSuccess": "Task removed from its parent",
+            "moveError": "Could not move the Task.",
+            "createSuccess": "Sub-task added",
+            "createError": "Could not add the sub-task.",
+            "serverErrorDescription": "Try again later."
           }
         },
         "ShareModal": {
@@ -2107,7 +2129,6 @@
           "confirm": "Switch workspace",
           "switchError": "Failed to switch workspace. Please try again."
         },
-        "clonedFrom": "Cloned from {name}",
         "VendorGrantApproval": {
           "title": "Vendor access approval required",
           "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
@@ -2315,6 +2336,24 @@
           "tomorrowAt": "Starts tomorrow at {time}",
           "at": "Starts {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} of {total} sub-tasks done",
+        "title": "Sub-tasks",
+        "add": "Add sub-task",
+        "movedTo": "Moved to position {position} of {total}",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
+        "toggleLabel": "{name} done",
+        "agentDoneHint": "Unchecking sends it back to {assignee}",
+        "changeError": "Could not save the sub-task change. Try again.",
+        "truncated": "Showing the first {count} sub-tasks.",
+        "createDescription": "The sub-task goes last in the list.",
+        "name": "Name",
+        "description": "Description (optional)",
+        "assignee": "Assignee",
+        "dueOn": "Due date",
+        "cancel": "Cancel",
+        "create": "Add sub-task"
       },
       "Due": {
         "label": "Due date",
@@ -4346,6 +4385,10 @@
       }
     },
     "TikTokStudio": {
+      "addMusic": "Add background music (+{credits} credits)",
+      "addBroll": "Open with a generated clip (+{credits} credits)",
+      "showSite": "Show your website in the video",
+      "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
       "intro": "A presenter speaks your script, with captions, ready for TikTok, Reels and Shorts.",
       "pickTitle": "Choose a project",
@@ -5494,6 +5537,125 @@
         "retry": "Try again"
       }
     },
+    "Competitors": {
+      "title": "Competitors",
+      "pickTitle": "Pick a project",
+      "pickBody": "Competitors belong to one project: who it watches and what the weekly check found. Choose a project to open its competitors.",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "loading": "Loading competitors…",
+      "error": {
+        "title": "Failed to load competitors",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      },
+      "check": {
+        "title": "Weekly check",
+        "on": "On",
+        "off": "Off",
+        "what": "Once a week Sokosumi reads each competitor's website and pricing page, the news about it, its new ads and its Instagram, and keeps what changed with its source.",
+        "price": "It costs {credits} credits per competitor a week.",
+        "priceTotal": "{count, plural, one {With # competitor that is {credits} credits a week.} other {With # competitors that is {credits} credits a week.}}",
+        "payer": "The credits come from this workspace.",
+        "last": "Last check {last}, next {next}.",
+        "first": "The first check runs within the hour, or now.",
+        "sourceFailed": "The last check could not read: {sources}. The next one tries again.",
+        "source": {
+          "pages": "websites",
+          "news": "news",
+          "ads": "ads",
+          "social": "Instagram"
+        },
+        "turnOn": "Turn on",
+        "turnOff": "Turn off",
+        "runNow": "Check now",
+        "failed": "That did not work. Try again.",
+        "outcome": {
+          "not_due": "A check is already running or was done this week.",
+          "no_competitors": "Add a competitor first.",
+          "paused": "The weekly check is off.",
+          "unfunded": "This check costs {credits} credits and the workspace has fewer. Add credits, then check again."
+        }
+      },
+      "list": {
+        "title": "Watch list",
+        "count": "{count} of {limit}",
+        "empty": "Nobody yet. Add the competitors you want to watch.",
+        "emptyReadOnly": "Nobody yet.",
+        "noWebsite": "No website",
+        "pricingPage": "pricing page",
+        "facebook": "Facebook {handle}",
+        "edit": "Edit",
+        "remove": "Remove",
+        "editNamed": "Edit {name}",
+        "removeNamed": "Remove {name}",
+        "add": "Add competitor",
+        "full": "That is all {limit}. Remove one to watch another.",
+        "failed": "That did not work. Try again."
+      },
+      "form": {
+        "addTitle": "Add a competitor",
+        "editTitle": "Edit competitor",
+        "description": "The name is enough to find news. The website and pricing page let the check see what changed there.",
+        "name": {
+          "label": "Name",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Website",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Pricing page",
+          "placeholder": "acme.com/pricing"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Facebook page",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Cancel",
+        "add": "Add",
+        "save": "Save",
+        "failed": "That did not work. Try again."
+      },
+      "thisWeek": {
+        "title": "This week",
+        "checked": "Check of {date}",
+        "none": "No summary yet. Ask a Soko Bot to write up this week's competitor moves; everything the checks find is listed below with its source.",
+        "noneReadOnly": "No summary yet. Everything the checks find is listed below with its source.",
+        "quiet": "A quiet week: nothing to report.",
+        "unknown": "A competitor",
+        "big": "Big move",
+        "weak": "Partly backed",
+        "meaning": "What this means for you",
+        "move": "Suggested move",
+        "open": "Still open"
+      },
+      "findings": {
+        "title": "What the checks found",
+        "notChecked": "Nothing yet. Findings show here after the first check.",
+        "nothing": "The checks found no changes in the last five weeks.",
+        "kind": {
+          "WEBSITE_CHANGE": "Website",
+          "PRICE_CHANGE": "Price",
+          "NEWS": "News",
+          "AD": "Ads",
+          "SOCIAL": "Instagram"
+        }
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Account",
+        "posts": "Posts a week",
+        "engagement": "Likes and comments per post",
+        "followers": "Followers",
+        "growth": "Followers gained in a week",
+        "you": "(you)"
+      }
+    },
     "Newsletter": {
       "title": "Newsletter",
       "description": "Each project has its own newsletter. Choose a project to manage it.",
@@ -5613,6 +5775,7 @@
           "schedules": "Schedules",
           "social": "Social posts",
           "ads": "Ads",
+          "competitors": "Competitors",
           "newsletter": "Newsletter",
           "contacts": "Contacts",
           "groups": {
@@ -11907,8 +12070,6 @@
       "title": "SEO",
       "intro": "See what changed, what needs work, and what to check next.",
       "edit": "Edit",
-      "pickTitle": "SEO audits",
-      "pickBody": "Keep related pages, checks, statistics, actions and chat together in an audit.",
       "pickUnavailable": "This audit is unavailable. Open another audit.",
       "errorTitle": "Failed to load SEO",
       "errorBody": "Refresh this audit or return to the audit list.",
@@ -11947,6 +12108,93 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
+      "brief": {
+        "title": "Audit brief",
+        "private": "Only you can read this brief. A full audit shares a page goal only when you select it.",
+        "confirmed": "Confirmed by you on {date}.",
+        "objective": "Site goal",
+        "audience": "Who is the site for?",
+        "outcome": "What result matters to you?",
+        "constraints": "Limits on changes",
+        "pageSettings": "Page settings",
+        "page": "Page",
+        "role": "Page role",
+        "job": "What should visitors accomplish here?",
+        "action": "Desired action",
+        "index": "Visibility in Google Search",
+        "pageLimit": "You can set a purpose for up to {count} pages. Clear another page to add this one.",
+        "unset": "Unspecified",
+        "save": "Save brief",
+        "empty": "Add a site goal to record what this audit is for.",
+        "edit": "Edit brief",
+        "add": "Add brief",
+        "readFailed": "Your brief could not be loaded.",
+        "retry": "Try again",
+        "conflict": "This brief changed while you were editing. Reload the saved version to continue.",
+        "reload": "Reload saved brief",
+        "followUp": "Page follow-up",
+        "recordedChange": "Change recorded on {date}.",
+        "lastCrawl": "Last crawl reported by Google on {date}.",
+        "share": "Share page goals in this public task",
+        "shareHelp": "For each page you select, the public SEO task will show its URL, role and desired action. Other brief fields stay private.",
+        "priority": "Priority from your brief",
+        "nextStep": "Recommended next step",
+        "why": "Why this page",
+        "objectives": {
+          "sales": "Sales",
+          "traffic": "Search traffic",
+          "support": "Customer support"
+        },
+        "roles": {
+          "guide": "Guide",
+          "product": "Product",
+          "pricing": "Pricing",
+          "support": "Support",
+          "comparison": "Comparison",
+          "other": "Other"
+        },
+        "actions": {
+          "sign_up": "Sign up",
+          "buy": "Buy",
+          "contact_sales": "Contact sales",
+          "book": "Book",
+          "subscribe": "Subscribe",
+          "download": "Download",
+          "call": "Call",
+          "visit": "Visit",
+          "read": "Read",
+          "none": "No action"
+        },
+        "visibility": {
+          "index": "Include this page",
+          "exclude": "Keep this page out",
+          "unknown": "Undecided"
+        },
+        "events": {
+          "title": "Purchases and signups from organic search",
+          "source": "Only you can see these GA4 counts. They cover organic search visits that started on this page.",
+          "purchase": "Purchases",
+          "sign_up": "Signups",
+          "before": "Before the change",
+          "after": "After the change",
+          "latest": "Latest reported period",
+          "count": "{count, plural, one {# event} other {# events}}",
+          "noComparison": "The audit lacks comparable periods before and after the recorded change.",
+          "observed": "Other factors can also affect these counts.",
+          "missing": "No verified purchase or signup count is available for organic visits that started on this page."
+        },
+        "followUps": {
+          "awaiting_recrawl": "Awaiting evidence of a crawl after the change.",
+          "recrawled": "Google crawled this page after the change.",
+          "unknown": "Crawl timing is unknown."
+        },
+        "indexReview": {
+          "expected_exclusion": "The exclusion matches your visibility setting.",
+          "review_exclusion": "Check why this page appears in search. You want it excluded.",
+          "review_indexing": "Check why this page is excluded. You want it to appear in search.",
+          "matches_intent": "Google’s index status matches your visibility setting."
+        }
+      },
       "manageStatistics": "Google connections",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
@@ -12004,6 +12252,20 @@
         "failedCheck": "<prefix>Not passed:</prefix> {name}",
         "checkedOn": "Checked",
         "diagnostics": "Title, description and other page details",
+        "rank": {
+          "absent": "Not in the top {top}",
+          "position": "Position {position}",
+          "featuredSnippet": "Featured snippet, position {position}",
+          "forKeyword": "for “{keyword}”",
+          "source": "Market {country}, {language} · DataForSEO",
+          "aiNotCited": "An AI Overview shows and does not cite the page",
+          "aiCited": "The AI Overview cites the page",
+          "othersAbsent": "{count, plural, one {# other keyword} other {# other keywords}}: none in the top {top}",
+          "searchConsole": "Search Console average position {position}",
+          "serpRead": "Search result read:",
+          "allDetails": "All details",
+          "showRankings": "See rankings"
+        },
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
@@ -12023,7 +12285,6 @@
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
         "noteRule": "Rule not met: “{name}”",
-        "notesNotCounted": "not counted as issues",
         "askAgent": "Ask the agent",
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
         "showAll": "Show all",
@@ -12031,9 +12292,6 @@
         "askAboutNoteOnPage": "A check flagged “{name}” on {url}. What does it mean, and should I change anything?",
         "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
-        "referencesAndRules": "Sources and rule IDs",
-        "ruleIds": "Rule IDs: {ids}",
-        "rulesOnly": "Rule IDs",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
         "noteFound": "Found: {found}",
@@ -12125,6 +12383,7 @@
             "opportunity": "Related search"
           },
           "short": "Ideas",
+          "name": "Keyword ideas",
           "more": "{count, plural, one {Show # more idea} other {Show # more ideas}}"
         },
         "addButton": "Add a keyword",
@@ -12317,8 +12576,6 @@
         "home": "Home page"
       },
       "timeline": {
-        "title": "History",
-        "runNewCheck": "Run a new check",
         "statuses": {
           "requested": "Requested",
           "running": "Running",
@@ -12326,10 +12583,6 @@
           "partial": "Partial",
           "unavailable": "Unavailable"
         },
-        "empty": "No checks or changes for these pages yet",
-        "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
-        "emptyOff": "Nothing recorded for these pages",
-        "emptyBodyOff": "Page selections, tasks and failed syncs appear here.",
         "details": "Work details",
         "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
@@ -12344,7 +12597,6 @@
         "sourceDetails": "Details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
-        "showAll": "Show all {count} events",
         "metricsSyncedTimes": "{count, plural, one {Statistics synced} other {Statistics synced # times}}",
         "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
@@ -12436,7 +12688,7 @@
           "search_console": "Searches, clicks and positions in Google Search",
           "ga4": "Visits and page views on your site"
         },
-        "propertyNotMatching": "It does not cover the selected pages, so no statistics load from it."
+        "propertyNotMatching": "No Search Console property covers all selected pages on {sites}. Check this Google account’s property access or select pages from one property."
       },
       "metrics": {
         "page_views": "Page views",
@@ -12557,6 +12809,16 @@
       },
       "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
       "audits": {
+        "moreOptions": "More options for {name}",
+        "delete": "Delete audit",
+        "deleteTitle": "Delete “{name}”?",
+        "deleteDescription": "This removes the audit and its results from this workspace. Its link will stop working.",
+        "deleteFailed": "Could not delete this audit. Try again.",
+        "deleteActiveCheck": "Wait for the current check to finish, or cancel its task. Then try again.",
+        "deleteActiveChat": "A chat reply is in progress. Wait for it to finish, then try again.",
+        "deleteScheduled": "End this audit’s scheduled checks, then try again.",
+        "deleteBlocked": "This audit changed. Try again.",
+        "deleteUnavailable": "You can no longer delete this audit.",
         "continue": "Continue",
         "create": "Create audit",
         "saved": "Saved audits",
@@ -12788,6 +13050,17 @@
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "runs": {
+        "details": "Details",
+        "detailsOf": "Details of {day}",
+        "since": "What happened after {day}.",
+        "sinceStart": "What happened up to this day.",
+        "sinceAll": "Everything recorded so far.",
+        "checks": "{count, plural, one {# check} other {# checks}}",
+        "pageChanges": "{count, plural, one {# page change} other {# page changes}}",
+        "tasks": "{count, plural, one {# Task linked} other {# Tasks linked}}",
+        "failedSyncs": "{count, plural, one {# failed sync} other {# failed syncs}}",
+        "failedChecks": "{count, plural, one {# failed check} other {# failed checks}}",
+        "scopeChanges": "{count, plural, one {# page selection change} other {# page selection changes}}",
         "label": "Checks",
         "running": "Running",
         "left": "about {minutes} min left",
@@ -12825,35 +13098,51 @@
         }
       },
       "indexReview": {
-        "title": "Indexing review notes",
-        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
+        "auditPage": "Audited page",
         "checked": "Reviewed",
         "state": {
           "review": "Review needed",
           "expected_exclusion": "Expected exclusion",
           "unavailable": "Not checked"
         },
-        "suggestedFix": "Suggested next step",
         "evidence": "View evidence",
-        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
-        "sources": "Sources: Google Search Console and this audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Last crawled by Google"
       },
       "index": {
         "title": "Google index",
-        "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
-        "checked": "status read",
         "state": {
           "indexed": "Indexed",
           "warnings": "Indexed, with warnings",
           "notIndexed": "Not indexed",
           "unknown": "Index status unknown"
         },
-        "google": "Google says: “{words}”",
         "lastCrawl": "Last crawl:",
         "otherCanonical": "Google chose another canonical page:",
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
       },
       "setup": {
+        "pausedStart": "Start audit",
+        "pausedReason": "This workspace has no available SEO worker to run a check. Google statistics still work.",
+        "pausedPreviewReason": "This preview has no SEO worker available for this workspace. Google statistics still work.",
+        "goal": {
+          "pausedDraft": "This choice is saved only when you start an audit.",
+          "reviewChanged": "The page goal changed. Return to setup to review it before starting.",
+          "unsupportedCheck": "This check won’t save your page goal. Choose Full audit or Page check to save it.",
+          "draft": "Your choice will be saved when the audit starts.",
+          "freeDraft": "Your choice will be saved when the check starts.",
+          "private": "Private page goal: {goal}",
+          "pausedUnavailable": "Your page goal is unavailable.",
+          "advanced": "Advanced",
+          "automatic": "The audit detects the page goal from its content.",
+          "autoOption": "Automatic",
+          "selected": "This audit will use “{goal}”.",
+          "unavailable": "You can still start the check while the page goal is unavailable.",
+          "question": "Page goal",
+          "suggested": "Use suggested goal “{action}”",
+          "include": "Share this goal with the audit",
+          "shareDetails": "If you include it, the public audit will receive {url} and the goal “{goal}”."
+        },
         "historyUnavailable": "Could not check audit setup. Try again before starting a check.",
         "googleBody": "Connect Google to include your search statistics, or continue with public-page checks only.",
         "skipGoogle": "Continue without Google",
@@ -12861,9 +13150,8 @@
         "steps": "Setup steps",
         "done": "done",
         "page": "Add a page",
-        "pageDone": "Page added",
         "pageBody": "Add the public page you want to rank.",
-        "pageDoneBody": "{count, plural, one {# page is in this audit.} other {# pages are in this audit.}} You can add more pages later.",
+        "pageCount": "{count, plural, one {# page in this audit} other {# pages in this audit}}",
         "audit": "Run the first audit",
         "auditBody": "The agent checks your pages, reads your keyword positions and competitors, and drafts fixes. You approve each one.",
         "check": "Run the first check",
@@ -12881,6 +13169,39 @@
       "strategy": {
         "title": "Keyword strategy",
         "from": "From the check of",
+        "purpose": {
+          "title": "Search intent",
+          "goal": {
+            "sales": "The audit focuses on sales.",
+            "traffic": "The audit focuses on search traffic."
+          },
+          "source": {
+            "owner": "The owner selected the desired action on the starting page.",
+            "inferred": "The audit inferred the desired action from the starting page.",
+            "unspecified": "The audit used the desired action on the starting page."
+          },
+          "first": {
+            "sales": "Review the buyer search “{keyword}”",
+            "traffic": "Review the informational search “{keyword}”"
+          },
+          "groupDemand": "This group has an estimated {count, number} monthly searches.",
+          "ranked": "The page ranked or appeared in a featured snippet for a search in this group.",
+          "inReach": "The referring-domain comparison puts this group within reach.",
+          "measure": {
+            "sales": "After the edit, check clicks from buyer searches and how often visitors complete the desired page action.",
+            "traffic": "After the edit, check clicks from the informational searches in this group."
+          },
+          "demand": "Estimated monthly searches from measured keyword groups",
+          "intents": {
+            "buyer": "Buyer searches",
+            "informational": "Informational searches",
+            "other": "Other searches"
+          },
+          "unmeasured": "Unmeasured",
+          "atLeast": "At least {count, number}",
+          "estimate": "{count, number}",
+          "missing": "{count, plural, one {# group without an estimate} other {# groups without estimates}}"
+        },
         "verdict": {
           "keep": "Keep these keywords",
           "outOfReach": "Most searches of these keywords are out of reach for the site",
@@ -12904,10 +13225,15 @@
           "notDetermined": "{groups} {count, plural, one {has} other {have}} no known reach"
         },
         "moving": "{count, plural, one {Searches change for # group} other {Searches change for # groups}}",
+        "forumQuestions": {
+          "title": "Questions seen in forum results",
+          "keyword": "Search group “{keyword}”",
+          "more": "{count, plural, one {Show # more search group} other {Show # more search groups}}"
+        },
         "reachHelp": {
           "ranks": "A group ranks when a page of the site is in the results or in the featured snippet.",
           "inReach": "A group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
-          "open": "A forum in the search results is a sign that the results are open to new pages."
+          "open": "Inspect the discussion to see which questions people ask. Ranking potential needs separate evidence."
         },
         "trend": {
           "falling": "Searches are falling",
@@ -13028,19 +13354,17 @@
         "keyEventsNotRead": "Not read: shares a landing path with another selected page"
       },
       "export": {
+        "menu": "Export: {table}",
         "csv": "Download CSV",
         "action": "Action",
         "kind": "Type",
         "status": "Status",
-        "csvLabel": "Download CSV: {table}",
         "table": "Copy to a table",
-        "tableLabel": "Copy to a table: {table}",
         "tableTitle": "{table} · {site} · {date}",
         "tableDescription": "Copied from SEO on {date}. A snapshot: it does not change when SEO checks again.",
-        "tableCopied": "{count, plural, one {# keyword copied to a new table.} other {# keywords copied to a new table.}}",
+        "tableCopied": "{count, plural, one {# row copied to a new table.} other {# rows copied to a new table.}}",
         "openTable": "Open table",
-        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it.",
-        "list": "List"
+        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it."
       },
       "datePresets": {
         "label": "Quick periods",
@@ -13264,7 +13588,7 @@
           },
           "38": {
             "title": "Export and date presets",
-            "missing": "No comparison with the same period last year. The countries and devices, competitors, keyword ideas and AI assistants tables have no CSV download. The CSV separator follows the app language, not the computer's region."
+            "missing": "No comparison with the same period last year. The Countries and devices table and the AI assistants table have no export. The CSV separator follows the app language, not the computer's region."
           },
           "39": {
             "title": "AI Overview citation history",
@@ -13647,7 +13971,7 @@
   },
   "CookieConsent": {
     "title": "We use cookies",
-    "body": "Necessary cookies keep Sokosumi working. With your OK we also use analytics and marketing cookies to improve the product.",
+    "body": "Necessary cookies keep {product} working. With your OK we also use analytics and marketing cookies to improve the product.",
     "policyLink": "Cookie Policy",
     "acceptAll": "Accept all",
     "rejectAll": "Reject non-essential",
@@ -13658,7 +13982,7 @@
     "analyticsTitle": "Analytics",
     "analyticsBody": "Usage measurement with Google Analytics. While you are logged in, a pseudonymous account ID links your visits — never your name or email.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
+    "marketingBody": "Lets us measure ad campaigns and reach people who might find {product} useful.",
     "settings": "Cookie settings"
   },
   "WorkspaceGate": {

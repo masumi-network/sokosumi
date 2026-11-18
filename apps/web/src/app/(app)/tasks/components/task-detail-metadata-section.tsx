@@ -242,17 +242,9 @@ export async function TaskMetadataSection({
           statusLabels,
           changeStatus: t("actions.changeStatus"),
           noStatusMatches: t("actions.noStatusMatches"),
-          reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-          reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-          reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-          reopenToReadyCommentPlaceholder: t(
-            "actions.reopenToReadyCommentPlaceholder",
-          ),
           reopenToReadyCommentRequired: t(
             "actions.reopenToReadyCommentRequired",
           ),
-          reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
-          cancel: t("actions.cancel"),
           updateStatusSuccess: t("actions.updateStatusSuccess"),
           updateStatusError: tTasks("Errors.updateStatus"),
         }}

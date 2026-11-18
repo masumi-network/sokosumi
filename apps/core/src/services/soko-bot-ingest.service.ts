@@ -14,6 +14,7 @@ import {
   triagedMailLines,
   triageMail,
 } from "@/lib/soko-bot/mail-triage";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
@@ -563,6 +564,8 @@ export class SokoBotIngestSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
+          if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+            return;
           logIngestFailure(
             error,
             {

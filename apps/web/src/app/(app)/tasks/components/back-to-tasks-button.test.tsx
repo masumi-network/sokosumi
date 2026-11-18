@@ -8,13 +8,16 @@ import {
 } from "@/app/tasks/components/task-navigation";
 
 const routerPrefetchMock = vi.fn();
-const routerPushMock = vi.fn();
+const routerReplaceMock = vi.fn();
+const routerBackMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tasks/task-1",
   useRouter: () => ({
     prefetch: routerPrefetchMock,
-    push: routerPushMock,
+    push: vi.fn(),
+    replace: routerReplaceMock,
+    back: routerBackMock,
   }),
 }));
 
@@ -40,7 +43,7 @@ describe("BackToTasksButton", () => {
 
     fireEvent.click(link);
 
-    expect(routerPushMock).toHaveBeenCalledWith("/tasks?view=list");
+    expect(routerReplaceMock).toHaveBeenCalledWith("/tasks?view=list");
   });
 
   it("loads only the stored return path's content, not the placeholder", async () => {
@@ -87,7 +90,7 @@ describe("BackToTasksButton", () => {
       metaKey: true,
     });
 
-    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(routerReplaceMock).not.toHaveBeenCalled();
   });
 
   it("reads the return path at click time, not from a lagging href", () => {
@@ -99,7 +102,7 @@ describe("BackToTasksButton", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Back" }));
 
-    expect(routerPushMock).toHaveBeenCalledWith(
+    expect(routerReplaceMock).toHaveBeenCalledWith(
       "/tasks?view=board&assignee=me",
     );
   });
@@ -130,7 +133,7 @@ describe("BackToTasksButton", () => {
 
       fireEvent.click(await screen.findByRole("link", { name }));
 
-      expect(routerPushMock).toHaveBeenCalledWith(href);
+      expect(routerReplaceMock).toHaveBeenCalledWith(href);
     },
   );
 
@@ -148,6 +151,6 @@ describe("BackToTasksButton", () => {
 
     fireEvent.click(await screen.findByRole("link", { name: "Back" }));
 
-    expect(routerPushMock).toHaveBeenCalledWith("/tasks");
+    expect(routerReplaceMock).toHaveBeenCalledWith("/tasks");
   });
 });

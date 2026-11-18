@@ -21,14 +21,15 @@ sokosumi tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
 sokosumi tasks update TASK_ID --organization-slug WORKSPACE_SLUG --priority HIGH --description-file ./spec.md --json
-sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation child --to PARENT_TASK_ID --json
+sokosumi tasks move TASK_ID --organization-slug WORKSPACE_SLUG --parent PARENT_TASK_ID --json
+sokosumi tasks link TASK_ID --organization-slug WORKSPACE_SLUG --relation blocked_by --to OTHER_TASK_ID --json
 sokosumi tasks links TASK_ID --organization-slug WORKSPACE_SLUG --json
 sokosumi tasks unlink TASK_ID --organization-slug WORKSPACE_SLUG --to OTHER_TASK_ID --json
-sokosumi tasks relink TASK_ID --organization-slug WORKSPACE_SLUG --relation child --to OTHER_TASK_ID --json
+sokosumi tasks relink TASK_ID --organization-slug WORKSPACE_SLUG --relation related --to OTHER_TASK_ID --json
 sokosumi tasks archive TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
-TASK_ID accepts a UUID or a short identifier such as `SOK-12`. For tracking human work (specs, priority, people as assignees, parent and blocker links, status events), follow "Track work as Tasks" in the `sokosumi` Skill.
+TASK_ID accepts a UUID or a short identifier such as `SOK-12`. For tracking human work (specs, priority, people as assignees, sub-tasks and blocker links, status events), follow "Track work as Tasks" in the `sokosumi` Skill.
 
 Use `watch` for a running Task when that Skill is installed. Otherwise use the `get`, `events`, and `jobs` commands above with one watcher. Preserve the selected Workspace slug. Report each event once and pause for required human input. `watch` is a Skill, not a `sokosumi tasks watch` command.
 

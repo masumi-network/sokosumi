@@ -1470,6 +1470,7 @@ export function ImageStudio({
               ratingBusyIds={ratingBusyIds}
               onCancelJob={readOnly ? undefined : handleCancelJob}
               onCompare={readOnly ? undefined : compareBatch}
+              onSchedule={readOnly ? undefined : scheduleAsset}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });

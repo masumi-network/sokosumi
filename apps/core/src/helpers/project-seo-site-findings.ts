@@ -33,6 +33,13 @@ const siteEvidence = z.object({
     .max(5000),
 });
 
+/** Compare pages from a validated site report without fragment or URL spelling differences. */
+export function auditedSeoPageKey(value: string) {
+  const url = new URL(value);
+  url.hash = "";
+  return url.href;
+}
+
 /** Page findings already include merged site findings. Only checks performed across pages need extra rows. */
 export function publicSiteFindings(
   raw: unknown,
@@ -45,12 +52,7 @@ export function publicSiteFindings(
   if (!parsed.success)
     throw badRequest("The site findings or their page references are invalid");
   const data = parsed.data;
-  const normalized = (url: string) => {
-    const parsed = new URL(url);
-    parsed.hash = "";
-    return parsed.href;
-  };
-  const allowed = new Set(pageUrls.map(normalized));
+  const allowed = new Set(pageUrls.map(auditedSeoPageKey));
   const pages = new Map(data.selection.pages.map((page) => [page.n, page.url]));
   if (
     pages.size !== data.selection.pages.length ||
@@ -62,7 +64,7 @@ export function publicSiteFindings(
     // Validate references even for merged findings, before leaving their existing page rows alone.
     const urls = finding.pages.map((n) => {
       const url = pages.get(n);
-      if (!url || !allowed.has(normalized(url)))
+      if (!url || !allowed.has(auditedSeoPageKey(url)))
         throw badRequest("The site finding names an unaudited page");
       return { n, url };
     });

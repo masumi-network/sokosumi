@@ -17,6 +17,7 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
@@ -457,6 +458,8 @@ async function startProductionRun(
             started.reconciliationLeaseToken,
           )
           .catch((error: unknown) => {
+            if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+              return;
             // A turn's error can quote its prompt, so only its name and code.
             emitCoreWarning(
               {
@@ -835,6 +838,27 @@ async function keepCmoSeo(cuso: Cuso, now: Date): Promise<void> {
   }
 }
 
+/** A Cuso that was let go is not in the sync below; his weekly SEO audit is paused here. */
+async function pauseSeoAuditsOfEndedCusos(): Promise<void> {
+  if (!getSeoAnalysisExecution().enabled) return;
+  try {
+    const { pauseCmoSeoAuditsWithoutCuso } = await import(
+      "@/services/cmo-seo-audit.service"
+    );
+    await pauseCmoSeoAuditsWithoutCuso();
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "cmo_seo_sync" },
+      {
+        message: "CMO SEO sync could not pause the audits of ended Cusos",
+        why: "Pausing a weekly SEO audit whose Cuso was archived or deleted threw",
+        fix: "The next sync tries again. Until then the audit can still run and charge 750 credits; pause its Task Schedule by hand if this repeats.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
@@ -852,6 +876,7 @@ export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
   now: Date = new Date(),
 ): Promise<{ checked: number }> {
+  await pauseSeoAuditsOfEndedCusos();
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   let checked = 0;
   for (const cuso of hires) {

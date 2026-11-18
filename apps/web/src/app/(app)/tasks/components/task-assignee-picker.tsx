@@ -39,6 +39,8 @@ export interface TaskAssigneePickerLabels {
 export type TaskAssigneePickerOption = CoworkerOption | "unassigned";
 
 interface TaskAssigneePickerProps {
+  /** The trigger's id, for a visible `<Label htmlFor>`. */
+  id?: string;
   value: string;
   options: CoworkerOption[];
   labels: TaskAssigneePickerLabels;
@@ -114,6 +116,7 @@ export function AssigneeAvatar({
 }
 
 export function TaskAssigneePicker({
+  id,
   value,
   options,
   labels,
@@ -200,6 +203,7 @@ export function TaskAssigneePicker({
         <PopoverTrigger asChild>
           <button
             ref={triggerRef}
+            id={id}
             type="button"
             role="combobox"
             aria-expanded={open}

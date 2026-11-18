@@ -16,7 +16,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
-import { dispatchCompetitorTools } from "./cmo-competitors";
+import { dispatchCompetitorTools } from "./competitors";
 import { EXA_SEARCHES_PER_TURN } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
 

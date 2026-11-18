@@ -7,9 +7,11 @@ import {
 
 const price = {
   perSecondUsd: 0.05,
-  minimumVideoUsd: 0,
   voicePer1000CharactersUsd: 0.08,
   captionsPerMinuteUsd: 0.03,
+  cutoutPerSecondUsd: 0.0067,
+  brollUsd: 0.5,
+  musicUsd: 0.1,
 };
 
 describe("talkingVideoQuotedSeconds", () => {
@@ -33,14 +35,26 @@ describe("creditsPerTalkingVideoCents", () => {
     expect(creditsPerTalkingVideoCents(price, "a".repeat(130))).toBe(52);
   });
 
-  it("charges at least the minimum for a short video", () => {
-    // 3 s: the $1.10 minimum, not 15 cents, plus voice and captions.
+  it("charges a short video by its seconds, with no minimum", () => {
+    // 3 s: 15 cents of video, 0.31 of voice, 0.15 of captions.
+    expect(creditsPerTalkingVideoCents(price, "a".repeat(39))).toBe(16);
+  });
+
+  it("adds the cut-out when the site is shown", () => {
+    // 10 s: 6.7 cents on top of 51.54.
     expect(
-      creditsPerTalkingVideoCents(
-        { ...price, minimumVideoUsd: 1.1 },
-        "a".repeat(39),
-      ),
-    ).toBe(111);
+      creditsPerTalkingVideoCents(price, "a".repeat(130), { siteShots: true }),
+    ).toBe(59);
+  });
+
+  it("adds the B-roll clip and the music when they are asked for", () => {
+    const script = "a".repeat(130);
+    expect(creditsPerTalkingVideoCents(price, script, { broll: true })).toBe(
+      102,
+    );
+    expect(creditsPerTalkingVideoCents(price, script, { music: true })).toBe(
+      62,
+    );
   });
 
   it("doubles the video part on a model at twice the price", () => {

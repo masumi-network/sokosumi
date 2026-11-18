@@ -53,6 +53,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "board-question": "Board",
   "followed-tasks": "Board",
   "ambiguous-request": "Judgment",
+  "competitor-week": "Competitors",
   "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",
@@ -95,6 +96,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "social-drafts-rundown": "Social",
   "newsletter-send-now-goes-to-approval": "Newsletter",
   "newsletter-no-scraped-subscribers": "Newsletter",
+  "break-task-into-subtasks": "Delegation",
+  "move-task-under-parent": "Delegation",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */

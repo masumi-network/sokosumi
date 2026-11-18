@@ -9,7 +9,9 @@
  * starts from a clean slate instead, so its outcome does not hinge on what
  * the scenarios before it happened to leave behind.
  */
-import { cmoCompetitorWatchBrief } from "./cmo-competitors.js";
+import { cmoCompetitorWatchBrief } from "./competitors.js";
+import { MUTATING_TOOLS } from "./scenario-mutating-tools.js";
+import { SUBTASK_SCENARIOS } from "./scenario-subtasks.js";
 
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
 export interface SokoBotLabTurn {
@@ -1092,6 +1094,27 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       noEmptyPromise: true,
     },
   },
+  ...SUBTASK_SCENARIOS,
+  {
+    id: "competitor-week",
+    title: "Writes a Project's competitor week from stored signals only",
+    setup: {},
+    intent:
+      "On a Project whose weekly competitor check is on, the bot reads what the check stored, saves This week citing the signals, invents nothing, and tells the owner the big moves with their sources.",
+    prompt:
+      "What did the competitors of Sokosumi Marketing do this week? Write it up for the Project's Competitors page and tell me the big moves.",
+    rubric:
+      "The Project Sokosumi Marketing has the weekly competitor check on and tracks Calendly, SavvyCal and Zcal. The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. The bot calls check_competitors for that Project, then saves the week with save_competitor_feed: one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Its reply tells the owner both moves with where each was read (the source's name or link). A reason, a number or a customer reaction no signal gives, claiming the week was saved without a successful save_competitor_feed, or creating a Task or hiring an agent for this fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      // A refused save is fine when the bot fixes it and saves again.
+      allowFailedTools: ["save_competitor_feed"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      answerMatches: "calendly",
+      noDelegations: true,
+    },
+  },
 ];
 
 /** Never in front of a founder: template gaps and hedges instead of facts. */
@@ -1378,7 +1401,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning ties the move to cal.com from the Brand Brain, and each has one concrete move (which page, post or offer, and when). Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for cal.com, from the Brand Brain; a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
     expect: {
       // The label the classifier gives a Core-written brief; the real run
       // has a preset route.
@@ -1413,7 +1436,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "A competitor's plan ending, known only from a customer's notice, is still a move: Cuso reports it and marks its support weak.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what it means for cal.com and one concrete move. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what Zcal ending the plan means for cal.com (a meaning that would fit any move fails) and one concrete move, on a connected network when it is a post. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
     expect: {
       routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
       tools: ["check_competitors", "save_competitor_feed"],
@@ -1467,34 +1490,6 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 const EMPTY_PROMISE =
   /\b(I(?:'ll| will) (?:check|follow up|remind|monitor|keep an eye)|will check back|check back later)\b/i;
-
-/** Anything that changes state the owner would notice. */
-const MUTATING_TOOLS = new Set([
-  "create_task",
-  "update_task",
-  "assign_task",
-  "reply_to_task",
-  "update_assigned_task",
-  "link_tasks",
-  "hire_agent",
-  "post_chat",
-  "ask_coworker",
-  "upsert_contact",
-  "update_contact",
-  "log_contact_interaction",
-  "merge_contacts",
-  "manage_contact_lists",
-  "find_people",
-  "enrich_contact",
-  "create_project",
-  "update_project",
-  "upload_file",
-  "run_integration_tool",
-  "create_schedule",
-  "update_schedule",
-  "delete_schedule",
-  "update_memory",
-]);
 
 export function evaluateScenario(
   scenario: SokoBotScenario,

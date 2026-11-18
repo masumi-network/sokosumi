@@ -28,7 +28,7 @@ vi.mock("@/app/components/history-search-dialog", async () => {
       <CommandDialog
         open={open}
         onOpenChange={onOpenChange}
-        contentProps={{ onCloseAutoFocus }}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         <div data-testid="history-search-dialog" />
         <CommandInput aria-label="Search query" />

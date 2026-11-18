@@ -16,7 +16,7 @@ const readDesignMd = vi.hoisted(() => vi.fn());
 const recentCompetitorMoves = vi.hoisted(() =>
   vi.fn(async () => [] as unknown[]),
 );
-vi.mock("@/services/cmo-competitor-feed.service", () => ({
+vi.mock("@/services/competitor-feed.service", () => ({
   recentCompetitorMoves,
 }));
 vi.mock("@/lib/design-md-blob", () => ({

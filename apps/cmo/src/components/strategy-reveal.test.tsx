@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cmoOverview } from "../test-fixtures/cmo";
 import { PlanPanel } from "./onboarding/plan-tabs";
 import { planPieces } from "./phone-feeds";
-import { goalLine } from "./strategy-reveal";
+import { goalLine, plural } from "./strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -205,5 +205,17 @@ describe("strategy reveal", () => {
     );
     expect(html).toContain("75% made · 60% planned");
     expect(html).toContain("Cuso is rewriting them now.");
+  });
+});
+
+describe("plural", () => {
+  it("counts the post in a name that goes on after it", () => {
+    expect(plural("Post with a reply", 8)).toBe("8 posts with a reply");
+    expect(plural("Post with a reply", 1)).toBe("1 post with a reply");
+  });
+
+  it("still counts a plain name", () => {
+    expect(plural("Image post", 13)).toBe("13 image posts");
+    expect(plural("YouTube Short", 2)).toBe("2 YouTube Shorts");
   });
 });

@@ -4,18 +4,22 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
 
-/** For CMO competitor tests on a real PostgreSQL (`*.postgres.test.ts`). */
+/** For competitor tests on a real PostgreSQL (`*.postgres.test.ts`). */
 const CREDIT = 10_000_000_000n;
 const DAY = 86_400_000;
 
-export interface Seeded {
+export interface SeededProject {
   userId: string;
   organizationId: string;
+  workspaceId: string;
   projectId: string;
+}
+
+export interface Seeded extends SeededProject {
   sokoBotId: string;
 }
 
-const seeded: Seeded[] = [];
+const seeded: (SeededProject & { sokoBotId?: string })[] = [];
 
 export function company(name: string, url?: string) {
   return { name, ...(url ? { url } : {}) };
@@ -56,8 +60,7 @@ export function brain(
   };
 }
 
-/** A subscribed Cuso with an approved strategy and Project credits. */
-export async function seedCuso(credits = 100n): Promise<Seeded> {
+async function seedOrganizationProject(): Promise<SeededProject> {
   const suffix = randomUUID().slice(0, 8);
   const userId = `competitors-user-${suffix}`;
   const organizationId = `competitors-org-${suffix}`;
@@ -91,9 +94,49 @@ export async function seedCuso(credits = 100n): Promise<Seeded> {
     },
     select: { id: true },
   });
+  const row = {
+    userId,
+    organizationId,
+    workspaceId: workspace.id,
+    projectId: project.id,
+  };
+  seeded.push(row);
+  return row;
+}
+
+async function grantCredits(
+  organizationId: string,
+  credits: bigint,
+  projectId?: string,
+): Promise<void> {
+  if (credits <= 0n) return;
+  const amount = credits * CREDIT;
+  await prisma.transaction.create({
+    data: {
+      amount,
+      organizationId,
+      sourceCreditBucket: {
+        create: { amount, organizationId, ...(projectId ? { projectId } : {}) },
+      },
+    },
+  });
+}
+
+/** A Project without a Cuso, in an organization with credits in its pool. */
+export async function seedProject(credits = 100n): Promise<SeededProject> {
+  const row = await seedOrganizationProject();
+  await grantCredits(row.organizationId, credits);
+  return row;
+}
+
+/** A subscribed Cuso with an approved strategy and Project credits. */
+export async function seedCuso(credits = 100n): Promise<Seeded> {
+  const base = await seedOrganizationProject();
+  const { userId, organizationId, workspaceId } = base;
+  const project = { id: base.projectId };
   const bot = await prisma.sokoBot.create({
     data: {
-      workspaceId: workspace.id,
+      workspaceId,
       projectId: project.id,
       userId: null,
       createdByUserId: userId,
@@ -123,36 +166,22 @@ export async function seedCuso(credits = 100n): Promise<Seeded> {
       polarEventAt: now,
     },
   });
-  if (credits > 0n) {
-    const amount = credits * CREDIT;
-    await prisma.transaction.create({
-      data: {
-        amount,
-        organizationId,
-        sourceCreditBucket: {
-          create: { amount, organizationId, projectId: project.id },
-        },
-      },
-    });
-  }
-  const row = {
-    userId,
-    organizationId,
-    projectId: project.id,
-    sokoBotId: bot.id,
-  };
-  seeded.push(row);
-  return row;
+  await grantCredits(organizationId, credits, project.id);
+  const row = seeded.find((entry) => entry.projectId === project.id);
+  if (row) row.sokoBotId = bot.id;
+  return { ...base, sokoBotId: bot.id };
 }
 
-/** Deletes every Cuso `seedCuso` made, with what hangs off him. */
+/** Deletes every Project and Cuso seeded here, with what hangs off them. */
 export async function deleteSeededCusos(): Promise<void> {
   for (const cuso of seeded.splice(0)) {
     await prisma.project.delete({ where: { id: cuso.projectId } });
-    await prisma.sokoBotUsage.deleteMany({
-      where: { sokoBotId: cuso.sokoBotId },
-    });
-    await prisma.sokoBot.deleteMany({ where: { id: cuso.sokoBotId } });
+    if (cuso.sokoBotId) {
+      await prisma.sokoBotUsage.deleteMany({
+        where: { sokoBotId: cuso.sokoBotId },
+      });
+      await prisma.sokoBot.deleteMany({ where: { id: cuso.sokoBotId } });
+    }
     await prisma.creditConsumption.deleteMany({
       where: { transaction: { organizationId: cuso.organizationId } },
     });

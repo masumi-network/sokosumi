@@ -1,4 +1,4 @@
-import type { CmoSaveCompetitorFeedInput } from "@sokosumi/soko-bot";
+import type { SaveCompetitorFeedInput } from "@sokosumi/soko-bot";
 
 import { z } from "zod";
 
@@ -146,7 +146,7 @@ export function isBigMove(signals: readonly CitableSignal[]): boolean {
 }
 
 function cited(
-  item: CmoSaveCompetitorFeedInput["items"][number],
+  item: SaveCompetitorFeedInput["items"][number],
   signals: ReadonlyMap<string, CitableSignal>,
 ): CitableSignal[] {
   return item.facts.flatMap((fact) =>
@@ -162,7 +162,7 @@ function cited(
  * sentence Cuso can act on.
  */
 export function feedProblems(
-  input: CmoSaveCompetitorFeedInput,
+  input: SaveCompetitorFeedInput,
   signals: ReadonlyMap<string, CitableSignal>,
   competitors: ReadonlyMap<string, string>,
   known: string,
@@ -248,7 +248,7 @@ interface Claim {
 }
 
 function claims(
-  input: CmoSaveCompetitorFeedInput,
+  input: SaveCompetitorFeedInput,
   signals: ReadonlyMap<string, CitableSignal>,
 ): Claim[] {
   return input.items.flatMap((item, itemIndex) => {
@@ -291,7 +291,7 @@ const QUESTION = {
  * decides what that means.
  */
 export async function factSupportProblems(
-  input: CmoSaveCompetitorFeedInput,
+  input: SaveCompetitorFeedInput,
   signals: ReadonlyMap<string, CitableSignal>,
 ): Promise<{ problems: string[]; costUsd: number }> {
   const asked = claims(input, signals);

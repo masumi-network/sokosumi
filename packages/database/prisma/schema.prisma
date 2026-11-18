@@ -483,6 +483,10 @@ model Project {
   presenterFileId         String?                 @db.Uuid
   /// When the owner confirmed they may use that photo in videos.
   presenterConsentAt      DateTime?
+  /// When a member turned the weekly competitor check on for this Project;
+  /// null while it is off. A CMO Project's check does not need it: it runs
+  /// while its Cuso is paid for.
+  competitorChecksSince   DateTime?
   seoAudits               SeoAudit[]
   seoPages                ProjectSeoPage[]
   seoScopes               ProjectSeoScope[]
@@ -1597,6 +1601,7 @@ model Transaction {
   coworkerUsage            CoworkerUsage?    @relation("TransactionCoworkerUsage")
   sokoBotUsage             SokoBotUsage?     @relation("TransactionSokoBotUsage")
   seoChatTurn              SeoAuditChatTurn? @relation("TransactionSeoChatTurn")
+  competitorCheck          CompetitorCheck?  @relation("TransactionCompetitorCheck")
 
   projectImageJob         ProjectImageJob? @relation("TransactionProjectImageJob")
   refundedProjectImageJob ProjectImageJob? @relation("RefundedTransactionProjectImageJob")
@@ -3914,6 +3919,7 @@ model TaskEvent {
 
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?
+  mentions     TaskEventMention[]
 
   @@index([transactionId])
   @@index([sokoBotId])

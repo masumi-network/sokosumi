@@ -18,6 +18,7 @@ import {
   type ProjectFilterOption,
   parseTasksFilters,
   type TasksFiltersSearchParams,
+  tasksQueryScope,
 } from "@/app/tasks/utils/tasks-filters";
 import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
@@ -76,6 +77,9 @@ async function readTasksPageData(
       loadTasksPageOptions(),
       listTaskAssigneeMemberOptions(activeOrganizationId),
     ]);
+  // Runs beside the board reads, not after them.
+  const canCreateTaskPromise =
+    organizationSeatService.hasAssignedSeat(activeOrganizationId);
   // Core decides schedule eligibility; start that request before loading the board.
   const coworkerOptionsPromise = listTaskAssigneeOptions(
     activeOrganizationId,
@@ -161,6 +165,8 @@ async function readTasksPageData(
     visibility: activeFilters.visibility,
     tag: activeFilters.tag,
     stuck: activeFilters.stuck,
+    needsMe: activeFilters.needsMe,
+    mentions: activeFilters.mentions,
     coworkersById,
     personalAssistantFallback,
   };
@@ -188,7 +194,8 @@ async function readTasksPageData(
       ? taskService.listTasks({
           status: TaskStatus.GRANT_PENDING,
           ...getTaskTagQuery(activeFilters.tag),
-          scope: activeFilters.scope,
+          scope: tasksQueryScope(activeFilters.scope, activeFilters),
+          ...(activeFilters.mentions ? { unansweredMention: true } : {}),
           assigneeId: activeFilters.assigneeId ?? undefined,
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,
@@ -229,8 +236,7 @@ async function readTasksPageData(
         ) as Record<KanbanColumnId, number>);
 
   const coworkerOptions = await coworkerOptionsPromise;
-  const canCreateTask =
-    await organizationSeatService.hasAssignedSeat(activeOrganizationId);
+  const canCreateTask = await canCreateTaskPromise;
 
   return {
     tasks,

@@ -162,6 +162,8 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
         task: {
           findFirst: taskFindFirstMock,
           updateMany: taskUpdateManyMock,
+          // No sub-tasks follow the Task to another Project.
+          findMany: async () => [],
         },
       }),
     );

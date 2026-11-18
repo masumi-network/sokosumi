@@ -161,6 +161,7 @@ export async function executeAuthorizedTool(
     case "update_assigned_task":
     case "reply_to_task":
     case "link_tasks":
+    case "set_task_parent":
     case "find_agents":
     case "get_agent_input_schema":
     case "hire_agent":

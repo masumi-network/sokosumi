@@ -6,6 +6,7 @@ import { created } from "@/helpers/response";
 import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
 import type { EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -79,6 +80,7 @@ async function handle(
             reconciliationLeaseToken,
           ),
         ).catch((error) => {
+          if (reportSokoBotReconciliationLeaseLoss(turnId, error)) return;
           // A turn's error can quote what the member asked: content-free
           // fields only.
           emitCoreError(

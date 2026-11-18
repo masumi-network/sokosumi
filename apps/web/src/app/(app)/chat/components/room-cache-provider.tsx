@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
@@ -9,11 +9,18 @@ import {
   useEffect,
   useEffectEvent,
   useState,
+  useSyncExternalStore,
 } from "react";
-import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
+import {
+  chatRoomHref,
+  isChatRoomPathname,
+  isChatShellPathname,
+  roomIdFromPath,
+} from "@/app/chat/utils/chat-route-base";
 import {
   ROOM_APPROACH_REUSE_MS,
   RoomTranscriptCache,
+  type RoomTranscriptEntry,
 } from "@/app/chat/utils/room-transcript-cache";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
@@ -21,6 +28,7 @@ import {
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
 import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
+import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";
 import type { RoomsClientProps } from "./rooms-client";
@@ -89,6 +97,109 @@ export function clickOpensAtUnread(
 const RoomSelectionContext = createContext<string | null>(null);
 export function useRoomSelection() {
   return useContext(RoomSelectionContext);
+}
+
+/**
+ * The room on screen, owned here so the room view (`PersistentRoomView`) and
+ * the app chrome derive from one source. `roomId` is the room painted;
+ * `requestedId` the room the selection asks for, which paints once ready.
+ */
+interface PaintedRoom {
+  roomId: string | undefined;
+  requestedId: string | undefined;
+  bootstrap: RoomsClientProps | null;
+  register: (props: RoomsClientProps) => void;
+}
+const PaintedRoomContext = createContext<PaintedRoom | null>(null);
+export function usePaintedRoom(): PaintedRoom | null {
+  return useContext(PaintedRoomContext);
+}
+
+/**
+ * The path the app chrome (top bar, tab bar) describes. A room paints ahead
+ * of its route on a click, and leaves ahead of it on a swipe back, so the
+ * chrome follows the room on screen and not `usePathname` alone: otherwise
+ * the tab bar shows over a room that just opened.
+ */
+export function useChromePathname(): string {
+  const pathname = usePathname();
+  const painted = useContext(PaintedRoomContext);
+  const target = useContext(RoomSelectionContext);
+  if (painted?.roomId) return chatRoomHref(painted.roomId);
+  if (painted && !painted.requestedId && isChatRoomPathname(pathname) && target)
+    return target.split("?")[0];
+  return pathname;
+}
+
+/** Cached room, or the page bootstrap that just registered this room. */
+function roomCanPaint(
+  cache: RoomTranscriptCache,
+  roomId: string,
+  bootstrap: RoomsClientProps | null,
+): boolean {
+  if (!cache.available(roomId)) return false;
+  if (cache.get(roomId)?.bootstrap.selectedRoomId === roomId) return true;
+  return bootstrap?.selectedRoomId === roomId;
+}
+
+function PaintedRoomProvider({
+  cache,
+  target,
+  children,
+}: {
+  cache: RoomTranscriptCache;
+  target: string;
+  children: ReactNode;
+}) {
+  // Reads the cache's mutable availability during render. React Compiler
+  // would keep that read until the cache object changes, so a cache that
+  // comes back from a clear (a hidden app shell, a session end) never paints.
+  "use no memo";
+  const [registered, setRegistered] = useState<RoomsClientProps | null>(null);
+  // A page registered before a workspace switch never paints in the next one.
+  const bootstrap =
+    registered &&
+    cache.matchesScope(
+      registered.currentUserId,
+      registered.activeOrganization?.id ?? null,
+    )
+      ? registered
+      : null;
+  const requestedId = roomIdFromPath(target);
+  // The click's read can seed the target before its page registers. Read as
+  // an external store, not a query observer: an observer here, above every
+  // route, would keep the room's transcript from ever expiring.
+  useSyncExternalStore(
+    // Batched as `useQuery` does: rooms write the cache while rendering.
+    (notify) =>
+      cache.client.getQueryCache().subscribe(notifyManager.batchCalls(notify)),
+    () =>
+      requestedId
+        ? cache.client.getQueryData<RoomTranscriptEntry>(cache.key(requestedId))
+        : undefined,
+    // The server and hydration have no click read to wait for.
+    () => undefined,
+  );
+  const [paintedId, setPaintedId] = useState(requestedId);
+  // A click updates the target before the next page can register. Painting
+  // that id immediately unmounts the open room onto a page that renders null.
+  const targetRevoked = Boolean(requestedId && !cache.available(requestedId));
+  const targetReady = Boolean(
+    requestedId && roomCanPaint(cache, requestedId, bootstrap),
+  );
+  const roomId = !requestedId
+    ? undefined
+    : targetReady || targetRevoked
+      ? requestedId
+      : paintedId;
+  if (roomId !== paintedId) setPaintedId(roomId);
+  return (
+    <PaintedRoomContext
+      value={{ roomId, requestedId, bootstrap, register: setRegistered }}
+    >
+      {children}
+    </PaintedRoomContext>
+  );
 }
 
 interface RoomCacheSessionValue {
@@ -184,6 +295,9 @@ function RoomCacheSession({
       setNavigation({ pathname, target: url.pathname + url.search });
       const roomId = roomIdFromPath(url.pathname);
       if (!roomId) return;
+      // Chat's room view paints a cached room at once, ahead of its route.
+      if (isChatShellPathname(pathname) && roomCanPaint(cache, roomId, null))
+        markPageOnScreen(url.pathname);
       cache.prefetch(roomId, () =>
         provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
       );
@@ -211,9 +325,13 @@ function RoomCacheSession({
       )
         return;
       const url = new URL(link.href);
+      if (url.origin !== window.location.origin) return;
+      // A room link selects the room. A link to the page already under a
+      // room painted ahead of its route (Back while the room still loads)
+      // selects that page: its navigation changes no pathname to reset on.
       if (
-        url.origin === window.location.origin &&
-        /^\/chat\/rooms\/[^/]+\/?$/.test(url.pathname)
+        /^\/chat\/rooms\/[^/]+\/?$/.test(url.pathname) ||
+        url.pathname === window.location.pathname
       )
         select(url);
     };
@@ -261,7 +379,11 @@ function RoomCacheSession({
   }, [cache]);
   return (
     <RoomCacheContext value={{ cache, generation, currentUserId, workspaceId }}>
-      <RoomSelectionContext value={target}>{children}</RoomSelectionContext>
+      <RoomSelectionContext value={target}>
+        <PaintedRoomProvider cache={cache} target={target}>
+          {children}
+        </PaintedRoomProvider>
+      </RoomSelectionContext>
     </RoomCacheContext>
   );
 }

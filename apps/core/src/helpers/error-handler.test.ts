@@ -5,7 +5,11 @@ import { Hono } from "hono";
 import { type RequestIdVariables, requestId } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { coreEvlogMiddleware } from "@/lib/evlog";
-import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
 import { conflict, serviceUnavailable, tooManyRequests } from "./error";
 import { errorHandler } from "./error-handler";
@@ -232,14 +236,15 @@ describe("errorHandler", () => {
 
   it("maps Better Auth invalid API key APIError to 401 without Sentry", async () => {
     const app = createApp();
-    app.get("/", () => {
+    app.use(coreEvlogMiddleware());
+    app.get("/auth/check", () => {
       throw APIError.from("UNAUTHORIZED", {
         code: "INVALID_API_KEY",
         message: "Invalid API key.",
       });
     });
 
-    const response = await app.request("http://localhost/");
+    const response = await app.request("/auth/check");
     const body = (await response.json()) as {
       error: string;
       message: string;
@@ -248,6 +253,8 @@ describe("errorHandler", () => {
     expect(response.status).toBe(401);
     expect(body.error).toBe("Unauthorized");
     expect(body.message).toBe("Invalid API key.");
+    expect(coreLogEvents()).toMatchObject([{ status: 401, level: "info" }]);
+    expect(coreLogEvents()[0]).not.toHaveProperty("error");
     expect(captureExceptionMock).not.toHaveBeenCalled();
     expect(captureExternalServiceErrorMock).not.toHaveBeenCalled();
   });
@@ -275,15 +282,20 @@ describe("errorHandler", () => {
   });
 
   it("reports Better Auth 5xx APIError through captureExternalServiceError", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Better Auth failed a request with a server error",
+    );
     const app = createApp();
-    app.get("/", () => {
+    app.use(coreEvlogMiddleware());
+    app.get("/auth/check", () => {
       throw APIError.from("INTERNAL_SERVER_ERROR", {
         code: "INTERNAL_SERVER_ERROR",
         message: "Auth backend failed",
       });
     });
 
-    const response = await app.request("http://localhost/");
+    const response = await app.request("/auth/check");
     const body = (await response.json()) as {
       error: string;
       message: string;
@@ -292,6 +304,7 @@ describe("errorHandler", () => {
     expect(response.status).toBe(500);
     expect(body.error).toBe("InternalServerError");
     expect(body.message).toBe("Auth backend failed");
+    expect(errors[0]?.event).toMatchObject({ status: 500, level: "error" });
     expect(captureExternalServiceErrorMock).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({

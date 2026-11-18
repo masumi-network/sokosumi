@@ -36,12 +36,18 @@ function CommandDialog({
   children,
   contentProps,
   commandProps,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   commandProps?: React.ComponentProps<typeof CommandPrimitive>
-  contentProps?: React.ComponentProps<typeof DialogContent>
+  /** Extra `DialogContent` props; close focus goes through `onCloseAutoFocus`. */
+  contentProps?: Omit<
+    React.ComponentProps<typeof DialogContent>,
+    "onCloseAutoFocus"
+  >
+  onCloseAutoFocus?: React.ComponentProps<typeof DialogContent>["onCloseAutoFocus"]
 }) {
   return (
     <Dialog {...props}>
@@ -52,6 +58,7 @@ function CommandDialog({
       <DialogContent
         {...contentProps}
         className={cn("overflow-hidden p-0", contentProps?.className)}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         <Command
           className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:size-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]>svg]:size-4"

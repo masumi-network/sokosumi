@@ -20,6 +20,7 @@ import {
   SeoSource,
   seoFoldCount,
 } from "./seo-shared";
+import { SeoStrategyForumQuestions } from "./seo-strategy-forum-questions";
 import {
   SEO_STRATEGY_PLACE_FORMS,
   SEO_STRATEGY_REACHES,
@@ -32,6 +33,7 @@ import {
   seoStrategyReason,
   seoStrategyTargetNotes,
 } from "./seo-strategy-model";
+import { SeoStrategyPurpose } from "./seo-strategy-purpose";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Under the fixes the list starts with this many actions: eight rows after five fix rows read as one long list. */
@@ -129,7 +131,7 @@ export function SeoStrategyFold({
         </span>
       </SeoFoldSummary>
       <div className="max-w-prose space-y-2 pb-2">
-        {/* The counts lead: they are the reader's own words. The sentence of the audit follows them, quieter. */}
+        <SeoStrategyPurpose strategy={strategy} />
         {counts.reaches.length || reason.moving.length ? (
           <ul role="list" className="space-y-1.5">
             {counts.reaches.map(({ reach, count }, index) => {
@@ -169,6 +171,10 @@ export function SeoStrategyFold({
         >
           {reason.lead}
         </p>
+        <SeoStrategyForumQuestions
+          workspace={model.data}
+          selectedPageId={model.filters.pageId}
+        />
         {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
         <StrategyLines lines={reason.notes} />
         {dated ? null : (
