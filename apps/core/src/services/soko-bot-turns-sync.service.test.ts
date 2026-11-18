@@ -34,6 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SOKO_BOT_START_RECOVERY_GRACE_MS: 120_000,
+  SOKO_BOT_TURN_STALE_HEARTBEAT_MS: 45_000,
   sokoBotControlPlane: {
     expireTurn: expireTurnMock,
     recoverStartingTurn: recoverStartingTurnMock,
@@ -42,8 +43,8 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
+import { SOKO_BOT_TURN_STALE_HEARTBEAT_MS } from "@/services/soko-bot-control-plane.service";
 import {
-  SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   SOKO_BOT_TURN_STARTING_ABANDON_MS,
   SOKO_BOT_TURN_STARTING_GRACE_MS,
   sokoBotTurnsSyncService,
@@ -198,22 +199,26 @@ describe("SokoBotTurnsSyncService", () => {
     expect(expireTurnMock).not.toHaveBeenCalled();
     const abandonQuery = turnFindManyMock.mock.calls[2]?.[0] as {
       where: {
-        status: string;
-        eveSessionId: null;
-        createdAt: { lte: Date };
+        OR: [
+          { reconcilerHeartbeatAt: null; createdAt: { lte: Date } },
+          { reconcilerHeartbeatAt: { lte: Date } },
+        ];
       };
     };
     expect(abandonQuery.where).toEqual(
       expect.objectContaining({
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
-        reconcilerHeartbeatAt: null,
       }),
     );
-    const abandonCutoff = abandonQuery.where.createdAt.lte.getTime();
-    expect(Date.now() - abandonCutoff).toBeGreaterThanOrEqual(
-      SOKO_BOT_TURN_STARTING_ABANDON_MS - 50,
-    );
+    const [neverBeat, staleBeat] = abandonQuery.where.OR;
+    expect(neverBeat.reconcilerHeartbeatAt).toBeNull();
+    expect(
+      Date.now() - neverBeat.createdAt.lte.getTime(),
+    ).toBeGreaterThanOrEqual(SOKO_BOT_TURN_STARTING_ABANDON_MS - 50);
+    expect(
+      Date.now() - staleBeat.reconcilerHeartbeatAt.lte.getTime(),
+    ).toBeGreaterThanOrEqual(SOKO_BOT_TURN_STALE_HEARTBEAT_MS - 50);
   });
 
   it("only selects no-session STARTING turns for durable replay", async () => {
