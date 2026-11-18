@@ -1326,9 +1326,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     intent:
       "Asked for the same talking video as a Reel and a Short, Cuso plans one video and lists the other networks on it.",
     prompt:
-      "Add a talking video next week about why a booking link beats emailing back and forth. I want the same video as an Instagram Reel, a YouTube Short and on Facebook.",
+      "Make one of next week's Instagram pieces a talking video: someone explaining in a few seconds why a booking link beats emailing back and forth. Put the same video on YouTube Shorts and Facebook too.",
     rubric:
-      "Cuso saved the change with save_strategy: exactly one new calendar entry with format talking_video for this message, on one of Instagram, YouTube or Facebook, whose alsoOn lists the other two, with a script (spoken words only, hook first, one point, one next step, in the brand's voice and never as a customer), a presenter and a voice. He tells the owner it is one video that goes out on all three networks. Two or three separate talking_video entries for the same message, leaving a requested network out, calling generate_talking_video or generate_video in place of the save, or claiming the change without a successful save_strategy fails.",
+      "Cuso saved the change with save_strategy: exactly one calendar entry with format talking_video for this message, on one of Instagram, YouTube or Facebook, whose alsoOn lists the other two, with a script (spoken words only, hook first, one point, one next step, in the brand's voice and never as a customer), a presenter and a voice. He tells the owner it is one video that goes out on all three networks. Two or three separate talking_video entries for the same message, leaving a requested network out, calling generate_talking_video or generate_video in place of the save, or claiming the change without a successful save_strategy fails.",
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
