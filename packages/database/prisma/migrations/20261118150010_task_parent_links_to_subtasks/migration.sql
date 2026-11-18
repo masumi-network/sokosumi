@@ -45,7 +45,11 @@ BEGIN
           SELECT 1 FROM "task_link" up
           WHERE up."type" = 'PARENT' AND up."toTaskId" = l."fromTaskId"
         )
-      UNION ALL
+      -- UNION, not UNION ALL: links that meet again below a fork (a
+      -- diamond) reach a Task by several paths. UNION keeps one row per
+      -- link and depth, so the walk stays at most links x max_link_depth
+      -- rows instead of one row per path. min(depth) below is the same.
+      UNION
       SELECT l."id", l."toTaskId", ranked.depth + 1
       FROM "task_link" l JOIN ranked ON l."fromTaskId" = ranked."toTaskId"
       WHERE l."type" = 'PARENT' AND ranked.depth < max_link_depth

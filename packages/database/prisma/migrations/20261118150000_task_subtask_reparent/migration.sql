@@ -11,6 +11,9 @@
 -- the old Core for the whole scan. VALIDATE at the end takes a lock that lets
 -- reads and writes through. No row can fail it: the earlier guard refused a
 -- self-parent as a parent mismatch, because the row did not exist yet.
+-- The DROP makes the file safe to run again after a failure part-way
+-- through: the statements before the failure stay applied.
+ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "task_subtask_not_self_check";
 ALTER TABLE "task" ADD CONSTRAINT "task_subtask_not_self_check"
   CHECK ("parentTaskId" <> "id") NOT VALID;
 

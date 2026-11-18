@@ -19,6 +19,14 @@ const backfillSql = readFileSync(
 const userId = randomUUID();
 const otherUserId = randomUUID();
 const workspaceId = randomUUID();
+const otherWorkspaceId = randomUUID();
+// Each diamond doubles the paths to the Tasks below it. A walk that keeps
+// one row per path would build 2^30 rows; one row per link and depth stays
+// small. 30 diamonds are 60 levels, inside the backfill's 64.
+const DIAMOND_COUNT = 30;
+// Far above the time the bounded walk needs, far below the unbounded one.
+const BACKFILL_TIMEOUT = "10s";
+const BACKFILL_TRANSACTION_TIMEOUT_MS = 30_000;
 
 async function createTask(
   name: string,
@@ -28,13 +36,14 @@ async function createTask(
     visibility?: "PUBLIC" | "PRIVATE";
     ownerId?: string;
     archivedAt?: Date;
+    workspaceId?: string;
   } = {},
 ): Promise<string> {
   const task = await prisma.task.create({
     data: {
       ownerId: input.ownerId ?? userId,
       creatorUserId: userId,
-      workspaceId,
+      workspaceId: input.workspaceId ?? workspaceId,
       projectId: input.projectId ?? null,
       parentTaskId: input.parentTaskId ?? null,
       position: input.parentTaskId ? 1 : null,
@@ -90,16 +99,18 @@ describe.skipIf(!enabled)("PARENT links to sub-tasks backfill", () => {
           emailVerified: true,
           createdAt: new Date(),
           updatedAt: new Date(),
-          ...(id === userId
-            ? { workspace: { create: { id: workspaceId } } }
-            : {}),
+          workspace: {
+            create: { id: id === userId ? workspaceId : otherWorkspaceId },
+          },
         },
       });
     }
   });
 
   afterAll(async () => {
-    await prisma.task.deleteMany({ where: { workspaceId } });
+    await prisma.task.deleteMany({
+      where: { workspaceId: { in: [workspaceId, otherWorkspaceId] } },
+    });
     await prisma.project.deleteMany({ where: { workspaceId } });
     await prisma.user.deleteMany({
       where: { id: { in: [userId, otherUserId] } },
@@ -208,4 +219,83 @@ describe.skipIf(!enabled)("PARENT links to sub-tasks backfill", () => {
     });
     expect(kept.toTaskId).toBe(twoParentsChild);
   });
+
+  it("turns a link into RELATES when the child has a parent, the parent is archived, or workspace or visibility differ", async () => {
+    const formerParent = await createTask("Former parent");
+    const alreadySubtask = await createTask("Already a sub-task", {
+      parentTaskId: formerParent,
+    });
+    const childHasParent = await parentLink(
+      await createTask("Second parent"),
+      alreadySubtask,
+    );
+    const archivedParent = await parentLink(
+      await createTask("Archived parent", { archivedAt: new Date() }),
+      await createTask("Child of archived"),
+    );
+    const otherWorkspaceChild = await createTask("Other workspace child", {
+      workspaceId: otherWorkspaceId,
+      ownerId: otherUserId,
+    });
+    const workspaceMismatch = await parentLink(
+      await createTask("Workspace parent"),
+      otherWorkspaceChild,
+    );
+    const privateChild = await createTask("Private child", {
+      visibility: "PRIVATE",
+    });
+    const visibilityMismatch = await parentLink(
+      await createTask("Public parent"),
+      privateChild,
+    );
+
+    await prisma.$executeRawUnsafe(backfillSql);
+
+    for (const link of [
+      childHasParent,
+      archivedParent,
+      workspaceMismatch,
+      visibilityMismatch,
+    ]) {
+      expect(await linkType(link)).toBe(TaskLinkType.RELATES);
+    }
+    expect((await parentOf(alreadySubtask)).parentTaskId).toBe(formerParent);
+    expect((await parentOf(otherWorkspaceChild)).parentTaskId).toBeNull();
+    expect((await parentOf(privateChild)).parentTaskId).toBeNull();
+  });
+
+  it(
+    "walks a chain of diamonds in bounded time",
+    async () => {
+      // top -> left, top -> right, left -> bottom, right -> bottom, and the
+      // bottom is the next diamond's top.
+      const tops = [await createTask("Diamond top 0")];
+      const firstLefts: string[] = [];
+      for (let index = 0; index < DIAMOND_COUNT; index += 1) {
+        const left = await createTask(`Diamond left ${index}`);
+        const right = await createTask(`Diamond right ${index}`);
+        const bottom = await createTask(`Diamond top ${index + 1}`);
+        firstLefts.push(await parentLink(tops[index], left));
+        await parentLink(tops[index], right);
+        await parentLink(left, bottom);
+        await parentLink(right, bottom);
+        tops.push(bottom);
+      }
+
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(
+            `SET LOCAL statement_timeout = '${BACKFILL_TIMEOUT}'`,
+          );
+          await tx.$executeRawUnsafe(backfillSql);
+        },
+        { timeout: BACKFILL_TRANSACTION_TIMEOUT_MS },
+      );
+
+      // The top's two links convert; a bottom has two parents and stays apart.
+      expect(await linkType(firstLefts[0])).toBeNull();
+      expect((await parentOf(tops[1])).parentTaskId).toBeNull();
+    },
+    BACKFILL_TRANSACTION_TIMEOUT_MS,
+  );
 });
