@@ -13647,11 +13647,26 @@ export type CmoPieceText = {
 export type CmoCompetitors = {
     competitors: Array<CmoCompetitor>;
     /**
+     * Cuso's This week: null until he wrote one.
+     */
+    feed: {
+        /**
+         * The day of the check it was written from.
+         */
+        checkDay: string;
+        savedAt: Date;
+        items: Array<CmoCompetitorFeedItem>;
+        /**
+         * What the sources could not settle this week.
+         */
+        openQuestions: Array<string>;
+    } | null;
+    /**
      * How many competitors can be tracked.
      */
     limit: number;
     /**
-     * What the checks of the last 30 days found, newest first.
+     * What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.
      */
     signals: Array<CmoCompetitorSignal>;
     /**
@@ -13687,6 +13702,35 @@ export type CmoCompetitor = {
      */
     source: 'RESEARCH' | 'MEMBER';
     createdAt: Date;
+};
+
+export type CmoCompetitorFeedItem = {
+    id: string;
+    competitorId: string;
+    facts: Array<{
+        text: string;
+        /**
+         * The signals that back it; their sources show on hover.
+         */
+        signalIds: Array<string>;
+        /**
+         * weak: the sources back it only in part.
+         */
+        support: 'strong' | 'weak';
+    }>;
+    /**
+     * What this means for you.
+     */
+    meaning: string;
+    /**
+     * One suggested move.
+     */
+    move: string;
+    /**
+     * A price change, launch or ad burst, told in chat at once.
+     */
+    big: boolean;
+    addedToStrategyAt: string | null;
 };
 
 export type CmoCompetitorSignal = {
@@ -86277,6 +86321,97 @@ export type UpdateCmoCompetitorForProjectResponses = {
 };
 
 export type UpdateCmoCompetitorForProjectResponse = UpdateCmoCompetitorForProjectResponses[keyof UpdateCmoCompetitorForProjectResponses];
+
+export type AddCmoCompetitorMoveToStrategyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        itemId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/feed/{itemId}/strategy';
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or the move is gone
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already in the strategy, Cuso is finishing a change, or he is paused
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectError = AddCmoCompetitorMoveToStrategyForProjectErrors[keyof AddCmoCompetitorMoveToStrategyForProjectErrors];
+
+export type AddCmoCompetitorMoveToStrategyForProjectResponses = {
+    /**
+     * Sent to the strategy
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectResponse = AddCmoCompetitorMoveToStrategyForProjectResponses[keyof AddCmoCompetitorMoveToStrategyForProjectResponses];
 
 export type StartCmoPlanCheckoutForProjectData = {
     body?: {

@@ -13,13 +13,14 @@ import {
   competitorCheckSourcesSchema,
   projectInstagramConnection,
 } from "@/services/cmo-competitor-check.service";
+import { latestCompetitorFeed } from "@/services/cmo-competitor-feed.service";
 import {
   listTrackedCompetitors,
   MAX_TRACKED_COMPETITORS,
 } from "@/services/cmo-competitors.service";
 import { type CusoTarget, requireCuso } from "@/services/cmo-cuso.service";
 
-const SIGNAL_DAYS = 30;
+const SIGNAL_DAYS = 35;
 const MAX_SIGNALS = 200;
 const WEEK_MS = 7 * 86_400_000;
 /** Two readings this far apart or more make a week's follower growth. */
@@ -276,8 +277,8 @@ export async function getCmoCompetitors(
         where: {
           projectId,
           competitor: { removedAt: null },
-          kind: { not: "SOCIAL" },
-          observedAt: {
+          // Every signal a feed fact can cite, so its source shows on hover.
+          createdAt: {
             gte: new Date(now.getTime() - SIGNAL_DAYS * 86_400_000),
           },
         },
@@ -309,9 +310,17 @@ export async function getCmoCompetitors(
       projectInstagramConnection(projectId),
     ]);
   const readings = socialReadings(social);
+  const feed = await latestCompetitorFeed(projectId);
   const own = await ownScoreRow(instagram, cuso.businessName, now);
   return {
     competitors,
+    feed: feed && {
+      ...feed,
+      items: feed.items.map((item) => ({
+        ...item,
+        addedToStrategyAt: item.addedToStrategyAt ?? null,
+      })),
+    },
     limit: MAX_TRACKED_COMPETITORS,
     signals,
     scoreboard: [

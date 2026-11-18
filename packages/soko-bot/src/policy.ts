@@ -161,6 +161,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "research_keywords",
   "check_search_rankings",
   "save_seo_suggestions",
+  "check_competitors",
+  "save_competitor_feed",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
@@ -218,6 +220,9 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "research_keywords",
   "check_search_rankings",
   "save_seo_suggestions",
+  // The weekly competitor watch: what Core's check found, and the feed.
+  "check_competitors",
+  "save_competitor_feed",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {

@@ -221,8 +221,6 @@ export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
 
-const COMING_SOON = [["Website / SEO", "Articles"]] as const;
-
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
   ["meta_ads", "Meta ads"],
@@ -235,12 +233,20 @@ export function ChannelsPage({
   addMailingList,
   onChange,
   connectFailed = false,
+  openSeo,
+  connectSearchConsole,
 }: PageProps & {
   connect: ConnectChannel;
   addMailingList: AddMailingList;
   onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
   connectFailed?: boolean;
+  /** Opens the SEO tab, where search work and Search Console live. */
+  openSeo: () => void;
+  connectSearchConsole: () => Promise<{
+    url: string | null;
+    error: string | null;
+  }>;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(
@@ -352,19 +358,48 @@ export function ChannelsPage({
         />
       </section>
       <section className="card">
-        <h3>Coming soon</h3>
+        <h3>Google search</h3>
+        <p className="muted">
+          No account to connect for SEO: {AGENT_NAME} audits your site every
+          week and writes page changes and articles for you to paste. Connect
+          Search Console and he also sees the searches that find you.
+        </p>
         <ul className="list">
-          {COMING_SOON.map(([label, kind]) => (
-            <li key={label} className="crow">
-              <span className="grow">
-                <b>{label}</b>
-                <br />
-                <span className="note">{kind}</span>
-              </span>
-              <span className="muted">Not yet</span>
-            </li>
-          ))}
+          <li className="crow">
+            <ChannelIcon channel="seo" size={20} />
+            <span className="grow">
+              <b>Google Search Console</b>
+            </span>
+            {overview.measurement.some(
+              (source) =>
+                source.provider === "google_search_console" &&
+                source.status === "connected",
+            ) ? (
+              <StatusText>Connected</StatusText>
+            ) : (
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                onClick={async () => {
+                  const result = await connectSearchConsole();
+                  if (result.url) window.location.assign(result.url);
+                  else setError(result.error ?? "Could not start connecting.");
+                }}
+              >
+                Connect
+              </button>
+            )}
+          </li>
         </ul>
+        <div>
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={openSeo}
+          >
+            Open SEO
+          </button>
+        </div>
       </section>
       <p className="note">
         {AGENT_NAME} plans for every channel he can reach, and never posts
