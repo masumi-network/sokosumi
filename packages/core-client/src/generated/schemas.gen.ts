@@ -22250,6 +22250,12 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                             cutoutPerSecondUsd: {
                                 type: 'number'
                             },
+                            brollUsd: {
+                                type: 'number'
+                            },
+                            musicUsd: {
+                                type: 'number'
+                            },
                             basis: {
                                 type: 'string'
                             },
@@ -22265,6 +22271,8 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                             'voicePer1000CharactersUsd',
                             'captionsPerMinuteUsd',
                             'cutoutPerSecondUsd',
+                            'brollUsd',
+                            'musicUsd',
                             'basis',
                             'sourceUrl',
                             'verifiedAt'
@@ -22854,13 +22862,21 @@ export const ProjectTalkingVideoSchema = {
         },
         siteShots: {
             type: 'boolean'
+        },
+        broll: {
+            type: 'boolean'
+        },
+        music: {
+            type: 'boolean'
         }
     },
     required: [
         'voice',
         'presenterId',
         'languageCode',
-        'siteShots'
+        'siteShots',
+        'broll',
+        'music'
     ]
 } as const;
 
@@ -43293,6 +43309,14 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
         },
         siteShots: {
             type: 'boolean'
+        },
+        broll: {
+            type: 'boolean',
+            default: false
+        },
+        music: {
+            type: 'boolean',
+            default: false
         },
         idempotencyKey: {
             type: 'string',

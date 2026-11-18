@@ -108,6 +108,8 @@ export const TEST_CATALOG: StudioCatalog = {
           voicePer1000CharactersUsd: 0.08,
           captionsPerMinuteUsd: 0.03,
           cutoutPerSecondUsd: 0.01,
+          brollUsd: 0.5,
+          musicUsd: 0.1,
           basis: "",
           sourceUrl: "https://example.com/talk-a",
           verifiedAt: "2026-11-18",

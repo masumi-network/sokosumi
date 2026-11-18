@@ -25,9 +25,9 @@ export type SpokenWord = {
 
 /**
  * What a cut shows: the presenter as filmed, the presenter cut out over the
- * brand's page, or the page alone while the voice goes on.
+ * brand's page, the page alone, or a B-roll clip, while the voice goes on.
  */
-export type EditShot = "camera" | "over-page" | "page";
+export type EditShot = "camera" | "over-page" | "page" | "broll";
 
 /** A stretch of the presenter clip that is kept, and how it is shown. */
 export interface EditCut {
@@ -82,16 +82,54 @@ const FINAL_TAIL_SECONDS = 0.25;
 const SENTENCE_ZOOMS = [1, 1.2] as const;
 const WORDS_PER_CAPTION = 2;
 const HOOK_SECONDS = 3;
+/** How long the presenter is seen before the B-roll, and the clip's bounds. */
+const BROLL_LEAD_SECONDS = 1;
+const BROLL_MIN_SECONDS = 0.8;
+const BROLL_MAX_SECONDS = 3;
+/** The music bed under the voice, as a share of full volume. */
+const MUSIC_VOLUME = 0.3;
+const MUSIC_FADE_SECONDS = 0.6;
 export const END_CARD_SECONDS = 1.7;
 export const TALKING_VIDEO_HOOK_MAX_LENGTH = 48;
 
 const SENTENCE_END = /[.!?]["')\]]*$/;
 
+/**
+ * Cuts the B-roll into the hook: the presenter opens to camera for a second,
+ * then the clip plays under their voice for up to three, and they come back
+ * if the first cut runs on. A first cut too short for that is left alone.
+ */
+function showBrollInHook(
+  cuts: EditCut[],
+  words: readonly SpokenWord[],
+  wordCut: number[],
+): void {
+  const first = cuts[0]!;
+  if (first.end - first.start < BROLL_LEAD_SECONDS + BROLL_MIN_SECONDS) return;
+  const from = first.start + BROLL_LEAD_SECONDS;
+  const wanted = from + BROLL_MAX_SECONDS;
+  const until = first.end - wanted < BROLL_MIN_SECONDS ? first.end : wanted;
+  const pieces: EditCut[] = [
+    { ...first, end: from },
+    { ...first, start: from, end: until, shot: "broll" },
+    ...(until < first.end ? [{ ...first, start: until }] : []),
+  ];
+  cuts.splice(0, 1, ...pieces);
+  wordCut.forEach((cut, index) => {
+    if (cut > 0) {
+      wordCut[index] = cut + pieces.length - 1;
+      return;
+    }
+    const at = words[index]!.start;
+    wordCut[index] = at < from ? 0 : at < until ? 1 : 2;
+  });
+}
+
 /** Plans the cuts and captions for a clip from its spoken words. */
 export function planTalkingVideoEdit(
   spoken: readonly SpokenWord[],
   clipSeconds: number,
-  options: { siteShots?: boolean; endCard?: boolean } = {},
+  options: { siteShots?: boolean; endCard?: boolean; broll?: boolean } = {},
 ): TalkingVideoEditPlan | null {
   const words = spoken.filter(
     (word) => word.text.trim() && word.end > word.start,
@@ -134,6 +172,8 @@ export function planTalkingVideoEdit(
     }
     if (endsSentence) sentence += 1;
   });
+
+  if (options.broll) showBrollInHook(cuts, words, wordCut);
 
   const offsets: number[] = [];
   let speechSeconds = 0;
@@ -333,6 +373,10 @@ export interface TalkingVideoEditFiles {
   };
   /** Present when the video ends on a card. */
   endCard?: { logo: string; dark: boolean };
+  /** A clip shown in the hook, at least three seconds long. */
+  broll?: string;
+  /** An instrumental bed, looped under the whole video. */
+  music?: string;
 }
 
 /**
@@ -361,13 +405,22 @@ export function talkingVideoEditArgs(
     const seek = ["-ss", cut.start.toFixed(3), "-t", seconds];
     const still = ["-loop", "1", "-framerate", "30", "-t", seconds];
     const clip = addInput(...seek, "-i", files.clip);
-    const shot = files.site ? cut.shot : "camera";
+    const shot =
+      (cut.shot === "broll" && !files.broll) ||
+      (cut.shot !== "broll" && cut.shot !== "camera" && !files.site)
+        ? "camera"
+        : cut.shot;
     if (shot === "camera") {
       const width = 2 * Math.round(FRAME.width / cut.zoom / 2);
       const height = 2 * Math.round(FRAME.height / cut.zoom / 2);
       // Punched in from the top, where the presenter's face is.
       graph.push(
         `[${clip}:v]scale=${size},crop=${width}:${height}:(iw-ow)/2:0,scale=${size},setsar=1,fps=30[v${index}]`,
+      );
+    } else if (shot === "broll") {
+      const broll = addInput("-t", seconds, "-i", files.broll!);
+      graph.push(
+        `[${broll}:v]scale=${size}:force_original_aspect_ratio=increase,crop=${size},setsar=1,fps=30[v${index}]`,
       );
     } else if (shot === "page") {
       const page = addInput(...still, "-i", files.site!.page);
@@ -412,8 +465,18 @@ export function talkingVideoEditArgs(
     parts.push("[vcard][acard]");
   }
 
+  if (files.music) {
+    const music = addInput("-stream_loop", "-1", "-i", files.music);
+    const fadeFrom = Math.max(0, plan.durationSeconds - MUSIC_FADE_SECONDS);
+    graph.push(
+      `${parts.join("")}concat=n=${parts.length}:v=1:a=1[cut][voice]`,
+      `[${music}:a]${sound},volume=${MUSIC_VOLUME},afade=t=out:st=${fadeFrom.toFixed(3)}:d=${MUSIC_FADE_SECONDS}[bed]`,
+      "[voice][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[audio]",
+    );
+  } else {
+    graph.push(`${parts.join("")}concat=n=${parts.length}:v=1:a=1[cut][audio]`);
+  }
   graph.push(
-    `${parts.join("")}concat=n=${parts.length}:v=1:a=1[cut][audio]`,
     `[cut]ass=${filterPath(files.subtitles)}:fontsdir=${filterPath(files.fontsDir)}[video]`,
   );
   return [
@@ -440,6 +503,10 @@ export interface TalkingVideoEditInput {
   site?: { alpha: Uint8Array; page: Uint8Array };
   /** A PNG of the logo fitted to `END_CARD_LOGO_BOX`, and the line under it. */
   endCard?: { logo: Uint8Array; dark: boolean; text: string };
+  /** A generated clip for the hook. */
+  broll?: Uint8Array;
+  /** A generated instrumental, laid under the voice. */
+  music?: Uint8Array;
 }
 
 /** The edited video, or null when the clip has no word timings to plan from. */
@@ -449,6 +516,7 @@ export async function editTalkingVideo(
   const plan = planTalkingVideoEdit(input.words, input.clipSeconds, {
     siteShots: Boolean(input.site),
     endCard: Boolean(input.endCard),
+    broll: Boolean(input.broll),
   });
   if (!plan) return null;
   const dir = await mkdtemp(path.join(tmpdir(), "talking-video-"));
@@ -468,6 +536,12 @@ export async function editTalkingVideo(
       ...(input.endCard
         ? [writeFile(path.join(dir, "logo.png"), input.endCard.logo)]
         : []),
+      ...(input.broll
+        ? [writeFile(path.join(dir, "broll.mp4"), input.broll)]
+        : []),
+      ...(input.music
+        ? [writeFile(path.join(dir, "music.wav"), input.music)]
+        : []),
     ]);
     await runFfmpeg(
       talkingVideoEditArgs(plan, {
@@ -481,6 +555,8 @@ export async function editTalkingVideo(
         ...(input.endCard
           ? { endCard: { logo: "logo.png", dark: input.endCard.dark } }
           : {}),
+        ...(input.broll ? { broll: "broll.mp4" } : {}),
+        ...(input.music ? { music: "music.wav" } : {}),
       }),
       { cwd: dir, timeoutMs: EDIT_TIMEOUT_MS },
     );
