@@ -46903,6 +46903,9 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
+        canDelete: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
