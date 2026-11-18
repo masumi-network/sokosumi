@@ -5,7 +5,7 @@ import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { LIMITS } from "@/config/constants";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { errorResponseSchema } from "@/helpers/error";
+import { badRequest, errorResponseSchema } from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -69,6 +69,16 @@ export const createTaskRequestSchema = z
     copyOfTaskId: z.uuid().optional().openapi({
       description:
         "A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.",
+    }),
+    parentTaskId: z.string().optional().openapi({
+      description:
+        "Creates a sub-task of this Task, which the caller must be able to read in the active workspace. The sub-task takes the parent's project and visibility, and its context attachments default to off, since the parent carries them.",
+      example: "01960001-0001-7001-8001-000000000001",
+    }),
+    afterTaskId: z.string().nullish().openapi({
+      description:
+        "With parentTaskId: place the new sub-task directly after this sibling. Omitted or null puts it last.",
+      example: null,
     }),
     name: z
       .string()
@@ -212,6 +222,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId)
       : null;
 
+    const parentTask = body.parentTaskId
+      ? await requireTaskReadForRouteVars(c.var, body.parentTaskId)
+      : null;
+    if (body.afterTaskId && !parentTask) {
+      throw badRequest("afterTaskId needs parentTaskId");
+    }
+    // The parent already carries the project's context attachments.
+    const context = parentTask
+      ? { brand: false, briefing: false, memory: false, ...body.context }
+      : body.context;
+    const projectId = parentTask
+      ? (body.projectId ?? parentTask.projectId)
+      : body.projectId;
+
     const resolvedName = copySource
       ? (body.name ?? copySource.name)
       : await resolveTaskName({
@@ -222,11 +246,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
     const project = await findTaskProjectInWorkspace(
-      body.projectId,
+      projectId,
       workspaceContext.workspaceId,
     );
     const projectWithBriefing =
-      !shouldEnforceCreateGrant && body.context?.briefing !== false
+      !shouldEnforceCreateGrant && context?.briefing !== false
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
 
@@ -266,19 +290,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ownerId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
-          projectId: body.projectId,
+          projectId,
           name: resolvedName,
           description: body.description,
           resolveDescription: async (tx) => {
             const contextProject =
-              shouldEnforceCreateGrant && body.context?.briefing !== false
+              shouldEnforceCreateGrant && context?.briefing !== false
                 ? await healProjectBriefingUrl(
                     project,
                     workspaceContext.workspaceId,
                   )
                 : projectWithBriefing;
             return resolveTaskDescriptionWithContext({
-              context: body.context,
+              context,
               description: body.description,
               organizationId: userContext.organizationId,
               ownerId: userContext.userId,
@@ -294,6 +318,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           channel: body.channel,
           visibility: body.visibility,
           priority: body.priority,
+          ...(parentTask
+            ? {
+                parent: {
+                  taskId: parentTask.id,
+                  afterTaskId: body.afterTaskId,
+                },
+              }
+            : {}),
         },
         tx,
       );

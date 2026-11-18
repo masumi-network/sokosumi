@@ -11,6 +11,7 @@ import {
   mapTaskLink,
   mapTaskLinkRelationToTypeForExistingDirection,
 } from "@/helpers/task-link";
+import { requireNoSubtaskInParentLink } from "@/helpers/task-subtasks";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -94,6 +95,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         relation === undefined
           ? undefined
           : mapTaskLinkRelationToTypeForExistingDirection(id, link, relation);
+      if (nextType !== undefined) {
+        await requireNoSubtaskInParentLink(tx, nextType, [id, peerTaskId]);
+      }
 
       const updatedLink = await tx.taskLink.update({
         where: { id: linkId },

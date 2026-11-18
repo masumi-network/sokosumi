@@ -49,6 +49,7 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
+import { requireNotSubtask } from "@/helpers/task-subtasks";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -207,6 +208,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
       const projectIdWasProvided = projectId !== undefined;
+      if (projectIdWasProvided && projectId !== taskSnapshot.projectId) {
+        requireNotSubtask(taskSnapshot);
+      }
       if (projectIdWasProvided && projectId !== null) {
         const project = await tx.project.findFirst({
           where: {

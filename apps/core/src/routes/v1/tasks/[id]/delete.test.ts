@@ -293,6 +293,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: vi.fn().mockResolvedValue({ count: 1 }),
           findFirstOrThrow: findFirstOrThrowMock,
         },
@@ -328,6 +329,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
         },
@@ -386,6 +388,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: vi.fn(),
         },
@@ -422,6 +425,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: findFirstOrThrowMock,
         },
@@ -457,6 +461,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: vi.fn(),
         },
@@ -490,6 +495,7 @@ describe("DELETE /tasks/{id}", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
+          findMany: vi.fn().mockResolvedValue([]),
           updateMany: updateManyMock,
           findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
         },
@@ -564,6 +570,7 @@ describe("DELETE /tasks/{id}", () => {
               workspaceId: "22222222-2222-7222-8222-222222222222",
               ...columns,
             }),
+            findMany: vi.fn().mockResolvedValue([]),
             updateMany: taskUpdateManyMock,
             findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
           },

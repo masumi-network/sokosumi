@@ -13,6 +13,7 @@ import {
   mapTaskLink,
   mapTaskLinkRelationToWriteData,
 } from "@/helpers/task-link";
+import { requireNoSubtaskInParentLink } from "@/helpers/task-subtasks";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -81,6 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!peerTask) {
         throw notFound("Task not found");
       }
+      await requireNoSubtaskInParentLink(tx, linkData.type, [id, peerTaskId]);
 
       try {
         const link = await tx.taskLink.create({

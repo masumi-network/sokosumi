@@ -44,6 +44,8 @@ vi.mock("@/config/env", () => ({
 vi.mock("@sokosumi/email", () => ({ renderNewsletterEmail: m.render }));
 vi.mock("@/services/task-domain.service", () => ({
   createTaskForActor: m.createTask,
+}));
+vi.mock("@/services/task-domain-archive", () => ({
   archiveTaskRecord: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({

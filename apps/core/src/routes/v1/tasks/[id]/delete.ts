@@ -10,7 +10,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import { archiveTaskRecord } from "@/services/task-domain.service";
+import { archiveTaskRecord } from "@/services/task-domain-archive";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({

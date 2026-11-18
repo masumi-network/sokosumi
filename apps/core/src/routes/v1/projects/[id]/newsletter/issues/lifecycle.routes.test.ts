@@ -56,14 +56,9 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
     return { userId: "user_1", organizationId: null };
   },
 }));
-vi.mock("@/services/task-domain.service", async (original) => {
-  const actual =
-    await original<typeof import("@/services/task-domain.service")>();
-  return {
-    createTaskForActor: m.createTask,
-    archiveTaskRecord: actual.archiveTaskRecord,
-  };
-});
+vi.mock("@/services/task-domain.service", () => ({
+  createTaskForActor: m.createTask,
+}));
 vi.mock("@/services/newsletter-send.service", () => ({
   sendNewsletterIssue: m.send,
 }));
@@ -81,6 +76,7 @@ vi.mock("@/lib/db/prisma", () => {
     newsletterSendingDomain: { findUnique: m.sendingDomain },
     task: {
       findFirst: m.task,
+      findMany: async () => [],
       updateMany: m.taskUpdate,
       update: m.taskMetadata,
     },

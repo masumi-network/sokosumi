@@ -23,7 +23,7 @@ import {
   requestProjectSeoAnalysis,
   requestProjectSeoAnalysisInTransaction,
 } from "./project-seo-operations.service";
-import { restoreTaskRecord } from "./task-domain.service";
+import { restoreTaskRecord } from "./task-domain-archive";
 import { taskScheduleReleaseService } from "./task-schedule-runs.service";
 
 vi.mock("@/lib/ably/publish", async (importOriginal) => ({

@@ -155,6 +155,7 @@ function createDelegatedCoworkerApp() {
 function mockTx() {
   return {
     task: {
+      count: vi.fn().mockResolvedValue(0),
       findFirst: taskFindFirstMock,
       findUnique: taskFindUniqueMock,
     },

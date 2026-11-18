@@ -163,6 +163,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      // Sub-task Jobs and placement would split across workspaces (v1).
+      if (
+        current.parentTaskId ||
+        (await tx.task.count({ where: { parentTaskId: id } })) > 0
+      ) {
+        throw conflict(
+          "Cannot move a sub-task, or a task with sub-tasks, to another workspace.",
+        );
+      }
+
       // Pilot isolation: assignee must be usable in the target workspace
       // (global whitelist OR GRANTED early access). Blocks smuggling a
       // workspace-scoped coworker into another workspace via move.
