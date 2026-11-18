@@ -319,6 +319,30 @@ describe("WelcomePage", () => {
     expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
   });
 
+  it("lists the reader's latest chat with the bot once it is read", async () => {
+    listImportantMessages.mockResolvedValueOnce([]);
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(listMessages).toHaveBeenCalledWith("room-1", { limit: 20 });
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chats: [
+          expect.objectContaining({
+            roomId: "room-1",
+            messageId: "msg-1",
+            title: "Plan my week",
+            from: "Joseph",
+          }),
+        ],
+      }),
+    );
+  });
+
   // The reads are cached, so a link prefetch carries Home.
   // connection() would drop it back to the skeleton.
   it("renders the bot home while the request has not come", async () => {

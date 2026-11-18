@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@sokosumi/core-client";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +6,7 @@ import {
   toImportantChats,
   toNewSchedules,
   toTeamDay,
+  withSokoBotChat,
 } from "./soko-bot-home-data";
 
 function room(overrides: Partial<ChatRoom>): ChatRoom {
@@ -147,5 +148,109 @@ describe("toImportantChats", () => {
         at: new Date("2026-10-24T10:00:00Z"),
       },
     ]);
+  });
+});
+
+describe("withSokoBotChat", () => {
+  const now = new Date("2026-11-17T12:00:00Z");
+  const reader = { userId: "me", botName: "Wren", untitled: "No text" };
+  const message = (
+    id: string,
+    sender: "me" | "other" | "bot",
+    content: string,
+    createdAt: string,
+    extra: Partial<ChatRoomMessage> = {},
+  ) =>
+    ({
+      id,
+      roomId: "bot-room",
+      parentMessageId: null,
+      content,
+      createdAt: new Date(createdAt),
+      deletedAt: null,
+      sender:
+        sender === "bot"
+          ? { type: "sokoBot", sokoBot: { id: "bot", name: "Wren" } }
+          : { type: "user", user: { id: sender, name: sender } },
+      ...extra,
+    }) as ChatRoomMessage;
+  const chat = (
+    messages: ChatRoomMessage[],
+    chats: Parameters<typeof withSokoBotChat>[0] = [],
+  ) => withSokoBotChat(chats, { roomId: "bot-room", messages }, reader, now);
+
+  it("adds the reader's latest question to the bot, read or not, at the time it was asked", () => {
+    expect(
+      chat([
+        message("q1", "me", "Old question", "2026-11-17T09:00:00Z"),
+        message("a1", "bot", "Old answer", "2026-11-17T09:01:00Z"),
+        message(
+          "q2",
+          "me",
+          "What should I **set up** first?",
+          "2026-11-17T11:58:00Z",
+        ),
+        message("a2", "bot", "Start with Tasks.", "2026-11-17T11:59:00Z"),
+      ]),
+    ).toEqual([
+      {
+        roomId: "bot-room",
+        messageId: "q2",
+        title: "What should I set up first?",
+        from: "Wren",
+        at: new Date("2026-11-17T11:58:00Z"),
+      },
+    ]);
+  });
+
+  it("skips deleted questions and other people's messages", () => {
+    expect(
+      chat([
+        message("q1", "me", "Kept", "2026-11-17T10:00:00Z"),
+        message("q2", "me", "Gone", "2026-11-17T10:05:00Z", {
+          deletedAt: new Date("2026-11-17T10:06:00Z"),
+        }),
+        message("o1", "other", "Not mine", "2026-11-17T10:07:00Z"),
+      ])[0]?.messageId,
+    ).toBe("q1");
+  });
+
+  it("names a question with no text", () => {
+    expect(
+      chat([message("q1", "me", "", "2026-11-17T10:00:00Z")])[0]?.title,
+    ).toBe("No text");
+  });
+
+  it("adds nothing when the question is over a day old or the reader never asked", () => {
+    expect(
+      chat([message("q1", "me", "Yesterday", "2026-11-16T11:59:00Z")]),
+    ).toEqual([]);
+    // The bot posting today does not make an old question new.
+    expect(
+      chat([
+        message("q1", "me", "Last week", "2026-11-10T09:00:00Z"),
+        message("a1", "bot", "Your Monday digest", "2026-11-17T11:00:00Z"),
+      ]),
+    ).toEqual([]);
+    expect(
+      chat([message("a1", "bot", "Hello!", "2026-11-17T11:00:00Z")]),
+    ).toEqual([]);
+    expect(withSokoBotChat([], null, reader, now)).toEqual([]);
+  });
+
+  it("keeps the unread row instead when the bot's room is already listed", () => {
+    const unread = {
+      roomId: "bot-room",
+      messageId: "a1",
+      title: "Done: your plan",
+      from: "Wren",
+      at: new Date("2026-11-17T11:00:00Z"),
+    };
+    expect(
+      chat(
+        [message("q1", "me", "Plan my day", "2026-11-17T10:00:00Z")],
+        [unread],
+      ),
+    ).toEqual([unread]);
   });
 });

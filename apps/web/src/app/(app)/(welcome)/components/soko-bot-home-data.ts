@@ -1,11 +1,13 @@
 import {
   type ChatCatchUpItem,
   type ChatRoom,
+  type ChatRoomMessage,
   type SokoBotSchedule,
   type SokoBotState,
   SokoBotStatus,
   type TaskListItem,
 } from "@sokosumi/core-client";
+import { buildChatMessagePreview } from "@sokosumi/utils";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -164,4 +166,42 @@ export function toImportantChats(
     from: item.senderName,
     at: item.createdAt,
   }));
+}
+
+/**
+ * Adds the reader's latest question to their Soko Bot as one row, read or
+ * not, so a first chat shows on Home. `messages` is the bot's Direct, oldest
+ * first. The row shows and is dated by the question itself, so a bot post
+ * today does not make an older question look new. Nothing when the question
+ * is over a day old, when the reader never asked, or when an unread row from
+ * that room is already listed: that one points at what is new.
+ */
+export function withSokoBotChat(
+  chats: SokoBotHomeChat[],
+  botRoom: { roomId: string; messages: readonly ChatRoomMessage[] } | null,
+  reader: { userId: string; botName: string; untitled: string },
+  now: Date,
+): SokoBotHomeChat[] {
+  if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
+    return chats;
+  }
+  const question = botRoom.messages.findLast(
+    (message) =>
+      !message.deletedAt &&
+      message.sender.type === "user" &&
+      message.sender.user.id === reader.userId,
+  );
+  if (!question || now.getTime() - question.createdAt.getTime() > DAY_MS) {
+    return chats;
+  }
+  return [
+    ...chats,
+    {
+      roomId: botRoom.roomId,
+      messageId: question.id,
+      title: buildChatMessagePreview(question.content) || reader.untitled,
+      from: reader.botName,
+      at: question.createdAt,
+    },
+  ];
 }
