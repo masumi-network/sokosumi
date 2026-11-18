@@ -134,7 +134,8 @@
     "main": "vegetar|vegan|restaurant|hiltl",
     "why": "local restaurant with a German site: German posts, whatever language the owner plans in",
     "contentLanguage": "german|deutsch",
-    "siteLanguage": "German"
+    "siteLanguage": "German",
+    "pieceLanguage": "\\b(?:der|die|das|den|dem|ein|eine|einen|und|oder|für|mit|im|zum|zur|vom|von|bei|auf|aus|wie|warum|wo|ist|sind|wird|unser|unsere|ihr|dein|nicht|kein|mehr|ohne|seit|über|nach|statt|geht|gibt)\\b"
   },
   {
     "name": "Apple",
