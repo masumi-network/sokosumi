@@ -469,7 +469,7 @@ export class SokoBotIngestSyncService {
     // A personal bot runs for its owner; a shared bot runs for nobody.
     const starter = sokoBotSelfStarter(bot);
     const kind = briefing ? "briefing" : "delta";
-    const gate = await proactiveGate(bot.id, now);
+    const gate = await proactiveGate(bot.id);
     if (!gate.ok) {
       // Logged like the events sync's withheld wake: a capped bot and a quiet
       // inbox look the same from the outside.
