@@ -262,15 +262,19 @@ export async function SokoBotHome({
                           wider screens. On a phone the time beside the
                           message left it a few letters, so there the
                           message wraps to two lines and the time joins
-                          the sender's line, as schedule rows do. */}
+                          the sender's line, as schedule rows do. The name
+                          truncates alone and the time keeps its width, so a
+                          long bot name cannot push the time out of view. */}
                       <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
                         <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
                           {row.chat.title}
                         </span>
-                        <span className="text-muted-foreground block truncate sm:max-w-40 sm:shrink-0">
-                          {row.chat.from}
-                          <span className="sm:hidden">
-                            {" · "}
+                        <span className="text-muted-foreground flex min-w-0 items-center gap-1 sm:block sm:max-w-40 sm:shrink-0 sm:truncate">
+                          <span className="min-w-0 truncate">
+                            {row.chat.from}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1 sm:hidden">
+                            <span aria-hidden>·</span>
                             {timeOf(row.at)}
                           </span>
                         </span>

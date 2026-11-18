@@ -270,8 +270,32 @@ describe("SokoBotHome", () => {
     expect(title).toHaveClass("line-clamp-2", "sm:line-clamp-1");
     expect(title.className).not.toMatch(/(^|\s)truncate(\s|$)/);
     // On a phone the time rides on the sender's line, under the message.
-    const senderLine = screen.getByText("Juno", { exact: false });
-    expect(senderLine.querySelector("time")).not.toBeNull();
+    const senderLine = screen.getByText("Juno").parentElement;
+    expect(senderLine?.querySelector("time")).not.toBeNull();
+  });
+
+  it("keeps a chat's time on a phone when a long sender name is cut", async () => {
+    const from = "Professor Juniper Montgomery-Okonkwo";
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Can you help me plan the November newsletter?",
+          from,
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    // The name truncates alone; the phone time sits beside it in a slot
+    // that never shrinks, so a long name cannot push the time out of view.
+    const name = screen.getByText(from);
+    expect(name).toHaveClass("min-w-0", "truncate");
+    const phoneTime = name.parentElement?.querySelector(".sm\\:hidden");
+    expect(phoneTime?.querySelector("time")).not.toBeNull();
+    expect(phoneTime).toHaveClass("shrink-0");
+    expect(name.contains(phoneTime ?? null)).toBe(false);
+    expect(name.parentElement).toHaveClass("flex", "min-w-0");
   });
 
   it("lists a schedule the bot just got among the Tasks, linked to its row", async () => {
