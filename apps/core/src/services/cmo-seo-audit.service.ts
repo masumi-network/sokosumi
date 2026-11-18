@@ -457,8 +457,9 @@ export async function pageShowsText(
 
 /**
  * After each weekly audit, the page changes the owner marked done are
- * checked: an audit's own finding counts as fixed once the audit no longer
- * finds it; a change Cuso wrote counts once its new text is on the page.
+ * checked: an audit's own finding counts as fixed once the audit ran its
+ * check on the page and it passed (a check it could not run confirms
+ * nothing); a change Cuso wrote counts once its new text is on the page.
  */
 export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
   const latest = await latestCmoSeoAudit(cuso.projectId);
@@ -477,6 +478,12 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
       (finding) => `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`,
     ),
   );
+  const passed = new Set<string>();
+  for (const check of latest.payload.checks) {
+    const key = `${check.rowId}|${normalizeSeoUrl(check.pageUrl)}`;
+    if (check.result === "pass") passed.add(key);
+    else if (check.result === "fired") firing.add(key);
+  }
   for (const suggestion of done) {
     let fixed = false;
     try {
@@ -485,10 +492,10 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
         fixed =
           !!suggestion.pageUrl &&
           rowIds.length > 0 &&
-          rowIds.every(
-            (rowId) =>
-              !firing.has(`${rowId}|${normalizeSeoUrl(suggestion.pageUrl!)}`),
-          );
+          rowIds.every((rowId) => {
+            const key = `${rowId}|${normalizeSeoUrl(suggestion.pageUrl!)}`;
+            return passed.has(key) && !firing.has(key);
+          });
       } else if (suggestion.pageUrl && suggestion.newText) {
         fixed = await pageShowsText(suggestion.pageUrl, suggestion.newText);
       }
@@ -502,7 +509,6 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
         },
         { failure: messageSafeErrorFields(error) },
       );
-      continue;
     }
     await prisma.projectSeoSuggestion.update({
       where: { id: suggestion.id },
