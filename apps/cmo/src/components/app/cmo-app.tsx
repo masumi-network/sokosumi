@@ -3,6 +3,7 @@
 import "../onboarding/onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
+import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
@@ -14,6 +15,7 @@ import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
+import { HowIGotHere, Working } from "../cuso-trace";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
@@ -124,21 +126,22 @@ const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
 
 /**
  * Cuso and Core write Markdown: `**bold**` and `[label](url)` read badly raw.
- * Core links point into Sokosumi (e.g. `/social?postId=…`), so a relative
- * link resolves against Sokosumi's web origin and opens there.
+ * CMO never opens Sokosumi: a link into it (a relative route such as
+ * `/social?postId=…`, or its web address) shows as its words alone.
  */
 export function renderInline(
   text: string,
   webOrigin: string,
 ): React.ReactNode[] {
-  return text.split(INLINE).map((part, index) => {
+  const parts = withoutSokosumiLinks(text, webOrigin).split(INLINE);
+  return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
     }
     const link = LINK.exec(part);
     if (link?.[1] && link[2]) {
-      const href = new URL(link[2], webOrigin);
-      if (href.protocol !== "https:" && href.protocol !== "http:") {
+      const href = URL.parse(link[2]);
+      if (href?.protocol !== "https:" && href?.protocol !== "http:") {
         return link[1];
       }
       return (
@@ -232,11 +235,16 @@ export function CmoApp({
 
   const thread = buildThread(overview, messages);
   const threadLength = thread.length;
+  // What Cuso is doing sits under the thread, so it scrolls into view too.
+  const working =
+    overview.botStatus === "RUNNING"
+      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
+      : null;
   useEffect(() => {
     if (view === "chat" && threadLength > 0) {
       end.current?.scrollIntoView({ block: "end" });
     }
-  }, [threadLength, view]);
+  }, [threadLength, view, working]);
 
   const compose = useCallback(
     (text: string) => {
@@ -385,14 +393,7 @@ export function CmoApp({
                 ))}
                 {overview.botStatus === "RUNNING" ? (
                   <CusoSays pose="thinking">
-                    <span
-                      className="typing"
-                      aria-label={`${AGENT_NAME} is working`}
-                    >
-                      <i />
-                      <i />
-                      <i />
-                    </span>
+                    <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
               </div>
@@ -627,6 +628,7 @@ function ThreadEntry({
         <p className="txt">
           {renderInline(item.message.content, webOriginOf(overview))}
         </p>
+        {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
       </CusoSays>
     );
   }

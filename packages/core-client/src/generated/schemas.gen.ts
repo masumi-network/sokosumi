@@ -37021,6 +37021,43 @@ export const ProjectSocialConnectionSubscriptionSchema = {
     ]
 } as const;
 
+export const TikTokCreatorInfoSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string',
+            minLength: 1
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
+    ]
+} as const;
+
 export const SocialAccountStatisticsPageSchema = {
     type: 'object',
     properties: {
@@ -40704,10 +40741,51 @@ export const PublishSocialPostRequestSchema = {
             minimum: 0,
             description: 'Revision the client last observed; mismatches return 409',
             example: 2
+        },
+        tikTokSettings: {
+            $ref: '#/components/schemas/TikTokPostSettings'
         }
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const TikTokPostSettingsSchema = {
+    type: 'object',
+    properties: {
+        privacyLevel: {
+            type: 'string',
+            enum: [
+                'SELF_ONLY'
+            ]
+        },
+        allowComment: {
+            type: 'boolean'
+        },
+        allowDuet: {
+            type: 'boolean'
+        },
+        allowStitch: {
+            type: 'boolean'
+        },
+        promotesOwnBrand: {
+            type: 'boolean'
+        },
+        acceptedMusicUsage: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'privacyLevel',
+        'allowComment',
+        'allowDuet',
+        'allowStitch',
+        'promotesOwnBrand',
+        'acceptedMusicUsage'
     ]
 } as const;
 
@@ -48674,6 +48752,17 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        activity: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoActivity'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month\'s production); null while he rests.'
+        },
         brandVisual: {
             anyOf: [
                 {
@@ -51240,6 +51329,7 @@ export const CmoOverviewSchema = {
         'subscriptionActive',
         'viewerCanApprove',
         'work',
+        'activity',
         'brandVisual',
         'projectLogo',
         'onboardingStep',
@@ -51422,6 +51512,38 @@ export const CmoWorkStepSchema = {
         'url',
         'status',
         'at'
+    ]
+} as const;
+
+export const CmoActivitySchema = {
+    type: 'object',
+    properties: {
+        step: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The step Cuso is on, in CMO\'s words ("Looking for a picture style"); null before his first one.'
+        },
+        reasoning: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The model\'s latest summary of its reasoning in this turn; null when it gave none.'
+        }
+    },
+    required: [
+        'step',
+        'reasoning'
     ]
 } as const;
 

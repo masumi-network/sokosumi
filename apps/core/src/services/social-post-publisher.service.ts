@@ -23,6 +23,7 @@ import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-provid
 import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
+  TikTokPostSettings,
 } from "@/clients/social-post-providers/types";
 import {
   requireSocialProviderEnabled,
@@ -111,6 +112,7 @@ export interface PublishDueSocialPostsResult {
 }
 
 export interface PublishSocialPostNowInput {
+  tikTokSettings?: TikTokPostSettings;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -172,6 +174,7 @@ type AttemptTrigger = "scheduler" | "publish_now";
 type AttemptOutcome = "published" | "retried" | "failed" | "missed" | "skipped";
 
 interface AttemptOptions {
+  tikTokSettings?: TikTokPostSettings;
   trigger: AttemptTrigger;
   actorUserId?: string;
   execution?: PublishDueSocialPostsInput;
@@ -915,6 +918,7 @@ async function attemptPublish(
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
+      tikTokSettings: options.tikTokSettings,
       ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
       media,
       signal,
@@ -1283,6 +1287,10 @@ export async function publishSocialPostNow(
           post.project,
         );
       }
+      if (post.provider === "tiktok" && !input.tikTokSettings)
+        throw badRequest(
+          "Choose the TikTok audience and confirm the music usage before publishing",
+        );
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {
           throw badRequest("A social connection is required to publish a post");
@@ -1364,7 +1372,11 @@ export async function publishSocialPostNow(
       socialConnection: post.socialConnection,
       project: post.project,
     },
-    { trigger: "publish_now", actorUserId: input.userId },
+    {
+      trigger: "publish_now",
+      actorUserId: input.userId,
+      tikTokSettings: input.tikTokSettings,
+    },
   );
   return {
     ...(await getSocialPost({

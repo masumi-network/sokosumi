@@ -1131,6 +1131,110 @@ button.cuso-status .ob-stage-art {
   }
 }
 
+/* Cuso at work: the step he is on, and the model's reasoning in a quiet line. */
+.working {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 62ch;
+}
+
+.working-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.working-step .typing {
+  flex: none;
+}
+
+.working-why {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: pre-wrap;
+}
+
+.working-why b {
+  font-weight: 600;
+}
+
+/* While he works the line stays short; the fold under his reply has it all. */
+.working > .working-why,
+.ob-lead > .working-why {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* "How I got here": a fold under a reply. Quiet, since only its row opens. */
+.trace {
+  max-width: 62ch;
+}
+
+.trace > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.trace > summary::-webkit-details-marker {
+  display: none;
+}
+
+.trace > summary:hover {
+  color: var(--foreground);
+}
+
+.trace > summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.trace > summary::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms;
+}
+
+.trace[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.trace-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 4px 12px;
+  border-left: 1px solid var(--border);
+}
+
+.trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  list-style: none;
+}
+
 /* Every card: the thick ink line. Hairlines are for structure inside it. */
 .card {
   overflow: hidden;
@@ -1716,6 +1820,10 @@ button.cuso-status .ob-stage-art {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .trace > summary::after {
+    transition: none;
+  }
+
   .typing i,
   .step.run .dot,
   .spin {

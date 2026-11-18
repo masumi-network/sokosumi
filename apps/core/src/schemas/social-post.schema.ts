@@ -390,10 +390,22 @@ export const rejectSocialPostRequestSchema = z
   })
   .openapi("RejectSocialPostRequest");
 
+export const tikTokPostSettingsSchema = z
+  .object({
+    privacyLevel: z.literal("SELF_ONLY"),
+    allowComment: z.boolean(),
+    allowDuet: z.boolean(),
+    allowStitch: z.boolean(),
+    promotesOwnBrand: z.boolean(),
+    acceptedMusicUsage: z.literal(true),
+  })
+  .openapi("TikTokPostSettings");
+
 export const publishSocialPostRequestSchema = z
   .object({
     revision: socialPostRevisionSchema,
   })
+  .extend({ tikTokSettings: tikTokPostSettingsSchema.optional() })
   .openapi("PublishSocialPostRequest");
 
 export const resumeSocialPostThreadRequestSchema = z
