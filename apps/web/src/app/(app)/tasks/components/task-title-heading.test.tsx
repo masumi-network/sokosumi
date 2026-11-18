@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskTitleHeading } from "./task-title-heading";
 
@@ -25,6 +25,8 @@ describe("TaskTitleHeading", () => {
     expect(heading).toHaveClass(
       "focus-visible:outline-2",
       "focus-visible:outline-ring",
+      // A gap between ring and text, so the title never reads as a field.
+      "focus-visible:outline-offset-2",
     );
   });
 
@@ -85,5 +87,55 @@ describe("TaskTitleHeading", () => {
       </>,
     );
     expect(target).toHaveFocus();
+  });
+
+  // A refresh or a pasted link already starts at the top of the page; moving
+  // focus there only draws the ring as a box around the title.
+  describe("on a fresh page load of the task", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    });
+
+    function loadedAt(url: string) {
+      vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+        { name: url } as PerformanceEntry,
+      ]);
+    }
+
+    it("leaves focus alone on the page the document loaded at", async () => {
+      loadedAt("https://app.test/tasks/task-1");
+      vi.resetModules();
+      const { TaskTitleHeading: Heading } = await import(
+        "./task-title-heading"
+      );
+      render(<Heading taskId="task-1" title="Spring menu" />);
+      expect(screen.getByRole("heading", { level: 1 })).not.toHaveFocus();
+    });
+
+    it("still focuses the heading of the next task opened in the app", async () => {
+      loadedAt("https://app.test/tasks/task-1");
+      vi.resetModules();
+      const { TaskTitleHeading: Heading } = await import(
+        "./task-title-heading"
+      );
+      const { rerender } = render(
+        <Heading taskId="task-1" title="Spring menu" />,
+      );
+      rerender(<Heading taskId="task-2" title="Autumn shoot" />);
+      expect(
+        screen.getByRole("heading", { name: "Autumn shoot" }),
+      ).toHaveFocus();
+    });
+
+    it("focuses the heading when the document loaded at the board or Edit", async () => {
+      loadedAt("https://app.test/tasks/task-1/edit");
+      vi.resetModules();
+      const { TaskTitleHeading: Heading } = await import(
+        "./task-title-heading"
+      );
+      render(<Heading taskId="task-1" title="Spring menu" />);
+      expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+    });
   });
 });

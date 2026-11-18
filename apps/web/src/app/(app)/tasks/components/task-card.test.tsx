@@ -416,6 +416,14 @@ describe("Draggable board card for keyboard and screen reader users", () => {
     expect(draggable.querySelector("[aria-roledescription]")).toBeNull();
     expect(draggable.querySelector("[tabindex]")).toBeNull();
     expect(draggable.querySelector(".cursor-grab")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Ship filter" })).toBeVisible();
+    const link = screen.getByRole("link", { name: "Ship filter" });
+    expect(link).toBeVisible();
+    // One focus ring, the card's (DESIGN.md clickable card ring), never a
+    // second outline around each line of the title.
+    expect(link).toHaveClass(
+      "outline-none",
+      "focus-visible:after:ring-2",
+      "focus-visible:after:ring-ring",
+    );
   });
 });

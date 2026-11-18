@@ -107,7 +107,7 @@ export function TaskCard({
             <TaskDetailLink
               href={taskHref(task)}
               title={task.name}
-              className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
+              className="outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
             >
               {task.name}
             </TaskDetailLink>
