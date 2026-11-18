@@ -495,7 +495,7 @@ export class SokoBotTaskboardSyncService {
     // meant anyone who could put a Task on the bot could drive unlimited
     // billed turns, and a bot that assigned work to itself could loop on the
     // one-minute cron forever. The owner's limit is the number they set.
-    const gate = await proactiveGate(bot.id, now);
+    const gate = await proactiveGate(bot.id);
     if (!gate.ok) return false;
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
     // A personal bot runs for its owner; a shared bot runs for nobody.

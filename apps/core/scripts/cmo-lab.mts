@@ -20,6 +20,7 @@
 
 import { writeFile } from "node:fs/promises";
 import type { SokoBotTurnStatus } from "@sokosumi/database";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   findCusoForProject,
@@ -129,14 +130,16 @@ async function run(email: string, brand: Brand) {
       completedAt: new Date(),
     },
   });
-  // An earlier month's production runs would count against today's cap.
+  // An earlier month's production runs would count against today's cap,
+  // whose window is PostgreSQL time.
+  const capNow = (await databaseNow()).getTime();
   await prisma.sokoBotTurn.updateMany({
     where: {
       sokoBotId: cuso.sokoBotId,
       clientTurnId: { startsWith: "cmo:production:" },
-      createdAt: { gt: new Date(Date.now() - 24 * 60 * 60_000) },
+      createdAt: { gt: new Date(capNow - 24 * 60 * 60_000) },
     },
-    data: { createdAt: new Date(Date.now() - 25 * 60 * 60_000) },
+    data: { createdAt: new Date(capNow - 25 * 60 * 60_000) },
   });
   // A lab run is many turns a day; the owner's daily brake would stop it.
   await prisma.sokoBot.update({

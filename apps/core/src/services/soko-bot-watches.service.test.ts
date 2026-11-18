@@ -24,6 +24,10 @@ const { db, startTurnMock } = vi.hoisted(() => ({
   startTurnMock: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@/services/soko-bot-control-plane.service", () => {

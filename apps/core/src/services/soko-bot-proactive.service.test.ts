@@ -28,6 +28,10 @@ const {
   turnCountMock: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrowMock },
@@ -202,7 +206,7 @@ beforeEach(() => {
 
 describe("proactiveGate", () => {
   it("counts what the bot decided to do, not what a person asked", async () => {
-    await proactiveGate("bot-1", new Date("2026-08-29T12:00:00.000Z"));
+    await proactiveGate("bot-1");
 
     const where = turnCountMock.mock.calls[0]?.[0]?.where;
     expect(where.OR).toEqual([
