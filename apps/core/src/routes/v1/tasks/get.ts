@@ -429,7 +429,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: workspaceContext.workspaceId,
           ...requestedVisibility,
           AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
-          ...scopeFilter(userContext.userId),
+          // A Task's checklist shows every sub-task the caller can see,
+          // whoever owns it.
+          ...(parentTaskId ? {} : scopeFilter(userContext.userId)),
           ...(assigneeId ? { assigneeId } : {}),
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),

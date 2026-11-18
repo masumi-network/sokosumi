@@ -18,6 +18,7 @@ const enabled =
   process.env.DATABASE_URL?.startsWith("postgres");
 
 const adaId = randomUUID();
+const graceId = randomUUID();
 const workspaceId = randomUUID();
 let parentId = "";
 
@@ -45,6 +46,7 @@ function createApp() {
 }
 
 interface ListedTask {
+  id: string;
   name: string;
   subtaskProgress: { completed: number; total: number };
 }
@@ -65,13 +67,14 @@ async function createTask(
     position?: number;
     status?: TaskStatus;
     archivedAt?: Date;
+    ownerId?: string;
   } = {},
 ): Promise<string> {
   const task = await prisma.task.create({
     data: {
       name,
       workspaceId,
-      ownerId: adaId,
+      ownerId: extra.ownerId ?? adaId,
       creatorUserId: adaId,
       status: TaskStatus.READY,
       parentTaskId: extra.parentTaskId ?? null,
@@ -87,6 +90,16 @@ async function createTask(
 // order, and the progress count.
 describe.skipIf(!enabled)("GET /tasks with sub-tasks", () => {
   beforeAll(async () => {
+    await prisma.user.create({
+      data: {
+        id: graceId,
+        name: "Sub-task teammate",
+        email: `${graceId}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
     await prisma.user.create({
       data: {
         id: adaId,
@@ -116,12 +129,17 @@ describe.skipIf(!enabled)("GET /tasks with sub-tasks", () => {
       archivedAt: new Date(),
     });
     await createTask("Nested", { parentTaskId: second, position: 1 });
+    await createTask("Teammate's step", {
+      parentTaskId: second,
+      position: 2,
+      ownerId: graceId,
+    });
   });
 
   afterAll(async () => {
     await prisma.task.deleteMany({ where: { workspaceId } });
     await prisma.workspace.deleteMany({ where: { id: workspaceId } });
-    await prisma.user.deleteMany({ where: { id: adaId } });
+    await prisma.user.deleteMany({ where: { id: { in: [adaId, graceId] } } });
     await prisma.$disconnect();
   });
 
@@ -140,7 +158,20 @@ describe.skipIf(!enabled)("GET /tasks with sub-tasks", () => {
     const tasks = await list({ parentTaskId: parentId });
 
     expect(tasks.map((task) => task.name)).toEqual(["First", "Second"]);
-    expect(tasks[1]?.subtaskProgress).toEqual({ completed: 0, total: 1 });
+    expect(tasks[1]?.subtaskProgress).toEqual({ completed: 0, total: 2 });
+  });
+
+  it("lists a teammate's sub-task too, whatever the owner scope", async () => {
+    const [, second] = await list({ parentTaskId: parentId });
+    const tasks = await list({
+      parentTaskId: second?.id ?? "",
+      scope: "owned",
+    });
+
+    expect(tasks.map((task) => task.name)).toEqual([
+      "Nested",
+      "Teammate's step",
+    ]);
   });
 
   it("lists sub-tasks too with includeSubtasks=true", async () => {
@@ -152,6 +183,7 @@ describe.skipIf(!enabled)("GET /tasks with sub-tasks", () => {
       "Nested",
       "Parent",
       "Second",
+      "Teammate's step",
     ]);
   });
 });
