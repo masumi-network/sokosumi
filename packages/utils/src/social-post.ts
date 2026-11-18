@@ -60,7 +60,7 @@ export function socialProviderUnavailableMessage(
 
 export const X_PREMIUM_TEXT_LIMIT = 25_000;
 // Every Premium tier includes longer posts: https://help.x.com/en/using-x/x-premium
-export const X_LONG_POST_SUBSCRIPTION_TYPES = [
+const X_LONG_POST_SUBSCRIPTION_TYPES = [
   "Basic",
   "Premium",
   "PremiumPlus",

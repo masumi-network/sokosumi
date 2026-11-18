@@ -462,7 +462,7 @@ export const mergeContactsSchema = z
 const columnRefSchema = z.string().trim().min(1).max(200);
 
 /** Contact field → table column (id or name) for an import. */
-export const contactImportMappingSchema = z
+const contactImportMappingSchema = z
   .object({
     name: columnRefSchema,
     organization: columnRefSchema.optional(),
