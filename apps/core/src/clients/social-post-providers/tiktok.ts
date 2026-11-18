@@ -106,7 +106,9 @@ export async function publishTikTokVideo(
             creator?.stitch_disabled !== false || !settings.allowStitch,
           brand_organic_toggle: settings.promotesOwnBrand,
           // TikTok's own label: "Creator labeled as AI-generated".
-          ...(context.aiGenerated ? { is_aigc: true } : {}),
+          ...(context.aiGenerated || video.aiGenerated
+            ? { is_aigc: true }
+            : {}),
         },
         context: "publish TikTok video",
         refused: "TikTok refused the video",
