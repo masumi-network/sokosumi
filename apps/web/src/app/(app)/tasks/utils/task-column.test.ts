@@ -33,6 +33,15 @@ describe("COLUMN_MAIN_STATUS", () => {
 });
 
 describe("getColumnListQueryOptions", () => {
+  it("lists only the input-required column under Needs me", () => {
+    expect(getColumnListQueryOptions("todo", null, false, true)).toEqual({
+      statuses: [],
+    });
+    expect(
+      getColumnListQueryOptions("input-required", null, false, true).statuses,
+    ).toContain(TaskStatus.APPROVAL_REQUIRED);
+  });
+
   it("returns todo column statuses", () => {
     expect(getColumnListQueryOptions("todo", null)).toEqual({
       statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],

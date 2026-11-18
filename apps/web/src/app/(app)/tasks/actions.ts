@@ -44,6 +44,7 @@ interface TasksLoadMoreFilters {
   visibility: Task["visibility"] | null;
   tag?: string;
   stuck?: boolean;
+  needsMe?: boolean;
 }
 
 interface LoadMoreTasksColumnParams extends TasksLoadMoreFilters {
@@ -77,6 +78,7 @@ async function loadSanitizedTasksPageFilters({
   visibility,
   tag,
   stuck,
+  needsMe,
 }: TasksLoadMoreFilters) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -114,6 +116,7 @@ async function loadSanitizedTasksPageFilters({
     visibility: sanitizeTasksVisibilityInput(visibility, activeOrganizationId),
     tag: sanitizeTaskTagFilter(tag),
     stuck: sanitizeTasksStuckInput(stuck),
+    needsMe: sanitizeTasksStuckInput(needsMe),
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };

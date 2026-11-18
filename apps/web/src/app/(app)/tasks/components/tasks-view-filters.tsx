@@ -5,6 +5,7 @@ import {
   Building2,
   CircleDashed,
   Eye,
+  Hand,
   Hourglass,
   Tag,
   Users,
@@ -399,6 +400,20 @@ export function TasksViewFilters({
           {t("stuck", { days: STUCK_AFTER_DAYS })}
         </span>
       </Button>
+      {userId ? (
+        <Button
+          variant={filters.needsMe ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={!!filters.needsMe}
+          title={t("needsMeHint")}
+          className={cn("hit-area", filters.needsMe && "border-control-border")}
+          onClick={() => handleFilterChange({ needsMe: !filters.needsMe })}
+        >
+          <Hand aria-hidden />
+          {/* Icon only on a phone, so the toolbar stays one row. */}
+          <span className="max-sm:sr-only">{t("needsMe")}</span>
+        </Button>
+      ) : null}
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {

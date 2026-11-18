@@ -10,6 +10,7 @@ import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import {
   getTaskTagQuery,
+  NEEDS_ME_SCOPE,
   stuckCutoff,
   type TasksScope,
   type TasksVisibilityFilter,
@@ -32,6 +33,7 @@ interface GetTasksColumnPageParams {
   visibility: TasksVisibilityFilter;
   tag?: string;
   stuck?: boolean;
+  needsMe?: boolean;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -58,10 +60,16 @@ export async function getTasksColumnPage({
   visibility,
   tag,
   stuck = false,
+  needsMe = false,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
-  const { statuses } = getColumnListQueryOptions(columnId, status, stuck);
+  const { statuses } = getColumnListQueryOptions(
+    columnId,
+    status,
+    stuck,
+    needsMe,
+  );
 
   if (statuses.length === 0) {
     return {
@@ -73,7 +81,8 @@ export async function getTasksColumnPage({
 
   const result = await taskService.listTasks({
     status: statuses,
-    scope,
+    // Mine: the reader owns the Task or is its assignee.
+    scope: needsMe ? NEEDS_ME_SCOPE : scope,
     assigneeId: assigneeId ?? undefined,
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,

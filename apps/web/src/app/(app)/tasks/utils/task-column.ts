@@ -58,12 +58,19 @@ export const WAITING_TASK_STATUSES = WAITING_COLUMN_IDS.flatMap(
   (columnId) => COLUMN_TASK_STATUSES[columnId],
 );
 
+/** The column whose statuses each ask a person for something. */
+export const NEEDS_PERSON_COLUMN_ID: KanbanColumnId = "input-required";
+
 export function getColumnListQueryOptions(
   columnId: KanbanColumnId,
   statusFilter: TaskStatus | null,
   stuck = false,
+  needsMe = false,
 ): ColumnListQueryOptions {
   if (stuck && !WAITING_COLUMN_IDS.includes(columnId)) {
+    return { statuses: [] };
+  }
+  if (needsMe && columnId !== NEEDS_PERSON_COLUMN_ID) {
     return { statuses: [] };
   }
   const statuses = COLUMN_TASK_STATUSES[columnId].filter(

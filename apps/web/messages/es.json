@@ -1912,7 +1912,9 @@
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
-        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
+        "needsMe": "Me necesita",
+        "needsMeHint": "Tasks que esperan tu respuesta, aprobación o inicio de sesión, de las que eres propietario o responsable"
       },
       "Detail": {
         "back": "Volver a Tasks",
