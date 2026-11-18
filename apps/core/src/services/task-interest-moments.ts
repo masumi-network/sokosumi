@@ -6,6 +6,7 @@ import {
 } from "@/helpers/task-interest-clock";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
+import { tryUseLogger } from "@/lib/evlog";
 
 /*
  * Finding Task interest moments: what happened, and who has not been told
@@ -22,9 +23,8 @@ const DEFERRED_BATCH = 20;
 /** A full scan leaves older rows unread until the window moves: say so. */
 function warnIfCapped(rows: readonly unknown[], scan: string) {
   if (rows.length === SCAN_CAP)
-    console.warn("[task-interest] Scan cap reached; older moments wait", {
-      scan,
-      cap: SCAN_CAP,
+    tryUseLogger()?.warn("Task interest scan cap reached; older moments wait", {
+      taskInterest: { scan, cap: SCAN_CAP },
     });
 }
 

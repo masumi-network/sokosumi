@@ -1,6 +1,8 @@
 import { sokoBotTaskSummaryPrompt } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
+import { tryUseLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   SYSTEM_TURN_ROUTES,
   TASK_SUMMARY_CLIENT_TURN_PREFIX,
@@ -106,9 +108,10 @@ export async function startTaskSummaryTurn(input: {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
-          console.error("Task summary turn reconciliation failed", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
+          // Only safe fields: turn work can echo its prompt.
+          tryUseLogger()?.warn("Task summary turn reconciliation failed", {
+            turn: { id: started.turnId },
+            failure: messageSafeErrorFields(error),
           });
         });
     }
