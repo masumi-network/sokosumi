@@ -7,7 +7,7 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { lockCalendarScope } from "@/helpers/calendar-locks";
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   badRequest,
   conflict,
@@ -104,9 +104,9 @@ export async function requireSubtaskParent(
   // takes them; the insert below needs both.
   if (!(await lockCalendarScope(tx, input.workspaceId, [placement.projectId])))
     throw conflict("Parent Task changed while adding a sub-task");
-  // A write, not only a lock: a SERIALIZABLE archive whose snapshot predates
-  // this sub-task then fails and retries, rather than missing it.
-  await tx.$executeRaw`UPDATE "task" SET "position" = "position" WHERE "id" = ${input.parentTaskId}`;
+  // A lock, not a write: a write fires history_task_sync, which deadlocks
+  // with a status event on the parent.
+  await lockTaskRows(tx, [input.parentTaskId]);
   const parent = await tx.task.findFirst({
     where: {
       id: input.parentTaskId,

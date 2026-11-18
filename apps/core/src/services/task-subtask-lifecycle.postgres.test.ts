@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { lockTaskRows } from "@/helpers/calendar-locks";
-import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import {
   requireNoSubtaskInParentLink,
   subtaskPositionAfter,
@@ -267,39 +265,6 @@ describe.skipIf(!enabled)("sub-task lifecycle against PostgreSQL", () => {
     expect(String(await restore)).toContain(
       "Restore the Task this sub-task belongs to first",
     );
-  });
-
-  it("fails a SERIALIZABLE archive whose snapshot predates a sub-task restore", async () => {
-    const parent = await create("Serial parent");
-    const child = await create("Serial child", {
-      parent: { taskId: parent.id },
-    });
-    await prisma.task.update({
-      where: { id: child.id },
-      data: { archivedAt: new Date("2026-01-01T00:00:00.000Z") },
-    });
-
-    const archive = prisma.$transaction(
-      async (tx) => {
-        // The first read fixes this transaction's snapshot.
-        await tx.task.findFirst({ where: { id: parent.id } });
-        await prisma.$transaction(async (other) =>
-          restoreTaskRecord(
-            other,
-            await other.task.findUniqueOrThrow({ where: { id: child.id } }),
-            actor,
-          ),
-        );
-        await lockTaskRows(tx, [parent.id]);
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
-
-    const error = await archive.then(
-      () => null,
-      (caught: unknown) => caught,
-    );
-    expect(isPrismaTransactionConflict(error)).toBe(true);
   });
 
   it("refuses a PARENT link on a sub-task and allows other links", async () => {

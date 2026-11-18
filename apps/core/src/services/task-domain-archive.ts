@@ -98,10 +98,8 @@ export async function restoreTaskRecord(
   actor: TaskDomainActor,
 ): Promise<void> {
   if (task.parentTaskId) {
-    // A write, not only a lock, as in requireSubtaskParent: a READ COMMITTED
-    // archive of the parent waits for it, and a SERIALIZABLE one that read
-    // before it fails and retries rather than miss this sub-task.
-    await tx.$executeRaw`UPDATE "task" SET "position" = "position" WHERE "id" = ${task.parentTaskId}`;
+    // An archive of the parent locks it first: no restore slips past it.
+    await lockTaskRows(tx, [task.parentTaskId]);
     const parent = await tx.task.findUnique({
       where: { id: task.parentTaskId },
       select: { archivedAt: true },
@@ -163,9 +161,9 @@ async function liveSubtasks(
   const found: { id: string; status: TaskStatus }[] = [];
   let level = [taskId];
   while (level.length > 0) {
-    // A sub-task created meanwhile writes its parent first, so it waits for
-    // this archive and then finds the parent archived; one that committed
-    // after a SERIALIZABLE snapshot fails this lock, and the archive retries.
+    // A sub-task created or restored meanwhile locks its parent first, so it
+    // waits for this archive and then finds the parent archived. Known gap: a
+    // SERIALIZABLE archive whose snapshot predates that commit misses it.
     await lockTaskRows(tx, level);
     const subtasks = await tx.task.findMany({
       where: { parentTaskId: { in: level }, archivedAt: null },
