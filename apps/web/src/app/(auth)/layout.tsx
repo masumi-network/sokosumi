@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
@@ -13,7 +12,9 @@ import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
 import {
+  authProductName,
   buildSignedOAuthQueryFromSearchParams,
+  type OAuthRequestBrand,
   oauthRequestBrand,
 } from "@/lib/auth/auth.utils";
 import { cn } from "@/lib/utils";
@@ -26,15 +27,33 @@ import { CmoWordmark } from "./components/cmo-wordmark";
 // stay fully dynamic — same opt-out as admin must-block gates.
 export const instant = false;
 
+const CMO_ICON = "/images/logos/cmo-xyz-icon.svg";
+
+/** The signed OAuth request the proxy saw on this page (`x-search-params`). */
+async function readOAuthQuery(): Promise<string | undefined> {
+  return buildSignedOAuthQueryFromSearchParams(
+    new URLSearchParams((await headers()).get("x-search-params") ?? ""),
+  );
+}
+
+function brandOf(
+  oauthQuery: string | undefined,
+): OAuthRequestBrand | undefined {
+  return oauthQuery ? oauthRequestBrand(oauthQuery) : undefined;
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Metadata");
+  const brand = brandOf(await readOAuthQuery());
+  const product = authProductName(brand);
 
   return {
     title: {
-      default: t("Title.default"),
-      template: t("Title.template"),
+      default: t("Title.default", { product }),
+      template: t("Title.template", { product }),
     },
     description: t("description"),
+    ...(brand === "cmo" ? { icons: { icon: CMO_ICON } } : {}),
   };
 }
 
@@ -52,11 +71,9 @@ export default async function AuthLayout({
   await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
-  const oauthQuery = buildSignedOAuthQueryFromSearchParams(
-    new URLSearchParams(headersList.get("x-search-params") ?? ""),
-  );
+  const oauthQuery = await readOAuthQuery();
   const carriesOAuthRequest = oauthQuery !== undefined;
-  const brand = oauthQuery ? oauthRequestBrand(oauthQuery) : undefined;
+  const brand = brandOf(oauthQuery);
   const shouldSkipSessionCheck =
     pathname.startsWith("/oauth") ||
     pathname.startsWith("/forgot-password") ||
@@ -105,29 +122,12 @@ export default async function AuthLayout({
           <main className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}
           </main>
-          <AuthLayoutFooter usesSokosumi={brand === "cmo"} />
+          <LegalLinks brand={brand} />
         </div>
         {/* Signing in for another product: Sokosumi's own pitch and customer
             logos would read as a detour, so the form stands alone. */}
         {carriesOAuthRequest ? null : <AuthBackground />}
       </div>
     </ClientMessageBoundary>
-  );
-}
-
-/**
- * The legal links. A product with its own look still signs people in with a
- * Sokosumi account, so its pages say so above them.
- */
-function AuthLayoutFooter({ usesSokosumi }: { usesSokosumi: boolean }) {
-  const t = useTranslations("Auth.Footer");
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      {usesSokosumi ? (
-        <p className="text-sm text-muted-foreground">{t("usesSokosumi")}</p>
-      ) : null}
-      <LegalLinks />
-    </div>
   );
 }

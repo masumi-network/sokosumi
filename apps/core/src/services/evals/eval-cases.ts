@@ -53,6 +53,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "board-question": "Board",
   "followed-tasks": "Board",
   "ambiguous-request": "Judgment",
+  "competitor-week": "Competitors",
   "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",

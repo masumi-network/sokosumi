@@ -26,6 +26,11 @@ const {
   writeHookLineMock,
   timeSpokenWordsMock,
   editTalkingVideoMock,
+  projectFindUniqueMock,
+  captureSitePageMock,
+  loadEndCardMock,
+  fetchQueueResultMock,
+  readAssetBytesMock,
   putMock,
 } = vi.hoisted(() => ({
   jobCreateMock: vi.fn(),
@@ -43,6 +48,11 @@ const {
   speakVoiceoverMock: vi.fn(),
   writeHookLineMock: vi.fn(),
   timeSpokenWordsMock: vi.fn(),
+  projectFindUniqueMock: vi.fn(),
+  captureSitePageMock: vi.fn(),
+  loadEndCardMock: vi.fn(),
+  fetchQueueResultMock: vi.fn(),
+  readAssetBytesMock: vi.fn(),
   editTalkingVideoMock: vi.fn(),
   putMock: vi.fn(),
 }));
@@ -69,6 +79,7 @@ vi.mock("@/lib/db/prisma", () => {
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
     },
+    project: { findUnique: projectFindUniqueMock },
   };
   return { default: client };
 });
@@ -91,6 +102,11 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
   fetchQueueStatus: fetchQueueStatusMock,
   uploadReference: uploadReferenceMock,
   downloadMedia: downloadMediaMock,
+  fetchQueueResult: fetchQueueResultMock,
+}));
+vi.mock("@/lib/image-studio/talking-video-brand", () => ({
+  captureTalkingVideoSitePage: captureSitePageMock,
+  loadTalkingVideoEndCard: loadEndCardMock,
 }));
 vi.mock("@/lib/image-studio/reference-files", () => ({
   requireStudioReferenceFiles: vi.fn(
@@ -113,7 +129,7 @@ vi.mock("@/lib/image-studio/talking-video-edit", async () => ({
   editTalkingVideo: editTalkingVideoMock,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
-  readAssetBytes: vi.fn(),
+  readAssetBytes: readAssetBytesMock,
 }));
 
 import { TALKING_VIDEO_PRESENTERS } from "@/lib/image-studio/talking-video";
@@ -184,6 +200,14 @@ beforeEach(() => {
     sentences: [],
   });
   timeSpokenWordsMock.mockResolvedValue(WORDS);
+  projectFindUniqueMock.mockResolvedValue({
+    id: "project-1",
+    name: "Roastery",
+    logo: null,
+    websiteUrl: null,
+  });
+  captureSitePageMock.mockResolvedValue(null);
+  loadEndCardMock.mockResolvedValue(null);
   writeHookLineMock.mockResolvedValue("Stop the scroll");
   putMock.mockResolvedValue({
     pathname: "projects/project-1/image-studio/job-1-voice.mp3",
@@ -191,6 +215,70 @@ beforeEach(() => {
   uploadReferenceMock.mockResolvedValue(
     "https://v3b.fal.media/files/voice.mp3",
   );
+});
+
+describe("starting a talking video that shows the site", () => {
+  beforeEach(() => {
+    projectFindUniqueMock.mockResolvedValue({
+      websiteUrl: "https://roastery.example",
+    });
+  });
+
+  it("quotes the cut-out and keeps the site's screenshot", async () => {
+    captureSitePageMock.mockResolvedValue(new Uint8Array([5]));
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+
+    await createTalkingVideoJob(BASE_INPUT);
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        settings: expect.objectContaining({ siteShots: true }),
+        // 10 s: the cut-out adds about 10 cents.
+        chargedCents: convertCreditsToCents(62),
+      }),
+    });
+    expect(captureSitePageMock).toHaveBeenCalledWith(
+      "https://roastery.example",
+    );
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({
+            siteShots: true,
+            sitePagePathname: "projects/project-1/image-studio/job-1-site.jpg",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("takes the cut-out off the charge when the site does not load", async () => {
+    await createTalkingVideoJob(BASE_INPUT);
+
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({
+            siteShots: false,
+            sitePagePathname: null,
+          }),
+          chargedCents: convertCreditsToCents(52),
+        }),
+      }),
+    );
+  });
+
+  it("leaves the site out when the caller turned it off", async () => {
+    await createTalkingVideoJob({ ...BASE_INPUT, siteShots: false });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        settings: expect.objectContaining({ siteShots: false }),
+        chargedCents: convertCreditsToCents(52),
+      }),
+    });
+    expect(captureSitePageMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("starting a talking video", () => {
@@ -211,6 +299,8 @@ describe("starting a talking video", () => {
           languageCode: "en",
           words: [],
           hookLine: null,
+          siteShots: false,
+          sitePagePathname: null,
         },
         // 10 s at $0.05, plus the voice and timing its words.
         chargedCents: convertCreditsToCents(52),
@@ -429,6 +519,9 @@ describe("the presenter model's video arriving with word timings", () => {
     settings: { durationSeconds: 9, words: WORDS, hookLine: "Stop the scroll" },
     asset: null,
   };
+  const SITE = "projects/project-1/image-studio/job-1-site.jpg";
+  const COLOUR_URL = "https://v3b.fal.media/files/cutout_color.mp4";
+  const ALPHA_URL = "https://v3b.fal.media/files/cutout_alpha.mp4";
 
   beforeEach(() => {
     jobFindUniqueMock.mockResolvedValue(row);
@@ -466,6 +559,74 @@ describe("the presenter model's video arriving with word timings", () => {
       edited,
       expect.objectContaining({ contentType: "video/mp4" }),
     );
+  });
+
+  it("sends the clip on for a cut-out when the site's screenshot is stored", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      settings: { ...row.settings, siteShots: true, sitePagePathname: SITE },
+    });
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-2" });
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "veed/video-background-removal/fast",
+        input: { video_url: AVATAR_URL, output_codec: "h264" },
+      }),
+    );
+    expect(jobUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          falRequestId: "fal-2",
+          pendingMediaUrl: AVATAR_URL,
+        }),
+      }),
+    );
+    expect(downloadMediaMock).not.toHaveBeenCalled();
+  });
+
+  it("edits the clip with its matte, the site and the end card once the cut-out is back", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      falRequestId: "fal-2",
+      pendingMediaUrl: AVATAR_URL,
+      settings: { ...row.settings, siteShots: true, sitePagePathname: SITE },
+    });
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "media",
+      media: [{ url: COLOUR_URL }, { url: ALPHA_URL }],
+    });
+    downloadMediaMock.mockImplementation(async (url: string) => ({
+      bytes: new Uint8Array([url === ALPHA_URL ? 2 : 9]),
+      contentType: "video/mp4",
+    }));
+    readAssetBytesMock.mockResolvedValue(new Uint8Array([3]));
+    const endCard = { logo: new Uint8Array([4]), dark: true, text: "x.com" };
+    loadEndCardMock.mockResolvedValue(endCard);
+    editTalkingVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([7]),
+      durationSeconds: 8.9,
+    });
+
+    await settleWithMedia("job-1", COLOUR_URL, undefined, "fal-2");
+
+    // The clip that is edited is the presenter's, not the cut-out's colour file.
+    expect(downloadMediaMock).toHaveBeenCalledWith(
+      AVATAR_URL,
+      expect.any(Number),
+      "video/mp4",
+    );
+    expect(editTalkingVideoMock).toHaveBeenCalledWith({
+      clip: new Uint8Array([9]),
+      words: WORDS,
+      clipSeconds: 9,
+      hookLine: "Stop the scroll",
+      site: { alpha: new Uint8Array([2]), page: new Uint8Array([3]) },
+      endCard,
+    });
+    expect(readAssetBytesMock).toHaveBeenCalledWith(SITE);
   });
 
   it("stores the clip as it came when the edit fails", async () => {

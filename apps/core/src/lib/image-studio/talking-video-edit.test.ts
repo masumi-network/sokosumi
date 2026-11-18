@@ -24,8 +24,18 @@ describe("planTalkingVideoEdit", () => {
     const plan = planTalkingVideoEdit(WORDS, 3.5)!;
 
     expect(plan.cuts).toEqual([
-      { start: expect.closeTo(0.14), end: expect.closeTo(1.3), zoom: 1 },
-      { start: expect.closeTo(1.64), end: expect.closeTo(3.35), zoom: 1.2 },
+      {
+        start: expect.closeTo(0.14),
+        end: expect.closeTo(1.3),
+        zoom: 1,
+        shot: "camera",
+      },
+      {
+        start: expect.closeTo(1.64),
+        end: expect.closeTo(3.35),
+        zoom: 1.2,
+        shot: "camera",
+      },
     ]);
     // 3.5 s of clip, less the lead-in, the pause and the tail.
     expect(plan.durationSeconds).toBeCloseTo(2.87);
@@ -129,6 +139,14 @@ describe("talkingVideoSubtitles", () => {
         right: 120,
         vertical: 290,
       },
+      // The end card's line, under its logo.
+      {
+        name: "Style: Card",
+        alignment: 8,
+        left: 120,
+        right: 120,
+        vertical: 1010,
+      },
     ]);
     expect(1920 - 690).toBeLessThanOrEqual(TIKTOK_SAFE_AREA.bottom);
     expect(290).toBeGreaterThanOrEqual(TIKTOK_SAFE_AREA.top);
@@ -159,14 +177,15 @@ describe("talkingVideoSubtitles", () => {
 });
 
 describe("talkingVideoEditArgs", () => {
+  const files = {
+    clip: "clip.mp4",
+    subtitles: "captions.ass",
+    fontsDir: "/tmp/fonts",
+    output: "edited.mp4",
+  };
+
   it("seeks each cut as its own input and crops the punched-in ones", () => {
-    const args = talkingVideoEditArgs({
-      plan: planTalkingVideoEdit(WORDS, 3.5)!,
-      clip: "clip.mp4",
-      subtitles: "captions.ass",
-      fontsDir: "/tmp/fonts",
-      output: "edited.mp4",
-    });
+    const args = talkingVideoEditArgs(planTalkingVideoEdit(WORDS, 3.5)!, files);
 
     expect(args.slice(0, 12)).toEqual([
       ...["-ss", "0.140", "-t", "1.160", "-i", "clip.mp4"],
@@ -175,8 +194,86 @@ describe("talkingVideoEditArgs", () => {
     const graph = args[args.indexOf("-filter_complex") + 1]!;
     expect(graph).toContain("[0:v]scale=1080:1920,crop=1080:1920:");
     expect(graph).toContain("[1:v]scale=1080:1920,crop=900:1600:");
-    expect(graph).toContain("[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[cut][audio]");
+    expect(graph).toContain("[v0][a0][v1][a1]concat=n=2:v=1:a=1[cut][audio]");
     expect(graph).toContain("[cut]ass=captions.ass:fontsdir=/tmp/fonts[video]");
     expect(args.at(-1)).toBe("edited.mp4");
+  });
+
+  it("stands the presenter over the page with the clip's matte", () => {
+    const plan = planTalkingVideoEdit(WORDS, 3.5, { siteShots: true })!;
+    const args = talkingVideoEditArgs(plan, {
+      ...files,
+      site: { alpha: "alpha.mp4", page: "page.jpg" },
+    });
+
+    // The second cut reads the clip, its matte at the same time, and the page.
+    expect(args.slice(6, 26)).toEqual([
+      ...["-ss", "1.640", "-t", "1.710", "-i", "clip.mp4"],
+      ...["-ss", "1.640", "-t", "1.710", "-i", "alpha.mp4"],
+      ...["-loop", "1", "-framerate", "30", "-t", "1.710", "-i", "page.jpg"],
+    ]);
+    const graph = args[args.indexOf("-filter_complex") + 1]!;
+    expect(graph).toContain("[p1][m1]alphamerge[c1]");
+    expect(graph).toContain("[b1][c1]overlay=(W-w)/2:H-h:shortest=1");
+    // The sound still comes from the clip.
+    expect(graph).toContain("[1:a]aresample=44100");
+  });
+
+  it("ends on a card with the logo and silence", () => {
+    const plan = planTalkingVideoEdit(WORDS, 3.5, { endCard: true })!;
+    const args = talkingVideoEditArgs(plan, {
+      ...files,
+      endCard: { logo: "logo.png", dark: false },
+    });
+
+    expect(args).toContain("color=c=0xFFFFFF:s=1080x1920:r=30");
+    expect(args).toContain("anullsrc=r=44100:cl=stereo");
+    const graph = args[args.indexOf("-filter_complex") + 1]!;
+    expect(graph).toContain(
+      "[v0][a0][v1][a1][vcard][acard]concat=n=3:v=1:a=1[cut][audio]",
+    );
+  });
+});
+
+describe("site shots and the end card in the plan", () => {
+  const sentence = (text: string, at: number) => ({
+    text,
+    start: at,
+    end: at + 0.4,
+  });
+  const shots = (count: number) =>
+    planTalkingVideoEdit(
+      Array.from({ length: count }, (_, index) => sentence("Go.", index)),
+      count,
+      { siteShots: true },
+    )!.cuts.map((cut) => cut.shot);
+
+  it("keeps the hook and the last sentence to camera and shows the site between", () => {
+    expect(shots(1)).toEqual(["camera"]);
+    expect(shots(2)).toEqual(["camera", "over-page"]);
+    expect(shots(3)).toEqual(["camera", "over-page", "camera"]);
+    expect(shots(5)).toEqual([
+      "camera",
+      "over-page",
+      "page",
+      "over-page",
+      "camera",
+    ]);
+  });
+
+  it("stays on camera without site shots", () => {
+    expect(
+      planTalkingVideoEdit(WORDS, 3.5)!.cuts.map((cut) => cut.shot),
+    ).toEqual(["camera", "camera"]);
+  });
+
+  it("adds the end card's length after the speech and labels it", () => {
+    const plan = planTalkingVideoEdit(WORDS, 3.5, { endCard: true })!;
+
+    expect(plan.speechSeconds).toBeCloseTo(2.87);
+    expect(plan.durationSeconds).toBeCloseTo(4.57);
+    expect(
+      talkingVideoSubtitles(plan, null, { text: "cal.com", dark: true }),
+    ).toContain("Dialogue: 1,0:00:02.87,0:00:04.57,Card,,0,0,0,,cal.com");
   });
 });

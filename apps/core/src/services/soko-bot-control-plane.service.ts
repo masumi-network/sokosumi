@@ -15,6 +15,7 @@ import {
   type IndexedRuntimeEvent,
   isSokoBotAnnouncementCapability,
   isSokoBotCapability,
+  isSokoBotCompetitorCapability,
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   redactSokoBotSensitiveText,
@@ -137,6 +138,7 @@ import type {
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
 import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import { competitorChecksOnFor } from "@/services/competitors.service";
 import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import {
@@ -2521,6 +2523,13 @@ export class SokoBotControlPlane {
         workspaceId: input.workspaceId,
         projectId: bot.projectId,
       }));
+    const competitorsAvailable =
+      version.profile === "cmo" ||
+      (routeCapabilities.some(isSokoBotCompetitorCapability) &&
+        (await competitorChecksOnFor({
+          projectId: bot.projectId,
+          workspaceId: input.workspaceId,
+        })));
     const capabilities = applyVersionCapabilities(
       version,
       (input.chat?.askedByBot
@@ -2531,6 +2540,7 @@ export class SokoBotControlPlane {
     ).filter(
       (capability) =>
         (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        (!isSokoBotCompetitorCapability(capability) || competitorsAvailable) &&
         (!isSokoBotAnnouncementCapability(capability) ||
           isAnnouncementBot(bot.id)) &&
         // Without a key `search_exa` refuses on every call; offer web_search only.
