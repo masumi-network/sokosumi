@@ -67,6 +67,9 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.waitForURL(`${BASE_URL}/`);
 
       await page.goto(`${BASE_URL}/projects`);
+      // The empty list renders once the projects have loaded; its create
+      // buttons are live by then.
+      await page.getByRole("heading", { name: "No projects yet" }).waitFor();
       await page
         .getByRole("button", { name: /^(New project|Create project)$/ })
         .filter({ visible: true })
@@ -87,9 +90,20 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         buffer: Buffer.from(DESIGN_MD),
       });
       await page.getByText("Ready").waitFor();
-
-      await page.getByRole("button", { name: "Brand actions" }).click();
-      await page.getByRole("menuitem", { name: "Edit" }).click();
+      // A new DESIGN.md remounts the brand card and refreshes the page, which
+      // can close a menu opened during it: open it again until Edit holds.
+      for (let attempt = 1; ; attempt++) {
+        await page.getByRole("button", { name: "Brand actions" }).click();
+        try {
+          await page
+            .getByRole("menuitem", { name: "Edit" })
+            .click({ timeout: 5_000 });
+          break;
+        } catch (error) {
+          if (attempt === 3) throw error;
+          await page.keyboard.press("Escape");
+        }
+      }
       await page.waitForURL(/\/design-md\/edit$/);
       const editor = page
         .getByRole("textbox", { name: "Edit DESIGN.md" })
