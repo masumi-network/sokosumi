@@ -125,6 +125,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Strip.** A black band with white text that inverts in dark (`--strip`, `--strip-foreground`): the action bar at the bottom of an onboarding step and the banner that says Cuso is paused or out of credits.
 
+**Working and "How I got here" (chat).** While Cuso works, his row shows the step he is on (body 500, beside the three working dots) and the model's latest reasoning under it (small, muted, two lines at most). Under a reply, "How I got here" is a fold: a muted small row with a chevron, opening to the steps and the reasoning behind a hairline on the left. Both are flat with no ink line: nothing here is pressed but the fold's row.
+
 **Status.** Done: green disc, Neutral 950 check. Needs you: yellow disc, Neutral 950 "!". Failed or blocked: Neutral 950 disc, white X. Live: green dot with a line edge.
 
 ## Cuso

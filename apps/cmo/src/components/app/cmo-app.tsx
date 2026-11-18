@@ -14,6 +14,7 @@ import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
+import { HowIGotHere, Working } from "../cuso-trace";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
@@ -232,11 +233,16 @@ export function CmoApp({
 
   const thread = buildThread(overview, messages);
   const threadLength = thread.length;
+  // What Cuso is doing sits under the thread, so it scrolls into view too.
+  const working =
+    overview.botStatus === "RUNNING"
+      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
+      : null;
   useEffect(() => {
     if (view === "chat" && threadLength > 0) {
       end.current?.scrollIntoView({ block: "end" });
     }
-  }, [threadLength, view]);
+  }, [threadLength, view, working]);
 
   const compose = useCallback(
     (text: string) => {
@@ -385,14 +391,7 @@ export function CmoApp({
                 ))}
                 {overview.botStatus === "RUNNING" ? (
                   <CusoSays pose="thinking">
-                    <span
-                      className="typing"
-                      aria-label={`${AGENT_NAME} is working`}
-                    >
-                      <i />
-                      <i />
-                      <i />
-                    </span>
+                    <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
                 <div ref={end} />
@@ -626,6 +625,7 @@ function ThreadEntry({
         <p className="txt">
           {renderInline(item.message.content, webOriginOf(overview))}
         </p>
+        {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
       </CusoSays>
     );
   }
