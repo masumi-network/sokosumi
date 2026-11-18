@@ -290,6 +290,8 @@ These guard the `soko_bot_runtime_event` log the runtimes write. They take an ad
 
 The watchdog drains each grant from scan 3 in the same tick. A later scan 4 can reclaim it if its heartbeat goes stale or the drain releases it. When the sandbox or in-process drain exhausts its stored-event snapshot, it checks for a newly appended terminal marker under the same turn lock that runtime completion uses. If it sees the marker, it drains the remaining events with its own token. Otherwise it clears its heartbeat and leaves the lease expiry available for runtime authorization. A later close can claim the released lease immediately. Previews rely on `settleNow` for runtime completion and run no watchdog cron or claim-on-read recovery. If the preview process dies before settling, the turn can stay open.
 
+A drain that crashes, is aborted or hits a stream error before this check keeps its heartbeat; close then loses, and the turn settles on the first watchdog tick after the heartbeat is 45 s stale (about 45-105 s).
+
 A duplicate retries a released start through the same claim as the watchdog. A duplicate with a live holder cannot replay the start. There is still a window between the final deadline check and dispatch. Runtime authorization enforces the deadline for runtime calls.
 
 ## Known gaps
