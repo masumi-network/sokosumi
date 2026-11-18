@@ -1,0 +1,96 @@
+/// Workspace-scoped vocabulary. Shared vocabulary is not shared assignment.
+model WorkspaceLabel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  kind         FileLabelKind
+  color        TagColor?
+  /// Exact override for a tag wheel color. workspace_label_custom_color_check requires #RRGGBB.
+  customColor  String?       @db.VarChar(7)
+  /// Work-type presets are candidates for automatic Task classification only.
+  isTaskPreset Boolean       @default(false)
+
+  displayName    String
+  /// NFC, trimmed, case-folded. Uniqueness is on this, capitalization is kept.
+  normalizedName String
+  /// A category needs a description so suggestions have a stable rubric.
+  description    String?
+
+  /// Retired names that still redirect after a merge.
+  aliases      String[]
+  /// The label this one was merged into, so old assignments still resolve.
+  mergedIntoId String?          @db.Uuid
+  mergedInto   WorkspaceLabel?  @relation("WorkspaceLabelMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom   WorkspaceLabel[] @relation("WorkspaceLabelMerge")
+
+  /// Archived labels keep historical assignments readable but take no new ones.
+  archivedAt DateTime?
+
+  /// Bumped by any vocabulary change. Invalidates stale suggestions.
+  vocabularyVersion Int @default(1)
+
+  createdByUserId String?
+
+  taskAssignments TaskWorkspaceTag[]
+  taskDecisions   TaskWorkspaceTagDecision[]
+  labels          FileLabel[]
+  overrides       FileFieldOverride[]
+
+  @@unique([workspaceId, kind, normalizedName], map: "workspace_label_name_key")
+  @@index([workspaceId, kind, archivedAt])
+  @@index([mergedIntoId])
+  @@map("workspace_label")
+}
+
+/// A workspace tag a person applied to a Task. Jev topic tags stay on Task.
+/// The state also identifies workspace tags applied automatically by Jev.
+model TaskWorkspaceTag {
+  state   TaskWorkspaceTagState @default(MANUAL)
+  taskId  String
+  task    Task                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  labelId String                @db.Uuid
+  label   WorkspaceLabel        @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@index([labelId, taskId])
+  @@map("task_workspace_tag")
+}
+
+/// An offer or veto is never an applied tag, including for older Task readers.
+model TaskWorkspaceTagDecision {
+  taskId  String
+  task    Task                          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  labelId String                        @db.Uuid
+  label   WorkspaceLabel                @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  state   TaskWorkspaceTagDecisionState
+
+  @@id([taskId, labelId])
+  @@index([labelId, taskId])
+  @@map("task_workspace_tag_decision")
+}
+
+enum TaskWorkspaceTagState {
+  MANUAL
+  JEV_ADDED
+}
+
+enum TaskWorkspaceTagDecisionState {
+  JEV_SUGGESTED
+  JEV_DISMISSED
+}
+
+enum TagColor {
+  gray
+  red
+  orange
+  yellow
+  green
+  teal
+  blue
+  purple
+  pink
+}

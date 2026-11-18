@@ -60,7 +60,12 @@ export async function loadCmoMarketingContext(
   const [project, brandPictures] = await Promise.all([
     prisma.project.findUnique({
       where: { id: cuso.projectId },
-      select: { logo: true, designMdUrl: true },
+      select: {
+        logo: true,
+        designMdUrl: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
+      },
     }),
     listCmoBrandPictures(cuso.projectId),
   ]);
@@ -101,6 +106,13 @@ export async function loadCmoMarketingContext(
       ...picture,
       alt: picture.alt.slice(0, 80),
     })),
+    /**
+     * The owner gave their photo, with consent, to be the face of talking
+     * videos: presenter "owner" uses it.
+     */
+    ...(project?.presenterFileId && project.presenterConsentAt
+      ? { ownerPresenter: true }
+      : {}),
     /** How to write each kind of piece: read one in full with read_writing_skill. */
     writingSkills: WRITING_SKILLS.map((skill) => ({
       id: skill.id,

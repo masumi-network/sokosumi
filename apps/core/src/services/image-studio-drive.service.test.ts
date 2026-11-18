@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   taskFindMany: vi.fn(),
   taskUpdate: vi.fn(),
   eventCreate: vi.fn(),
+  queryRaw: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/lib/db/prisma", () => ({
     fileResource: { findUnique: mocks.fileFindUnique },
     task: { findMany: mocks.taskFindMany, update: mocks.taskUpdate },
     adEvent: { create: mocks.eventCreate },
+    $queryRaw: mocks.queryRaw,
   },
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
@@ -44,6 +46,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 
 import {
   ensureStudioAssetDriveFile,
+  isTalkingVideoMedia,
   moveLegacyStudioFolderTasks,
   publishStudioAssetToFiles,
   studioAssetFileName,
@@ -323,5 +326,31 @@ describe("moveLegacyStudioFolderTasks", () => {
     await moveLegacyStudioFolderTasks(5);
     await moveLegacyStudioFolderTasks(5);
     expect(mocks.taskFindMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("isTalkingVideoMedia", () => {
+  const video = {
+    pathname: "workspace/Content Studio/booking-link-9cc6c00f.mp4",
+    name: "booking-link-9cc6c00f.mp4",
+    kind: "video",
+  };
+
+  it("asks the database only for studio videos, by their job suffix", async () => {
+    mocks.queryRaw.mockResolvedValueOnce([{ found: true }]);
+    await expect(isTalkingVideoMedia("project-1", [video])).resolves.toBe(true);
+    expect(mocks.queryRaw.mock.calls[0]?.slice(1)).toEqual([
+      "project-1",
+      ["9cc6c00f"],
+    ]);
+
+    mocks.queryRaw.mockClear();
+    await expect(
+      isTalkingVideoMedia("project-1", [
+        { ...video, kind: "image" },
+        { ...video, pathname: "workspace/Uploads/booking-link-9cc6c00f.mp4" },
+      ]),
+    ).resolves.toBe(false);
+    expect(mocks.queryRaw).not.toHaveBeenCalled();
   });
 });

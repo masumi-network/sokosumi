@@ -7478,6 +7478,82 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        workspaceTags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'manual',
+                            'jev'
+                        ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
+        workspaceTagSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
         number: {
             type: [
                 'integer',
@@ -8077,6 +8153,25 @@ export const TaskTagIdSchema = {
         'communication',
         'finance',
         'qa'
+    ]
+} as const;
+
+export const TagColorSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'gray',
+        'red',
+        'orange',
+        'yellow',
+        'green',
+        'teal',
+        'blue',
+        'purple',
+        'pink',
+        null
     ]
 } as const;
 
@@ -18553,6 +18648,23 @@ export const DeleteDriveFileRequestSchema = {
 export const WorkspaceLabelSchema = {
     type: 'object',
     properties: {
+        taskTopicId: {
+            $ref: '#/components/schemas/TaskTagId'
+        },
+        color: {
+            $ref: '#/components/schemas/TagColor'
+        },
+        customColor: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 7,
+            maxLength: 7,
+            pattern: '^#[0-9a-fA-F]{6}$',
+            description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+            example: '#127DA2'
+        },
         id: {
             type: 'string'
         },
@@ -31989,6 +32101,26 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    script: {
+                                        type: 'string',
+                                        minLength: 20,
+                                        maxLength: 600
+                                    },
+                                    presenter: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    voice: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    languageCode: {
+                                        type: 'string',
+                                        minLength: 2,
+                                        maxLength: 2
+                                    },
                                     story: {
                                         type: 'string',
                                         minLength: 1,
@@ -32314,6 +32446,26 @@ export const MarketingStrategySchema = {
                                                     maxLength: 400
                                                 },
                                                 maxItems: 10
+                                            },
+                                            script: {
+                                                type: 'string',
+                                                minLength: 20,
+                                                maxLength: 600
+                                            },
+                                            presenter: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            voice: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 40
+                                            },
+                                            languageCode: {
+                                                type: 'string',
+                                                minLength: 2,
+                                                maxLength: 2
                                             },
                                             story: {
                                                 type: 'string',
@@ -33738,6 +33890,26 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 10
                             },
+                            script: {
+                                type: 'string',
+                                minLength: 20,
+                                maxLength: 600
+                            },
+                            presenter: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            voice: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            languageCode: {
+                                type: 'string',
+                                minLength: 2,
+                                maxLength: 2
+                            },
                             story: {
                                 type: 'string',
                                 minLength: 1,
@@ -34063,6 +34235,26 @@ export const MarketingStrategyRequestSchema = {
                                             maxLength: 400
                                         },
                                         maxItems: 10
+                                    },
+                                    script: {
+                                        type: 'string',
+                                        minLength: 20,
+                                        maxLength: 600
+                                    },
+                                    presenter: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    voice: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    languageCode: {
+                                        type: 'string',
+                                        minLength: 2,
+                                        maxLength: 2
                                     },
                                     story: {
                                         type: 'string',
@@ -40323,6 +40515,26 @@ export const SocialPostSchema = {
                         maxLength: 400
                     },
                     maxItems: 10
+                },
+                script: {
+                    type: 'string',
+                    minLength: 20,
+                    maxLength: 600
+                },
+                presenter: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                voice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                languageCode: {
+                    type: 'string',
+                    minLength: 2,
+                    maxLength: 2
                 },
                 story: {
                     type: 'string',
@@ -49124,6 +49336,9 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        presenterSet: {
+            type: 'boolean'
+        },
         onboardingStep: {
             type: 'string',
             enum: [
@@ -51673,6 +51888,7 @@ export const CmoOverviewSchema = {
         'activity',
         'brandVisual',
         'projectLogo',
+        'presenterSet',
         'onboardingStep',
         'routines',
         'brandBrain',
@@ -53348,6 +53564,26 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 10
                     },
+                    script: {
+                        type: 'string',
+                        minLength: 20,
+                        maxLength: 600
+                    },
+                    presenter: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    voice: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    languageCode: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 2
+                    },
                     story: {
                         type: 'string',
                         minLength: 1,
@@ -53673,6 +53909,26 @@ export const CmoPlanSchema = {
                                     maxLength: 400
                                 },
                                 maxItems: 10
+                            },
+                            script: {
+                                type: 'string',
+                                minLength: 20,
+                                maxLength: 600
+                            },
+                            presenter: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            voice: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            languageCode: {
+                                type: 'string',
+                                minLength: 2,
+                                maxLength: 2
                             },
                             story: {
                                 type: 'string',
@@ -55719,6 +55975,27 @@ export const CmoSeoSuggestionStatusRequestSchema = {
         'status'
     ],
     additionalProperties: false
+} as const;
+
+export const CmoPresenterPhotoSchema = {
+    type: 'object',
+    properties: {
+        photo: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4200000
+        },
+        consent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'photo',
+        'consent'
+    ]
 } as const;
 
 export const CmoAdBudgetRequestSchema = {
@@ -58501,6 +58778,82 @@ export const TaskListItemSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        workspaceTags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'manual',
+                            'jev'
+                        ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
+        workspaceTagSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
         number: {
             type: [
                 'integer',
@@ -58741,6 +59094,44 @@ export const TaskTagSuggestionSchema = {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        workspaceSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
+                    autoApply: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName',
+                    'autoApply'
+                ]
             },
             maxItems: 5
         },

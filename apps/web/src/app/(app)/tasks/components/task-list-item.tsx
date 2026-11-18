@@ -13,6 +13,7 @@ import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
+import { TaskTags } from "./task-tags";
 
 interface TaskListItemProps {
   task: TaskWithCoworker;
@@ -58,6 +59,13 @@ export function TaskListItem({
               {task.name}
             </span>
           </div>
+          <TaskTags
+            tags={task.tags}
+            showManualTopics={!compact}
+            workspaceTags={task.workspaceTags}
+            compact
+            inLink
+          />
           {!compact && (
             <p className="text-muted-foreground line-clamp-1 text-xs break-all">
               {task.descriptionPlain ?? "—"}

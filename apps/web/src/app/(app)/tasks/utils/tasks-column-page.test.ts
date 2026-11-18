@@ -89,6 +89,7 @@ describe("getTasksColumnPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      tag: "research",
       visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
@@ -104,6 +105,7 @@ describe("getTasksColumnPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: PROJECT_ID,
+      topicTagId: "research",
       cursor: null,
       limit: 2,
     });
