@@ -28,10 +28,15 @@ export function taskSubtasksQueryKey(parentTaskId: string) {
 }
 
 /**
- * Reads again the checklists of the parents a change touched, except the open
- * page's own. The action already re-renders that page with newer rows, and a
- * read here could land before a toggle in flight and undo it on screen. The
- * other lists are not on screen, so this only marks them stale.
+ * Reads again the checklists of the parents a change touched. The other lists
+ * are not on screen, so this only marks them stale.
+ *
+ * The open page's own list reads again only when none of its own changes is
+ * in flight: a read could land before a toggle and undo it on screen. That
+ * toggle reads the list again when it settles, so the new row still shows.
+ * The page re-render alone is not enough: its rows replace the cache only
+ * when the server's clock is ahead of the cache's stamp, which a client
+ * clock can pass.
  */
 export function invalidateSubtaskLists(
   queryClient: QueryClient,
@@ -39,19 +44,28 @@ export function invalidateSubtaskLists(
   parentTaskIds: readonly (string | null | undefined)[],
 ) {
   for (const id of new Set(parentTaskIds)) {
-    if (id && id !== pageTaskId)
-      void queryClient.invalidateQueries({
-        queryKey: taskSubtasksQueryKey(id),
-      });
+    if (!id) continue;
+    const queryKey = taskSubtasksQueryKey(id);
+    if (
+      id === pageTaskId &&
+      queryClient.isMutating({ mutationKey: queryKey }) > 0
+    )
+      continue;
+    void queryClient.invalidateQueries({ queryKey });
   }
 }
 
 /**
  * Core's own words for a refusal, such as a cycle or a tree too deep. Any
- * other failure keeps its raw text, such as "fetch failed", off the toast.
+ * other failure keeps its raw text, such as "fetch failed", off the toast and
+ * shows `serverErrorText` instead.
  */
-export function refusalDescription(error: ActionError): string | undefined {
-  if (error.code === CommonErrorCode.INTERNAL_SERVER_ERROR) return undefined;
+export function refusalDescription(
+  error: ActionError,
+  serverErrorText: string,
+): string | undefined {
+  if (error.code === CommonErrorCode.INTERNAL_SERVER_ERROR)
+    return serverErrorText;
   return error.message || undefined;
 }
 
@@ -85,16 +99,22 @@ export function createSubtaskFromDraft(
  */
 export function useCreateSubtask(parentTaskId: string) {
   const t = useTranslations("App.Tasks.Detail.actions.subtasks");
+  const queryClient = useQueryClient();
 
   return async function handleCreate(draft: NewSubtaskDraft): Promise<boolean> {
     try {
       const result = await createSubtaskFromDraft(parentTaskId, draft);
       if (!result.ok) {
         toast.error(t("createError"), {
-          description: refusalDescription(result.error),
+          description: refusalDescription(
+            result.error,
+            t("serverErrorDescription"),
+          ),
         });
         return false;
       }
+      // The open page is the parent: its list gains the new row.
+      invalidateSubtaskLists(queryClient, parentTaskId, [parentTaskId]);
       toast.success(t("createSuccess"));
       return true;
     } catch (error) {

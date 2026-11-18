@@ -2086,7 +2086,8 @@
             "removeFromParentSuccess": "Task removed from its parent",
             "moveError": "Could not move the Task.",
             "createSuccess": "Sub-task added",
-            "createError": "Could not add the sub-task."
+            "createError": "Could not add the sub-task.",
+            "serverErrorDescription": "Try again later."
           }
         },
         "ShareModal": {

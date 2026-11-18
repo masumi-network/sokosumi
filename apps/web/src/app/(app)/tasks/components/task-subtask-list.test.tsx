@@ -108,6 +108,21 @@ function addByDialog(name: string) {
   fireEvent.click(screen.getByRole("button", { name: "create" }));
 }
 
+/** What Core's list read returns for a sub-task. */
+function listItem(
+  id: string,
+  overrides: { name?: string; status?: TaskStatus } = {},
+) {
+  return {
+    id,
+    identifier: null,
+    name: overrides.name ?? id,
+    status: overrides.status ?? TaskStatus.READY,
+    dueOn: null,
+    subtaskProgress: { completed: 0, total: 0 },
+  };
+}
+
 function rowNames() {
   // An open dialog hides the rest of the page from the accessibility tree.
   return screen
@@ -219,7 +234,7 @@ describe("TaskSubtaskList", () => {
     expect(rowNames()).toEqual(["a"]);
   });
 
-  it("keeps a failure that is not Core's refusal off the toast", async () => {
+  it("shows Try again later, not the raw text, for a failure that is not Core's refusal", async () => {
     createSubtask.mockResolvedValue({
       ok: false,
       error: { code: "INTERNAL_SERVER_ERROR", message: "fetch failed" },
@@ -230,7 +245,7 @@ describe("TaskSubtaskList", () => {
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("createError", {
-        description: undefined,
+        description: "serverErrorDescription",
       }),
     );
   });
@@ -302,10 +317,13 @@ describe("TaskSubtaskList", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("sends the name, assignee and due date from the + dialog and takes the refreshed page rows", async () => {
+  it("sends the name, assignee and due date from the + dialog and reads the list again", async () => {
     const user = userEvent.setup();
     createSubtask.mockResolvedValue({ ok: true, value: {} });
-    const { rerender } = renderList([row("a")]);
+    renderList([row("a")]);
+    getTasks.mockResolvedValue({
+      data: [listItem("a"), listItem("new", { name: "Book it" })],
+    });
 
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.type(screen.getByRole("textbox", { name: "name" }), "Book it");
@@ -331,11 +349,66 @@ describe("TaskSubtaskList", () => {
     await waitFor(() =>
       expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
     );
-    // The action re-renders the page. A read of its own could land before a
-    // toggle in flight and undo it on screen.
-    expect(getTasks).not.toHaveBeenCalled();
-    rerender([row("a"), row("new", { name: "Book it" })], 2_000);
     await waitFor(() => expect(rowNames()).toEqual(["a", "Book it"]));
+  });
+
+  it("reads the list again after a + add, so the new row shows when the cache is stamped after the page", async () => {
+    createSubtask.mockResolvedValue({ ok: true, value: {} });
+    const { rerender } = renderList([row("a")], undefined, 1_000);
+    // A toggle that settled: its read stamps the cache with the client clock.
+    getTasks.mockResolvedValue({
+      data: [listItem("a", { status: TaskStatus.COMPLETED })],
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "toggleLabel a" }));
+    await waitFor(() => expect(getTasks).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "toggleLabel a" }),
+      ).toBeChecked(),
+    );
+
+    getTasks.mockResolvedValue({
+      data: [
+        listItem("a", { status: TaskStatus.COMPLETED }),
+        listItem("new", { name: "Book it" }),
+      ],
+    });
+    addByDialog("Book it");
+    // The server's clock is behind that stamp, so the page rows do not apply.
+    rerender(
+      [
+        row("a", { status: TaskStatus.COMPLETED }),
+        row("new", { name: "Book it" }),
+      ],
+      2_000,
+    );
+
+    await waitFor(() => expect(rowNames()).toEqual(["a", "Book it"]));
+  });
+
+  it("does not read the list again after a + add while a toggle is in flight", async () => {
+    const toggle = Promise.withResolvers<{ ok: true }>();
+    setTaskStatusFromDrag.mockReturnValue(toggle.promise);
+    createSubtask.mockResolvedValue({ ok: true, value: {} });
+    renderList([row("a")]);
+    const checkbox = screen.getByRole("checkbox", { name: "toggleLabel a" });
+    fireEvent.click(checkbox);
+    await waitFor(() => expect(checkbox).toBeChecked());
+
+    addByDialog("Book it");
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("createSuccess"),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
+    );
+
+    // A read now could land before the toggle and undo it on screen.
+    expect(getTasks).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("checkbox", { name: "toggleLabel a" }),
+    ).toBeChecked();
+    await act(async () => toggle.resolve({ ok: true }));
   });
 
   it("labels the assignee picker in the + dialog", () => {

@@ -107,7 +107,10 @@ export function useTaskSubtaskActions({
         const result = await setTaskParent(input);
         if (!result.ok) {
           toast.error(t("moveError"), {
-            description: refusalDescription(result.error),
+            description: refusalDescription(
+              result.error,
+              t("serverErrorDescription"),
+            ),
           });
           return;
         }

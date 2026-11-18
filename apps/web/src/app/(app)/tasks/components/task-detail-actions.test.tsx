@@ -2567,7 +2567,7 @@ describe("TaskDetailActions", () => {
       expect(isStale("task-other")).toBe(false);
     });
 
-    it("reads a picked Task's old parent's checklist again after Add existing, not this page's", async () => {
+    it("reads this page's and a picked Task's old parent's checklists again after Add existing", async () => {
       const user = userEvent.setup();
       listTasks(
         buildTaskListItem({
@@ -2586,7 +2586,9 @@ describe("TaskDetailActions", () => {
       );
 
       await waitFor(() => expect(isStale("task-old")).toBe(true));
-      expect(isStale("task-1")).toBe(false);
+      // This page's list gains the row; its re-render may not replace a
+      // cache stamped by the client clock.
+      expect(isStale("task-1")).toBe(true);
     });
 
     it("reads the old parent's checklist again after Remove from parent, not this page's", async () => {
@@ -2776,7 +2778,7 @@ describe("TaskDetailActions", () => {
       );
     });
 
-    it("keeps a failure that is not Core's refusal off the move toast", async () => {
+    it("shows Try again later, not the raw text, on the move toast for a failure that is not Core's refusal", async () => {
       const user = userEvent.setup();
       listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
       setTaskParentMock.mockResolvedValue({
@@ -2793,7 +2795,7 @@ describe("TaskDetailActions", () => {
 
       await waitFor(() =>
         expect(toast.error).toHaveBeenCalledWith("moveError", {
-          description: undefined,
+          description: "serverErrorDescription",
         }),
       );
     });
@@ -2875,7 +2877,7 @@ describe("TaskDetailActions", () => {
       );
     });
 
-    it("leaves the checklist to the page refresh and returns focus to the menu after a new sub-task", async () => {
+    it("reads the checklist again and returns focus to the menu after a new sub-task", async () => {
       const user = userEvent.setup();
       createSubtaskMock.mockResolvedValue({ ok: true, value: {} });
       cacheSubtasks("task-1", []);
@@ -2890,9 +2892,8 @@ describe("TaskDetailActions", () => {
       await waitFor(() =>
         expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
       );
-      // The action re-renders this page; a read here could undo a toggle
-      // still in flight.
-      expect(isStale("task-1")).toBe(false);
+      // No toggle is in flight, so the read cannot undo one.
+      expect(isStale("task-1")).toBe(true);
       await waitFor(() => expect(trigger).toHaveFocus());
     });
 

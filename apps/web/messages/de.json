@@ -2085,7 +2085,8 @@
             "removeFromParentSuccess": "Task aus seinem übergeordneten Task entfernt",
             "moveError": "Der Task konnte nicht verschoben werden.",
             "createSuccess": "Teilaufgabe hinzugefügt",
-            "createError": "Die Teilaufgabe konnte nicht hinzugefügt werden."
+            "createError": "Die Teilaufgabe konnte nicht hinzugefügt werden.",
+            "serverErrorDescription": "Versuche es später erneut."
           }
         },
         "ShareModal": {
