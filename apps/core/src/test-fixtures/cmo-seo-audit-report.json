@@ -1,0 +1,1907 @@
+{
+  "kind": "audit_full",
+  "notes": [
+    "O-08 on mobile: judge not admitted: no keyword list; whether it summarizes the page needs a judge",
+    "O-11 on mobile: judge not admitted: lead intent group: macbook charge limit; \"macbook charge limit\" terms: macbook, charge, limit; title \"MacBook Battery Health, Limits & Alerts · Battery Sensei\" holds 1 of 3, near: limit; main heading \"Quiet battery care for your MacBook. Quiet battery care for …\" holds 1 of 3, near: charge; Google matches variants and related words (G4-050); a judge decides",
+    "EX-01 on mobile: no data: URL: Not checked: PageSpeed Insights (PSI) and Chrome UX Report (CrUX) are excluded from this public audit worker."
+  ],
+  "checks": [
+    {
+      "rowId": "AC-01",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-03",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-05",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-07",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-08",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-09",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-10",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-12",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-16",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-17",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AI-01",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "F-03",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-01",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-02",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-03",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-01",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-02",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-03",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-04",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-05",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-07",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-02",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-06",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-07",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-08",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-09",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-10",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-11",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-14",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-15",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-18",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-21",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "P-06",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "P-10",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "P-23",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-03",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-05",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "query.serp.position",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-01",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-02",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-03",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-14",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-08",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-06",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-13",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-02",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-03",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-07",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-22",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AI-04",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-01",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-02",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-14",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SN-01",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-04",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-12",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-24",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-25",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SN-18",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SN-19",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-20",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-13",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-01",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SP-04",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-10",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SP-17",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SP-18",
+      "device": "mobile",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SP-19",
+      "device": "mobile",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-06",
+      "device": "mobile",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-01",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-03",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-05",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-07",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-08",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-09",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-10",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-12",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-16",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-17",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AI-01",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "F-03",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-01",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-02",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IL-03",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-01",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-02",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-03",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-04",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-05",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "IN-07",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-02",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-06",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-07",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-08",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-09",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-10",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-11",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-14",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-15",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-18",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "O-21",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "P-06",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "P-10",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "P-23",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-03",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-05",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "query.serp.position",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-01",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-02",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-03",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-14",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-08",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-06",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-13",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-02",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-03",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-07",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-22",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AI-04",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-01",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-02",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "AC-14",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SN-01",
+      "device": "desktop",
+      "result": "not_checked",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "RN-01",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SP-04",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "EX-10",
+      "device": "desktop",
+      "result": "pass",
+      "pageUrl": "https://battery-sensei.app/"
+    },
+    {
+      "rowId": "SD-06",
+      "device": "desktop",
+      "result": "fired",
+      "pageUrl": "https://battery-sensei.app/"
+    }
+  ],
+  "actions": [
+    {
+      "id": "1",
+      "why": "Two structured-data problems on the SoftwareApplication node \"Battery Sensei\": (1) it has neither aggregateRating nor review — only add one if the site has real ratings or reviews from its own users, and then also display that rating on the page; never take a rating from an app store or another site, and do not invent one if none exists. (2) The markup names the offer price 6.99 USD, but the rendered page shows 9.99 where the raw text shows 6.99. The owner decides which price the offer states: update the offer's price in the JSON-LD so it matches the price the page actually shows after it loads (currently $9.99 for Lifetime), and make sure the price in the markup is the one visitors see. Do not add the price to the page as static text to quiet the check — the markup must agree with what the page displays.",
+      "edit": null,
+      "title": "Fix the structured data: show a genuine rating and match the markup price to the page",
+      "effort": "medium",
+      "pageUrl": "https://battery-sensei.app/",
+      "findingIds": [
+        "SD-03:mobile",
+        "SD-03:desktop",
+        "SD-06:mobile",
+        "SD-06:desktop"
+      ],
+      "expectedEffect": "The markup will describe what visitors actually see: a price that matches the on-page offer, and — if genuine user ratings exist and are shown — a rating consistent with the page. This keeps the structured data aligned with the visible page as Google asks."
+    },
+    {
+      "id": "2",
+      "why": "https://battery-sensei.app/ currently answers with a 307 (temporary) redirect to https://www.battery-sensei.app/. A redirect to another host should use 301 or 308 so search engines consolidate signals to the www URL instead of treating the hop as temporary. Configure the server or host to return a 301 (or 308) for this redirect. The ranking data in this audit comes from the www URL, which is the same page after the redirect, so it applies here.",
+      "edit": null,
+      "title": "Make the battery-sensei.app → www redirect permanent",
+      "effort": "low",
+      "pageUrl": "https://battery-sensei.app/",
+      "findingIds": ["AC-10:mobile", "AC-10:desktop"],
+      "expectedEffect": "A permanent redirect tells crawlers the www host is the canonical home, so link signals are not diluted across the two hostnames. The page content itself does not change."
+    },
+    {
+      "id": "3",
+      "why": "The site has German, Spanish, French and Japanese versions (https://www.battery-sensei.app/de, /es, /fr, /ja), but the rendered page contains no <a> links to any of them. The language switcher (EN DE ES FR 日) appears not to be real anchor links the crawler can follow. Add visible <a> elements to each language version — for example in the existing language menu and/or the footer — so visitors and crawlers can reach them.",
+      "edit": null,
+      "title": "Link the other language versions from the page",
+      "effort": "low",
+      "pageUrl": "https://battery-sensei.app/",
+      "findingIds": ["IN-05:mobile", "IN-05:desktop"],
+      "expectedEffect": "Visitors can switch languages, and crawlers can discover the other language versions from the English page, which supports the localized pages being indexed."
+    },
+    {
+      "id": "4",
+      "why": "The goal's action is to buy, but neither the mobile nor the desktop first screen shows a buy link or button; the only purchase controls (\"Get Lifetime\", \"Become a patron\") sit far down the page near the pricing section. Add a buy control to the first screen — for example a \"Get Lifetime — $9.99\" button (the price the page states for Lifetime) beside or under the hero's existing \"Download for macOS\" call to action, and keep it visible on mobile and desktop.",
+      "edit": null,
+      "title": "Put a buy control on the first screen",
+      "effort": "low",
+      "pageUrl": "https://battery-sensei.app/",
+      "findingIds": ["P-06.mobile:mobile", "P-06.desktop:desktop"],
+      "expectedEffect": "Visitors who arrive ready to buy can start the purchase from the top of the page instead of scrolling to pricing; the existing checkout flow stays unchanged."
+    },
+    {
+      "id": "5",
+      "why": "This page takes payment (it sells Lifetime and Yearly Patron licenses), and it already links contact info (mailto:info@battery-sensei.app), but there is no link to payment information and none to returns or exchange/refund information. Add short links in the footer (or near the pricing cards) to a payments page (acceptable payment methods) and to the refund/returns terms — the FAQ already covers \"Can I get a refund?\", so a link to that answer or a dedicated legal/refund page works.",
+      "edit": null,
+      "title": "Add payment and returns links to the page",
+      "effort": "low",
+      "pageUrl": "https://battery-sensei.app/",
+      "findingIds": ["P-10:mobile", "P-10:desktop"],
+      "expectedEffect": "Buyers can find how they can pay and how refunds work before purchasing, which supports trust at the point of sale and satisfies the page's obligations as a payment-taking page."
+    }
+  ],
+  "version": 1,
+  "coverage": {
+    "failed": 0,
+    "checked": 110,
+    "skipped": 17
+  },
+  "findings": [
+    {
+      "id": "AC-09:mobile",
+      "rowId": "AC-09",
+      "title": "Redirect hops",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "1 redirect hop before the final URL",
+        "307 https://battery-sensei.app/ → https://www.battery-sensei.app/"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "AC-09:desktop",
+      "rowId": "AC-09",
+      "title": "Redirect hops",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "1 redirect hop before the final URL",
+        "307 https://battery-sensei.app/ → https://www.battery-sensei.app/"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "AC-10:mobile",
+      "rowId": "AC-10",
+      "title": "Permanent redirects",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "307 https://battery-sensei.app/ → https://www.battery-sensei.app/: a temporary redirect to another scheme or host"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "AC-10:desktop",
+      "rowId": "AC-10",
+      "title": "Permanent redirects",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "307 https://battery-sensei.app/ → https://www.battery-sensei.app/: a temporary redirect to another scheme or host"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "IN-05:mobile",
+      "rowId": "IN-05",
+      "title": "Links to the other versions",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "no a element in the rendered page links to any of 4 other language versions",
+        "version: https://www.battery-sensei.app/de",
+        "version: https://www.battery-sensei.app/es",
+        "version: https://www.battery-sensei.app/fr",
+        "version: https://www.battery-sensei.app/ja"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "IN-05:desktop",
+      "rowId": "IN-05",
+      "title": "Links to the other versions",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "no a element in the rendered page links to any of 4 other language versions",
+        "version: https://www.battery-sensei.app/de",
+        "version: https://www.battery-sensei.app/es",
+        "version: https://www.battery-sensei.app/fr",
+        "version: https://www.battery-sensei.app/ja"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "O-06:mobile",
+      "rowId": "O-06",
+      "title": "Title length",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "title 56 characters",
+        "Google sets no length limit and cuts title links to the device width (N1-061)",
+        "vendor tools: Ahrefs under 70 (N1-246); Screaming Frog 30 to 60 (N1-266); Moz 10 or more (N1-278)"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "O-06:desktop",
+      "rowId": "O-06",
+      "title": "Title length",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "title 56 characters",
+        "Google sets no length limit and cuts title links to the device width (N1-061)",
+        "vendor tools: Ahrefs under 70 (N1-246); Screaming Frog 30 to 60 (N1-266); Moz 10 or more (N1-278)"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "O-09:mobile",
+      "rowId": "O-09",
+      "title": "Meta description length",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "meta description 163 characters",
+        "Google sets no length limit (N1-065)",
+        "vendor tools: Ahrefs under 160 (N1-247); Screaming Frog 70 to 155 (N1-267); Moz 55 to 300 (N1-279); Yoast 120 to 156 (N1-286)"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "O-09:desktop",
+      "rowId": "O-09",
+      "title": "Meta description length",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "meta description 163 characters",
+        "Google sets no length limit (N1-065)",
+        "vendor tools: Ahrefs under 160 (N1-247); Screaming Frog 70 to 155 (N1-267); Moz 55 to 300 (N1-279); Yoast 120 to 156 (N1-286)"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "O-10:mobile",
+      "rowId": "O-10",
+      "title": "No meta keywords",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "meta keywords in head: \"MacBook battery, macOS battery monitor, battery health app, smart battery warnings, charge limit Mac, travel mode Mac, battery cycle count, low battery alert, menu bar app, optimised battery charging, AlDente alternative, MacBook battery percentage, battery saver Mac\""
+      ],
+      "severity": "note",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "O-10:desktop",
+      "rowId": "O-10",
+      "title": "No meta keywords",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "meta keywords in head: \"MacBook battery, macOS battery monitor, battery health app, smart battery warnings, charge limit Mac, travel mode Mac, battery cycle count, low battery alert, menu bar app, optimised battery charging, AlDente alternative, MacBook battery percentage, battery saver Mac\""
+      ],
+      "severity": "note",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "P-06.mobile:mobile",
+      "rowId": "P-06",
+      "title": "Main action on the first screen",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "no buy link or button among the page's 36 controls (words in en; a control with excluded words, an account item or, for some actions, a link off the site does not count)",
+        "text and links only: an icon without a label, or a form in an iframe, is not seen",
+        "the goal's action: buy (inferred from the page)",
+        "boxes are layout only: an overlay such as a cookie banner, or a clip-path, is not seen"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "P-06.desktop:desktop",
+      "rowId": "P-06",
+      "title": "Main action on the first screen",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "no buy link or button among the page's 41 controls (words in en; a control with excluded words, an account item or, for some actions, a link off the site does not count)",
+        "text and links only: an icon without a label, or a form in an iframe, is not seen",
+        "the goal's action: buy (inferred from the page)",
+        "boxes are layout only: an overlay such as a cookie banner, or a clip-path, is not seen"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "P-10:mobile",
+      "rowId": "P-10",
+      "title": "Contact, payment and return links on a page that takes payment",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "no payment, no returns or exchange link in the rendered page",
+        "contact or customer service: \"Direct email Or email directly. Prefer your own mail client? Same inbox, same person, same ~48h reply. Use this for security disclosures. info@battery-sensei.app\" (mailto:info@battery-sensei.app)",
+        "the goal: action buy (inferred from the page), page type saas"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "P-10:desktop",
+      "rowId": "P-10",
+      "title": "Contact, payment and return links on a page that takes payment",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "no payment, no returns or exchange link in the rendered page",
+        "contact or customer service: \"Direct email Or email directly. Prefer your own mail client? Same inbox, same person, same ~48h reply. Use this for security disclosures. info@battery-sensei.app\" (mailto:info@battery-sensei.app)",
+        "the goal: action buy (inferred from the page), page type saas"
+      ],
+      "severity": "minor",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "SD-03:mobile",
+      "rowId": "SD-03",
+      "title": "Required structured data properties",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "1 of 2 typed nodes",
+        "SoftwareApplication \"Battery Sensei\": neither aggregateRating nor review",
+        "an app rating or review in the markup must come from the site's own users and show on the page, never from an app store or another site"
+      ],
+      "severity": "major",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "SD-03:desktop",
+      "rowId": "SD-03",
+      "title": "Required structured data properties",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "1 of 2 typed nodes",
+        "SoftwareApplication \"Battery Sensei\": neither aggregateRating nor review",
+        "an app rating or review in the markup must come from the site's own users and show on the page, never from an app store or another site"
+      ],
+      "severity": "major",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "SD-05:mobile",
+      "rowId": "SD-05",
+      "title": "No markup for a retired rich result",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "1 FAQPage node; FAQ rich results no longer appear in Google Search from 2026-05-07",
+        "1 HowTo node; How-to rich results are no longer shown since 2023-09",
+        "Google says unsupported markup causes no issues, so removing it is optional"
+      ],
+      "severity": "note",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "SD-05:desktop",
+      "rowId": "SD-05",
+      "title": "No markup for a retired rich result",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "1 FAQPage node; FAQ rich results no longer appear in Google Search from 2026-05-07",
+        "1 HowTo node; How-to rich results are no longer shown since 2023-09",
+        "Google says unsupported markup causes no issues, so removing it is optional"
+      ],
+      "severity": "note",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "query.serp.position.mobile:mobile",
+      "rowId": "query.serp.position",
+      "title": "Organic position per device",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "\"macbook charge limit\", Market US, en (location_code 2840), mobile, DataForSEO SERP of 2026-11-16 23:50:46 +00:00: 16 organic results read",
+        "the page is not in the top 16 organic results",
+        "an AI Overview shows and does not cite the page",
+        "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
+        "\"mac battery health checker\" (goal): the page is not in the top 18 organic results",
+        "\"macbook battery monitor\" (goal): the page is not in the top 16 organic results",
+        "\"mac battery time remaining app\" (goal): the page is not in the top 17 organic results",
+        "\"macbook battery health\" (goal): the page is not in the top 15 organic results",
+        "\"check macbook battery health\" (goal): the page is not in the top 16 organic results",
+        "\"macbook pro battery capacity\" (goal): the page is not in the top 17 organic results",
+        "\"battery cycle count macbook\" (goal): the page is not in the top 16 organic results"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "query.serp.position.desktop:desktop",
+      "rowId": "query.serp.position",
+      "title": "Organic position per device",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "\"macbook charge limit\", Market US, en (location_code 2840), desktop, DataForSEO SERP of 2026-11-16 23:52:21 +00:00: 17 organic results read",
+        "the page is not in the top 17 organic results",
+        "an AI Overview shows and does not cite the page",
+        "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
+        "\"mac battery health checker\" (goal): the page is not in the top 18 organic results",
+        "\"macbook battery monitor\" (goal): the page is not in the top 18 organic results",
+        "\"mac battery time remaining app\" (goal): the page is not in the top 18 organic results",
+        "\"macbook battery health\" (goal): the page is not in the top 16 organic results",
+        "\"check macbook battery health\" (goal): the page is not in the top 19 organic results",
+        "\"macbook pro battery capacity\" (goal): the page is not in the top 16 organic results",
+        "\"battery cycle count macbook\" (goal): the page is not in the top 16 organic results"
+      ],
+      "severity": "measure",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "SD-06:mobile",
+      "rowId": "SD-06",
+      "title": "Markup matches the visible page",
+      "device": "mobile",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "SoftwareApplication \"Battery Sensei\" names the offer price 6.99 USD; the page text shows no 6.99",
+        "the raw HTML text shows 6.99 in 2 places; the rendered page shows 9.99 there",
+        "Google asks that markup describe the page it is on and mark up only content visitors can see"
+      ],
+      "severity": "major",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    },
+    {
+      "id": "SD-06:desktop",
+      "rowId": "SD-06",
+      "title": "Markup matches the visible page",
+      "device": "desktop",
+      "pageUrl": "https://battery-sensei.app/",
+      "evidence": [
+        "SoftwareApplication \"Battery Sensei\" names the offer price 6.99 USD; the page text shows no 6.99",
+        "the raw HTML text shows 6.99 in 2 places; the rendered page shows 9.99 there",
+        "Google asks that markup describe the page it is on and mark up only content visitors can see"
+      ],
+      "severity": "major",
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z"
+    }
+  ],
+  "keywords": [
+    {
+      "device": "mobile",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 110,
+      "feature": "80% charge limit",
+      "keyword": "macbook charge limit",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 110,
+      "feature": "80% charge limit",
+      "keyword": "macbook charge limit",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 17,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 210,
+      "feature": "Cycle count & capacity",
+      "keyword": "mac battery health checker",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 18,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 210,
+      "feature": "Cycle count & capacity",
+      "keyword": "mac battery health checker",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 18,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 50,
+      "keyword": "macbook battery monitor",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 50,
+      "keyword": "macbook battery monitor",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 18,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 10,
+      "feature": "Plug & unplug updates",
+      "keyword": "mac battery time remaining app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 17,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "commercial",
+      "source": "focus",
+      "volume": 10,
+      "feature": "Plug & unplug updates",
+      "keyword": "mac battery time remaining app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 18,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 720,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook battery health",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 15,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 720,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook battery health",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 390,
+      "feature": "Cycle count & capacity",
+      "keyword": "check macbook battery health",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 390,
+      "feature": "Cycle count & capacity",
+      "keyword": "check macbook battery health",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 19,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 210,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook pro battery capacity",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 17,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 210,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook pro battery capacity",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "mobile",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 480,
+      "feature": "Cycle count & capacity",
+      "keyword": "battery cycle count macbook",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": "desktop",
+      "intent": "informational",
+      "source": "focus",
+      "volume": 480,
+      "feature": "Cycle count & capacity",
+      "keyword": "battery cycle count macbook",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": 16,
+      "positionStatus": "not_in_range"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 210,
+      "keyword": "battery mac app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 31,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 140,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook battery health app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 1,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 140,
+      "feature": "Cycle count & capacity",
+      "keyword": "battery health app mac",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 6,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 110,
+      "feature": "Cycle count & capacity",
+      "keyword": "battery health app for mac",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 5,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 50,
+      "feature": "Cycle count & capacity",
+      "keyword": "best macbook battery app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 1,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 40,
+      "keyword": "mac battery monitor app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 8,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 40,
+      "keyword": "macbook battery monitor app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 10,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 40,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook battery check app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 5,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 40,
+      "feature": "Cycle count & capacity",
+      "keyword": "macos battery health app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 2,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 40,
+      "feature": "80% charge limit",
+      "keyword": "macbook battery 80 percent app",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 16,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 30,
+      "feature": "80% charge limit",
+      "keyword": "macbook limit charge to 80",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 6,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 20,
+      "feature": "Cycle count & capacity",
+      "keyword": "battery health monitor mac",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 20,
+      "feature": "80% charge limit",
+      "keyword": "al dente alternative",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 6,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "transactional",
+      "source": "opportunity",
+      "volume": 10,
+      "feature": "80% charge limit",
+      "keyword": "macbook set battery charge limit",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": null,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "commercial",
+      "source": "opportunity",
+      "volume": 10,
+      "feature": "Cycle count & capacity",
+      "keyword": "best battery app for macbook",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "high",
+      "difficulty": 1,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "informational",
+      "source": "opportunity",
+      "volume": 480,
+      "feature": "Cycle count & capacity",
+      "keyword": "macbook battery cycle count",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "medium",
+      "difficulty": 6,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "informational",
+      "source": "opportunity",
+      "volume": 170,
+      "keyword": "how to show battery percentage on macbook air",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": 0,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "informational",
+      "source": "opportunity",
+      "volume": 70,
+      "keyword": "how to show battery percentage on macbook neo",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": 0,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "informational",
+      "source": "opportunity",
+      "volume": 30,
+      "keyword": "how do i get my battery percentage to show",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": 15,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    },
+    {
+      "device": null,
+      "intent": "informational",
+      "source": "opportunity",
+      "volume": 10,
+      "keyword": "macbook battery percentage not showing",
+      "pageUrl": "https://battery-sensei.app/",
+      "position": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "conversion": "low",
+      "difficulty": 0,
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "checkedResults": null,
+      "positionStatus": "unavailable"
+    }
+  ],
+  "pageUrls": ["https://battery-sensei.app/"],
+  "requestId": null,
+  "observedAt": "2026-11-16T23:47:36.703Z",
+  "competitors": [
+    {
+      "rank": 7,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.youtube.com/watch?v=lOSt9UUTqzU",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 8,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.youtube.com/watch?v=jgQIaHRbx0c",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 9,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.turtlebar.app/guides/macbook-battery-capacity",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 2,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.macbookproslow.com/how-to-check-battery-health/",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 2,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://nextgameday.org/blog/tech-tutorials/guide-to-checking-macbook-battery-health-replacement-tips",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 2,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.youtube.com/watch?v=phFOe7RR1QA",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 3,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.reddit.com/r/macbook/comments/vobxco/cant_find_macbook_pro_battery_health_percentage/",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 1
+    },
+    {
+      "rank": 4,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://download.cnet.com/battery-health-monitor/3000-18512_4-143742.html",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 4,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://ioshacker.com/apps/battery-monitor-app-mac-shows-remaining-battery-time-infomation",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": 4,
+      "role": "competitor",
+      "source": "search",
+      "pageUrl": "https://www.instagram.com/reel/DeMXUEIiDWC/",
+      "backlinks": null,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 0
+    },
+    {
+      "rank": null,
+      "role": "page",
+      "source": "backlinks",
+      "pageUrl": "https://battery-sensei.app/",
+      "backlinks": 7,
+      "sourceRef": "efef783a52f3f84e2b4c94794e4be3f2ae55fdc20aee53daabad291e9a48cdbc",
+      "observedAt": "2026-11-16T23:47:36.703Z",
+      "scopePageUrls": ["https://battery-sensei.app/"],
+      "referringDomains": 2
+    }
+  ],
+  "countryCode": "US",
+  "languageCode": "en",
+  "rulebookVersion": "2026-11-13.6"
+}
