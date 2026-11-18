@@ -11,10 +11,11 @@ import {
   SPACE,
   TEXT,
 } from "../theme/index.js";
-import type { RenderedEmail } from "../types.js";
+import type { EmailBrand, RenderedEmail } from "../types.js";
 
 export interface CodeEmailTemplateProps {
   body: string;
+  brand?: EmailBrand | undefined;
   code: string;
   footer: string;
   greeting: string;
@@ -23,11 +24,12 @@ export interface CodeEmailTemplateProps {
 }
 
 /**
- * A one-time code to type back into Sokosumi. No link: the code goes into
+ * A one-time code to type back into the page that asked for it. No link: the code goes into
  * the tab that asked for it, so a scanner that opens links cannot use it up.
  */
 function CodeEmailTemplate({
   body,
+  brand,
   code,
   footer,
   greeting,
@@ -35,7 +37,13 @@ function CodeEmailTemplate({
   title,
 }: CodeEmailTemplateProps) {
   return (
-    <EmailShell footer={footer} lang={lang} preview={body} title={title}>
+    <EmailShell
+      brand={brand}
+      footer={footer}
+      lang={lang}
+      preview={body}
+      title={title}
+    >
       <Text
         className={DARK_CLASS.text}
         style={{

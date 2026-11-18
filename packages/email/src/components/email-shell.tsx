@@ -20,8 +20,11 @@ import {
   SPACE,
   TEXT,
 } from "../theme/index.js";
+import type { EmailBrand } from "../types.js";
 
 export interface EmailShellProps {
+  /** The product the email is from, when it is not Sokosumi. */
+  brand?: EmailBrand | undefined;
   children: ReactNode;
   footer: ReactNode;
   /** Resolved email locale, announced to screen readers. */
@@ -36,6 +39,8 @@ const EMAIL_KANJI_URL =
 const EMAIL_WORDMARK_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png";
 
+export const CMO_PRODUCT_NAME = "CMO.XYZ";
+
 /** The brand stripe down the leading edge of every email. */
 const SPINE_WIDTH = 6;
 
@@ -45,6 +50,7 @@ const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
 }`;
 
 export function EmailShell({
+  brand,
   children,
   footer,
   lang,
@@ -124,14 +130,29 @@ export function EmailShell({
                       className="sk-pad"
                       style={{ padding: `${SPACE.lg} ${SPACE.lg} 0` }}
                     >
-                      <img
-                        alt="Sokosumi"
-                        className={DARK_CLASS.logo}
-                        height="15"
-                        src={EMAIL_WORDMARK_URL}
-                        style={{ border: 0, display: "block" }}
-                        width="117"
-                      />
+                      {brand === "cmo" ? (
+                        <Text
+                          className={DARK_CLASS.text}
+                          style={{
+                            ...TEXT.body,
+                            color: LIGHT_PALETTE.textPrimary,
+                            fontWeight: 700,
+                            letterSpacing: "0.04em",
+                            margin: 0,
+                          }}
+                        >
+                          {CMO_PRODUCT_NAME}
+                        </Text>
+                      ) : (
+                        <img
+                          alt="Sokosumi"
+                          className={DARK_CLASS.logo}
+                          height="15"
+                          src={EMAIL_WORDMARK_URL}
+                          style={{ border: 0, display: "block" }}
+                          width="117"
+                        />
+                      )}
                     </Section>
                     <Section
                       className="sk-pad"
@@ -180,16 +201,18 @@ export function EmailShell({
                                 {footer}
                               </Text>
                             </td>
-                            <td align="right" valign="middle" width="14">
-                              <img
-                                alt=""
-                                className={DARK_CLASS.logo}
-                                height="28"
-                                src={EMAIL_KANJI_URL}
-                                style={{ border: 0, display: "block" }}
-                                width="14"
-                              />
-                            </td>
+                            {brand === "cmo" ? null : (
+                              <td align="right" valign="middle" width="14">
+                                <img
+                                  alt=""
+                                  className={DARK_CLASS.logo}
+                                  height="28"
+                                  src={EMAIL_KANJI_URL}
+                                  style={{ border: 0, display: "block" }}
+                                  width="14"
+                                />
+                              </td>
+                            )}
                           </tr>
                         </tbody>
                       </table>

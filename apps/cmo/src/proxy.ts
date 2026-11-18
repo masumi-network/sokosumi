@@ -5,6 +5,7 @@ import { getAuth, hasSessionCookie, renewSession } from "./lib/auth";
 import { asSignedInPersonInPage } from "./lib/core";
 import { LAST_CUSO_COOKIE, lastCusoCookie } from "./lib/last-cuso";
 import { CMO_SIGN_IN_ERROR } from "./lib/sign-in-errors";
+import { SIGNED_OUT_COOKIE } from "./lib/signed-out";
 import { viewFromPath } from "./lib/views";
 
 /**
@@ -60,6 +61,9 @@ export async function proxy(request: NextRequest) {
       return NextResponse.rewrite(new URL(LANDING_PATH, request.url));
     }
     const response = NextResponse.next();
+    if (signedIn && request.cookies.has(SIGNED_OUT_COOKIE)) {
+      response.cookies.delete(SIGNED_OUT_COOKIE);
+    }
     // An address that names a Cuso's Project (the picker, a shared link, a
     // provider callback) opens him; this device opens him next time too.
     // Pages render as Server Components, which cannot set cookies.
