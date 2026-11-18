@@ -16,6 +16,7 @@ import {
   proxySandboxModelCall,
   recordSandboxAction,
   recordSandboxActionResult,
+  recordSandboxReasoning,
   runSandboxTool,
   sandboxFileSource,
   startSandboxTurn,
@@ -51,9 +52,9 @@ const uploadSchema = z.object({
 const completeSchema = z.object({
   text: z.string().max(200_000),
   finishReason: z.string().max(64),
-  /** The provider's reasoning summary, when the model returned one. */
-  reasoning: z.string().max(20_000).optional(),
 });
+/** One model step's reasoning summary, as the provider returned it. */
+const reasoningSchema = z.object({ text: z.string().min(1).max(20_000) });
 const failSchema = z.object({
   code: z.string().max(100),
   message: z.string().max(2_000),
@@ -132,6 +133,12 @@ app.post("/turns/:turnId/actions", async (c) => {
 app.post("/turns/:turnId/actions/result", async (c) => {
   const action = await parseJsonBody(c, actionSchema);
   await recordSandboxActionResult(c.get("turn"), action);
+  return c.json({ ok: true });
+});
+
+app.post("/turns/:turnId/reasoning", async (c) => {
+  const { text } = await parseJsonBody(c, reasoningSchema);
+  await recordSandboxReasoning(c.get("turn"), text);
   return c.json({ ok: true });
 });
 

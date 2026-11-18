@@ -1,4 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { type CusoTrace, traceOf } from "./trace";
 
 export interface CusoMessage {
   id: string;
@@ -6,6 +7,8 @@ export interface CusoMessage {
   author: string;
   content: string;
   createdAt: string;
+  /** How Cuso got to this reply, when Core kept it. */
+  trace?: CusoTrace | null;
 }
 
 /**
@@ -72,6 +75,7 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
           ? cusoText(message.content)
           : withoutIdMentions(message.content),
         createdAt: new Date(message.createdAt).toISOString(),
+        trace: fromCuso ? traceOf(message.metadata) : null,
       };
     })
     .filter(
