@@ -15,8 +15,10 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
-vi.mock("@/app/tasks/utils/mentioned-agents", () => ({
-  resolveMentionedAgentsById: vi.fn().mockResolvedValue(new Map()),
+const getCoreAgentByIdMock = vi.fn();
+
+vi.mock("@/lib/agents/core-loaders", () => ({
+  getCoreAgentById: (...args: unknown[]) => getCoreAgentByIdMock(...args),
 }));
 
 function buildTask({
@@ -337,6 +339,48 @@ describe("getTasksColumnPage", () => {
       projectId: undefined,
       cursor: null,
       limit: 10,
+    });
+  });
+
+  // A board card shows no description. Each `@token` in one was a Core read
+  // that held the column back.
+  it("reads no mentioned agent and sends no description text", async () => {
+    // A list item, unlike this file's fixture, carries no events.
+    const { events: _events, ...listItem } = buildTask({
+      id: "task-1",
+      status: TaskStatus.READY,
+      updatedAt: "2026-03-01T10:00:00.000Z",
+    });
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        {
+          ...listItem,
+          statusSince: new Date("2026-03-01T10:00:00.000Z"),
+          description: "Ask @agent-1 and mail me@example.com",
+        },
+      ],
+      pagination: { nextCursor: null, total: 1 },
+    });
+
+    const page = await getTasksColumnPage({
+      columnId: "todo",
+      cursor: null,
+      limit: 10,
+      scope: "owned",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    });
+
+    expect(getCoreAgentByIdMock).not.toHaveBeenCalled();
+    expect(page.tasks[0]).toMatchObject({
+      description: null,
+      descriptionPlain: null,
     });
   });
 });
