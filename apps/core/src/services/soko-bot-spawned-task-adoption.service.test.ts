@@ -20,7 +20,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { adoptCoworkerSubtasks } from "./soko-bot-subtask-adoption.service";
+import { adoptCoworkerSpawnedTasks } from "./soko-bot-spawned-task-adoption.service";
 
 const subtask = {
   id: "task_hannah",
@@ -36,7 +36,7 @@ const parent = (assigneeId: string, status: string, sokoBotId = "bot_1") => ({
   task: { assigneeId, events: [{ status }] },
 });
 
-describe("adoptCoworkerSubtasks", () => {
+describe("adoptCoworkerSpawnedTasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFindManyMock.mockResolvedValue([subtask]);
@@ -47,7 +47,7 @@ describe("adoptCoworkerSubtasks", () => {
     delegationFindManyMock.mockResolvedValue([
       parent("coworker_elena", "RUNNING"),
     ]);
-    expect(await adoptCoworkerSubtasks()).toBe(1);
+    expect(await adoptCoworkerSpawnedTasks()).toBe(1);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -76,7 +76,7 @@ describe("adoptCoworkerSubtasks", () => {
       parent("coworker_elena", "INPUT_REQUIRED"),
       parent("coworker_elena", "COMPLETED"),
     ]);
-    expect(await adoptCoworkerSubtasks()).toBe(0);
+    expect(await adoptCoworkerSpawnedTasks()).toBe(0);
     expect(createManyMock).not.toHaveBeenCalled();
   });
 
@@ -84,7 +84,7 @@ describe("adoptCoworkerSubtasks", () => {
     delegationFindManyMock.mockResolvedValue([
       parent("coworker_hannah", "RUNNING"),
     ]);
-    expect(await adoptCoworkerSubtasks()).toBe(0);
+    expect(await adoptCoworkerSpawnedTasks()).toBe(0);
   });
 
   it("adds one delegation per bot", async () => {
@@ -94,7 +94,7 @@ describe("adoptCoworkerSubtasks", () => {
       parent("coworker_elena", "RUNNING", "bot_2"),
     ]);
     createManyMock.mockResolvedValue({ count: 2 });
-    expect(await adoptCoworkerSubtasks()).toBe(2);
+    expect(await adoptCoworkerSpawnedTasks()).toBe(2);
     expect(createManyMock.mock.calls[0][0].data).toHaveLength(2);
   });
 });
