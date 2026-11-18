@@ -18,12 +18,13 @@ export function useSeoSetupGoal(
   full: boolean,
 ) {
   const data = model.brief.data;
-  const brief =
+  const atPageLimit = Boolean(
     data &&
-    Number.isInteger(data.revision) &&
-    canSetBriefPage(data.pages, pageId)
-      ? data
-      : undefined;
+      Number.isInteger(data.revision) &&
+      !canSetBriefPage(data.pages, pageId),
+  );
+  const brief =
+    data && Number.isInteger(data.revision) && !atPageLimit ? data : undefined;
   const saved = briefPage(brief?.pages ?? [], pageId);
   const [choice, setChoice] = useState<{
     revision: number;
@@ -92,6 +93,7 @@ export function useSeoSetupGoal(
   }
   return {
     canEdit: Boolean(brief),
+    atPageLimit,
     action,
     role: saved.role,
     share,

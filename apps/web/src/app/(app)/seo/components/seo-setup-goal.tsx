@@ -3,6 +3,7 @@
 import type { ProjectSeoPage } from "@sokosumi/core-client";
 import { ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -11,7 +12,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
-import { SEO_BRIEF_ACTIONS } from "./seo-brief-model";
+import { SEO_BRIEF_ACTIONS, SEO_BRIEF_PAGE_LIMIT } from "./seo-brief-model";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import { useSeoSetupGoal } from "./use-seo-setup-goal";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -29,6 +30,7 @@ export function SeoSetupGoal({
   full: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const advanced = useRef<HTMLButtonElement>(null);
   const goal = useSeoSetupGoal(model, page.id, full);
   const label = (action: string) =>
     t(`brief.actions.${action.replaceAll(" ", "_")}`);
@@ -47,7 +49,10 @@ export function SeoSetupGoal({
         open={model.setupGoalAdvanced}
         onOpenChange={model.setSetupGoalAdvanced}
       >
-        <CollapsibleTrigger className="group flex min-h-8 items-center gap-1.5 text-sm font-medium">
+        <CollapsibleTrigger
+          ref={advanced}
+          className="group flex min-h-8 items-center gap-1.5 text-sm font-medium"
+        >
           {t("setup.goal.advanced")}
           <ChevronDown
             aria-hidden
@@ -146,20 +151,17 @@ export function SeoSetupGoal({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={!goal.changed}
+                    disabled={!goal.changed && !goal.privateSaved}
+                    aria-disabled={!goal.changed || undefined}
+                    className="aria-disabled:opacity-50"
                     loading={goal.pending}
-                    onClick={() => void goal.save()}
+                    onClick={goal.changed ? () => void goal.save() : undefined}
                   >
                     {t("setup.goal.savePrivate")}
                   </Button>
-                  {goal.privateSaved ? (
-                    <span
-                      role="status"
-                      className="text-muted-foreground text-sm"
-                    >
-                      {t("saved")}
-                    </span>
-                  ) : null}
+                  <span role="status" className="text-muted-foreground text-sm">
+                    {goal.privateSaved ? t("saved") : null}
+                  </span>
                 </div>
               ) : null}
               {goal.error ? (
@@ -187,10 +189,38 @@ export function SeoSetupGoal({
                 </div>
               ) : null}
             </>
+          ) : model.brief.error ? (
+            <div role="alert" className="space-y-1 text-sm">
+              <p>{t("brief.readFailed")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Retry disappears on success. Keep keyboard focus in the disclosure.
+                  advanced.current?.focus();
+                  void goal.reload();
+                }}
+              >
+                {t("brief.retry")}
+              </Button>
+            </div>
+          ) : goal.atPageLimit ? (
+            <div className="space-y-1 text-sm">
+              <p>{t("brief.pageLimit", { count: SEO_BRIEF_PAGE_LIMIT })}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => model.setDialog("brief")}
+              >
+                {t("brief.edit")}
+              </Button>
+            </div>
           ) : (
             <p role="status" className="text-muted-foreground text-sm">
               {t(
-                model.brief.error || model.brief.data
+                model.brief.data
                   ? canRun
                     ? "setup.goal.unavailable"
                     : "setup.goal.pausedUnavailable"

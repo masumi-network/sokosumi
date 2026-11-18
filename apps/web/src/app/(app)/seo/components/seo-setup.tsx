@@ -149,9 +149,13 @@ export function SeoSetupCard({
             heading="h4"
             mark={MARK[setup.connection]}
             doneLabel={t("setup.done")}
-            title={t("audits.onboarding.connectTitle")}
+            title={t(
+              setup.connection === "done"
+                ? "statistics.title"
+                : "audits.onboarding.connectTitle",
+            )}
             body={
-              setup.connection === "waiting" ? undefined : t("setup.googleBody")
+              setup.connection === "next" ? t("setup.googleBody") : undefined
             }
           >
             {setup.connection === "waiting" ? null : (

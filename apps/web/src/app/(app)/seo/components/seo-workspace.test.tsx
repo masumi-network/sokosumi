@@ -4326,12 +4326,20 @@ describe("SEO workspace integration", () => {
         ]),
       ).toEqual(brief),
     );
+    expect(setup.getByText(/Clear another page to add this one/)).toBeVisible();
     expect(
       setup.queryByLabelText("What should visitors do on this page?"),
     ).toBeNull();
     expect(
       read.mock.calls.some(([url]) => url.includes("/brief/suggestion")),
     ).toBe(false);
+    await user.click(
+      setup.getByRole("button", { name: messages.App.Seo.brief.edit }),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: messages.App.Seo.brief.title }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
     await user.click(setup.getByRole("button", { name: "Run full audit" }));
     expect(await screen.findByRole("dialog")).toBeVisible();
     expect(saveGoal).not.toHaveBeenCalled();
@@ -4570,10 +4578,11 @@ describe("SEO workspace integration", () => {
       return connectedSeoResponse(workspace, url);
     });
     vi.stubGlobal("fetch", read);
-    saveGoal.mockImplementation(async ({ body }) => ({
-      ok: true,
-      value: { ...brief, revision: 2, pages: body.pages },
-    }));
+    const pendingSave = Promise.withResolvers<void>();
+    saveGoal.mockImplementation(async ({ body }) => {
+      await pendingSave.promise;
+      return { ok: true, value: { ...brief, revision: 2, pages: body.pages } };
+    });
     renderWorkspace(workspace);
     await readConnectedGoogle();
     const setup = within(screen.getByTestId("seo-setup"));
@@ -4600,9 +4609,16 @@ describe("SEO workspace integration", () => {
       setup.queryByRole("checkbox", { name: "Include this goal in the audit" }),
     ).toBeNull();
     expect(saveGoal).not.toHaveBeenCalled();
-    await user.click(save);
+    await user.tab();
+    expect(save).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(save).toHaveAttribute("aria-busy", "true");
+    expect(save).toHaveFocus();
+    await act(async () => pendingSave.resolve());
     expect(await setup.findByText(messages.App.Seo.saved)).toBeVisible();
-    expect(save).toBeDisabled();
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    expect(save).toHaveFocus();
+    await user.keyboard("{Enter}");
     await waitFor(() => expect(saveGoal).toHaveBeenCalledTimes(1));
     expect(saveGoal).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -4624,6 +4640,39 @@ describe("SEO workspace integration", () => {
       "true",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed private goal read inside paused setup", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canRequestAnalysis = false;
+    const briefRead = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ revision: 0, pages: [] }));
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (url.endsWith("/brief")) return briefRead();
+      if (url.includes("/brief/suggestion"))
+        return Response.json({ action: null });
+      return connectedSeoResponse(workspace, url);
+    });
+    renderWorkspace(workspace);
+    await readConnectedGoogle();
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    expect(
+      await setup.findByText(messages.App.Seo.brief.readFailed),
+    ).toBeVisible();
+    await user.click(
+      setup.getByRole("button", { name: messages.App.Seo.brief.retry }),
+    );
+    expect(
+      await setup.findByRole("combobox", {
+        name: "What should visitors do on this page?",
+      }),
+    ).toHaveTextContent("No saved goal");
+    expect(briefRead).toHaveBeenCalledTimes(2);
     expect(mutate).not.toHaveBeenCalled();
   });
 

@@ -207,6 +207,12 @@ describe("SEO audit first run", () => {
     expect(
       await within(setup).findByRole("button", { name: "Run full audit" }),
     ).toBeVisible();
+    expect(
+      within(setup).getByRole("heading", {
+        name: `${copy.statistics.title} (${copy.setup.done})`,
+      }),
+    ).toBeVisible();
+    expect(within(setup).queryByText(copy.setup.googleBody)).toBeNull();
   });
 
   it("does not expose a header run on another tab while Google setup waits", async () => {
