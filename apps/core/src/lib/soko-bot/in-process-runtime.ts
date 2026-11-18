@@ -16,6 +16,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { stepCountIs, type ToolSet, tool } from "ai";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
@@ -77,7 +78,8 @@ async function turnBudgetMs(turnId: string): Promise<number> {
     where: { id: turnId },
     select: { deadlineAt: true },
   });
-  const untilDeadline = turn.deadlineAt.getTime() - Date.now();
+  const untilDeadline =
+    turn.deadlineAt.getTime() - (await databaseNow()).getTime();
   return Math.max(
     MIN_TURN_BUDGET_MS,
     process.env.VERCEL

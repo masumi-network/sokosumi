@@ -34,6 +34,10 @@ const m = vi.hoisted(() => ({
   kickCmoProduction: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => {
   const client: Record<string, unknown> = {
     project: { findFirst: m.projectFindFirst },
