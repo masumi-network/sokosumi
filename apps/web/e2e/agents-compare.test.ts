@@ -111,20 +111,29 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         2,
         "one column per picked agent",
       );
+      // ADR-0024: no price row while app Hire is off.
       assert.equal(
-        await dialog.getByText(/credit/i).count(),
+        await table.getByRole("rowheader", { name: /price|credit/i }).count(),
         0,
         "the comparison shows a price",
       );
-      const margins = await dialog.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        return Math.min(r.left, window.innerWidth - r.right);
-      });
+      // Layout width, not the transformed box: the open animation scales it.
+      const margins = await dialog.evaluate(
+        (el) => (window.innerWidth - (el as HTMLElement).offsetWidth) / 2,
+      );
       assert.ok(margins >= 8, `dialog side margin is ${margins}px`);
       await shot(page, size, "2-table");
 
+      // Keyboard only, as a person would: Escape returns focus to Compare N,
+      // Shift+Tab reaches Clear.
       await page.keyboard.press("Escape");
-      await clear.press("Enter");
+      await page.keyboard.press("Shift+Tab");
+      assert.equal(
+        await clear.evaluate((el) => el === document.activeElement),
+        true,
+        "Shift+Tab from Compare did not reach Clear",
+      );
+      await page.keyboard.press("Enter");
       await page.waitForFunction(
         () =>
           document.activeElement?.getAttribute("aria-label") ===

@@ -11,10 +11,29 @@ import {
 import { createMockCatalogBrowseAgent } from "@/lib/helpers/__tests__/fixtures/catalog-browse-agent";
 import en from "@/messages/en.json";
 
+function category(slug: string, name: string) {
+  return {
+    id: slug,
+    name,
+    slug,
+    description: null,
+    image: null,
+    icon: null,
+    styles: {},
+    priority: 0,
+  };
+}
+
 const alpha = createMockCatalogBrowseAgent({
   id: "alpha",
   name: "Alpha Writer",
   summary: "Writes blog posts.",
+  // Featured and New are catalog groups, not what the agent does.
+  categories: [
+    category("featured", "Featured Agents"),
+    category("new", "New Agents"),
+    category("research", "Research & Insights"),
+  ],
   metrics: {
     executions: { count: 42, averageTime: 90 },
     ratings: { total: 8, average: 4.5 },
@@ -83,6 +102,8 @@ describe("compare agents", () => {
     expect(within(dialog).getByText("42")).toBeInTheDocument();
     expect(within(dialog).getByText("Writes blog posts.")).toBeInTheDocument();
     expect(within(dialog).getByText("Beta Labs")).toBeInTheDocument();
+    expect(within(dialog).getByText("Research & Insights")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Featured Agents|New Agents/)).toBeNull();
     expect(
       within(dialog).getByRole("link", { name: "Alpha Writer" }),
     ).toHaveAttribute("href", "/agents/alpha");

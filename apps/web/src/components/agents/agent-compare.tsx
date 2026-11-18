@@ -26,11 +26,17 @@ import {
 } from "@/components/ui/dialog";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
+import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentName, getShortAgentAuthorName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/utils/duration";
 
 const MAX_COMPARED = 3;
+
+const CATALOG_GROUP_SLUGS = new Set<string>([
+  SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+  SPECIAL_AGENT_CATEGORY_SLUGS.NEW,
+]);
 
 // Static strings so Tailwind keeps them; only 2 or 3 agents reach the table.
 const GRID_COLUMNS: Record<number, string> = {
@@ -125,7 +131,7 @@ function AgentCompareBar({
   return (
     <div
       className={cn(
-        "bg-background border-border sticky z-10 flex flex-col gap-2 rounded-xl border p-2 ps-4 shadow-lg md:bottom-3 md:flex-row md:items-center md:justify-between",
+        "bg-background border-border sticky z-10 flex flex-col gap-2 rounded-xl border p-3 shadow-lg md:bottom-3 md:flex-row md:items-center md:justify-between",
         // Phones: clear the floating tab bar, which the scroll area runs under.
         mobileCreateFabBottom(isApple),
       )}
@@ -140,8 +146,8 @@ function AgentCompareBar({
           {picked.map((agent) => (
             <li key={agent.id} className="min-w-0">
               <Badge
-                variant="secondary"
-                className="max-w-full gap-1 overflow-visible py-0 pe-0"
+                variant="outline"
+                className="bg-muted max-w-full gap-1 overflow-visible border-transparent py-0 pe-0"
               >
                 <span className="truncate">{getAgentName(agent)}</span>
                 <ChipRemoveButton
@@ -220,10 +226,13 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
     },
     {
       label: t("categories"),
-      cell: (agent) =>
-        agent.categories.length > 0
-          ? agent.categories.map((category) => category.name).join(", ")
-          : notListed,
+      cell: (agent) => {
+        // Featured and New are catalog groups, not what the agent does.
+        const names = agent.categories
+          .filter((category) => !CATALOG_GROUP_SLUGS.has(category.slug))
+          .map((category) => category.name);
+        return names.length > 0 ? names.join(", ") : notListed;
+      },
     },
     {
       label: t("madeBy"),
