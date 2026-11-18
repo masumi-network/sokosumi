@@ -150,6 +150,7 @@ off-guide): Iris Flower measures 7.3:1 on Neutral 950 against 2.7:1 on white, so
 about three times louder in dark. It is a **fill**: the label on it is always
 `--primary-foreground` (Neutral 950; 7.33:1 on Iris Flower, 5:1 on Dark Iris). It is never
 text, a border or a thin mark on the page, where it measures 2.67:1 on white.
+The one exception is the navigation progress bar (see **Motion**).
 `--primary-hover` is Iris Flower in both themes, so a dark primary lifts to full Iris on
 hover and a light one keeps its fill.
 
@@ -438,6 +439,12 @@ prop/state-driven.
 - **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
   arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
   transform only. Under reduced motion overlays cross-fade in place.
+- **Navigation progress bar:** `NavigationProgress`, in the root layout, draws a 3px Iris bar
+  along the top of every page while a link, `router.push` or `replace`, or back and forward
+  loads another page, and the sidebar row it heads for is current from the click. The phone tab
+  bar moves its mark on arrival. The bar waits 120ms, so a page that opens faster shows none. A
+  search-param change on the same page and a Server Action's `redirect()` show none either.
+  Under reduced motion the full bar fades in and holds still.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
