@@ -358,13 +358,28 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         ?.status,
     ).toBe("done");
 
+    const withRedirectCheck = (result: "pass" | "not_checked") => ({
+      ...report,
+      findings: report.findings.filter(
+        (finding: { rowId: string }) => finding.rowId !== "AC-10",
+      ),
+      checks: report.checks.map((check: { rowId: string }) =>
+        check.rowId === "AC-10" ? { ...check, result } : check,
+      ),
+    });
+    // An audit that could not run the check finds nothing and confirms nothing.
     await storeAudit(
-      {
-        ...report,
-        findings: report.findings.filter(
-          (finding: { rowId: string }) => finding.rowId !== "AC-10",
-        ),
-      },
+      withRedirectCheck("not_checked"),
+      new Date("2026-11-20T06:10:00Z"),
+    );
+    await verifyCmoSeoChanges(cuso);
+    expect(
+      (await readCmoSeo(cuso)).pageChanges.find((c) => c.id === redirect.id)
+        ?.status,
+    ).toBe("done");
+
+    await storeAudit(
+      withRedirectCheck("pass"),
       new Date("2026-11-23T06:10:00Z"),
     );
     await verifyCmoSeoChanges(cuso);
@@ -488,5 +503,34 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     expect(await seoCheckOutcome(analysis.id)).toMatch(
       /failed: The worker timed out\. Nothing was charged/,
     );
+  });
+
+  it("reads the fixes of a report of several pages, whose finding ids carry the page's index", async () => {
+    const before = (await readCmoSeo(cuso)).pageChanges.length;
+    await storeAudit(
+      {
+        ...report,
+        findings: report.findings.map((finding: { id: string }) => ({
+          ...finding,
+          id: `0:${finding.id}`,
+        })),
+        actions: report.actions.map(
+          (action: { id: string; findingIds: string[] }) => ({
+            ...action,
+            id: `0:${action.id}`,
+            findingIds: action.findingIds.map((id) => `0:${id}`),
+          }),
+        ),
+      },
+      new Date("2026-11-30T06:10:00Z"),
+    );
+    // The same fixes as the single-page report: no new rows, none keyed by the index.
+    const after = await readCmoSeo(cuso);
+    expect(after.pageChanges).toHaveLength(before);
+    expect(
+      await prisma.projectSeoSuggestion.count({
+        where: { projectId, key: { endsWith: ":0" } },
+      }),
+    ).toBe(0);
   });
 });
