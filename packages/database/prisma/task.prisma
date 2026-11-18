@@ -1,12 +1,13 @@
 model Task {
-  botActionClaims SokoBotTaskActionClaim[]
-  workspaceTags   TaskWorkspaceTag[]
-  visibleTopics   TaskVisibleTopic[]
-  tableScope      TableTaskScope?
-  id              String                   @id @default(uuid(7))
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  archivedAt      DateTime?
+  botActionClaims       SokoBotTaskActionClaim[]
+  workspaceTags         TaskWorkspaceTag[]
+  workspaceTagDecisions TaskWorkspaceTagDecision[]
+  visibleTopics         TaskVisibleTopic[]
+  tableScope            TableTaskScope?
+  id                    String                     @id @default(uuid(7))
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  archivedAt            DateTime?
 
   /// The Owner: the person who answers for the Task, and the only reader of a
   /// private one (ADR 0057). Private Tasks always have one (DB check
