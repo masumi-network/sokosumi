@@ -84,7 +84,7 @@ export function newestIndexTriage(
         ...page,
         ...(parent !== url ? { auditPageUrl: parent } : {}),
         taskId: parsed.data.taskId,
-        checkedAt: parsed.data.checkedAt,
+        checkedAt: page.checkedAt ?? parsed.data.checkedAt,
       });
     }
   }
@@ -167,12 +167,12 @@ export function indexAuditFindings(
           evidence: [
             assessment.reason,
             ...assessment.evidence,
-            `Google indexing status checked at ${valid.checkedAt}.`,
+            `Google indexing status checked at ${assessment.checkedAt ?? valid.checkedAt}.`,
           ],
           suggestedFix: assessment.suggestedFix,
           visibility: "PRIVATE",
           sourceRef: valid.receiptHash,
-          observedAt: valid.checkedAt,
+          observedAt: assessment.checkedAt ?? valid.checkedAt,
         });
     }
   }

@@ -4378,6 +4378,7 @@
       }
     },
     "TikTokStudio": {
+      "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
       "intro": "Una persona dice tu guion, con subtítulos, listo para TikTok, Reels y Shorts.",
       "pickTitle": "Elige un proyecto",
@@ -12963,6 +12964,7 @@
         }
       },
       "indexReview": {
+        "auditPage": "Página auditada",
         "checked": "Revisado",
         "state": {
           "review": "Revisión necesaria",

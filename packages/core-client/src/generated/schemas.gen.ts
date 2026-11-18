@@ -13833,6 +13833,9 @@ export const ChatResultOutputSchema = {
                             minLength: 1,
                             example: 'launch.png'
                         },
+                        aiGenerated: {
+                            type: 'boolean'
+                        },
                         size: {
                             type: 'integer',
                             minimum: 0,
@@ -40731,6 +40734,9 @@ export const SocialPostMediaRefSchema = {
             minLength: 1,
             example: 'launch.png'
         },
+        aiGenerated: {
+            type: 'boolean'
+        },
         size: {
             type: 'integer',
             minimum: 0,
@@ -40799,6 +40805,9 @@ export const SocialPostMediaRefSchema = {
                             type: 'string',
                             minLength: 1,
                             example: 'launch.png'
+                        },
+                        aiGenerated: {
+                            type: 'boolean'
                         },
                         size: {
                             type: 'integer',
@@ -44610,6 +44619,13 @@ export const ProjectSeoIndexedPageSchema = {
                 'null'
             ],
             maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
         }
     },
     required: [

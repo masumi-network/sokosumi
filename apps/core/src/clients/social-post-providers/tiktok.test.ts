@@ -417,7 +417,12 @@ describe("TikTok through Zernio", () => {
     vi.mocked(zernioRequest)
       .mockResolvedValueOnce(result("processing"))
       .mockResolvedValueOnce(result("published"));
-    await expect(publishTikTokVideo(input)).resolves.toMatchObject({
+    await expect(
+      publishTikTokVideo({
+        ...input,
+        media: [{ ...input.media[0], aiGenerated: true }],
+      }),
+    ).resolves.toMatchObject({
       externalId: "zpost",
       publishedUrl: null,
       toolSlug: "ZERNIO_TIKTOK_CREATE_POST",
@@ -432,6 +437,7 @@ describe("TikTok through Zernio", () => {
         platforms: [{ platform: "tiktok", accountId: "alpha" }],
         publishNow: true,
         tiktokSettings: {
+          videoMadeWithAi: true,
           privacy_level: "PUBLIC_TO_EVERYONE",
           allow_comment: true,
           allow_duet: false,

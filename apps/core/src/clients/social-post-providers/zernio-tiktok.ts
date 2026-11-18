@@ -78,7 +78,7 @@ const postResponse = z.object({
 export async function publishZernioTikTokVideo(
   context: SocialPostPublishContext,
   accountId: string,
-  fileUrl: string,
+  video: SocialPostPublishContext["media"][number],
 ): Promise<SocialPostPublishResult> {
   const settings = context.tikTokSettings;
   const creator = await getZernioTikTokCreatorInfo(accountId, context.signal);
@@ -109,9 +109,10 @@ export async function publishZernioTikTokVideo(
       body: {
         publishNow: true,
         content: context.text,
-        mediaItems: [{ type: "video", url: fileUrl }],
+        mediaItems: [{ type: "video", url: video.fileUrl }],
         platforms: [{ platform: "tiktok", accountId }],
         tiktokSettings: {
+          ...(video.aiGenerated && { videoMadeWithAi: true }),
           privacy_level: settings.privacyLevel,
           allow_comment: settings.allowComment && !creator.comment_disabled,
           allow_duet: settings.allowDuet && !creator.duet_disabled,

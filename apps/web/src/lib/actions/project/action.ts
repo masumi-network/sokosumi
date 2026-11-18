@@ -668,6 +668,7 @@ const isoTimestamp = z.iso.datetime({ offset: true });
 const revisionSchema = z.number().int().nonnegative();
 
 const socialPostMediaRefSchema = z.object({
+  aiGenerated: z.boolean().optional(),
   pathname: z.string().min(1),
   fileUrl: z.string().url(),
   name: z.string().min(1),

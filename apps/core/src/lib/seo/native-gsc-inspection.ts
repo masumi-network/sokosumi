@@ -12,6 +12,7 @@ const inspectionSchema = z.object({
     indexStatusResult: z.object({
       verdict: seoIndexedPageSchema.shape.verdict,
       coverageState: optionalText,
+      indexingState: seoIndexedPageSchema.shape.indexingState,
       robotsTxtState: optionalText,
       lastCrawlTime: optionalText,
       googleCanonical: optionalText,
@@ -51,6 +52,7 @@ export function normalizeGscInspection(
     pageUrl,
     verdict: result.verdict,
     coverageState: result.coverageState ?? null,
+    indexingState: result.indexingState ?? null,
     robotsTxtState: result.robotsTxtState ?? null,
     lastCrawlTime: result.lastCrawlTime ?? null,
     googleCanonical: canonical(result.googleCanonical),
