@@ -9,7 +9,8 @@ import { createMailbox } from "./mailbox.ts";
 
 // A new user finds every sidebar destination on the You page. On a phone the
 // You page is the only menu, so Agents, TikTok Studio and Contacts must be
-// there, and Ads opened from it goes back to You, not to Chats.
+// there. Pages opened from it keep the You tab lit and go back to You by
+// name, and the settings row is told apart from the Notifications inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 
@@ -80,6 +81,20 @@ for (const { name: size, ...viewport } of PROJECTS) {
           `${name} row`,
         );
       }
+      assert.equal(
+        await menu
+          .getByRole("link", { name: "Notification settings", exact: true })
+          .getAttribute("href"),
+        "/account/notifications",
+        "Notification settings row",
+      );
+      assert.equal(
+        await menu
+          .getByRole("link", { name: "Notifications", exact: true })
+          .count(),
+        0,
+        "the row is named apart from the inbox",
+      );
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth + 1,
       );
@@ -91,12 +106,40 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await shot("2-contacts");
 
       if (size === "phone") {
-        await openYou();
+        const tabs = page.getByRole("navigation", { name: "Main navigation" });
+        const backToYou = page.getByRole("link", {
+          name: "Back to You",
+          exact: true,
+        });
+        for (const [row, path] of [
+          ["Contacts", "/contacts"],
+          ["Credit history", "/history"],
+          ["Calendar", "/calendar"],
+          ["Agents", "/agents"],
+        ]) {
+          if (row !== "Contacts") {
+            await openYou();
+            await menu.getByRole("link", { name: row, exact: true }).click();
+            await page.waitForURL(`${BASE_URL}${path}**`);
+          }
+          assert.equal(
+            await tabs
+              .getByRole("link", { name: "You" })
+              .getAttribute("aria-current"),
+            "page",
+            `${row} keeps the You tab lit`,
+          );
+          assert.equal(await backToYou.innerText(), "You", `${row} back`);
+          await backToYou.click();
+          await page.waitForURL(`${BASE_URL}/you`);
+        }
+        await shot("3-back-to-you");
+
         await menu.getByRole("link", { name: "Ads", exact: true }).click();
         await page.waitForURL(`${BASE_URL}/ads**`);
-        await page.getByRole("link", { name: "Back", exact: true }).click();
+        await backToYou.click();
         await page.waitForURL(`${BASE_URL}/you`);
-        await shot("3-ads-back");
+        await shot("4-ads-back");
       }
 
       assert.deepEqual(errors, []);

@@ -36,6 +36,8 @@ const PROPER_PHRASES = [
   "to Files",
   "from Files",
   "From Files",
+  // The You tab, named as a destination ("Back to You").
+  "to You",
   // The Ads Market tab, named as a destination ("Add from Market").
   "from Market",
   // Legal documents, capitalised as titles in the sign-up consent copy too.

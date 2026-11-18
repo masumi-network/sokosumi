@@ -60,6 +60,27 @@ const YOU_HUB_CHILD_PATHS = [
   "/ads",
 ] as const;
 
+/**
+ * You page rows that are tab list roots: phones open them only from You, so
+ * they light the You tab and go back to You.
+ */
+export const YOU_ROW_LIST_PATHS = new Set<string>([
+  "/history",
+  "/agents",
+  "/schedules",
+  "/calendar",
+  "/studio",
+  "/tiktok-studio",
+  "/social",
+  "/contacts",
+  "/drive",
+]);
+
+const BACK_TO_YOU: MobileAppBackTarget = {
+  href: "/you",
+  labelKey: "backToYou",
+};
+
 const DEVELOPER_PATH = /^\/developer(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/;
 
 const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
@@ -78,7 +99,11 @@ type SearchParamsLike =
   | null
   | undefined;
 
-export type MobileAppBackLabelKey = "backToChats" | "back" | "goHome";
+export type MobileAppBackLabelKey =
+  | "backToChats"
+  | "back"
+  | "goHome"
+  | "backToYou";
 
 export interface MobileAppBackTarget {
   href: string;
@@ -118,9 +143,11 @@ function adsListHref(searchParams: SearchParamsLike): string {
 
 /**
  * Back target for main list routes and their nested pages.
- * Tab list roots → null; Agents root → home; non-tab hub roots → Chats
- * (Soko Bot setup opened from Home → home); nested → list root.
- * You page rows outside `/you/` (Account, Billing, Connections, SEO, Ads) → You.
+ * Tab list roots → null; non-tab hub roots → Chats (Soko Bot setup opened
+ * from Home → home); nested → list root.
+ * You page rows (Credit history, Agents, Schedules, Calendar, Studios, Social,
+ * Contacts, Files, Account, Billing, Connections, SEO, Ads) and You submenus
+ * → You, named.
  * Ads pages (campaigns) → the Ads list for their project, account and range.
  * Developer sections → the You → Developer menu; their detail pages → the
  * section list.
@@ -140,7 +167,7 @@ export function resolveMobileAppBackTarget(
       (path) => pathname === path || pathname.startsWith(`${path}/`),
     )
   ) {
-    return { href: "/you", labelKey: "back" };
+    return BACK_TO_YOU;
   }
   // Developer sections open from the You → Developer menu; a detail page
   // (coworker, task, vendor) goes back to its list.
@@ -171,17 +198,8 @@ export function resolveMobileAppBackTarget(
     };
   }
   if (pathname === root) {
-    if (
-      root === "/agents" ||
-      root === "/drive" ||
-      root === "/calendar" ||
-      root === "/schedules" ||
-      root === "/contacts" ||
-      root === "/social" ||
-      root === "/studio" ||
-      root === "/tiktok-studio"
-    ) {
-      return { href: "/", labelKey: "back" };
+    if (YOU_ROW_LIST_PATHS.has(root)) {
+      return BACK_TO_YOU;
     }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
       return null;
@@ -201,7 +219,7 @@ export function resolveMobileAppBackTarget(
   if (agentId) {
     return { href: `/agents/${agentId}`, labelKey: "back" };
   }
-  return { href: root, labelKey: "back" };
+  return root === "/you" ? BACK_TO_YOU : { href: root, labelKey: "back" };
 }
 
 /**
@@ -234,9 +252,8 @@ export function shouldShowMobileBottomNav(
 
 /**
  * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
- * root (Tasks / Projects / You). Agents, Social and Studio keep back to home.
+ * root (Tasks / Projects / You). You rows and Newsletter keep back.
  * Nested pages keep back.
- * `/history` keeps brand chrome after Search left the tab bar.
  */
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,
@@ -250,10 +267,7 @@ export function shouldShowMobileBrandLeading(
     return false;
   }
   if (
-    pathname === "/agents" ||
-    pathname === "/social" ||
-    pathname === "/studio" ||
-    pathname === "/tiktok-studio" ||
+    YOU_ROW_LIST_PATHS.has(pathname) ||
     pathname === "/newsletter" ||
     pathname.startsWith("/newsletter/")
   ) {

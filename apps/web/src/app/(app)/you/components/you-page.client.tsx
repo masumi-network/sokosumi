@@ -103,13 +103,12 @@ export function YouPageClient({
   }
 
   function getAccountItemLabel(translationKey: string): string {
+    // The header bell is the inbox, "Notifications"; this row opens settings.
+    if (translationKey === "notifications") {
+      return tCredit("notificationSettings");
+    }
     return tCredit(
-      translationKey as
-        | "account"
-        | "billing"
-        | "connections"
-        | "notifications"
-        | "organization",
+      translationKey as "account" | "billing" | "connections" | "organization",
     );
   }
 

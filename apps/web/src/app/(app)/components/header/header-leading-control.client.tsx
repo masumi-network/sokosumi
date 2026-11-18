@@ -12,6 +12,7 @@ import {
 } from "@/app/chat/utils/chat-route-base";
 import {
   getAgentJobsPathAgentId,
+  type MobileAppBackLabelKey,
   resolveMobileAppBackTarget,
   shouldShowMobileBrandLeading,
 } from "@/app/components/mobile-app-chrome";
@@ -20,6 +21,7 @@ import { getStoredTasksReturnPath } from "@/app/tasks/components/task-navigation
 import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
 import { BackLink } from "@/components/back-link";
 import { SokosumiIcon } from "@/components/masumi-logos";
+import { cn } from "@/lib/utils";
 
 /**
  * Mobile header leading slot (`md:hidden` size-10):
@@ -30,6 +32,7 @@ import { SokosumiIcon } from "@/components/masumi-logos";
  * - other nested list pages → back to list root
  * - Developer sections → back to the You → Developer menu; their detail
  *   pages → back to the section list
+ * - You rows and submenus → back to You, with "You" shown beside the chevron
  * - non-tab hub roots → back to chats
  * - otherwise → back to chats
  */
@@ -91,15 +94,12 @@ export function HeaderLeadingControl(): React.ReactElement {
     }
 
     return (
-      <BackLink
+      <AppBackLink
         href={href}
-        aria-label={t(appBack.labelKey)}
-        className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
+        labelKey={appBack.labelKey}
         onClick={isTasksBack ? handleTasksBackClick : undefined}
         prefetchOnMount={!isTasksBack || tasksReturnPath !== null}
-      >
-        <ChevronLeft className="size-5" aria-hidden />
-      </BackLink>
+      />
     );
   }
 
@@ -111,6 +111,33 @@ export function HeaderLeadingControl(): React.ReactElement {
     >
       <ChevronLeft className="size-5" aria-hidden />
     </Link>
+  );
+}
+
+/** Chevron back; back to You also shows "You" beside it. */
+function AppBackLink({
+  labelKey,
+  ...props
+}: {
+  href: string;
+  labelKey: MobileAppBackLabelKey;
+  onClick: ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined;
+  prefetchOnMount: boolean;
+}) {
+  const t = useTranslations("App.Channels.MobileNav");
+  const namesYou = labelKey === "backToYou";
+  return (
+    <BackLink
+      {...props}
+      aria-label={t(labelKey)}
+      className={cn(
+        "text-foreground press hover:bg-accent inline-flex h-10 shrink-0 items-center justify-center rounded-md",
+        namesYou ? "gap-0.5 ps-1 pe-2.5 text-sm font-medium" : "size-10",
+      )}
+    >
+      <ChevronLeft className="size-5" aria-hidden />
+      {namesYou ? t("you") : null}
+    </BackLink>
   );
 }
 

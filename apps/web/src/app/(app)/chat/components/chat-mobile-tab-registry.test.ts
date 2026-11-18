@@ -28,6 +28,37 @@ describe("Newsletter mobile tab selection", () => {
   });
 });
 
+describe("You row mobile tab selection", () => {
+  // Phones open these only from the You page, so You stays lit.
+  it.each([
+    "/history",
+    "/agents",
+    "/schedules",
+    "/calendar",
+    "/studio",
+    "/tiktok-studio",
+    "/social",
+    "/contacts",
+    "/drive",
+  ])("selects You on %s", (pathname) => {
+    expect(
+      CHAT_MOBILE_TABS.filter((tab) => tab.isActive(pathname)).map(
+        (tab) => tab.id,
+      ),
+    ).toEqual(["you"]);
+  });
+
+  it("keeps Home on Home and the inbox", () => {
+    for (const pathname of ["/", "/notifications"]) {
+      expect(
+        CHAT_MOBILE_TABS.filter((tab) => tab.isActive(pathname)).map(
+          (tab) => tab.id,
+        ),
+      ).toEqual(["home"]);
+    }
+  });
+});
+
 describe("chatMobileHeightShellClass", () => {
   it("uses no-tab-bar shell for rooms", () => {
     expect(chatMobileHeightShellClass("/chat/rooms/r1")).toBe(

@@ -47,34 +47,34 @@ describe("mobile-app-chrome", () => {
     it("returns null on tab list roots (no leading back)", () => {
       expect(resolveMobileAppBackTarget("/tasks")).toBeNull();
       expect(resolveMobileAppBackTarget("/projects")).toBeNull();
-      expect(resolveMobileAppBackTarget("/history")).toBeNull();
+      expect(resolveMobileAppBackTarget("/you")).toBeNull();
     });
 
-    it("sends agents, drive, calendar, schedules, social and studio roots back to home", () => {
-      expect(resolveMobileAppBackTarget("/agents")).toEqual({
-        href: "/",
-        labelKey: "back",
+    // Phones open these only from the You page, so back names You.
+    it.each([
+      "/history",
+      "/agents",
+      "/schedules",
+      "/calendar",
+      "/studio",
+      "/tiktok-studio",
+      "/social",
+      "/contacts",
+      "/drive",
+    ])("sends You row %s back to You", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href: "/you",
+        labelKey: "backToYou",
       });
-      expect(resolveMobileAppBackTarget("/drive")).toEqual({
-        href: "/",
-        labelKey: "back",
-      });
-      expect(resolveMobileAppBackTarget("/calendar")).toEqual({
-        href: "/",
-        labelKey: "back",
-      });
-      expect(resolveMobileAppBackTarget("/schedules")).toEqual({
-        href: "/",
-        labelKey: "back",
-      });
-      expect(resolveMobileAppBackTarget("/studio")).toEqual({
-        href: "/",
-        labelKey: "back",
-      });
-      expect(resolveMobileAppBackTarget("/social")).toEqual({
-        href: "/",
-        labelKey: "back",
-      });
+    });
+
+    it("sends a project-scoped TikTok Studio back to You", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/tiktok-studio",
+          new URLSearchParams("project=p1"),
+        ),
+      ).toEqual({ href: "/you", labelKey: "backToYou" });
     });
 
     it("sends nested studio paths back to the studio root", () => {
@@ -157,15 +157,15 @@ describe("mobile-app-chrome", () => {
       });
       expect(resolveMobileAppBackTarget("/you/developer")).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
       expect(resolveMobileAppBackTarget("/you/help")).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
       expect(resolveMobileAppBackTarget("/you/legal")).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
     });
 
@@ -213,7 +213,7 @@ describe("mobile-app-chrome", () => {
     ])("sends You page row %s back to You", (pathname) => {
       expect(resolveMobileAppBackTarget(pathname)).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
     });
 
@@ -308,7 +308,6 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
       expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
       expect(shouldShowMobileBrandLeading("/you")).toBe(true);
-      expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
     it("hides brand for rooms, hubs, nested detail, and agents", () => {
@@ -332,6 +331,17 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/studio/x")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
+    });
+
+    it.each([
+      "/history",
+      "/schedules",
+      "/calendar",
+      "/contacts",
+      "/drive",
+      "/tiktok-studio",
+    ])("hides brand on You row %s so back to You shows", (pathname) => {
+      expect(shouldShowMobileBrandLeading(pathname)).toBe(false);
     });
   });
 });

@@ -374,6 +374,15 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
+  // The header bell is the inbox, also called Notifications.
+  it("names the notification settings row apart from the inbox", () => {
+    renderYouPage();
+
+    const row = screen.getByTestId("you-notifications");
+    expect(row).toHaveAttribute("href", "/account/notifications");
+    expect(row).toHaveTextContent("notificationSettings");
+  });
+
   it("navigates to an account destination from the flattened account link", () => {
     renderYouPage();
 

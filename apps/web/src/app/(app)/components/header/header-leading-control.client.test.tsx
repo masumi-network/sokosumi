@@ -107,7 +107,7 @@ describe("HeaderLeadingControl", () => {
   it("shows back to You on account (not sidebar trigger)", () => {
     mockPathname = "/account";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "back" });
+    const back = screen.getByRole("link", { name: "backToYou" });
     expect(back).toHaveAttribute("href", "/you");
     expect(
       screen.queryByRole("button", { name: "sidebar-trigger" }),
@@ -117,7 +117,7 @@ describe("HeaderLeadingControl", () => {
   it("shows back to You on billing", () => {
     mockPathname = "/billing";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "back" });
+    const back = screen.getByRole("link", { name: "backToYou" });
     expect(back).toHaveAttribute("href", "/you");
   });
 
@@ -151,20 +151,30 @@ describe("HeaderLeadingControl", () => {
     }
   });
 
-  it("keeps brand link on /history after Search left the tab bar", () => {
-    mockPathname = "/history";
+  // Phones open these only from the You page: back names You.
+  it.each([
+    "/history",
+    "/agents",
+    "/schedules",
+    "/calendar",
+    "/studio",
+    "/tiktok-studio",
+    "/social",
+    "/contacts",
+    "/drive",
+  ])("shows a named back to You on %s", (pathname) => {
+    mockPathname = pathname;
     render(<HeaderLeadingControl />);
-    expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
-      "href",
-      "/",
-    );
+    const back = screen.getByRole("link", { name: "backToYou" });
+    expect(back).toHaveAttribute("href", "/you");
+    expect(back).toHaveTextContent("you");
+    expect(screen.queryByTestId("sokosumi-icon")).toBeNull();
   });
 
-  it("shows back to home on agents root", () => {
-    mockPathname = "/agents";
+  it("keeps an icon-only back on other pages", () => {
+    mockPathname = "/tasks/t1";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "back" });
-    expect(back).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "back" })).toHaveTextContent("");
   });
 
   it("returns from an agent's job to that agent", () => {
@@ -197,13 +207,6 @@ describe("HeaderLeadingControl", () => {
     );
   });
 
-  it("shows back to home on studio", () => {
-    mockPathname = "/studio";
-    render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "back" });
-    expect(back).toHaveAttribute("href", "/");
-  });
-
   it("shows back to chats on personal-assistant root", () => {
     mockPathname = "/personal-assistant";
     render(<HeaderLeadingControl />);
@@ -222,7 +225,7 @@ describe("HeaderLeadingControl", () => {
     for (const path of ["/you/developer", "/you/help", "/you/legal"]) {
       mockPathname = path;
       const { unmount } = render(<HeaderLeadingControl />);
-      const back = screen.getByRole("link", { name: "back" });
+      const back = screen.getByRole("link", { name: "backToYou" });
       expect(back).toHaveAttribute("href", "/you");
       unmount();
     }
