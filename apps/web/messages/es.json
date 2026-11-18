@@ -12931,6 +12931,7 @@
         }
       },
       "indexReview": {
+        "auditPage": "Página auditada",
         "checked": "Revisado",
         "state": {
           "review": "Revisión necesaria",

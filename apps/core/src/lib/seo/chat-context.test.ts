@@ -75,6 +75,91 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("gives personal chat the selected page's private indexing notes, without leaking them to shared chat", () => {
+    const workspace = workspaceFixture();
+    const auditPageUrl = workspace.pages[0].url;
+    const note = {
+      auditPageUrl,
+      pageUrl: `${auditPageUrl}retired`,
+      status: "expected_exclusion" as const,
+      report: false,
+      reason: "The retired page redirects to its replacement.",
+      checkedAt: "2026-11-16T08:00:00Z",
+      suggestedFix: null,
+      evidence: [],
+      taskId: randomUUID(),
+    };
+    const shared = seoChatContext(workspace, "organization");
+    workspace.indexTriage = {
+      assessments: [
+        note,
+        {
+          ...note,
+          auditPageUrl: "https://another.test/",
+          reason: "Another audit's note",
+        },
+        {
+          ...note,
+          pageUrl: `${auditPageUrl}broken`,
+          status: "issue",
+          report: true,
+        },
+      ],
+    };
+    expect(seoChatContext(workspace, "organization")).toBe(shared);
+    const personal = JSON.parse(seoChatContext(workspace, "personal"));
+    expect(personal.indexingNotes).toEqual([
+      {
+        auditPageUrl,
+        pageUrl: note.pageUrl,
+        status: note.status,
+        reason: note.reason,
+        checkedAt: note.checkedAt,
+      },
+    ]);
+    expect(personal.limited).toBe(false);
+  });
+
+  it("keeps the owner's indexing review notes when earlier healthy pages exceed the chat sample", () => {
+    const workspace = workspaceFixture();
+    const [primary] = workspace.pages;
+    workspace.pages = Array.from({ length: 3 }, (_, index) => ({
+      ...primary,
+      id: randomUUID(),
+      url: `${primary.url}group-${index}/`,
+    }));
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const healthy = workspace.pages.flatMap((page) => {
+      const taskId = randomUUID();
+      return Array.from({ length: 7 }, (_, index) => ({
+        taskId,
+        auditPageUrl: page.url,
+        pageUrl: `${page.url}indexed-${index}`,
+        status: "indexed" as const,
+        checkedAt: "2026-11-16T08:00:00Z",
+        reason: "Google indexed this page.",
+        report: false,
+        suggestedFix: null,
+        evidence: [],
+      }));
+    });
+    const parent = workspace.pages[2].url;
+    const notes = (
+      ["review", "expected_exclusion", "unavailable"] as const
+    ).map((status) => ({
+      ...healthy.at(-1)!,
+      pageUrl: `${parent}${status}`,
+      status,
+      reason: `Indexing note for ${status}`,
+    }));
+    workspace.indexTriage = { assessments: [...healthy, ...notes] };
+    const personal = JSON.parse(seoChatContext(workspace, "personal"));
+    expect(
+      personal.indexingNotes.map((row: { pageUrl: string }) => row.pageUrl),
+    ).toEqual(notes.map((row) => row.pageUrl));
+    expect(personal.limited).toBe(false);
+  });
+
   it("excludes private findings and linked advice from shared replies and task suggestions", () => {
     const workspace = workspaceFixture();
     const privateFinding = {

@@ -316,6 +316,10 @@ describe("indexing review notes", () => {
     expect(noteOf("Expected exclusion")).toHaveTextContent(
       "The redirect is intended.",
     );
+    expect(screen.getByRole("link", { name: related.url })).toHaveAttribute(
+      "href",
+      related.url,
+    );
     // One note still asks for a check: the page does not read as fine.
     expect(verdict.querySelector("[data-icon]")).toHaveAttribute(
       "data-icon",
@@ -347,6 +351,10 @@ describe("indexing review notes", () => {
     expect(screen.getByRole("link", { name: related })).toHaveAttribute(
       "href",
       related,
+    );
+    expect(screen.getByRole("link", { name: primary.url })).toHaveAttribute(
+      "href",
+      primary.url,
     );
     // No Google status stands over the note, so nothing makes it older: no review day.
     expect(screen.queryByText("Reviewed")).toBeNull();
