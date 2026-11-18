@@ -41,6 +41,8 @@ export const SETUP_ASSISTANT_MESSAGE_PATHS = [
   "App.SokoBot.Create",
   "App.SokoBot.Chat",
   "App.SokoBot.Avatar",
+  // The picture step's look designer; without it every control is a raw key.
+  "App.SokoBot.AvatarStudio",
   // The optional mail and calendar connect step reuses the chat card's copy.
   "App.Chat.SokoBot",
 ] as const;

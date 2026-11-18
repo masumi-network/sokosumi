@@ -243,7 +243,59 @@ describe("SokoBotHome", () => {
     );
     expect(links[0]?.textContent).toContain("Maya");
     expect(links[0]?.textContent).toContain("open");
+    // Who wrote it shows on a phone too: no ancestor in the row hides it.
+    let node: HTMLElement | null = screen.getByText("Maya");
+    while (node && node !== links[0]) {
+      expect(node.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+      node = node.parentElement;
+    }
     expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
+  it("wraps a chat's message on a phone instead of cutting it beside the time", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "What should I set up first?",
+          from: "Juno",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const title = screen.getByText("What should I set up first?");
+    // Two lines on a phone, one with an ellipsis from `sm` up; never a
+    // single phone line beside the time, which left it "What sho…".
+    expect(title).toHaveClass("line-clamp-2", "sm:line-clamp-1");
+    expect(title.className).not.toMatch(/(^|\s)truncate(\s|$)/);
+    // On a phone the time rides on the sender's line, under the message.
+    const senderLine = screen.getByText("Juno").parentElement;
+    expect(senderLine?.querySelector("time")).not.toBeNull();
+  });
+
+  it("keeps a chat's time on a phone when a long sender name is cut", async () => {
+    const from = "Professor Juniper Montgomery-Okonkwo";
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "Can you help me plan the November newsletter?",
+          from,
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    // The name truncates alone; the phone time sits beside it in a slot
+    // that never shrinks, so a long name cannot push the time out of view.
+    const name = screen.getByText(from);
+    expect(name).toHaveClass("min-w-0", "truncate");
+    const phoneTime = name.parentElement?.querySelector(".sm\\:hidden");
+    expect(phoneTime?.querySelector("time")).not.toBeNull();
+    expect(phoneTime).toHaveClass("shrink-0");
+    expect(name.contains(phoneTime ?? null)).toBe(false);
+    expect(name.parentElement).toHaveClass("flex", "min-w-0");
   });
 
   it("lists a schedule the bot just got among the Tasks, linked to its row", async () => {

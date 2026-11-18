@@ -23,7 +23,7 @@ type Scheme = "light" | "dark";
 
 const RULES = [
   "Thick lines do the work.",
-  "Hard shadows, three sizes.",
+  "A hard shadow means you can act.",
   "Iris means now, and picked.",
   "Bold speaks, Regular works.",
   "Black strips for contrast.",

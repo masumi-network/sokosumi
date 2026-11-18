@@ -257,13 +257,31 @@ export async function SokoBotHome({
                         aria-hidden
                         className="text-muted-foreground size-4 shrink-0"
                       />
-                      <span className="text-foreground min-w-0 flex-1 truncate text-sm">
-                        {row.chat.title}
+                      {/* Who wrote it shows on a phone too, on its own
+                          line under the message; a column beside it on
+                          wider screens. On a phone the time beside the
+                          message left it a few letters, so there the
+                          message wraps to two lines and the time joins
+                          the sender's line, as schedule rows do. The name
+                          truncates alone and the time keeps its width, so a
+                          long bot name cannot push the time out of view. */}
+                      <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
+                        <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
+                          {row.chat.title}
+                        </span>
+                        <span className="text-muted-foreground flex min-w-0 items-center gap-1 sm:block sm:max-w-40 sm:shrink-0 sm:truncate">
+                          <span className="min-w-0 truncate">
+                            {row.chat.from}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1 sm:hidden">
+                            <span aria-hidden>·</span>
+                            {timeOf(row.at)}
+                          </span>
+                        </span>
                       </span>
-                      <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate text-sm sm:block">
-                        {row.chat.from}
+                      <span className="hidden sm:contents">
+                        {timeOf(row.at)}
                       </span>
-                      {timeOf(row.at)}
                       <span className="text-foreground shrink-0 text-sm font-medium">
                         {t("open")}
                       </span>

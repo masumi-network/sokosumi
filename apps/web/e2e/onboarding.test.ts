@@ -35,6 +35,33 @@ async function expectStep(page: Page, path: RegExp, heading: string) {
   assert.equal(await main.count(), 1, `${page.url()} has one main landmark`);
 }
 
+/** Setup lists the same policies as sign-up, each a 24px-tall target. */
+async function expectLegalLinks(page: Page) {
+  for (const policy of [
+    "Terms of Service",
+    "Privacy Policy",
+    "Imprint",
+    "Acceptable Use",
+  ]) {
+    const box = await page
+      .getByRole("link", { name: policy, exact: true })
+      .last()
+      .boundingBox();
+    assert.ok(box && box.height >= 24, `${policy} is at least 24px tall`);
+  }
+}
+
+/** The header logo's place and size, to hold setup's against sign-up's. */
+async function logoBox(page: Page) {
+  const box = await page
+    .getByRole("img", { name: "Sokosumi Logo", exact: true })
+    .filter({ visible: true })
+    .first()
+    .boundingBox();
+  assert.ok(box, `${page.url()} shows the logo`);
+  return box;
+}
+
 for (const { name, ...viewport } of PROJECTS) {
   describe(name, () => {
     test("a new visitor signs up and meets their Soko Bot", async () => {
@@ -52,6 +79,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.goto(`${BASE_URL}/`);
       await page.getByRole("link", { name: "Register" }).click();
       await expectStep(page, /\/signup/, "Create your account");
+      const signupLogo = await logoBox(page);
       await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);
       await page.getByRole("button", { name: "Continue with email" }).click();
 
@@ -61,13 +89,20 @@ for (const { name, ...viewport } of PROJECTS) {
         .waitFor();
       await page.getByRole("textbox", { name: "First name" }).fill("Ada");
       await page.getByRole("textbox", { name: "Last name" }).fill(name);
-      await page
-        .getByRole("textbox", { name: "Code from the email" })
-        .pressSequentially(await mailbox.nextCode());
+      const codeField = page.getByRole("textbox", {
+        name: "Code from the email",
+      });
+      // A paste with no clipboard, as Lighthouse and some autofill tools
+      // send, must not throw.
+      await codeField.dispatchEvent("paste");
+      await codeField.pressSequentially(await mailbox.nextCode());
       await shot("1-code");
       await page.getByRole("button", { name: "Register" }).click();
 
       await expectStep(page, /\/setup$/, "How do you want to work?");
+      await expectLegalLinks(page);
+      // The logo stays put from sign-up to setup.
+      assert.deepEqual(await logoBox(page), signupLogo);
       await shot("2-workspace");
       await page.getByRole("button", { name: "Continue" }).click();
 
@@ -75,7 +110,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.getByRole("textbox", { name: "Name" }).fill(BOT);
       await page.getByRole("button", { name: "Continue" }).click();
       await page
-        .getByRole("heading", { name: `Pick a picture for ${BOT}` })
+        .getByRole("heading", { name: `Choose a look for ${BOT}` })
         .waitFor();
       await shot("3-picture");
       await page.getByRole("button", { name: `Create ${BOT}` }).click();

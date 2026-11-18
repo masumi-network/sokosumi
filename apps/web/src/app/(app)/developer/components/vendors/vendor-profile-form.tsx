@@ -222,6 +222,7 @@ export function VendorProfileForm({
                 form.setValue("logos.light", null, { shouldDirty: true })
               }
               pendingLogoFiles={pendingLightLogoFiles}
+              previewSurface="light"
             />
           </FormItem>
 
@@ -245,6 +246,7 @@ export function VendorProfileForm({
                 form.setValue("logos.dark", null, { shouldDirty: true })
               }
               pendingLogoFiles={pendingDarkLogoFiles}
+              previewSurface="dark"
             />
           </FormItem>
         </div>
