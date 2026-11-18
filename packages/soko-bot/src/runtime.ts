@@ -130,6 +130,8 @@ export interface RuntimeEventStreamInput {
   sessionId: string;
   startIndex: number;
   signal?: AbortSignal;
+  /** Lets a stored-event stream release its owner's heartbeat when idle. */
+  reconciliation?: { turnId: string; leaseToken: string };
 }
 
 export interface RuntimeCancelInput {

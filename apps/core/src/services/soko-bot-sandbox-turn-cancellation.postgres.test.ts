@@ -16,7 +16,7 @@ import {
   it,
   vi,
 } from "vitest";
-
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 
 vi.mock("@/lib/ably/client", async () =>
@@ -205,7 +205,10 @@ describe.skipIf(!enabled)(
         await requestCancellation(prisma);
         await prisma.sokoBotTurn.update({
           where: { id: turnId },
-          data: { leaseToken: resetToken },
+          data: {
+            leaseToken: resetToken,
+            reconcilerHeartbeatAt: await databaseNow(),
+          },
         });
       };
 

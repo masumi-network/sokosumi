@@ -31,8 +31,15 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
+import { streamStoredEvents } from "@/lib/soko-bot/in-process-runtime";
 import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliation-lease";
 import { issueTurnToken } from "@/lib/soko-bot/sandbox/turn-token";
+import {
+  announceTurn,
+  closeTurn,
+  RuntimeEventLog,
+  runtimeEvent,
+} from "@/lib/soko-bot/turn-loop";
 import sokoBotRuntimeRoutes from "@/routes/v1/soko-bot-runtime";
 import mountStartTurn, { mountById } from "@/routes/v1/soko-bots/me/turns/post";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
@@ -326,6 +333,80 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     expect(
       await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: turn.id } }),
     ).toMatchObject({ status: "COMPLETED", leaseToken: null });
+  });
+
+  async function runningTurnWithAbandonedDrain() {
+    const sessionId = "session_long_turn";
+    const turnId = await createTurn(await databaseNow(), {
+      status: "RUNNING",
+      eveSessionId: sessionId,
+      heartbeatAgoMs: MINUTE,
+      leaseInMs: 15 * MINUTE,
+    });
+    vi.spyOn(getSokoBotRuntime(), "streamEvents").mockImplementation(
+      streamStoredEvents,
+    );
+    return new RuntimeEventLog(turnId, sessionId);
+  }
+
+  async function closeCompletedRuntime(log: RuntimeEventLog) {
+    await log.append(runtimeEvent("message.completed", { message: "Done." }));
+    await log.append(runtimeEvent("turn.completed", { turnId: log.turnId }));
+    await closeTurn(log, LEASE);
+  }
+
+  it("close after a watchdog stale-drain claim settles at close", async () => {
+    const log = await runningTurnWithAbandonedDrain();
+    expect(await syncTurns()).toMatchObject({ claimed: 1, reconciled: 1 });
+    expect(await leaseOf(log.turnId)).not.toBe(LEASE);
+
+    await announceTurn(log, "Clock turn");
+    await closeCompletedRuntime(log);
+
+    expect(
+      await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: log.turnId } }),
+    ).toMatchObject({
+      status: "COMPLETED",
+      finalAnswer: "Done.",
+      leaseToken: null,
+    });
+  });
+
+  it("a live watchdog drain sees completion appended after its first snapshot", async () => {
+    const log = await runningTurnWithAbandonedDrain();
+    await announceTurn(log, "Clock turn");
+    const snapshotRead = Promise.withResolvers<void>();
+    const returnSnapshot = Promise.withResolvers<void>();
+    vi.spyOn(getSokoBotRuntime(), "streamEvents").mockImplementation(
+      async function* (input) {
+        for await (const event of streamStoredEvents(input)) {
+          if (event.event.type === "session.started") {
+            snapshotRead.resolve();
+            await returnSnapshot.promise;
+          }
+          yield event;
+        }
+      },
+    );
+    const syncing = syncTurns();
+    void syncing.then(() => snapshotRead.resolve(), snapshotRead.reject);
+    try {
+      await snapshotRead.promise;
+      const watchdogLease = await leaseOf(log.turnId);
+      expect(watchdogLease).not.toBe(LEASE);
+      await closeCompletedRuntime(log);
+      expect(await leaseOf(log.turnId)).toBe(watchdogLease);
+    } finally {
+      returnSnapshot.resolve();
+      expect(await syncing).toMatchObject({ claimed: 1, reconciled: 1 });
+    }
+    expect(
+      await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: log.turnId } }),
+    ).toMatchObject({
+      status: "COMPLETED",
+      finalAnswer: "Done.",
+      leaseToken: null,
+    });
   });
 
   it("G5a: fences a stale drain while the admin reset is in the runtime", async () => {

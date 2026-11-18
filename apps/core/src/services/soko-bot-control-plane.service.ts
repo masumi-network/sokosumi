@@ -123,6 +123,7 @@ import { logSokoBotRouteOutcome } from "@/lib/soko-bot/route-outcome";
 import { isRetryableSokoBotRuntimeError } from "@/lib/soko-bot/runtime-errors";
 import {
   matchSokoBotRuntimeTurnBoundary,
+  SETTLEMENT_TRIGGER_EVENT_TYPES,
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
@@ -206,14 +207,6 @@ export const ACTIVE_TURN_STATUSES = [
   SokoBotTurnStatus.RUNNING,
   SokoBotTurnStatus.CANCEL_REQUESTED,
 ] as const;
-
-// Runtime events after which a drain settles the turn.
-const SETTLEMENT_TRIGGER_EVENT_TYPES = new Set([
-  "input.requested",
-  "session.waiting",
-  "session.completed",
-  "session.failed",
-]);
 
 export class SokoBotNotFoundError extends Error {}
 export class SokoBotBusyError extends Error {}
@@ -3312,14 +3305,13 @@ export class SokoBotControlPlane {
         FOR NO KEY UPDATE
       `;
       const now = await databaseNow(tx);
-      // The launch grants one handoff at close. A reset or watchdog claim
-      // changes the launch token and fences the old runtime out.
+      // Close can take its own launch grant or a drain that stopped renewing.
       return tx.sokoBotTurn.updateMany({
         where: {
           id: turnId,
-          leaseToken: launchLeaseToken,
           status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
           eveSessionId: sessionId,
+          OR: [{ leaseToken: launchLeaseToken }, staleTurnLeaseWhere(now)],
         },
         data: {
           leaseToken,
@@ -3330,7 +3322,7 @@ export class SokoBotControlPlane {
     });
     if (!updated.count) {
       throw new SokoBotReconciliationLeaseLostError(
-        "Soko Bot runtime completion lost its launch lease",
+        "Soko Bot runtime completion did not win the lease",
       );
     }
     await this.reconcileTurn(turnId, undefined, leaseToken);
@@ -3635,6 +3627,7 @@ export class SokoBotControlPlane {
         sessionId: turn.eveSessionId,
         startIndex: turn.eveStreamIndex + 1,
         signal,
+        reconciliation: { turnId, leaseToken },
       })) {
         if (!boundEveTurnId) {
           if (indexed.event.type === "turn.started") {

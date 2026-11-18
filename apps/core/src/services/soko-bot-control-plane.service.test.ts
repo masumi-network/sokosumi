@@ -4421,6 +4421,39 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("returns no drain grant on a successful admin retry replay while its turn has a lease", async () => {
+    const failedTurnId = "01960001-0001-7000-8000-000000000011";
+    const retry = {
+      id: "01960001-0001-7000-8000-000000000012",
+      source: "ADMIN_RETRY",
+      status: "RUNNING",
+      leaseToken: "01960001-0001-7000-8000-000000000013",
+    };
+    const input = {
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "RETRY_LAST_FAILED" as const,
+      reason: "Retry failed turn",
+      operationId: "successful-retry-replay",
+    };
+    botFindUniqueMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
+    botFindFirstMock.mockResolvedValue(adminBot({ turns: [retry] }));
+    adminActionFindUniqueMock.mockResolvedValue({
+      ...input,
+      userId: "user_1",
+      targetId: failedTurnId,
+    });
+    adminActionFindFirstMock.mockResolvedValue({ status: "SUCCEEDED" });
+    const control = new SokoBotControlPlane();
+    const startTurn = vi.spyOn(control, "startTurn");
+
+    const { detail, reconciliation } = await control.performAdminAction(input);
+
+    expect(detail.turns).toMatchObject([retry]);
+    expect(reconciliation).toBeUndefined();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("binds retry-last operation replay to its originally resolved failed turn", async () => {
     const failedTurnId = "01960001-0001-7001-8001-000000000099";
     const existingIntent = {
