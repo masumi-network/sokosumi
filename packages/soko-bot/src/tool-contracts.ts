@@ -37,10 +37,10 @@ import {
   cmoSaveStrategyInputSchema,
 } from "./cmo.js";
 import {
-  CMO_COMPETITOR_TOOL_DESCRIPTIONS,
-  cmoCheckCompetitorsInputSchema,
-  cmoSaveCompetitorFeedInputSchema,
-} from "./cmo-competitors.js";
+  COMPETITOR_TOOL_DESCRIPTIONS,
+  checkCompetitorsInputSchema,
+  saveCompetitorFeedInputSchema,
+} from "./competitors.js";
 import type { SokoBotCapability } from "./policy.js";
 import { REFERENCE_KINDS, REFERENCE_PURPOSES } from "./project-marketing.js";
 import {
@@ -1528,8 +1528,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
         (input.articles?.length ?? 0) + (input.pageChanges?.length ?? 0) > 0,
       { message: "Save at least one article or page change" },
     ),
-  check_competitors: cmoCheckCompetitorsInputSchema,
-  save_competitor_feed: cmoSaveCompetitorFeedInputSchema,
+  check_competitors: checkCompetitorsInputSchema,
+  save_competitor_feed: saveCompetitorFeedInputSchema,
   handle_social_comment: z.object({
     commentId: z.uuid(),
     action: z.enum(["reply", "skip", "owner"]),
@@ -1768,7 +1768,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Save article ideas and page changes to the owner's SEO tab (never to the strategy calendar). An article: title, the target keyword exactly as research_keywords or read_seo returned it, why (the business reason), an outline, and draft only when the owner asked for the full text (the whole article in Markdown, following the seo writing skill). A page change: the page URL on the brand's site, what to change, newText (the exact new title, description, heading or paragraph, ready to copy) and why. Core attaches the measured numbers itself and refuses a suggestion it has no data for; send id to update one. At most five at a time.",
   handle_social_comment:
     "Act on one comment from list_social_comments: reply posts your reply under it in the brand's name (at most 300 characters, the brand voice, facts from the Brand Brain only); skip marks spam, bots or a thread a reply would not help; owner hands it to the owner (a complaint, refund, legal or press question, an angry customer, or anything you would have to guess) with a one-line note. Every reply is checked for safety before it posts; a refused reply goes to the owner instead. One reply per person per post.",
-  ...CMO_COMPETITOR_TOOL_DESCRIPTIONS,
+  ...COMPETITOR_TOOL_DESCRIPTIONS,
   save_brand_brain:
     "Save the owner's Brand Brain. `sections` holds profile sections (company, offer, problems, customers, buyers, value, pricing, positioning, competition, sales, marketing, content, proof, reputation, momentum, opportunities), each a headline, an answer, findings with evidence, confidence, source, date and implication, and open questions; send them as you finish them. `brandBrain` holds the essentials (summary, voice with do/don't and example lines, audience, products, offers, competitors, channels), the reveal (positioning line, three insights, competitor map, buyers) and up to six yes/no questions for the owner; send it last, with the reveal and questions when you can. `reveal`, `questions` and `marketingToday` may also be sent alone, at the top level, to add to saved essentials; never re-send `brandBrain` for them. Each save merges: a section you send replaces that section, the rest stay. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
   save_strategy:
