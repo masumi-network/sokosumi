@@ -82,8 +82,6 @@ export function sokoBotToolCallLimit(turn: {
   );
 }
 
-export { unsafeSvgReason } from "./soko-bot-svg";
-
 export const WORKSPACE_UPLOAD_GRANTED_EVENT = "sandbox.upload_granted";
 
 export interface RuntimeAuthorizationInput {

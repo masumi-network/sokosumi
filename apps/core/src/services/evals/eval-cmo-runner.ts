@@ -191,7 +191,7 @@ function spread<T extends { share: number }>(items: T[], count: number): T[] {
   return slots.sort((a, b) => a.at - b.at).map((slot) => slot.item);
 }
 
-/** One title per piece, none repeating a message, one SEO comparison page. */
+/** One title per piece, none repeating a message. */
 const CHANGE_REQUEST_TITLES = [
   "One booking link for the whole team",
   "Cal.com vs Calendly for team booking",
@@ -199,39 +199,39 @@ const CHANGE_REQUEST_TITLES = [
   "Embed a booking widget in five lines",
   "Why reps stop chasing meeting times",
   "This week's team scheduling tip",
-  "Fix the title of the team booking page",
+  "A tour of the team booking page",
   "How routing forms pick the right rep",
   "Booking pages that sales teams share",
   "Collective events for panel interviews",
   "Webhooks after every new booking",
   "A Teams trial checklist for week one",
   "Monthly recap of booking flows",
-  "Clearer headings on the pricing page",
+  "What each plan on the pricing page includes",
   "Buffer times that protect focus hours",
   "Routing inbound demos by company size",
   "Group availability across time zones",
   "Booking API rate limits explained",
   "Managed event types for large teams",
   "Five settings admins change first",
-  "A meta description for the routing page",
+  "Routing forms in one picture",
   "Reminders that cut no-shows",
   "Open source scheduling for regulated teams",
   "Handing a lead to the next rep",
   "Self-hosting Cal.com on your own server",
   "Insights that show booking volume",
   "What changed in team booking this month",
-  "A shorter intro on the enterprise page",
+  "Enterprise scheduling in one minute",
 ];
 
 /** A week of the change request's month: LinkedIn three times, four other formats. */
 const CHANGE_REQUEST_WEEK = [
   { channel: "linkedin", format: "post" },
-  { channel: "seo", format: "article" },
+  { channel: "facebook", format: "post" },
   { channel: "linkedin", format: "image" },
   { channel: "x", format: "post" },
   { channel: "linkedin", format: "post" },
   { channel: "newsletter", format: "issue" },
-  { channel: "seo", format: "page_fix" },
+  { channel: "facebook", format: "image" },
 ] as const;
 
 const CHANGE_REQUEST_CHANNELS = [
@@ -241,9 +241,9 @@ const CHANGE_REQUEST_CHANNELS = [
     why: "Reach operators with concrete team scheduling examples.",
   },
   {
-    channel: "seo",
-    cadence: "2 pieces a week",
-    why: "Answer practical scheduling searches over time.",
+    channel: "facebook",
+    cadence: "2 posts a week",
+    why: "Reach small business owners who book on Facebook.",
   },
   {
     channel: "x",

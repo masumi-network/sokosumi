@@ -19,10 +19,7 @@ import {
   LIVE_CUSO_WHERE,
   requireCuso,
 } from "@/services/cmo-cuso.service";
-import {
-  approvedMarketingStrategy,
-  mayApproveMarketingStrategy,
-} from "@/services/marketing-strategy.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
  * Tester credits (all Projects, or one): what a Cuso works on without a CMO
@@ -104,7 +101,7 @@ export async function isCmoSubscribed(
  * counts until the period ends; past due and ended do not), and Tester
  * credits not used up.
  */
-async function cmoPaidFor(
+export async function cmoPaidFor(
   projectId: string,
   now: Date,
   db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
@@ -334,24 +331,6 @@ export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
       : null,
     hasTesterCredits: tester !== null,
   };
-}
-
-/**
- * Approving the strategy spends the business's credits and publishes in its
- * name: the organization's owners and admins only
- * (ADR 0061). Every other member works with Cuso freely.
- */
-export async function requireCmoCommitter(
-  userId: string,
-  cuso: Pick<Cuso, "workspaceId">,
-): Promise<void> {
-  const { organizationId } = await cmoPayer(cuso);
-  const workspace = { id: cuso.workspaceId, userId: null, organizationId };
-  if (!(await mayApproveMarketingStrategy(userId, workspace))) {
-    throw new CmoForbiddenError(
-      "Only the organization's owners and admins approve Cuso's strategy and start his month",
-    );
-  }
 }
 
 /**

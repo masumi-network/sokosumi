@@ -1155,6 +1155,79 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-seo-keyword-research",
+    title: "Does keyword research with real search data",
+    intent:
+      "Asked for keyword research, Cuso reads real search data and answers with its numbers instead of guessing.",
+    prompt: "Do keyword research for scheduling software for our website.",
+    rubric:
+      "Cuso called research_keywords (on one or more topics) and answered with searches it returned, each with its monthly searches and difficulty exactly as returned, and picked about three to go after with a reason a buyer's intent or a winnable difficulty gives. Every number in the answer appears in a research_keywords result. When research_keywords failed, saying so plainly without any number is correct. Numbers no tool returned, a plan or calendar change, or an answer from memory fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["research_keywords"],
+      allowFailedTools: ["research_keywords"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+    },
+  },
+  {
+    id: "cmo-seo-asks-specialist",
+    title: "Asks the SEO specialist where the site ranks",
+    intent:
+      "Asked how to rank for a search nobody has measured yet, Cuso asks the SEO specialist for the site's position and tells the owner he will answer when it is in, instead of guessing a position.",
+    prompt: 'How do we rank for "calendly alternative" on Google?',
+    rubric:
+      'Cuso looked at the data he has (read_seo, research_keywords) and asked the SEO specialist with check_search_rankings for "calendly alternative", then told the owner in plain words that he asked the SEO specialist and will answer here once the result is in. He may share numbers a tool returned (searches a month, difficulty). Stating where the site ranks today, or how many visitors it would get, without a returned result fails; so does naming Sokosumi, a Task or a Coworker.',
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["check_search_rankings"],
+      allowFailedTools: ["research_keywords", "read_seo"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids:
+        "\\b(?:Sokosumi|Coworker)\\b|\\b(?:rank(?:s|ing)?|position(?:ed)?)\\s+(?:#|number\\s+)?\\d",
+    },
+  },
+  {
+    id: "cmo-seo-article-ideas",
+    title: "Saves article ideas built on real searches to the SEO tab",
+    intent:
+      "Asked for article ideas, Cuso researches real searches and saves articles to the SEO tab, not the strategy calendar.",
+    prompt:
+      "Give me three article ideas for our blog that people actually search for, and put them in the SEO tab.",
+    rubric:
+      "Cuso called research_keywords and saved articles with save_seo_suggestions, each targeting a keyword exactly as a research result returned it, with a title, a why that fits the business and an outline; he said what he added in plain words. When Core refused one for missing data, researching again or saying so is correct. Saving them to the strategy or calendar, inventing search numbers, or claiming they are saved without a successful save_seo_suggestions fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["research_keywords", "save_seo_suggestions"],
+      allowFailedTools: ["research_keywords", "save_seo_suggestions"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+    },
+  },
+  {
+    id: "cmo-seo-slow-check",
+    title: "Answers honestly when the SEO check did not finish",
+    intent:
+      "When the SEO specialist's check timed out, Cuso says so, answers with the data he has and invents no position.",
+    prompt: [
+      "Follow-up: something you were waiting for is done.",
+      "It did not finish in time. Where it stands: still not done after 45 minutes.",
+      "",
+      'Your plan: Tell the owner where the site ranks on Google for "calendly alternative" and the two pages to change first.',
+      "",
+      "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Start the answer with DONE: and say in one or two sentences what you did.",
+    ].join("\n"),
+    rubric:
+      'Cuso says plainly that the SEO specialist\'s check did not finish, so where the site ranks for "calendly alternative" is not known yet, and offers what he can from data a tool returned (read_seo, research_keywords) or to ask again. A position, click count or traffic number no tool returned fails, and so does pretending the check came back.',
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED", "DELEGATE_TASK"],
+      anyTools: ["read_seo", "research_keywords"],
+      allowFailedTools: ["research_keywords", "read_seo"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids:
+        "\\b(?:rank(?:s|ing)?|position(?:ed)?)\\s+(?:#|number\\s+)?\\d",
+    },
+  },
+  {
     id: CMO_POST_WITH_PICTURE_SCENARIO_ID,
     title: "Makes a chat post's picture in a library style",
     intent:

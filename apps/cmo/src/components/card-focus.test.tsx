@@ -36,8 +36,8 @@ function brandStep(answered: boolean) {
   );
 }
 
-it("Brand's questions-left card carries the hard shadow, and is gone once answered", () => {
-  expect(cardTag(brandStep(false), "ob-left")).toContain("card-focus");
+it("Brand's questions-left card is flat: it holds a button, it is not one", () => {
+  expect(cardTag(brandStep(false), "ob-left")).not.toContain("card-focus");
   expect(cardTag(brandStep(true), "ob-left")).toBeUndefined();
 });
 
@@ -57,6 +57,7 @@ function results(connected: boolean) {
         setAdCampaignStatus: async () => ({ overview: null, error: null }),
       }}
       onChange={() => {}}
+      openView={() => {}}
     />,
   );
   // The section opening just before its "Your numbers" heading.
@@ -64,7 +65,7 @@ function results(connected: boolean) {
   return html.slice(html.lastIndexOf("<section", head), head);
 }
 
-it("Results' Your numbers is flat once every source is connected", () => {
-  expect(results(false)).toContain("card-focus");
+it("Results' Your numbers is flat, connected or not", () => {
+  expect(results(false)).not.toContain("card-focus");
   expect(results(true)).not.toContain("card-focus");
 });
