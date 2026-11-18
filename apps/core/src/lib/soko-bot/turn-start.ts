@@ -112,10 +112,10 @@ export interface SokoBotTurnStartResult {
   duplicate: boolean;
   errorKind?: string | null;
   /**
-   * The lease this call owns after its acknowledgement transaction succeeds.
-   * A duplicate can receive it when this call claimed and acknowledged the
-   * start itself. An observed row, including one read after an acknowledgement
-   * error, carries no grant to drain.
+   * The lease this call owns after committing its acknowledgement. If the
+   * acknowledgement response was lost, a CAS proves the commit and renews
+   * the lease. A duplicate can receive it when this call claimed and
+   * acknowledged the start itself. A read of an existing row carries no grant.
    */
   reconciliationLeaseToken?: string;
 }

@@ -651,11 +651,11 @@ export class SokoBotEventsSyncService {
           })),
         });
         result.woken += 1;
-        // A duplicate that only observed lost the race to another sync, which
-        // drains the turn under the lease it shares. A duplicate this call
-        // acknowledged (a resumed or recovered start, a lost acknowledgement
-        // response) owns the drain: the watchdog would reach it only after
-        // its heartbeat is 45 s stale, and not at all past the deadline.
+        // The start result grants this call the drain after its own fresh start
+        // or won recovery claim, including when a CAS proves its acknowledgement
+        // committed despite a lost response. An observing duplicate leaves the
+        // drain to the owner. The watchdog can take over after the heartbeat
+        // goes stale, while the turn's deadline is still in the future.
         if (
           started.reconciliationLeaseToken &&
           (started.status === "STARTING" || started.status === "RUNNING")

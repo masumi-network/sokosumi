@@ -763,6 +763,20 @@ export class SokoBotControlPlane {
     });
   }
 
+  private async requireAcknowledgedStartLease(
+    turnId: string,
+    leaseToken: string,
+    sessionId: string,
+    acknowledgementError: unknown,
+  ): Promise<void> {
+    const retained = await this.renewTurnLease(turnId, leaseToken, prisma, {
+      status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
+      startedAt: { not: null },
+      eveSessionId: sessionId,
+    });
+    if (!retained) throw acknowledgementError;
+  }
+
   private holdTurnLease(turnId: string, leaseToken: string): () => void {
     let renewing = false;
     const timer = setInterval(async () => {
@@ -1083,7 +1097,8 @@ export class SokoBotControlPlane {
     bot: ResolvedSokoBotRow,
     turn: SokoBotTurn,
   ): Promise<SokoBotTurnStartResult | null> {
-    if (!turn.leaseToken) {
+    const leaseToken = turn.leaseToken;
+    if (!leaseToken) {
       throw new SokoBotRetryableStartError(
         "Ambiguous Soko Bot start has no reconciliation lease",
       );
@@ -1092,7 +1107,7 @@ export class SokoBotControlPlane {
     if (
       turn.intentId &&
       storedContinuation(turn.classification) === "CONTINUE" &&
-      (await this.settleOwnerConfirmation(turn.id, turn.leaseToken))
+      (await this.settleOwnerConfirmation(turn.id, leaseToken))
     ) {
       const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
         where: { id: turn.id },
@@ -1168,7 +1183,7 @@ export class SokoBotControlPlane {
           where: {
             id: turn.id,
             status: "STARTING",
-            leaseToken: turn.leaseToken,
+            leaseToken,
           },
           data: {
             status: "RUNNING",
@@ -1206,9 +1221,17 @@ export class SokoBotControlPlane {
             "Soko Bot turn stopped before replay acknowledgement",
           );
         }
-      }, "Soko Bot replay collided with pause or cancellation");
+      }, "Soko Bot replay collided with pause or cancellation").catch(
+        (error: unknown) =>
+          this.requireAcknowledgedStartLease(
+            turn.id,
+            leaseToken,
+            runtimeTurn.sessionId,
+            error,
+          ),
+      );
     } catch (error) {
-      if (!(await this.retainStartLease(turn.id, turn.leaseToken))) {
+      if (!(await this.retainStartLease(turn.id, leaseToken))) {
         const current = await prisma.sokoBotTurn.findUnique({
           where: { id: turn.id },
         });
@@ -1228,7 +1251,7 @@ export class SokoBotControlPlane {
         where: {
           id: turn.id,
           status: "STARTING",
-          leaseToken: turn.leaseToken,
+          leaseToken,
           eveSessionId: runtimeTurn.sessionId,
         },
         data: { eveSessionId: null },
@@ -1254,7 +1277,7 @@ export class SokoBotControlPlane {
       capabilities,
       duplicate: true,
       errorKind: null,
-      reconciliationLeaseToken: turn.leaseToken,
+      reconciliationLeaseToken: leaseToken,
     };
   }
 
@@ -3046,7 +3069,15 @@ export class SokoBotControlPlane {
             "Soko Bot was paused before runtime acknowledgement",
           );
         }
-      }, "Soko Bot acknowledgement collided with pause or cancellation");
+      }, "Soko Bot acknowledgement collided with pause or cancellation").catch(
+        (error: unknown) =>
+          this.requireAcknowledgedStartLease(
+            turn.id,
+            leaseToken,
+            runtimeTurn.sessionId,
+            error,
+          ),
+      );
       acceptedRuntime = undefined;
       // A background run starts beside the chat: the chat's session is live.
       if (!input.background)
@@ -3077,8 +3108,8 @@ export class SokoBotControlPlane {
             where: { id: turn.id },
           });
         if (!currentAfterAcknowledgementFailure) throw error;
-        // The cleanup CAS checks startedAt in case the acknowledgement committed
-        // and only its response was lost. A re-read conveys the turn's state.
+        // The cleanup CAS checks startedAt so it cannot touch an acknowledged
+        // turn, even after cancellation or takeover. A re-read conveys the state.
         if (
           !retained ||
           currentAfterAcknowledgementFailure.leaseToken !== leaseToken

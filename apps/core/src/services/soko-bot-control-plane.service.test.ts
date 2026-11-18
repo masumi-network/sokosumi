@@ -2318,6 +2318,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         await acknowledgementBarrier;
         return { count: 0 };
       })
+      .mockResolvedValueOnce({ count: 0 })
       .mockResolvedValueOnce({ count: 0 });
     const contextBuilder = {
       build: vi.fn().mockResolvedValue(builtContext()),
@@ -2343,14 +2344,14 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     expect((await pending).reconciliationLeaseToken).toBeUndefined();
     expect(resetSession).not.toHaveBeenCalled();
-    expect(turnUpdateManyMock).toHaveBeenCalledTimes(2);
+    expect(turnUpdateManyMock).toHaveBeenCalledTimes(3);
   });
 
   // The acknowledgement may have committed and only its response was lost.
-  // The caller re-reads its accepted session to report the turn's state.
-  // The observed token cannot establish that the caller acknowledged the turn.
+  // The caller uses a CAS to renew its own acknowledged lease before draining.
+  // A replacement lease leaves the caller with an observation of the turn.
   it.each([
-    ["only observes under its original lease", true],
+    ["renews its acknowledged lease and receives a grant", true],
     ["only observes under a replacement lease", false],
   ])("after a lost acknowledgement response %s", async (_label, ownLease) => {
     const fresh = {
@@ -2395,6 +2396,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     turnUpdateManyMock
       .mockRejectedValueOnce(new Error("Connection reset after commit"))
+      .mockResolvedValueOnce({ count: ownLease ? 1 : 0 })
       .mockResolvedValueOnce({ count: 0 });
 
     const result = await new SokoBotControlPlane(
@@ -2411,9 +2413,27 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
 
     expect(startLease).not.toBe("");
-    expect(result).toMatchObject({ turnId: "turn_fresh", status: "RUNNING" });
-    expect(result.duplicate).toBe(true);
-    expect(result.reconciliationLeaseToken).toBeUndefined();
+    expect(result).toMatchObject({
+      turnId: "turn_fresh",
+      status: "RUNNING",
+      duplicate: !ownLease,
+    });
+    expect(result.reconciliationLeaseToken).toBe(
+      ownLease ? startLease : undefined,
+    );
+    expect(turnUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "turn_fresh",
+        leaseToken: startLease,
+        status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
+        startedAt: { not: null },
+        eveSessionId: "accepted_session",
+      },
+      data: {
+        leaseExpiresAt: expect.any(Date),
+        reconcilerHeartbeatAt: expect.any(Date),
+      },
+    });
   });
 
   it("starts no turn at all while an administrator has it switched off", async () => {
@@ -3338,6 +3358,10 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     memoryFindFirstMock.mockResolvedValue(null);
     botUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+    turnUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
     const runtime = runtimeWithReset(resetSession);
     runtime.createSession = vi.fn().mockResolvedValue({

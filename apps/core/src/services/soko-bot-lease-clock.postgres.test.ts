@@ -178,7 +178,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       leaseInMs: number;
       deadlineInMs?: number;
       source?: "CHAT" | "SCHEDULE";
-      errorKind?: string;
+      errorKind?: string | null;
     },
   ): Promise<string> {
     const at = (offsetMs: number) => new Date(now.getTime() + offsetMs);
@@ -530,6 +530,83 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       });
       expect(resetSession).toHaveBeenCalledWith(
         expect.objectContaining({ sessionId: session.sessionId }),
+      );
+    },
+  );
+
+  it.each([
+    { path: "fresh", replaying: false, status: "RUNNING" },
+    { path: "replay", replaying: true, status: "CANCEL_REQUESTED" },
+  ] as const)(
+    "grants the $path starter a drain when only the acknowledgement response is lost ($status)",
+    async ({ replaying, status }) => {
+      await fundStart();
+      const input = startInput();
+      const createSession = vi.fn<SokoBotRuntime["createSession"]>();
+      const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
+      const control = new SokoBotControlPlane({
+        ...unusedRuntime,
+        createSession,
+        resetSession,
+      });
+      if (replaying) {
+        createSession.mockRejectedValue(
+          new DOMException("Acceptance response lost", "TimeoutError"),
+        );
+        await expect(control.startTurn(input)).rejects.toThrow(
+          "Acceptance response lost",
+        );
+      }
+      const transaction = prisma.$transaction.bind(prisma);
+      const session = acceptedSession();
+      let heartbeatBeforeProof: Date | undefined;
+      createSession.mockImplementationOnce(async ({ turnId }) => {
+        vi.spyOn(prisma, "$transaction").mockImplementationOnce(
+          async (callback, options) => {
+            await transaction(callback, options);
+            const now = await databaseNow();
+            heartbeatBeforeProof = new Date(now.getTime() - MINUTE);
+            await prisma.sokoBotTurn.update({
+              where: { id: turnId },
+              data: {
+                status,
+                cancellationRequestedAt:
+                  status === "CANCEL_REQUESTED" ? now : null,
+                reconcilerHeartbeatAt: heartbeatBeforeProof,
+              },
+            });
+            throw new Error("Connection reset after commit");
+          },
+        );
+        return session;
+      });
+
+      const result = await control.startTurn(input);
+      const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: result.turnId },
+      });
+      expect(heartbeatBeforeProof).toBeDefined();
+      expect(turn).toMatchObject({
+        status,
+        startedAt: new Date(session.acceptedAt),
+        eveSessionId: session.sessionId,
+        leaseToken: expect.any(String),
+      });
+      expect(result).toMatchObject({
+        duplicate: replaying,
+        status: "RUNNING",
+        sessionId: session.sessionId,
+        reconciliationLeaseToken: turn.leaseToken,
+      });
+      expect(turn.reconcilerHeartbeatAt?.getTime()).toBeGreaterThan(
+        heartbeatBeforeProof?.getTime() ?? Number.POSITIVE_INFINITY,
+      );
+      expect(resetSession).not.toHaveBeenCalled();
+      expect(coreLogEvents()).not.toContainEqual(
+        expect.objectContaining({
+          turn: { id: turn.id },
+          outcome: "observed_duplicate",
+        }),
       );
     },
   );
@@ -937,7 +1014,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
   describe("a sessionless start with a heartbeat", () => {
     async function startWithHeartbeat(
       heartbeatAgoMs: number,
-      overrides: { leaseInMs?: number; errorKind?: string } = {},
+      overrides: { leaseInMs?: number; errorKind?: string | null } = {},
     ) {
       const now = await databaseNow();
       return createTurn(now, {
@@ -974,6 +1051,18 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
           LEASE,
         ),
       ).rejects.toThrow("Runtime turn not found");
+    });
+
+    it("rejects a foreign token on a fresh first start", async () => {
+      const turnId = await startWithHeartbeat(10_000, { errorKind: null });
+
+      await expect(
+        new SokoBotControlPlane(unusedRuntime).reconcileTurn(
+          turnId,
+          undefined,
+          "foreign-lease",
+        ),
+      ).rejects.toBeInstanceOf(SokoBotReconciliationLeaseLostError);
     });
 
     it.each([
