@@ -254,6 +254,12 @@ Core:
   read access still applies.
 - Archive and the event actor live in new modules:
   `services/task-domain-archive.ts` and `services/task-domain-event-actor.ts`.
+  The archive locks each level before it reads the sub-tasks, and archives
+  them only in the status it checked. Archive read-marking also clears the
+  sub-tasks archived with the Task.
+- The migration adds the foreign key and CHECK `NOT VALID`, builds the index
+  `CONCURRENTLY` in its own migration, and validates in a third. The old Core
+  instance keeps writing Tasks during the deploy.
 
 Read surfaces. The design table was wrong for two rows. Only `GET /v1/tasks`
 without `parentTaskId` or `includeSubtasks` excludes sub-tasks
@@ -269,8 +275,10 @@ Reopen rule:
   READY with a comment. The comment is required because the Task has an agent
   assignee. No new answer path was added.
 - Core parks a silently reopened Task only in the person `PATCH
-  /v1/tasks/{id}` path (`patch.ts:342`). A Soko Bot `assign_task` call does not
-  park it. Follow-up.
+  /v1/tasks/{id}` path. That includes a PATCH that queues it with a Run at:
+  the Run at is dropped. A restore or a project move is not counted as
+  instructions. Not parked, follow-up: a Soko Bot `assign_task` call, and
+  "Reopen as Draft", then assign an agent, then move DRAFT to READY.
 - Dialog body: "Reopening moves it to Ready, and {assignee} starts a new run.
   Tell {assignee} what to do." The text no longer says "{assignee} finished
   this", so it also fits an INPUT_REQUIRED Task. Without a Draft option the
@@ -305,7 +313,12 @@ CLI:
 
 Soko Bot:
 
-- `list_tasks` rows carry `parentTaskId` for a sub-task.
+- `list_tasks` rows carry `parentTaskId` for a sub-task. Without
+  `parentTaskId` the list includes sub-tasks. With it, `state` defaults to
+  `all`, so done steps show.
+- `create_task` names the parent and the sibling as write targets, so a shared
+  bot's scope must reach them, and a project bot may leave `projectId` out. A
+  turn with a reader must be able to read the parent.
 - The eval case is in `packages/soko-bot/src/scenario-subtasks.ts`, spread
   into `SOKO_BOT_SCENARIOS`.
 - The adoption service is now `soko-bot-spawned-task-adoption.service.ts`. Its
