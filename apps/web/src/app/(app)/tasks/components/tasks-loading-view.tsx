@@ -129,7 +129,7 @@ function TasksBoardLoading({
             key={column.id}
             className="bg-card-background flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]"
           >
-            <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
+            <div className="sticky top-0 z-10">
               <ColumnHeader
                 title={labels.columns[column.id]}
                 statusColorClass={COLUMN_STATUS_COLORS[column.id]}
