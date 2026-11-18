@@ -3,7 +3,7 @@ import {
   CMO_RESEARCH_GROUPS,
   CMO_SOKO_BOT_VERSION_ID,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { unpaidCuso } = vi.hoisted(() => ({ unpaidCuso: vi.fn() }));
 
@@ -36,6 +36,11 @@ import {
   userFindUnique,
 } from "@/test-fixtures/cmo-service";
 
+// PostgreSQL's clock: the test clock, or the time a test sets.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => pgClock.now ?? new Date(),
+}));
 vi.mock(
   "@/lib/db/prisma",
   async () =>
@@ -141,6 +146,12 @@ describe("learning state", () => {
     goals: "More sales",
   };
   const now = new Date("2026-10-05T10:00:00Z");
+  beforeEach(() => {
+    pgClock.now = now;
+  });
+  afterEach(() => {
+    pgClock.now = null;
+  });
   const turn = (status: string, minutesAgo: number) => ({
     id: "turn-1",
     status,

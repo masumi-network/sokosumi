@@ -7,6 +7,7 @@ import {
 } from "@/helpers/soko-bot-owner";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotSharedScopeOf } from "@/helpers/task-visibility";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -93,11 +94,11 @@ export async function authorize(
   if (turn.sokoBot.status === "PAUSED" || turn.sokoBot.adminPausedAt) {
     throw new SokoBotRuntimeAuthorizationError("Soko Bot is paused");
   }
-  const now = Date.now();
+  const now = await databaseNow();
   if (
-    turn.deadlineAt.getTime() <= now ||
+    turn.deadlineAt <= now ||
     !turn.leaseExpiresAt ||
-    turn.leaseExpiresAt.getTime() <= now
+    turn.leaseExpiresAt <= now
   ) {
     throw new SokoBotRuntimeAuthorizationError("Soko Bot turn lease expired");
   }
@@ -125,7 +126,7 @@ export async function authorize(
           WHERE "id" = ${turn.id}::uuid
           FOR UPDATE
         `;
-      const attachedAt = new Date();
+      const attachedAt = await databaseNow(tx);
       const attachable = await tx.sokoBotTurn.findFirst({
         where: {
           id: turn.id,
@@ -241,16 +242,17 @@ export async function authorize(
 }
 
 export async function requireMutationAuthority(
-  runtime: RuntimeOperations,
+  runtime: Pick<RuntimeOperations, "requireWriteScope">,
   tx: Prisma.TransactionClient,
   authorized: SokoBotActionContext,
   approved: boolean,
   capability?: SokoBotCapability,
   targets: SokoBotWriteTargets = {},
 ) {
-  const now = new Date();
   if (approved && authorized.confirmationTurnId) {
     await tx.$queryRaw`SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
+    // Sampled after the lock, so a lease that ends during the wait counts.
+    const now = await databaseNow(tx);
     const confirmation = await tx.sokoBotTurn.findFirst({
       where: {
         id: authorized.confirmationTurnId,
@@ -306,7 +308,8 @@ export async function requireMutationAuthority(
         sokoBotId: authorized.turn.sokoBotId,
         workspaceId: authorized.turn.workspaceId,
         state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },
-        expiresAt: { gt: now },
+        // Host time: intents are issued and looked up on the host clock.
+        expiresAt: { gt: new Date() },
       },
       select: { id: true },
     });
@@ -335,6 +338,8 @@ export async function requireMutationAuthority(
     return workspace;
   }
 
+  // Sampled after the turn and bot locks above.
+  const now = await databaseNow(tx);
   const writable = await tx.sokoBotTurn.findFirst({
     where: {
       id: authorized.turn.id,
