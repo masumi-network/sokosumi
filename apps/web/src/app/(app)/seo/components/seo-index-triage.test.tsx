@@ -26,6 +26,54 @@ function renderNotes(workspace: ReturnType<typeof seoTestWorkspace>) {
 }
 
 describe("indexing review notes", () => {
+  it("shows one unknown Google verdict without claiming the selected or related page was never checked", () => {
+    const workspace = seoTestWorkspace();
+    const pageUrl = workspace.pages[0].url;
+    const checkedAt = new Date("2026-11-16T08:00:00Z");
+    const bare = {
+      pageUrl,
+      taskId: "task",
+      checkedAt,
+      status: "unavailable" as const,
+      report: false,
+      reason: "Google did not provide an indexing result for this page.",
+      suggestedFix: "Check the Search Console connection.",
+      evidence: [],
+    };
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl,
+          verdict: "PASS",
+          checkedAt: new Date("2026-11-15T08:00:00Z"),
+          coverageState: null,
+          robotsTxtState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+        },
+      ],
+    };
+    workspace.indexTriage = { assessments: [bare] };
+    const initial = renderNotes(workspace);
+    expect(screen.getByText("Indexed")).toBeVisible();
+    expect(screen.getByText("Not checked")).toBeVisible();
+    initial.unmount();
+    const confirmed = { ...bare, googleReturnedUnknown: true as const };
+    const related = {
+      ...confirmed,
+      auditPageUrl: pageUrl,
+      pageUrl: `${pageUrl}guide`,
+    };
+    workspace.indexTriage = { assessments: [confirmed, related] };
+    renderNotes(workspace);
+    expect(screen.queryByText("Indexed")).toBeNull();
+    expect(screen.getAllByText("Index status unknown")).toHaveLength(2);
+    expect(screen.queryByText("Not checked")).toBeNull();
+    expect(screen.queryByText(bare.suggestedFix)).toBeNull();
+    expect(screen.queryByText(/No index status yet/)).toBeNull();
+    expect(screen.getByRole("link", { name: related.pageUrl })).toBeVisible();
+  });
   it("counts selected pages using completed audit inspections even when no statistics snapshot exists", () => {
     const workspace = seoTestWorkspace();
     const primary = workspace.pages[0];

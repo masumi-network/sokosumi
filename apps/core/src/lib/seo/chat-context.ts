@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { newerSeoAuditVerdict } from "@sokosumi/utils";
+import { newerSeoAuditVerdict, seoIndexReviewState } from "@sokosumi/utils";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import {
   type SeoChatAction,
@@ -164,6 +164,7 @@ export function seoChatContext(
             source: "seo_worker",
             verdict: audit.verdict,
             coverageState: audit.coverageState,
+            lastCrawlTime: audit.lastCrawlTime,
             checkedAt: audit.assessment.checkedAt,
           },
         };
@@ -183,14 +184,18 @@ export function seoChatContext(
     ...(indexingNotes.length > 0 && {
       indexingNotes: indexingNotes
         .slice(0, SEO_CHAT_COLLECTION_LIMIT)
-        .map((row) => ({
-          pageUrl: row.pageUrl,
-          ...(row.auditPageUrl && { auditPageUrl: row.auditPageUrl }),
-          status: row.status,
-          reason: row.reason,
-          checkedAt: row.checkedAt,
-          ...(row.suggestedFix && { suggestedFix: row.suggestedFix }),
-        })),
+        .map((row) => {
+          const status = seoIndexReviewState(row);
+          return {
+            pageUrl: row.pageUrl,
+            ...(row.auditPageUrl && { auditPageUrl: row.auditPageUrl }),
+            status,
+            reason: row.reason,
+            checkedAt: row.checkedAt,
+            ...(status !== "unknown" &&
+              row.suggestedFix && { suggestedFix: row.suggestedFix }),
+          };
+        }),
     }),
     observations: workspace.observations
       .slice(0, SEO_CHAT_COLLECTION_LIMIT)

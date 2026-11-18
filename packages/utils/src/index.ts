@@ -489,6 +489,8 @@ export {
 } from "./seo-google-events.js";
 export {
   newerSeoAuditVerdict,
+  seoIndexReviewState,
+  seoInspectionCrawlTime,
   seoInspectionEvidence,
 } from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";

@@ -75,6 +75,65 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("gives only personal chat a confirmed unknown when Google answered after its last known verdict", () => {
+    const workspace = workspaceFixture();
+    const pageUrl = workspace.pages[0].url;
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl,
+          verdict: "PASS",
+          coverageState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+          robotsTxtState: null,
+          checkedAt: "2026-11-15T08:00:00Z",
+        },
+      ],
+    };
+    const shared = seoChatContext(workspace, "organization");
+    const bare = {
+      pageUrl,
+      taskId: randomUUID(),
+      checkedAt: "2026-11-16T08:00:00Z",
+      status: "unavailable" as const,
+      report: false,
+      reason: "Google did not provide an indexing result for this page.",
+      suggestedFix: "Check the Search Console connection",
+      evidence: [],
+    };
+    workspace.indexTriage = { assessments: [bare] };
+    const personal = () => JSON.parse(seoChatContext(workspace, "personal"));
+    expect(personal().pages[0].googleIndex.verdict).toBe("PASS");
+    const confirmed = { ...bare, googleReturnedUnknown: true as const };
+    workspace.indexTriage = { assessments: [confirmed] };
+    expect(personal().pages[0].googleIndex).toMatchObject({
+      verdict: "VERDICT_UNSPECIFIED",
+      checkedAt: bare.checkedAt,
+      coverageState: null,
+      lastCrawlTime: null,
+    });
+    expect(personal().indexingNotes[0].status).toBe("unknown");
+    expect(personal().indexingNotes[0].suggestedFix).toBeUndefined();
+    const crawledAt = "2026-11-13T07:30:00.000Z";
+    workspace.indexTriage = {
+      assessments: [
+        {
+          ...confirmed,
+          evidence: [
+            "Google URL Inspection: VERDICT_UNSPECIFIED; Coverage pending.",
+            `Google last crawled this URL at ${crawledAt}.`,
+          ],
+        },
+      ],
+    };
+    expect(personal().pages[0].googleIndex).toMatchObject({
+      coverageState: "Coverage pending",
+      lastCrawlTime: crawledAt,
+    });
+    expect(seoChatContext(workspace, "organization")).toBe(shared);
+  });
   it("gives only personal chat the selected page's Google verdict and read date, including an explicit unknown", () => {
     const workspace = workspaceFixture();
     const page = workspace.pages[0];
