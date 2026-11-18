@@ -15348,8 +15348,6 @@ export const UserWritableTaskLinkRelation = {
     RELATED: 'related',
     BLOCKS: 'blocks',
     BLOCKED_BY: 'blocked_by',
-    PARENT: 'parent',
-    CHILD: 'child',
     DUPLICATE: 'duplicate'
 } as const;
 
@@ -15471,9 +15469,13 @@ export type TaskWorkspace = {
 
 export type MoveTaskRequest = {
     /**
-     * The sibling sub-task this one goes directly after, or null to make it first.
+     * The Task this one goes under. A different Task attaches it or moves it to that parent, with its own sub-tasks. null detaches it, and it keeps its project. Omitted or equal to the current parent keeps the parent.
      */
-    afterTaskId: string | null;
+    parentTaskId?: string | null;
+    /**
+     * The sibling sub-task this one goes directly after, or null to make it first. Omitted keeps the order, or puts it last under a new parent.
+     */
+    afterTaskId?: string | null;
 };
 
 export type TaskEventsPaginationMetadata = PaginationMetadata & {
@@ -97780,6 +97782,10 @@ export type PostTasksData = {
          * Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.
          */
         runAt?: Date | null;
+        /**
+         * The day the Task should be done by (YYYY-MM-DD). Omitted or null leaves it without one.
+         */
+        dueOn?: string | null;
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
@@ -101887,7 +101893,7 @@ export type PostTasksByIdMoveError = PostTasksByIdMoveErrors[keyof PostTasksById
 
 export type PostTasksByIdMoveResponses = {
     /**
-     * Moved sub-task
+     * Moved Task
      */
     200: {
         data: Task;

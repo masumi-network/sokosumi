@@ -60915,8 +60915,6 @@ export const UserWritableTaskLinkRelationSchema = {
         'related',
         'blocks',
         'blocked_by',
-        'parent',
-        'child',
         'duplicate'
     ],
     example: 'blocked_by'
@@ -61466,18 +61464,23 @@ export const TaskWorkspaceSchema = {
 export const MoveTaskRequestSchema = {
     type: 'object',
     properties: {
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one goes under. A different Task attaches it or moves it to that parent, with its own sub-tasks. null detaches it, and it keeps its project. Omitted or equal to the current parent keeps the parent.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
         afterTaskId: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'The sibling sub-task this one goes directly after, or null to make it first.',
+            description: 'The sibling sub-task this one goes directly after, or null to make it first. Omitted keeps the order, or puts it last under a new parent.',
             example: '01960001-0001-7001-8001-000000000003'
         }
-    },
-    required: [
-        'afterTaskId'
-    ]
+    }
 } as const;
 
 export const TaskEventsPaginationMetadataSchema = {

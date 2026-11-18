@@ -7705,7 +7705,7 @@ export const getTasksByIdLinks = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Create a link between this task and another task
+ * Create a link between this task and another task. A parent or child relation returns 400: a parent is now a sub-task, set with POST /v1/tasks/{id}/move.
  */
 export const postTasksByIdLinks = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdLinksData, ThrowOnError>): RequestResult<PostTasksByIdLinksResponses, PostTasksByIdLinksErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdLinksResponses, PostTasksByIdLinksErrors, ThrowOnError>({
     responseTransformer: postTasksByIdLinksResponseTransformer,
@@ -7727,7 +7727,7 @@ export const deleteTasksByIdLinksByLinkId = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Update a link between this task and another task.
+ * Update a link between this task and another task. A parent or child relation returns 400: a parent is now a sub-task, set with POST /v1/tasks/{id}/move.
  */
 export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdLinksByLinkIdData, ThrowOnError>): RequestResult<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdLinksByLinkIdResponseTransformer,
@@ -7921,7 +7921,7 @@ export const postTasksByIdRestore = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Reorder a sub-task among its parent's sub-tasks, in any status. Same access as editing the Task. The parent never changes.
+ * Move a Task in the sub-task tree, in any status. Same access as editing the Task, and on the new parent. Reorders a sub-task among its siblings, attaches a Task under a parent or moves it to another parent, or detaches it. A Task under a parent in another Project moves to that Project, with its sub-tasks. The parent must be in the same workspace and have the same visibility.
  */
 export const postTasksByIdMove = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdMoveData, ThrowOnError>): RequestResult<PostTasksByIdMoveResponses, PostTasksByIdMoveErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdMoveResponses, PostTasksByIdMoveErrors, ThrowOnError>({
     responseTransformer: postTasksByIdMoveResponseTransformer,
