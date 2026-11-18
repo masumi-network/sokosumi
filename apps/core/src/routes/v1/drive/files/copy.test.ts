@@ -7,9 +7,13 @@ import type { AuthenticationContext } from "@/middleware/auth";
 /**
  * Make a copy: a second, independent file beside the first.
  *
- * The copy must never go through rename (copy-then-delete), must leave the
- * source in place, must get its own catalog identity so its tags, links and
- * deletion are its own, and must not buy paid label evaluations.
+ * The copy never goes through rename (copy-then-delete) and leaves the source
+ * in place. Its catalog identity is reserved before its bytes exist, so a
+ * backfill or a retry finds the owner, and nothing ever deletes bytes. It
+ * never buys a paid label evaluation.
+ *
+ * The catalog and Blob store are modelled with state, so a failure followed
+ * by a retry is checked against what the first request left behind.
  */
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -36,35 +40,32 @@ const blob = vi.hoisted(() => ({
 
 vi.mock("@vercel/blob", () => ({ ...blob, BlobNotFoundError }));
 
-const db = vi.hoisted(() => ({
-  rooms: vi.fn(),
-  findUnique: vi.fn(),
+const rooms = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/db/prisma", () => ({
+  default: { dataRoom: { findMany: rooms } },
 }));
 
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
-    dataRoom: { findMany: db.rooms },
-    fileResource: { findUnique: db.findUnique },
-  };
-  return {
-    default: {
-      ...client,
-      $transaction: async (fn: (tx: typeof client) => unknown) => fn(client),
-    },
-  };
-});
+const catalog = vi.hoisted(() => ({
+  reserve: vi.fn(),
+  holder: vi.fn(),
+  activate: vi.fn(),
+  adopt: vi.fn(),
+}));
 
-const { adoptMock, requireAccessMock, nudgeExtraction, nudgeIndexing } =
-  vi.hoisted(() => ({
-    adoptMock: vi.fn(),
+vi.mock("@/services/file-catalog.service", () => ({
+  reserveDriveCopyResource: catalog.reserve,
+  driveCopyHolder: catalog.holder,
+  activateDriveUploadResource: catalog.activate,
+  adoptDriveUploadResource: catalog.adopt,
+}));
+
+const { requireAccessMock, nudgeExtraction, nudgeIndexing } = vi.hoisted(
+  () => ({
     requireAccessMock: vi.fn(),
     nudgeExtraction: vi.fn(),
     nudgeIndexing: vi.fn(),
-  }));
-
-vi.mock("@/services/file-catalog.service", () => ({
-  adoptDriveUploadResource: adoptMock,
-}));
+  }),
+);
 
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileExtraction: nudgeExtraction,
@@ -96,7 +97,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 
 import { forgetDriveRooms } from "@/lib/drive-blob";
-import mountCopy from "./copy.js";
+import mountCopy, { copyName } from "./copy.js";
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
@@ -123,75 +124,118 @@ function copyRequest(body: Record<string, unknown>) {
 
 const FOLDER = "drive/users/user_123/briefs/";
 const SOURCE = `${FOLDER}weekly.md`;
+const TARGET = `${FOLDER}weekly (copy).md`;
 const SOURCE_META = {
-  pathname: SOURCE,
   contentType: "text/markdown",
   cacheControl: "public, max-age=60",
   size: 42,
   uploadedAt: new Date("2026-11-01T00:00:00Z"),
 };
 
-/** Blobs that exist, by pathname, and which store holds each. */
-let stored: Map<string, "public-token" | "private-token">;
+type Token = "public-token" | "private-token";
+/** Objects that exist, by pathname, and the store each is in. */
+let stored: Map<string, Token>;
+/** Catalog rows by pathname. `copy` marks a reserved copy's pins. */
+let rows: Map<string, { id: string; active: boolean; copy: boolean }>;
+/** Order of side effects, to check identity comes before bytes. */
+let events: string[];
 
 beforeEach(() => {
   vi.clearAllMocks();
   forgetDriveRooms();
   stored = new Map([[SOURCE, "public-token"]]);
-  db.rooms.mockResolvedValue([]);
-  db.findUnique.mockResolvedValue(null);
+  rows = new Map();
+  events = [];
+  rooms.mockResolvedValue([]);
   requireAccessMock.mockResolvedValue({ hiddenRoomFolders: [] });
   blob.list.mockResolvedValue({ blobs: [], hasMore: false });
-  blob.del.mockResolvedValue(undefined);
-  adoptMock.mockResolvedValue("resource-copy");
   blob.head.mockImplementation(
     async (pathname: string, { token }: { token: string }) => {
-      if (stored.get(pathname) === token) return { ...SOURCE_META, pathname };
+      if (stored.get(pathname) === token)
+        return {
+          ...SOURCE_META,
+          pathname,
+          url: `https://blob.example/${pathname}`,
+        };
       throw new BlobNotFoundError("gone");
     },
   );
-  blob.copy.mockImplementation(async (_from: string, to: string) => ({
-    url: `https://store.public.blob.vercel-storage.com/${to}`,
-    pathname: to,
-  }));
+  blob.copy.mockImplementation(
+    async (_from: string, to: string, { token }: { token: Token }) => {
+      if (stored.has(to)) throw new Error("This blob already exists");
+      stored.set(to, token);
+      events.push(`bytes:${to}`);
+      return { url: `https://blob.example/${to}`, pathname: to };
+    },
+  );
   blob.get.mockResolvedValue({ statusCode: 200, stream: "bytes", blob: {} });
-  blob.put.mockImplementation(async (to: string) => ({
-    url: `https://store.private.blob.vercel-storage.com/${to}`,
-    pathname: to,
-  }));
+  blob.put.mockImplementation(
+    async (to: string, _body: unknown, { token }: { token: Token }) => {
+      stored.set(to, token);
+      events.push(`bytes:${to}`);
+      return { url: `https://blob.example/${to}`, pathname: to };
+    },
+  );
+  catalog.holder.mockImplementation(async ({ pathname }) => {
+    const row = rows.get(pathname);
+    if (!row) return "free";
+    return !row.active && row.copy ? "unfinished-copy" : "taken";
+  });
+  catalog.reserve.mockImplementation(async ({ key }) => {
+    if (rows.has(key.pathname))
+      throw Object.assign(new Error("Unique constraint"), { code: "P2002" });
+    rows.set(key.pathname, {
+      id: `res-${rows.size + 1}`,
+      active: false,
+      copy: true,
+    });
+    events.push(`reserve:${key.pathname}`);
+    return rows.get(key.pathname)?.id;
+  });
+  catalog.activate.mockImplementation(async ({ key }) => {
+    const row = rows.get(key.pathname);
+    if (!row) return null;
+    row.active = true;
+    events.push(`activate:${key.pathname}`);
+    return { resourceId: row.id };
+  });
 });
 
 describe("copy a Drive file", () => {
-  it("copies into the same folder, keeps the source, and catalogs the copy", async () => {
+  it("reserves identity, then copies, then activates, and keeps the source", async () => {
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(response.status).toBe(200);
-    const target = `${FOLDER}weekly (copy).md`;
+    expect(events).toEqual([
+      `reserve:${TARGET}`,
+      `bytes:${TARGET}`,
+      `activate:${TARGET}`,
+    ]);
+    expect(catalog.reserve).toHaveBeenCalledWith({
+      key: {
+        workspaceId: "workspace-1",
+        scope: "user",
+        ownerId: "user_123",
+        pathname: TARGET,
+      },
+      displayName: "weekly (copy).md",
+      mimeType: "text/markdown",
+      sizeBytes: 42,
+      decidedByUserId: "user_123",
+    });
     expect(blob.copy).toHaveBeenCalledWith(
       SOURCE,
-      target,
+      TARGET,
       expect.objectContaining({
         token: "public-token",
         addRandomSuffix: false,
         allowOverwrite: false,
-        contentType: "text/markdown",
       }),
     );
+    expect(stored.has(SOURCE)).toBe(true);
     expect(blob.rename).not.toHaveBeenCalled();
     expect(blob.del).not.toHaveBeenCalled();
-    expect(adoptMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        key: {
-          workspaceId: "workspace-1",
-          scope: "user",
-          ownerId: "user_123",
-          pathname: target,
-        },
-        displayName: "weekly (copy).md",
-        sizeBytes: 42,
-        client: expect.anything(),
-      }),
-    );
+    expect(catalog.adopt).not.toHaveBeenCalled();
     expect(requireAccessMock).toHaveBeenCalledWith(
       USER_AUTH_CONTEXT,
       "user",
@@ -201,8 +245,9 @@ describe("copy a Drive file", () => {
     const json = await response.json();
     expect(json.data).toMatchObject({
       name: "weekly (copy).md",
-      pathname: target,
-      resourceId: "resource-copy",
+      pathname: TARGET,
+      resourceId: "res-1",
+      dataRoom: false,
     });
   });
 
@@ -213,8 +258,8 @@ describe("copy a Drive file", () => {
     expect(nudgeIndexing).not.toHaveBeenCalled();
   });
 
-  it("numbers the copy when that name is taken by a file", async () => {
-    stored.set(`${FOLDER}weekly (copy).md`, "public-token");
+  it("numbers the copy when a file holds that name", async () => {
+    stored.set(TARGET, "public-token");
 
     await copyRequest({ pathname: SOURCE, label: "copy" });
 
@@ -225,16 +270,26 @@ describe("copy a Drive file", () => {
     );
   });
 
-  it("numbers the copy when the catalog still holds that name", async () => {
-    db.findUnique.mockImplementation(
-      async ({ where }: { where: Record<string, { sourceId: string }> }) =>
-        Object.values(where)[0].sourceId === `${FOLDER}weekly (copy).md`
-          ? { id: "old-document" }
-          : null,
-    );
+  it("numbers the copy when another document holds that name in the catalog", async () => {
+    rows.set(TARGET, { id: "someone-else", active: true, copy: false });
 
     await copyRequest({ pathname: SOURCE, label: "copy" });
 
+    expect(blob.copy).toHaveBeenCalledWith(
+      SOURCE,
+      `${FOLDER}weekly (copy) 2.md`,
+      expect.anything(),
+    );
+  });
+
+  it("takes the next name when another request reserves this one first", async () => {
+    catalog.reserve.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint"), { code: "P2002" }),
+    );
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(200);
     expect(blob.copy).toHaveBeenCalledWith(
       SOURCE,
       `${FOLDER}weekly (copy) 2.md`,
@@ -249,8 +304,8 @@ describe("copy a Drive file", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(catalog.reserve).not.toHaveBeenCalled();
     expect(blob.copy).not.toHaveBeenCalled();
-    expect(adoptMock).not.toHaveBeenCalled();
   });
 
   it("writes nothing when access is denied", async () => {
@@ -260,9 +315,88 @@ describe("copy a Drive file", () => {
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(response.status).toBe(403);
+    expect(catalog.reserve).not.toHaveBeenCalled();
     expect(blob.copy).not.toHaveBeenCalled();
     expect(blob.put).not.toHaveBeenCalled();
-    expect(adoptMock).not.toHaveBeenCalled();
+    expect(catalog.activate).not.toHaveBeenCalled();
+  });
+});
+
+describe("failures leave an unfinished copy that a retry finishes", () => {
+  it("finishes the same copy when activation failed after the bytes landed", async () => {
+    catalog.activate.mockRejectedValueOnce(new Error("database down"));
+
+    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(failed.status).toBe(500);
+    expect(stored.has(TARGET)).toBe(true);
+    expect(blob.del).not.toHaveBeenCalled();
+
+    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(retried.status).toBe(200);
+    expect(blob.copy).toHaveBeenCalledTimes(1);
+    expect(catalog.reserve).toHaveBeenCalledTimes(1);
+    expect(rows.get(TARGET)).toEqual({ id: "res-1", active: true, copy: true });
+    expect((await retried.json()).data.pathname).toBe(TARGET);
+    expect([...stored.keys()].filter((key) => key !== SOURCE)).toEqual([
+      TARGET,
+    ]);
+  });
+
+  it("finishes the same copy when the byte copy failed after the reservation", async () => {
+    blob.copy.mockRejectedValueOnce(new Error("Blob service unavailable"));
+
+    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(failed.status).toBe(500);
+    expect(rows.get(TARGET)?.active).toBe(false);
+
+    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(retried.status).toBe(200);
+    expect(catalog.reserve).toHaveBeenCalledTimes(1);
+    expect(stored.has(TARGET)).toBe(true);
+    expect(rows.get(TARGET)?.active).toBe(true);
+  });
+
+  it("keeps the identity when a backfill adopts the bytes before activation", async () => {
+    blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
+      stored.set(to, "public-token");
+      // The backfill sees the object and activates the reserved row.
+      const row = rows.get(to);
+      if (row) row.active = true;
+      return { url: `https://blob.example/${to}`, pathname: to };
+    });
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.resourceId).toBe("res-1");
+    expect(stored.has(TARGET)).toBe(true);
+    expect(blob.del).not.toHaveBeenCalled();
+    expect(catalog.adopt).not.toHaveBeenCalled();
+  });
+
+  it("uses the bytes a concurrent try wrote first", async () => {
+    rows.set(TARGET, { id: "res-9", active: false, copy: true });
+    blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
+      stored.set(to, "public-token");
+      throw new Error("This blob already exists");
+    });
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.resourceId).toBe("res-9");
+  });
+
+  it("returns 409 when the copy was deleted before it was finished", async () => {
+    catalog.activate.mockResolvedValueOnce(null);
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(409);
   });
 });
 
@@ -281,12 +415,11 @@ describe("names", () => {
     const response = await copyRequest({ pathname: marker, label: "copy" });
 
     expect(response.status).toBe(422);
-    expect(blob.copy).not.toHaveBeenCalled();
+    expect(catalog.reserve).not.toHaveBeenCalled();
   });
 
   it("trims a long name's stem to keep the label, number and extension", async () => {
-    const stem = "a".repeat(252);
-    const source = `${FOLDER}${stem}.md`;
+    const source = `${FOLDER}${"a".repeat(252)}.md`;
     stored.set(source, "public-token");
     stored.set(`${FOLDER}${"a".repeat(245)} (copy).md`, "public-token");
 
@@ -302,59 +435,39 @@ describe("names", () => {
     );
   });
 
-  it("gives each numbered try of a 255-character name its own name", async () => {
-    const source = `${FOLDER}${"b".repeat(255)}`;
-    stored.set(source, "public-token");
-    const first = `${"b".repeat(248)} (copy)`;
-    stored.set(`${FOLDER}${first}`, "public-token");
+  it("gives each numbered try of a 255-character name its own name", () => {
+    const source = "b".repeat(255);
+    const first = copyName(source, "copy", 1);
+    const second = copyName(source, "copy", 2);
 
-    await copyRequest({ pathname: source, label: "copy" });
-
-    const target = `${FOLDER}${"b".repeat(246)} (copy) 2`;
-    expect(target.length - FOLDER.length).toBe(255);
-    expect(blob.copy).toHaveBeenCalledWith(source, target, expect.anything());
-  });
-});
-
-describe("a failed catalog write", () => {
-  it("removes the copied bytes, so a retry gets the same name", async () => {
-    adoptMock.mockRejectedValueOnce(new Error("database down"));
-
-    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
-
-    expect(failed.status).toBe(500);
-    const target = `${FOLDER}weekly (copy).md`;
-    expect(blob.del).toHaveBeenCalledWith(target, { token: "public-token" });
-
-    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
-
-    expect(retried.status).toBe(200);
-    expect(blob.copy).toHaveBeenLastCalledWith(
-      SOURCE,
-      target,
-      expect.anything(),
-    );
+    expect(first).toBe(`${"b".repeat(248)} (copy)`);
+    expect(second).toBe(`${"b".repeat(246)} (copy) 2`);
+    expect(first).toHaveLength(255);
+    expect(second).toHaveLength(255);
   });
 
-  it("returns 409 and removes the bytes when another request took the name", async () => {
-    adoptMock.mockRejectedValueOnce(
-      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
-    );
+  it("never splits an emoji at the trim boundary", () => {
+    // 247 letters then an emoji (two UTF-16 units): one unit over the room.
+    const source = `${"c".repeat(247)}😀.md`;
 
-    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+    const name = copyName(source, "copy", 1);
 
-    expect(response.status).toBe(409);
-    expect(blob.del).toHaveBeenCalledWith(`${FOLDER}weekly (copy).md`, {
-      token: "public-token",
-    });
+    expect(name).toBe(`${"c".repeat(245)} (copy).md`);
+    expect(name.isWellFormed()).toBe(true);
+    expect(name.length).toBeLessThanOrEqual(255);
+  });
+
+  it("keeps a whole emoji when it fits", () => {
+    const name = copyName(`${"c".repeat(240)}😀.md`, "copy", 1);
+
+    expect(name).toBe(`${"c".repeat(240)}😀 (copy).md`);
+    expect(name.isWellFormed()).toBe(true);
   });
 });
 
 describe("a data room moving between stores", () => {
   it("reads a source still in the public store while the room moves in", async () => {
-    db.rooms.mockResolvedValue([
-      { folderPath: "briefs", storage: "MOVING_IN" },
-    ]);
+    rooms.mockResolvedValue([{ folderPath: "briefs", storage: "MOVING_IN" }]);
 
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
@@ -364,7 +477,7 @@ describe("a data room moving between stores", () => {
       token: "public-token",
     });
     expect(blob.put).toHaveBeenCalledWith(
-      `${FOLDER}weekly (copy).md`,
+      TARGET,
       "bytes",
       expect.objectContaining({
         access: "private",
@@ -373,15 +486,12 @@ describe("a data room moving between stores", () => {
       }),
     );
     expect(blob.del).not.toHaveBeenCalled();
-    const json = await response.json();
-    expect(json.data.dataRoom).toBe(true);
+    expect((await response.json()).data.dataRoom).toBe(true);
   });
 
   it("reads a source still in the private store while the room moves out", async () => {
     stored.set(SOURCE, "private-token");
-    db.rooms.mockResolvedValue([
-      { folderPath: "briefs", storage: "MOVING_OUT" },
-    ]);
+    rooms.mockResolvedValue([{ folderPath: "briefs", storage: "MOVING_OUT" }]);
 
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
@@ -391,7 +501,7 @@ describe("a data room moving between stores", () => {
       token: "private-token",
     });
     expect(blob.put).toHaveBeenCalledWith(
-      `${FOLDER}weekly (copy).md`,
+      TARGET,
       "bytes",
       expect.objectContaining({ access: "public", token: "public-token" }),
     );

@@ -1,5 +1,6 @@
 import {
   FileExtractionState,
+  FileFieldOverrideDecision,
   FileIndexJobPipeline,
   FileResourceLifecycle,
   FileSourceKind,
@@ -126,6 +127,113 @@ export async function reserveDriveUploadResource(input: {
 
     return { resourceId: resource.id, versionId: resource.versions[0].id };
   });
+}
+
+/** Fields a copy pins empty, so no model is ever paid to label it. */
+const COPY_PINNED_FIELDS = ["category", "tags"] as const;
+
+/**
+ * Reserve identity for a Drive copy before its bytes exist, so whoever sees
+ * the object first (this request, a retry, or the backfill) finds its owner.
+ *
+ * A plain create, never the replace-a-version path: a name another document
+ * holds fails with P2002 and the caller tries the next name.
+ *
+ * Category and tags are pinned empty. Labelling is a paid model call, and
+ * a copy must stay free through extraction, the SUGGEST job it enqueues and
+ * the missing-suggestion sweep: each of those finds nothing left to ask.
+ * The reader can lift the pin from the file's details like any other.
+ */
+export async function reserveDriveCopyResource(input: {
+  key: DriveResourceKey;
+  displayName: string;
+  mimeType: string;
+  sizeBytes: number;
+  decidedByUserId: string;
+}): Promise<string> {
+  const { key } = input;
+  const sourceScope = toSourceScope(key.scope);
+
+  return prisma.$transaction(async (tx) => {
+    const scope = await ensureEvidenceScope(
+      {
+        workspaceId: key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope,
+        sourceId: key.ownerId,
+      },
+      tx,
+    );
+    const resource = await tx.fileResource.create({
+      data: {
+        workspaceId: key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope,
+        sourceId: key.pathname,
+        ownerUserId: key.scope === "user" ? key.ownerId : null,
+        ownerOrganizationId: key.scope === "organization" ? key.ownerId : null,
+        displayName: input.displayName,
+        normalizedName: normalizeFileResourceName(input.displayName),
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        lifecycle: FileResourceLifecycle.PENDING,
+        versions: {
+          create: {
+            revision: 1,
+            objectKey: key.pathname,
+            sizeBytes: input.sizeBytes,
+            mimeType: input.mimeType,
+          },
+        },
+      },
+      select: { id: true },
+    });
+    await tx.fileFieldOverride.createMany({
+      data: COPY_PINNED_FIELDS.map((field) => ({
+        resourceId: resource.id,
+        field,
+        labelId: null,
+        decision: FileFieldOverrideDecision.PIN,
+        evidenceScopeId: scope.id,
+        contentRevision: 1,
+        vocabularyVersion: 1,
+        decidedByUserId: input.decidedByUserId,
+      })),
+    });
+    return resource.id;
+  });
+}
+
+/**
+ * What holds a pathname in the catalog: nothing, an unfinished copy that a
+ * retry may finish, or anything else, which takes the name.
+ */
+export async function driveCopyHolder(
+  key: DriveResourceKey,
+): Promise<"free" | "unfinished-copy" | "taken"> {
+  const resource = await prisma.fileResource.findUnique({
+    where: {
+      workspaceId_sourceKind_sourceScope_sourceId: {
+        workspaceId: key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope: toSourceScope(key.scope),
+        sourceId: key.pathname,
+      },
+    },
+    select: {
+      lifecycle: true,
+      overrides: {
+        where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+  if (!resource) return "free";
+  return resource.lifecycle === FileResourceLifecycle.PENDING &&
+    resource.overrides.length > 0
+    ? "unfinished-copy"
+    : "taken";
 }
 
 /**

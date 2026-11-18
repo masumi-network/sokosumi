@@ -1,10 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
-import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import {
   DRIVE_FILE_MAX_NAME_LENGTH,
   isDriveFolderMarker,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, del } from "@vercel/blob";
+import { BlobNotFoundError } from "@vercel/blob";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
@@ -17,7 +16,6 @@ import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   driveCopy,
   driveExists,
@@ -33,7 +31,11 @@ import {
   copiedDriveFileSchema,
   copyDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
-import { adoptDriveUploadResource } from "@/services/file-catalog.service";
+import {
+  activateDriveUploadResource,
+  driveCopyHolder,
+  reserveDriveCopyResource,
+} from "@/services/file-catalog.service";
 
 /** Names tried ("x (copy)", "x (copy) 2" … 20) before the copy gives up with 409. */
 const MAX_NAME_TRIES = 20;
@@ -45,7 +47,8 @@ const route = withCoworkerContextHeaderParameters(
     description: [
       "Make a copy of a Drive file in the same folder.",
       "The source stays. The copy is a new document with its own catalog id;",
-      "tags, links and shares are not copied. It is named",
+      "tags, links and shares are not copied, and its category and tags are",
+      "pinned empty so no paid model labels it. It is named",
       "`<name> (<label>).<ext>`, numbered when taken.",
       "Personal: owner only. Organization: any member.",
     ].join("\n"),
@@ -74,7 +77,8 @@ const route = withCoworkerContextHeaderParameters(
 /**
  * `weekly.md`, "copy", try 2 → `weekly (copy) 2.md`. A long stem is trimmed,
  * never the label, number or extension, so every try is a different name
- * within the length limit.
+ * within the length limit. Trims whole code points, so an emoji is kept or
+ * dropped, never split into half a surrogate pair.
  */
 export function copyName(source: string, label: string, attempt: number) {
   const tail = ` (${label})${attempt === 1 ? "" : ` ${attempt}`}`;
@@ -83,8 +87,14 @@ export function copyName(source: string, label: string, attempt: number) {
     dot > 0 && source.length - dot + tail.length < DRIVE_FILE_MAX_NAME_LENGTH;
   const stem = hasExtension ? source.slice(0, dot) : source;
   const extension = hasExtension ? source.slice(dot) : "";
-  const room = DRIVE_FILE_MAX_NAME_LENGTH - tail.length - extension.length;
-  return `${stem.slice(0, room)}${tail}${extension}`;
+  let room = DRIVE_FILE_MAX_NAME_LENGTH - tail.length - extension.length;
+  let kept = "";
+  for (const character of stem) {
+    room -= character.length;
+    if (room < 0) break;
+    kept += character;
+  }
+  return `${kept}${tail}${extension}`;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -120,98 +130,79 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope: scope === "user" ? "me" : "org",
       organizationId: scope === "organization" ? ownerId : undefined,
     });
-    const catalogKey = (target: string) => ({
-      workspaceId_sourceKind_sourceScope_sourceId: {
-        workspaceId: workspace.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope:
-          scope === "user"
-            ? FileSourceScope.USER
-            : FileSourceScope.ORGANIZATION,
-        sourceId: target,
-      },
+    const key = (target: string) => ({
+      workspaceId: workspace.workspaceId,
+      scope,
+      ownerId,
+      pathname: target,
     });
 
-    // A name is free when no object, folder or catalog entry holds it: a
-    // catalog entry left at a path would hand the copy someone else's
-    // identity and tags.
+    // The catalog owns the name before the bytes exist, so a backfill that
+    // sees the object adopts this identity instead of minting another, and
+    // a failure leaves an unfinished copy that the next try finishes rather
+    // than bytes nobody owns.
     const sourceName = pathname.slice(folderPrefix.length);
-    let name: string | null = null;
-    for (let attempt = 1; attempt <= MAX_NAME_TRIES && !name; attempt++) {
-      const candidate = copyName(sourceName, label, attempt);
-      const target = `${folderPrefix}${candidate}`;
-      const taken =
-        (await driveExists(target)) ||
-        (await driveHasAny(`${target}/`)) ||
-        (await prisma.fileResource.findUnique({
-          where: catalogKey(target),
-          select: { id: true },
-        }));
-      if (!taken) name = candidate;
-    }
-    if (!name) throw conflict("No free name for the copy");
-
-    let copied: Awaited<ReturnType<typeof driveCopy>>;
-    try {
-      copied = await driveCopy(source, `${folderPrefix}${name}`, {
-        cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
-      });
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-        throw notFound("Source file not found");
-      }
-      if (
-        error instanceof Error &&
-        error.message.toLowerCase().includes("already exists")
+    let target: string | null = null;
+    for (let attempt = 1; attempt <= MAX_NAME_TRIES && !target; attempt++) {
+      const candidate = `${folderPrefix}${copyName(sourceName, label, attempt)}`;
+      const holder = await driveCopyHolder(key(candidate));
+      if (holder === "unfinished-copy") {
+        target = candidate;
+      } else if (
+        holder === "free" &&
+        !(await driveExists(candidate)) &&
+        !(await driveHasAny(`${candidate}/`))
       ) {
-        throw conflict("Target pathname already exists");
-      }
-      throw error;
-    }
-
-    // A new document, not a second name for an old one: its own id, so tags,
-    // project links and deletion never reach the source. Identity and its
-    // extraction job land together or not at all; without them the bytes go
-    // too, so a retry finds the same name free.
-    let resourceId: string;
-    try {
-      resourceId = await prisma.$transaction(async (tx) => {
-        if (
-          await tx.fileResource.findUnique({
-            where: catalogKey(copied.pathname),
-            select: { id: true },
-          })
-        ) {
-          throw Object.assign(new Error("Catalog entry exists"), {
-            code: "P2002",
+        try {
+          await reserveDriveCopyResource({
+            key: key(candidate),
+            displayName: candidate.slice(folderPrefix.length),
+            mimeType: source.contentType,
+            sizeBytes: source.size,
+            decidedByUserId: userContext.userId,
           });
+          target = candidate;
+        } catch (error) {
+          // Another request reserved this name first.
+          if (!isUniqueViolation(error)) throw error;
         }
-        return adoptDriveUploadResource({
-          key: {
-            workspaceId: workspace.workspaceId,
-            scope,
-            ownerId,
-            pathname: copied.pathname,
-          },
-          displayName: name,
-          mimeType: source.contentType ?? null,
-          sizeBytes: source.size,
-          uploadedAt: new Date(),
-          client: tx,
-        });
-      });
-    } catch (error) {
-      await del(copied.pathname, { token: copied.store.token }).catch(
-        () => undefined,
-      );
-      if (isUniqueViolation(error)) {
-        throw conflict("Another copy took that name; try again");
       }
-      throw error;
+    }
+    if (!target) throw conflict("No free name for the copy");
+    const name = target.slice(folderPrefix.length);
+
+    let copied: { url: string; access: "public" | "private" };
+    const existing = await driveHead(target);
+    if (existing) {
+      // A previous try copied the bytes and stopped before activating.
+      copied = existing;
+    } else {
+      try {
+        const result = await driveCopy(source, target, {
+          cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
+        });
+        copied = { url: result.url, access: result.store.access };
+      } catch (error) {
+        if (error instanceof BlobNotFoundError) {
+          throw notFound("Source file not found");
+        }
+        // A concurrent try of the same unfinished copy wrote it first.
+        const raced = await driveHead(target);
+        if (!raced) throw error;
+        copied = raced;
+      }
     }
 
-    // Extraction only. Labelling is paid, so the copy is labelled by the
-    // scheduled sweep like any other document, never on this request.
+    const activated = await activateDriveUploadResource({
+      key: key(target),
+      sizeBytes: source.size,
+      mimeType: source.contentType,
+    });
+    if (!activated) throw conflict("The copy was deleted; try again");
+
+    // Extraction only, which is free. Labelling is paid, and the copy's
+    // pinned category and tags leave every later suggestion run nothing to
+    // ask (see reserveDriveCopyResource).
     nudgeFileExtraction();
 
     return ok(
@@ -219,11 +210,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       copiedDriveFileSchema.parse({
         name,
         fileUrl: copied.url,
-        pathname: copied.pathname,
+        pathname: target,
         size: source.size,
         uploadedAt: new Date().toISOString(),
-        dataRoom: copied.store.access === "private",
-        resourceId,
+        dataRoom: copied.access === "private",
+        resourceId: activated.resourceId,
       }),
     );
   });

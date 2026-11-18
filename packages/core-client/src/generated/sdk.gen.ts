@@ -2497,7 +2497,8 @@ export const patchDriveFilesMove = <ThrowOnError extends boolean = false>(option
 /**
  * Make a copy of a Drive file in the same folder.
  * The source stays. The copy is a new document with its own catalog id;
- * tags, links and shares are not copied. It is named
+ * tags, links and shares are not copied, and its category and tags are
+ * pinned empty so no paid model labels it. It is named
  * `<name> (<label>).<ext>`, numbered when taken.
  * Personal: owner only. Organization: any member.
  */
