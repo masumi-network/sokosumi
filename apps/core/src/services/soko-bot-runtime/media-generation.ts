@@ -357,6 +357,8 @@ export async function generateTalkingVideo(
       voice: input.voice ?? DEFAULT_TALKING_VIDEO_VOICE,
       languageCode: input.languageCode ?? "en",
       presenter,
+      broll: input.broll,
+      music: input.music,
       idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
     });
   } catch (error) {
