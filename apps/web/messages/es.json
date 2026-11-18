@@ -5648,7 +5648,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -5656,7 +5656,9 @@
       "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
-      "filesFilenameMatch": "Coincide el nombre"
+      "filesFilenameMatch": "Coincide el nombre",
+      "tagsGroup": "Etiquetas",
+      "tagTasksGroup": "Tareas con la etiqueta {tag}"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

@@ -5648,7 +5648,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5656,7 +5656,9 @@
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
-      "filesFilenameMatch": "Treffer im Dateinamen"
+      "filesFilenameMatch": "Treffer im Dateinamen",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Aufgaben mit dem Tag {tag}"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",

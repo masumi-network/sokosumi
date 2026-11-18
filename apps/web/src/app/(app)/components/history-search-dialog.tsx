@@ -1,7 +1,12 @@
 "use client";
 
-import type { FileResource, HistoryItem } from "@sokosumi/core-client";
-import { FileText } from "lucide-react";
+import type {
+  FileResource,
+  HistoryItem,
+  TaskListItem,
+  WorkspaceLabel,
+} from "@sokosumi/core-client";
+import { FileText, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   HistorySearchItemIcon,
@@ -12,6 +17,9 @@ import { getHistorySearchItemHref } from "@/app/components/history-search-item-h
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
+import { useTagSearchGroup } from "@/app/components/use-tag-search-group";
+import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   CommandDialog,
   CommandEmpty,
@@ -33,6 +41,8 @@ interface HistorySearchDialogLabels {
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
+  tagsGroup: string;
+  tagTasksGroup: (tag: string) => string;
 }
 
 interface HistorySearchDialogProps {
@@ -64,6 +74,12 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
+  const { tags, topTag, tasks } = useTagSearchGroup({
+    open,
+    activeOrganizationId,
+    debouncedQuery: query,
+  });
+  const hasOtherResults = tags.length > 0 || files.length > 0;
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -83,6 +99,16 @@ export function HistorySearchDialog({
     router.push(
       `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
     );
+  }
+
+  function handleSelectTag(tag: WorkspaceLabel) {
+    handleOpenChange(false);
+    router.push(`/tasks?tag=${encodeURIComponent(tag.id)}`);
+  }
+
+  function handleSelectTask(task: TaskListItem) {
+    handleOpenChange(false);
+    router.push(taskHref(task));
   }
 
   function handleSelect(item: HistoryItem) {
@@ -113,15 +139,24 @@ export function HistorySearchDialog({
           </div>
         ) : null}
 
-        {!isLoading && error && history.length === 0 ? (
+        {!isLoading && error && history.length === 0 && !hasOtherResults ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {error}
           </div>
         ) : null}
 
-        {!isLoading && !error && history.length === 0 ? (
+        {!isLoading && !error && history.length === 0 && !hasOtherResults ? (
           <CommandEmpty>{labels.empty}</CommandEmpty>
         ) : null}
+
+        <TagSearchGroups
+          tags={tags}
+          topTag={topTag}
+          tasks={tasks}
+          labels={labels}
+          onSelectTag={handleSelectTag}
+          onSelectTask={handleSelectTask}
+        />
 
         {history.length > 0 ? (
           <CommandGroup heading={labels.dialogTitle}>
@@ -187,5 +222,66 @@ export function HistorySearchDialog({
         ) : null}
       </CommandList>
     </CommandDialog>
+  );
+}
+
+interface TagSearchGroupsProps {
+  tags: WorkspaceLabel[];
+  topTag: WorkspaceLabel | undefined;
+  tasks: TaskListItem[];
+  labels: Pick<HistorySearchDialogLabels, "tagsGroup" | "tagTasksGroup">;
+  onSelectTag: (tag: WorkspaceLabel) => void;
+  onSelectTask: (task: TaskListItem) => void;
+}
+
+function TagSearchGroups({
+  tags,
+  topTag,
+  tasks,
+  labels,
+  onSelectTag,
+  onSelectTask,
+}: TagSearchGroupsProps) {
+  return (
+    <>
+      {tags.length > 0 ? (
+        <CommandGroup heading={labels.tagsGroup}>
+          {tags.map((tag) => (
+            <CommandItem
+              key={tag.id}
+              value={`tag:${tag.id}`}
+              onSelect={() => onSelectTag(tag)}
+              className="flex items-center gap-2"
+            >
+              <TaskTagDot
+                id={tag.id}
+                color={tag.color}
+                customColor={tag.customColor}
+                taskTopicId={tag.taskTopicId}
+              />
+              <span className="min-w-0 flex-1 truncate">
+                #{tag.displayName}
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+
+      {topTag && tasks.length > 0 ? (
+        <CommandGroup heading={labels.tagTasksGroup(topTag.displayName)}>
+          {tasks.map((task) => (
+            <CommandItem
+              key={task.id}
+              value={`tag-task:${task.id}`}
+              onSelect={() => onSelectTask(task)}
+              className="flex items-center gap-2"
+            >
+              <ListTodo className="size-4" />
+              <span className="min-w-0 flex-1 truncate">{task.name}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+    </>
   );
 }

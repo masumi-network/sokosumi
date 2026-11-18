@@ -58,6 +58,8 @@ const labels = {
   filesGroup: "Files",
   filesSeeAll: "See all files",
   filesFilenameMatch: "Filename match",
+  tagsGroup: "Tags",
+  tagTasksGroup: (tag: string) => `Tasks tagged ${tag}`,
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {
