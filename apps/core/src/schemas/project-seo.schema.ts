@@ -554,6 +554,7 @@ export const seoIndexTriageSchema = z
           .safeExtend({
             taskId: z.string(),
             checkedAt: dateTimeSchema,
+            googleReturnedUnknown: z.literal(true).optional(),
             auditPageUrl: seoUrlSchema.optional(),
           })
           .openapi("ProjectSeoIndexAssessedPage"),

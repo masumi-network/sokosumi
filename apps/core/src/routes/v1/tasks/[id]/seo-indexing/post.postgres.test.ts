@@ -15,8 +15,12 @@ import {
 } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { seoTaskIndexingReceiptSchema } from "@/schemas/seo-task-indexing.schema";
+import {
+  seoTaskIndexingReceiptSchema,
+  seoTaskIndexingResultSchema,
+} from "@/schemas/seo-task-indexing.schema";
 import { getProjectSeoWorkspace } from "@/services/project-seo.service";
+import { sha256 } from "@/services/project-seo-store";
 import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import {
   createTaskScheduleTestApp,
@@ -171,6 +175,54 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         String(retryable),
       );
     return seoTaskIndexingReceiptSchema.parse((await response.json()).data);
+  }
+
+  async function createPublicAudit() {
+    const owner = {
+      owner: { kind: "audit" as const, id: auditId },
+      workspaceId,
+      organizationId,
+      userId: ownerId,
+    };
+    const query = {
+      pageIds: (
+        await prisma.projectSeoPage.findMany({
+          where: { auditId },
+          select: { id: true },
+        })
+      ).map((page) => page.id),
+    };
+    const publicAudit = await prisma.projectSeoObservation.create({
+      data: {
+        auditId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        sourceKey: randomUUID(),
+        sourceTaskId: taskId,
+        pageIds: query.pageIds,
+        scopeVersion: 0,
+        artifactHash: "public-audit-fixture",
+        observedAt: new Date(),
+        payload: {
+          version: 1,
+          kind: "audit_full",
+          requestId: null,
+          pageUrls: PAGE_URLS,
+          observedAt: new Date().toISOString(),
+          countryCode: "US",
+          languageCode: "en",
+          rulebookVersion: "fixture",
+          checks: [],
+          keywords: [],
+          competitors: [],
+          findings: [],
+          actions: [],
+          coverage: { checked: 0, skipped: 0, failed: 0 },
+          notes: [],
+        },
+      },
+    });
+    return { owner, query, publicAudit };
   }
 
   beforeAll(async () => {
@@ -1325,6 +1377,101 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     expect(result).not.toHaveProperty("answeredUnknownPageUrls");
   });
 
+  it.each(["new", "legacy"])(
+    "projects only Core-verified unknowns for a %s assessment",
+    async (format) => {
+      providerHook = async (slug, args) => {
+        if (slug !== INSPECT_TOOL) return null;
+        return args.inspection_url === PAGE_URLS[0]
+          ? Response.json({
+              successful: true,
+              data: {
+                inspectionResult: {
+                  indexStatusResult: { verdict: "VERDICT_UNSPECIFIED" },
+                },
+              },
+            })
+          : Response.json({ successful: false }, { status: 503 });
+      };
+      const first = await receipt({}, true);
+      const input = {
+        receiptHash: first.receiptHash,
+        assessments: PAGE_URLS.map((pageUrl) => ({
+          ...assessment(pageUrl),
+          status: "unavailable",
+          evidence: [
+            "Google URL Inspection: VERDICT_UNSPECIFIED; no coverage reason returned.",
+          ],
+        })),
+      };
+      expect(
+        (
+          await request({
+            ...input,
+            assessments: input.assessments.map((page) => ({
+              ...page,
+              googleReturnedUnknown: true,
+            })),
+          })
+        ).status,
+      ).toBe(422);
+      expect((await request(input)).status).toBe(200);
+      const saved = await prisma.projectSeoObservation.findFirstOrThrow({
+        where: { auditId, sourceTaskId: taskId, kind: "index_triage" },
+      });
+      if (format === "legacy") {
+        const legacy = seoTaskIndexingResultSchema.parse(saved.payload);
+        legacy.assessments = legacy.assessments.map(
+          ({ googleReturnedUnknown: _proof, ...page }) => page,
+        );
+        const artifactHash = sha256(JSON.stringify(legacy));
+        await prisma.projectSeoObservation.update({
+          where: { id: saved.id },
+          data: { payload: legacy, artifactHash },
+        });
+        expect((await request(input)).status).toBe(200);
+        expect(
+          (
+            await prisma.projectSeoObservation.findUniqueOrThrow({
+              where: { id: saved.id },
+            })
+          ).artifactHash,
+        ).toBe(artifactHash);
+        expect((await receipt({}, true)).assessmentSaved).toBe(true);
+      }
+      const { owner, query } = await createPublicAudit();
+      const view = async () =>
+        (
+          await getProjectSeoWorkspace(owner, query)
+        ).indexTriage?.assessments.map((page) =>
+          Object.hasOwn(page, "googleReturnedUnknown"),
+        );
+      expect(await view()).toEqual([true, false]);
+      if (format === "legacy") {
+        const originalReceipt =
+          await prisma.projectSeoObservation.findFirstOrThrow({
+            where: { auditId, sourceTaskId: taskId, kind: "index_inspection" },
+          });
+        await prisma.projectSeoObservation.update({
+          where: { id: originalReceipt.id },
+          data: { scopeVersion: originalReceipt.scopeVersion + 1 },
+        });
+        expect(await view()).toEqual([false, false]);
+        await prisma.projectSeoObservation.update({
+          where: { id: originalReceipt.id },
+          data: { scopeVersion: originalReceipt.scopeVersion },
+        });
+      }
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.parse(first.checkedAt) + 60 * 60 * 1000 + 1);
+      providerHook = undefined;
+      const replacement = await receipt({}, false);
+      expect(replacement.receiptHash).not.toBe(first.receiptHash);
+      // A new receipt is not proof of an earlier assessment. New immutable results keep their original proof.
+      expect(await view()).toEqual([format === "new", false]);
+    },
+  );
+
   it("preserves previously verified pages through a permission lookup outage and rereads them for another property", async () => {
     const first = await receipt({}, false);
     providerHook = async (slug) =>
@@ -1519,50 +1666,7 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         })
       ).status,
     ).toBe(200);
-    const owner = {
-      owner: { kind: "audit" as const, id: auditId },
-      workspaceId,
-      organizationId,
-      userId: ownerId,
-    };
-    const query = {
-      pageIds: (
-        await prisma.projectSeoPage.findMany({
-          where: { auditId },
-          select: { id: true },
-        })
-      ).map((page) => page.id),
-    };
-    const publicAudit = await prisma.projectSeoObservation.create({
-      data: {
-        auditId,
-        kind: "audit_full",
-        source: "seo_coworker",
-        sourceKey: randomUUID(),
-        sourceTaskId: taskId,
-        pageIds: query.pageIds,
-        scopeVersion: 0,
-        artifactHash: "public-audit-fixture",
-        observedAt: new Date(),
-        payload: {
-          version: 1,
-          kind: "audit_full",
-          requestId: null,
-          pageUrls: PAGE_URLS,
-          observedAt: new Date().toISOString(),
-          countryCode: "US",
-          languageCode: "en",
-          rulebookVersion: "fixture",
-          checks: [],
-          keywords: [],
-          competitors: [],
-          findings: [],
-          actions: [],
-          coverage: { checked: 0, skipped: 0, failed: 0 },
-          notes: [],
-        },
-      },
-    });
+    const { owner, query, publicAudit } = await createPublicAudit();
     // More than the former ten-row cap must not evict this audit's Console assessment.
     const held = await prisma.projectSeoObservation.findFirstOrThrow({
       where: { auditId, kind: "index_triage", sourceTaskId: taskId },
