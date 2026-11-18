@@ -201,6 +201,7 @@ export {
   sokoBotExportContactsInputSchema,
   sokoBotFindPeopleInputSchema,
   sokoBotGenerateImageInputSchema,
+  sokoBotGenerateTalkingVideoInputSchema,
   sokoBotGenerateVideoInputSchema,
   sokoBotGenerateVoiceoverInputSchema,
   sokoBotGetImageInputSchema,

@@ -55,6 +55,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "standup-with-inbox": "Rhythms",
   "chat-catch-up": "Chat",
   "chat-post": "Chat",
+  "talking-video": "Social",
   "files-review": "Drive",
   "file-write": "Drive",
   "file-read": "Drive",

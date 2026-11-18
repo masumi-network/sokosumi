@@ -97,6 +97,7 @@ export const ACTION_LABELS: Record<string, string> = {
   remove_skill: "Removed skill",
   generate_image: "Started image",
   generate_video: "Started video",
+  generate_talking_video: "Started talking video",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",

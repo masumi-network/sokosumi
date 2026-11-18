@@ -84,6 +84,12 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   edit_ad_campaign: () => ({ updated: true }),
   delete_ad_campaign: () => ({ deleted: true }),
   handle_social_comment: () => ({ handled: true }),
+  // A real one costs more than a dollar of provider time per run.
+  generate_talking_video: () => ({
+    jobId: null,
+    status: "QUEUED",
+    note: "Started. A talking video takes a few minutes.",
+  }),
 };
 
 /** What a tool answers in an eval workspace instead of running; null runs it. */

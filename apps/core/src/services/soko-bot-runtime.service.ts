@@ -216,6 +216,9 @@ export class SokoBotRuntimeService {
     generateImage: (...args) => this.generateImage(...args),
     checkVideoRequest: (...args) => this.checkVideoRequest(...args),
     generateVideo: (...args) => this.generateVideo(...args),
+    checkTalkingVideoRequest: (...args) =>
+      this.checkTalkingVideoRequest(...args),
+    generateTalkingVideo: (...args) => this.generateTalkingVideo(...args),
     refuseCmoRunMedia: (...args) => this.refuseCmoRunMedia(...args),
     requireImageProject: (...args) => this.requireImageProject(...args),
     getStudioJob: (...args) => this.getStudioJob(...args),
@@ -399,6 +402,18 @@ export class SokoBotRuntimeService {
   private generateVideo = (
     ...args: RuntimeOperationArguments<typeof mediaGeneration.generateVideo>
   ) => mediaGeneration.generateVideo(this.operations, ...args);
+
+  private checkTalkingVideoRequest = (
+    ...args: RuntimeOperationArguments<
+      typeof mediaChecks.checkTalkingVideoRequest
+    >
+  ) => mediaChecks.checkTalkingVideoRequest(this.operations, ...args);
+
+  private generateTalkingVideo = (
+    ...args: RuntimeOperationArguments<
+      typeof mediaGeneration.generateTalkingVideo
+    >
+  ) => mediaGeneration.generateTalkingVideo(this.operations, ...args);
 
   private refuseCmoRunMedia = (
     ...args: RuntimeOperationArguments<typeof mediaChecks.refuseCmoRunMedia>

@@ -2,6 +2,7 @@ import {
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
+  sokoBotGenerateTalkingVideoInputSchema as generateTalkingVideoInputSchema,
   sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   getSokoBotVersion,
 } from "@sokosumi/soko-bot";
@@ -15,6 +16,13 @@ import {
   creditsPerImage,
   IMAGE_ASPECT_RATIOS,
 } from "@/lib/image-studio/image-model";
+import {
+  creditsPerTalkingVideo,
+  findTalkingVideoPresenter,
+  posesAsCustomerTestimonial,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
+  talkingVideoModel,
+} from "@/lib/image-studio/talking-video";
 import { videoModel } from "@/lib/image-studio/video-catalog";
 import {
   creditsPerVideo,
@@ -330,6 +338,66 @@ export async function checkVideoRequest(
       `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
   return { input, model, settings, credits, sourceAssetId };
+}
+
+/**
+ * Everything that can refuse a talking video before anything is sent: an
+ * owner chat turn, a Project the owner can open, a stock presenter, a script
+ * in the brand's voice and a price within maxCredits. It counts against the
+ * same per-turn allowance as other videos.
+ */
+export async function checkTalkingVideoRequest(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  raw: unknown,
+  toolCallId: string,
+) {
+  const input = generateTalkingVideoInputSchema.parse(raw);
+  if (!(await runtime.mayActForOwner(authorized)))
+    throw new SokoBotRuntimeAuthorizationError(
+      "Talking videos are made only when a person asks in chat. Write the script you would use instead.",
+    );
+  runtime.refuseCmoRunMedia(authorized);
+  const started = await prisma.sokoBotToolCall.count({
+    where: {
+      turnId: authorized.turn.id,
+      capability: { in: ["generate_video", "generate_talking_video"] },
+      OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+      NOT: { toolCallId },
+    },
+  });
+  const { videos } = await runtime.mediaPerTurn(authorized);
+  if (started >= videos)
+    throw new SokoBotRuntimeValidationError(
+      `One turn may start at most ${videos} videos. Show your owner these first.`,
+    );
+  runtime.requireImageProject(authorized, input.projectId);
+  try {
+    await requireProjectAccess({
+      projectId: input.projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: actingMemberOf(authorized),
+    });
+  } catch (error) {
+    if (error instanceof HTTPException)
+      throw new SokoBotRuntimeValidationError(
+        "That Project is not one your owner can open.",
+      );
+    throw error;
+  }
+  if (!findTalkingVideoPresenter(input.presenter))
+    throw new SokoBotRuntimeValidationError(
+      "presenter must be one of maya, jonas, aisha, leo, elena, david, mei or omar.",
+    );
+  if (posesAsCustomerTestimonial(input.script))
+    throw new SokoBotRuntimeValidationError(TALKING_VIDEO_TESTIMONIAL_MESSAGE);
+  const model = talkingVideoModel();
+  const credits = creditsPerTalkingVideo(model, input.script);
+  if (credits > input.maxCredits)
+    throw new SokoBotRuntimeValidationError(
+      `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+    );
+  return { input, model, credits };
 }
 
 /**
