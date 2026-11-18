@@ -156,9 +156,13 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
     // Release the event only once the add waits on it, at its lock or write.
     for (let tries = 0; tries < 100; tries += 1) {
       const [waiting] = await prisma.$queryRaw<[{ count: bigint }]>`
-        SELECT count(*) FROM pg_locks WHERE NOT granted`;
+        SELECT count(*) FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'`;
       if (waiting && waiting.count > 0n) break;
-      if (tries === 99) throw new Error("The add never waited on the event");
+      if (tries === 99) {
+        release();
+        throw new Error("The add never waited on the event");
+      }
       await pause(50);
     }
     release();
