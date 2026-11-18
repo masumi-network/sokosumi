@@ -17,7 +17,9 @@ import { type RuntimeOperations } from "./operations";
 /**
  * The event-wake claim of a parent change. A parent change does not touch
  * status or assignee, so it does not take TASK_STATE: one wake may both file
- * a Task under its parent and answer it.
+ * a Task under its parent and answer it. That holds only when the parent is
+ * in the Task's own Project. A parent in another Project changes the Task's
+ * Project, so that change takes TASK_STATE_CLAIM below.
  */
 const TASK_PARENT_CLAIM = "TASK_PARENT";
 /**
@@ -89,7 +91,9 @@ export async function setTaskParent(
         throw new SokoBotRuntimeValidationError("Task not found");
       const parent = visible.find((task) => task.id === input.parentTaskId);
       const changesProject =
-        parent !== undefined && parent.projectId !== current.projectId;
+        parent !== undefined &&
+        parent.id !== current.parentTaskId &&
+        parent.projectId !== current.projectId;
       const claim = await claimTaskEventAction(
         tx,
         {

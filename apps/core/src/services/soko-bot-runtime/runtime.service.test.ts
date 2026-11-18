@@ -3752,6 +3752,37 @@ describe("SokoBotRuntimeService authorization", () => {
           ]);
         });
 
+        it("on an event wake, claims TASK_PARENT when the parent stays the same, even if the stored Projects differ", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree(
+            { [TASK_ID]: PARENT_ID, [PARENT_ID]: null },
+            { projects: { [PARENT_ID]: OTHER_PROJECT } },
+          );
+          const { claims, keyOf } = wake();
+          // update_task already changed the Project on this wake.
+          claims.set(
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+            {
+              id: "claim_update",
+              turnId: SCOPE.turnId,
+              handlerBotId: SCOPE.sokoBotId,
+              receiptId: "receipt_update",
+            },
+          );
+          // The same parent moves nothing, so it is not a Project change.
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({
+            parentTaskId: PARENT_ID,
+            projectChanged: false,
+          });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
         it("on an event wake, refuses a second parent change of the same Task", async () => {
           sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
           tree({
