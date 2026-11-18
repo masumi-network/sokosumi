@@ -5535,6 +5535,124 @@
         "retry": "Try again"
       }
     },
+    "Competitors": {
+      "title": "Competitors",
+      "pickTitle": "Pick a project",
+      "pickBody": "Competitors belong to one project: who it watches and what the weekly check found. Choose a project to open its competitors.",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "loading": "Loading competitors…",
+      "error": {
+        "title": "Failed to load competitors",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      },
+      "check": {
+        "title": "Weekly check",
+        "on": "On",
+        "off": "Off",
+        "what": "Once a week Sokosumi reads each competitor's website and pricing page, the news about it, its new ads and its Instagram, and keeps what changed with its source.",
+        "price": "It costs {credits} credits per competitor a week.",
+        "priceTotal": "{count, plural, one {With # competitor that is {credits} credits a week.} other {With # competitors that is {credits} credits a week.}}",
+        "payer": "The credits come from this workspace.",
+        "last": "Last check {last}, next {next}.",
+        "first": "The first check runs within the hour, or now.",
+        "sourceFailed": "The last check could not read: {sources}. The next one tries again.",
+        "source": {
+          "pages": "websites",
+          "news": "news",
+          "ads": "ads",
+          "social": "Instagram"
+        },
+        "turnOn": "Turn on",
+        "turnOff": "Turn off",
+        "runNow": "Check now",
+        "failed": "That did not work. Try again.",
+        "outcome": {
+          "not_due": "A check is already running or was done this week.",
+          "no_competitors": "Add a competitor first.",
+          "paused": "The weekly check is off.",
+          "unfunded": "This check costs {credits} credits and the workspace has fewer. Add credits, then check again."
+        }
+      },
+      "list": {
+        "title": "Watch list",
+        "count": "{count} of {limit}",
+        "empty": "Nobody yet. Add the competitors you want to watch.",
+        "emptyReadOnly": "Nobody yet.",
+        "noWebsite": "No website",
+        "pricingPage": "pricing page",
+        "facebook": "Facebook {handle}",
+        "edit": "Edit",
+        "remove": "Remove",
+        "editNamed": "Edit {name}",
+        "removeNamed": "Remove {name}",
+        "add": "Add competitor",
+        "full": "That is all {limit}. Remove one to watch another.",
+        "failed": "That did not work. Try again."
+      },
+      "form": {
+        "addTitle": "Add a competitor",
+        "editTitle": "Edit competitor",
+        "description": "The name is enough to find news. The website and pricing page let the check see what changed there.",
+        "name": {
+          "label": "Name",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Website",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Pricing page",
+          "placeholder": "acme.com/pricing"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Facebook page",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Cancel",
+        "add": "Add",
+        "save": "Save",
+        "failed": "That did not work. Try again."
+      },
+      "thisWeek": {
+        "title": "This week",
+        "checked": "Check of {date}",
+        "none": "No summary yet. Everything the checks find is listed below with its source.",
+        "quiet": "A quiet week: nothing to report.",
+        "unknown": "A competitor",
+        "big": "Big move",
+        "weak": "Partly backed",
+        "meaning": "What this means for you",
+        "move": "Suggested move",
+        "open": "Still open"
+      },
+      "findings": {
+        "title": "What the checks found",
+        "notChecked": "Nothing yet. Findings show here after the first check.",
+        "nothing": "The checks found no changes in the last five weeks.",
+        "kind": {
+          "WEBSITE_CHANGE": "Website",
+          "PRICE_CHANGE": "Price",
+          "NEWS": "News",
+          "AD": "Ads",
+          "SOCIAL": "Instagram"
+        }
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Account",
+        "posts": "Posts a week",
+        "engagement": "Likes and comments per post",
+        "followers": "Followers",
+        "growth": "Followers gained in a week",
+        "you": "(you)"
+      }
+    },
     "Newsletter": {
       "title": "Newsletter",
       "description": "Each project has its own newsletter. Choose a project to manage it.",
@@ -5654,6 +5772,7 @@
           "schedules": "Schedules",
           "social": "Social posts",
           "ads": "Ads",
+          "competitors": "Competitors",
           "newsletter": "Newsletter",
           "contacts": "Contacts",
           "groups": {
