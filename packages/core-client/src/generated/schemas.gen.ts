@@ -54416,6 +54416,43 @@ export const CmoCompetitorsSchema = {
                 $ref: '#/components/schemas/CmoCompetitor'
             }
         },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/CmoCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'Cuso\'s This week: null until he wrote one.'
+        },
         limit: {
             type: 'integer',
             description: 'How many competitors can be tracked.'
@@ -54425,7 +54462,7 @@ export const CmoCompetitorsSchema = {
             items: {
                 $ref: '#/components/schemas/CmoCompetitorSignal'
             },
-            description: 'What the checks of the last 30 days found, newest first.'
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
         },
         scoreboard: {
             type: 'array',
@@ -54497,6 +54534,7 @@ export const CmoCompetitorsSchema = {
     },
     required: [
         'competitors',
+        'feed',
         'limit',
         'signals',
         'scoreboard',
@@ -54562,6 +54600,79 @@ export const CmoCompetitorSchema = {
         'facebookHandle',
         'source',
         'createdAt'
+    ]
+} as const;
+
+export const CmoCompetitorFeedItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        facts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    signalIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'The signals that back it; their sources show on hover.'
+                    },
+                    support: {
+                        type: 'string',
+                        enum: [
+                            'strong',
+                            'weak'
+                        ],
+                        description: 'weak: the sources back it only in part.'
+                    }
+                },
+                required: [
+                    'text',
+                    'signalIds',
+                    'support'
+                ]
+            }
+        },
+        meaning: {
+            type: 'string',
+            description: 'What this means for you.'
+        },
+        move: {
+            type: 'string',
+            description: 'One suggested move.'
+        },
+        big: {
+            type: 'boolean',
+            description: 'A price change, launch or ad burst, told in chat at once.'
+        },
+        addedToStrategyAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'facts',
+        'meaning',
+        'move',
+        'big',
+        'addedToStrategyAt'
     ]
 } as const;
 

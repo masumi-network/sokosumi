@@ -62,6 +62,8 @@ export const CHECK_EVERY_MS = 6.5 * 86_400_000;
 const STALE_CHECK_MS = 3_600_000;
 const WEEK_MS = 7 * 86_400_000;
 const NEWS_RESULTS = 10;
+/** How long after a check its watch run may still start. */
+const WATCH_RUN_WINDOW_MS = 2 * 86_400_000;
 /** Lines of a page's change kept on its signal. */
 const KEPT_DIFF_LINES = 40;
 const MAX_ADS_KEPT = 20;
@@ -113,7 +115,9 @@ export function pageChangeSignal(
   found: { diff: PageDiff; prices: PriceMove | null },
   now: Date,
 ): SignalDraft {
-  const pricing = page.kind === "PRICING" || change.about === "pricing";
+  // A price change is a moved price, or the model reading plans or limits;
+  // other copy on a pricing page is a website change.
+  const pricing = found.prices !== null || change.about === "pricing";
   return {
     kind: pricing ? "PRICE_CHANGE" : "WEBSITE_CHANGE",
     summary: change.summary,
@@ -641,6 +645,34 @@ export async function runCompetitorCheck(
   return "checked";
 }
 
+/** Cuso writes the week's feed from the check that just finished. */
+async function startWatchRun(cuso: Cuso, now: Date): Promise<void> {
+  const check = await prisma.competitorCheck.findFirst({
+    where: {
+      projectId: cuso.projectId,
+      finishedAt: { gte: new Date(now.getTime() - WATCH_RUN_WINDOW_MS) },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (!check) return;
+  const { startCompetitorWatchRun } = await import(
+    "@/services/cmo-competitor-feed.service"
+  );
+  await startCompetitorWatchRun(cuso, check.id).catch((error: unknown) =>
+    // Busy, paused or out of credits: the signals wait for the next turn.
+    recordCoreWarning(
+      { operation: "cmo_competitor_watch", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message: "Could not start Cuso's competitor watch",
+        why: "Starting the turn that writes the week's competitor feed threw",
+        fix: "The signals are stored; check_competitors shows them in Cuso's next turn. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    ),
+  );
+}
+
 /** Runs the weekly competitor check of every paid Cuso whose check is due. */
 export async function syncCmoCompetitorChecks(
   shouldContinue: () => boolean = () => true,
@@ -657,7 +689,12 @@ export async function syncCmoCompetitorChecks(
   for (const cuso of await listCusosWithApprovedStrategy()) {
     if (!shouldContinue()) break;
     try {
-      counts[await runCompetitorCheck(cuso, now)] += 1;
+      const outcome = await runCompetitorCheck(cuso, now);
+      counts[outcome] += 1;
+      // Also after "not_due": a run that could not start (Cuso busy or
+      // paused) starts on a later sync, while its check is fresh.
+      if (outcome === "checked" || outcome === "not_due")
+        await startWatchRun(cuso, now);
     } catch (error) {
       counts.failed += 1;
       // The error can quote a page or an article.
