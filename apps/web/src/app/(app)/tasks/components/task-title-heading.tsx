@@ -32,7 +32,8 @@ export function TaskTitleHeading({
     <h1
       ref={heading}
       tabIndex={-1}
-      className="text-xl leading-tight font-semibold tracking-tight outline-none"
+      // Ring only for keyboard users, like the SEO verdict heading.
+      className="focus-visible:outline-ring rounded-sm text-xl leading-tight font-semibold tracking-tight focus-visible:outline-2"
     >
       {title}
     </h1>

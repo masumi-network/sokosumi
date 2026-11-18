@@ -173,21 +173,32 @@ for (const { name: size, ...viewport } of PROJECTS) {
       const card = page.getByRole("link", { name: LONG_NAME });
       await card.waitFor();
       assert.equal(
-        await page.locator('[aria-roledescription="draggable"]').count(),
-        0,
-        "a board card is a nameless draggable button",
-      );
-      assert.equal(
         await page.locator("article").getByText("No tags yet").count(),
         0,
         "a board card shows an empty tags line",
       );
-      await card.click();
-      // Opening a task moves focus to its heading, so a screen reader reads
-      // the task name even when the streamed tab title is late.
+      // Keyboard order: the next Tab stop after the toolbar's Archived link is
+      // the card's task link, with no extra stop on the card around it.
+      await page
+        .getByRole("link", { name: "Archived tasks" })
+        .filter({ visible: true })
+        .focus();
+      await page.keyboard.press("Tab");
+      assert.equal(
+        await page.evaluate(() => document.activeElement?.textContent),
+        LONG_NAME,
+        "Tab after Archived does not land on the card's task link",
+      );
+      // Enter opens the task and moves focus to its heading, visibly, so a
+      // screen reader reads the name even when the streamed tab title is late.
+      await page.keyboard.press("Enter");
       await page.waitForFunction((name) => {
         const el = document.activeElement;
-        return el?.tagName === "H1" && el.textContent === name;
+        return (
+          el?.tagName === "H1" &&
+          el.textContent === name &&
+          el.matches(":focus-visible")
+        );
       }, LONG_NAME);
 
       await page.getByRole("button", { name: "Archive", exact: true }).click();

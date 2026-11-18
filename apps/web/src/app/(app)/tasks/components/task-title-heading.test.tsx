@@ -17,6 +17,17 @@ describe("TaskTitleHeading", () => {
     expect(heading).toHaveAttribute("tabindex", "-1");
   });
 
+  // A keyboard user who opens a task with Enter must still see where focus is.
+  it("keeps a visible focus ring for keyboard users", () => {
+    render(<TaskTitleHeading taskId="task-1" title="Spring menu" />);
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).not.toHaveClass("outline-none");
+    expect(heading).toHaveClass(
+      "focus-visible:outline-2",
+      "focus-visible:outline-ring",
+    );
+  });
+
   it("does not take focus back when the same task re-renders", () => {
     const { rerender } = render(
       <>
