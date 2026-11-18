@@ -54,6 +54,8 @@ interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
   /** The viewer, for the My tasks toggle; hidden when they are not an option. */
   userId?: string | null;
+  /** The Display control, shown after the quick filters. */
+  display?: React.ReactNode;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -78,6 +80,7 @@ interface TasksViewFiltersProps {
 export function TasksViewFilters({
   activeOrganizationId,
   userId,
+  display,
   coworkerOptions,
   projectOptions,
   labels,
@@ -358,15 +361,10 @@ export function TasksViewFilters({
   return (
     // Anchored to the board's left edge: the menu first, then the two quick
     // filters, then what is active. Chips wrap under them, never over Display.
+    // The quick filters and how the Tasks are shown now come first, because
+    // they are what a reader changes most. The menu holds the rest and sits
+    // at the right edge.
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-      <FilterDropdownMenu
-        buttonLabel={labels.title}
-        searchPlaceholder={labels.searchPlaceholder}
-        emptyResultsLabel={labels.emptyResults}
-        sections={sections}
-        showActiveIndicator={showActiveIndicator}
-        align="start"
-      />
       {me ? (
         <Button
           variant={showingMine ? "secondary" : "ghost"}
@@ -420,6 +418,7 @@ export function TasksViewFilters({
           <span className="max-sm:sr-only">{t("needsMe")}</span>
         </Button>
       ) : null}
+      {display}
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -450,6 +449,16 @@ export function TasksViewFilters({
           })}
         </ul>
       ) : null}
+      <span className="ms-auto flex">
+        <FilterDropdownMenu
+          buttonLabel={labels.title}
+          searchPlaceholder={labels.searchPlaceholder}
+          emptyResultsLabel={labels.emptyResults}
+          sections={sections}
+          showActiveIndicator={showActiveIndicator}
+          align="end"
+        />
+      </span>
     </div>
   );
 }
