@@ -95,14 +95,15 @@ describe("getRedisClient", () => {
       maxRetriesPerRequest: 0,
       autoResendUnfulfilledCommands: false,
       commandTimeout: 250,
+      socketTimeout: 1_000,
     });
   });
 
   it.each(["shared", "rate_limit"] as const)(
-    "warns once after each ready-to-error transition for the %s client",
+    "warns once on startup failures and once after each ready-to-error transition for the %s client",
     async (purpose) => {
       getEnvMock.mockReturnValue({ REDIS_URL: "redis://primary" });
-      const warnings = expectCoreLog("warn", "Redis connection failed", 2);
+      const warnings = expectCoreLog("warn", "Redis connection failed", 3);
       const { getRedisClient, getRedisRateLimitClient } = await import(
         "./redis"
       );
@@ -110,6 +111,7 @@ describe("getRedisClient", () => {
         purpose === "shared" ? getRedisClient() : getRedisRateLimitClient();
       expect(client).not.toBeNull();
       client?.emit("error", new Error("initial connection failed"));
+      client?.emit("error", new Error("initial reconnect failed"));
       client?.emit("ready");
       client?.emit("error", new Error("first connection lost"));
       client?.emit("error", new Error("reconnect failed"));
@@ -117,10 +119,12 @@ describe("getRedisClient", () => {
       client?.emit("error", new Error("second connection lost"));
 
       expect(warnings.map((warning) => causeMessage(warning.cause))).toEqual([
+        "initial connection failed",
         "first connection lost",
         "second connection lost",
       ]);
       expect(warnings.map((warning) => warning.event.redis)).toEqual([
+        { purpose },
         { purpose },
         { purpose },
       ]);

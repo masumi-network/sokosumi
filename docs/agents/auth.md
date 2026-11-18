@@ -12,7 +12,7 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. Core
 
 Better Auth uses Redis for per-IP, per-endpoint counters. An atomic increment starts the endpoint's fixed window on the first request. A denied request reports the full window in `X-Retry-After`. Sessions and verification values use PostgreSQL.
 
-Auth, chat read budgets, and newsletter limits share a Redis client with a 250 ms command timeout and offline queuing disabled. Requests fail open while that client is connecting, including on a cold start. Core sets `rateLimit.failOpen` and records the cause on the request's wide event. A client emits a connection warning on its first error after each time it becomes ready. The edge auth flood guard provides the first layer of throttling in production.
+Auth, chat read budgets, and newsletter limits share a Redis client with a 250 ms command timeout and offline queuing disabled. If commands are pending and the socket receives no data for 1 second, the client closes the socket and flushes its command queue. Requests fail open while that client is connecting, including on a cold start. Core sets `rateLimit.failOpen` and records the cause on the request's wide event. Each Redis client warns once for its first startup error and re-arms the warning every time it becomes ready. The edge auth flood guard provides the first layer of throttling in production.
 
 Follow-up for the 2026-11-08 incident (SOKOSUMI-CORE-4Y). Drop the Prisma `RateLimit` model and table in a separate migration after all deployments and their rollback targets have stopped using the table.
 

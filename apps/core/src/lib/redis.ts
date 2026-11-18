@@ -6,9 +6,10 @@ import { emitCoreWarning } from "@/lib/evlog";
 let cachedClient: Redis | undefined;
 let cachedRateLimitClient: Redis | undefined;
 const RATE_LIMIT_COMMAND_TIMEOUT_MS = 250;
+const RATE_LIMIT_SOCKET_TIMEOUT_MS = 1_000;
 
 function watchRedisConnection(client: Redis, purpose: "shared" | "rate_limit") {
-  let warnOnError = false;
+  let warnOnError = true;
   client.on("ready", () => {
     warnOnError = true;
   });
@@ -20,7 +21,7 @@ function watchRedisConnection(client: Redis, purpose: "shared" | "rate_limit") {
       { operation: "redis_connection", redis: { purpose } },
       {
         message: "Redis connection failed",
-        why: "A ready Redis client reported a connection error.",
+        why: "Core could not establish or keep a Redis connection.",
         fix: "Check the Redis service and Core's connection settings.",
         cause: error,
       },
@@ -56,6 +57,7 @@ export function getRedisRateLimitClient(): Redis | null {
       maxRetriesPerRequest: 0,
       autoResendUnfulfilledCommands: false,
       commandTimeout: RATE_LIMIT_COMMAND_TIMEOUT_MS,
+      socketTimeout: RATE_LIMIT_SOCKET_TIMEOUT_MS,
     }),
     "rate_limit",
   );
