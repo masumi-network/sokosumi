@@ -65,6 +65,13 @@ interface TileData {
   body?: ReactNode;
 }
 
+/** Cuso wrote that he does not know yet: nothing to show the owner. */
+export function saysUnknown(text: string): boolean {
+  return /^(unknown|not (yet )?known|unclear|n\/a|tbd)[.!]?$/i.test(
+    text.trim(),
+  );
+}
+
 /**
  * Up to six tiles, in the order a founder reads their brand: what they sell,
  * who buys, how they sound, where marketing stands, who they compete with
@@ -116,7 +123,7 @@ export function brandTiles(
       body: quotes.length > 0 ? <CustomerWords quotes={quotes} /> : undefined,
     });
   }
-  if (brain.voice.tone) {
+  if (brain.voice.tone && !saysUnknown(brain.voice.tone)) {
     tiles.push({
       id: "voice",
       label: "Your voice",
@@ -132,7 +139,7 @@ export function brandTiles(
       label: "Your look",
       value: short(
         visual.fonts.length > 0
-          ? joinNames(visual.fonts)
+          ? `${visual.fonts.length === 1 ? "Font" : "Fonts"}: ${joinNames(visual.fonts)}`
           : `${visual.colors.length} brand colours`,
       ),
       detail:
