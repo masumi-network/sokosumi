@@ -1057,8 +1057,3 @@ async function schedule(
     );
   });
 }
-
-/** A Core media job settled: the month it belongs to moves on. */
-export function isCmoMediaJob(idempotencyKey: string): boolean {
-  return idempotencyKey.startsWith(`${KEY_PREFIX}:`);
-}

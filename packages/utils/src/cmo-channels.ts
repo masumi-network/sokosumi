@@ -220,7 +220,8 @@ export const CMO_CHANNELS = {
   seo: {
     name: "Google search (SEO)",
     group: "search",
-    status: "live",
+    // Articles and page changes live in CMO's SEO tab, never in the strategy calendar.
+    status: "tab",
     owner: "publish",
     formats: {
       page_fix: {
@@ -240,7 +241,8 @@ export const CMO_CHANNELS = {
   {
     name: string;
     group: "social" | "ads" | "email" | "search";
-    status: "live" | "soon";
+    /** live: planned in the strategy; soon: not yet; tab: run from its own tab, never planned in the calendar. */
+    status: "live" | "soon" | "tab";
     /** What the owner does: connect the account, connect an ad account, add a mailing list, or publish SEO changes. */
     owner: "connect" | "ad_account" | "mailing_list" | "publish";
     formats: Record<

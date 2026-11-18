@@ -82,6 +82,9 @@ describe("checkTalkingVideoRequest", () => {
     await expect(request({ maxCredits: 100 })).rejects.toThrow(
       "more than the 100 allowed",
     );
+    await expect(request({ maxCredits: 150 })).rejects.toThrow(
+      /A script of at most \d+ characters fits/,
+    );
   });
 
   it("counts talking videos against the turn's video allowance", async () => {

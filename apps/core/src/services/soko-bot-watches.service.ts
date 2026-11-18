@@ -23,6 +23,8 @@ type WaitForInput = z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["wait_for"]>;
 export type SokoBotWatchKind = WaitForInput["kind"];
 
 const DEFAULT_TIMEOUT_MINUTES = 60;
+/** A position check takes minutes; one still running after this is reported as slow. */
+const SEO_CHECK_TIMEOUT_MINUTES = 45;
 /** Someone may connect the app later in the day; no one needs a reminder. */
 const APP_CONNECTED_TIMEOUT_MINUTES = 1_440;
 const PROVIDER_SLUG = /^[a-z0-9_-]{1,64}$/;
@@ -85,6 +87,12 @@ export async function watchOutcome(watch: {
     return job.status === "SUCCEEDED"
       ? `The ${video ? "video" : "image"} is ready (job ${watch.targetId}). Call ${read} with jobId ${watch.targetId}${watch.projectId ? ` and projectId ${watch.projectId}` : ""} for its link and fileId.`
       : `The Studio job ended ${job.status} (job ${watch.targetId}); ${read} says why.`;
+  }
+  if (watch.kind === "seo_check") {
+    const { seoCheckOutcome } = await import(
+      "@/services/cmo-seo-rankings.service"
+    );
+    return seoCheckOutcome(watch.targetId);
   }
   if (watch.kind === "app_connected") {
     const integration = await prisma.sokoBotIntegration.findUnique({
@@ -163,25 +171,62 @@ export function followUpMessage(input: {
  * Something already done is said so at once, for the bot to act on in this
  * turn.
  */
+/**
+ * A follow-up or background run may wait too (post, then wait for the
+ * replies); its follow-up belongs to the turn that was asked, so it keeps
+ * that turn's tools and posts where it was asked.
+ */
+async function watchOriginTurnId(turnId: string): Promise<string> {
+  const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+    where: { id: turnId },
+    select: { parentTurnId: true },
+  });
+  if (!turn.parentTurnId) return turnId;
+  const parentWatch = await prisma.sokoBotWatch.findFirst({
+    where: { firedTurnId: turnId },
+    select: { turnId: true },
+  });
+  return parentWatch?.turnId ?? turn.parentTurnId;
+}
+
+/**
+ * A position check Cuso asked the SEO specialist for: his follow-up answers
+ * the owner in the chat it was asked in once the result is imported, or says
+ * it failed or did not finish in time.
+ */
+export async function registerSeoCheckWatch(
+  authorized: AuthorizedSokoBotRuntime,
+  input: { analysisId: string; projectId: string; then: string },
+) {
+  const { sokoBotId } = authorized.turn;
+  const waiting = await prisma.sokoBotWatch.findFirst({
+    where: {
+      sokoBotId,
+      kind: "seo_check",
+      targetId: input.analysisId,
+      status: "WAITING",
+    },
+    select: { id: true },
+  });
+  if (waiting) return;
+  await prisma.sokoBotWatch.create({
+    data: {
+      sokoBotId,
+      turnId: await watchOriginTurnId(authorized.turn.id),
+      kind: "seo_check",
+      targetId: input.analysisId,
+      projectId: input.projectId,
+      then: input.then,
+      expiresAt: new Date(Date.now() + SEO_CHECK_TIMEOUT_MINUTES * 60_000),
+    },
+  });
+}
+
 export async function registerWatch(
   authorized: AuthorizedSokoBotRuntime,
   input: WaitForInput,
 ) {
-  const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
-    where: { id: authorized.turn.id },
-    select: { parentTurnId: true },
-  });
-  // A follow-up or background run may wait too (post, then wait for the
-  // replies); its follow-up belongs to the turn that was asked, so it keeps
-  // that turn's tools and posts where it was asked.
-  let originTurnId = authorized.turn.id;
-  if (turn.parentTurnId) {
-    const parentWatch = await prisma.sokoBotWatch.findFirst({
-      where: { firedTurnId: authorized.turn.id },
-      select: { turnId: true },
-    });
-    originTurnId = parentWatch?.turnId ?? turn.parentTurnId;
-  }
+  const originTurnId = await watchOriginTurnId(authorized.turn.id);
   const { sokoBotId, workspaceId } = authorized.turn;
   const waiting = await prisma.sokoBotWatch.count({
     where: { sokoBotId, status: "WAITING" },

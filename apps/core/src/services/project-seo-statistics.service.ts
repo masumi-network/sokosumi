@@ -124,7 +124,16 @@ async function read(
   return readIntegrationTool(integration, tool.slug, args);
 }
 
-async function propertyChoices(
+/** One read-only Google read on a connected account, its arguments bound to the tool's declared inputs. */
+export async function readNativeSeoTool(
+  integration: ComposioIntegrationAccount,
+  slug: string,
+  logical: Record<string, unknown>,
+) {
+  return read(integration, await toolFor(integration, slug), logical);
+}
+
+export async function propertyChoices(
   integration: ComposioIntegrationAccount,
   provider: SyncProjectSeoStatistics["provider"],
 ): Promise<ProjectSeoStatisticsProperties> {

@@ -236,16 +236,6 @@ export function cmoPlanProblems(
     problems.push(...crowdedNetworks(pieces));
     problems.push(...storyProblems(pieces));
     problems.push(...repeatedTitles(pieces));
-    const articles = pieces.filter(
-      (entry) => entry.channel === "seo" && entry.format === "article",
-    );
-    if (
-      articles.length >= 2 &&
-      !articles.some((entry) => COMPARISON_TITLE.test(entry.title))
-    )
-      problems.push(
-        `none of the ${articles.length} seo articles is a comparison page; make one "X vs Y" or "X alternative", with a competitor's name in the title.`,
-      );
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
@@ -429,8 +419,6 @@ function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
     ];
   });
 }
-
-const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
 
 /**
  * LinkedIn rewards one real story, and proof without one is a vague "a

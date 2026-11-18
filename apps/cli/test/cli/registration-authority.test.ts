@@ -94,39 +94,17 @@ test("registration accepts only an administered Vendor", () => {
 
 test("registration gate copy provides workspace and Vendor setup guidance", () => {
   assert.match(
-    describeRegistrationWorkspaceRequirement("https://app.example.test"),
+    describeRegistrationWorkspaceRequirement(),
     /workspace switcher/,
   );
+  const vendorGuidance = describeRegistrationAdminVendorRequirement();
+  assert.match(vendorGuidance, /vendors create/);
+  assert.match(vendorGuidance, /On Preprod, provision a private Coworker/);
+  assert.doesNotMatch(vendorGuidance, /invite|role[- ]promot(e|ion)/i);
+  assert.doesNotMatch(vendorGuidance, /create is unavailable/);
+  assert.doesNotMatch(vendorGuidance, /\/developer\/vendors/);
   assert.match(
-    describeRegistrationWorkspaceRequirement("https://app.example.test"),
-    /https:\/\/app\.example\.test/,
-  );
-  assert.match(
-    describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /vendors create/,
-  );
-  assert.match(
-    describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /On Preprod, provision a private Coworker/,
-  );
-  assert.doesNotMatch(
-    describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /invite|role[- ]promot(e|ion)/i,
-  );
-  assert.doesNotMatch(
-    describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /create is unavailable/,
-  );
-  assert.match(
-    describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /oauth-clients/,
-  );
-  assert.doesNotMatch(
-    describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /\/developer\/vendors/,
-  );
-  assert.match(
-    describeRegistrationAdminVendorRequirement(),
+    vendorGuidance,
     /Vendors appears only after you already have admin/,
   );
 });

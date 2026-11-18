@@ -396,10 +396,17 @@ export async function checkTalkingVideoRequest(
     throw new SokoBotRuntimeValidationError(TALKING_VIDEO_TESTIMONIAL_MESSAGE);
   const model = talkingVideoModel();
   const credits = creditsPerTalkingVideo(model, input.script);
-  if (credits > input.maxCredits)
+  if (credits > input.maxCredits) {
+    let fits = input.script.length;
+    while (
+      fits > 0 &&
+      creditsPerTalkingVideo(model, "x".repeat(fits)) > input.maxCredits
+    )
+      fits--;
     throw new SokoBotRuntimeValidationError(
-      `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+      `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. ${fits >= 20 ? `A script of at most ${fits} characters fits; shorten it, or ask` : "Ask"} your owner before spending more.`,
     );
+  }
   return { input, model, credits };
 }
 

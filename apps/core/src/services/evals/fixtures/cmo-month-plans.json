@@ -40,11 +40,6 @@
         "why": "Reach operators with concrete team scheduling examples."
       },
       {
-        "channel": "seo",
-        "cadence": "2 pieces a week",
-        "why": "Answer practical scheduling and comparison searches over time."
-      },
-      {
         "channel": "google_ads",
         "cadence": "3 search ads this month",
         "why": "Reach teams already searching for scheduling or routing tools."
@@ -98,11 +93,6 @@
         "channel": "linkedin",
         "before": "No post in the last two months",
         "after": "2 posts weekly on team scheduling"
-      },
-      {
-        "channel": "seo",
-        "before": "Several blog posts weekly",
-        "after": "2 focused pieces weekly for team buyers"
       },
       {
         "channel": "google_ads",
@@ -223,7 +213,7 @@
         "message": "Show revenue teams how Cal.com turns inbound bookings into routed meetings.",
         "audience": "Revenue operations and sales leaders at growing teams",
         "offer": "14-day Cal.com Teams trial",
-        "channels": ["linkedin", "seo", "google_ads"],
+        "channels": ["linkedin", "google_ads"],
         "assets": [
           "LinkedIn walkthroughs",
           "team scheduling and routing search pages",
@@ -240,7 +230,7 @@
         "stage": "awareness",
         "name": "See the scheduling gap",
         "goal": "Help revenue teams spot manual booking handoffs.",
-        "channels": ["linkedin", "seo", "google_ads"],
+        "channels": ["linkedin", "google_ads"],
         "metric": "Qualified visits",
         "owner": "cuso",
         "plays": [
@@ -248,11 +238,6 @@
             "channel": "linkedin",
             "what": "Short examples of team booking and routing",
             "cadence": "2 posts a week"
-          },
-          {
-            "channel": "seo",
-            "what": "Problem and solution pages for team scheduling",
-            "cadence": "2 pieces a week"
           },
           {
             "channel": "google_ads",
@@ -270,7 +255,7 @@
         "stage": "consideration",
         "name": "See how routing works",
         "goal": "Show the booking flow and team controls clearly.",
-        "channels": ["linkedin", "seo"],
+        "channels": ["linkedin"],
         "metric": "Team page visits",
         "owner": "shared",
         "plays": [
@@ -278,11 +263,6 @@
             "channel": "linkedin",
             "what": "Product walkthroughs and practical setup guidance",
             "cadence": "2 posts a week"
-          },
-          {
-            "channel": "seo",
-            "what": "Team routing, setup and comparison pages",
-            "cadence": "2 pieces a week"
           }
         ],
         "measure": {
@@ -295,7 +275,7 @@
         "stage": "conversion",
         "name": "Try it with your team",
         "goal": "Turn qualified evaluation into Teams trial starts.",
-        "channels": ["linkedin", "seo", "google_ads"],
+        "channels": ["linkedin", "google_ads"],
         "metric": "Teams trial starts",
         "owner": "you",
         "plays": [
@@ -303,11 +283,6 @@
             "channel": "linkedin",
             "what": "Point interested teams to the 14-day Teams trial",
             "cadence": "In relevant posts"
-          },
-          {
-            "channel": "seo",
-            "what": "Make the trial the next step on team pages",
-            "cadence": "Review existing pages"
           },
           {
             "channel": "google_ads",
@@ -484,34 +459,6 @@
         "pillar": "Team booking"
       },
       {
-        "id": "cal-nov11-seo-team-scheduling",
-        "date": "2026-11-11",
-        "time": "10:00",
-        "channel": "seo",
-        "title": "When does a team need scheduling software?",
-        "format": "article",
-        "status": "idea",
-        "brief": "Answer when shared team scheduling helps, how to assess the handoff, and what to look for in Cal.com Scheduling.",
-        "why": "Captures problem searches before teams choose a tool.",
-        "campaignId": "team-routing-trial",
-        "approach": "educational",
-        "pillar": "Team booking"
-      },
-      {
-        "id": "cal-nov13-seo-routing-page",
-        "date": "2026-11-13",
-        "time": "10:00",
-        "channel": "seo",
-        "title": "Explain routed bookings for sales teams",
-        "format": "page_fix",
-        "status": "idea",
-        "brief": "Improve the team scheduling page so sales teams can see how a booking reaches the right representative and where to start.",
-        "why": "Connects a specific routing search to the main Scheduling offer.",
-        "campaignId": "team-routing-trial",
-        "approach": "educational",
-        "pillar": "Lead routing"
-      },
-      {
         "id": "cal-nov16-search-ad-team",
         "date": "2026-11-16",
         "time": "09:30",
@@ -574,11 +521,6 @@
         "why": "Share Hiltl’s history, food craft and group dining occasions."
       },
       {
-        "channel": "seo",
-        "cadence": "1 to 2 pieces a week",
-        "why": "Help people searching for Zurich dining find the right visit details."
-      },
-      {
         "channel": "meta_ads",
         "cadence": "4 creatives this month",
         "why": "Test local reach for people planning a Zurich meal."
@@ -637,11 +579,6 @@
         "channel": "linkedin",
         "before": "5,045 followers; current posting cadence unknown",
         "after": "6 monthly posts on Hiltl food and history"
-      },
-      {
-        "channel": "seo",
-        "before": "Site covers menus and locations; cadence unclear",
-        "after": "Weekly visit answers plus Zurich dining guides"
       },
       {
         "channel": "meta_ads",
@@ -720,7 +657,7 @@
         "message": "See the two Haus Hiltl buffet formats and choose what suits you.",
         "audience": "Zurich diners and visitors",
         "offer": "Haus Hiltl dining",
-        "channels": ["instagram", "linkedin", "seo", "meta_ads"],
+        "channels": ["instagram", "linkedin", "meta_ads"],
         "assets": [
           "Buffet price guide",
           "Dish and buffet posts",
@@ -737,7 +674,7 @@
         "message": "A meal at Hiltl brings 1898 heritage to today’s Zurich table.",
         "audience": "Zurich diners and city visitors",
         "offer": "Haus Hiltl dining",
-        "channels": ["instagram", "linkedin", "seo"],
+        "channels": ["instagram", "linkedin"],
         "assets": ["Hiltl history stories", "Visit and dish posts"],
         "start": "2026-11-17",
         "end": "2026-11-30",
@@ -750,7 +687,7 @@
         "message": "Make a Zurich lunch or dinner plan around food with choice.",
         "audience": "People planning a Zurich meal",
         "offer": "Haus Hiltl dining",
-        "channels": ["instagram", "linkedin", "seo", "meta_ads"],
+        "channels": ["instagram", "linkedin", "meta_ads"],
         "assets": [
           "Local dining search pages",
           "Restaurant visit posts",
@@ -767,7 +704,7 @@
         "stage": "awareness",
         "name": "Find a Zurich meal",
         "goal": "Put Haus Hiltl on diners’ shortlist.",
-        "channels": ["instagram", "linkedin", "meta_ads", "seo"],
+        "channels": ["instagram", "linkedin", "meta_ads"],
         "metric": "Restaurant page visits",
         "owner": "cuso",
         "plays": [
@@ -785,11 +722,6 @@
             "channel": "meta_ads",
             "what": "Test local food and buffet-choice ads around Zurich.",
             "cadence": "Four creative tests"
-          },
-          {
-            "channel": "seo",
-            "what": "Answer searches for Zurich vegetarian dining and Hiltl visits.",
-            "cadence": "1 to 2 pieces a week"
           }
         ],
         "measure": {
@@ -802,7 +734,7 @@
         "stage": "consideration",
         "name": "Choose a buffet format",
         "goal": "Help guests understand the price and dining choice.",
-        "channels": ["instagram", "linkedin", "seo"],
+        "channels": ["instagram", "linkedin"],
         "metric": "Menu page visits",
         "owner": "shared",
         "plays": [
@@ -814,11 +746,6 @@
           {
             "channel": "linkedin",
             "what": "Share practical details about group and restaurant dining.",
-            "cadence": "Weekly"
-          },
-          {
-            "channel": "seo",
-            "what": "Add clear answers to buffet price and visit questions.",
             "cadence": "Weekly"
           }
         ],
@@ -832,7 +759,7 @@
         "stage": "conversion",
         "name": "Plan a Hiltl visit",
         "goal": "Turn dining interest into a restaurant visit.",
-        "channels": ["instagram", "seo"],
+        "channels": ["instagram"],
         "metric": "Restaurant visits",
         "owner": "you",
         "plays": [
@@ -840,11 +767,6 @@
             "channel": "instagram",
             "what": "Show the food and occasion, then point to the restaurant visit route.",
             "cadence": "Across the week"
-          },
-          {
-            "channel": "seo",
-            "what": "Keep restaurant location, price and booking details easy to find.",
-            "cadence": "Weekly"
           }
         ],
         "measure": {
@@ -1042,20 +964,6 @@
         "campaignId": "buffet-choices",
         "approach": "product-led",
         "pillar": "Buffet choices"
-      },
-      {
-        "id": "hiltl-12",
-        "date": "2026-11-15",
-        "time": "18:00",
-        "channel": "seo",
-        "title": "Make Haus Hiltl buffet prices easy to find",
-        "format": "page_fix",
-        "status": "idea",
-        "brief": "Rewrite the restaurant page title, description and heading around the two published buffet formats and prices.",
-        "why": "Answer a high-intent price question on the restaurant page.",
-        "campaignId": "buffet-choices",
-        "approach": "educational",
-        "pillar": "Buffet choices"
       }
     ],
     "previews": [],
@@ -1114,11 +1022,6 @@
         "channel": "linkedin",
         "cadence": "2 posts weekly",
         "why": "Explain product choices and company craft with useful context."
-      },
-      {
-        "channel": "seo",
-        "cadence": "1 page or article weekly",
-        "why": "Answer brew and subscription questions through the Coffee Lab."
       },
       {
         "channel": "newsletter",
@@ -1194,11 +1097,6 @@
         "channel": "linkedin",
         "before": "No visible post in about four months",
         "after": "2 weekly coffee craft posts"
-      },
-      {
-        "channel": "seo",
-        "before": "Coffee Lab articles; cadence unclear",
-        "after": "1 weekly brew or subscription page"
       },
       {
         "channel": "newsletter",
@@ -1330,7 +1228,7 @@
         "message": "Choose a rotating coffee that suits your taste and brew method.",
         "audience": "U.S. home brewers choosing specialty coffee",
         "offer": "Coffee subscriptions from $22",
-        "channels": ["instagram", "seo", "newsletter", "meta_ads"],
+        "channels": ["instagram", "newsletter", "meta_ads"],
         "assets": [
           "Coffee choice guide",
           "Brew-method article",
@@ -1388,22 +1286,10 @@
         "stage": "consideration",
         "name": "Find your fit",
         "goal": "Help shoppers choose a coffee and see how delivery works.",
-        "channels": [
-          "seo",
-          "instagram",
-          "x",
-          "facebook",
-          "linkedin",
-          "newsletter"
-        ],
+        "channels": ["instagram", "x", "facebook", "linkedin", "newsletter"],
         "metric": "Subscription page visits",
         "owner": "shared",
         "plays": [
-          {
-            "channel": "seo",
-            "what": "Answer brew-method and subscription-choice searches.",
-            "cadence": "1 page or article weekly"
-          },
           {
             "channel": "instagram",
             "what": "Show a coffee choice and the home brew it suits.",
@@ -1440,7 +1326,7 @@
         "stage": "conversion",
         "name": "Choose a delivery plan",
         "goal": "Turn coffee interest into a first subscription order.",
-        "channels": ["meta_ads", "instagram", "facebook", "seo", "newsletter"],
+        "channels": ["meta_ads", "instagram", "facebook", "newsletter"],
         "metric": "Subscription orders",
         "owner": "you",
         "plays": [
@@ -1458,11 +1344,6 @@
             "channel": "facebook",
             "what": "Repeat subscription details with a direct path to choose.",
             "cadence": "2 posts weekly"
-          },
-          {
-            "channel": "seo",
-            "what": "Link coffee choice guidance to the subscription page.",
-            "cadence": "1 page or article weekly"
           },
           {
             "channel": "newsletter",
@@ -1686,20 +1567,6 @@
         "campaignId": "home-coffee-fit",
         "approach": "social-proof",
         "pillar": "Subscriber experience"
-      },
-      {
-        "id": "bb-nov12-seo-guide-01",
-        "date": "2026-11-12",
-        "time": "10:00",
-        "channel": "seo",
-        "title": "How to choose a coffee subscription",
-        "format": "article",
-        "status": "idea",
-        "brief": "A full guide to choosing a subscription by brew method, flavor preference, coffee type and delivery frequency, using Blue Bottle’s actual plan choices.",
-        "why": "Captures shoppers researching how to choose a recurring coffee delivery.",
-        "campaignId": "home-coffee-fit",
-        "approach": "educational",
-        "pillar": "Coffee that fits"
       }
     ],
     "previews": [],
