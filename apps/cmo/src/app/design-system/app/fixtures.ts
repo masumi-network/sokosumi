@@ -319,3 +319,20 @@ export const messages: CusoMessage[] = [
     "04T10:03:30",
   ),
 ];
+
+/**
+ * The chat page's own state: a long German message, to check how the thread
+ * wraps, and Cuso at work, so the typing row shows above the composer.
+ */
+export const chat = {
+  overview: { ...overview, botStatus: "RUNNING" as const },
+  messages: [
+    ...messages,
+    message(
+      "m6",
+      false,
+      "Bitte schreibe die LinkedIn-Beiträge für die Produkteinführung auf Deutsch, mit einem klaren Nutzenversprechen für Produktverantwortliche und einem Hinweis auf die vierzehntägige Testphase. Die Geschwindigkeitsbegrenzung im Wettbewerbsvergleich darf nicht fehlen.",
+      "04T10:05:00",
+    ),
+  ],
+};

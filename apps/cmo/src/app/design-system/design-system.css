@@ -276,7 +276,7 @@
 /* Only "Needs you" is labelled on Iris; Cuso's circle stays --stage. */
 .ds-pose-on-iris {
   padding: 1px 6px;
-  border: var(--line-hero) solid var(--line);
+  border: var(--line-pill) solid var(--line);
   border-radius: var(--radius-mark);
   background: var(--primary);
   color: var(--primary-foreground);
@@ -288,7 +288,7 @@
   aspect-ratio: 4 / 5;
   max-height: 640px;
   overflow: hidden;
-  border: var(--line-hero) solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--primary-hover);
 }
