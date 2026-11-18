@@ -203,15 +203,12 @@ The person who asked a Soko Bot to act, recorded on its turns and Soko Bot sched
 _Avoid_: Context user, on-behalf-of user, initiator, owner
 
 **Task participant**:
-A person on a Task's participant list: added by an @-mention or by following. Each one hears when the Task completes, fails, is canceled, goes overdue or has its due date moved later. Distinct from Participant, which belongs to Threads.
+A person on a Task's participant list: added by an @-mention or by subscribing themselves. Each one hears by the bell when the Task completes, fails, is canceled, goes overdue or has its due date moved later. Distinct from Participant, which belongs to Threads, and from Task follower.
 _Avoid_: Participant (when meaning a Task), watcher
 
-**Subscribed participant**:
-A Task participant who chose to follow the Task. Their personal Soko Bot tells them in its 1:1, and writes a summary when the Task completes; without a live bot they hear by the bell. An @-mention never makes one. Stopping keeps them a participant; leaving removes them. UI copy says "follow".
-_Avoid_: Interested, subscriber, watcher
-
-**Plain participant**:
-A Task participant who does not follow the Task, usually one added by an @-mention. Hears by the bell.
+**Task follower**:
+A person whose personal Soko Bot follows a Task for them. The bot tells them the same moments in its 1:1, and writes a summary when the Task completes; without a live bot they hear by the bell. Following needs a live bot, never adds them to the participant list, and leaving that list never stops it. UI copy says "Follow task with Soko Bot".
+_Avoid_: Subscribed participant, subscriber, interested
 
 ### Calendar
 
