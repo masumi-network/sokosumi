@@ -48,11 +48,23 @@ const messages = withKeys(enMessages as Messages, {
   },
 });
 
-const { mutate, viewer } = vi.hoisted(() => ({
+const { mutate, viewer, tables } = vi.hoisted(() => ({
+  tables: {
+    create: vi.fn(async () => ({ id: "table-1" })),
+    batch: vi.fn(async () => ({})),
+  },
   mutate: vi.fn(),
   viewer: { userId: "owner" as string | null },
 }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("@/lib/services/data-table.client", () => ({
+  dataTableService: tables,
+}));
+// The Table export opens its Table from a toast.
+vi.mock("next/navigation", async (actual) => ({
+  ...(await actual<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     // A null viewer is a session the client has not read yet.
@@ -1861,5 +1873,132 @@ describe("Search Console queries", () => {
       errors.mock.calls.filter((call) => String(call[0]).includes("same key")),
     ).toEqual([]);
     errors.mockRestore();
+  });
+});
+
+describe("Keyword exports", () => {
+  it("offers a keyword tracked by hand, never checked, as a CSV and as a Table", async () => {
+    const { workspace } = savedKeywordWorkspace();
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", { name: "Download CSV: Keywords" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy to a table: Keywords" }),
+    ).toBeInTheDocument();
+  });
+
+  it("copies the ideas of a check from the Ideas list it opens on, with no CSV of checked keywords to give", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.keywords.push(
+      seoTestKeyword({
+        keyword: "battery saver",
+        source: "gap",
+        saved: false,
+        volume: 300,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    );
+    const user = userEvent.setup();
+    renderWorkspace(workspace);
+    // With ideas only, the tab opens on the Ideas list.
+    expect(
+      await screen.findByRole("button", { name: "Ideas", pressed: true }),
+    ).toBeInTheDocument();
+    // happy-dom applies no Tailwind: a list switched away is a `hidden` ancestor, so only one copy counts.
+    const shown = screen
+      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+      .filter((button) => !button.closest(".hidden"));
+    expect(shown).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Download CSV: Keywords" }),
+    ).not.toBeInTheDocument();
+    await user.click(shown[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    const [, batch] = tables.batch.mock.calls[0] as unknown as [
+      string,
+      { insert: { values: Record<string, unknown> }[] },
+    ];
+    expect(batch.insert).toHaveLength(1);
+    expect(Object.values(batch.insert[0].values)).toContain("battery saver");
+  });
+});
+
+describe("One keyword copy across the Keywords and Ideas lists", () => {
+  function bothListsWorkspace() {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.keywords.push(
+      seoTestKeyword({
+        keyword: "battery saver",
+        source: "gap",
+        saved: false,
+        volume: 300,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    );
+    return workspace;
+  }
+  // happy-dom applies no Tailwind: a control switched away has a `hidden` ancestor.
+  const shownCopies = () =>
+    screen
+      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+      .filter((button) => !button.closest(".hidden"));
+
+  it("hides the copy on the Competitors list", async () => {
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    expect(shownCopies()).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Competitors" }));
+    expect(shownCopies()).toHaveLength(0);
+  });
+
+  it("keeps a copy in flight busy when the list switches, so it cannot start twice", async () => {
+    let finish: (table: { id: string }) => void = () => {};
+    tables.create.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    await user.click(shownCopies()[0]);
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    expect(shownCopies()).toHaveLength(1);
+    expect(shownCopies()[0]).toHaveAttribute("aria-busy", "true");
+    await user.click(shownCopies()[0]);
+    act(() => finish({ id: "table-1" }));
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    expect(tables.create).toHaveBeenCalledOnce();
+  });
+
+  it("finishes a failed copy from the other list, in the same table under the same key", async () => {
+    tables.batch.mockRejectedValueOnce(new Error("down"));
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    await user.click(shownCopies()[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    await waitFor(() =>
+      expect(shownCopies()[0]).not.toHaveAttribute("aria-busy"),
+    );
+    expect(shownCopies()).toHaveLength(1);
+    await user.click(shownCopies()[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledTimes(2));
+    expect(tables.create).toHaveBeenCalledOnce();
+    const [first, retry] = tables.batch.mock.calls as unknown as [
+      string,
+      { key: string },
+    ][];
+    expect(retry[0]).toBe("table-1");
+    expect(retry[1].key).toBe(first[1].key);
   });
 });

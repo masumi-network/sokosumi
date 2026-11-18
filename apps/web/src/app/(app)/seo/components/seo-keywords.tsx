@@ -15,9 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { seoAuditName } from "./seo-audit-name";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
-import { seoKeywordsExport } from "./seo-export-model";
+import { seoKeywordsExport, seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
   SEO_DIFFICULTY_COLUMN_CLASS,
@@ -70,6 +72,7 @@ import {
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
+import { SeoTableButton } from "./seo-table-button";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
@@ -223,6 +226,30 @@ export function SeoKeywords({
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
     <div className="space-y-5">
+      {/* One copy over both lists: it holds keywords and ideas, and it stays mounted while the list switches or a
+          search narrows it, so a copy in flight stays busy and a failed one finishes in the same Table. */}
+      {all.checked.length || all.ideas.length ? (
+        <div
+          className={cn(
+            "px-2",
+            seoSectionClass(
+              section !== "competitors" &&
+                Boolean(checked.length || ideas.length),
+            ),
+          )}
+        >
+          <SeoTableButton
+            title={t("keywords.title")}
+            site={seoAuditName(
+              model.data.auditName ?? "",
+              model.data.websiteUrl ?? "",
+            )}
+            projectId={model.data.projectId}
+            table={() => seoKeywordsTableExport(checked, ideas, t)}
+            className="-ms-2.5"
+          />
+        </div>
+      ) : null}
       <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
           // The switch above names the list, so the title is its result: one sentence.
