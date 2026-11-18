@@ -6,6 +6,7 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
@@ -656,7 +657,6 @@ export class SokoBotEventsSyncService {
         // response) owns the drain: the watchdog would reach it only after
         // its heartbeat is 45 s stale, and not at all past the deadline.
         if (
-          (!started.duplicate || started.acknowledgedByCaller) &&
           started.reconciliationLeaseToken &&
           (started.status === "STARTING" || started.status === "RUNNING")
         ) {
@@ -667,6 +667,8 @@ export class SokoBotEventsSyncService {
               started.reconciliationLeaseToken,
             )
             .catch((error) => {
+              if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+                return;
               const log = createCoreLogger({
                 operation: OPERATION,
                 sokoBot: { id: work.sokoBotId },
