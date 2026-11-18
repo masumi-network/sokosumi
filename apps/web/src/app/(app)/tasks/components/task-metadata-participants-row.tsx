@@ -1,20 +1,16 @@
 import type { TaskParticipant } from "@sokosumi/core-client";
 import { UsersRound } from "lucide-react";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
 import { PropertyRow } from "./task-metadata";
-import { TaskParticipantFace } from "./task-participant-face";
 
-/** The Participants property: faces, with the bot mark on followers. */
+/** The Participants property: who takes part, by @ or by joining. */
 export function TaskMetadataParticipantsRow({
   participants,
   labels,
 }: {
   participants: TaskParticipant[];
-  labels: {
-    participants: string;
-    noParticipants: string;
-    followsWithSokoBot: string;
-  };
+  labels: { participants: string; noParticipants: string };
 }) {
   if (participants.length === 0) {
     return (
@@ -31,25 +27,24 @@ export function TaskMetadataParticipantsRow({
   }
   const faces = participants.slice(0, READ_RECEIPT_FACE_CAP);
   const remainingCount = participants.length - faces.length;
-  const names = participants
-    .map(({ user, followsWithSokoBot }) =>
-      followsWithSokoBot
-        ? `${user.name} (${labels.followsWithSokoBot})`
-        : user.name,
-    )
-    .join(", ");
 
   return (
     <PropertyRow
       label={labels.participants}
-      value={names}
-      icon={<TaskParticipantFace participant={participants[0]} />}
+      value={participants.map(({ user }) => user.name).join(", ")}
+      icon={
+        <AssigneeAvatar
+          assignee={{ ...participants[0].user, kind: "user" }}
+          size="sm"
+        />
+      }
     >
       <span className="flex min-w-0 items-center gap-1.5">
-        {faces.slice(1).map((participant) => (
-          <TaskParticipantFace
-            key={participant.user.id}
-            participant={participant}
+        {faces.slice(1).map(({ user }) => (
+          <AssigneeAvatar
+            key={user.id}
+            assignee={{ ...user, kind: "user" }}
+            size="sm"
           />
         ))}
         {remainingCount > 0 ? (

@@ -46,17 +46,7 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: { getProjectById: async () => null },
 }));
 vi.mock("@/lib/clients/core.client", () => ({
-  coreClient: {
-    getMySokoBotActivity: async () => ({
-      data: {
-        id: "bot-1",
-        userId: "viewer-1",
-        avatarSeed: null,
-        avatarImageUrl: null,
-        avatarCode: null,
-      },
-    }),
-  },
+  coreClient: { getMySokoBotActivity: async () => ({}) },
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
@@ -218,11 +208,15 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
         canComment: false,
       }),
     );
-    // No follow or leave for the reader of an admin view.
+    // No follow, join or leave for the reader of an admin view.
     const props = taskActivitySectionMock.mock.calls[0]?.[0] as {
-      headerAction: { props: { viewerId: string | null } };
+      headerAction: {
+        props: { children: { props: { viewerId: string | null } }[] };
+      };
     };
-    expect(props.headerAction.props.viewerId).toBeNull();
+    const controls = props.headerAction.props.children;
+    expect(controls).toHaveLength(2);
+    for (const control of controls) expect(control.props.viewerId).toBeNull();
   });
 
   it("renders the user-facing view from the task payload with the newest 5 comments", async () => {

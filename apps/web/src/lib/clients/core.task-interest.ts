@@ -1,13 +1,23 @@
-import { deleteTasksByIdSubscription as coreDeleteTasksByIdSubscription } from "@sokosumi/core-client";
+import {
+  deleteTasksByIdFollow as coreDeleteTasksByIdFollow,
+  postTasksByIdFollow as corePostTasksByIdFollow,
+} from "@sokosumi/core-client";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
 
-/** Following a Task with your Soko Bot; subscribing is `subscribeTaskParticipant`. */
+/** Following a Task with your Soko Bot; separate from taking part. */
 export function createTaskInterestClient(getClient: GetCoreClient) {
   return {
-    unsubscribeTask(id: string) {
+    followTask(id: string) {
       return executeCoreOperation(
         getClient,
-        (client) => coreDeleteTasksByIdSubscription({ client, path: { id } }),
+        (client) => corePostTasksByIdFollow({ client, path: { id } }),
+        "Failed to follow task",
+      );
+    },
+    unfollowTask(id: string) {
+      return executeCoreOperation(
+        getClient,
+        (client) => coreDeleteTasksByIdFollow({ client, path: { id } }),
         "Failed to stop following task",
       );
     },

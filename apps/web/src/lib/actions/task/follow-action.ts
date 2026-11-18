@@ -14,17 +14,31 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-interface UnsubscribeTaskParameters extends AuthenticatedRequest {
+interface FollowTaskParameters extends AuthenticatedRequest {
   taskId: string;
 }
 
-/** Stop following a Task with your Soko Bot; you stay a participant. */
-export const unsubscribeTask = withSession<
-  UnsubscribeTaskParameters,
+/** Follow a Task with your Soko Bot. Does not make you a participant. */
+export const followTask = withSession<
+  FollowTaskParameters,
   ActionResultDto<{ taskId: string }, ActionError>
 >(async ({ taskId }) => {
   try {
-    await taskService.unsubscribeTask(taskId);
+    await taskService.followTask(taskId);
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+  revalidatePath("/tasks/[taskId]", "page");
+  return toActionResult(ok({ taskId }));
+});
+
+/** Stop following a Task with your Soko Bot; participation is unchanged. */
+export const unfollowTask = withSession<
+  FollowTaskParameters,
+  ActionResultDto<{ taskId: string }, ActionError>
+>(async ({ taskId }) => {
+  try {
+    await taskService.unfollowTask(taskId);
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

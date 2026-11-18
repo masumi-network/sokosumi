@@ -83,14 +83,10 @@ describe("mapTaskToTaskWithCoworker", () => {
         {
           user: { id: "user-2", name: "Ada", image: "https://img/ada.png" },
           addedAt: new Date("2026-01-02T00:00:00.000Z"),
-          subscribedAt: null,
-          followsWithSokoBot: false,
         },
         {
           user: { id: "user-3", name: "Bea", image: null },
           addedAt: new Date("2026-01-03T00:00:00.000Z"),
-          subscribedAt: null,
-          followsWithSokoBot: false,
         },
       ],
     });
@@ -222,6 +218,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       events: [],
       jobs: [],
       files: [],
+      followers: [],
       share: {
         id: "share-1",
         taskId: "task-1",

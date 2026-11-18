@@ -8,6 +8,7 @@ import type {
   TaskActivitySummary,
   TaskEvent,
   TaskEventsPaginationMetadata,
+  TaskFollower,
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
@@ -411,14 +412,24 @@ export const taskService = (() => {
     return result.data.participants;
   }
 
-  async function unsubscribeTask(taskId: string): Promise<TaskParticipant[]> {
-    const result = await coreClient.unsubscribeTask(taskId);
+  async function followTask(taskId: string): Promise<TaskFollower[]> {
+    const result = await coreClient.followTask(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to follow task");
+    }
+
+    return result.data.followers;
+  }
+
+  async function unfollowTask(taskId: string): Promise<TaskFollower[]> {
+    const result = await coreClient.unfollowTask(taskId);
 
     if (!result.data) {
       throw new Error("Failed to stop following task");
     }
 
-    return result.data.participants;
+    return result.data.followers;
   }
 
   async function subscribeTaskParticipant(
@@ -482,7 +493,8 @@ export const taskService = (() => {
     deleteTaskLink,
     removeTaskParticipant,
     subscribeTaskParticipant,
-    unsubscribeTask,
+    followTask,
+    unfollowTask,
     moveTaskToWorkspace,
     moveOverdueTasks,
     undoMoveOverdueTasks,

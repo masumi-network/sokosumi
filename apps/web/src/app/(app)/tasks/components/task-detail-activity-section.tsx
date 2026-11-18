@@ -8,14 +8,12 @@ import {
   type MentionableUser,
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
-import {
-  TaskActivitySubscribeControl,
-  type ViewerSokoBotFace,
-} from "@/app/tasks/components/task-activity-subscribe";
+import { TaskActivitySubscribeControl } from "@/app/tasks/components/task-activity-subscribe";
 import type {
   AgentsResult,
   SessionResult,
 } from "@/app/tasks/components/task-detail-view";
+import { TaskFollowControl } from "@/app/tasks/components/task-follow-control";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { taskActivityFeedFromEvents } from "@/app/tasks/utils/task-activity-feed";
@@ -30,7 +28,7 @@ export async function TaskActivitySectionContent({
   sessionPromise,
   currentPlanPromise,
   mentionableUsersPromise,
-  viewerSokoBotPromise,
+  viewerHasSokoBotPromise,
 }: {
   taskId: string;
   task: Task;
@@ -40,7 +38,7 @@ export async function TaskActivitySectionContent({
   sessionPromise: Promise<SessionResult>;
   currentPlanPromise: Promise<SubscriptionPlanName | null>;
   mentionableUsersPromise: Promise<MentionableUser[]>;
-  viewerSokoBotPromise: Promise<ViewerSokoBotFace | null>;
+  viewerHasSokoBotPromise: Promise<boolean>;
 }) {
   const [
     agents,
@@ -48,7 +46,7 @@ export async function TaskActivitySectionContent({
     viewerPlan,
     hasAssignedSeat,
     mentionableUsers,
-    viewerSokoBot,
+    viewerHasSokoBot,
     t,
   ] = await Promise.all([
     agentsPromise,
@@ -56,7 +54,7 @@ export async function TaskActivitySectionContent({
     currentPlanPromise,
     hasAssignedSeatPromise,
     mentionableUsersPromise,
-    viewerSokoBotPromise,
+    viewerHasSokoBotPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
   // The task payload already carries every event, so a second events read
@@ -143,16 +141,25 @@ export async function TaskActivitySectionContent({
       mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
       canComment={canComment}
       headerAction={
-        <TaskActivitySubscribeControl
-          taskId={taskId}
-          // Read-only views show who takes part, with no follow or leave.
-          viewerId={forceReadOnly ? null : (currentUser?.id ?? null)}
-          viewerName={currentUser?.name ?? null}
-          viewerImage={currentUser?.image ?? null}
-          viewerSokoBot={viewerSokoBot}
-          participants={task.participants}
-          canComment={canComment}
-        />
+        <>
+          <TaskFollowControl
+            taskId={taskId}
+            // Read-only views offer no follow.
+            viewerId={forceReadOnly ? null : (currentUser?.id ?? null)}
+            viewerHasSokoBot={viewerHasSokoBot}
+            followers={task.followers ?? []}
+            canComment={canComment}
+          />
+          <TaskActivitySubscribeControl
+            taskId={taskId}
+            // Read-only views show who takes part, with no join or leave.
+            viewerId={forceReadOnly ? null : (currentUser?.id ?? null)}
+            viewerName={currentUser?.name ?? null}
+            viewerImage={currentUser?.image ?? null}
+            participants={task.participants}
+            canComment={canComment}
+          />
+        </>
       }
     />
   );

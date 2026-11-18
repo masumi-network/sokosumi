@@ -2,9 +2,13 @@ import type { Task } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TaskCreditsUsed } from "@/app/tasks/components/task-credits-used";
-import type { ProjectResult } from "@/app/tasks/components/task-detail-view";
+import type {
+  ProjectResult,
+  SessionResult,
+} from "@/app/tasks/components/task-detail-view";
 import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskMetadataFollowersRow } from "@/app/tasks/components/task-metadata-followers-row";
 import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
 import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
@@ -16,15 +20,18 @@ export async function TaskMetadataSection({
   forceReadOnly,
   hasAssignedSeatPromise,
   projectPromise,
+  sessionPromise,
 }: {
   task: Task;
   forceReadOnly: boolean;
   hasAssignedSeatPromise: Promise<boolean>;
   projectPromise: Promise<ProjectResult>;
+  sessionPromise: Promise<SessionResult>;
 }) {
-  const [project, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
+  const [project, session, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
     await Promise.all([
       projectPromise,
+      sessionPromise,
       hasAssignedSeatPromise,
       getTranslations("App.Tasks.Detail"),
       getTranslations("App.Tasks"),
@@ -76,14 +83,23 @@ export async function TaskMetadataSection({
           )
         }
         participants={
-          <TaskMetadataParticipantsRow
-            participants={task.participants}
-            labels={{
-              participants: t("participants"),
-              noParticipants: t("noParticipants"),
-              followsWithSokoBot: t("followsWithSokoBot"),
-            }}
-          />
+          <>
+            <TaskMetadataParticipantsRow
+              participants={task.participants}
+              labels={{
+                participants: t("participants"),
+                noParticipants: t("noParticipants"),
+              }}
+            />
+            <TaskMetadataFollowersRow
+              followers={task.followers ?? []}
+              viewerId={session?.user.id ?? null}
+              labels={{
+                followedBy: t("followedBy"),
+                followerBot: (name) => t("followerBot", { name }),
+              }}
+            />
+          </>
         }
         labels={{
           privateBadge: t("privateBadge"),

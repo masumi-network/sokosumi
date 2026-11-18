@@ -103,7 +103,7 @@ interface TaskActivityProps {
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
   mentionableUsers?: readonly MentionableUser[];
-  /** Sits in the header beside Jump to latest: the follow control. */
+  /** Sits in the header beside Jump to latest: follow and participant controls. */
   headerAction?: ReactNode;
 }
 
