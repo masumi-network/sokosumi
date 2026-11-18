@@ -7,7 +7,6 @@ import {
 
 const price = {
   perSecondUsd: 0.05,
-  minimumVideoUsd: 0,
   voicePer1000CharactersUsd: 0.08,
   captionsPerMinuteUsd: 0.03,
 };
@@ -33,14 +32,9 @@ describe("creditsPerTalkingVideoCents", () => {
     expect(creditsPerTalkingVideoCents(price, "a".repeat(130))).toBe(52);
   });
 
-  it("charges at least the minimum for a short video", () => {
-    // 3 s: the $1.10 minimum, not 15 cents, plus voice and captions.
-    expect(
-      creditsPerTalkingVideoCents(
-        { ...price, minimumVideoUsd: 1.1 },
-        "a".repeat(39),
-      ),
-    ).toBe(111);
+  it("charges a short video by its seconds, with no minimum", () => {
+    // 3 s: 15 cents of video, 0.31 of voice, 0.15 of captions.
+    expect(creditsPerTalkingVideoCents(price, "a".repeat(39))).toBe(16);
   });
 
   it("doubles the video part on a model at twice the price", () => {

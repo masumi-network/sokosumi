@@ -42,12 +42,11 @@ export const TALKING_VIDEO_CAPTION_ENDPOINT =
   "fal-ai/workflow-utilities/auto-subtitle";
 
 /**
- * Measured, not read off the model page. The page says $0.05 per second at
- * 1080p; fal billed a 6.08 s Turbo clip 22 units at $0.05, so $1.10, on
- * 2026-11-18. With one measurement it is unknown whether part of that is a
- * fixed charge, so a video costs the larger of $1.10 and that clip's rate
- * per second: an upper bound either way. The standard tier is left out until
- * its price is measured too.
+ * What fal bills, read from its billing events (`/v1/models/billing-events`)
+ * on 2026-11-18: one $0.05 unit per started second of a 1080p Turbo clip and
+ * no minimum. Seven clips: 4.48 s was 5 units, 6.08 s 7, 9.68 s 10, 12.72 s
+ * 13, 14.16 s 15. That is the model page's $0.05 per second. The standard
+ * tier is left out until its billing is read the same way.
  */
 const PRICES_VERIFIED_AT = "2026-11-18";
 const VOICE_PER_1000_CHARACTERS_USD = 0.08;
@@ -78,12 +77,11 @@ const MODELS: TalkingVideoModel[] = [
     description: "A presenter speaking your script.",
     endpoint: "heygen/avatar-6/turbo/image-to-video",
     price: {
-      perSecondUsd: 0.181,
-      minimumVideoUsd: 1.1,
+      perSecondUsd: 0.05,
       voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
       captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
       basis:
-        "The larger of $1.10 and $0.181 per second of video at 1080p, from what fal billed for a measured clip, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). The edit itself is made by Core and costs nothing.",
+        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). The edit itself is made by Core and costs nothing.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
       verifiedAt: PRICES_VERIFIED_AT,
     },

@@ -585,10 +585,8 @@ export const imageStudioVideoCatalogModelSchema = z
   .openapi("ProjectImageStudioVideoCatalogModel");
 
 const talkingVideoPriceSchema = z.object({
-  /** USD per second of video. */
+  /** USD per started second of video. */
   perSecondUsd: z.number(),
-  /** The least one video costs, however short. */
-  minimumVideoUsd: z.number(),
   /** USD per 1,000 characters of script, for the voice. */
   voicePer1000CharactersUsd: z.number(),
   /** USD per minute of video, for the captions. */
