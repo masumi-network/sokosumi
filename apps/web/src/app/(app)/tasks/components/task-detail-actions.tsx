@@ -390,7 +390,7 @@ export function TaskDetailActions({
   const handleStatusToggle = (action: TaskStatusAction) => {
     if (
       action.requiresComment ||
-      userTaskStatusTransitionRequiresComment(status, action.target)
+      userTaskStatusTransitionRequiresComment(status, action.target, true)
     ) {
       setReopenComment("");
       setIsReopenDialogOpen(true);

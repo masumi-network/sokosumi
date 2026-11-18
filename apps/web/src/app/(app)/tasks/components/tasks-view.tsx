@@ -515,7 +515,11 @@ export function TasksView({
     );
 
     if (
-      userTaskStatusTransitionRequiresComment(previousStatus, desiredStatus)
+      userTaskStatusTransitionRequiresComment(
+        previousStatus,
+        desiredStatus,
+        true,
+      )
     ) {
       setReopenComment("");
       setPendingBoardReopen({

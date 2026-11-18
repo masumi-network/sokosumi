@@ -686,11 +686,15 @@ export const setTaskStatusFromDrag = withSession<
     if (desiredStatus !== currentStatus) {
       const trimmedComment = comment?.trim();
       if (
-        userTaskStatusTransitionRequiresComment(currentStatus, desiredStatus) &&
+        userTaskStatusTransitionRequiresComment(
+          currentStatus,
+          desiredStatus,
+          task.assigneeId != null || task.assigneeSokoBotId != null,
+        ) &&
         !trimmedComment
       ) {
         throw new Error(
-          "A comment is required when reopening a canceled or completed task to ready",
+          "Tell the assignee what to do: a comment is required when sending a Task back to ready",
         );
       }
 

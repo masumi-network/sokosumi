@@ -92,7 +92,9 @@ export function TaskMetadataStatusField({
   function handleStatusSelect(nextStatus: TaskStatus) {
     if (nextStatus === currentStatus) return;
 
-    if (userTaskStatusTransitionRequiresComment(currentStatus, nextStatus)) {
+    if (
+      userTaskStatusTransitionRequiresComment(currentStatus, nextStatus, true)
+    ) {
       setReopenComment("");
       setIsReopenDialogOpen(true);
       return;

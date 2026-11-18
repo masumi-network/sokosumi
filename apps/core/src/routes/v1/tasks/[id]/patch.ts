@@ -7,6 +7,7 @@ import {
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import { LIMITS } from "@/config/constants";
 import {
@@ -48,10 +49,16 @@ import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
+  notifyTaskStatusEvent,
 } from "@/helpers/task-notifications";
+import {
+  reopenedWithoutInstructionsComment,
+  taskReopenedWithoutInstructions,
+} from "@/helpers/task-reopen-instructions";
 import { requireNotSubtask } from "@/helpers/task-subtasks";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
@@ -324,6 +331,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      // A Coworker or Soko Bot handed a silently reopened Task would run with
+      // no instructions. It waits in Input required for a person to say what
+      // to do (SOKD-279).
+      const parksForInstructions =
+        nextStatus === TaskStatus.READY &&
+        (nextAssigneeId ?? nextAssigneeSokoBotId) !== null &&
+        (nextAssigneeId !== task.assigneeId ||
+          nextAssigneeSokoBotId !== task.assigneeSokoBotId) &&
+        (await taskReopenedWithoutInstructions(tx, id));
+      if (parksForInstructions) nextStatus = TaskStatus.INPUT_REQUIRED;
+
       const previousAssigneeUserId = task.assigneeUserId;
 
       let nextDescription = description;
@@ -407,16 +425,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           actorUserId: userContext.userId,
         });
       }
+      let parkedEventId: string | undefined;
       if (nextStatus !== task.status) {
         const statusEvent = await tx.taskEvent.create({
           data: {
             taskId: id,
             status: nextStatus,
             channel: Channel.SOKOSUMI,
-            ...resolveTaskEventActorFields(authContext),
+            // Core parks the Task, so the event has no actor and the Owner
+            // is told even when they made the assignment.
+            ...(parksForInstructions
+              ? {
+                  comment: reopenedWithoutInstructionsComment(
+                    updatedTask.assignee?.name ??
+                      updatedTask.assigneeSokoBot?.name ??
+                      "the assignee",
+                  ),
+                }
+              : resolveTaskEventActorFields(authContext)),
           },
           include: taskEventApiInclude,
         });
+        if (parksForInstructions) parkedEventId = statusEvent.id;
         updatedTask = {
           ...updatedTask,
           events: [...updatedTask.events, statusEvent],
@@ -427,6 +457,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         previousAssigneeUserId,
         workspaceId: task.workspaceId,
         statusChanged: nextStatus !== task.status,
+        parkedEventId,
       };
     });
     await deliverCalendarInvalidationsNow(result.workspaceId);
@@ -449,6 +480,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
       }
+    }
+
+    const parkedEventId = result.parkedEventId;
+    if (parkedEventId) {
+      waitUntil(
+        runAsBackgroundWork(() =>
+          notifyTaskStatusEvent(
+            result.task.id,
+            parkedEventId,
+            TaskStatus.INPUT_REQUIRED,
+            null,
+          ),
+        ),
+      );
     }
 
     if (result.previousAssigneeUserId !== result.task.assigneeUserId) {

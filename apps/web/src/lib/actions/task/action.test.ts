@@ -1005,12 +1005,13 @@ describe("setTaskStatusFromDrag", () => {
     });
   });
 
-  it("rejects reopening completed to ready without a comment", async () => {
+  it("rejects reopening a Coworker's completed Task to ready without a comment", async () => {
     expectConsole("error", "Failed to update task status");
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
         id: "task-1",
         status: TaskStatus.COMPLETED,
+        assigneeId: "cow_1",
       }),
     );
 
@@ -1023,6 +1024,22 @@ describe("setTaskStatusFromDrag", () => {
       }),
     ).rejects.toThrow(/comment is required/i);
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("reopens a person's completed Task to ready without a comment", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({ id: "task-1", status: TaskStatus.COMPLETED }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("./action");
+
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
   });
 
   it("maps a Core client-upgrade rejection to its stable result kind", async () => {

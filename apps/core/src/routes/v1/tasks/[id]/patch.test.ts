@@ -34,6 +34,7 @@ const {
   mapTaskMock,
   markTaskAssignedReadMock,
   notifyTaskHumanAssigneeMock,
+  notifyTaskStatusEventMock,
   prismaTransactionMock,
   projectFindFirstMock,
   requireTaskAssignableCoworkerMock,
@@ -49,6 +50,7 @@ const {
   mapTaskMock: vi.fn(),
   markTaskAssignedReadMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
+  notifyTaskStatusEventMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
@@ -94,6 +96,7 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/helpers/task-notifications", () => ({
   markTaskAssignedRead: markTaskAssignedReadMock,
   notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
+  notifyTaskStatusEvent: notifyTaskStatusEventMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -780,6 +783,90 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  describe("assigning an agent to a silently reopened Task (SOKD-279)", () => {
+    const taskEventFindFirstMock = vi.fn();
+    const taskEventCountMock = vi.fn();
+    const taskEventCreateMock = vi.fn();
+
+    beforeEach(() => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.READY,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
+      taskUpdateMock.mockResolvedValue({
+        ...createTaskApi(),
+        assignee: { name: "Writer" },
+      });
+      taskEventFindFirstMock.mockResolvedValue({
+        createdAt: new Date("2026-11-01T00:00:00.000Z"),
+      });
+      taskEventCreateMock.mockResolvedValue({ id: "event_parked" });
+      notifyTaskStatusEventMock.mockResolvedValue(undefined);
+      prismaTransactionMock.mockImplementation(async (callback) =>
+        callback({
+          projectSeoAnalysis: { findUnique: async () => null },
+          task: { update: taskUpdateMock },
+          taskEvent: {
+            findFirst: taskEventFindFirstMock,
+            count: taskEventCountMock,
+            create: taskEventCreateMock,
+          },
+        }),
+      );
+    });
+
+    function assignCoworker() {
+      return createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: "cow_123" }),
+      });
+    }
+
+    it("parks it in Input required with a Core comment and tells the Owner", async () => {
+      taskEventCountMock.mockResolvedValue(0);
+
+      expect((await assignCoworker()).status).toBe(200);
+      expect(taskUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            assigneeId: "cow_123",
+            status: TaskStatus.INPUT_REQUIRED,
+          }),
+        }),
+      );
+      const event = taskEventCreateMock.mock.calls[0]?.[0].data;
+      expect(event).toMatchObject({
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Reopened without instructions. Tell Writer what to do.",
+      });
+      expect(event.userId).toBeUndefined();
+      expect(notifyTaskStatusEventMock).toHaveBeenCalledWith(
+        "tsk_123",
+        "event_parked",
+        TaskStatus.INPUT_REQUIRED,
+        null,
+      );
+    });
+
+    it("keeps it Ready when a person commented after the reopen", async () => {
+      taskEventCountMock.mockResolvedValue(1);
+
+      expect((await assignCoworker()).status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+      expect(taskEventCreateMock).not.toHaveBeenCalled();
+      expect(notifyTaskStatusEventMock).not.toHaveBeenCalled();
+    });
   });
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
