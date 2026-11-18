@@ -9,7 +9,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 
 // A new user's Task, end to end: create, rename to a long title, see its card on
 // the board, archive, find it in Archived, restore. Each size signs up its own
-// disposable mail.tm inbox.
+// disposable mail.tm inbox. Screen reader checks ride along: the task page is
+// titled with the task's name, closed dialogs leave no headings behind, and a
+// board card is a link, not a nameless "draggable" button.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const MAIL_API = "https://api.mail.tm";
@@ -129,6 +131,20 @@ for (const { name: size, ...viewport } of PROJECTS) {
         participantsBox && participantsBox.height >= 24,
         `Participants is ${participantsBox?.height}px tall`,
       );
+      const title = await page.getByRole("heading", { level: 1 }).innerText();
+      await page.waitForFunction(
+        (name) => document.title.includes(name),
+        title,
+      );
+      for (const leaked of ["...", "Search"]) {
+        assert.equal(
+          await page
+            .getByRole("heading", { name: leaked, exact: true })
+            .count(),
+          0,
+          `a closed dialog leaves the heading "${leaked}" on the page`,
+        );
+      }
       await shot(page, size, "1-task");
 
       await page.getByRole("button", { name: "Actions" }).click();
@@ -161,7 +177,29 @@ for (const { name: size, ...viewport } of PROJECTS) {
         0,
         "a board card shows an empty tags line",
       );
-      await card.click();
+      // Keyboard order: the next Tab stop after the toolbar's Archived link is
+      // the card's task link, with no extra stop on the card around it.
+      await page
+        .getByRole("link", { name: "Archived tasks" })
+        .filter({ visible: true })
+        .focus();
+      await page.keyboard.press("Tab");
+      assert.equal(
+        await page.evaluate(() => document.activeElement?.textContent),
+        LONG_NAME,
+        "Tab after Archived does not land on the card's task link",
+      );
+      // Enter opens the task and moves focus to its heading, visibly, so a
+      // screen reader reads the name even when the streamed tab title is late.
+      await page.keyboard.press("Enter");
+      await page.waitForFunction((name) => {
+        const el = document.activeElement;
+        return (
+          el?.tagName === "H1" &&
+          el.textContent === name &&
+          el.matches(":focus-visible")
+        );
+      }, LONG_NAME);
 
       await page.getByRole("button", { name: "Archive", exact: true }).click();
       await page.waitForURL(`${BASE_URL}/tasks`);
@@ -180,6 +218,40 @@ for (const { name: size, ...viewport } of PROJECTS) {
         `archived name does not wrap (${nameStyle})`,
       );
       await shot(page, size, "3-archived");
+
+      // Search says what it found in one polite status line that stays the
+      // same element across searches (a fresh one is often not read), and
+      // focus stays in the search box.
+      const search = page.getByRole("searchbox", {
+        name: "Search archived tasks",
+      });
+      const status = await page
+        .locator('main p[role="status"]')
+        .elementHandle();
+      assert.ok(status, "no status line before the first search");
+      assert.equal(await status.textContent(), "");
+      const searchFor = async (query: string, said: string) => {
+        await search.fill(query);
+        await search.press("Enter");
+        await page.waitForFunction(
+          ([el, text]) => el.isConnected && el.textContent === text,
+          [status, said] as const,
+        );
+        assert.equal(
+          await search.evaluate((el) => el === document.activeElement),
+          true,
+          `search box loses focus after searching "${query}"`,
+        );
+      };
+      await searchFor(LONG_NAME, `1 archived task matches “${LONG_NAME}”.`);
+      await row.waitFor();
+      await shot(page, size, "4-archived-search");
+      await searchFor(
+        "zz-no-such-task",
+        "No archived tasks match “zz-no-such-task”.",
+      );
+      await searchFor("", "");
+      await row.waitFor();
 
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
