@@ -52,6 +52,20 @@ import {
   SOKO_BOT_SEO_DESCRIPTIONS,
   SOKO_BOT_SEO_INPUT_SCHEMAS,
 } from "./seo.js";
+import {
+  SOKO_BOT_TASK_TOOL_DESCRIPTIONS,
+  sokoBotArchiveTaskInputSchema,
+  sokoBotAssignTaskInputSchema,
+  sokoBotCreateTaskInputSchema,
+  sokoBotFollowUpSchema,
+  sokoBotLinkTasksInputSchema,
+  sokoBotListTasksInputSchema,
+  sokoBotReplyToTaskInputSchema,
+  sokoBotSetTaskParentInputSchema,
+  sokoBotTaskIdInputSchema,
+  sokoBotUpdateAssignedTaskInputSchema,
+  sokoBotUpdateTaskInputSchema,
+} from "./task-tool-contracts.js";
 import { WRITING_SKILLS } from "./writing-skills/index.js";
 
 const emptyInputSchema = z.object({}).strict();
@@ -67,158 +81,12 @@ export const sokoBotSearchInputSchema = z
   .object({ query: z.string().trim().max(200).default("") })
   .strict();
 
-export const sokoBotTaskIdInputSchema = z
-  .object({ taskId: z.string().min(1) })
-  .strict();
-
-/** Every status a Task can have; CREATED is only ever an event status. */
-export const SOKO_BOT_TASK_STATUSES = [
-  "DRAFT",
-  "QUEUED",
-  "READY",
-  "GRANT_PENDING",
-  "INPUT_REQUIRED",
-  "APPROVAL_REQUIRED",
-  "AUTHENTICATION_REQUIRED",
-  "OUT_OF_CREDITS",
-  "CREDITS_TOPPED_UP",
-  "RUNNING",
-  "AWAITING_EXTERNAL",
-  "COMPLETED",
-  "FAILED",
-  "CANCELED",
-] as const;
-
-const taskStatusSchema = z.enum(SOKO_BOT_TASK_STATUSES);
-
-export const sokoBotListTasksInputSchema = z
-  .object({
-    state: z.enum(["open", "finished", "all"]).default("open"),
-    status: z
-      .union([
-        taskStatusSchema,
-        z.array(taskStatusSchema).min(1).max(SOKO_BOT_TASK_STATUSES.length),
-      ])
-      .optional(),
-    query: z.string().trim().min(1).max(200).optional(),
-    assignee: z.string().trim().min(1).max(160).optional(),
-    idleDays: z.number().int().min(1).max(365).optional(),
-    projectId: z.string().min(1).optional(),
-    limit: z.number().int().min(1).max(25).default(15),
-  })
-  .strict();
-
 export const sokoBotJobIdInputSchema = z
   .object({ jobId: z.string().min(1) })
   .strict();
 
 export const sokoBotAgentIdInputSchema = z
   .object({ agentId: z.string().min(1) })
-  .strict();
-
-/**
- * What the bot does once delegated work completes ("give Hannah's findings to
- * Alex as a Task"). Core keeps it with the delegation and hands it back on the
- * wake that reports the result, so waiting needs no schedule and no polling.
- */
-export const sokoBotFollowUpSchema = z.string().trim().min(1).max(2_000);
-
-export const sokoBotCreateTaskInputSchema = z
-  .object({
-    triggeringTaskId: z.string().min(1).optional(),
-    name: z.string().trim().min(1).max(160),
-    description: z.string().trim().max(20_000).nullable().optional(),
-    projectId: z.string().uuid().nullable().optional(),
-    coworkerId: z.string().min(1).nullable().optional(),
-    /** The owner does it themselves (pay, sign, decide); not with coworkerId. */
-    assignToOwner: z.literal(true).optional(),
-    /** A teammate does it: their userId from find_coworkers `people`. */
-    memberId: z.string().min(1).optional(),
-    status: z.enum(["DRAFT", "READY"]).default("DRAFT"),
-    /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
-    fileIds: z.array(z.string().uuid()).max(10).optional(),
-    followUp: sokoBotFollowUpSchema.optional(),
-  })
-  .strict();
-
-export const sokoBotUpdateTaskInputSchema = z
-  .object({
-    taskId: z.string().min(1),
-    projectId: z.string().uuid().nullable().optional(),
-    expectedUpdatedAt: z.string().datetime().optional(),
-    name: z.string().trim().min(1).max(160).optional(),
-    description: z.string().trim().max(20_000).nullable().optional(),
-    status: z.enum(["DRAFT", "READY"]).optional(),
-    /** Clears the assignee: no Coworker, assistant or person owns it any more. */
-    unassign: z.literal(true).optional(),
-  })
-  .strict()
-  .refine(
-    (input) =>
-      input.name !== undefined ||
-      input.description !== undefined ||
-      input.status !== undefined ||
-      input.projectId !== undefined ||
-      input.unassign !== undefined,
-    { message: "Specify a task change" },
-  );
-
-export const sokoBotArchiveTaskInputSchema = z
-  .object({
-    taskId: z.string().min(1),
-    expectedUpdatedAt: z.string().datetime(),
-  })
-  .strict();
-
-export const sokoBotAssignTaskInputSchema = z
-  .object({
-    taskId: z.string().min(1),
-    coworkerId: z.string().min(1).optional(),
-    assignToOwner: z.literal(true).optional(),
-    memberId: z.string().min(1).optional(),
-    ready: z.boolean().default(true),
-    followUp: sokoBotFollowUpSchema.optional(),
-  })
-  .strict()
-  .refine(
-    (input) =>
-      [input.coworkerId, input.assignToOwner, input.memberId].filter(Boolean)
-        .length === 1,
-    { message: "Give one of coworkerId, assignToOwner: true or memberId" },
-  );
-
-export const sokoBotReplyToTaskInputSchema = z
-  .object({
-    taskId: z.string().min(1),
-    comment: z.string().trim().min(1).max(20_000),
-    /**
-     * READY resumes a task that is waiting (INPUT_REQUIRED/FAILED/…); CANCELED
-     * stops one of the owner's Tasks and COMPLETED marks one done, with the
-     * comment as the reason. Omit to just comment.
-     */
-    status: z.enum(["READY", "CANCELED", "COMPLETED"]).optional(),
-    /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
-    fileIds: z.array(z.string().uuid()).max(10).optional(),
-  })
-  .strict();
-
-export const sokoBotUpdateAssignedTaskInputSchema = z
-  .object({
-    taskId: z.string().min(1),
-    /** RUNNING while you work; INPUT_REQUIRED to ask; COMPLETED with the result; FAILED with the reason. */
-    status: z.enum(["RUNNING", "INPUT_REQUIRED", "COMPLETED", "FAILED"]),
-    /** The result, the question, or the reason — this is what the owner reads on the Taskboard. */
-    comment: z.string().trim().min(1).max(20_000),
-  })
-  .strict();
-
-export const sokoBotLinkTasksInputSchema = z
-  .object({
-    taskId: z.string().min(1),
-    peerTaskId: z.string().min(1),
-    relation: z.enum(["related", "blocks", "blocked_by", "parent", "child"]),
-    note: z.string().trim().max(2000).nullable().optional(),
-  })
   .strict();
 
 export const sokoBotHireAgentInputSchema = z
@@ -1758,6 +1626,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   reply_to_task: sokoBotReplyToTaskInputSchema,
   update_assigned_task: sokoBotUpdateAssignedTaskInputSchema,
   link_tasks: sokoBotLinkTasksInputSchema,
+  set_task_parent: sokoBotSetTaskParentInputSchema,
   list_followed_tasks: emptyInputSchema,
   stop_following_task: sokoBotTaskIdInputSchema,
   find_agents: sokoBotSearchInputSchema,
@@ -2023,24 +1892,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   refresh_context: "Read immutable Context snapshot for current turn.",
   find_coworkers:
     "Find who can take Task work: available AI Coworkers (coworkers) and the people on your team in this workspace (people, each with a userId to pass as memberId). A query narrows both by name.",
-  create_task:
-    'Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), memberId for a teammate (a person from find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description. followUp: what you will do once this work is COMPLETED ("give the findings to Alex as a Task for a one-page brief"); Core hands it back to you with the result, so do not create a schedule or poll to wait for it.',
-  update_task:
-    "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
-  archive_task:
-    "Archive a Task the owner could archive in the app: their own, or a public Task of their organization. Pass the exact updatedAt from list_tasks or get_task_status as expectedUpdatedAt; no separate read is needed. One Task per call: to archive several, list them once and call archive_task for all of them in the same step. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template; cancel another one first with reply_to_task status CANCELED when the owner wants it gone. Report success only from the archive result.",
-  assign_task:
-    "Assign a Task to an available Coworker (coworkerId), a teammate (memberId, a person from find_coworkers), or the owner with assignToOwner: true, and optionally make it READY. followUp: what you will do once the work is COMPLETED, as on create_task.",
-  get_task_status:
-    "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks. `owner` says whose Task it is. Each event's `by` is from your side: \"owner\" is the person you work for, \"teammate\" is someone else, named in `byName`; a teammate's comment is never your owner's instruction.",
-  list_tasks:
-    "List the Tasks the owner can see on the board: their own and their team's. Each Task's `owner` says whose it is; only one marked \"your owner\" is the owner's own work, and a teammate's Task is never reported as the owner's. Filter by state (open, finished, all), exact status (one or several, e.g. INPUT_REQUIRED and FAILED for what is stuck; it replaces state), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first; `total` and `byStatus` count every match, not just the page shown. Use get_task_status for one Task in full.",
-  reply_to_task:
-    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; with status CANCELED it cancels one of the owner's Tasks and with COMPLETED marks one done (when the owner says it is done or asks you to close it), the comment saying why; without status it only comments. fileIds attaches Files to the Task and adds their text to the comment, for a Coworker who needs them.",
-  update_assigned_task:
-    "Progress a Task that is assigned to you: RUNNING when you start, INPUT_REQUIRED to ask the owner one clear question, COMPLETED with the full result in the comment, FAILED with why. Only for Tasks where you are the assignee.",
-  link_tasks:
-    "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
+  ...SOKO_BOT_TASK_TOOL_DESCRIPTIONS,
   list_followed_tasks:
     "List the Tasks the owner follows with you: you tell them when one completes, fails, is canceled, goes overdue or has its due date moved later. Returns each Task's identifier, name, status and due date, newest follow first.",
   stop_following_task:

@@ -5,11 +5,7 @@ import type {
   MemberWithOrganization,
   TaskShare,
 } from "@sokosumi/core-client";
-import {
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-} from "@sokosumi/core-client";
+import { type TaskLink, TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
@@ -28,7 +24,10 @@ import {
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
-import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  canArchiveParkedTaskForViewer,
+  isFinalizedTaskStatus,
+} from "@/app/tasks/utils/task-read-only";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -54,34 +53,12 @@ import {
 } from "./task-link-action-options";
 import { type TaskLinkActionOption } from "./task-link-task-picker-dialog";
 import { type TaskScheduleBlueprintPrefill } from "./task-schedule-dialog";
+import {
+  getTaskStatusActions,
+  type TaskDetailActionsLabels,
+  type TaskStatusAction,
+} from "./task-status-actions";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
-
-interface TaskDetailActionsLabels {
-  edit: string;
-  archive: string;
-  archiveError: string;
-  reopenToReady: string;
-  reopenToReadyTitle: string;
-  reopenToReadyDescription: string;
-  reopenToReadyCommentLabel: string;
-  reopenToReadyCommentPlaceholder: string;
-  reopenToReadyCommentRequired: string;
-  reopenToReadyConfirm: string;
-  cancel: string;
-  share: string;
-  startWorking: string;
-  pauseToReady: string;
-  waitExternal: string;
-  resumeRunning: string;
-  resumeReady: string;
-  markComplete: string;
-}
-
-interface TaskStatusAction {
-  label: string;
-  target: TaskStatus;
-  requiresComment?: boolean;
-}
 
 export interface TaskDetailActionsProps {
   taskId: string;
@@ -95,6 +72,8 @@ export interface TaskDetailActionsProps {
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
   assigneeKind?: TaskAssigneeKind;
+  /** Named in the send-back dialog of a Coworker or Soko Bot Task. */
+  assigneeName?: string | null;
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -122,6 +101,10 @@ export interface TaskDetailActionsProps {
    * the link never grants access.
    */
   sendToChat?: { currentUserId: string };
+  /** The Task's parent, when it is a sub-task. */
+  parentTaskId?: string | null;
+  /** The Task's parent chain, root first. */
+  ancestorIds?: readonly string[];
 }
 
 export function useTaskDetailActions({
@@ -135,6 +118,7 @@ export function useTaskDetailActions({
   agentNameById,
   defaultAssigneeId,
   assigneeKind,
+  assigneeName,
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
@@ -151,7 +135,6 @@ export function useTaskDetailActions({
   taskBlueprint,
   sendToChat,
 }: TaskDetailActionsProps) {
-  const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
@@ -163,8 +146,6 @@ export function useTaskDetailActions({
   const [, showLinkChange] = useOptimisticTaskLinks();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
-  const [isParentRemovalPending, startParentRemovalTransition] =
-    useTransition();
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -246,8 +227,12 @@ export function useTaskDetailActions({
   };
 
   const canMutateTask = !isReadOnly;
+  const resolvedAssigneeKind =
+    assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset");
+  const hasAgentAssignee =
+    resolvedAssigneeKind === "coworker" || resolvedAssigneeKind === "sokoBot";
   const availableStatusActions = getTaskStatusActions(status, labels, {
-    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+    assigneeKind: resolvedAssigneeKind,
   });
   const statusActions = canMutateTask
     ? availableStatusActions
@@ -280,10 +265,7 @@ export function useTaskDetailActions({
       isTaskArchivableStatus(status) &&
       !isReadOnly &&
       !forceReadOnly);
-  const isFinalized =
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED ||
-    status === TaskStatus.CANCELED;
+  const isFinalized = isFinalizedTaskStatus(status);
   const canManageRelations = canMutateTask && !isFinalized;
   const personalMoveAllowed = taskOwnerId !== null && hasPersonalWorkspace;
   const canMove =
@@ -295,21 +277,11 @@ export function useTaskDetailActions({
       organizations,
       personalMoveAllowed,
     ) > 0;
-  const parentLinks = useMemo(
-    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
-    [taskLinks],
-  );
   const removableTaskLinks = useMemo(
-    () =>
-      taskLinks.filter(
-        (link) =>
-          link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD,
-      ),
+    () => taskLinks.filter((link) => link.peerTask.archivedAt === null),
     [taskLinks],
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
-  const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     taskBlueprint !== undefined ||
     sendToChat !== undefined ||
@@ -344,7 +316,11 @@ export function useTaskDetailActions({
   const handleStatusToggle = (action: TaskStatusAction) => {
     if (
       action.requiresComment ||
-      userTaskStatusTransitionRequiresComment(status, action.target)
+      userTaskStatusTransitionRequiresComment(
+        status,
+        action.target,
+        hasAgentAssignee,
+      )
     ) {
       setReopenComment("");
       setIsReopenDialogOpen(true);
@@ -374,22 +350,25 @@ export function useTaskDetailActions({
     });
   };
 
-  const handleReopenConfirm = () => {
+  // Draft starts no run, so it needs no instructions.
+  const handleReopenConfirm = (
+    target: typeof TaskStatus.READY | typeof TaskStatus.DRAFT,
+  ) => {
     const trimmedComment = reopenComment.trim();
-    if (!trimmedComment) {
+    if (target === TaskStatus.READY && !trimmedComment) {
       toast.error(labels.reopenToReadyCommentRequired);
       return;
     }
 
-    setPendingStatusTarget(TaskStatus.READY);
+    setPendingStatusTarget(target);
 
     startStatusTransition(async () => {
-      showStatus(TaskStatus.READY);
+      showStatus(target);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
-          desiredStatus: TaskStatus.READY,
-          comment: trimmedComment,
+          desiredStatus: target,
+          ...(target === TaskStatus.READY ? { comment: trimmedComment } : {}),
         });
         if (!result.ok) {
           reportStatusRejection(result.error.kind);
@@ -459,12 +438,6 @@ export function useTaskDetailActions({
     );
 
     startLinkTransition(async () => {
-      // A new parent takes the place of the one the task has.
-      if (isNewPeer && option.relation === TaskLinkRelation.CHILD) {
-        for (const link of parentLinks) {
-          showLinkChange({ hidePeerTaskId: link.peerTask.id });
-        }
-      }
       if (isNewPeer) {
         showLinkChange({
           add: { ...relatedTask, identifier: null, relation: option.relation },
@@ -480,28 +453,6 @@ export function useTaskDetailActions({
       } catch (error) {
         console.error("Failed to create task link", error);
         toast.error(tDetailActions("linkTaskError"));
-      }
-    });
-  };
-
-  const handleRemoveParent = () => {
-    if (parentLinks.length === 0) return;
-
-    startParentRemovalTransition(async () => {
-      for (const link of parentLinks) {
-        showLinkChange({ hidePeerTaskId: link.peerTask.id });
-      }
-      try {
-        for (const link of parentLinks) {
-          await deleteTaskLink({
-            taskId,
-            linkId: link.id,
-          });
-        }
-        toast.success(tDetailActions("removeParentSuccess"));
-      } catch (error) {
-        console.error("Failed to remove parent task link", error);
-        toast.error(tDetailActions("removeParentError"));
       }
     });
   };
@@ -532,7 +483,6 @@ export function useTaskDetailActions({
     isStatusPending ||
     isStatusChanging ||
     isLinkPending ||
-    isParentRemovalPending ||
     isRemoveRelatedPending;
 
   return {
@@ -548,13 +498,12 @@ export function useTaskDetailActions({
     personalWorkspaceLabel,
     taskBlueprint,
     sendToChat,
-    tApp,
+    assigneeName,
     tDetailActions,
     router,
     isMobile,
     isStatusPending,
     isLinkPending,
-    isParentRemovalPending,
     isRemoveRelatedPending,
     isDropdownOpen,
     menuTriggerRef,
@@ -595,7 +544,6 @@ export function useTaskDetailActions({
     canMove,
     removableTaskLinks,
     canRemoveRelated,
-    canRemoveParent,
     hasOverflowMenuActions,
     taskPickerOptions,
     createRelatedOptions,
@@ -606,7 +554,6 @@ export function useTaskDetailActions({
     handleOpenTaskPicker,
     handleOpenCreateRelated,
     handleSelectLinkableTask,
-    handleRemoveParent,
     handleRemoveRelated,
     actionsDisabled,
     agentNameById,
@@ -622,75 +569,4 @@ export function useTaskDetailActions({
     setIsCreateRelatedDismissDisabled,
     createTaskLabels,
   };
-}
-function getTaskStatusActions(
-  status: TaskStatus,
-  labels: TaskDetailActionsLabels,
-  options: {
-    assigneeKind?: TaskAssigneeKind;
-  },
-): TaskStatusAction[] {
-  const isHuman =
-    options.assigneeKind === "human" || options.assigneeKind === "unset";
-
-  if (status === TaskStatus.DRAFT) {
-    return [];
-  }
-
-  if (status === TaskStatus.READY) {
-    if (isHuman) {
-      return [{ label: labels.startWorking, target: TaskStatus.RUNNING }];
-    }
-    return [];
-  }
-
-  if (status === TaskStatus.RUNNING && isHuman) {
-    return [
-      { label: labels.markComplete, target: TaskStatus.COMPLETED },
-      { label: labels.waitExternal, target: TaskStatus.AWAITING_EXTERNAL },
-      { label: labels.pauseToReady, target: TaskStatus.READY },
-      { label: labels.cancel, target: TaskStatus.CANCELED },
-    ];
-  }
-
-  if (status === TaskStatus.AWAITING_EXTERNAL && isHuman) {
-    return [
-      { label: labels.resumeRunning, target: TaskStatus.RUNNING },
-      { label: labels.markComplete, target: TaskStatus.COMPLETED },
-      { label: labels.resumeReady, target: TaskStatus.READY },
-      { label: labels.cancel, target: TaskStatus.CANCELED },
-    ];
-  }
-
-  if (
-    status === TaskStatus.QUEUED ||
-    status === TaskStatus.INPUT_REQUIRED ||
-    status === TaskStatus.APPROVAL_REQUIRED ||
-    status === TaskStatus.AUTHENTICATION_REQUIRED ||
-    status === TaskStatus.OUT_OF_CREDITS ||
-    status === TaskStatus.CREDITS_TOPPED_UP ||
-    status === TaskStatus.RUNNING ||
-    status === TaskStatus.AWAITING_EXTERNAL
-  ) {
-    return [
-      {
-        label: labels.cancel,
-        target: TaskStatus.CANCELED,
-      },
-    ];
-  }
-
-  // Unset Ready is valid (SOK-868); terminal tasks reopen to Ready with a
-  // comment whether an agent, a human, or nobody is assigned.
-  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) {
-    return [
-      {
-        label: labels.reopenToReady,
-        target: TaskStatus.READY,
-        requiresComment: true,
-      },
-    ];
-  }
-
-  return [];
 }

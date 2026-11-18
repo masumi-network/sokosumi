@@ -36,11 +36,15 @@ import {
 } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
+import { recordTaskCommentMentions } from "@/helpers/task-event-mentions";
 import {
   notifyTaskParticipantsAdded,
   notifyTaskStatusEvent,
 } from "@/helpers/task-notifications";
-import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
+import {
+  addTaskParticipantsFromComment,
+  resolveTaskCommentMentionedUserIds,
+} from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import {
   requireNativeSeoWorkerAccess,
@@ -260,12 +264,13 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           userTaskStatusTransitionRequiresComment(
             task.status as Exclude<TaskStatus, "CREATED">,
             status,
+            task.assigneeId !== null || task.assigneeSokoBotId !== null,
           )
         ) {
           const trimmedComment = comment?.trim();
           if (!trimmedComment) {
             throw unprocessableEntity(
-              "A comment is required when reopening a canceled or completed task to ready",
+              "Tell the assignee what to do: a comment is required when sending a Task back to ready",
             );
           }
           comment = trimmedComment;
@@ -384,6 +389,14 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           comment,
           tx,
         );
+        const mentionedUserIds = await resolveTaskCommentMentionedUserIds(tx, {
+          workspaceId: task.workspaceId,
+          comment,
+          visibility: task.visibility,
+          ownerId: task.ownerId,
+          excludeUserId: actorData.userId,
+          mentionedUserIds: body.mentionedUserIds,
+        });
         addedParticipantUserIds = await addTaskParticipantsFromComment(tx, {
           taskId,
           workspaceId: task.workspaceId,
@@ -391,7 +404,14 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           visibility: task.visibility,
           ownerId: task.ownerId,
           excludeUserId: actorData.userId,
-          mentionedUserIds: body.mentionedUserIds,
+          resolvedMentionedUserIds: mentionedUserIds,
+        });
+        await recordTaskCommentMentions(tx, {
+          taskId,
+          taskEventId: createdEvent.id,
+          authorUserId: actorData.userId ?? null,
+          mentionedUserIds,
+          now: new Date(),
         });
       }
 

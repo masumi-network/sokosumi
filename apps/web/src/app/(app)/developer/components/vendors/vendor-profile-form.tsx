@@ -194,7 +194,12 @@ export function VendorProfileForm({
             <FormItem>
               <FormLabel>{t("slugLabel")}</FormLabel>
               <FormControl>
-                <Input {...field} readOnly disabled className="bg-muted" />
+                <Input
+                  {...field}
+                  readOnly
+                  disabled
+                  className="bg-muted dark:bg-muted"
+                />
               </FormControl>
               <p className="text-muted-foreground text-sm">{t("slugHint")}</p>
             </FormItem>

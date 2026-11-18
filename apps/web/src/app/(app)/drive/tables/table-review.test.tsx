@@ -978,9 +978,9 @@ it("F4: value cells and the row checkbox align to the top of an uneven row", () 
 });
 
 it("F4b: a long-text cell is not the only filled cell in a dark row", () => {
-  // The shared Textarea carries `dark:bg-quinary`; the shared Input does not.
-  // Inside the grid that made a `long_text` cell paint a box while every
-  // other cell in the same row stayed transparent.
+  // The shared Textarea and Input both carry `dark:bg-quinary`. Inside the
+  // grid every cell editor sets `dark:bg-transparent`; a `long_text` cell
+  // without it painted a box while the rest of its row stayed transparent.
   f.columns = [
     { ...f.column, type: "long_text" as const, name: "Notes" },
   ] as TableColumn[];

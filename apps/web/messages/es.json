@@ -1846,6 +1846,8 @@
         "loading": "Cargando...",
         "loadMore": "Cargar más"
       },
+      "noTitle": "(Sin título)",
+      "unansweredMention": "Tienes una mención sin responder",
       "createTaskFab": "Crear tarea",
       "personalAssistant": "Asistente personal",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1913,17 @@
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
-        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
+        "needsMe": "Me necesita",
+        "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
+        "mentions": "Menciones",
+        "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces"
       },
       "Detail": {
         "back": "Volver a Tasks",
         "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
-        "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
         "organization": "Organización",
@@ -1930,6 +1935,8 @@
         "updated": "Actualizado",
         "description": "Descripción",
         "context": "Contexto",
+        "subtasks": "Subtareas",
+        "subtaskOf": "Subtarea de",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
@@ -1996,12 +2003,16 @@
           "archive": "Archivar",
           "archiveError": "No se pudo archivar la tarea",
           "reopenToReady": "Reabrir como Lista",
-          "reopenToReadyTitle": "Reabrir tarea",
-          "reopenToReadyDescription": "Añade un comentario para que tu coworker sepa qué hacer a continuación. La tarea volverá a Lista.",
-          "reopenToReadyCommentLabel": "Comentario",
-          "reopenToReadyCommentPlaceholder": "Describe lo que aún hay que hacer…",
           "reopenToReadyCommentRequired": "Se requiere un comentario para reabrir esta tarea",
-          "reopenToReadyConfirm": "Reabrir como Lista",
+          "sendBack": {
+            "title": "¿Devolver a {assignee}?",
+            "description": "La tarea vuelve a Lista y {assignee} inicia una nueva ejecución. Dile a {assignee} qué hacer.",
+            "commentLabel": "Qué corregir",
+            "commentPlaceholder": "¿Qué debe cambiar o rehacer {assignee}?",
+            "confirm": "Devolver a {assignee}",
+            "reopenAsDraft": "Reabrir como borrador",
+            "cancel": "Ahora no"
+          },
           "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
@@ -2019,9 +2030,6 @@
           "removeRelated": "Quitar tarea relacionada",
           "removeRelatedSuccess": "Tarea relacionada quitada",
           "removeRelatedError": "No se pudo quitar la tarea relacionada",
-          "removeParent": "Quitar tarea principal",
-          "removeParentSuccess": "Tarea principal quitada",
-          "removeParentError": "No se pudo quitar la tarea principal",
           "linkTaskSuccess": "Tarea vinculada",
           "linkTaskError": "No se pudo vincular la tarea",
           "createRelatedSuccess": "Tarea relacionada creada",
@@ -2038,10 +2046,7 @@
             "related": "Relacionada",
             "blocks": "Bloqueando",
             "blockedBy": "Bloqueada por",
-            "parent": "Tarea principal",
-            "subtask": "Subtarea",
-            "duplicate": "Duplicada",
-            "addSubtask": "Agregar subtarea"
+            "duplicate": "Duplicada"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Empezar a trabajar",
@@ -2071,6 +2076,23 @@
             "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
             "retry": "Enviar de nuevo",
             "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          },
+          "subtasks": {
+            "add": "Añadir subtarea…",
+            "addExisting": "Añadir tarea existente como subtarea…",
+            "addExistingTitle": "Añadir tarea existente como subtarea",
+            "addExistingDescription": "Elige una tarea. Pasa a ser la última subtarea de esta tarea.",
+            "addExistingSuccess": "Subtarea añadida",
+            "moveUnder": "Mover debajo de…",
+            "moveUnderTitle": "Mover debajo de otra tarea",
+            "moveUnderDescription": "Elige una tarea. Esta tarea pasa a ser su última subtarea.",
+            "moveUnderSuccess": "Tarea movida",
+            "removeFromParent": "Quitar de la tarea principal",
+            "removeFromParentSuccess": "Tarea quitada de su tarea principal",
+            "moveError": "No se pudo mover la tarea.",
+            "createSuccess": "Subtarea añadida",
+            "createError": "No se pudo añadir la subtarea.",
+            "serverErrorDescription": "Inténtalo de nuevo más tarde."
           }
         },
         "ShareModal": {
@@ -2106,7 +2128,6 @@
           "confirm": "Cambiar espacio de trabajo",
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
-        "clonedFrom": "Clonada de {name}",
         "pendingApproval": "Aprobación pendiente",
         "VendorGrantApproval": {
           "title": "Se requiere aprobación de acceso del proveedor",
@@ -2315,6 +2336,24 @@
           "tomorrowAt": "Empieza mañana a las {time}",
           "at": "Empieza {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} de {total} subtareas completadas",
+        "title": "Subtareas",
+        "add": "Añadir subtarea",
+        "movedTo": "Movida a la posición {position} de {total}",
+        "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
+        "toggleLabel": "{name} hecha",
+        "agentDoneHint": "Al desmarcarla vuelve a {assignee}",
+        "changeError": "No se pudo guardar el cambio de la subtarea. Inténtalo de nuevo.",
+        "truncated": "Se muestran las primeras {count} subtareas.",
+        "createDescription": "La subtarea va al final de la lista.",
+        "name": "Nombre",
+        "description": "Descripción (opcional)",
+        "assignee": "Responsable",
+        "dueOn": "Fecha límite",
+        "cancel": "Cancelar",
+        "create": "Añadir subtarea"
       },
       "Due": {
         "label": "Fecha límite",

@@ -71,6 +71,7 @@ describe("TaskMetadataStatusField", () => {
           taskId="task-1"
           status={TaskStatus.QUEUED}
           selectableStatuses={[TaskStatus.QUEUED, TaskStatus.READY]}
+          agentAssigneeName={null}
           labels={labels}
         />
       </TaskDetailStatusProvider>,
@@ -101,6 +102,7 @@ describe("TaskMetadataStatusField", () => {
           status={TaskStatus.READY}
           selectableStatuses={[TaskStatus.READY]}
           statusSince={old}
+          agentAssigneeName={null}
           labels={labels}
         />
       </TaskDetailStatusProvider>,

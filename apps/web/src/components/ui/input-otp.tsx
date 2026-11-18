@@ -19,7 +19,7 @@ function InputOTP({
     <OTPInput
       data-slot="input-otp"
       containerClassName={cn(
-        "flex h-10 w-full min-w-0 items-center rounded-md border border-input bg-transparent px-1 transition-[color] has-disabled:opacity-50",
+        "flex h-10 w-full min-w-0 items-center rounded-md border border-input bg-transparent dark:bg-quinary px-1 transition-[color] has-disabled:opacity-50",
         "has-[[data-active=true]]:border-ring",
         "has-[input[aria-invalid=true]]:border-destructive",
         containerClassName

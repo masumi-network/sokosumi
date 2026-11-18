@@ -41,7 +41,7 @@ export function KanbanColumn({
         "bg-card-background",
       )}
     >
-      <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
+      <div className="sticky top-0 z-10">
         <ColumnHeader
           title={title}
           count={tasks.length + hiddenCount}

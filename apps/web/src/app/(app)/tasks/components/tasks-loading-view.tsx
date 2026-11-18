@@ -79,9 +79,14 @@ export function TasksLoadingView({
     >
       <div className="flex flex-row items-center justify-end gap-3">
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button variant="outline" size="sm" className="gap-2" disabled>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hit-area"
+            aria-label={labels.display.button}
+            disabled
+          >
             <SlidersHorizontal className="size-4" aria-hidden />
-            <span className="hidden sm:inline">{labels.display.button}</span>
           </Button>
         </div>
       </div>
@@ -129,7 +134,7 @@ function TasksBoardLoading({
             key={column.id}
             className="bg-card-background flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]"
           >
-            <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
+            <div className="sticky top-0 z-10">
               <ColumnHeader
                 title={labels.columns[column.id]}
                 statusColorClass={COLUMN_STATUS_COLORS[column.id]}
@@ -160,8 +165,11 @@ function TasksBoardLoading({
 
 function TasksListLoading({ compact }: { compact: boolean }) {
   return (
-    <div className="bg-card-background overflow-hidden rounded-xl p-2">
-      <div aria-hidden className="flex flex-col gap-2">
+    <div className="bg-card-background md:bg-background md:border-border overflow-hidden rounded-xl p-2 md:border md:p-0">
+      <div
+        aria-hidden
+        className="md:divide-border flex flex-col gap-2 md:gap-0 md:divide-y"
+      >
         {Array.from({ length: LIST_SKELETON_ROW_COUNT }, (_, rowIndex) => (
           // Mirrors `TaskListView`: cards below `md`, rows from `md` up.
           <div key={`row-${rowIndex}`}>
@@ -170,16 +178,14 @@ function TasksListLoading({ compact }: { compact: boolean }) {
             </div>
             <div
               data-testid="task-row-skeleton"
-              className="bg-background hidden items-center gap-4 rounded-lg border border-border px-4 py-3 md:flex"
+              className={cn(
+                "hidden items-center gap-3 px-3 md:flex",
+                compact ? "py-1.5" : "py-2.5",
+              )}
             >
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <TextLineSkeleton className="w-3/5 text-sm" />
-                {compact ? null : (
-                  <TextLineSkeleton className="w-4/5 text-xs" />
-                )}
-              </div>
-              <StatusBadgeSkeleton />
-              <TextLineSkeleton className="w-24 shrink-0 text-xs" />
+              <TextLineSkeleton className="w-2/5 text-sm" />
+              <TextLineSkeleton className="ms-auto w-32 shrink-0 text-xs lg:w-40" />
+              <Skeleton className="size-5 shrink-0 rounded-full" />
             </div>
           </div>
         ))}
@@ -198,17 +204,11 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
         TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],
       )}
     >
-      <StatusBadgeSkeleton />
-      <TextLineSkeleton className="w-4/5 text-sm leading-snug" />
-      {compact ? null : (
-        <div className="flex min-h-8 items-center gap-2">
-          <Skeleton className="size-5 shrink-0 rounded-sm" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-      )}
-      <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
-        <Skeleton className="size-5 rounded-full" />
+      <TextLineSkeleton className="w-20 text-xs leading-4" />
+      <TextLineSkeleton className="w-4/5 text-sm leading-5" />
+      <div className="flex h-5 items-center justify-between gap-2">
         <Skeleton className="h-3 w-12" />
+        <Skeleton className="size-5 rounded-full" />
       </div>
     </div>
   );
@@ -218,15 +218,6 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
 function TextLineSkeleton({ className }: { className: string }) {
   return (
     <Skeleton className={cn("text-transparent select-none", className)}>
-      &nbsp;
-    </Skeleton>
-  );
-}
-
-/** Box of `TaskStatusBadge`: same border, padding and type size. */
-function StatusBadgeSkeleton() {
-  return (
-    <Skeleton className="w-20 shrink-0 rounded-sm border border-transparent py-1 text-xs text-transparent select-none">
       &nbsp;
     </Skeleton>
   );

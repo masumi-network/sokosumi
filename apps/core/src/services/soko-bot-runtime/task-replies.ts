@@ -1,4 +1,9 @@
-import { Channel, type Prisma, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  type Prisma,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/database";
 import {
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
@@ -366,12 +371,24 @@ export async function replyToTask(
   return persisted.result;
 }
 
+/** Relations link_tasks no longer writes: a parent is a sub-task now. */
+const SUBTASK_LINK_RELATIONS: readonly unknown[] = ["parent", "child"];
+
 export async function linkTasks(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
   rawInput: unknown,
   toolCallId: string,
 ) {
+  if (
+    typeof rawInput === "object" &&
+    rawInput !== null &&
+    "relation" in rawInput &&
+    SUBTASK_LINK_RELATIONS.includes(rawInput.relation)
+  )
+    throw new SokoBotRuntimeValidationError(
+      "Parent links are now sub-tasks. Use set_task_parent to put a Task under another, or create_task with parentTaskId for a new step.",
+    );
   const input = linkTasksInputSchema.parse(rawInput);
   if (input.taskId === input.peerTaskId) {
     throw new SokoBotRuntimeValidationError("A task cannot link to itself");
@@ -411,6 +428,10 @@ export async function linkTasks(
         relation: existing.type,
         id: existing.id,
       };
+      if (existing.type === TaskLinkType.PARENT)
+        throw new SokoBotRuntimeValidationError(
+          "These Tasks already have an older parent link. To make one a step of the other, use set_task_parent.",
+        );
       if (existing.type !== data.type)
         throw new SokoBotRuntimeValidationError(
           "A different relationship already exists",

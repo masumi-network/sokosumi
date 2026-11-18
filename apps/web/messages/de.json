@@ -1846,6 +1846,8 @@
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden"
       },
+      "noTitle": "(Kein Titel)",
+      "unansweredMention": "Du hast eine unbeantwortete Erwähnung",
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1913,17 @@
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
-        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat"
+        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
+        "needsMe": "Wartet auf mich",
+        "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
+        "mentions": "Erwähnungen",
+        "mentionsHint": "Tasks, in denen dich ein Kommentar erwähnt und du seitdem nicht kommentiert hast"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
         "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
-        "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",
         "organization": "Organisation",
@@ -1930,6 +1935,8 @@
         "updated": "Aktualisiert",
         "description": "Beschreibung",
         "context": "Kontext",
+        "subtasks": "Teilaufgaben",
+        "subtaskOf": "Teilaufgabe von",
         "copyIdentifier": "Task-ID kopieren",
         "identifierCopied": "{identifier} kopiert",
         "identifierCopyError": "Task-ID konnte nicht kopiert werden",
@@ -1996,12 +2003,16 @@
           "archive": "Archivieren",
           "archiveError": "Task konnte nicht archiviert werden",
           "reopenToReady": "Als Bereit wiedereröffnen",
-          "reopenToReadyTitle": "Aufgabe wiedereröffnen",
-          "reopenToReadyDescription": "Füge einen Kommentar hinzu, damit dein Coworker weiß, was als Nächstes zu tun ist. Die Aufgabe wird wieder auf Bereit gesetzt.",
-          "reopenToReadyCommentLabel": "Kommentar",
-          "reopenToReadyCommentPlaceholder": "Beschreibe, was noch zu erledigen ist…",
           "reopenToReadyCommentRequired": "Zum Wiedereröffnen ist ein Kommentar erforderlich",
-          "reopenToReadyConfirm": "Als Bereit wiedereröffnen",
+          "sendBack": {
+            "title": "An {assignee} zurückgeben?",
+            "description": "Die Aufgabe wird wieder bereit, und {assignee} startet einen neuen Lauf. Sag {assignee}, was zu tun ist.",
+            "commentLabel": "Was zu korrigieren ist",
+            "commentPlaceholder": "Was soll {assignee} ändern oder neu machen?",
+            "confirm": "An {assignee} zurückgeben",
+            "reopenAsDraft": "Als Entwurf wieder öffnen",
+            "cancel": "Nicht jetzt"
+          },
           "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
@@ -2019,9 +2030,6 @@
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
           "removeRelatedError": "Verknüpfter Task konnte nicht entfernt werden",
-          "removeParent": "Übergeordneten Task entfernen",
-          "removeParentSuccess": "Übergeordneter Task entfernt",
-          "removeParentError": "Übergeordneter Task konnte nicht entfernt werden",
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
@@ -2038,10 +2046,7 @@
             "related": "Zugehörig",
             "blocks": "Blockiert",
             "blockedBy": "Blockiert durch",
-            "parent": "Übergeordnete Aufgabe",
-            "subtask": "Unteraufgabe",
-            "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen"
+            "duplicate": "Duplikat"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -2071,6 +2076,23 @@
             "refused": "Dieser Chat kann diese Aufgabe nicht mehr erhalten. Wähle einen anderen.",
             "retry": "Erneut senden",
             "retryHint": "Das letzte Senden ist vielleicht nicht angekommen. Erneutes Senden postet sie nicht doppelt; wenn du Chat oder Nachricht änderst, wird eine neue gesendet."
+          },
+          "subtasks": {
+            "add": "Teilaufgabe hinzufügen…",
+            "addExisting": "Vorhandenen Task als Teilaufgabe hinzufügen…",
+            "addExistingTitle": "Vorhandenen Task als Teilaufgabe hinzufügen",
+            "addExistingDescription": "Wähle einen Task. Er wird die letzte Teilaufgabe dieses Tasks.",
+            "addExistingSuccess": "Teilaufgabe hinzugefügt",
+            "moveUnder": "Verschieben unter…",
+            "moveUnderTitle": "Unter einen anderen Task verschieben",
+            "moveUnderDescription": "Wähle einen Task. Dieser Task wird seine letzte Teilaufgabe.",
+            "moveUnderSuccess": "Task verschoben",
+            "removeFromParent": "Aus übergeordnetem Task entfernen",
+            "removeFromParentSuccess": "Task aus seinem übergeordneten Task entfernt",
+            "moveError": "Der Task konnte nicht verschoben werden.",
+            "createSuccess": "Teilaufgabe hinzugefügt",
+            "createError": "Die Teilaufgabe konnte nicht hinzugefügt werden.",
+            "serverErrorDescription": "Versuche es später erneut."
           }
         },
         "ShareModal": {
@@ -2106,7 +2128,6 @@
           "confirm": "Arbeitsbereich wechseln",
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
-        "clonedFrom": "Geklont von {name}",
         "pendingApproval": "Freigabe ausstehend",
         "VendorGrantApproval": {
           "title": "Freigabe des Vendor-Zugriffs erforderlich",
@@ -2315,6 +2336,24 @@
           "tomorrowAt": "Startet morgen um {time}",
           "at": "Startet {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} von {total} Teilaufgaben erledigt",
+        "title": "Teilaufgaben",
+        "add": "Teilaufgabe hinzufügen",
+        "movedTo": "Auf Position {position} von {total} verschoben",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+        "toggleLabel": "{name} erledigt",
+        "agentDoneHint": "Abwählen gibt sie an {assignee} zurück",
+        "changeError": "Die Änderung an der Teilaufgabe wurde nicht gespeichert. Versuche es erneut.",
+        "truncated": "Die ersten {count} Teilaufgaben werden angezeigt.",
+        "createDescription": "Die Teilaufgabe kommt ans Ende der Liste.",
+        "name": "Name",
+        "description": "Beschreibung (optional)",
+        "assignee": "Zuständig",
+        "dueOn": "Fälligkeitsdatum",
+        "cancel": "Abbrechen",
+        "create": "Teilaufgabe hinzufügen"
       },
       "Due": {
         "label": "Fälligkeitsdatum",

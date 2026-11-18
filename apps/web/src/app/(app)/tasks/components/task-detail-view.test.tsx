@@ -8,6 +8,7 @@ import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadat
 const taskActivitySectionMock = vi.fn();
 const taskMetadataMock = vi.fn();
 const taskDetailActionsMock = vi.fn();
+const taskSubtaskSectionMock = vi.fn();
 const viewer = vi.hoisted(() => ({
   id: "user_admin",
   hasAssignedSeat: false,
@@ -127,6 +128,12 @@ vi.mock("@/app/tasks/components/task-related-tasks", () => ({
 vi.mock("@/app/tasks/components/task-status-realtime-listener", () => ({
   TaskStatusRealtimeListener: () => null,
 }));
+vi.mock("@/app/tasks/components/task-subtask-section", () => ({
+  TaskSubtaskSection: () => {
+    taskSubtaskSectionMock();
+    return null;
+  },
+}));
 vi.mock("@/app/tasks/components/task-tags", () => ({
   TaskTagSection: () => null,
 }));
@@ -182,6 +189,8 @@ function createTask(
     files: [],
     jobs: [],
     participants: [],
+    parentTaskId: null,
+    subtaskProgress: { completed: 0, total: 0 },
     events,
     tags: [],
     createdAt: new Date("2026-10-05T09:00:00Z"),
@@ -335,5 +344,31 @@ describe("TaskDetailView (rights follow the Owner)", () => {
 
     expect(actions).toMatchObject({ isTaskOwner: false, canCancel: false });
     expect(activity.canComment).toBe(false);
+  });
+});
+
+describe("TaskDetailView (sub-task checklist)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    viewer.id = "user_owner";
+    viewer.hasAssignedSeat = true;
+  });
+
+  it("leaves the checklist out of a Task with no sub-tasks", async () => {
+    expect(
+      await renderErrors(<TaskDetailView task={createTask([])} />),
+    ).toEqual([]);
+
+    expect(taskSubtaskSectionMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the checklist once the Task has a sub-task", async () => {
+    const task = createTask([], {
+      subtaskProgress: { completed: 0, total: 1 },
+    });
+
+    expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
+
+    expect(taskSubtaskSectionMock).toHaveBeenCalled();
   });
 });
