@@ -184,7 +184,9 @@ export function RestingIntentLink({
   // by, or a touch that may only start a scroll, loads only the App Shell:
   // focus and a resting hover still load the content. The link's box is its
   // text: a card that stretches the link over itself with a pseudo-element
-  // still relies on the hover handler.
+  // still relies on the hover handler, unless the card marks itself as the
+  // link's area. Such a card is not a Tab stop, so its link gets no App Shell
+  // load from a Tab stop close by: focus still loads the content.
   const approachRef = useIntentPrefetch<HTMLElement>(
     (source) => {
       if (source === "pointer") {
