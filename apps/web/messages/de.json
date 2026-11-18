@@ -1264,8 +1264,7 @@
       "termsOfServices": "Nutzungsbedingungen",
       "privacyPolicy": "Datenschutzrichtlinie",
       "imprint": "Impressum",
-      "acceptableUse": "Zulässige Nutzung",
-      "usesSokosumi": "Nutzt dein Sokosumi-Konto."
+      "acceptableUse": "Zulässige Nutzung"
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1281,8 +1280,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Anmelden / Registrieren",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Anmelden / Registrieren",
+        "template": "{product} - %s"
       },
       "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
@@ -1474,6 +1473,7 @@
       "chooseAccountTitle": "Konto auswählen",
       "chooseAccountTitleFor": "Konto für {client} auswählen",
       "signedInAs": "Bei Sokosumi angemeldet als <account>{email}</account>",
+      "signedInAsCmo": "Angemeldet als <account>{email}</account>",
       "continueAs": "Weiter als {account}",
       "useAnotherAccount": "Anderes Konto verwenden",
       "accountCheckError": "Dein Konto konnte nicht überprüft werden. Versuche es erneut.",
@@ -1483,7 +1483,7 @@
       "backTo": "Zurück zu {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
+      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
       "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
       "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut.",
       "expired": "Diese Anmeldung hat zu lange gedauert oder wurde in einem anderen Browser gestartet. Bitte versuche es erneut.",
@@ -13966,7 +13966,7 @@
   },
   "CookieConsent": {
     "title": "Wir verwenden Cookies",
-    "body": "Notwendige Cookies halten Sokosumi funktionsfähig. Mit deiner Zustimmung nutzen wir außerdem Analyse- und Marketing-Cookies, um das Produkt zu verbessern.",
+    "body": "Notwendige Cookies halten {product} funktionsfähig. Mit deiner Zustimmung nutzen wir außerdem Analyse- und Marketing-Cookies, um das Produkt zu verbessern.",
     "policyLink": "Cookie-Richtlinie",
     "acceptAll": "Alle akzeptieren",
     "rejectAll": "Nicht notwendige ablehnen",
@@ -13977,7 +13977,7 @@
     "analyticsTitle": "Analyse",
     "analyticsBody": "Nutzungsmessung mit Google Analytics. Wenn du angemeldet bist, verknüpft eine pseudonyme Konto-ID deine Besuche — niemals dein Name oder deine E-Mail-Adresse.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die Sokosumi nützlich sein könnte.",
+    "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die {product} nützlich sein könnte.",
     "settings": "Cookie-Einstellungen"
   },
   "WorkspaceGate": {

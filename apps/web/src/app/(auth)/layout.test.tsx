@@ -18,7 +18,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("next-intl/server", () => ({
-  getTranslations: async () => (key: string) => key,
+  getTranslations: async () => (key: string, values?: { product: string }) =>
+    values ? `${key}:${values.product}` : key,
 }));
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
@@ -36,7 +37,11 @@ vi.mock("./components/auth-background", () => ({
   default: () => <aside>Sokosumi pitch</aside>,
 }));
 
-import AuthLayout from "./layout";
+import AuthLayout, { generateMetadata } from "./layout";
+
+const CMO_REQUEST = `client_id=cmo&redirect_uri=${encodeURIComponent(
+  "https://app.cmo.xyz/api/auth/callback/sokosumi",
+)}&exp=1&sig=abc`;
 
 async function renderAt(pathname: string, search = "") {
   requestHeaders.set("x-pathname", pathname);
@@ -76,6 +81,34 @@ describe("AuthLayout", () => {
     const main = screen.getByRole("main");
     expect(main).toContainElement(screen.getByText("page"));
     expect(main).not.toContainElement(screen.getByText("Sokosumi pitch"));
+  });
+
+  it("names CMO.XYZ in the tab of a sign-in that came from CMO, and Sokosumi otherwise", async () => {
+    requestHeaders.set("x-search-params", CMO_REQUEST);
+    expect(await generateMetadata()).toMatchObject({
+      title: {
+        default: "Title.default:CMO.XYZ",
+        template: "Title.template:CMO.XYZ",
+      },
+      icons: { icon: "/images/logos/cmo-xyz-icon.svg" },
+    });
+
+    requestHeaders.set("x-search-params", "client_id=other&exp=1&sig=abc");
+    const sokosumi = await generateMetadata();
+    expect(sokosumi.title).toEqual({
+      default: "Title.default:Sokosumi",
+      template: "Title.template:Sokosumi",
+    });
+    expect(sokosumi.icons).toBeUndefined();
+  });
+
+  it("links CMO's own imprint under a sign-in that came from CMO", async () => {
+    await renderAt("/signin", CMO_REQUEST);
+    expect(screen.getByRole("link", { name: "imprint" })).toHaveAttribute(
+      "href",
+      "https://www.cmo.xyz/#imprint",
+    );
+    expect(screen.queryByText("usesSokosumi")).not.toBeInTheDocument();
   });
 
   it("leaves Sokosumi's pitch out when signing in for another product", async () => {
