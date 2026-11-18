@@ -72,63 +72,71 @@ export function TaskSubtaskCreateDialog({
         className="sm:max-w-md"
         onCloseAutoFocus={onCloseAutoFocus}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="flex max-h-[calc(100dvh-5rem)] flex-col gap-4"
+        >
           <DialogHeader>
             <DialogTitle>{t("add")}</DialogTitle>
             <DialogDescription>{t("createDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor={nameId}>{t("name")}</Label>
-            <Input
-              id={nameId}
-              required
-              autoFocus
-              autoComplete="off"
-              // readOnly, not disabled: a disabled field drops focus.
-              readOnly={isPending}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={descriptionId}>{t("description")}</Label>
-            <Textarea
-              id={descriptionId}
-              // The assignee list portals into the dialog, so the dialog cannot
-              // scroll; a viewport cap keeps the buttons on a short screen.
-              className="min-h-24 max-h-[20dvh]"
-              readOnly={isPending}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={assigneeFieldId}>{t("assignee")}</Label>
-            <TaskAssigneePicker
-              id={assigneeFieldId}
-              value={assigneeId}
-              options={assigneeOptions}
-              labels={{
-                ariaLabel: t("assignee"),
-                unassigned: tNewTask("unassigned"),
-                unavailableAssignee: tNewTask("unavailableAssignee"),
-                searchPlaceholder: tNewTask("changeCoworker"),
-                noResults: tNewTask("noCoworkerMatches"),
-                agentsGroupLabel: tNewTask("coworker"),
-              }}
-              onSelect={setAssigneeId}
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={dueId}>{t("dueOn")}</Label>
-            <Input
-              id={dueId}
-              type="date"
-              readOnly={isPending}
-              value={dueOn}
-              onChange={(event) => setDueOn(event.target.value)}
-            />
+          {/* Only the fields scroll. The assignee list portals into the
+              dialog itself, so this overflow cannot clip it. The padding
+              keeps focus rings inside the scroll area. */}
+          <div className="-mx-1 min-h-0 space-y-4 overflow-y-auto px-1 py-1">
+            <div className="space-y-2">
+              <Label htmlFor={nameId}>{t("name")}</Label>
+              <Input
+                id={nameId}
+                required
+                autoFocus
+                autoComplete="off"
+                className="read-only:opacity-70"
+                // readOnly, not disabled: a disabled field drops focus.
+                readOnly={isPending}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={descriptionId}>{t("description")}</Label>
+              <Textarea
+                id={descriptionId}
+                className="min-h-24 max-h-60 read-only:opacity-70"
+                readOnly={isPending}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={assigneeFieldId}>{t("assignee")}</Label>
+              <TaskAssigneePicker
+                id={assigneeFieldId}
+                value={assigneeId}
+                options={assigneeOptions}
+                labels={{
+                  ariaLabel: t("assignee"),
+                  unassigned: tNewTask("unassigned"),
+                  unavailableAssignee: tNewTask("unavailableAssignee"),
+                  searchPlaceholder: tNewTask("changeCoworker"),
+                  noResults: tNewTask("noCoworkerMatches"),
+                  agentsGroupLabel: tNewTask("coworker"),
+                }}
+                onSelect={setAssigneeId}
+                disabled={isPending}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={dueId}>{t("dueOn")}</Label>
+              <Input
+                id={dueId}
+                type="date"
+                className="read-only:opacity-70"
+                readOnly={isPending}
+                value={dueOn}
+                onChange={(event) => setDueOn(event.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
