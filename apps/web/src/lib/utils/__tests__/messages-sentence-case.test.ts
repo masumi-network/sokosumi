@@ -19,6 +19,7 @@ const PROPER_PHRASES = [
   "Soko Bot",
   "Soko Bots",
   "Content Studio",
+  "TikTok Studio",
   "Sokosumi Projects",
   "Agent Identities",
   // Ad platforms.

@@ -395,7 +395,7 @@ it("lets the founder confirm while Cuso writes the plan he started, and shows it
   await press("Looks like us");
   // Core hands the running plan back; nothing new starts.
   expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
-  expect(text()).toContain("Writing your plan");
+  expect(text()).toContain("Writing your strategy");
 });
 
 it("opens a plan Cuso already wrote on Looks like us, without planning again", async () => {
@@ -413,7 +413,7 @@ it("opens a plan Cuso already wrote on Looks like us, without planning again", a
   await press("Looks like us");
   expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
   expect(actions.requestStrategy).not.toHaveBeenCalled();
-  expect(text()).toContain("Approve plan");
+  expect(text()).toContain("Approve strategy");
 });
 
 // Brand: a tile opens the side panel.
@@ -561,7 +561,7 @@ it("fits the plan to an edit the founder made before Looks like us", async () =>
 it("says a waiting fix will reach the plan, and lets the founder approve", async () => {
   await openSell(writingPlan({ fixed: false }));
   expect(container.querySelector("aside")?.textContent).toContain(
-    "Cuso will fix this and update your plan.",
+    "Cuso will fix this and update your strategy.",
   );
   expect(button("Looks like us").disabled).toBe(false);
 });
@@ -854,8 +854,8 @@ it("holds Plan as writing once the plan is requested, until Core reports it", as
   );
   await press("Looks like us");
   expect(actions.requestStrategy).toHaveBeenCalledTimes(1);
-  expect(text()).toContain("Writing your plan");
-  expect(text()).not.toContain("Write my plan");
+  expect(text()).toContain("Writing your strategy");
+  expect(text()).not.toContain("Write my strategy");
 });
 
 it("offers Write my plan again when the request is refused", async () => {
@@ -877,7 +877,7 @@ it("offers Write my plan again when the request is refused", async () => {
     ),
   );
   await press("Looks like us");
-  expect(text()).toContain("Write my plan");
+  expect(text()).toContain("Write my strategy");
 });
 
 it("offers Write my plan again when the request throws", async () => {
@@ -896,11 +896,11 @@ it("offers Write my plan again when the request throws", async () => {
       />,
     ),
   );
-  expect(text()).toContain("Write my plan");
-  await press("Write my plan");
-  expect(text()).toContain("Write my plan");
+  expect(text()).toContain("Write my strategy");
+  await press("Write my strategy");
+  expect(text()).toContain("Write my strategy");
   expect(text()).toContain("That didn't go through");
-  expect(text()).not.toContain("Writing your plan");
+  expect(text()).not.toContain("Writing your strategy");
 });
 
 // Revisiting a finished step from the markers.
@@ -921,7 +921,7 @@ it("revisits Brand from the markers and leads forward again, never back to Site"
       />,
     ),
   );
-  expect(text()).toContain("Approve plan");
+  expect(text()).toContain("Approve strategy");
   // Site is done but not revisitable; Brand is.
   expect(markerButtons()).toEqual(["Brand"]);
   await act(async () =>
@@ -933,9 +933,9 @@ it("revisits Brand from the markers and leads forward again, never back to Site"
   expect(
     container.querySelector(".ob-step.now")?.getAttribute("aria-current"),
   ).toBe("step");
-  expect(text()).not.toContain("Approve plan");
-  await press("Continue to Plan");
-  expect(text()).toContain("Approve plan");
+  expect(text()).not.toContain("Approve strategy");
+  await press("Continue to Strategy");
+  expect(text()).toContain("Approve strategy");
 });
 
 // Plan chips and the way to Launch, through the real flow.
@@ -1059,11 +1059,11 @@ it("updates the plan after a No with a note, and shows it fitting", async () => 
     answer: "no",
     note: "Every week",
   });
-  expect(text()).toContain("Update plan");
-  expect(text()).not.toContain("Approve plan");
-  await press("Update plan");
+  expect(text()).toContain("Update strategy");
+  expect(text()).not.toContain("Approve strategy");
+  await press("Update strategy");
   expect(actions.applyPlanAnswers).toHaveBeenCalledTimes(1);
-  expect(text()).toContain("Fitting your plan to your answers");
+  expect(text()).toContain("Fitting your strategy to your answers");
   await act(async () => fitting.answer(null));
 });
 
@@ -1080,7 +1080,7 @@ it("approves the plan and lands on Launch", async () => {
       />,
     ),
   );
-  await press("Approve plan");
+  await press("Approve strategy");
   expect(actions.approveStrategy).toHaveBeenCalledTimes(1);
   expect(text()).toContain("One thing, then I start.");
 });
@@ -1120,6 +1120,8 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
         })}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
         onGoToday={goToday}
       />,
     ),
@@ -1130,9 +1132,9 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(text()).not.toContain("Could not launch");
   expect(text()).toContain("Cuso is on it.");
-  expect(text()).toContain("Active, 7 pieces a week");
+  expect(text()).toContain("Active, 7 posts a week");
   expect(text()).toContain("€200 a month");
-  expect(text()).toContain("posts on your plan's schedule");
+  expect(text()).toContain("posts on your strategy's schedule");
   expect(text()).not.toContain("Nothing posts until");
   expect(text()).toContain("LinkedIn and X");
   expect(text()).not.toContain("Approvals");

@@ -396,15 +396,14 @@ async function runSubagent(
   return { findings: result.text || "(no findings)" };
 }
 
-/** The summaries the provider returned across steps, capped; undefined if none. */
-function reasoningSummary(
-  steps: readonly { reasoningText?: string | undefined }[],
-): string | undefined {
-  const text = steps
-    .map((step) => step.reasoningText?.trim() ?? "")
-    .filter(Boolean)
-    .join("\n\n");
-  return text ? text.slice(0, 20_000) : undefined;
+/**
+ * Sends a step's reasoning summary to Core while the turn runs, so the chat
+ * shows it live. Losing one must not fail the turn.
+ */
+async function reportReasoning(summary: string): Promise<void> {
+  await callCore("/reasoning", { text: summary.slice(0, 20_000) }).catch(
+    () => undefined,
+  );
 }
 
 async function main(): Promise<void> {
@@ -451,7 +450,7 @@ async function main(): Promise<void> {
           })
         ).text,
     );
-    const { text, finishReason, steps } = await runTurnLoop({
+    const { text, finishReason } = await runTurnLoop({
       model: gateway(start.model),
       system: start.system,
       message,
@@ -460,12 +459,9 @@ async function main(): Promise<void> {
       background: Boolean(start.background),
       deadline,
       stopped: stopped.signal,
+      onReasoning: reportReasoning,
     });
-    await callCore("/complete", {
-      text,
-      finishReason,
-      reasoning: reasoningSummary(steps),
-    });
+    await callCore("/complete", { text, finishReason });
   } catch (error) {
     if (isInactive(error)) {
       // Cancelled, paused or expired: Core settles it; nothing to report.

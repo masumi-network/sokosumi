@@ -22,6 +22,8 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
+import { cmoCapabilityLabel } from "@/lib/soko-bot/cmo-step-labels";
+import { safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import type { TurnPart } from "@/lib/soko-bot/turn-parts";
 import {
   brandBrainSectionHeadlines,
@@ -423,6 +425,56 @@ export async function cmoWork(
     sections,
     sectionsSaved: sections.length,
     sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
+  };
+}
+
+/** What Cuso is doing right now, for the chat and the hiring steps. */
+export interface CmoActivity {
+  /** The step he is on, in CMO's words; null before his first one. */
+  step: string | null;
+  /** The model's latest summary of its reasoning, when it gave one. */
+  reasoning: string | null;
+}
+
+/** The turn Cuso is running now, whatever started it; null while he rests. */
+export async function cmoActivity(
+  cuso: Pick<Cuso, "sokoBotId" | "websiteUrl">,
+): Promise<CmoActivity | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: cuso.sokoBotId,
+      status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, eveSessionId: true, createdAt: true },
+  });
+  if (!turn) return null;
+  // Read from the runtime's own log: a summary lands there as its step ends,
+  // and reaches the turn's events only when the turn is next reconciled.
+  const [call, thought] = await Promise.all([
+    prisma.sokoBotToolCall.findFirst({
+      where: { turnId: turn.id },
+      orderBy: { createdAt: "desc" },
+      select: { capability: true, input: true },
+    }),
+    turn.eveSessionId
+      ? prisma.sokoBotRuntimeEvent.findFirst({
+          where: {
+            sessionId: turn.eveSessionId,
+            type: "reasoning.completed",
+            occurredAt: { gte: turn.createdAt },
+          },
+          orderBy: { startIndex: "desc" },
+          select: { data: true },
+        })
+      : null,
+  ]);
+  return {
+    step: call
+      ? (describeCmoStep(call.capability, call.input, cuso.websiteUrl)?.label ??
+        cmoCapabilityLabel(call.capability))
+      : null,
+    reasoning: thought ? safeReasoningSummary(thought.data) : null,
   };
 }
 

@@ -18,32 +18,32 @@ import {
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
-import {
-  CoreApiRequestError,
-  toCoreApiActionError,
-} from "@/lib/clients/core.client";
+import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
-import {
-  TASK_MUTATION_ERROR_KINDS,
-  type TaskMutationErrorKind,
-} from "@/lib/utils/task-mutation-error-kinds";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
-
 import {
   archiveCreatedTaskAfterFailure,
   collectParentLinksToReplace,
   deletePreviousParentLinks,
 } from "./task-link-replacement";
 import {
-  createTaskFromDescription,
   normalizeOptionalProjectId,
   resolveAssigneeWrite,
-  type TaskContextSelectionInput,
+  rethrowTaskActionError,
+  revalidateTaskMutationRoutes,
+  type TaskMutationActionResult,
+  taskMutationFailure,
+  taskMutationSuccess,
   toCoreTaskContext,
+  toTaskMutationErrorKind,
+} from "./task-mutation";
+import {
+  createTaskFromDescription,
+  type TaskContextSelectionInput,
 } from "./task-write-input";
 
 export type { TaskContextSelectionInput } from "./task-write-input";
@@ -81,12 +81,6 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   runAt?: string | null;
 }
 
-interface TaskMutationError {
-  kind: TaskMutationErrorKind;
-}
-
-type TaskMutationActionResult<T> = ActionResultDto<T, TaskMutationError>;
-
 export type CreateTaskResult = TaskMutationActionResult<{
   taskId: string;
   name: string;
@@ -101,24 +95,6 @@ type CreateTaskAndLinkResult = TaskMutationActionResult<{
   name: string;
   identifier: string | null;
 }>;
-
-function taskMutationSuccess<T>(value: T): TaskMutationActionResult<T> {
-  return toActionResult(ok(value));
-}
-
-function taskMutationFailure<T>(
-  kind: TaskMutationErrorKind,
-): TaskMutationActionResult<T> {
-  return toActionResult(err({ kind }));
-}
-
-function toTaskMutationErrorKind(error: unknown): TaskMutationErrorKind | null {
-  if (!(error instanceof CoreApiRequestError)) {
-    return null;
-  }
-
-  return TASK_MUTATION_ERROR_KINDS.find((kind) => kind === error.kind) ?? null;
-}
 
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
   taskId: string;
@@ -190,31 +166,6 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   replaceExistingParent?: boolean;
 }
 
-function isClientCoreApiError(error: unknown): error is CoreApiRequestError {
-  return (
-    error instanceof CoreApiRequestError &&
-    typeof error.status === "number" &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    error.status !== 401
-  );
-}
-
-function rethrowTaskActionError(
-  error: unknown,
-  fallbackMessage: string,
-  logLabel: string,
-): never {
-  console.error(logLabel, error);
-
-  if (isClientCoreApiError(error)) {
-    throw error;
-  }
-
-  const { message } = toCoreApiActionError(error);
-  throw new Error(message ?? fallbackMessage);
-}
-
 function normalizeLinkNote(note?: string | null): string | null | undefined {
   if (typeof note === "undefined") {
     return undefined;
@@ -222,15 +173,6 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
 
   const trimmedNote = note?.trim();
   return trimmedNote ? trimmedNote : null;
-}
-
-/**
- * A task page can be open at `/tasks/{uuid}`, `/tasks/SOK-12` or the slug URL,
- * so revalidate the route, not one concrete path.
- */
-function revalidateTaskMutationRoutes() {
-  revalidatePath("/tasks");
-  revalidatePath("/tasks/[taskId]", "page");
 }
 
 export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(

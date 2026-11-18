@@ -83,6 +83,13 @@ export async function dispatchFilesTools(
     case "get_video":
       return runtime.getStudioJob(authorized, input.input);
 
+    case "generate_talking_video":
+      return runtime.generateTalkingVideo(
+        authorized,
+        input.input,
+        input.toolCallId,
+      );
+
     case "read_file":
       return runtime.readFile(
         authorized,

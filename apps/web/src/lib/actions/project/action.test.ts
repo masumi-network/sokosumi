@@ -629,7 +629,7 @@ describe("project actions", () => {
 
     expect(projectServiceMock.finalizeSocialConnection).toHaveBeenCalledWith(
       "project-1",
-      "ca_123",
+      { connectionId: "ca_123" },
     );
     expect(result).toEqual({ ok: true, value: connection });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");

@@ -30,7 +30,9 @@ import {
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoActivity,
   type CmoWork,
+  cmoActivity,
   cmoLearningState,
   cmoWork,
 } from "@/services/cmo-hiring.service";
@@ -120,12 +122,16 @@ export interface CmoOverview {
   learning: CmoLearningState;
   /** Cuso's latest research or strategy work, step by step. */
   work: CmoWork | null;
+  /** The step and reasoning of the turn Cuso runs now; null while he rests. */
+  activity: CmoActivity | null;
   /** The Project's logo and DESIGN.md, with the research pictures. */
   brandVisual: CmoBrandVisual | null;
   /** Brand research screenshots and pictures, the Project's files. */
   brandMedia: CmoBrandMedia | null;
   /** The Project's logo (the site's best icon), when one was found. */
   projectLogo: string | null;
+  /** The owner gave their photo, with consent, to front talking videos. */
+  presenterSet: boolean;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -254,6 +260,8 @@ export async function getCmoOverview(
         logo: true,
         designMdUrl: true,
         sitePlatform: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
       },
     }),
     prisma.sokoBot.findUnique({
@@ -368,6 +376,7 @@ export async function getCmoOverview(
   });
   const learning = await cmoLearningState(cuso, now);
   const work = await cmoWork(cuso, now);
+  const activity = await cmoActivity(cuso);
   const brandBrain = parseBrandBrain(cuso.brandBrain);
   // Blob storage not answering leaves the research out, not the page.
   const brandMedia = await cmoBrandMedia({
@@ -424,9 +433,13 @@ export async function getCmoOverview(
     media,
     learning,
     work,
+    activity,
     brandVisual,
     brandMedia,
     projectLogo: project.logo,
+    presenterSet: Boolean(
+      project.presenterFileId && project.presenterConsentAt,
+    ),
     routines,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,

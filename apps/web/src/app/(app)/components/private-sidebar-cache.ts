@@ -80,31 +80,6 @@ export async function loadChatListArchivedAndMembers(
 }
 
 /**
- * Testable body for membership-visible rooms + archived + members.
- * Prefer the private-cache wrappers from RSC so sidebar and chats list share
- * slices (React.cache does not cross use-cache).
- *
- * Fail-soft: service errors become empty pages/arrays (same as pre-SOK-779
- * sidebar/page). When used under private cache those empties are shared until
- * revalidate or `invalidatePrivateSidebarChrome` — intentional chrome tradeoff,
- * not a hard fail that would blank the whole layout.
- */
-export async function loadChatListChromeData(
-  activeOrganizationId: string | null,
-): Promise<PrivateCachedChatListChrome> {
-  const [chatRoomsPage, deferred] = await Promise.all([
-    loadMembershipVisibleRooms(),
-    loadChatListArchivedAndMembers(activeOrganizationId),
-  ]);
-
-  return {
-    chatRoomsPage,
-    archivedChatRoomsPage: deferred.archivedChatRoomsPage,
-    members: deferred.members,
-  };
-}
-
-/**
  * Membership-visible rooms chrome (SOK-779). Same private tags/life as the
  * archived+members slice so sidebar + `/chat` share one Core hit for
  * rooms; chats can await this without waiting on archived/members.

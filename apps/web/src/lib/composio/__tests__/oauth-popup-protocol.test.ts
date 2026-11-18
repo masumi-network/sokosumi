@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildComposioCallbackInlineScript,
   buildComposioHandoffInlineScript,
+  buildZernioCallbackInlineScript,
   COMPOSIO_BOT_ID_STORAGE_KEY,
   COMPOSIO_HANDOFF_STORAGE_KEY,
   COMPOSIO_OAUTH_BROADCAST_CHANNEL,
@@ -328,4 +329,40 @@ describe("hand-off from another first-party app", () => {
       expect(removeItem).toHaveBeenCalledWith(COMPOSIO_HANDOFF_STORAGE_KEY);
     },
   );
+});
+
+describe("Zernio TikTok popup", () => {
+  const success =
+    "connected=tiktok&profileId=p1&accountId=a1&connection=zernio:p1&proof=secret";
+
+  it.each([
+    [success, "success"],
+    [success + "&error=denied", "error"],
+    [success.replace("profileId=p1", "profileId=other"), "error"],
+    [success.replace("proof=secret", ""), "error"],
+    ["error=access_denied", "error"],
+  ])("delivers the matching attempt outcome for %s", (search, status) => {
+    const postMessage = vi.fn();
+    const close = vi.fn();
+    runInNewContext(buildZernioCallbackInlineScript(), {
+      URLSearchParams,
+      setTimeout: vi.fn(),
+      window: {
+        sessionStorage: { getItem: () => "nonce1", removeItem: vi.fn() },
+        opener: { postMessage },
+        location: { search, origin: "https://app.sokosumi.com" },
+        addEventListener: vi.fn(),
+        close,
+      },
+    });
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nonce: "nonce1",
+        status,
+        callbackProof: status === "success" ? "secret" : undefined,
+      }),
+      "https://app.sokosumi.com",
+    );
+    expect(close).toHaveBeenCalledOnce();
+  });
 });

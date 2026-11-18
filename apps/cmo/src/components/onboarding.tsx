@@ -86,7 +86,7 @@ export function Onboarding({
             </span>
           </div>
           <h1 className="ob-display">
-            Give me your website. I'll bring back a plan.
+            Give me your website. I'll show you a month of posts.
           </h1>
           <p className="muted">
             {AGENT_NAME} is your AI CMO. He reads your site, plans your month
