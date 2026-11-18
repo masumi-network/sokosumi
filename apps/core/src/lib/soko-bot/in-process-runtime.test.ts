@@ -139,6 +139,11 @@ describe("InProcessSokoBotRuntime", () => {
           inputTokenDetails: { cacheReadTokens: 7, cacheWriteTokens: 0 },
         },
         providerMetadata: { gateway: { cost: "0.0136" } },
+        reasoning: [
+          { type: "reasoning", text: " Weighing who should take this. " },
+          { type: "reasoning", text: "" },
+          { type: "reasoning", text: "Alex writes." },
+        ],
       });
       return {
         text: "Delegated to a Coworker.",
@@ -171,11 +176,21 @@ describe("InProcessSokoBotRuntime", () => {
       "turn.started",
       "message.received",
       "step.started",
+      "reasoning.completed",
       "step.completed",
       "message.completed",
       "turn.completed",
       "session.waiting",
     ]);
+    // The step's reasoning summary is on the turn before the step settles,
+    // and the model is asked for one as the sandbox runner asks.
+    expect(
+      recordedEvents().find((event) => event.type === "reasoning.completed")
+        ?.data.text,
+    ).toBe("Weighing who should take this.\n\nAlex writes.");
+    expect(streamModelCallMock.mock.calls[0][0].providerOptions.openai).toEqual(
+      { reasoningSummary: "auto" },
+    );
     const completed = recordedEvents().find(
       (event) => event.type === "message.completed",
     );

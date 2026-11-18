@@ -12537,6 +12537,10 @@ export type CmoOverview = {
      */
     viewerCanApprove: boolean;
     work: CmoWork | null;
+    /**
+     * What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month's production); null while he rests.
+     */
+    activity: CmoActivity | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
@@ -13053,6 +13057,17 @@ export type CmoWorkStep = {
     url: string | null;
     status: 'running' | 'done' | 'failed';
     at: Date;
+};
+
+export type CmoActivity = {
+    /**
+     * The step Cuso is on, in CMO's words ("Looking for a picture style"); null before his first one.
+     */
+    step: string | null;
+    /**
+     * The model's latest summary of its reasoning in this turn; null when it gave none.
+     */
+    reasoning: string | null;
 };
 
 /**

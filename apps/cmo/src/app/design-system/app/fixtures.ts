@@ -315,12 +315,20 @@ export const messages: CusoMessage[] = [
     "Can the Instagram carousel lead with the test stand?",
     "04T10:00:00",
   ),
-  message(
-    "m3",
-    true,
-    "Yes. I moved **Three, two, one** to open on the test stand. See it on the [Calendar](/calendar).",
-    "04T10:01:00",
-  ),
+  {
+    ...message(
+      "m3",
+      true,
+      "Yes. I moved **Three, two, one** to open on the test stand. See it on the [Calendar](/calendar).",
+      "04T10:01:00",
+    ),
+    trace: {
+      steps: ["Reading your posts", "Changing a post"],
+      thoughts: [
+        "The carousel opens on the countdown. The test stand is its strongest picture, so it goes first and the countdown follows.",
+      ],
+    },
+  },
   message("m4", false, "Great. Keep X posts short.", "04T10:03:00"),
   message(
     "m5",
