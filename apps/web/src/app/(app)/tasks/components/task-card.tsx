@@ -148,7 +148,7 @@ export function TaskCard({
         {/* One line. A container, so the tag can leave a narrow card and the
             date can truncate there, and so the line's unwrapped width cannot
             widen a column that sizes to its content. */}
-        <div className="@container flex h-6 items-center gap-2">
+        <div className="@container flex h-5 items-center gap-2">
           {/* A scheduled Task says when it starts, and that it is late only
               once it is. Any other Task says when it is due. */}
           {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
@@ -169,7 +169,13 @@ export function TaskCard({
               tag squeezed by its neighbours never runs under the comment
               count; the end padding keeps the count button's focus ring. */}
           {task.runAt ? null : (
-            <div className="hidden min-w-0 overflow-x-clip pe-1 @min-[14rem]:flex">
+            <div
+              className={cn(
+                "min-w-0 overflow-x-clip pe-1",
+                // A narrow card has room for the tag only without a date.
+                task.dueOn ? "hidden @min-[14rem]:flex" : "flex",
+              )}
+            >
               <TaskTags
                 tags={task.tags}
                 showManualTopics={!compact}

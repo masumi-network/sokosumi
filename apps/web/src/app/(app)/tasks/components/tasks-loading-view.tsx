@@ -200,7 +200,7 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
     >
       <TextLineSkeleton className="w-20 text-xs leading-4" />
       <TextLineSkeleton className="w-4/5 text-sm leading-5" />
-      <div className="flex h-6 items-center justify-between gap-2">
+      <div className="flex h-5 items-center justify-between gap-2">
         <Skeleton className="h-3 w-12" />
         <Skeleton className="size-5 rounded-full" />
       </div>
