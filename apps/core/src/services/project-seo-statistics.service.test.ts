@@ -30,6 +30,7 @@ const state = vi.hoisted(() => {
       }
     >(),
     pageUrl: "https://example.test/a",
+    extraPages: [] as Array<{ id: string; url: string }>,
     observations: [] as Array<Record<string, unknown>>,
     keywords: [] as Array<Record<string, unknown>>,
     reads: [] as Array<{ slug: string; args: Record<string, unknown> }>,
@@ -84,7 +85,12 @@ vi.mock("@/lib/db/prisma", () => {
             ]
           : [],
     },
-    projectSeoPage: { findMany: async () => [{ ...page, url: state.pageUrl }] },
+    projectSeoPage: {
+      findMany: async () => [
+        { ...page, url: state.pageUrl },
+        ...state.extraPages.map((extra) => ({ ...page, ...extra })),
+      ],
+    },
     projectSeoScope: {
       findFirst: async () => scope,
       findMany: async () => [scope],
@@ -120,8 +126,29 @@ vi.mock("@/lib/db/prisma", () => {
               new Date(String(a.observedAt)).getTime(),
           )
           .slice(0, take),
-      // No brand terms saved.
-      findFirst: async () => null,
+      findFirst: async ({
+        where,
+      }: {
+        where: {
+          AND?: [
+            { payload: { equals: string } },
+            { payload: { array_contains: string[] } },
+          ];
+        };
+      }) => {
+        if (!where.AND) return null; // No brand terms saved.
+        const key = where.AND[0].payload.equals;
+        const [url] = where.AND[1].payload.array_contains;
+        return (
+          state.observations.toReversed().find((row) => {
+            const parsed = nativeSeoMetricsSchema.safeParse(row.payload);
+            const cache = parsed.success
+              ? parsed.data.inspectionCache
+              : undefined;
+            return cache?.key === key && cache.readUrls.includes(url);
+          }) ?? null
+        );
+      },
       upsert: async ({ create }: { create: Record<string, unknown> }) => {
         const saved = {
           id: "44444444-4444-4444-8444-444444444444",
@@ -349,6 +376,7 @@ beforeEach(() => {
   state.integrationActive = true;
   state.accountRevision = 0;
   state.locks.clear();
+  state.extraPages.length = 0;
   state.observations.length = 0;
   state.keywords.length = 0;
   state.reads.length = 0;
@@ -412,6 +440,8 @@ describe("native statistics collection boundary", () => {
     expect(activated.collectedAt).toBe(first.collectedAt);
     expect(activated.observedAt).toBe("2026-01-20T14:00:00.000Z");
     expect(workspace.metrics[0].channel).toBe("all");
+    expect(workspace.metrics[0].observedAt).toBe(first.observedAt);
+    expect(workspace.metrics[0].selectedAt).toBe(activated.observedAt);
     vi.setSystemTime(new Date("2026-01-21T12:00:01Z"));
     await syncProjectSeoStatistics(actor, { ...input, automatic: true });
     expect(state.reads.length).toBeGreaterThan(reads);
@@ -814,6 +844,119 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("retries only a missing inspection after one hour and reuses it across search types", async () => {
+    const healthy = gsc({ rows: [] });
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL"))
+        throw new Error("Temporary inspection failure");
+      return healthy(slug, args);
+    };
+    const request = { ...gscInput, automatic: true };
+    const first = await syncProjectSeoStatistics(actor, request);
+    expect(first.indexStatus).toBeNull();
+    state.answer = healthy;
+    const inspections = () =>
+      state.reads.filter((read) => read.slug.endsWith("INSPECT_URL")).length;
+    const reports = () =>
+      state.reads.filter((read) => read.slug.includes("SEARCH_ANALYTICS_QUERY"))
+        .length;
+    vi.setSystemTime(new Date("2026-01-20T12:30:00Z"));
+    await syncProjectSeoStatistics(actor, { ...request, searchType: "image" });
+    expect(inspections()).toBe(1);
+    const reportsBefore = reports();
+    expect(reportsBefore).toBeGreaterThan(0);
+    vi.setSystemTime(new Date("2026-01-20T13:00:01Z"));
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL"))
+        vi.setSystemTime(new Date("2026-01-20T13:00:03Z"));
+      return healthy(slug, args);
+    };
+    const recovered = await syncProjectSeoStatistics(actor, request);
+    expect(recovered.indexStatus?.pages[0]).toMatchObject({
+      verdict: "PASS",
+      checkedAt: "2026-01-20T13:00:01.000Z",
+    });
+    expect(inspections()).toBe(2);
+    expect(reports()).toBe(reportsBefore);
+    expect(recovered.metrics[0].observedAt).toBe(first.metrics[0].observedAt);
+    expect(recovered.metrics[0].selectedAt).toBe("2026-01-20T13:00:03.000Z");
+    state.answer = healthy;
+    vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+    const video = await syncProjectSeoStatistics(actor, {
+      ...request,
+      searchType: "video",
+    });
+    expect(inspections()).toBe(2);
+    expect(video.indexStatus).toEqual(recovered.indexStatus);
+    state.accountRevision++;
+    await syncProjectSeoStatistics(actor, request);
+    expect(inspections()).toBe(3);
+  });
+
+  it("retains fresh pages in the exact legacy report when another page needs an inspection retry", async () => {
+    const other = {
+      id: "77777777-7777-4777-8777-777777777777",
+      url: "https://example.test/b",
+    };
+    state.extraPages.push(other);
+    const healthy = gsc({ rows: [] });
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL") && args.inspection_url === other.url)
+        throw new Error("Temporary inspection failure");
+      return healthy(slug, args);
+    };
+    const request = { ...gscInput, automatic: true };
+    await syncProjectSeoStatistics(actor, request);
+    const legacy = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    delete legacy.inspectionCache;
+    state.observations[0].payload = legacy;
+    const firstReads = state.reads.length;
+    vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+    state.answer = healthy;
+    await syncProjectSeoStatistics(actor, request);
+    const inspected = state.reads
+      .slice(firstReads)
+      .filter(({ slug }) => slug.endsWith("INSPECT_URL"));
+    expect(inspected.map(({ args }) => args.inspection_url)).toEqual([
+      other.url,
+    ]);
+    const saved = nativeSeoMetricsSchema.parse(
+      state.observations.at(-1)?.payload,
+    );
+    expect(saved.inspectionCache?.readUrls).toEqual([other.url]);
+    expect(saved.inspectionCache?.checkedAt[state.pageUrl]).toEqual(
+      legacy.observedAt,
+    );
+  });
+
+  it("does not reactivate an older report while a new collection holds its lease", async () => {
+    const healthy = gsc({ rows: [] });
+    state.answer = healthy;
+    const web = { ...gscInput, automatic: true };
+    await syncProjectSeoStatistics(actor, web);
+    vi.setSystemTime(new Date("2026-01-20T12:05:00Z"));
+    await syncProjectSeoStatistics(actor, { ...web, searchType: "image" });
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    state.answer = async (slug, args) => {
+      if (slug.endsWith("SEARCH_ANALYTICS_QUERY")) {
+        entered.resolve();
+        await release.promise;
+      }
+      return healthy(slug, args);
+    };
+    const fresh = syncProjectSeoStatistics(actor, gscInput);
+    try {
+      await Promise.race([entered.promise, fresh]);
+      await expect(syncProjectSeoStatistics(actor, web)).rejects.toMatchObject({
+        status: 409,
+      });
+    } finally {
+      release.resolve();
+      await fresh;
+    }
+  });
 
   it("keeps partial Search Console data fresh for a day when query rows were collected", async () => {
     state.answer = gsc({ rows: [] });

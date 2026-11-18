@@ -487,6 +487,12 @@ export {
   type GoogleEvent,
   type GoogleEventKind,
 } from "./seo-google-events.js";
+export {
+  newerSeoAuditVerdict,
+  seoIndexReviewState,
+  seoInspectionCrawlTime,
+  seoInspectionEvidence,
+} from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
   readSeoStatisticsNote,
@@ -512,7 +518,11 @@ export {
   seoStatisticsLostData,
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
-export { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic.js";
+export {
+  SEO_SEARCH_TYPES,
+  SEO_TRAFFIC_CHANNELS,
+  seoSearchUrlPrefixCovers,
+} from "./seo-traffic.js";
 export {
   buildSocialAccountAvatarPathname,
   isOwnedSocialAccountAvatarUrl,

@@ -1,3 +1,4 @@
+import { Prisma } from "@sokosumi/database";
 import { getEnv } from "@/config/env";
 import { conflict } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -14,15 +15,18 @@ import {
 import type { SyncProjectSeoStatistics } from "@/schemas/project-seo-statistics.schema";
 import { seoSearchTypeHasQueries } from "@/schemas/project-seo-traffic.schema";
 import {
+  inspectionCacheKey,
+  inspectionsDue,
+  SEO_STATISTICS_FRESH_MS,
+  SEO_STATISTICS_RETRY_MS,
+} from "./project-seo-statistics-inspections";
+import {
   type SeoMutationHooks,
   seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
 import type { SeoStatisticsIntegration } from "./seo-connections.service";
 import { syncLockService } from "./sync-lock.service";
-
-const SEO_STATISTICS_FRESH_MS = 24 * 60 * 60 * 1000;
-const SEO_STATISTICS_QUERY_RETRY_MS = 60 * 60 * 1000;
 
 interface AutomaticStatistics<T> {
   actor: SeoActor;
@@ -34,7 +38,11 @@ interface AutomaticStatistics<T> {
   hooks: SeoMutationHooks;
   readWorkspace: () => Promise<T>;
   activate: (snapshot: NativeSeoMetrics, hooks: SeoMutationHooks) => Promise<T>;
-  collect: (fingerprint: string, hooks: SeoMutationHooks) => Promise<T>;
+  collect: (
+    fingerprint: string,
+    hooks: SeoMutationHooks,
+    cached?: NativeSeoMetrics,
+  ) => Promise<T>;
 }
 
 /** Cache only the exact viewer, account revision, pages and report selection. */
@@ -67,7 +75,8 @@ export async function withAutomaticSeoStatistics<T>(
           : null,
     }),
   );
-  if (!input.automatic) return context.collect(fingerprint, hooks);
+  if (!input.automatic && input.provider !== "search_console")
+    return context.collect(fingerprint, hooks);
 
   async function fresh() {
     const rows = await prisma.projectSeoObservation.findMany({
@@ -80,7 +89,7 @@ export async function withAutomaticSeoStatistics<T>(
         payload: { path: ["collectionFingerprint"], equals: fingerprint },
         observedAt: { gte: new Date(Date.now() - SEO_STATISTICS_FRESH_MS) },
       },
-      orderBy: { observedAt: "desc" },
+      orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: 1,
     });
     const result = nativeSeoMetricsSchema.safeParse(rows[0]?.payload);
@@ -94,12 +103,11 @@ export async function withAutomaticSeoStatistics<T>(
       seoSearchTypeHasQueries(data.searchType ?? "web") &&
       !data.queries;
     return age >= 0 &&
-      age <
-        (retryQueries ? SEO_STATISTICS_QUERY_RETRY_MS : SEO_STATISTICS_FRESH_MS)
+      age < (retryQueries ? SEO_STATISTICS_RETRY_MS : SEO_STATISTICS_FRESH_MS)
       ? data
       : null;
   }
-  async function cachedWorkspace(snapshot: NativeSeoMetrics) {
+  async function isActive() {
     // Charts include shared snapshots from other members. Compare the same
     // visible page rows before reusing this viewer's cached selection.
     const [latest] = await prisma.projectSeoObservation.findMany({
@@ -107,30 +115,39 @@ export async function withAutomaticSeoStatistics<T>(
         ...seoOwnerWhere(actor),
         ownerId: actor.organizationId ? { not: null } : actor.userId,
         pageIds: { hasSome: context.pageIds },
+        // JSON containment ignores array order. The absent next element excludes supersets.
+        AND: [
+          { payload: { path: ["pageUrls"], array_contains: context.pageUrls } },
+          {
+            payload: {
+              path: ["pageUrls", String(context.pageUrls.length)],
+              equals: Prisma.DbNull,
+            },
+          },
+        ],
         visibility: seoVisibilityFor(actor),
         kind: "metrics",
         source: input.provider,
       },
-      orderBy: { observedAt: "desc" },
+      orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: 1,
     });
     const last = nativeSeoMetricsSchema.safeParse(latest?.payload);
-    if (!last.success || last.data.collectionFingerprint !== fingerprint) {
-      return context.activate(
-        {
-          ...snapshot,
-          collectedAt: snapshot.collectedAt ?? snapshot.observedAt,
-          observedAt: new Date().toISOString(),
-        },
-        hooks,
-      );
-    }
+    return last.success && last.data.collectionFingerprint === fingerprint;
+  }
+  async function readCachedWorkspace() {
     if (hooks.authorize) await prisma.$transaction(hooks.authorize);
     return context.readWorkspace();
   }
-  const saved = await fresh();
-  if (saved) return cachedWorkspace(saved);
-  const key = `seo-statistics:${fingerprint}`;
+  const saved = input.automatic ? await fresh() : null;
+  if (saved && !inspectionsDue(saved) && (await isActive()))
+    return readCachedWorkspace();
+  // Reports that share URL Inspection data must not both spend the same page quota.
+  const lockScope =
+    input.provider === "search_console"
+      ? inspectionCacheKey(actor, integration, input.propertyId)
+      : fingerprint;
+  const key = `seo-statistics:${lockScope}`;
   const lock = await syncLockService
     .acquireLock(key)
     .catch((error: unknown) => {
@@ -141,15 +158,13 @@ export async function withAutomaticSeoStatistics<T>(
       throw error;
     });
   try {
-    const current = await fresh();
-    if (current) return cachedWorkspace(current);
-    return await context.collect(fingerprint, {
+    const current = input.automatic ? await fresh() : null;
+    const leasedHooks: SeoMutationHooks = {
       ...hooks,
       authorize: async (tx) => {
         await hooks.authorize?.(tx);
-        // The no-op write holds the lease row until the metrics commit. A timed-out
-        // collector cannot save after another request takes its expired lease.
-        const current = await tx.lock.updateMany({
+        // Hold the lease until the metrics write commits, including cache reactivation.
+        const held = await tx.lock.updateMany({
           where: {
             key,
             isLocked: true,
@@ -158,10 +173,29 @@ export async function withAutomaticSeoStatistics<T>(
           },
           data: { lockedBy: lock.ownerToken },
         });
-        if (!current.count)
+        if (!held.count)
           throw conflict("Statistics collection expired. Please retry.");
       },
-    });
+    };
+    if (current && !inspectionsDue(current)) {
+      if (await isActive()) return readCachedWorkspace();
+      return await context.activate(
+        {
+          ...current,
+          ...(current.inspectionCache && {
+            inspectionCache: { ...current.inspectionCache, readUrls: [] },
+          }),
+          collectedAt: current.collectedAt ?? current.observedAt,
+          observedAt: new Date().toISOString(),
+        },
+        leasedHooks,
+      );
+    }
+    return await context.collect(
+      fingerprint,
+      leasedHooks,
+      current ?? undefined,
+    );
   } finally {
     await syncLockService.releaseLock(lock.key, lock.ownerToken);
   }

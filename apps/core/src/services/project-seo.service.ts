@@ -51,6 +51,7 @@ import {
   sha256,
 } from "./project-seo-store";
 import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
+import { projectLegacyIndexingProvenance } from "./seo-indexing-provenance";
 
 export async function addProjectSeoPage(
   actor: SeoActor,
@@ -391,9 +392,11 @@ async function loadSeoWorkspaceObservations(
         })
       : [];
   return {
-    observations: [...evidence, ...metrics, ...indexing].sort(
-      (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
-    ),
+    observations: [
+      ...evidence,
+      ...metrics,
+      ...(await projectLegacyIndexingProvenance(actor, indexing)),
+    ].sort((a, b) => b.observedAt.getTime() - a.observedAt.getTime()),
     historyLimited:
       evidence.length >= SEO_WORKSPACE_EVIDENCE_LIMIT ||
       metrics.length >= SEO_WORKSPACE_METRICS_LIMIT,

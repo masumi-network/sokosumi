@@ -17,6 +17,7 @@ import {
 
 const params = z.object({ id: z.string().min(1).max(128) });
 const RETRYABLE_HEADER = "X-SEO-Indexing-Retryable";
+const PUBLIC_EVIDENCE_HEADER = "X-SEO-Indexing-Public-Evidence";
 const errors = {
   400: jsonErrorResponse("Bad Request"),
   401: jsonErrorResponse("Unauthorized"),
@@ -46,6 +47,11 @@ const readRoute = createRoute({
         "Private URL Inspection receipt",
       ),
       headers: {
+        [PUBLIC_EVIDENCE_HEADER]: {
+          description:
+            "A value of 1 permits publicEvidenceAvailable on each submitted assessment.",
+          schema: { type: "string", enum: ["1"] },
+        },
         [RETRYABLE_HEADER]: {
           description:
             "Whether a provider read failed and the worker should retry this receipt.",
@@ -93,6 +99,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.req.valid("json").auditPageUrl,
     );
     c.header(RETRYABLE_HEADER, String(result.retryable));
+    c.header(PUBLIC_EVIDENCE_HEADER, "1");
     return ok(c, result.receipt);
   });
   app.openapi(resultRoute, async (c) => {

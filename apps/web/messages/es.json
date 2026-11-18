@@ -12561,7 +12561,7 @@
           "search_console": "Búsquedas, clics y posiciones en la Búsqueda de Google",
           "ga4": "Visitas y páginas vistas en tu sitio"
         },
-        "propertyNotMatching": "No cubre las páginas seleccionadas, así que no se cargan estadísticas de ella."
+        "propertyNotMatching": "Ninguna propiedad de Search Console cubre todas las páginas seleccionadas de {sites}. Comprueba los permisos de esta cuenta de Google o selecciona páginas de una sola propiedad."
       },
       "metrics": {
         "page_views": "Vistas de página",

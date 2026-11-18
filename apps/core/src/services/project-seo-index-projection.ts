@@ -18,7 +18,9 @@ export function newestIndexStatus(
   selectedUrls: Set<string>,
 ): ProjectSeoWorkspace["indexStatus"] {
   const pages = new Map<string, SeoIndexedPage & { checkedAt: string }>();
-  for (const source of sources)
+  for (const source of sources.toSorted(
+    (a, b) => b.at.getTime() - a.at.getTime(),
+  ))
     for (const page of source.pages) {
       const url = normalizeSeoUrl(page.pageUrl);
       if (selectedUrls.has(url) && !pages.has(url))
