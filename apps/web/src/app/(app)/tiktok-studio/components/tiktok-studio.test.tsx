@@ -1,4 +1,7 @@
-import type { ProjectImageStudioTalkingVideoCatalog } from "@sokosumi/core-client";
+import type {
+  ProjectImageStudioTalkingVideoCatalog,
+  ProjectTalkingVideos,
+} from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,7 +19,9 @@ vi.mock("next-intl", async (importOriginal) => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => "en",
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/actions/image-studio/action", () => ({
+  prepareStudioAssetSocialMedia: vi.fn(),
   startTalkingVideo: startTalkingVideoMock,
   writeTalkingVideoScripts: writeScriptsMock,
 }));
@@ -92,6 +97,7 @@ beforeEach(() => {
   startTalkingVideoMock.mockReset();
   uploadDriveFileMock.mockReset();
   vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:x" }));
+  Element.prototype.scrollIntoView = vi.fn();
   // A started video is polled; answer with nothing new.
   vi.stubGlobal(
     "fetch",
@@ -100,15 +106,23 @@ beforeEach(() => {
 });
 
 describe("TikTokStudio", () => {
-  it("quotes the script before rendering and starts a stock presenter's video", async () => {
+  it("shows the cost before the button and puts the started video on the stage", async () => {
     startTalkingVideoMock.mockResolvedValue({
       ok: true,
-      job: { id: "job-1", status: "QUEUED", prompt: SCRIPT },
+      job: {
+        id: "job-1",
+        status: "QUEUED",
+        prompt: SCRIPT,
+        createdAt: new Date(),
+      },
     });
     renderStudio();
 
     // 4 s quoted, so the $1.10 minimum plus voice and captions.
     expect(screen.getByText("creditsCount")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "preview" })).toHaveTextContent(
+      SCRIPT,
+    );
     fireEvent.click(screen.getByRole("button", { name: "create" }));
 
     await waitFor(() =>
@@ -122,6 +136,19 @@ describe("TikTokStudio", () => {
         }),
       ),
     );
+    expect(
+      await screen.findByRole("region", { name: "stageVideo" }),
+    ).toHaveTextContent("starting");
+  });
+
+  it("says what is missing instead of a cost, and keeps the button off", () => {
+    renderStudio();
+    fireEvent.change(screen.getByLabelText("script"), {
+      target: { value: "Too short" },
+    });
+
+    expect(screen.getByText("needScript")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "create" })).toBeDisabled();
   });
 
   it("refuses the person's own photo until they confirm consent", async () => {
@@ -135,15 +162,19 @@ describe("TikTokStudio", () => {
       },
     });
     await screen.findByRole("checkbox");
-    fireEvent.click(screen.getByRole("button", { name: "create" }));
 
-    expect(await screen.findByText("consentMissing")).toBeInTheDocument();
-    expect(startTalkingVideoMock).not.toHaveBeenCalled();
+    expect(screen.getByText("consentMissing")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "create" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("checkbox"));
     startTalkingVideoMock.mockResolvedValue({
       ok: true,
-      job: { id: "job-2", status: "QUEUED", prompt: SCRIPT },
+      job: {
+        id: "job-2",
+        status: "QUEUED",
+        prompt: SCRIPT,
+        createdAt: new Date(),
+      },
     });
     fireEvent.click(screen.getByRole("button", { name: "create" }));
 
@@ -168,5 +199,34 @@ describe("TikTokStudio", () => {
     fireEvent.click(screen.getByRole("button", { name: "create" }));
 
     expect(await screen.findByText("testimonial")).toBeInTheDocument();
+  });
+
+  it("offers a failed video's script again", () => {
+    render(
+      <TestQueryProvider>
+        <TikTokStudio
+          catalog={CATALOG}
+          initialVideos={{
+            jobs: [
+              {
+                id: "job-9",
+                status: "FAILED",
+                prompt: SCRIPT,
+                createdAt: new Date(),
+              } as ProjectTalkingVideos["jobs"][number],
+            ],
+            assets: [],
+          }}
+          projectId="project-1"
+          readOnly={false}
+        />
+      </TestQueryProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /videoFailed/ }));
+    fireEvent.click(screen.getByRole("button", { name: "reuseScript" }));
+
+    expect(screen.getByLabelText("script")).toHaveValue(SCRIPT);
+    expect(screen.getByRole("region", { name: "preview" })).toBeInTheDocument();
   });
 });
