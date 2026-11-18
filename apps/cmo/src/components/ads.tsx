@@ -180,7 +180,7 @@ export function SearchAdControl({
             Launch ad
           </button>
           <span className="note">
-            Starts spending from your plan's ad budget.
+            Starts spending from your strategy's ad budget.
           </span>
         </div>
       )}

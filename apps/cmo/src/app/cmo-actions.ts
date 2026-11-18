@@ -349,7 +349,7 @@ export async function applyPlanAnswers(projectId: string): Promise<{
   });
   return {
     overview: await loadOverview(projectId),
-    error: error ? errorText(error, "Could not update the plan") : null,
+    error: error ? errorText(error, "Could not update the strategy") : null,
   };
 }
 
@@ -510,7 +510,7 @@ export async function requestStrategy(
   });
   return {
     overview: await loadOverview(projectId),
-    error: error ? errorText(error, "Could not start planning") : null,
+    error: error ? errorText(error, "Could not start the strategy") : null,
   };
 }
 

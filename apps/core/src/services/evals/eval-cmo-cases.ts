@@ -127,7 +127,7 @@ export const CMO_EVAL_CASES = [
     title: `Plans ${name}'s month`,
     intent:
       brand(name).why ??
-      "The plan sells the main offer, in the owner's language, by the strategy skill's rules.",
+      "The strategy sells the main offer, in the owner's language, by the strategy skill's rules.",
     kind: "cmo-strategy" as const,
     brand: brand(name),
     brandBrain: frozenBrains[name],
