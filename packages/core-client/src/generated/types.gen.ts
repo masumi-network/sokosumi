@@ -9917,6 +9917,10 @@ export type InitiateProjectSocialConnectionRequest = {
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
+    /**
+     * Proof returned with a Zernio connection callback.
+     */
+    callbackProof?: string;
     connectionId: string;
 };
 
@@ -10788,12 +10792,13 @@ export type PublishSocialPostRequest = {
 };
 
 export type TikTokPostSettings = {
-    privacyLevel: 'SELF_ONLY';
+    privacyLevel: 'SELF_ONLY' | 'PUBLIC_TO_EVERYONE';
     allowComment: boolean;
     allowDuet: boolean;
     allowStitch: boolean;
     promotesOwnBrand: boolean;
     acceptedMusicUsage: true;
+    previewConsent?: true;
 };
 
 export type CreateSocialPostRequest = {

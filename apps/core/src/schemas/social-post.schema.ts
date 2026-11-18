@@ -392,12 +392,13 @@ export const rejectSocialPostRequestSchema = z
 
 export const tikTokPostSettingsSchema = z
   .object({
-    privacyLevel: z.literal("SELF_ONLY"),
+    privacyLevel: z.enum(["SELF_ONLY", "PUBLIC_TO_EVERYONE"]),
     allowComment: z.boolean(),
     allowDuet: z.boolean(),
     allowStitch: z.boolean(),
     promotesOwnBrand: z.boolean(),
     acceptedMusicUsage: z.literal(true),
+    previewConsent: z.literal(true).optional(),
   })
   .openapi("TikTokPostSettings");
 
