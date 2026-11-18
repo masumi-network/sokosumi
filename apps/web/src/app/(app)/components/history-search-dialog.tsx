@@ -43,6 +43,8 @@ interface HistorySearchDialogLabels {
   filesFilenameMatch: string;
   tagsGroup: string;
   tagTasksGroup: (tag: string) => string;
+  tagsError: string;
+  tagTasksError: string;
 }
 
 interface HistorySearchDialogProps {
@@ -74,12 +76,19 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
-  const { tags, topTag, tasks } = useTagSearchGroup({
+  const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
     open,
     activeOrganizationId,
     debouncedQuery: query,
   });
-  const hasOtherResults = tags.length > 0 || files.length > 0;
+  // Tags still loading or failed never read as "No results found".
+  const searching = isLoading || tagsState === "loading";
+  const nothingFound =
+    !searching &&
+    history.length === 0 &&
+    tags.length === 0 &&
+    files.length === 0 &&
+    tagsState !== "error";
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -133,26 +142,28 @@ export function HistorySearchDialog({
         onValueChange={setQuery}
       />
       <CommandList>
-        {isLoading && history.length === 0 ? (
+        {searching && history.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.loading}
           </div>
         ) : null}
 
-        {!isLoading && error && history.length === 0 && !hasOtherResults ? (
+        {nothingFound && error ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {error}
           </div>
         ) : null}
 
-        {!isLoading && !error && history.length === 0 && !hasOtherResults ? (
+        {nothingFound && !error ? (
           <CommandEmpty>{labels.empty}</CommandEmpty>
         ) : null}
 
         <TagSearchGroups
           tags={tags}
+          tagsState={tagsState}
           topTag={topTag}
           tasks={tasks}
+          tasksState={tasksState}
           labels={labels}
           onSelectTag={handleSelectTag}
           onSelectTask={handleSelectTask}
@@ -229,7 +240,12 @@ interface TagSearchGroupsProps {
   tags: WorkspaceLabel[];
   topTag: WorkspaceLabel | undefined;
   tasks: TaskListItem[];
-  labels: Pick<HistorySearchDialogLabels, "tagsGroup" | "tagTasksGroup">;
+  tagsState: "loading" | "error" | "ready" | null;
+  tasksState: "loading" | "error" | "ready";
+  labels: Pick<
+    HistorySearchDialogLabels,
+    "tagsGroup" | "tagTasksGroup" | "tagsError" | "tagTasksError" | "loading"
+  >;
   onSelectTag: (tag: WorkspaceLabel) => void;
   onSelectTask: (task: TaskListItem) => void;
 }
@@ -238,12 +254,18 @@ function TagSearchGroups({
   tags,
   topTag,
   tasks,
+  tagsState,
+  tasksState,
   labels,
   onSelectTag,
   onSelectTask,
 }: TagSearchGroupsProps) {
   return (
     <>
+      {tagsState === "error" ? (
+        <SearchNote>{labels.tagsError}</SearchNote>
+      ) : null}
+
       {tags.length > 0 ? (
         <CommandGroup heading={labels.tagsGroup}>
           {tags.map((tag) => (
@@ -267,8 +289,14 @@ function TagSearchGroups({
         </CommandGroup>
       ) : null}
 
-      {topTag && tasks.length > 0 ? (
+      {topTag && (tasks.length > 0 || tasksState !== "ready") ? (
         <CommandGroup heading={labels.tagTasksGroup(topTag.displayName)}>
+          {tasksState === "loading" ? (
+            <SearchNote>{labels.loading}</SearchNote>
+          ) : null}
+          {tasksState === "error" ? (
+            <SearchNote>{labels.tagTasksError}</SearchNote>
+          ) : null}
           {tasks.map((task) => (
             <CommandItem
               key={task.id}
@@ -283,5 +311,17 @@ function TagSearchGroups({
         </CommandGroup>
       ) : null}
     </>
+  );
+}
+
+/** A non-selectable status line in the results, read out when it changes. */
+function SearchNote({ children }: { children: string }) {
+  return (
+    <div
+      role="status"
+      className="text-muted-foreground px-2 py-3 text-center text-sm"
+    >
+      {children}
+    </div>
   );
 }

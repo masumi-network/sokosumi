@@ -5658,7 +5658,9 @@
       "filesSeeAll": "Alle Dateien ansehen",
       "filesFilenameMatch": "Treffer im Dateinamen",
       "tagsGroup": "Tags",
-      "tagTasksGroup": "Aufgaben mit dem Tag {tag}"
+      "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
+      "tagsError": "Tags konnten nicht geladen werden",
+      "tagTasksError": "Diese Aufgaben konnten nicht geladen werden"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",

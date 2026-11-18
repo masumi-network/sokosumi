@@ -60,6 +60,8 @@ const labels = {
   filesFilenameMatch: "Filename match",
   tagsGroup: "Tags",
   tagTasksGroup: (tag: string) => `Tasks tagged ${tag}`,
+  tagsError: "Couldn't load tags",
+  tagTasksError: "Couldn't load these tasks",
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {

@@ -5658,7 +5658,9 @@
       "filesSeeAll": "Ver todos los archivos",
       "filesFilenameMatch": "Coincide el nombre",
       "tagsGroup": "Etiquetas",
-      "tagTasksGroup": "Tareas con la etiqueta {tag}"
+      "tagTasksGroup": "Tareas con la etiqueta {tag}",
+      "tagsError": "No se pudieron cargar las etiquetas",
+      "tagTasksError": "No se pudieron cargar estas tareas"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

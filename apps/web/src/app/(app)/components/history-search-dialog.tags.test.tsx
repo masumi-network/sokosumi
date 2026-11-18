@@ -32,6 +32,7 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 }));
 
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import { matchWorkspaceTags } from "@/app/components/use-tag-search-group";
 
 const labels = {
   dialogTitle: "Search",
@@ -46,6 +47,8 @@ const labels = {
   filesFilenameMatch: "Filename match",
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
+  tagsError: "Couldn't load tags",
+  tagTasksError: "Couldn't load these tasks",
 };
 
 function tag(id: string, displayName: string, archived = false) {
@@ -59,7 +62,10 @@ function tag(id: string, displayName: string, archived = false) {
   };
 }
 
-function renderDialog(ui: ReactNode = null) {
+function renderDialog(
+  ui: ReactNode = null,
+  activeOrganizationId: string | null = "org-1",
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -68,7 +74,7 @@ function renderDialog(ui: ReactNode = null) {
       <HistorySearchDialog
         open
         onOpenChange={vi.fn()}
-        activeOrganizationId="org-1"
+        activeOrganizationId={activeOrganizationId}
         labels={labels}
       />
       {ui}
@@ -132,5 +138,83 @@ describe("HistorySearchDialog workspace tags", () => {
     await waitFor(() => expect(getHistoryMock).toHaveBeenCalled());
     expect(screen.queryByText("Tags")).not.toBeInTheDocument();
     expect(getTasksMock).not.toHaveBeenCalled();
+  });
+
+  it("does not claim no results while tags are still loading", async () => {
+    fetchLabelsMock.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "design");
+
+    await waitFor(() =>
+      expect(getHistoryMock).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "design" }),
+      ),
+    );
+    expect(await screen.findByText("Loading...")).toBeInTheDocument();
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+  });
+
+  it("says tags failed to load instead of no results", async () => {
+    fetchLabelsMock.mockRejectedValue(new Error("down"));
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "design");
+
+    expect(await screen.findByText("Couldn't load tags")).toBeInTheDocument();
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+  });
+
+  it("shows the tag's Tasks loading, then their failure", async () => {
+    let fail: (error: Error) => void = () => {};
+    getTasksMock.mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "design");
+
+    await screen.findByRole("option", { name: "#Design" });
+    expect(screen.getByText("Tasks tagged Design")).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+    fail(new Error("down"));
+    expect(
+      await screen.findByText("Couldn't load these tasks"),
+    ).toBeInTheDocument();
+  });
+
+  it("asks for the reader's own Tasks in a personal workspace", async () => {
+    const user = userEvent.setup();
+    renderDialog(null, null);
+
+    await user.type(screen.getByPlaceholderText("Search..."), "design");
+
+    await waitFor(() =>
+      expect(getTasksMock).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: "owned" }),
+      ),
+    );
+  });
+});
+
+describe("matchWorkspaceTags", () => {
+  it("puts an exact name first, then prefixes, then other matches", () => {
+    const tags = [
+      tag("t1", "Web design"),
+      tag("t2", "Design system"),
+      tag("t3", "Design"),
+    ];
+
+    expect(matchWorkspaceTags(tags, "#DESIGN").map((t) => t.id)).toEqual([
+      "t3",
+      "t2",
+      "t1",
+    ]);
   });
 });

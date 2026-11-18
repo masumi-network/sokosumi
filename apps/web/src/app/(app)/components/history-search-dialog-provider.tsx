@@ -104,6 +104,8 @@ export function HistorySearchDialogProvider({
           filesFilenameMatch: tSearch("filesFilenameMatch"),
           tagsGroup: tSearch("tagsGroup"),
           tagTasksGroup: (tag) => tSearch("tagTasksGroup", { tag }),
+          tagsError: tSearch("tagsError"),
+          tagTasksError: tSearch("tagTasksError"),
         }}
       />
     </HistorySearchContext.Provider>
