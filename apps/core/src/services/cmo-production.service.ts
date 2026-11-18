@@ -445,18 +445,15 @@ async function startProductionRun(
       destinationRoomId: bot.sharedRoomId,
     },
   });
+  const { reconciliationLeaseToken } = started;
   if (
-    started.reconciliationLeaseToken &&
+    reconciliationLeaseToken &&
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
       runAsBackgroundWork(() =>
         sokoBotControlPlane
-          .reconcileTurn(
-            started.turnId,
-            undefined,
-            started.reconciliationLeaseToken,
-          )
+          .reconcileTurn(started.turnId, undefined, reconciliationLeaseToken)
           .catch((error: unknown) => {
             if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
               return;

@@ -1,5 +1,13 @@
 import type { IndexedRuntimeEvent } from "@sokosumi/soko-bot";
 
+// Runtime events after which a drain settles the turn.
+export const SETTLEMENT_TRIGGER_EVENT_TYPES = new Set([
+  "input.requested",
+  "session.waiting",
+  "session.completed",
+  "session.failed",
+]);
+
 const TRANSIENT_RUNTIME_EVENT_TYPES = new Set([
   "action.partial",
   "message.appended",
