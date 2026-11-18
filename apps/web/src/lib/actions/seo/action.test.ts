@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 import type { SeoCommand } from "./types";
 
@@ -11,6 +12,7 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
     requestAnalysisMock: vi.fn(),
     changeStateMock: vi.fn(),
   }));
+const deleteAuditMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
@@ -35,16 +37,41 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
 }));
 
 vi.mock("@/lib/services/seo.service", () => ({
-  seoServiceNoRedirect: { requestAnalysis: requestAnalysisMock },
+  seoServiceNoRedirect: {
+    requestAnalysis: requestAnalysisMock,
+    deleteAudit: deleteAuditMock,
+  },
 }));
 
 import { mutateSeo } from "./action";
+import { deleteSeoAuditAction } from "./delete-audit";
 
 const OWNER = {
   kind: "audit",
   id: "01960001-0001-7001-8001-000000000001",
 } as const;
 const MONITOR_ID = "01960001-0001-7001-8001-000000000042";
+
+it("preserves the Core refusal so the confirmation can explain how to resolve it", async () => {
+  deleteAuditMock.mockRejectedValueOnce(
+    new CoreApiRequestError("End the schedule first", {
+      status: 409,
+      kind: "seo_audit_resumable_monitor",
+    }),
+  );
+  expect(await deleteSeoAuditAction({ auditId: OWNER.id })).toMatchObject({
+    ok: false,
+    error: { status: 409, kind: "seo_audit_resumable_monitor" },
+  });
+});
+
+it("rejects invalid audit IDs before making a deletion request", async () => {
+  deleteAuditMock.mockClear();
+  expect(
+    await deleteSeoAuditAction({ auditId: "../another-resource" }),
+  ).toMatchObject({ ok: false });
+  expect(deleteAuditMock).not.toHaveBeenCalled();
+});
 
 function mutate(command: unknown) {
   return mutateSeo({ owner: OWNER, command: command as SeoCommand });
