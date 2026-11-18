@@ -44,6 +44,11 @@ vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ]),
 }));
 
+// "Run now" announces the first audit's Task over realtime.
+vi.mock("@/lib/ably/publish", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
+  publishTaskEventData: vi.fn(async () => undefined),
+}));
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
@@ -231,8 +236,29 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
       countryCode: "US",
     });
 
+    // The first audit starts at once, unless the weekly Run is under two days away.
+    const firstAudits = await prisma.projectSeoAnalysis.findMany({
+      where: { projectId, kind: "audit_full" },
+      select: { status: true, taskId: true },
+    });
+    const weeklyRunIsFar =
+      (monitor.nextRunAt?.getTime() ?? 0) - Date.now() > 2 * 86_400_000;
+    expect(firstAudits).toHaveLength(weeklyRunIsFar ? 1 : 0);
+    if (weeklyRunIsFar) {
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: firstAudits[0].taskId ?? "" },
+        select: { assigneeId: true, ownerId: true, projectId: true },
+      });
+      expect(task).toEqual({
+        assigneeId: coworkerId,
+        ownerId: userId,
+        projectId,
+      });
+      expect((await readCmoSeo(cuso)).audit.running).toBe(true);
+    }
+
     const run = await prisma.taskScheduleRun.findFirstOrThrow({
-      where: { scheduleId: monitor.id, state: "PLANNED" },
+      where: { scheduleId: monitor.id, state: "PLANNED", manual: false },
       orderBy: { effectiveScheduledAt: "asc" },
     });
     const soon = new Date(Date.now() + 20 * 60_000);
