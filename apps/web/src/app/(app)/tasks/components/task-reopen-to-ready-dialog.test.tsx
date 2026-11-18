@@ -65,6 +65,9 @@ describe("TaskReopenToReadyDialog", () => {
     expect(
       screen.getByRole("button", { name: "confirm Writer" }),
     ).not.toHaveAttribute("aria-busy");
+    expect(
+      screen.getByRole("button", { name: "confirm Writer" }),
+    ).toBeDisabled();
   });
 
   it("disables confirm when comment is whitespace-only", () => {

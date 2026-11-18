@@ -104,7 +104,7 @@ export function TaskReopenToReadyDialog({
           )}
           <Button
             type="button"
-            disabled={!comment.trim()}
+            disabled={!comment.trim() || isDraftPending}
             loading={isPending && !isDraftPending}
             onClick={onConfirm}
           >

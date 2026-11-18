@@ -855,6 +855,20 @@ describe("updateTask Run at", () => {
     expect(result).toMatchObject({ ok: true });
   });
 
+  it("still moves a parked Task to the Draft the form chose", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.INPUT_REQUIRED,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({ ...baseInput, desiredStatus: TaskStatus.DRAFT });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.DRAFT,
+    });
+  });
+
   it("sends no Run at when none is given", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",
