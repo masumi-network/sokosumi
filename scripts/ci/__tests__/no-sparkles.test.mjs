@@ -11,7 +11,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const EMOJI_CATALOGUE =
   "apps/apple/Packages/SokosumiChat/Sources/SokosumiChat/Resources/Emoji/";
 
-const SPARKLES_EMOJI = /✨/;
+// This file names the icons it bans.
+const SELF = "scripts/ci/__tests__/no-sparkles.test.mjs";
+
+const SPARKLES_EMOJI = String.fromCodePoint(0x2728);
 
 // Lucide and Phosphor names (`Sparkles`, `WandSparkles`, `SparkleIcon`,
 // `Wand2`, `MagicWand`) and their kebab-case icon ids. Lowercase "sparkle"
@@ -38,7 +41,7 @@ function trackedFiles() {
 function findings() {
   const found = [];
   for (const file of trackedFiles()) {
-    if (file.startsWith(EMOJI_CATALOGUE)) continue;
+    if (file === SELF || file.startsWith(EMOJI_CATALOGUE)) continue;
     let text;
     try {
       text = readFileSync(join(ROOT, file), "utf8");
@@ -52,7 +55,7 @@ function findings() {
         ? SWIFT_ICON
         : null;
     text.split("\n").forEach((line, index) => {
-      if (SPARKLES_EMOJI.test(line)) {
+      if (line.includes(SPARKLES_EMOJI)) {
         found.push(`${file}:${index + 1} sparkles emoji`);
       }
       const match = icon?.exec(line);
