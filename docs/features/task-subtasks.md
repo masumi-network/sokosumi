@@ -452,6 +452,15 @@ Core API:
     with the Workspace and Project lock removed, the change failed after
     about 1 s (the default deadlock timeout) with "Transaction failed due
     to a write conflict or a deadlock".
+  - Not closed (REPORTED by the round-4 review, not run): on a Soko Bot
+    event wake, `claimTaskEventAction` inserts a claim row before the
+    Workspace lock. Its foreign key takes FOR KEY SHARE on the Task, so a
+    sub-task create that holds the Workspace and waits for FOR UPDATE on
+    that Task can still deadlock with the bot's `update_task` or
+    `set_task_parent`. The bot's transaction retries 40P01, so the effect
+    is a stall of about 1 s and a retry, not wrong data. The commit
+    "lock Workspace and Projects before a Soko Bot Project change" says
+    it "cannot deadlock"; that holds only for a turn without a claim.
   - Known behaviour, not changed: the status rule applies only to the
     Task itself. A sub-task that follows its parent to another Project
     can be in any status that is not parked, RUNNING included.
