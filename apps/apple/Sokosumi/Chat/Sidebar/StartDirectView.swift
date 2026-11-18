@@ -197,7 +197,7 @@ private struct DirectRecipientRow: View {
           HStack(spacing: 5) {
             Text(target.name).lineLimit(1)
             if case .human = target.id {} else {
-              Image(systemName: "sparkles").foregroundStyle(.secondary).font(.caption)
+              Image(systemName: "cpu").foregroundStyle(.secondary).font(.caption)
                 .accessibilityLabel(badge)
             }
           }

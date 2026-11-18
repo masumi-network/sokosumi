@@ -30,9 +30,10 @@ import {
   PenLine,
   Phone,
   Plus,
-  Sparkles,
   Trash2,
   UserRound,
+  UserSearch,
+  Zap,
 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useRef, useState } from "react";
@@ -438,7 +439,7 @@ function PanelBody({
             loading={enriching}
             onClick={() => void enrich()}
           >
-            <Sparkles aria-hidden className="size-4" />
+            <UserSearch aria-hidden className="size-4" />
             <span className="sr-only sm:not-sr-only">{t("panel.enrich")}</span>
           </Button>
         ) : null}
@@ -1289,7 +1290,7 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
               className="text-muted-foreground flex items-start gap-2 text-xs"
             >
               {isAutomatic(entry) ? (
-                <Sparkles aria-hidden className="size-4 shrink-0" />
+                <Zap aria-hidden className="size-4 shrink-0" />
               ) : entry.user ? (
                 <PersonAvatar person={entry.user} className="size-4" />
               ) : (

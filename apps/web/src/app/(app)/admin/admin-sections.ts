@@ -1,4 +1,5 @@
 import {
+  Award,
   Bot,
   BotMessageSquare,
   BrainCircuit,
@@ -13,7 +14,6 @@ import {
   Palette,
   PenLine,
   Receipt,
-  Sparkles,
   Store,
   Users,
   WalletCards,
@@ -154,7 +154,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     key: "badgeCampaigns",
     href: "/admin/badge-campaigns",
-    Icon: Sparkles,
+    Icon: Award,
     group: "operations",
   },
   {

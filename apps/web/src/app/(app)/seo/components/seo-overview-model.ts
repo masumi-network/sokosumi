@@ -27,6 +27,18 @@ function issueRank(finding: Finding): number {
     : NON_ISSUE_RANK;
 }
 
+/** A finding's check time; its rows may carry later times per device. */
+export function seoCheckedAt(
+  workspace: ProjectSeoWorkspace,
+  finding: Pick<Finding, "observationId" | "observedAt">,
+) {
+  return (
+    workspace.observations.find(
+      (observation) => observation.id === finding.observationId,
+    )?.observedAt ?? finding.observedAt
+  );
+}
+
 /** Severity describes an issue. Measurements and notes do not imply a fix. */
 export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const failed = workspace.findings
@@ -348,15 +360,6 @@ const RULE_CODE = /\s*\(([A-Z][A-Z0-9]*-\d+)\)/g;
 /** A guidance line as people read it: without the rule IDs it cites. */
 export function withoutRuleCodes(line: string) {
   return line.replace(RULE_CODE, "");
-}
-
-/** Every rule ID the shown guidance cites, once, in order: they fold with the sources. */
-export function pageDetailRuleCodes(lines: readonly string[]) {
-  return [
-    ...new Set(
-      lines.flatMap((line) => [...line.matchAll(RULE_CODE)].map((m) => m[1])),
-    ),
-  ];
 }
 
 const TOOL_RANGES_PREFIX = "vendor tools:";

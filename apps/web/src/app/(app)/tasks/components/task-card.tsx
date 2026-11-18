@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
@@ -35,6 +36,7 @@ export interface TaskCardData
     | "participants"
     | "commentsCount"
     | "tags"
+    | "workspaceTags"
     | "runAt"
     | "dueOn"
     | "statusSince"
@@ -69,7 +71,7 @@ export function TaskCard({
       <article
         className={cn(
           "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-foreground hover:shadow-sm press content-in",
-          compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
+          TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],
           dragHandleProps?.isDragging && "shadow-lg",
         )}
       >
@@ -115,9 +117,14 @@ export function TaskCard({
             </TaskDetailLink>
           )}
         </h3>
+        <TaskTags
+          tags={task.tags}
+          showManualTopics={!compact}
+          workspaceTags={task.workspaceTags}
+          compact={compact}
+        />
         {!compact && (
           <>
-            <TaskTags tags={task.tags} />
             {task.project ? (
               <Link
                 href={`/projects/${task.project.id}`}

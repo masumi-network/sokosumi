@@ -7,6 +7,7 @@ import { DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionTaskButton, useSeoActionFinding } from "./seo-action-finding";
+import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_SEVERITY_MARK_CLASS,
@@ -47,6 +48,10 @@ export function SeoActionDetail({
   const finding = useSeoActionFinding(action, model);
   const instructions = useSeoActionInstructions(action, finding);
   const problem = seoOverviewModel(model.data).actionProblem(action);
+  const page = model.data.pages.find((item) => item.url === action.pageUrl);
+  const followUp = model.brief?.data?.followUps?.find(
+    (item) => item.pageId === page?.id,
+  );
   return (
     <>
       {/* The top padding keeps the close button clear of the title. */}
@@ -121,6 +126,8 @@ export function SeoActionDetail({
             </p>
           </DetailPart>
         ) : null}
+        {page && <SeoBriefPagePriority model={model} pageId={page.id} />}
+        {followUp ? <SeoBriefFollowUp followUp={followUp} /> : null}
         {action.evidence.length ? (
           <DetailPart title={t("actions.evidence")}>
             <ul className="divide-y rounded-md border">

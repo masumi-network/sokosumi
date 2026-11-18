@@ -15,10 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import { seoAuditName } from "./seo-audit-name";
-import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
+import { SeoExportMenu } from "./seo-export-menu";
 import { seoKeywordsExport, seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
@@ -72,7 +70,6 @@ import {
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
-import { SeoTableButton } from "./seo-table-button";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
@@ -226,30 +223,6 @@ export function SeoKeywords({
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
     <div className="space-y-5">
-      {/* One copy over both lists: it holds keywords and ideas, and it stays mounted while the list switches or a
-          search narrows it, so a copy in flight stays busy and a failed one finishes in the same Table. */}
-      {all.checked.length || all.ideas.length ? (
-        <div
-          className={cn(
-            "px-2",
-            seoSectionClass(
-              section !== "competitors" &&
-                Boolean(checked.length || ideas.length),
-            ),
-          )}
-        >
-          <SeoTableButton
-            title={t("keywords.title")}
-            site={seoAuditName(
-              model.data.auditName ?? "",
-              model.data.websiteUrl ?? "",
-            )}
-            projectId={model.data.projectId}
-            table={() => seoKeywordsTableExport(checked, ideas, t)}
-            className="-ms-2.5"
-          />
-        </div>
-      ) : null}
       <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
           // The switch above names the list, so the title is its result: one sentence.
@@ -263,13 +236,27 @@ export function SeoKeywords({
           }
           strong={summary.read > 0}
           actions={
-            model.data.availableActions.canEdit ? (
-              <SeoAddButton
-                label={t("keywords.addButton")}
-                lead={!rows.length}
-                onClick={() => model.setDialog("keyword")}
-              />
-            ) : null
+            // The exports hold the checked keywords only: the ideas list has its own.
+            <div className="flex items-center gap-1">
+              {/* The unfiltered list: a search that matches nothing keeps the menu, so a failed copy can finish. */}
+              {all.checked.length ? (
+                <SeoExportMenu
+                  name="keywords"
+                  title={t("keywords.title")}
+                  workspace={model.data}
+                  table={() => seoKeywordsExport(checked, t)}
+                  tableCopy={() => seoKeywordsTableExport(checked, t)}
+                  empty={!checked.length}
+                />
+              ) : null}
+              {model.data.availableActions.canEdit ? (
+                <SeoAddButton
+                  label={t("keywords.addButton")}
+                  lead={!rows.length}
+                  onClick={() => model.setDialog("keyword")}
+                />
+              ) : null}
+            </div>
           }
         >
           {summary.read ? (
@@ -711,16 +698,6 @@ export function SeoKeywords({
               expanded={expanded}
               onToggle={() => setExpanded((open) => !open)}
             />
-          ) : null}
-          {/* Under the keyword list itself, before the strategy: the export holds the checked keywords only. */}
-          {checked.length ? (
-            <div className="px-2">
-              <SeoCsvButton
-                name="keywords"
-                title={t("keywords.title")}
-                table={() => seoKeywordsExport(checked, t)}
-              />
-            </div>
           ) : null}
           <SeoStrategyFold
             model={model}

@@ -9,6 +9,7 @@ import {
   focusedReport,
   legacyReport,
   SEO_TEST_PAGE,
+  SEO_TEST_SECOND_PAGE,
   siteStrategyReport,
 } from "@/test-fixtures/project-seo";
 
@@ -390,6 +391,166 @@ describe("stored SEO workspace projections", () => {
       projectSeoProjection({ ...input, query: { from: "2026-11-04" } })
         .strategy,
     ).toBeNull();
+  });
+
+  it("retains measured site intent and a matching purpose opportunity only in the scope they describe", () => {
+    const input = fixture(),
+      base = siteStrategyReport(),
+      report = legacyReport();
+    const second = {
+      ...input.pages[0],
+      url: SEO_TEST_SECOND_PAGE,
+      id: randomUUID(),
+    };
+    input.pages.push(second);
+    const fullScope = {
+      ...input.scope,
+      pageIds: input.pages.map((p) => p.id),
+      pages: input.pages,
+    };
+    const raw = {
+      ...base,
+      pages: [report, { ...report, request: { url: second.url } }],
+      strategy: {
+        ...base.strategy,
+        groups: base.strategy.groups.map((g, index) =>
+          index === 1 ? { ...g, reach: "out of reach" } : g,
+        ),
+        purpose: "sales",
+        purposeSource: "owner",
+        demandByIntent: { buyer: 47, informational: 20, other: 0 },
+        missingDemandByIntent: { buyer: 0, informational: 0, other: 1 },
+        purposeOpportunity: {
+          page: 1,
+          keyword: "example",
+          demand: 47,
+          reach: "in reach",
+        },
+      },
+    };
+    const imported = parsePublicSeoArtifact(raw);
+    const row = observation(
+      { ...input, scope: fullScope },
+      imported,
+      now.toISOString(),
+    );
+    const read = (scope: Input["scope"], observationRow = row) =>
+      projectSeoProjection({ ...input, scope, observations: [observationRow] })
+        .strategy;
+    expect(read(fullScope)).toMatchObject({
+      purpose: "sales",
+      purposeSource: "owner",
+      demandByIntent: raw.strategy.demandByIntent,
+      missingDemandByIntent: raw.strategy.missingDemandByIntent,
+      purposeOpportunity: {
+        pageUrl: SEO_TEST_PAGE,
+        keyword: "example",
+        demand: 47,
+        reach: "in reach",
+      },
+      groups: expect.arrayContaining([
+        expect.objectContaining({
+          lead: "second term",
+          reach: "out of reach",
+          forums: true,
+        }),
+      ]),
+    });
+    expect(read(input.scope)).toMatchObject({
+      purpose: "sales",
+      purposeOpportunity: { pageUrl: SEO_TEST_PAGE },
+    });
+    const narrowed = read({
+      ...input.scope,
+      pages: [second],
+      pageIds: [second.id],
+    });
+    for (const field of [
+      "purposeOpportunity",
+      "demandByIntent",
+      "missingDemandByIntent",
+    ])
+      expect(narrowed).not.toHaveProperty(field);
+    expect(narrowed?.groups).toHaveLength(1);
+    const malformed = {
+      ...raw,
+      strategy: {
+        ...raw.strategy,
+        purposeSource: "made up",
+        purposeOpportunity: { ...raw.strategy.purposeOpportunity, page: 2 },
+        demandByIntent: { buyer: -1, informational: 20, other: 0 },
+        groups: raw.strategy.groups.map((g) => ({ ...g, forums: "invalid" })),
+      },
+    };
+    const partlyRead = parsePublicSeoArtifact(malformed).strategy;
+    expect(partlyRead).toMatchObject({
+      purpose: "sales",
+      missingDemandByIntent: raw.strategy.missingDemandByIntent,
+      verdict: "keep",
+    });
+    for (const field of [
+      "purposeSource",
+      "purposeOpportunity",
+      "demandByIntent",
+    ])
+      expect(partlyRead?.[field as keyof typeof partlyRead]).toBeUndefined();
+    expect(partlyRead?.groups[0].forums).toBeUndefined();
+    expect(
+      read(fullScope, {
+        ...row,
+        payload: {
+          ...imported,
+          strategy: {
+            ...imported.strategy!,
+            purposeOpportunity: "bad historical value",
+            groups: imported.strategy!.groups.map((g) => ({
+              ...g,
+              forums: "unknown",
+            })),
+          },
+        },
+      }),
+    ).toMatchObject({ purpose: "sales", verdict: "keep" });
+    for (const opportunity of [
+      { page: 1, keyword: "other", demand: 47, reach: "in reach" },
+      { ...raw.strategy.purposeOpportunity, reach: "ranks" },
+      { ...raw.strategy.purposeOpportunity, demand: 999 },
+    ])
+      expect(
+        parsePublicSeoArtifact({
+          ...raw,
+          strategy: { ...raw.strategy, purposeOpportunity: opportunity },
+        }).strategy?.purposeOpportunity,
+      ).toBeUndefined();
+    const unsupportedTotals = parsePublicSeoArtifact({
+      ...raw,
+      strategy: {
+        ...raw.strategy,
+        demandByIntent: { buyer: 999, informational: 20, other: 0 },
+        missingDemandByIntent: { buyer: 0, informational: 0, other: 200 },
+      },
+    }).strategy;
+    expect(unsupportedTotals?.purposeOpportunity).toBeDefined();
+    expect(unsupportedTotals?.demandByIntent).toBeUndefined();
+    expect(unsupportedTotals?.missingDemandByIntent).toBeUndefined();
+    const ambiguous = parsePublicSeoArtifact({
+      ...raw,
+      selection: {
+        ...raw.selection,
+        pages: [...raw.selection.pages, raw.selection.pages[0]],
+      },
+    });
+    expect(ambiguous.strategy?.purposeOpportunity).toBeUndefined();
+    const skipped = parsePublicSeoArtifact({
+      ...raw,
+      pages: [report],
+      strategy: {
+        ...raw.strategy,
+        groups: [{ ...base.strategy.groups[0], page: 2 }],
+        purposeOpportunity: { ...raw.strategy.purposeOpportunity, page: 2 },
+      },
+    });
+    expect(skipped.strategy?.purposeOpportunity).toBeUndefined();
   });
 
   it("omits unsaved manual keywords while keeping real observations and saved choices", () => {

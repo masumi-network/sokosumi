@@ -17,6 +17,7 @@ import { latestCompetitorFeed } from "@/services/cmo-competitor-feed.service";
 import {
   listTrackedCompetitors,
   MAX_TRACKED_COMPETITORS,
+  watchedMapPlayers,
 } from "@/services/cmo-competitors.service";
 import { type CusoTarget, requireCuso } from "@/services/cmo-cuso.service";
 
@@ -270,9 +271,10 @@ export async function getCmoCompetitors(
 ) {
   const cuso = await requireCuso(target);
   const { projectId } = cuso;
-  const [competitors, signals, social, lastCheck, instagram] =
+  const [competitors, mapPlayers, signals, social, lastCheck, instagram] =
     await Promise.all([
       listTrackedCompetitors(projectId),
+      watchedMapPlayers(projectId),
       prisma.competitorSignal.findMany({
         where: {
           projectId,
@@ -316,12 +318,18 @@ export async function getCmoCompetitors(
     competitors,
     feed: feed && {
       ...feed,
-      items: feed.items.map((item) => ({
-        ...item,
-        addedToStrategyAt: item.addedToStrategyAt ?? null,
-      })),
+      // A move of a competitor the member stopped watching goes with it.
+      items: feed.items
+        .filter((item) =>
+          competitors.some((competitor) => competitor.id === item.competitorId),
+        )
+        .map((item) => ({
+          ...item,
+          addedToStrategyAt: item.addedToStrategyAt ?? null,
+        })),
     },
     limit: MAX_TRACKED_COMPETITORS,
+    mapPlayers,
     signals,
     scoreboard: [
       own,

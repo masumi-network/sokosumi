@@ -1,15 +1,21 @@
-import { Loader2, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
 import {
   COLUMN_STATUS_COLORS,
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
 
 import { ColumnHeader } from "./column-header";
+
+/** Placeholder cards per board column, so the skeleton reads as a filled board. */
+const BOARD_SKELETON_CARD_COUNTS = [3, 2, 2, 1, 1] as const;
+const LIST_SKELETON_ROW_COUNT = 6;
 
 export interface TasksLoadingLabels {
   columns: Record<KanbanColumnId, string>;
@@ -20,6 +26,8 @@ export interface TasksLoadingLabels {
 
 interface TasksLoadingViewProps {
   viewMode?: TasksViewMode;
+  /** Matches the `tasks_density` preference, so placeholders take the real size. */
+  compact?: boolean;
   labels: TasksLoadingLabels;
 }
 
@@ -37,18 +45,29 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
   },
 };
 
-export function TasksPageSkeleton({ viewMode }: { viewMode?: TasksViewMode }) {
+export function TasksPageSkeleton({
+  viewMode,
+  compact,
+}: {
+  viewMode?: TasksViewMode;
+  compact?: boolean;
+}) {
   return (
     <div className="w-full">
       <TasksLoadingView
         viewMode={viewMode}
+        compact={compact}
         labels={TASKS_LOADING_DEFAULT_LABELS}
       />
     </div>
   );
 }
 
-export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
+export function TasksLoadingView({
+  viewMode,
+  compact = false,
+  labels,
+}: TasksLoadingViewProps) {
   const resolvedViewMode = viewMode ?? "board";
 
   return (
@@ -82,9 +101,9 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
             )}
           >
             {resolvedViewMode === "board" ? (
-              <TasksBoardLoading labels={labels} />
+              <TasksBoardLoading labels={labels} compact={compact} />
             ) : (
-              <TasksListLoading />
+              <TasksListLoading compact={compact} />
             )}
           </div>
         </div>
@@ -93,11 +112,17 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
   );
 }
 
-function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
+function TasksBoardLoading({
+  labels,
+  compact,
+}: {
+  labels: TasksLoadingLabels;
+  compact: boolean;
+}) {
   return (
     <div className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
       {KANBAN_COLUMNS.map((column, index) => {
-        const isFirstColumn = index === 0;
+        const cardCount = BOARD_SKELETON_CARD_COUNTS[index] ?? 1;
 
         return (
           <section
@@ -112,22 +137,19 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
             </div>
 
             <div
+              aria-hidden
               className={cn(
-                "flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
+                "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
                 LIST_MOBILE_CREATE_FAB_CLEARANCE,
                 "md:pb-2",
               )}
             >
-              {isFirstColumn ? (
-                <div className="flex flex-1 items-center justify-center py-6">
-                  <Loader2
-                    className="text-muted-foreground size-5 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                </div>
-              ) : (
-                <div className="flex-1" />
-              )}
+              {Array.from({ length: cardCount }, (_, cardIndex) => (
+                <TaskCardSkeleton
+                  key={`${column.id}-${cardIndex}`}
+                  compact={compact}
+                />
+              ))}
             </div>
           </section>
         );
@@ -136,15 +158,76 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
   );
 }
 
-function TasksListLoading() {
+function TasksListLoading({ compact }: { compact: boolean }) {
   return (
     <div className="bg-card-background overflow-hidden rounded-xl p-2">
-      <div className="flex items-center justify-center px-4 py-16">
-        <Loader2
-          className="text-muted-foreground size-5 animate-spin motion-reduce:animate-pulse"
-          aria-hidden
-        />
+      <div aria-hidden className="flex flex-col gap-2">
+        {Array.from({ length: LIST_SKELETON_ROW_COUNT }, (_, rowIndex) => (
+          // Mirrors `TaskListView`: cards below `md`, rows from `md` up.
+          <div key={`row-${rowIndex}`}>
+            <div className="md:hidden">
+              <TaskCardSkeleton compact={compact} />
+            </div>
+            <div
+              data-testid="task-row-skeleton"
+              className="bg-background hidden items-center gap-4 rounded-lg border border-border px-4 py-3 md:flex"
+            >
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <TextLineSkeleton className="w-3/5 text-sm" />
+                {compact ? null : (
+                  <TextLineSkeleton className="w-4/5 text-xs" />
+                )}
+              </div>
+              <StatusBadgeSkeleton />
+              <TextLineSkeleton className="w-24 shrink-0 text-xs" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+/** Same frame as `TaskCard` so content does not jump on load. */
+function TaskCardSkeleton({ compact }: { compact: boolean }) {
+  return (
+    <div
+      data-testid="task-card-skeleton"
+      className={cn(
+        "bg-background border-border rounded-lg border",
+        TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],
+      )}
+    >
+      <StatusBadgeSkeleton />
+      <TextLineSkeleton className="w-4/5 text-sm leading-snug" />
+      {compact ? null : (
+        <div className="flex min-h-8 items-center gap-2">
+          <Skeleton className="size-5 shrink-0 rounded-sm" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      )}
+      <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
+        <Skeleton className="size-5 rounded-full" />
+        <Skeleton className="h-3 w-12" />
+      </div>
+    </div>
+  );
+}
+
+/** One blank text line, so the bar takes the real line height of its type size. */
+function TextLineSkeleton({ className }: { className: string }) {
+  return (
+    <Skeleton className={cn("text-transparent select-none", className)}>
+      &nbsp;
+    </Skeleton>
+  );
+}
+
+/** Box of `TaskStatusBadge`: same border, padding and type size. */
+function StatusBadgeSkeleton() {
+  return (
+    <Skeleton className="w-20 shrink-0 rounded-sm border border-transparent py-1 text-xs text-transparent select-none">
+      &nbsp;
+    </Skeleton>
   );
 }

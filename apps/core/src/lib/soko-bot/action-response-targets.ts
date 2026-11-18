@@ -247,7 +247,8 @@ export function actionTarget(
   }
   if (
     call.capability === "generate_image" ||
-    call.capability === "generate_video"
+    call.capability === "generate_video" ||
+    call.capability === "generate_talking_video"
   ) {
     const studio = z
       .object({ studioUrl: z.string().startsWith("/studio?") })

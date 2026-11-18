@@ -12,7 +12,6 @@ const fixtureQuerySchema = z
   .object({
     fixtureTaskId: z.uuid(),
     fixtureOwnerId: z.string().trim().min(1).max(200),
-    fixtureBackfill: z.literal("true").optional(),
   })
   .strict();
 
@@ -42,7 +41,6 @@ export default function mount(app: Hono) {
         classifyFixtureTaskTags(context, {
           taskId: parsed.data.fixtureTaskId,
           ownerId: parsed.data.fixtureOwnerId,
-          ...(parsed.data.fixtureBackfill ? { backfill: true as const } : {}),
         }),
       { errorDetail: "safe-fields" },
     );

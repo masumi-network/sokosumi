@@ -10,10 +10,6 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { requireRightOnWorkWithoutOwner } from "@/helpers/access-control";
 import {
-  lockCalendarScope,
-  requireOpenCalendarProject,
-} from "@/helpers/calendar-locks";
-import {
   badRequest,
   conflict,
   notFound,
@@ -67,6 +63,10 @@ import {
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
+import {
+  lockScheduleMonitorAudit,
+  requireOpenScheduleProjects,
+} from "@/services/task-schedule-scope";
 import { announceReleasedTasks } from "@/services/task-schedule-task.service";
 
 function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
@@ -124,28 +124,6 @@ function resolveVisibility(
     );
   }
   return TaskVisibility.PRIVATE;
-}
-
-/**
- * A closing project Ends its schedules and a closed one never releases, so a
- * schedule neither joins nor changes in one. The scope is locked first, as the
- * close request locks it, so a close cannot slip in between.
- */
-async function requireOpenScheduleProjects(
-  tx: Prisma.TransactionClient,
-  workspaceId: string,
-  projectIds: Array<string | null | undefined>,
-): Promise<void> {
-  const ids = [
-    ...new Set(projectIds.filter((id): id is string => Boolean(id))),
-  ];
-  if (ids.length === 0) return;
-  if (!(await lockCalendarScope(tx, workspaceId, ids))) {
-    throw notFound("Project not found");
-  }
-  for (const id of ids) {
-    await requireOpenCalendarProject(tx, workspaceId, id);
-  }
 }
 
 /**
@@ -211,6 +189,7 @@ export async function createTaskSchedule(
         },
         tx,
       );
+      await lockScheduleMonitorAudit(tx, actor, input.description);
       await requireOpenScheduleProjects(tx, actor.workspace.workspaceId, [
         blueprint.projectId,
       ]);
@@ -365,6 +344,7 @@ export async function updateTaskSchedule(
       },
       tx,
     );
+    await lockScheduleMonitorAudit(tx, actor, description);
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
       input.projectId,
@@ -468,6 +448,8 @@ export async function changeTaskScheduleState(
         `A Task Schedule that is ${current.state} cannot be ${label}`,
       );
     }
+    if (action === "resume")
+      await lockScheduleMonitorAudit(tx, actor, current.description);
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
     ]);

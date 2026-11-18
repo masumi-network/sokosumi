@@ -19,6 +19,7 @@ import {
   seoViewerHeaders,
 } from "@/lib/seo/owner";
 import { seoServiceNoRedirect } from "@/lib/services/seo.service";
+import { seoBriefService } from "@/lib/services/seo-brief.service";
 
 const CANDIDATE_PAGE_SIZE = 30;
 const importsQuerySchema = z.object({
@@ -95,6 +96,18 @@ export function readSeoStatisticsResponse(request: Request, owner: SeoOwner) {
       .enum(["ga4", "search_console"])
       .parse(new URL(request.url).searchParams.get("provider"));
     return seoServiceNoRedirect.statisticsProperties(owner, provider);
+  });
+}
+
+export function readSeoBriefSuggestionResponse(
+  request: Request,
+  owner: SeoOwner,
+) {
+  return readSeoResponse(request, owner, () => {
+    const pageId = z
+      .uuid()
+      .parse(new URL(request.url).searchParams.get("pageId"));
+    return seoBriefService.suggestAction(owner, pageId);
   });
 }
 

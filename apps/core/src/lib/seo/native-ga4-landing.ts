@@ -3,6 +3,10 @@ import {
   type SeoLandingPages,
 } from "@/schemas/project-seo-traffic.schema";
 import {
+  seoLandingEventSchema,
+  seoLandingEvents,
+} from "@/schemas/seo-landing-outcomes.schema";
+import {
   GA4_CHANNEL_GROUPS,
   ga4ChannelGroupFilter,
   ga4ReportSchema,
@@ -113,28 +117,110 @@ export function ga4LandingPageArguments(
   query: NativeStatisticsQuery,
 ): Record<string, unknown> {
   const paths = [...new Set(query.pageUrls.map(landingPath))];
-  const bySource = landingChannel(query) === "ai_assistant";
   return {
     property: query.propertyId,
     dateRanges: [{ startDate: query.from, endDate: query.to }],
     dimensions: landingDimensions(query).map((name) => ({ name })),
     metrics: LANDING_METRICS.map((name) => ({ name })),
     dimensionFilter: {
+      andGroup: { expressions: landingFilters(paths, landingChannel(query)) },
+    },
+    limit:
+      landingChannel(query) === "ai_assistant"
+        ? SEO_AI_SOURCE_ROW_LIMIT
+        : paths.length,
+    returnPropertyQuota: true,
+  };
+}
+
+function landingFilters(
+  paths: string[],
+  channel: ReturnType<typeof landingChannel>,
+) {
+  return [
+    {
+      filter: {
+        fieldName: LANDING_DIMENSION,
+        inListFilter: { values: paths, caseSensitive: true },
+      },
+    },
+    ga4ChannelGroupFilter(GA4_CHANNEL_GROUPS[channel]),
+  ];
+}
+
+const OUTCOME_DIMENSION = "eventName";
+const OUTCOME_METRIC = "eventCount";
+/** Count event occurrences in sessions that started on an exact selected organic landing URL. */
+export function ga4LandingOutcomeArguments(query: NativeStatisticsQuery) {
+  const paths = [...new Set(query.pageUrls.map(landingPath))];
+  return {
+    property: query.propertyId,
+    dateRanges: [{ startDate: query.from, endDate: query.to }],
+    dimensions: [{ name: LANDING_DIMENSION }, { name: OUTCOME_DIMENSION }],
+    metrics: [{ name: OUTCOME_METRIC }],
+    dimensionFilter: {
       andGroup: {
         expressions: [
+          ...landingFilters(paths, "organic"),
           {
             filter: {
-              fieldName: LANDING_DIMENSION,
-              inListFilter: { values: paths, caseSensitive: true },
+              fieldName: OUTCOME_DIMENSION,
+              inListFilter: {
+                values: [...seoLandingEvents],
+                caseSensitive: true,
+              },
             },
           },
-          ga4ChannelGroupFilter(GA4_CHANNEL_GROUPS[landingChannel(query)]),
         ],
       },
     },
-    limit: bySource ? SEO_AI_SOURCE_ROW_LIMIT : paths.length,
+    limit: paths.length * seoLandingEvents.length,
     returnPropertyQuota: true,
   };
+}
+
+export function normalizeGa4LandingOutcomes(
+  query: NativeStatisticsQuery,
+  raw: unknown,
+) {
+  const report = ga4ReportSchema.parse(raw);
+  if (
+    report.dimensionHeaders.map((h) => h.name).join() !==
+      [LANDING_DIMENSION, OUTCOME_DIMENSION].join() ||
+    report.metricHeaders.length !== 1 ||
+    report.metricHeaders[0]?.name !== OUTCOME_METRIC ||
+    report.rowCount !== report.rows.length ||
+    report.metadata?.subjectToThresholding ||
+    report.metadata?.samplingMetadatas?.length ||
+    report.metadata?.dataLossFromOtherRow
+  )
+    throw new Error(
+      "Analytics did not return a complete named landing event report",
+    );
+  const urls = new Map(query.pageUrls.map((url) => [landingPath(url), url]));
+  const seen = new Set<string>();
+  const rows = report.rows.map((row) => {
+    const [path, eventValue] = row.dimensionValues;
+    const pageUrl = urls.get(path?.value ?? "");
+    const event = seoLandingEventSchema.parse(eventValue?.value);
+    const count = row.metricValues[0]?.value;
+    const key = JSON.stringify([pageUrl, event]);
+    if (
+      row.dimensionValues.length !== 2 ||
+      row.metricValues.length !== 1 ||
+      !pageUrl ||
+      count === undefined ||
+      !Number.isSafeInteger(count) ||
+      seen.has(key)
+    )
+      throw new Error("Analytics returned an invalid named landing event row");
+    seen.add(key);
+    return { pageUrl, event, count };
+  });
+  const zone = report.metadata?.timeZone;
+  // GA4 may omit its property timezone. Counts remain descriptive when the calendar cannot be established.
+  const timeZone = zone && zone.length <= 100 ? zone : null;
+  return { rows, timeZone };
 }
 
 /**

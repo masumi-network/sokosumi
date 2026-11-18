@@ -161,6 +161,7 @@ export {
   CMO_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
@@ -631,6 +632,7 @@ export {
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
+export { TASK_TAG_PRESETS } from "./task-tag-presets.js";
 export { isValidTimezone } from "./timezone.js";
 export {
   selectUnfurlCandidateUrls,

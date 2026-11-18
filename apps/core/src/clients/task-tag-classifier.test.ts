@@ -87,6 +87,7 @@ describe("task tag evaluation", () => {
     ).toEqual({
       ok: true,
       tags: ["research"],
+      workspaceSuggestions: [],
       usage: { inputTokens: 12, outputTokens: 8 },
       costUsd: "0.00012",
       generationId: "gen-test",

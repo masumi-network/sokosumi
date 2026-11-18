@@ -72,6 +72,9 @@ export interface OnboardingConnectActions {
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectAds: AdActions["connectAds"];
+  /** The owner's photo for talking videos, base64 JPEG, with their consent. */
+  setPresenter: (photo: string) => Promise<{ error: string | null }>;
+  clearPresenter: () => Promise<{ error: string | null }>;
 }
 
 /** Pay for a CMO plan, the last step of hiring. */
@@ -139,6 +142,8 @@ export function inertOnboardingActions(
     connectChannel: unavailable,
     connectMeasurement: unavailable,
     connectAds: unavailable,
+    setPresenter: async () => ({ error: null }),
+    clearPresenter: async () => ({ error: null }),
     startPlanCheckout: unavailable,
     startOver: async () => null,
     startTopUp: unavailable,

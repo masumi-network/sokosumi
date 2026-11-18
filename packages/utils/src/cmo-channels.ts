@@ -10,6 +10,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       post: {
         name: "Text post",
         what: "A short story or lesson in your voice",
@@ -63,6 +70,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       image: {
         name: "Image post",
         what: "A post with an image Cuso makes",
@@ -87,6 +101,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       image: {
         name: "Image post",
         what: "One strong image with a caption",
@@ -117,6 +138,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       short: {
         name: "YouTube Short",
         what: "A five-second vertical video made from a brand picture, with a title",
@@ -224,6 +252,8 @@ export const CMO_CHANNELS = {
         what: string;
         image: boolean;
         video?: boolean;
+        /** A presenter speaks the piece's script: a talking video. */
+        talking?: boolean;
         /** A multi-image format: the fewest and most slides it takes. */
         slides?: readonly [number, number];
       }
@@ -238,6 +268,17 @@ export function isCmoChannelFormat(channel: string, format: string): boolean {
     CMO_CHANNELS as Record<string, (typeof CMO_CHANNELS)[CmoChannelKey]>
   )[channel];
   return Boolean(entry && entry.status === "live" && format in entry.formats);
+}
+
+/** Whether a format is a talking video: a presenter speaking a script. */
+export function isCmoTalkingFormat(channel: string, format: string): boolean {
+  const entry = (
+    CMO_CHANNELS as Record<
+      string,
+      { formats: Record<string, { talking?: boolean }> }
+    >
+  )[channel];
+  return Boolean(entry?.formats[format]?.talking);
 }
 
 /** Channel keys older plans or people use, mapped to today's channels. */

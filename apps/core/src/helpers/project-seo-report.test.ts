@@ -21,6 +21,35 @@ import {
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
+  it("keeps observed forum questions on an audited group and discards unsafe source links", () => {
+    const raw = siteStrategyReport();
+    const questions = [
+      { title: "Can I cancel?", url: "https://example.test/thread" },
+      { title: "When is renewal?", url: "javascript:void(0)" },
+    ];
+    const parsed = parsePublicSeoArtifact({
+      ...raw,
+      selection: {
+        ...raw.selection,
+        pages: raw.selection.pages.map((p) => ({ ...p, url: p.url + "#tab" })),
+      },
+      strategy: {
+        ...raw.strategy,
+        groups: raw.strategy.groups.map((g, i) => ({
+          ...g,
+          forums: true,
+          page: i === 0 ? 1 : 999,
+          forumQuestions: questions,
+        })),
+      },
+    }).strategy;
+    expect(parsed?.groups[0].forumQuestions).toEqual([
+      questions[0],
+      { title: "When is renewal?" },
+    ]);
+    expect(parsed?.groups[1].forumQuestions).toBeUndefined();
+    expect(parsed?.groups[0].pageUrl).toBe(SEO_TEST_PAGE);
+  });
   it("links actions to their source finding IDs without mixing device-specific findings", () => {
     const raw = legacyReport();
     raw.findings = ["mobile", "desktop"].map((device) => ({
@@ -422,6 +451,7 @@ describe("public SEO report trust boundary", () => {
           volume: 140,
           recent: 47,
           trend: "falling",
+          forums: true,
           reach: "in reach",
           position: null,
         },
@@ -443,6 +473,7 @@ describe("public SEO report trust boundary", () => {
           volume: null,
           recent: null,
           trend: null,
+          forums: true,
           reach: "not determined",
           position: null,
         },

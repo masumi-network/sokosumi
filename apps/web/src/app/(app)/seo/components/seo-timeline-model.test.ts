@@ -1,10 +1,12 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import {
   buildSeoTimeline,
   foldSyncRuns,
   type SeoTimelineNode,
+  seoStopDigest,
+  seoStops,
 } from "./seo-timeline-model";
 
 type Observation = ProjectSeoWorkspace["observations"][number];
@@ -158,6 +160,172 @@ describe("foldSyncRuns", () => {
       ["a1", 1],
       ["c1", 1],
       ["s0", 1],
+    ]);
+  });
+});
+
+describe("seoStops", () => {
+  // West of UTC, so a local day and a UTC day differ in the evening.
+  const zone = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/New_York";
+  });
+  afterAll(() => {
+    process.env.TZ = zone;
+  });
+  // Checks on Nov 3 and Nov 5, a page change on Nov 4 between them and one on Nov 6 after the newest.
+  function stops() {
+    const workspace = seoTestWorkspace();
+    workspace.observations = [
+      { ...check("newest", "2026-11-05T10:00:00Z"), issues: 2 },
+      { ...check("oldest", "2026-11-03T10:00:00Z"), issues: 1 },
+    ];
+    const event = (
+      id: string,
+      kind: ProjectSeoWorkspace["timeline"][number]["kind"],
+      at: string,
+      observationId: string | null = null,
+    ): ProjectSeoWorkspace["timeline"][number] => ({
+      id,
+      kind,
+      title: id,
+      detail: "",
+      at: new Date(at),
+      pageIds: ["home"],
+      observationId,
+      taskId: null,
+      status: kind === "metrics" ? "completed" : "recorded",
+    });
+    workspace.timeline = [
+      event("oldest", "check", "2026-11-03T10:00:00Z", "oldest"),
+      event("between", "page_change", "2026-11-04T09:00:00Z"),
+      event("newest", "check", "2026-11-05T10:00:00Z", "newest"),
+      event("after", "page_change", "2026-11-06T09:00:00Z"),
+      // A routine sync is housekeeping: no stop holds it.
+      event("sync", "metrics", "2026-11-05T11:00:00Z"),
+    ];
+    return workspace;
+  }
+  const ids = (nodes: { event: { id: string } }[]) =>
+    nodes.map(({ event }) => event.id);
+
+  it("gives each stop what happened since the stop before; the newest also what came after it", () => {
+    const stopsByDay = seoStops(stops(), ["2026-11-05", "2026-11-03"]);
+    expect(stopsByDay.get("2026-11-03")?.after).toBeNull();
+    expect(ids(stopsByDay.get("2026-11-03")?.nodes ?? [])).toEqual(["oldest"]);
+    expect(stopsByDay.get("2026-11-05")?.after).toBe("2026-11-03");
+    expect(ids(stopsByDay.get("2026-11-05")?.nodes ?? [])).toEqual([
+      "after",
+      "newest",
+      "between",
+    ]);
+  });
+
+  it("counts folded clean checks one by one and a request without results not at all", () => {
+    const workspace = stops();
+    // A clean check of the pages in view folds with the clean check next to it.
+    const clean = (id: string, at: string) => ({
+      ...check(id, at),
+      pageIds: workspace.scope.pageIds,
+    });
+    workspace.observations.push(
+      clean("clean2", "2026-11-05T09:00:00Z"),
+      clean("clean1", "2026-11-05T08:00:00Z"),
+    );
+    const event = (id: string, at: string, observationId: string | null) => ({
+      id,
+      kind: "check" as const,
+      title: id,
+      detail: "",
+      at: new Date(at),
+      pageIds: ["home"],
+      observationId,
+      taskId: null,
+      status: observationId ? "recorded" : "requested",
+    });
+    workspace.timeline.push(
+      event("clean1", "2026-11-05T08:00:00Z", "clean1"),
+      event("clean2", "2026-11-05T09:00:00Z", "clean2"),
+      event("request", "2026-11-05T12:00:00Z", null),
+    );
+    const digest = seoStopDigest(
+      seoStops(workspace, ["2026-11-05", "2026-11-03"]).get("2026-11-05")
+        ?.nodes ?? [],
+    );
+    expect(digest).toMatchObject({
+      checks: 3,
+      pageChanges: 2,
+      tasks: 0,
+      failedSyncs: 0,
+    });
+    expect(digest.newestCheck?.event.id).toBe("newest");
+  });
+
+  it("puts each event on its UTC day and counts what failed, apart from what changed", () => {
+    const workspace = stops();
+    const event = (
+      id: string,
+      kind: ProjectSeoWorkspace["timeline"][number]["kind"],
+      at: string,
+      status: string,
+      title = id,
+    ): ProjectSeoWorkspace["timeline"][number] => ({
+      id,
+      kind,
+      title,
+      detail: "",
+      at: new Date(at),
+      pageIds: ["home"],
+      observationId: null,
+      taskId: null,
+      status,
+    });
+    workspace.timeline.push(
+      // After the Nov 3 check on its own day: the Nov 3 stop holds it.
+      event("late-on-3rd", "page_change", "2026-11-03T20:00:00Z", "recorded"),
+      // Late evening west of UTC is the next UTC day: Nov 3 in New York, Nov 4 in UTC.
+      event("evening", "page_change", "2026-11-03T23:30:00-05:00", "recorded"),
+      event("sync-1", "metrics", "2026-11-05T06:00:00Z", "failed", "Analytics"),
+      event("sync-2", "metrics", "2026-11-05T07:00:00Z", "failed", "Analytics"),
+      // A sync that lost data is news, not a failure.
+      event("sync-gap", "metrics", "2026-11-05T13:00:00Z", "partial", "Ads"),
+      event("request", "check", "2026-11-05T14:00:00Z", "failed"),
+      // An unavailable check is not a failed one; only a sync that read nothing is.
+      event("off", "check", "2026-11-05T14:30:00Z", "unavailable"),
+      event("task", "action", "2026-11-05T15:00:00Z", "completed"),
+      event("pages", "scope", "2026-11-05T16:00:00Z", "recorded"),
+    );
+    const stopsByDay = seoStops(workspace, ["2026-11-05", "2026-11-03"]);
+    expect(ids(stopsByDay.get("2026-11-03")?.nodes ?? [])).toContain(
+      "late-on-3rd",
+    );
+    const newest = stopsByDay.get("2026-11-05")?.nodes ?? [];
+    expect(ids(newest)).toContain("evening");
+    expect(ids(newest)).not.toContain("late-on-3rd");
+    expect(ids(stopsByDay.get("2026-11-03")?.nodes ?? [])).not.toContain(
+      "evening",
+    );
+    expect(seoStopDigest(newest)).toMatchObject({
+      checks: 1,
+      failedChecks: 1,
+      pageChanges: 3,
+      scopeChanges: 1,
+      tasks: 1,
+      failedSyncs: 2,
+    });
+  });
+
+  it("gives the oldest stop of the row the days before it", () => {
+    const stopsByDay = seoStops(stops(), ["2026-11-05"]);
+    expect(stopsByDay.get("2026-11-05")).toMatchObject({
+      after: null,
+      newest: true,
+    });
+    expect(ids(stopsByDay.get("2026-11-05")?.nodes ?? [])).toEqual([
+      "after",
+      "newest",
+      "between",
+      "oldest",
     ]);
   });
 });
