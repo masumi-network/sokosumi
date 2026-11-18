@@ -17,6 +17,7 @@ import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
+import { TaskSubtaskProgress } from "./task-subtask-progress";
 import { TaskTags } from "./task-tags";
 
 /** Only the display fields shared by task boards and recorded chat results. */
@@ -40,6 +41,7 @@ export interface TaskCardData
     | "runAt"
     | "dueOn"
     | "statusSince"
+    | "subtaskProgress"
   > {}
 interface TaskCardProps {
   task: TaskCardData;
@@ -158,6 +160,7 @@ export function TaskCard({
             className="flex"
           />
         ) : null}
+        <TaskSubtaskProgress progress={task.subtaskProgress} className="flex" />
         <TaskMetaDetails
           project={null}
           assignee={task.assignee}

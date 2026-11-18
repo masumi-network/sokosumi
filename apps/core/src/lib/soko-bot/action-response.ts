@@ -65,6 +65,7 @@ export const ACTION_LABELS: Record<string, string> = {
   reply_to_task: "Added a task comment",
   update_assigned_task: "Updated assigned task",
   link_tasks: "Linked tasks",
+  set_task_parent: "Changed a task's parent",
   stop_following_task: "Stopped following task",
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",

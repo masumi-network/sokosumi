@@ -13,9 +13,11 @@ const BATCH_SIZE = 100;
  * RUNNING counts as part of that work: the bot follows it like its own
  * delegation and answers its plan approval instead of leaving it waiting.
  */
-export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
+export async function adoptCoworkerSpawnedTasks(
+  now = new Date(),
+): Promise<number> {
   if (!getEnv().SOKO_BOT_ENABLED) return 0;
-  const subtasks = await prisma.task.findMany({
+  const spawnedTasks = await prisma.task.findMany({
     where: {
       createdAt: { gte: new Date(now.getTime() - LOOKBACK_MS) },
       creatorCoworkerId: { not: null },
@@ -35,8 +37,8 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
     },
   });
   let adopted = 0;
-  for (const subtask of subtasks) {
-    const ownerId = subtask.ownerId;
+  for (const spawned of spawnedTasks) {
+    const ownerId = spawned.ownerId;
     if (!ownerId) continue;
     const parents = await prisma.sokoBotDelegation.findMany({
       where: {
@@ -44,11 +46,11 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
         ...INVOLVING_DELEGATION,
         turn: { sokoBot: { archivedAt: null } },
         task: {
-          id: { not: subtask.id },
+          id: { not: spawned.id },
           ownerId,
-          workspaceId: subtask.workspaceId,
+          workspaceId: spawned.workspaceId,
           assigneeId: { not: null },
-          createdAt: { lte: subtask.createdAt },
+          createdAt: { lte: spawned.createdAt },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -61,7 +63,7 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
             events: {
               where: {
                 status: { not: null },
-                createdAt: { lte: subtask.createdAt },
+                createdAt: { lte: spawned.createdAt },
               },
               orderBy: [{ createdAt: "desc" }, { id: "desc" }],
               take: 1,
@@ -76,17 +78,18 @@ export async function adoptCoworkerSubtasks(now = new Date()): Promise<number> {
     const running = parents.filter(
       (parent) =>
         parent.task?.events[0]?.status === "RUNNING" &&
-        parent.task.assigneeId !== subtask.assigneeId,
+        parent.task.assigneeId !== spawned.assigneeId,
     );
     const byBot = new Map(running.map((p) => [p.turn.sokoBotId, p.turnId]));
     if (!byBot.size) continue;
     const created = await prisma.sokoBotDelegation.createMany({
       data: Array.from(byBot.values(), (turnId) => ({
         turnId,
-        toolCallId: `subtask:${subtask.id}`,
+        // Stored keys from before sub-tasks existed: rows already use them.
+        toolCallId: `subtask:${spawned.id}`,
         kind: "TASK" as const,
         action: "follow_subtask",
-        taskId: subtask.id,
+        taskId: spawned.id,
       })),
       skipDuplicates: true,
     });

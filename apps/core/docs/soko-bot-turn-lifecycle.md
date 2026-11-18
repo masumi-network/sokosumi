@@ -23,7 +23,7 @@ A claim marked **(unconfirmed)** could not be confirmed from the code. Tickets 1
 | `cancellationRequestedAt` | Set with `CANCEL_REQUESTED` by every writer listed under Cancellation, except that admin reset on a row already `CANCEL_REQUESTED` keeps the existing value.                                                                                                                             |
 | `runnerDiagnosticAt`      | Claimed at most once by the sandbox failure report that fails the turn (`services/soko-bot-sandbox-turn.service.ts:772-780`).                                                                                                                                                            |
 
-Constants: `TURN_LEASE_MS` 16 min (CP:188, WD:15), `RECONCILER_HEARTBEAT_MS` 15 s (CP:189), `SOKO_BOT_START_RECOVERY_GRACE_MS` 120 s (CP:190), `SOKO_BOT_TURN_STALE_HEARTBEAT_MS` 45 s (WD:16), `SOKO_BOT_TURN_STARTING_GRACE_MS` 30 s (WD:17), watchdog `BATCH_SIZE` 20 candidates per scan (WD:14). The `/sync/soko-bot-turns` cron runs every minute (`apps/core/vercel.json:140-143`).
+Constants: `TURN_LEASE_MS` 16 min (CP:188, WD:15), `RECONCILER_HEARTBEAT_MS` 15 s (CP:189), `SOKO_BOT_START_RECOVERY_GRACE_MS` 120 s (CP:190), `SOKO_BOT_TURN_STALE_HEARTBEAT_MS` 45 s (CP, `SOKO_BOT_TURN_STALE_HEARTBEAT_MS`; WD imports it), `SOKO_BOT_TURN_STARTING_GRACE_MS` 30 s (WD:17), watchdog `BATCH_SIZE` 20 candidates per scan (WD:14). The `/sync/soko-bot-turns` cron runs every minute (`apps/core/vercel.json:140-143`).
 
 ## States and transitions
 
@@ -246,7 +246,7 @@ With no expected token (`settleNow`, or the schedules and admin callers when the
 ### Drain fences, in order
 
 1. **#7370 settled-and-cleared return** (CP:3087-3096): with an expected token, a terminal row with no token returns quietly.
-2. **#7378 live-first-start return** (CP:3102-3113): with an expected token equal to the row's, `STARTING`, no session, `errorKind` null, heartbeat null and `leaseExpiresAt` > now, it returns quietly. Once that lease has expired, the same sessionless row falls through to fence 3 and throws.
+2. **#7378 live-first-start return** (CP:3102-3113): with an expected token equal to the row's, `STARTING`, no session, `errorKind` null, a heartbeat that is null or younger than 45 s, and `leaseExpiresAt` > now, it returns quietly. Once that lease has expired or the heartbeat is 45 s old, the same sessionless row falls through to fence 3 and throws. Accepting a fresh heartbeat is the expand step for start owners that renew it (ticket 03 of the turn-ownership plan): no writer renews a start's heartbeat yet, and no recovery path takes over on a heartbeat younger than the 120 s recovery grace. Today a fresh heartbeat here comes from a fresh start's `retainStartLease` (its handler is still cleaning up), and the duplicate now steps back for 45 s instead of throwing.
 3. **Session and token required** (CP:3114-3116): otherwise it throws `Runtime turn not found`.
 4. **Token match** (CP:3118-3123): it throws `Soko Bot reconciliation lease was replaced`.
 5. **Fenced projected-event writes** (CP:3238-3294): each `sokoBotEvent` insert is followed in the same transaction by `heartbeat(tx)`, which updates where the token matches and the status is active. Zero rows rolls back the insert and throws. Usage is added from the locked row (CP:3208-3236); the cursor moves forward only. Two drains under one token can both write without overwriting each other's usage or rewinding the cursor.

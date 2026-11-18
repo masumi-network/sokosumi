@@ -8,6 +8,7 @@ import {
 
 const { getEnvMock } = vi.hoisted(() => ({ getEnvMock: vi.fn() }));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 const fetchMock = vi.fn<typeof fetch>();
 const signal = new AbortController().signal;
 function evaluation() {

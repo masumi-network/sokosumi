@@ -20,6 +20,8 @@ import {
 
 const PROJECT = "01960001-0001-7001-8001-0000000000a1";
 const UPDATED_AT = "2026-10-15T10:00:00.000Z";
+const PARENT_TASK = "01960001-0001-7001-8001-0000000000b1";
+const SIBLING_TASK = "01960001-0001-7001-8001-0000000000b2";
 
 beforeEach(() => {
   taskFindUnique.mockReset();
@@ -96,7 +98,22 @@ describe("decisionProposalTargets", () => {
   it("names what each proposal writes to", () => {
     expect(
       decisionProposalTargets("create_task", { name: "A", status: "DRAFT" }),
-    ).toEqual({ taskIds: [undefined], projectIds: [null] });
+    ).toEqual({
+      taskIds: [undefined, undefined, undefined],
+      projectIds: [null],
+    });
+    // A sub-task lands in its parent's Project: the parent and the sibling
+    // are the targets a shared bot's scope must reach (SOKD-279).
+    expect(
+      decisionProposalTargets("create_task", {
+        name: "Step",
+        parentTaskId: PARENT_TASK,
+        afterTaskId: SIBLING_TASK,
+      }),
+    ).toEqual({
+      taskIds: [undefined, PARENT_TASK, SIBLING_TASK],
+      projectIds: [],
+    });
     expect(
       decisionProposalTargets("update_task", { taskId: "t1", name: "B" }),
     ).toEqual({ taskIds: ["t1"], projectIds: [] });

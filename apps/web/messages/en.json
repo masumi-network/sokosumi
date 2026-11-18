@@ -1918,7 +1918,6 @@
         "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
-        "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
@@ -1931,6 +1930,8 @@
         "updated": "Updated",
         "description": "Description",
         "context": "Context",
+        "subtasks": "Sub-tasks",
+        "subtaskOf": "Sub-task of",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",
@@ -1997,12 +1998,16 @@
           "archive": "Archive",
           "archiveError": "Failed to archive task",
           "reopenToReady": "Reopen to Ready",
-          "reopenToReadyTitle": "Reopen task",
-          "reopenToReadyDescription": "Add a comment so your coworker knows what to do next. The task will move back to Ready.",
-          "reopenToReadyCommentLabel": "Comment",
-          "reopenToReadyCommentPlaceholder": "Describe what still needs to be done…",
           "reopenToReadyCommentRequired": "A comment is required to reopen this task",
-          "reopenToReadyConfirm": "Reopen to Ready",
+          "sendBack": {
+            "title": "Send back to {assignee}?",
+            "description": "Reopening moves it to Ready, and {assignee} starts a new run. Tell {assignee} what to do.",
+            "commentLabel": "What to fix",
+            "commentPlaceholder": "What should {assignee} change or redo?",
+            "confirm": "Send back to {assignee}",
+            "reopenAsDraft": "Reopen as draft",
+            "cancel": "Not now"
+          },
           "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
@@ -2020,9 +2025,6 @@
           "removeRelated": "Remove related",
           "removeRelatedSuccess": "Related task removed",
           "removeRelatedError": "Failed to remove related task",
-          "removeParent": "Remove parent",
-          "removeParentSuccess": "Parent removed",
-          "removeParentError": "Failed to remove parent",
           "linkTaskSuccess": "Task linked",
           "linkTaskError": "Failed to link task",
           "createRelatedSuccess": "Related task created",
@@ -2039,10 +2041,7 @@
             "related": "Related",
             "blocks": "Blocking",
             "blockedBy": "Blocked by",
-            "parent": "Parent task",
-            "subtask": "Sub-task",
-            "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task"
+            "duplicate": "Duplicate"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -2072,6 +2071,23 @@
             "refused": "This chat can't receive this task anymore. Choose another one.",
             "retry": "Send again",
             "retryHint": "The last send may not have arrived. Sending again won't post it twice; changing the chat or message sends a new one."
+          },
+          "subtasks": {
+            "add": "Add sub-task…",
+            "addExisting": "Add existing Task as sub-task…",
+            "addExistingTitle": "Add existing Task as sub-task",
+            "addExistingDescription": "Choose a task. It becomes the last sub-task of this task.",
+            "addExistingSuccess": "Sub-task added",
+            "moveUnder": "Move under…",
+            "moveUnderTitle": "Move under another Task",
+            "moveUnderDescription": "Choose a task. This task becomes its last sub-task.",
+            "moveUnderSuccess": "Task moved",
+            "removeFromParent": "Remove from parent",
+            "removeFromParentSuccess": "Task removed from its parent",
+            "moveError": "Could not move the Task.",
+            "createSuccess": "Sub-task added",
+            "createError": "Could not add the sub-task.",
+            "serverErrorDescription": "Try again later."
           }
         },
         "ShareModal": {
@@ -2107,7 +2123,6 @@
           "confirm": "Switch workspace",
           "switchError": "Failed to switch workspace. Please try again."
         },
-        "clonedFrom": "Cloned from {name}",
         "VendorGrantApproval": {
           "title": "Vendor access approval required",
           "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
@@ -2315,6 +2330,24 @@
           "tomorrowAt": "Starts tomorrow at {time}",
           "at": "Starts {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} of {total} sub-tasks done",
+        "title": "Sub-tasks",
+        "add": "Add sub-task",
+        "movedTo": "Moved to position {position} of {total}",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
+        "toggleLabel": "{name} done",
+        "agentDoneHint": "Unchecking sends it back to {assignee}",
+        "changeError": "Could not save the sub-task change. Try again.",
+        "truncated": "Showing the first {count} sub-tasks.",
+        "createDescription": "The sub-task goes last in the list.",
+        "name": "Name",
+        "description": "Description (optional)",
+        "assignee": "Assignee",
+        "dueOn": "Due date",
+        "cancel": "Cancel",
+        "create": "Add sub-task"
       },
       "Due": {
         "label": "Due date",

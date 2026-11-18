@@ -419,7 +419,9 @@ export function VendorForm(props: VendorFormProps) {
                   autoComplete="off"
                   readOnly={props.mode === "edit"}
                   disabled={props.mode === "edit"}
-                  className={props.mode === "edit" ? "bg-muted" : undefined}
+                  className={
+                    props.mode === "edit" ? "bg-muted dark:bg-muted" : undefined
+                  }
                 />
               </FormControl>
               <p className="text-muted-foreground text-sm">

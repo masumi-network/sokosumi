@@ -11,6 +11,8 @@ const SEO_EXECUTION_FIELDS = [
   "assigneeUserId",
 ] as const;
 type SeoExecutionFields = Pick<Task, (typeof SEO_EXECUTION_FIELDS)[number]>;
+const SEO_EXECUTION_FROZEN_MESSAGE =
+  "This SEO analysis request is frozen. Request a new check to change its scope, limits, Workspace, Project or executor.";
 
 /** A dispatched analysis keeps its approved scope, payer's Project and reviewed executor. */
 export async function requireSeoTaskExecutionUnchanged(
@@ -28,8 +30,18 @@ export async function requireSeoTaskExecutionUnchanged(
     where: { taskId: task.id },
     select: { id: true },
   });
-  if (analysis)
-    throw conflict(
-      "This SEO analysis request is frozen. Request a new check to change its scope, limits, Workspace, Project or executor.",
-    );
+  if (analysis) throw conflict(SEO_EXECUTION_FROZEN_MESSAGE);
+}
+
+/** The same refusal for Tasks that move as a side effect, such as sub-tasks following their Task. */
+export async function requireNoSeoTaskExecution(
+  tx: Prisma.TransactionClient,
+  taskIds: string[],
+): Promise<void> {
+  if (taskIds.length === 0) return;
+  const analysis = await tx.projectSeoAnalysis.findFirst({
+    where: { taskId: { in: taskIds } },
+    select: { id: true },
+  });
+  if (analysis) throw conflict(SEO_EXECUTION_FROZEN_MESSAGE);
 }

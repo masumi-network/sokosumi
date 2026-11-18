@@ -9,18 +9,36 @@ describe("userTaskStatusTransitionRequiresComment", () => {
   it.each([
     ["COMPLETED", "READY"],
     ["CANCELED", "READY"],
-  ] as const)("requires comment for %s → %s", (from, to) => {
-    expect(userTaskStatusTransitionRequiresComment(from, to)).toBe(true);
-  });
+    ["INPUT_REQUIRED", "READY"],
+  ] as const)(
+    "requires comment for %s → %s with an agent assignee",
+    (from, to) => {
+      expect(userTaskStatusTransitionRequiresComment(from, to, true)).toBe(
+        true,
+      );
+    },
+  );
+
+  it.each([
+    ["COMPLETED", "READY"],
+    ["CANCELED", "READY"],
+  ] as const)(
+    "reopens %s → %s without a comment for a person's Task",
+    (from, to) => {
+      expect(userTaskStatusTransitionRequiresComment(from, to, false)).toBe(
+        false,
+      );
+    },
+  );
 
   it.each([
     ["READY", "DRAFT"],
     ["DRAFT", "READY"],
     ["COMPLETED", "RUNNING"],
-    ["CANCELED", "RUNNING"],
+    ["CANCELED", "DRAFT"],
     ["RUNNING", "COMPLETED"],
   ] as const)("does not require comment for %s → %s", (from, to) => {
-    expect(userTaskStatusTransitionRequiresComment(from, to)).toBe(false);
+    expect(userTaskStatusTransitionRequiresComment(from, to, true)).toBe(false);
   });
 });
 

@@ -26,11 +26,6 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 import {
-  archiveCreatedTaskAfterFailure,
-  collectParentLinksToReplace,
-  deletePreviousParentLinks,
-} from "./task-link-replacement";
-import {
   normalizeOptionalProjectId,
   resolveAssigneeWrite,
   rethrowTaskActionError,
@@ -141,7 +136,6 @@ interface CreateTaskLinkParameters extends AuthenticatedRequest {
   relatedTaskId: string;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
-  replaceExistingParent?: boolean;
 }
 
 interface DeleteTaskLinkParameters extends AuthenticatedRequest {
@@ -166,7 +160,17 @@ interface CreateAndLinkTaskParameters
   visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
-  replaceExistingParent?: boolean;
+}
+
+async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
+  try {
+    await taskService.deleteTask(taskId);
+  } catch (cleanupError) {
+    console.error(
+      "Failed to archive created task after link failure",
+      cleanupError,
+    );
+  }
 }
 
 function normalizeLinkNote(note?: string | null): string | null | undefined {
@@ -297,7 +301,13 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
           : {}),
       });
 
-      if (desiredStatus !== patchedTask.status) {
+      // Core parked it to wait for a person's instructions: its call stands
+      // over a run the form asked for. Any other status starts no run and still applies.
+      const parked =
+        patchedTask.status === TaskStatus.INPUT_REQUIRED &&
+        (desiredStatus === TaskStatus.READY ||
+          desiredStatus === TaskStatus.QUEUED);
+      if (desiredStatus !== patchedTask.status && !parked) {
         await taskService.createTaskEvent(taskId, {
           status: desiredStatus,
         });
@@ -337,11 +347,15 @@ export const setTaskStatusFromDrag = withSession<
     if (desiredStatus !== currentStatus) {
       const trimmedComment = comment?.trim();
       if (
-        userTaskStatusTransitionRequiresComment(currentStatus, desiredStatus) &&
+        userTaskStatusTransitionRequiresComment(
+          currentStatus,
+          desiredStatus,
+          task.assigneeId != null || task.assigneeSokoBotId != null,
+        ) &&
         !trimmedComment
       ) {
         throw new Error(
-          "A comment is required when reopening a canceled or completed task to ready",
+          "Tell the assignee what to do: a comment is required when sending a Task back to ready",
         );
       }
 
@@ -515,7 +529,7 @@ export const subscribeTaskParticipant = withSession<
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,
   { taskId: string; linkId: string; relatedTaskId: string }
->(async ({ taskId, relatedTaskId, relation, note, replaceExistingParent }) => {
+>(async ({ taskId, relatedTaskId, relation, note }) => {
   const normalizedTaskId = taskId.trim();
   const normalizedRelatedTaskId = relatedTaskId.trim();
   if (!normalizedTaskId || !normalizedRelatedTaskId) {
@@ -523,23 +537,10 @@ export const createTaskLink = withSession<
   }
 
   try {
-    const parentLinksToReplace = await collectParentLinksToReplace({
-      taskId: normalizedTaskId,
-      nextParentTaskId: normalizedRelatedTaskId,
-      relation,
-      replaceExistingParent,
-    });
-
     const link = await taskService.createTaskLink(normalizedTaskId, {
       toTaskId: normalizedRelatedTaskId,
       relation,
       note: normalizeLinkNote(note),
-    });
-
-    await deletePreviousParentLinks({
-      taskId: normalizedTaskId,
-      createdLinkId: link.id,
-      parentLinksToReplace,
     });
 
     revalidateTaskMutationRoutes();
@@ -613,7 +614,6 @@ export const createTaskAndLink = withSession<
     visibility,
     relation,
     note,
-    replaceExistingParent,
   }) => {
     const normalizedTaskId = taskId.trim();
     if (!normalizedTaskId) {
@@ -641,23 +641,10 @@ export const createTaskAndLink = withSession<
         visibility,
       });
 
-      const parentLinksToReplace = await collectParentLinksToReplace({
-        taskId: normalizedTaskId,
-        nextParentTaskId: createdTask.id,
-        relation,
-        replaceExistingParent,
-      });
-
       const link = await taskService.createTaskLink(normalizedTaskId, {
         toTaskId: createdTask.id,
         relation,
         note: normalizeLinkNote(note),
-      });
-
-      await deletePreviousParentLinks({
-        taskId: normalizedTaskId,
-        createdLinkId: link.id,
-        parentLinksToReplace,
       });
 
       revalidateTaskMutationRoutes();

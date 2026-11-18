@@ -5,7 +5,8 @@
  * change a decision about a turn: the recovery claim, the watchdog's stale
  * claim, runtime and sandbox authorization, CMO's stall check and the daily
  * cap decide the same way at any skew, and the stamps writers leave are
- * PostgreSQL time.
+ * PostgreSQL time. A first start's heartbeat younger than 45 s makes a
+ * duplicate's drain step back, and no recovery path takes over on it.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/soko-bot-lease-clock.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
@@ -378,6 +379,83 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       ok: false,
       reason: "daily-limit",
       usedToday: 1,
+    });
+  });
+
+  // Expand step for renewing start leases: readers tolerate a heartbeat on a
+  // first start that has no session yet, but nothing takes over on it until
+  // its writers renew (ticket 03).
+  describe("a sessionless start with a heartbeat", () => {
+    async function startWithHeartbeat(heartbeatAgoMs: number) {
+      const now = await databaseNow();
+      return createTurn(now, {
+        status: "STARTING",
+        eveSessionId: null,
+        createdAgoMs: 3 * MINUTE,
+        heartbeatAgoMs,
+        leaseInMs: 13 * MINUTE,
+      });
+    }
+
+    it("lets a duplicate's drain under the same lease step back while the heartbeat is under 45 seconds old", async () => {
+      // 5 s short of the stale threshold, so the test's own runtime stays inside it.
+      const turnId = await startWithHeartbeat(40_000);
+
+      await expect(
+        new SokoBotControlPlane(unusedRuntime).reconcileTurn(
+          turnId,
+          undefined,
+          LEASE,
+        ),
+      ).resolves.toBeUndefined();
+      expect(await leaseOf(turnId)).toBe(LEASE);
+    });
+
+    it("does not let a duplicate's drain step back once the heartbeat is 45 seconds old", async () => {
+      const turnId = await startWithHeartbeat(45_000);
+
+      await expect(
+        new SokoBotControlPlane(unusedRuntime).reconcileTurn(
+          turnId,
+          undefined,
+          LEASE,
+        ),
+      ).rejects.toThrow("Runtime turn not found");
+    });
+
+    it("leaves a stale heartbeat inside its lease to its holder on every recovery path", async () => {
+      const turnId = await startWithHeartbeat(MINUTE);
+      const { clientTurnId } = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: turnId },
+        select: { clientTurnId: true },
+      });
+
+      expect(
+        await new SokoBotControlPlane(unusedRuntime).recoverStartingTurn(
+          turnId,
+        ),
+      ).toBeNull();
+      await expect(
+        sokoBotControlPlane.startTurn({
+          userId,
+          workspaceId,
+          clientTurnId,
+          message: "Clock turn",
+          source: "CHAT",
+        }),
+      ).resolves.toMatchObject({
+        turnId,
+        duplicate: true,
+        reconciliationLeaseToken: LEASE,
+      });
+      const recover = vi.spyOn(sokoBotControlPlane, "recoverStartingTurn");
+      await sokoBotTurnsSyncService.syncActiveTurns({
+        abortSignal: new AbortController().signal,
+        shouldContinue: () => true,
+        sokoBotIds: [botId],
+      });
+      expect(recover).not.toHaveBeenCalled();
+      expect(await leaseOf(turnId)).toBe(LEASE);
     });
   });
 
