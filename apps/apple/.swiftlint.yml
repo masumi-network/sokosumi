@@ -54,3 +54,11 @@ custom_rules:
     message: "Read test fixtures from Bundle.module, not the source tree. Declare the file under resources: in Package.swift."
     severity: error
     included: ".*/Tests/.*\\.swift"
+  # Root AGENTS.md: plain icons only. `scripts/ci/__tests__/no-sparkles.test.mjs`
+  # applies the same pattern repo-wide; this copy makes the required Apple job
+  # fail on an Apple-only pull request.
+  no_sparkle_symbol:
+    name: "No sparkle symbol"
+    regex: '"(sparkles?|wand\.and\.(sparkles|stars|rays))[\w.]*"'
+    message: "Use an SF Symbol that says what the thing is, or none."
+    severity: error

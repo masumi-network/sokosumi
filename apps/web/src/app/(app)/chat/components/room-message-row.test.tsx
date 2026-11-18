@@ -3352,7 +3352,7 @@ describe("ChatMessageRow coworker Thought", () => {
     );
   });
 
-  it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {
+  it("shows the Thought header on empty stream overlay, not the pixel grid", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
