@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { loadTaskAncestors } from "@/helpers/task-subtasks";
+import { lockTaskRows } from "@/helpers/calendar-locks";
+import { isPrismaTransactionConflict } from "@/helpers/prisma";
+import {
+  loadTaskAncestors,
+  requireSubtaskParent,
+} from "@/helpers/task-subtasks";
 import prisma from "@/lib/db/prisma";
 
 const enabled =
@@ -73,6 +79,83 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
       where: { id: { in: [userId, otherUserId] } },
     });
     await prisma.$disconnect();
+  });
+
+  it("fails a SERIALIZABLE archive whose snapshot predates a new sub-task", async () => {
+    const parent = await createTask({ projectId: null });
+    const archive = prisma.$transaction(
+      async (tx) => {
+        // The first read fixes this transaction's snapshot.
+        await tx.task.findFirst({ where: { id: parent } });
+        await prisma.$transaction(async (add) => {
+          await requireSubtaskParent(add, {
+            parentTaskId: parent,
+            workspaceId,
+            ownerId: userId,
+          });
+          await add.task.create({
+            data: {
+              ownerId: userId,
+              creatorUserId: userId,
+              workspaceId,
+              parentTaskId: parent,
+              position: 1,
+              name: "Added during the archive",
+            },
+          });
+        });
+        await lockTaskRows(tx, [parent]);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    const error = await archive.then(
+      () => null,
+      (caught: unknown) => caught,
+    );
+    expect(isPrismaTransactionConflict(error)).toBe(true);
+  });
+
+  it("waits for a status event on the parent instead of deadlocking", async () => {
+    const parent = await createTask({ projectId: null });
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pause = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+    // An agent's status event: the event first, then the Task's status.
+    const event = prisma.$transaction(
+      async (tx) => {
+        await tx.taskEvent.create({
+          data: { taskId: parent, comment: "Working on it" },
+        });
+        await held;
+        await tx.task.update({
+          where: { id: parent },
+          data: { status: "RUNNING" },
+        });
+      },
+      { timeout: 10_000 },
+    );
+    await pause(100);
+    const add = prisma.$transaction(
+      (tx) =>
+        requireSubtaskParent(tx, {
+          parentTaskId: parent,
+          workspaceId,
+          ownerId: userId,
+        }),
+      { timeout: 10_000 },
+    );
+    await pause(200);
+    release();
+
+    const settled = await Promise.allSettled([event, add]);
+    expect(settled.map((result) => result.status)).toEqual([
+      "fulfilled",
+      "fulfilled",
+    ]);
   });
 
   it("gives a sub-task its own project number and rejects a project that differs from its parent's", async () => {

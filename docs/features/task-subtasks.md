@@ -257,14 +257,14 @@ Core:
   The archive locks each level before it reads the sub-tasks, and archives
   them only in the status it checked. Archive read-marking also clears the
   sub-tasks archived with the Task. A Soko Bot archive refuses a Task whose
-  sub-task has a future Run at. A sub-task restore locks its parent first.
+  sub-task has a future Run at.
 - Adding a sub-task locks the Workspace, the Project, then the parent
-  (`requireSubtaskParent`), in the order a Task PATCH takes them.
-- Known gap: a Soko Bot archive runs SERIALIZABLE. If its snapshot predates a
-  sub-task added or restored under the same parent, it misses that sub-task,
-  which stays live under an archived parent. Writing the parent row would
-  close it, but that write fires `history_task_sync` and deadlocks with a
-  status event on the parent, which is the more common case.
+  (`requireSubtaskParent`), in the order a Task PATCH takes them. Adding and
+  restoring a sub-task then write the parent row (`touchTaskRow`), so a
+  SERIALIZABLE Soko Bot archive that read earlier fails and retries instead
+  of missing the sub-task. The lock comes before the write: a write alone
+  deadlocked with a status event on the parent (`40P01`, VERIFIED by
+  `task-subtasks.postgres.test.ts`).
 - The migration adds the foreign key and CHECK `NOT VALID`, builds the index
   `CONCURRENTLY` in its own migration, and validates in a third. The old Core
   instance keeps writing Tasks during the deploy.

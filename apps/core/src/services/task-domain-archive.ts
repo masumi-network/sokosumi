@@ -6,6 +6,7 @@ import {
 import { lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { TASK_RESTORED_COMMENT } from "@/helpers/task-reopen-instructions";
+import { touchTaskRow } from "@/helpers/task-subtasks";
 import {
   requireSeoTaskReactivation,
   SEO_INACTIVE_TASK_STATUSES,
@@ -98,8 +99,10 @@ export async function restoreTaskRecord(
   actor: TaskDomainActor,
 ): Promise<void> {
   if (task.parentTaskId) {
-    // An archive of the parent locks it first: no restore slips past it.
+    // Lock, then write, as in requireSubtaskParent: no archive of the parent
+    // slips past this restore, at any isolation level.
     await lockTaskRows(tx, [task.parentTaskId]);
+    await touchTaskRow(tx, task.parentTaskId);
     const parent = await tx.task.findUnique({
       where: { id: task.parentTaskId },
       select: { archivedAt: true },
@@ -161,9 +164,10 @@ async function liveSubtasks(
   const found: { id: string; status: TaskStatus }[] = [];
   let level = [taskId];
   while (level.length > 0) {
-    // A sub-task created or restored meanwhile locks its parent first, so it
-    // waits for this archive and then finds the parent archived. Known gap: a
-    // SERIALIZABLE archive whose snapshot predates that commit misses it.
+    // A sub-task created or restored meanwhile writes its parent first, so it
+    // waits for this archive and then finds the parent archived; one that
+    // committed after a SERIALIZABLE snapshot fails this lock, and the
+    // archive retries.
     await lockTaskRows(tx, level);
     const subtasks = await tx.task.findMany({
       where: { parentTaskId: { in: level }, archivedAt: null },

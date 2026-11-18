@@ -78,6 +78,14 @@ export interface SubtaskParent {
   ownerId: string | null;
 }
 
+/** A no-op write: a SERIALIZABLE reader whose snapshot is older fails on it. */
+export async function touchTaskRow(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+): Promise<void> {
+  await tx.$executeRaw`UPDATE "task" SET "position" = "position" WHERE "id" = ${taskId}`;
+}
+
 /**
  * Locks and checks the Task a new sub-task goes under. The lock serializes
  * sibling inserts, so two creates never take the same position. The
@@ -104,9 +112,13 @@ export async function requireSubtaskParent(
   // takes them; the insert below needs both.
   if (!(await lockCalendarScope(tx, input.workspaceId, [placement.projectId])))
     throw conflict("Parent Task changed while adding a sub-task");
-  // A lock, not a write: a write fires history_task_sync, which deadlocks
-  // with a status event on the parent.
+  // Lock, then write. The lock comes first: a status event on the parent
+  // holds its key share and then its history row, and the write's
+  // history_task_sync would wait on that row while the event waits on us.
+  // The write makes a SERIALIZABLE archive that read earlier fail and retry,
+  // where a lock alone would let it miss the new sub-task.
   await lockTaskRows(tx, [input.parentTaskId]);
+  await touchTaskRow(tx, input.parentTaskId);
   const parent = await tx.task.findFirst({
     where: {
       id: input.parentTaskId,
