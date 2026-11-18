@@ -875,7 +875,12 @@ describe("SEO audit first run", () => {
     await user.click(
       screen.getByRole("button", { name: copy.setup.skipGoogle }),
     );
-    expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
+    const start = within(screen.getByTestId("seo-setup")).getByRole("button", {
+      name: copy.setup.pausedStart,
+    });
+    expect(start).toBeVisible();
+    expect(start).toHaveAttribute("aria-disabled", "true");
+    expect(start).toHaveAccessibleDescription(copy.setup.pausedReason);
     expect(
       screen.queryByRole("button", { name: copy.runFullAudit }),
     ).toBeNull();

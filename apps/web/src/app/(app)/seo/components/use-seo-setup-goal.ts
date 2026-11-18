@@ -35,6 +35,8 @@ export function useSeoSetupGoal(
   const share = current?.share === true && Boolean(action);
   const [error, setError] = useState<"error" | "conflict" | null>(null);
   const [pending, setPending] = useState(false);
+  const [savedRevision, setSavedRevision] = useState<number | null>(null);
+  const changed = current !== null && action !== saved.action;
   const saving = useRef(false);
   const mounted = useRef(false);
   useMountEffect(() => {
@@ -46,13 +48,18 @@ export function useSeoSetupGoal(
 
   function choose(action: Action) {
     if (!brief) return;
+    setSavedRevision(null);
     setChoice({ revision: brief.revision, action, share: false });
     setError(null);
   }
-  async function review() {
-    if (saving.current) return;
+  async function submit(next: "save" | "review") {
+    if (
+      saving.current ||
+      (next === "review" && !model.data.availableActions.canRequestAnalysis)
+    )
+      return;
     let revision = brief?.revision;
-    if (current && brief && action !== saved.action) {
+    if (changed && brief) {
       saving.current = true;
       setPending(true);
       try {
@@ -67,6 +74,7 @@ export function useSeoSetupGoal(
           return;
         }
         revision = result;
+        if (next === "save") setSavedRevision(result);
       } finally {
         saving.current = false;
         if (mounted.current) setPending(false);
@@ -74,6 +82,7 @@ export function useSeoSetupGoal(
     }
     setChoice(null);
     setError(null);
+    if (next === "save") return;
     model.openAnalysis(
       full ? "audit_full" : "page_check",
       full && share && revision !== undefined
@@ -89,7 +98,10 @@ export function useSeoSetupGoal(
     pending,
     error,
     choose,
-    review,
+    changed,
+    privateSaved: savedRevision !== null && savedRevision === brief?.revision,
+    save: () => submit("save"),
+    review: () => submit("review"),
     setShare: (value: boolean) => {
       if (brief) setChoice({ revision: brief.revision, action, share: value });
     },

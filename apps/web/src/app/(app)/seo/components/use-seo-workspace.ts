@@ -493,8 +493,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setup?.check === "next" &&
     !hasPreviousCheck &&
     !data.analyses.length &&
-    filters.tab === "agent" &&
-    data.availableActions.canRequestAnalysis
+    filters.tab === "agent"
       ? data.scope.pageIds[0]
       : undefined;
   const [advancedScope, setAdvancedScope] = useState<string | null>(null);

@@ -12894,7 +12894,14 @@
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
       },
       "setup": {
+        "pausedStart": "Start audit",
+        "pausedReason": "This workspace has no available SEO worker to run a check. Google statistics still work.",
+        "pausedPreviewReason": "This preview has no SEO worker available for this workspace. Google statistics still work.",
         "goal": {
+          "pausedHelp": "Full audits detect the goal from the page. You can save a goal here for a future audit.",
+          "noSavedGoal": "No saved goal",
+          "savePrivate": "Save page goal",
+          "pausedUnavailable": "Your page goal is unavailable.",
           "advanced": "Advanced",
           "automatic": "The audit detects the page goal from its content.",
           "autoOption": "Detect automatically",

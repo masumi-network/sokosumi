@@ -12894,7 +12894,14 @@
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"
       },
       "setup": {
+        "pausedStart": "Audit starten",
+        "pausedReason": "In diesem Workspace ist kein SEO-Worker für eine Prüfung verfügbar. Die Google-Statistiken funktionieren weiterhin.",
+        "pausedPreviewReason": "In dieser Vorschau ist für diesen Workspace kein SEO-Worker verfügbar. Die Google-Statistiken funktionieren weiterhin.",
         "goal": {
+          "pausedHelp": "Ein vollständiges Audit erkennt das Ziel anhand der Seite. Hier kannst du ein Ziel für ein späteres Audit speichern.",
+          "noSavedGoal": "Kein Ziel gespeichert",
+          "savePrivate": "Seitenziel speichern",
+          "pausedUnavailable": "Das Seitenziel ist nicht verfügbar.",
           "advanced": "Erweitert",
           "automatic": "Das Audit erkennt das Ziel der Seite anhand ihres Inhalts.",
           "autoOption": "Automatisch erkennen",

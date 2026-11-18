@@ -7,6 +7,12 @@ import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import { SeoSetupGoal } from "./seo-setup-goal";
@@ -22,6 +28,7 @@ import { SeoStep, SeoStepList, type SeoStepMark } from "./seo-steps";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const TITLE_ID = "seo-setup-title";
+const PAUSED_REASON_ID = "seo-setup-paused-reason";
 const MINUTE_MS = 60_000;
 const MARK: Record<SeoSetupState, SeoStepMark> = {
   done: "done",
@@ -92,6 +99,14 @@ export function SeoSetupCard({
   // The widest check this workspace can run on these pages: the first result is the full one where it can be.
   const run = seoRunAction(model.data);
   const full = run?.kind === "audit_full";
+  const pausedReason =
+    setup.check === "next" && !model.data.availableActions.canRequestAnalysis
+      ? t(
+          getEnvPublicConfig().NEXT_PUBLIC_VERCEL_ENV === "preview"
+            ? "setup.pausedPreviewReason"
+            : "setup.pausedReason",
+        )
+      : null;
   const goalPage = model.data.pages.find(
     (page) => page.id === model.setupGoalPageId,
   );
@@ -166,9 +181,10 @@ export function SeoSetupCard({
             mark={MARK[setup.check]}
             title={t(full ? "setup.audit" : "setup.check")}
             body={
-              !model.data.availableActions.canRequestAnalysis &&
-              setup.check !== "running" ? (
-                <span role="status">{t("dispatchPaused")}</span>
+              pausedReason ? (
+                <span id={PAUSED_REASON_ID} role="status">
+                  {pausedReason}
+                </span>
               ) : setup.failed ? (
                 // The failure sits on the step whose button runs the check again.
                 <span className="text-destructive flex items-start gap-1.5">
@@ -188,9 +204,9 @@ export function SeoSetupCard({
               )
             }
           >
-            {goalPage && run ? (
+            {goalPage ? (
               <SeoSetupGoal
-                key={`${model.setupScopeKey}:${run.kind}`}
+                key={`${model.setupScopeKey}:${run?.kind ?? "paused"}`}
                 model={model}
                 page={goalPage}
                 full={full}
@@ -227,6 +243,26 @@ export function SeoSetupCard({
                 <SeoCheckRunning workspace={model.data} />
               </div>
             )}
+            {pausedReason ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-disabled="true"
+                    aria-describedby={PAUSED_REASON_ID}
+                    className="bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground mt-2 cursor-not-allowed"
+                  >
+                    <Play />
+                    {t("setup.pausedStart")}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {pausedReason}
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
           </SeoStep>
         ) : null}
       </SeoStepList>

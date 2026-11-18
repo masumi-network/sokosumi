@@ -33,6 +33,7 @@ export function SeoSetupGoal({
   const label = (action: string) =>
     t(`brief.actions.${action.replaceAll(" ", "_")}`);
   const suggestion = model.setupGoalSuggestion;
+  const canRun = model.data.availableActions.canRequestAnalysis;
   return (
     <div className="grid min-w-0 max-w-sm grid-cols-1 gap-3">
       {full ? (
@@ -54,6 +55,11 @@ export function SeoSetupGoal({
           />
         </CollapsibleTrigger>
         <CollapsibleContent className="grid min-w-0 gap-3 pt-2">
+          {!canRun ? (
+            <p className="text-muted-foreground text-sm">
+              {t("setup.goal.pausedHelp")}
+            </p>
+          ) : null}
           {goal.canEdit ? (
             <>
               {model.data.scope.pageIds.length > 1 ? (
@@ -76,7 +82,11 @@ export function SeoSetupGoal({
                     {
                       value: SKIP,
                       label: t(
-                        full ? "setup.goal.autoOption" : "setup.goal.skip",
+                        !canRun
+                          ? "setup.goal.noSavedGoal"
+                          : full
+                            ? "setup.goal.autoOption"
+                            : "setup.goal.skip",
                       ),
                     },
                     ...SEO_BRIEF_ACTIONS.map((value) => ({
@@ -130,6 +140,28 @@ export function SeoSetupGoal({
                   </div>
                 </div>
               ) : null}
+              {!canRun ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!goal.changed}
+                    loading={goal.pending}
+                    onClick={() => void goal.save()}
+                  >
+                    {t("setup.goal.savePrivate")}
+                  </Button>
+                  {goal.privateSaved ? (
+                    <span
+                      role="status"
+                      className="text-muted-foreground text-sm"
+                    >
+                      {t("saved")}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               {goal.error ? (
                 <div
                   role="alert"
@@ -159,25 +191,29 @@ export function SeoSetupGoal({
             <p role="status" className="text-muted-foreground text-sm">
               {t(
                 model.brief.error || model.brief.data
-                  ? "setup.goal.unavailable"
+                  ? canRun
+                    ? "setup.goal.unavailable"
+                    : "setup.goal.pausedUnavailable"
                   : "loading",
               )}
             </p>
           )}
         </CollapsibleContent>
       </Collapsible>
-      <Button
-        type="button"
-        variant="primary"
-        size="sm"
-        className="h-auto min-h-8 max-w-full justify-self-start whitespace-normal"
-        loading={goal.pending}
-        disabled={goal.pending}
-        onClick={() => void goal.review()}
-      >
-        <Play />
-        {t(full ? "runFullAudit" : "runPageCheck")}
-      </Button>
+      {canRun ? (
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          className="h-auto min-h-8 max-w-full justify-self-start whitespace-normal"
+          loading={goal.pending}
+          disabled={goal.pending}
+          onClick={() => void goal.review()}
+        >
+          <Play />
+          {t(full ? "runFullAudit" : "runPageCheck")}
+        </Button>
+      ) : null}
     </div>
   );
 }

@@ -12894,7 +12894,14 @@
         "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
       },
       "setup": {
+        "pausedStart": "Iniciar auditoría",
+        "pausedReason": "Este espacio de trabajo no tiene un agente SEO disponible para ejecutar una comprobación. Las estadísticas de Google siguen funcionando.",
+        "pausedPreviewReason": "En esta vista previa no hay un agente SEO disponible para este espacio de trabajo. Las estadísticas de Google siguen funcionando.",
         "goal": {
+          "pausedHelp": "Las auditorías completas detectan el objetivo a partir de la página. Aquí puedes guardar un objetivo para una auditoría futura.",
+          "noSavedGoal": "Sin objetivo guardado",
+          "savePrivate": "Guardar objetivo de la página",
+          "pausedUnavailable": "El objetivo de la página no está disponible.",
           "advanced": "Opciones avanzadas",
           "automatic": "La auditoría detecta el objetivo de la página a partir de su contenido.",
           "autoOption": "Detectar automáticamente",

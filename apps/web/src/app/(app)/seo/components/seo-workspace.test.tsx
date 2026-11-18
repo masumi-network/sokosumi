@@ -17,6 +17,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as publicEnv from "@/config/env.public";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { SeoAutomation } from "./seo-monitors";
@@ -4542,21 +4543,131 @@ describe("SEO workspace integration", () => {
     expect(within(dialog).queryByRole("spinbutton")).toBeNull();
   });
 
-  it("keeps unavailable first-use recovery inside SEO without promising a hidden check", async () => {
+  it("saves an Advanced goal privately while the workspace has no SEO worker", async () => {
     const user = userEvent.setup();
+    vi.spyOn(publicEnv, "getEnvPublicConfig").mockReturnValue({
+      ...publicEnv.getEnvPublicConfig(),
+      NEXT_PUBLIC_VERCEL_ENV: "production",
+    });
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.availableActions.canCreateMonitor = false;
+    const brief = {
+      revision: 1,
+      pages: [],
+      constraints: "Leave the cart as it is",
+      audience: null,
+      objective: null,
+      outcome: null,
+      followUps: [],
+      priorities: [],
+    };
+    const read = vi.fn(async (url: string) => {
+      if (url.endsWith("/brief")) return Response.json(brief);
+      if (url.includes("/brief/suggestion"))
+        return Response.json({ action: null });
+      return connectedSeoResponse(workspace, url);
+    });
+    vi.stubGlobal("fetch", read);
+    saveGoal.mockImplementation(async ({ body }) => ({
+      ok: true,
+      value: { ...brief, revision: 2, pages: body.pages },
+    }));
+    renderWorkspace(workspace);
+    await readConnectedGoogle();
+    const setup = within(screen.getByTestId("seo-setup"));
+    expect(read.mock.calls.some(([url]) => url.includes("/brief"))).toBe(false);
+    const help =
+      "Full audits detect the goal from the page. You can save a goal here for a future audit.";
+    expect(setup.queryByText(help)).toBeNull();
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    expect(setup.getByText(help)).toBeVisible();
+    const action = await setup.findByRole("combobox", {
+      name: "What should visitors do on this page?",
+    });
+    expect(action).toHaveTextContent("No saved goal");
+    const save = setup.getByRole("button", { name: "Save page goal" });
+    expect(save).toBeDisabled();
+    expect(
+      setup.getByRole("button", { name: "Start audit" }),
+    ).toHaveAccessibleDescription(
+      "This workspace has no available SEO worker to run a check. Google statistics still work.",
+    );
+    await user.click(action);
+    await user.click(await screen.findByRole("option", { name: "Buy" }));
+    expect(
+      setup.queryByRole("checkbox", { name: "Include this goal in the audit" }),
+    ).toBeNull();
+    expect(saveGoal).not.toHaveBeenCalled();
+    await user.click(save);
+    expect(await setup.findByText(messages.App.Seo.saved)).toBeVisible();
+    expect(save).toBeDisabled();
+    await waitFor(() => expect(saveGoal).toHaveBeenCalledTimes(1));
+    expect(saveGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          expectedRevision: 1,
+          constraints: brief.constraints,
+          pages: [
+            expect.objectContaining({
+              pageId: workspace.pages[0].id,
+              action: "buy",
+            }),
+          ],
+        }),
+      }),
+    );
+    expect(action).toHaveTextContent("Buy");
+    expect(setup.getByRole("button", { name: "Start audit" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("explains the disabled first check on hover and keeps recovery inside SEO", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(publicEnv, "getEnvPublicConfig").mockReturnValue({
+      ...publicEnv.getEnvPublicConfig(),
+      NEXT_PUBLIC_VERCEL_ENV: "preview",
+    });
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.availableActions.canCreateMonitor = false;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace);
     await readConnectedGoogle();
-    // No check can run: no card promises one, the header's button is off, and the notice says why.
-    // Correction: Google setup stays available, while the final check step explains that dispatch is off.
-    expect(screen.getByTestId("seo-setup")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
-    expect(screen.getByText(messages.App.Seo.dispatchPaused)).toBeVisible();
+    const setup = within(screen.getByTestId("seo-setup"));
+    const run = setup.getByRole("button", { name: "Start audit" });
+    const reason =
+      "This preview has no SEO worker available for this workspace. Google statistics still work.";
+    expect(run).toBeVisible();
+    expect(run).toHaveAttribute("aria-disabled", "true");
+    expect(run).toHaveAccessibleDescription(reason);
+    expect(setup.getByText(reason)).toBeVisible();
+    act(() => {
+      setup.getByRole("button", { name: "Advanced" }).focus();
+    });
+    await user.tab();
+    expect(run).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(reason);
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.tab();
+    await user.hover(run);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(reason);
+    await user.unhover(run);
+    await user.click(run);
+    expect(run).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
     // "All audits" goes back to the Audit's Project scope.
     expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
       "href",
