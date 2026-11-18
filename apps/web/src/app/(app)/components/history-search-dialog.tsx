@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import { FileText, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -18,6 +19,7 @@ import { HistorySearchItemStatus } from "@/app/components/history-search-item-st
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import { useTagSearchGroup } from "@/app/components/use-tag-search-group";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
@@ -165,6 +167,8 @@ export function HistorySearchDialog({
           tasks={tasks}
           tasksState={tasksState}
           labels={labels}
+          showOwner={showOwner}
+          formatShortDate={formatDateWithYear}
           onSelectTag={handleSelectTag}
           onSelectTask={handleSelectTask}
         />
@@ -178,25 +182,20 @@ export function HistorySearchDialog({
                 onSelect={() => handleSelect(item)}
                 className="flex items-start gap-2"
               >
-                <HistorySearchItemIcon item={item} className="mt-0.5 size-4" />
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate">{item.title}</span>
-                  <HistorySearchItemTime
-                    createdAt={item.createdAt}
-                    formatShortDate={formatDateWithYear}
-                    createdLabel={labels.created}
-                    className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
-                  />
-                </div>
-                <div className="flex shrink-0 items-center gap-2 self-center">
-                  {showOwner && (
-                    <HistorySearchItemOwner
-                      owner={item.owner}
-                      className="hidden sm:inline-flex"
+                <SearchResultRow
+                  icon={
+                    <HistorySearchItemIcon
+                      item={item}
+                      className="mt-0.5 size-4"
                     />
-                  )}
-                  <HistorySearchItemStatus item={item} />
-                </div>
+                  }
+                  title={item.title}
+                  createdAt={item.createdAt}
+                  owner={showOwner ? item.owner : null}
+                  status={<HistorySearchItemStatus item={item} />}
+                  formatShortDate={formatDateWithYear}
+                  createdLabel={labels.created}
+                />
               </CommandItem>
             ))}
           </CommandGroup>
@@ -244,8 +243,15 @@ interface TagSearchGroupsProps {
   tasksState: "loading" | "error" | "ready";
   labels: Pick<
     HistorySearchDialogLabels,
-    "tagsGroup" | "tagTasksGroup" | "tagsError" | "tagTasksError" | "loading"
+    | "tagsGroup"
+    | "tagTasksGroup"
+    | "tagsError"
+    | "tagTasksError"
+    | "loading"
+    | "created"
   >;
+  showOwner: boolean;
+  formatShortDate: (date: string | Date) => string;
   onSelectTag: (tag: WorkspaceLabel) => void;
   onSelectTask: (task: TaskListItem) => void;
 }
@@ -257,6 +263,8 @@ function TagSearchGroups({
   tagsState,
   tasksState,
   labels,
+  showOwner,
+  formatShortDate,
   onSelectTag,
   onSelectTask,
 }: TagSearchGroupsProps) {
@@ -302,14 +310,77 @@ function TagSearchGroups({
               key={task.id}
               value={`tag-task:${task.id}`}
               onSelect={() => onSelectTask(task)}
-              className="flex items-center gap-2"
+              className="flex items-start gap-2"
             >
-              <ListTodo className="size-4" />
-              <span className="min-w-0 flex-1 truncate">{task.name}</span>
+              <SearchResultRow
+                icon={<ListTodo className="mt-0.5 size-4" aria-hidden />}
+                title={task.name}
+                createdAt={task.createdAt}
+                owner={
+                  showOwner && task.owner
+                    ? {
+                        userId: task.owner.id,
+                        name: task.owner.name,
+                        image: task.owner.image ?? null,
+                      }
+                    : null
+                }
+                status={
+                  <TaskStatusBadge
+                    status={task.status}
+                    className="ml-auto shrink-0"
+                  />
+                }
+                formatShortDate={formatShortDate}
+                createdLabel={labels.created}
+              />
             </CommandItem>
           ))}
         </CommandGroup>
       ) : null}
+    </>
+  );
+}
+
+/** One result's body: icon, title over its date, then owner and status. */
+function SearchResultRow({
+  icon,
+  title,
+  createdAt,
+  owner,
+  status,
+  formatShortDate,
+  createdLabel,
+}: {
+  icon: ReactNode;
+  title: string;
+  createdAt: string | Date;
+  owner: HistoryItem["owner"];
+  status: ReactNode;
+  formatShortDate: (date: string | Date) => string;
+  createdLabel: string;
+}) {
+  return (
+    <>
+      {icon}
+      <div className="min-w-0 flex-1">
+        <span className="block truncate">{title}</span>
+        <HistorySearchItemTime
+          createdAt={createdAt}
+          formatShortDate={formatShortDate}
+          createdLabel={createdLabel}
+          className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
+        />
+      </div>
+      <div className="flex shrink-0 items-center gap-2 self-center">
+        {owner ? (
+          <HistorySearchItemOwner
+            owner={owner}
+            className="hidden sm:inline-flex"
+          />
+        ) : null}
+        {status}
+      </div>
     </>
   );
 }

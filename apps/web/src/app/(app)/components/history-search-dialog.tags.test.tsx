@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -119,8 +119,12 @@ describe("HistorySearchDialog workspace tags", () => {
 
     await user.type(screen.getByPlaceholderText("Search..."), "#design");
 
-    const task = await screen.findByRole("option", { name: /Draw the logo/ });
-    expect(screen.getByText("Tasks tagged Design")).toBeInTheDocument();
+    const group = await screen.findByRole("group", {
+      name: "Tasks tagged Design",
+    });
+    const task = await within(group).findByRole("option", {
+      name: /Draw the logo/,
+    });
     expect(getTasksMock).toHaveBeenCalledWith({
       workspaceTagId: "tag-design",
       scope: "workspace",
@@ -130,6 +134,29 @@ describe("HistorySearchDialog workspace tags", () => {
 
     await user.click(task);
     expect(pushMock).toHaveBeenCalledWith("/tasks/SOK-7-draw-the-logo");
+  });
+
+  it("shows a tagged Task with the same date and status as other results", async () => {
+    getTasksMock.mockResolvedValue({
+      data: [
+        {
+          id: "task-1",
+          identifier: "SOK-7",
+          name: "Draw the logo",
+          status: "DRAFT",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          owner: null,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "design");
+
+    const task = await screen.findByRole("option", { name: /Draw the logo/ });
+    expect(within(task).getByText("2026-01-01")).toBeInTheDocument();
+    expect(within(task).getByText("Draft")).toBeInTheDocument();
   });
 
   it("shows no tags before anything is typed", async () => {
