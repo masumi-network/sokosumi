@@ -1052,6 +1052,9 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
 export const CMO_PLACEHOLDER_PATTERN =
   "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
 
+/** The chat case whose picture must start as a reference library job. */
+export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
+
 /** Cuso (CMO) behaviour; run against a CMO bot, not the personal assistant. */
 export const CMO_SCENARIOS: SokoBotScenario[] = [
   {
@@ -1132,6 +1135,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["create_task", "hire_agent"],
       // The lane's month is a draft: a pieces save is refused, a calendar save works.
       allowFailedTools: ["save_strategy"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: CMO_POST_WITH_PICTURE_SCENARIO_ID,
+    title: "Makes a chat post's picture in a library style",
+    intent:
+      "Asked in chat for a post with an image, Cuso makes the picture the way a month's pictures are made: in the look of a reference, not a plain generated image.",
+    prompt: "Please make a new LinkedIn post for me with an image.",
+    rubric:
+      "Cuso wrote one finished LinkedIn post in the brand's voice from the Brand Brain, called find_style_references for its picture and started the picture with generate_image carrying a returned id in styleReferenceId (and a headline of at most six words when the picture carries words). He ends the turn waiting for the picture, or with the post created once it is ready, and says plainly where things stand. Where the reference library returns nothing, a plain generate_image is correct. A plain picture when references were returned, an id no result returned, asking which business or topic to write about, or claiming the post has its picture before get_image returned a file fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["find_style_references", "generate_image"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
       noInventedIds: true,
     },
   },

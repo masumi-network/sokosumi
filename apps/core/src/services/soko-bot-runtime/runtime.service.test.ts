@@ -162,6 +162,12 @@ const {
     credits: vi.fn(),
     readBytes: vi.fn(),
     assetFindFirst: vi.fn(),
+    jobFindUnique: vi.fn(),
+    referenceFindUnique: vi.fn(),
+    toolCallFindFirst: vi.fn(),
+    libraryAvailable: vi.fn(() => false),
+    findCuso: vi.fn(),
+    finishChatPicture: vi.fn(),
   },
   files: {
     taskFileUpsert: vi.fn(),
@@ -402,6 +408,32 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   getJob: images.getJob,
   readAssetBytes: images.readBytes,
 }));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: images.libraryAvailable,
+}));
+vi.mock("@/services/cmo-media-maker.service", () => ({
+  REFERENCE_STYLE_MODELS: [
+    "gpt-image-2-6",
+    "nano-banana-2-1",
+    "seedream-5-pro",
+  ],
+  cmoStylePrompt: (input: { piece: { visual: string; headline?: string } }) =>
+    `styled: ${input.piece.visual} / ${input.piece.headline ?? "no words"}`,
+  loadStyleBrand: async () => ({ colours: [], logo: null }),
+  finishCmoChatPicture: images.finishChatPicture,
+}));
+vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/services/cmo-cuso.service")>();
+  return {
+    ...original,
+    // The real lookup unless a test names the Cuso it wants.
+    findCusoForBot: (sokoBotId: string) =>
+      images.findCuso.getMockImplementation()
+        ? images.findCuso(sokoBotId)
+        : original.findCusoForBot(sokoBotId),
+  };
+});
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
   createVideoJob: images.createVideo,
@@ -502,10 +534,13 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: turnUpdateManyMock,
     },
     sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
+    projectImageJob: { findUnique: images.jobFindUnique },
+    referenceImage: { findUnique: images.referenceFindUnique },
     sokoBotToolCall: {
       count: toolCallCountMock,
       create: toolCallCreateMock,
       upsert: toolCallCreateMock,
+      findFirst: images.toolCallFindFirst,
       findUnique: toolCallFindUniqueMock,
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
@@ -10458,6 +10493,197 @@ describe("Content Studio image tools", () => {
     await expect(generate(ownerChat, request, "call-4")).rejects.toThrow(
       "Not enough credits for this image.",
     );
+  });
+
+  describe("a picture Cuso makes in chat", () => {
+    const STYLE = "01a1eac9-fe1d-733e-b03d-56575fab5d96";
+    const cusoChat = {
+      ...ownerChat,
+      turn: {
+        ...ownerChat.turn,
+        sokoBotId: SCOPE.sokoBotId,
+        versionId: "cmo-v1",
+      },
+    };
+    const styledJob = {
+      projectId: "project-1",
+      idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1`,
+      referenceLibraryIds: [STYLE],
+      prompt: "styled: A pour-over on a counter / Fresh every week",
+      error: null,
+    };
+    beforeEach(() => {
+      images.libraryAvailable.mockReturnValue(true);
+      images.referenceFindUnique.mockResolvedValue({ id: STYLE });
+      images.findCuso.mockResolvedValue({
+        sokoBotId: SCOPE.sokoBotId,
+        projectId: "project-1",
+        workspaceId: SCOPE.workspaceId,
+        businessName: "Acme",
+      });
+      images.toolCallFindFirst.mockResolvedValue({
+        input: {
+          projectId: "project-1",
+          prompt: "A pour-over on a counter",
+          maxCredits: 30,
+          aspectRatio: "4:5",
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+        },
+      });
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+    });
+    afterEach(() => {
+      images.libraryAvailable.mockReturnValue(false);
+      images.findCuso.mockReset();
+    });
+
+    it("refuses a plain picture and says how to make it in a library style", async () => {
+      await expect(generate(cusoChat, request, "call-s0")).rejects.toThrow(
+        "Call find_style_references",
+      );
+      expect(images.create).not.toHaveBeenCalled();
+      // A model the owner named, or no library here: the plain picture.
+      await expect(
+        service["checkImageRequest"](
+          cusoChat as never,
+          { ...request, model: "gemini-pro" },
+          "call-s0",
+        ),
+      ).resolves.toMatchObject({ style: null });
+      images.libraryAvailable.mockReturnValue(false);
+      await expect(
+        service["checkImageRequest"](cusoChat as never, request, "call-s0"),
+      ).resolves.toMatchObject({ style: null });
+    });
+
+    it("leaves every other bot's pictures as they were, and refuses it a style", async () => {
+      await expect(
+        service["checkImageRequest"](ownerChat as never, request, "call-s0"),
+      ).resolves.toMatchObject({ style: null });
+      await expect(
+        generate(ownerChat, { ...request, styleReferenceId: STYLE }, "call-s0"),
+      ).rejects.toThrow("only Cuso makes pictures in a library style");
+    });
+
+    it("starts a styled picture on the first style model with the reference", async () => {
+      images.create.mockResolvedValue({ id: "job-s1", status: "QUEUED" });
+      const result = await generate(
+        cusoChat,
+        {
+          ...request,
+          prompt: "A pour-over on a counter",
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+        },
+        "call-s1",
+      );
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // The model is the catalogue's, stubbed here; the tries below name theirs.
+          prompt: "styled: A pour-over on a counter / Fresh every week",
+          referenceLibraryIds: [STYLE],
+          referenceFileIds: [],
+          idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1`,
+        }),
+      );
+      expect(result).toMatchObject({ jobId: "job-s1", status: "QUEUED" });
+      expect(result).not.toHaveProperty("studioUrl");
+    });
+
+    it("refuses a reference the library does not hold", async () => {
+      images.referenceFindUnique.mockResolvedValue(null);
+      await expect(
+        generate(cusoChat, { ...request, styleReferenceId: STYLE }, "call-s1"),
+      ).rejects.toThrow("use an id find_style_references returned");
+    });
+
+    it("hands back the checked picture with its logo, without a studio link", async () => {
+      images.getJob.mockResolvedValue({
+        id: "job-s1",
+        status: "SUCCEEDED",
+        assetId: "asset-s1",
+      });
+      images.jobFindUnique.mockResolvedValue(styledJob);
+      images.finishChatPicture.mockResolvedValue({
+        passed: true,
+        file: { id: "file-s1", name: "picture.jpg" },
+      });
+      const result = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s1",
+      });
+      expect(images.finishChatPicture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+          drive: {
+            workspaceId: SCOPE.workspaceId,
+            organizationId: "org-1",
+            userId: SCOPE.userId,
+          },
+        }),
+      );
+      expect(result).toMatchObject({
+        jobId: "job-s1",
+        status: "SUCCEEDED",
+        file: { id: "file-s1" },
+      });
+      expect(result).not.toHaveProperty("studioUrl");
+      expect(images.create).not.toHaveBeenCalled();
+    });
+
+    it("makes a picture the check turned down again on the next model, three tries in all", async () => {
+      images.getJob.mockResolvedValue({
+        id: "job-s1",
+        status: "SUCCEEDED",
+        assetId: "asset-s1",
+      });
+      images.jobFindUnique.mockResolvedValue(styledJob);
+      images.finishChatPicture.mockResolvedValue({
+        passed: false,
+        problems: "extra words beyond the headline",
+      });
+      images.create.mockResolvedValue({ id: "job-s2", status: "QUEUED" });
+      const second = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s1",
+      });
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: "nano-banana-2-1",
+          prompt: styledJob.prompt,
+          referenceLibraryIds: [STYLE],
+          settings: expect.objectContaining({
+            aspectRatio: "4:5",
+            outputFormat: "jpeg",
+          }),
+          idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1:style:2`,
+        }),
+      );
+      expect(second).toMatchObject({ jobId: "job-s2", replaces: "job-s1" });
+      expect(second).toMatchObject({
+        note: expect.stringContaining("extra words beyond the headline"),
+      });
+
+      images.create.mockClear();
+      images.jobFindUnique.mockResolvedValue({
+        ...styledJob,
+        idempotencyKey: `${styledJob.idempotencyKey}:style:3`,
+      });
+      const last = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s3",
+      });
+      expect(images.create).not.toHaveBeenCalled();
+      expect(last).toMatchObject({
+        status: "FAILED",
+        note: expect.stringContaining("No model made a picture that passed"),
+      });
+    });
   });
 
   it("reports a finished image, checking access before the provider", async () => {
