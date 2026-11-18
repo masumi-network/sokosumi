@@ -2,8 +2,10 @@ import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 import { BackToTasksButton } from "./back-to-tasks-button";
 import { TaskIdentifierCopy } from "./task-identifier-copy";
+import { TaskTitleHeading } from "./task-title-heading";
 
 interface TaskDetailHeaderProps {
+  taskId: string;
   taskName: string;
   /** Short id such as SOK-12; hidden for tasks without a project. */
   identifier?: string | null;
@@ -22,6 +24,7 @@ interface TaskDetailHeaderProps {
 }
 
 export function TaskDetailHeader({
+  taskId,
   taskName,
   identifier,
   identifierLabels,
@@ -52,9 +55,10 @@ export function TaskDetailHeader({
             copyErrorMessage={identifierLabels.copyError}
           />
         ) : null}
-        <h1 className="text-xl leading-tight font-semibold tracking-tight">
-          {stripInlineMarkdown(taskName)}
-        </h1>
+        <TaskTitleHeading
+          taskId={taskId}
+          title={stripInlineMarkdown(taskName)}
+        />
       </div>
       {parentLink}
     </div>
