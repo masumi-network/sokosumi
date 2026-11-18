@@ -12085,6 +12085,20 @@
         "failedCheck": "<prefix>No superada:</prefix> {name}",
         "checkedOn": "Comprobado el",
         "diagnostics": "Título, descripción y otros detalles de la página",
+        "rank": {
+          "absent": "Fuera del top {top}",
+          "position": "Posición {position}",
+          "featuredSnippet": "Fragmento destacado, posición {position}",
+          "forKeyword": "para «{keyword}»",
+          "source": "Mercado {country}, {language} · DataForSEO",
+          "aiNotCited": "Aparece una vista general de IA que no cita la página",
+          "aiCited": "La vista general de IA cita la página",
+          "othersAbsent": "{count, plural, one {# palabra clave más} other {# palabras clave más}}: ninguna en el top {top}",
+          "searchConsole": "Posición media en Search Console: {position}",
+          "serpRead": "Resultado de búsqueda leído:",
+          "allDetails": "Todos los detalles",
+          "showRankings": "Ver posiciones"
+        },
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
         "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
@@ -12104,7 +12118,6 @@
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
         "noteRule": "Regla no cumplida: «{name}»",
-        "notesNotCounted": "no cuentan como problemas",
         "askAgent": "Preguntar al agente",
         "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
         "showAll": "Mostrar todo",
@@ -12112,9 +12125,6 @@
         "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?",
         "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
         "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
-        "referencesAndRules": "Fuentes e ID de reglas",
-        "ruleIds": "ID de reglas: {ids}",
-        "rulesOnly": "ID de reglas",
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "positionHint": "1 es el primer resultado",
         "noteFound": "Encontrado: {found}",
@@ -12921,30 +12931,24 @@
         }
       },
       "indexReview": {
-        "title": "Notas sobre la indexación",
-        "help": "Estas páginas necesitan una decisión o más evidencia. Las notas explican qué pudo verificar el agente.",
         "checked": "Revisado",
         "state": {
           "review": "Revisión necesaria",
           "expected_exclusion": "Exclusión esperada",
           "unavailable": "Sin revisar"
         },
-        "suggestedFix": "Siguiente paso sugerido",
         "evidence": "Ver evidencia",
-        "unavailableEvidence": "Google Search Console o la auditoría no proporcionaron evidencia suficiente.",
-        "sources": "Fuentes: Google Search Console y esta auditoría."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Último rastreo de Google"
       },
       "index": {
         "title": "Índice de Google",
-        "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
-        "checked": "estado leído",
         "state": {
           "indexed": "Indexada",
           "warnings": "Indexada, con advertencias",
           "notIndexed": "No indexada",
           "unknown": "Estado de índice desconocido"
         },
-        "google": "Google indica: «{words}»",
         "lastCrawl": "Último rastreo:",
         "otherCanonical": "Google eligió otra página canónica:",
         "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"

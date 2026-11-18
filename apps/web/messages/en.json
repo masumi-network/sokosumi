@@ -12085,6 +12085,20 @@
         "failedCheck": "<prefix>Not passed:</prefix> {name}",
         "checkedOn": "Checked",
         "diagnostics": "Title, description and other page details",
+        "rank": {
+          "absent": "Not in the top {top}",
+          "position": "Position {position}",
+          "featuredSnippet": "Featured snippet, position {position}",
+          "forKeyword": "for “{keyword}”",
+          "source": "Market {country}, {language} · DataForSEO",
+          "aiNotCited": "An AI Overview shows and does not cite the page",
+          "aiCited": "The AI Overview cites the page",
+          "othersAbsent": "{count, plural, one {# other keyword} other {# other keywords}}: none in the top {top}",
+          "searchConsole": "Search Console average position {position}",
+          "serpRead": "Search result read:",
+          "allDetails": "All details",
+          "showRankings": "See rankings"
+        },
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
@@ -12104,7 +12118,6 @@
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
         "noteRule": "Rule not met: “{name}”",
-        "notesNotCounted": "not counted as issues",
         "askAgent": "Ask the agent",
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
         "showAll": "Show all",
@@ -12112,9 +12125,6 @@
         "askAboutNoteOnPage": "A check flagged “{name}” on {url}. What does it mean, and should I change anything?",
         "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
-        "referencesAndRules": "Sources and rule IDs",
-        "ruleIds": "Rule IDs: {ids}",
-        "rulesOnly": "Rule IDs",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
         "noteFound": "Found: {found}",
@@ -12921,30 +12931,24 @@
         }
       },
       "indexReview": {
-        "title": "Indexing review notes",
-        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
         "checked": "Reviewed",
         "state": {
           "review": "Review needed",
           "expected_exclusion": "Expected exclusion",
           "unavailable": "Not checked"
         },
-        "suggestedFix": "Suggested next step",
         "evidence": "View evidence",
-        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
-        "sources": "Sources: Google Search Console and this audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Last crawled by Google"
       },
       "index": {
         "title": "Google index",
-        "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
-        "checked": "status read",
         "state": {
           "indexed": "Indexed",
           "warnings": "Indexed, with warnings",
           "notIndexed": "Not indexed",
           "unknown": "Index status unknown"
         },
-        "google": "Google says: “{words}”",
         "lastCrawl": "Last crawl:",
         "otherCanonical": "Google chose another canonical page:",
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"

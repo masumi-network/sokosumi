@@ -12085,6 +12085,20 @@
         "failedCheck": "<prefix>Nicht bestanden:</prefix> {name}",
         "checkedOn": "Geprüft am",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
+        "rank": {
+          "absent": "Nicht in den Top {top}",
+          "position": "Position {position}",
+          "featuredSnippet": "Featured Snippet, Position {position}",
+          "forKeyword": "für „{keyword}“",
+          "source": "Markt {country}, {language} · DataForSEO",
+          "aiNotCited": "Eine KI-Übersicht erscheint und zitiert die Seite nicht",
+          "aiCited": "Die KI-Übersicht zitiert die Seite",
+          "othersAbsent": "{count, plural, one {# weiteres Keyword} other {# weitere Keywords}}: keines in den Top {top}",
+          "searchConsole": "Durchschnittliche Position in der Search Console: {position}",
+          "serpRead": "Gelesenes Suchergebnis:",
+          "allDetails": "Alle Details",
+          "showRankings": "Zu den Rankings"
+        },
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
@@ -12104,7 +12118,6 @@
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
         "noteRule": "Regel nicht erfüllt: „{name}“",
-        "notesNotCounted": "zählen nicht als Probleme",
         "askAgent": "Agent fragen",
         "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
         "showAll": "Alles zeigen",
@@ -12112,9 +12125,6 @@
         "askAboutNoteOnPage": "Eine Prüfung hat „{name}“ auf {url} markiert. Was bedeutet das, und sollte ich etwas ändern?",
         "insideToolRanges": "{total, plural, one {im Tool-Bereich} other {in allen # Tool-Bereichen}}",
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
-        "referencesAndRules": "Quellen und Regel-IDs",
-        "ruleIds": "Regel-IDs: {ids}",
-        "rulesOnly": "Regel-IDs",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
         "noteFound": "Gefunden: {found}",
@@ -12921,30 +12931,24 @@
         }
       },
       "indexReview": {
-        "title": "Hinweise zur Indexierung",
-        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
         "checked": "Geprüft",
         "state": {
           "review": "Prüfung erforderlich",
           "expected_exclusion": "Erwarteter Ausschluss",
           "unavailable": "Nicht geprüft"
         },
-        "suggestedFix": "Vorgeschlagener nächster Schritt",
         "evidence": "Nachweise ansehen",
-        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
-        "sources": "Quellen: Google Search Console und dieses Audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Zuletzt von Google gecrawlt"
       },
       "index": {
         "title": "Google-Index",
-        "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
-        "checked": "Status gelesen",
         "state": {
           "indexed": "Indexiert",
           "warnings": "Indexiert, mit Warnungen",
           "notIndexed": "Nicht indexiert",
           "unknown": "Indexstatus unbekannt"
         },
-        "google": "Google meldet: „{words}“",
         "lastCrawl": "Letzter Crawl:",
         "otherCanonical": "Google hat eine andere kanonische Seite gewählt:",
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"

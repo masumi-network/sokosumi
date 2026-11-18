@@ -796,6 +796,61 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
+  it("shortens the position measure to its result and keeps every line in a fold", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const lines = [
+      '"macbook charge limit", Market US, en (location_code 2840), mobile, DataForSEO SERP of 2026-11-16 23:50:46 +00:00: 16 organic results read',
+      "the page is not in the top 16 organic results",
+      "an AI Overview shows and does not cite the page",
+      "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
+      '"mac battery health checker" (goal): the page is not in the top 18 organic results',
+      '"macbook battery health" (goal): the page is not in the top 15 organic results',
+    ];
+    workspace.findings.push({
+      id: "organic-position",
+      observationId: "check-position",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "query.serp.position",
+      title: "Organic position per device",
+      severity: "measure",
+      evidence: lines,
+      sourceRef: "serp:mobile",
+      observedAt: new Date("2026-11-16T23:51:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    const row = screen.getByText("Organic position per device").closest("li");
+    if (!row) throw new Error("no position row");
+    // The result leads; the other keywords are one line; the rule and the raw head wait in the fold.
+    expect(row).toHaveTextContent(
+      "Not in the top 16 for “macbook charge limit”",
+    );
+    expect(row).toHaveTextContent(
+      "An AI Overview shows and does not cite the page",
+    );
+    expect(row).toHaveTextContent("2 other keywords: none in the top 15");
+    const rule = within(row).getByText(/^position rule:/);
+    expect(rule).not.toBeVisible();
+    await user.click(within(row).getByText("All details"));
+    expect(rule).toBeVisible();
+    // The keywords themselves are on the Rankings tab.
+    await user.click(within(row).getByRole("button", { name: "See rankings" }));
+    expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("splits page details into measurements and notes and folds their references", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -908,18 +963,26 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
     expect(screen.getByText("2 notes")).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Title, description and other page details",
+    const detailsHeading = screen.getByRole("heading", {
+      name: "Title, description and other page details",
+    });
+    // The fold closes the Actions list: it sits in that section, under its rows.
+    const actionsSection = detailsHeading.closest("section");
+    expect(actionsSection).not.toBeNull();
+    expect(
+      within(actionsSection as HTMLElement).getByRole("heading", {
+        level: 2,
+        name: "Actions",
       }),
-    );
+    ).toBeInTheDocument();
+    await user.click(detailsHeading);
     // A measurement is one line; its value drops the words its name says.
     expect(screen.getAllByText("Title length:")[0]).toBeVisible();
     expect(screen.getByText("56 characters")).toBeVisible();
     // Notes sit under their own heading, so a rule name does not read as a claim about the page.
     expect(
       screen.getByRole("heading", {
-        name: "Notes (2) · not counted as issues",
+        name: "Notes (2)",
       }),
     ).toBeVisible();
     // A note leads with what the check found; the rule name follows, so it does not read as a claim.
@@ -946,7 +1009,7 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /1 suggestion\s*·\s*2 notes$/,
+      /1 suggestion,\s*2 notes$/,
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();
@@ -957,7 +1020,7 @@ describe("SEO workspace integration", () => {
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
-    // Rule IDs leave the shown line and fold with the sources.
+    // Rule IDs leave the shown line.
     expect(
       screen.getByText("Ranges SEO tools use: Ahrefs under 70"),
     ).toBeVisible();
@@ -996,9 +1059,9 @@ describe("SEO workspace integration", () => {
     );
     expect(reference).not.toBeVisible();
     expect(screen.queryByText("Check details")).toBeNull();
-    await user.click(screen.getByText("Sources and rule IDs"));
+    await user.click(screen.getByText("1 source"));
     expect(reference).toBeVisible();
-    expect(screen.getByText("Rule IDs: N1-246")).toBeVisible();
+    expect(screen.queryByText(/N1-246/)).toBeNull();
     // A note on a page removed since names that page in the question; nothing is sent.
     await user.click(
       screen.getByRole("button", {
@@ -3249,7 +3312,7 @@ describe("SEO workspace integration", () => {
     expect(within(section).queryByText("Indexed")).toBeNull();
     expect(
       within(section).getByText(
-        "Google says: “Alternate page with proper canonical tag”",
+        "Google: Alternate page with proper canonical tag",
       ),
     ).toBeVisible();
     expect(
@@ -3326,9 +3389,7 @@ describe("SEO workspace integration", () => {
       .getByText("Google Search Console indexing")
       .closest("summary");
     if (!summary) throw new Error("Indexing finding summary missing");
-    expect(
-      screen.queryByRole("heading", { name: "Indexing review notes" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Google index" })).toBeNull();
     await user.click(summary);
     expect(within(findings).getByText(reason)).toBeVisible();
     expect(
@@ -6062,6 +6123,12 @@ describe("SEO workspace integration", () => {
     // "No recommended actions" above these cards would say two things at once.
     expect(screen.queryByRole("heading", { name: "Actions" })).toBeNull();
     expect(screen.queryByText("No recommended actions")).toBeNull();
+    // Without an Actions list the page details stand in a card of their own, a section of the tab.
+    const details = screen.getByRole("heading", {
+      level: 2,
+      name: "Title, description and other page details",
+    });
+    expect(details.closest("section")).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
