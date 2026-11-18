@@ -368,7 +368,7 @@ export function PacePicker({
         })}
       </div>
       <p className="note">
-        {pace.perWeek} pieces a week. {pace.why}
+        {pace.perWeek} posts a week. {pace.why}
       </p>
     </div>
   );

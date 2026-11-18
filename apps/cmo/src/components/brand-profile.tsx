@@ -187,6 +187,16 @@ export function firstSentence(text: string): string {
   return match ? match[0] : text;
 }
 
+/**
+ * The line under the voice's first sentence. Cuso keeps the voice as rules
+ * ("Name the product"), so the line names them as how the brand writes.
+ */
+export function voiceDetail(voice: BrandBrain["voice"]): string {
+  const rule =
+    voice.tone.slice(firstSentence(voice.tone).length).trim() || voice.do[0];
+  return rule ? `How you write: ${rule}` : "";
+}
+
 interface VoiceProps {
   brain: BrandBrain;
 }
@@ -207,7 +217,10 @@ export function Voice({ brain }: VoiceProps) {
         <blockquote className="bb-quote">“{example}”</blockquote>
       ) : null}
       <div className="bb-rules">
-        <ul>
+        <ul aria-label="How you write">
+          {brain.voice.do.length > 0 ? (
+            <li className="label">How you write</li>
+          ) : null}
           {brain.voice.do.slice(0, 3).map((rule) => (
             <li key={`do:${rule}`}>
               <Check size={14} aria-hidden="true" className="rv-yes" />
@@ -215,7 +228,10 @@ export function Voice({ brain }: VoiceProps) {
             </li>
           ))}
         </ul>
-        <ul>
+        <ul aria-label="What you avoid">
+          {brain.voice.dont.length > 0 ? (
+            <li className="label">What you avoid</li>
+          ) : null}
           {brain.voice.dont.slice(0, 3).map((rule) => (
             <li key={`dont:${rule}`}>
               <X size={14} aria-hidden="true" className="rv-no" />

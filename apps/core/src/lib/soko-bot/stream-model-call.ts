@@ -10,6 +10,31 @@ import { type LanguageModelMiddleware, streamText } from "ai";
 type StreamTextOptions = Parameters<typeof streamText>[0];
 
 /**
+ * Each provider's switch for a returned reasoning summary (never raw
+ * thoughts); other providers ignore it.
+ */
+export const REASONING_SUMMARY_OPTIONS = {
+  openai: { reasoningSummary: "auto" },
+  google: { thinkingConfig: { includeThoughts: true } },
+};
+
+/**
+ * A step's reasoning summary, one paragraph per part; undefined when the
+ * provider returned none. `reasoningText` runs the parts together.
+ */
+export function stepReasoningSummary(step: {
+  reasoning: readonly object[];
+}): string | undefined {
+  const summary = step.reasoning
+    .map((part) =>
+      "text" in part && typeof part.text === "string" ? part.text.trim() : "",
+    )
+    .filter(Boolean)
+    .join("\n\n");
+  return summary || undefined;
+}
+
+/**
  * `streamText`, settled like `generateText`: resolves once every step has
  * finished, or rejects with the first error the stream reported (which
  * `streamText` alone would only log).

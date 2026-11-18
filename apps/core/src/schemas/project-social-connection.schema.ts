@@ -31,6 +31,17 @@ export const projectSocialConnectionParamsSchema =
       }),
   });
 
+export const tikTokCreatorInfoSchema = z
+  .object({
+    creator_nickname: z.string().min(1),
+    privacy_level_options: z.array(z.string()),
+    comment_disabled: z.boolean(),
+    duet_disabled: z.boolean(),
+    stitch_disabled: z.boolean(),
+    max_video_post_duration_sec: z.number().int().positive(),
+  })
+  .openapi("TikTokCreatorInfo");
+
 export const projectSocialConnectionSubscriptionSchema = z
   .object({
     subscriptionType: z.string().nullable(),
@@ -107,6 +118,9 @@ export const initiateProjectSocialConnectionResponseSchema = z
 
 export const finalizeProjectSocialConnectionRequestSchema = z
   .object({
+    callbackProof: z.string().min(1).max(256).optional().openapi({
+      description: "Proof returned with a Zernio connection callback.",
+    }),
     connectionId: z.string().min(1).openapi({ example: "ca_123" }),
   })
   .openapi("FinalizeProjectSocialConnectionRequest");
