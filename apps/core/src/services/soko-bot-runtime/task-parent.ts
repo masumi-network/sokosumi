@@ -15,6 +15,13 @@ import {
 import { type RuntimeOperations } from "./operations";
 
 /**
+ * The event-wake claim of a parent change. A parent change does not touch
+ * status or assignee, so it does not take TASK_STATE: one wake may both file
+ * a Task under its parent and answer it.
+ */
+const TASK_PARENT_CLAIM = "TASK_PARENT";
+
+/**
  * Attaches a Task under a parent, moves it to another parent, or detaches it.
  * It runs the move route's `moveTask`, so the same locks and tree rules apply.
  */
@@ -38,6 +45,7 @@ export async function setTaskParent(
     ...new Set([
       input.taskId,
       ...(input.parentTaskId ? [input.parentTaskId] : []),
+      ...(input.afterTaskId ? [input.afterTaskId] : []),
     ]),
   ];
   const { result, projectChanged, workspaceId } = await serializableTransaction(
@@ -49,16 +57,25 @@ export async function setTaskParent(
         "set_task_parent",
         { taskIds },
       );
-      // The turn must read both Tasks, as create_task requires of a parent.
-      const visible = await tx.task.count({
+      // The turn must read every Task it names, as create_task requires of
+      // a parent; the sibling too, so afterTaskId cannot probe hidden ids.
+      const visible = await tx.task.findMany({
         where: {
           id: { in: taskIds },
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
           ...buildSokoBotReaderTaskWhere(authorized.reader),
         },
+        select: {
+          id: true,
+          name: true,
+          parentTaskId: true,
+          projectId: true,
+          updatedAt: true,
+        },
       });
-      if (visible !== taskIds.length)
+      const current = visible.find((task) => task.id === input.taskId);
+      if (visible.length !== taskIds.length || !current)
         throw new SokoBotRuntimeValidationError("Task not found");
       const claim = await claimTaskEventAction(
         tx,
@@ -68,12 +85,41 @@ export async function setTaskParent(
           source: authorized.turn.source ?? "CHAT",
         },
         input.taskId,
-        "TASK_STATE",
+        TASK_PARENT_CLAIM,
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(
           claim.refusal ?? "This turn may not change this Task",
         );
+      // Already where it was asked to go: a detach of a Task without a
+      // parent, or its own parent again with no new place in the checklist.
+      if (
+        input.parentTaskId === current.parentTaskId &&
+        (input.parentTaskId === null || input.afterTaskId === undefined)
+      ) {
+        const result = {
+          id: current.id,
+          name: current.name,
+          parentTaskId: current.parentTaskId,
+          projectId: current.projectId,
+          projectChanged: false,
+        };
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: current.id,
+          claimId: claim.claimId,
+          observedVersion: current.updatedAt.toISOString(),
+          disposition: "ALREADY_SATISFIED",
+          result: persistedToolResult(result),
+        });
+        return {
+          result,
+          projectChanged: false,
+          workspaceId: authorized.turn.workspaceId,
+        };
+      }
       const moved = await moveTask(
         tx,
         { source: "context", userId, organizationId: null },

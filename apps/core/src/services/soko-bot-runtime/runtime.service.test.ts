@@ -321,6 +321,18 @@ const subtaskMove = vi.hoisted(() => ({
   executeRaw: vi.fn(),
   taskFindUnique: vi.fn(),
   taskFindMany: vi.fn(),
+  deliverCalendarInvalidations: vi.fn(),
+}));
+/** An event wake's inbox and the action claims its turn takes. */
+const eventClaims = vi.hoisted(() => ({
+  inbox: vi.fn(),
+  findUnique: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+}));
+vi.mock("@/helpers/calendar-invalidation", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  deliverCalendarInvalidationsNow: subtaskMove.deliverCalendarInvalidations,
 }));
 const ads = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -591,6 +603,12 @@ vi.mock("@/lib/db/transaction", () => ({
         projectSeoAnalysis: { findUnique: async () => null },
         $queryRaw: transactionTurnLockMock,
         $executeRaw: subtaskMove.executeRaw,
+        sokoBotEventInbox: { findMany: eventClaims.inbox },
+        sokoBotTaskActionClaim: {
+          findUnique: eventClaims.findUnique,
+          create: eventClaims.create,
+          update: eventClaims.update,
+        },
         sokoBot: {
           findFirst: transactionBotFindFirstMock,
           findUnique: transactionBotFindUniqueMock,
@@ -755,6 +773,7 @@ import {
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import { VoiceoverRefusedError } from "@/lib/soko-bot/voiceover";
+import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import {
   isSokoBotDecisionTargetAllowed,
   personAssignee,
@@ -1792,6 +1811,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
 
     const service = new SokoBotRuntimeService();
@@ -1825,6 +1845,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
     const read = await service["readTask"](
       {
@@ -1873,6 +1894,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
     const teammateRead = await service["readTask"](
       {
@@ -1909,6 +1931,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     });
     const sharedRead = await service["readTask"](
       {
@@ -1927,6 +1950,38 @@ describe("SokoBotRuntimeService authorization", () => {
         data: expect.objectContaining({ status: "COMPLETED" }),
       }),
     );
+  });
+
+  it("counts every sub-task the turn can read, also past the ones it lists", async () => {
+    const subtasks = Array.from({ length: 25 }, (_, index) => ({
+      id: `step_${index}`,
+      name: `Step ${index}`,
+      status: "DRAFT",
+    }));
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      parentTaskId: null,
+      events: [],
+      files: [],
+      subtasks,
+      linksFrom: [],
+      linksTo: [],
+      _count: { subtasks: 40 },
+    });
+    const read = await new SokoBotRuntimeService()["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+    expect(read).toMatchObject({ subtasks, subtaskCount: 40 });
+    // The count reads with the same filter as the listed sub-tasks.
+    const select = taskFindFirstMock.mock.calls.at(-1)?.[0]?.select;
+    expect(select._count.select.subtasks.where).toEqual(select.subtasks.where);
   });
 
   it("opens archive history only on work the person it acts for owns", async () => {
@@ -2099,6 +2154,7 @@ describe("SokoBotRuntimeService authorization", () => {
                   { type: "RELATED", note: null, toTask: secretPeer },
                 ],
             linksTo: [],
+            _count: { subtasks: 0 },
           };
         },
       );
@@ -2772,6 +2828,7 @@ describe("SokoBotRuntimeService authorization", () => {
       files: [],
       linksFrom: [],
       linksTo: [],
+      _count: { subtasks: 0 },
     };
     taskFindFirstMock.mockResolvedValue(rawResult);
 
@@ -3091,8 +3148,10 @@ describe("SokoBotRuntimeService authorization", () => {
       capability: string,
       sokoBot: object,
       requestedByUserId: string | null = SCOPE.userId,
+      source?: "EVENT",
     ) => {
       turnFindUniqueMock.mockResolvedValue({
+        ...(source ? { source } : {}),
         id: SCOPE.turnId,
         sokoBotId: SCOPE.sokoBotId,
         requestedByUserId,
@@ -3275,39 +3334,65 @@ describe("SokoBotRuntimeService authorization", () => {
 
       describe("set_task_parent", () => {
         const TASK_ID = "01960001-0001-7001-8001-0000000000b2";
+        const SIBLING_ID = "01960001-0001-7001-8001-0000000000b3";
+        const OTHER_PARENT_ID = "01960001-0001-7001-8001-0000000000b4";
+        /** The Task event the wake reports. */
+        const WAKE_EVENT_ID = "01960001-0001-7001-8001-0000000000e1";
         const PERSONAL_BOT = {
           ...PROJECT_BOT,
           userId: SCOPE.userId,
           projectId: null,
         };
-        const row = (id: string, parentTaskId: string | null) => ({
+        const row = (
+          id: string,
+          parentTaskId: string | null,
+          projectId: string = PROJECT_ID,
+        ) => ({
           id,
           name: id === TASK_ID ? "Book the venue" : "Plan the offsite",
           ownerId: SCOPE.userId,
           workspaceId: SCOPE.workspaceId,
-          projectId: PROJECT_ID,
+          projectId,
           visibility: "PUBLIC",
+          status: TaskStatus.DRAFT,
           parentTaskId,
           position: parentTaskId ? 1 : null,
+          updatedAt: new Date(0),
+          // What an event wake's claim reads: no assignee, the woken event last.
+          assigneeSokoBotId: null,
+          events: [{ id: WAKE_EVENT_ID, sokoBotId: null }],
         });
-        /** The stored tree: each Task id and its parent. */
-        const tree = (parents: Record<string, string | null>) => {
+        /**
+         * The stored tree: each Task id and its parent. The turn cannot read
+         * `hidden` Tasks; `projects` puts a Task in another Project.
+         */
+        const tree = (
+          parents: Record<string, string | null>,
+          {
+            hidden = [],
+            projects = {},
+          }: { hidden?: string[]; projects?: Record<string, string> } = {},
+        ) => {
+          const read = (id: string) =>
+            id in parents ? row(id, parents[id] ?? null, projects[id]) : null;
           transactionTaskCountMock.mockResolvedValue(
             Object.keys(parents).length,
           );
           transactionTaskFindFirstMock.mockImplementation(
-            async (args: { where: { id?: string } }) => {
-              const id = args.where.id;
-              return id && id in parents ? row(id, parents[id] ?? null) : null;
-            },
+            async (args: { where: { id?: string } }) =>
+              args.where.id ? read(args.where.id) : null,
           );
           subtaskMove.taskFindUnique.mockImplementation(
-            async (args: { where: { id: string } }) =>
-              args.where.id in parents
-                ? row(args.where.id, parents[args.where.id] ?? null)
-                : null,
+            async (args: { where: { id: string } }) => read(args.where.id),
           );
-          subtaskMove.taskFindMany.mockResolvedValue([]);
+          // The reader check lists the named Tasks; moveTask's own lists
+          // (sub-tasks, siblings) are empty.
+          subtaskMove.taskFindMany.mockImplementation(
+            async (args: { where: { id?: { in?: string[] } } }) =>
+              (args.where.id?.in ?? [])
+                .filter((id) => !hidden.includes(id))
+                .flatMap((id) => read(id) ?? []),
+          );
           // resolveTaskIds finds each id as given.
           taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
           // Every row lock finds its row.
@@ -3319,13 +3404,107 @@ describe("SokoBotRuntimeService authorization", () => {
             }),
           );
         };
-        const setParent = (input: object) =>
+        /**
+         * An event wake about TASK_ID, with its action claims kept in a map
+         * as the claim table keeps them: one per Task, event and action kind.
+         */
+        const wake = () => {
+          type Key = {
+            taskId: string;
+            triggeringEventId: string;
+            actionKind: string;
+          };
+          const keyOf = (key: Key) =>
+            `${key.taskId}|${key.triggeringEventId}|${key.actionKind}`;
+          const claims = new Map<
+            string,
+            {
+              id: string;
+              turnId: string;
+              handlerBotId: string;
+              receiptId: string | null;
+            }
+          >();
+          eventClaims.inbox.mockResolvedValue([
+            {
+              eventId: WAKE_EVENT_ID,
+              entityId: TASK_ID,
+              designatedHandlerBotId: SCOPE.sokoBotId,
+            },
+          ]);
+          eventClaims.findUnique.mockImplementation(
+            async (args: {
+              where: { taskId_triggeringEventId_actionKind: Key };
+            }) =>
+              claims.get(
+                keyOf(args.where.taskId_triggeringEventId_actionKind),
+              ) ?? null,
+          );
+          eventClaims.create.mockImplementation(
+            async (args: {
+              data: Key & { handlerBotId: string; turnId: string };
+            }) => {
+              const claim = {
+                id: `claim_${claims.size + 1}`,
+                turnId: args.data.turnId,
+                handlerBotId: args.data.handlerBotId,
+                receiptId: null,
+              };
+              claims.set(keyOf(args.data), claim);
+              return { id: claim.id };
+            },
+          );
+          eventClaims.update.mockImplementation(
+            async (args: {
+              where: { id: string };
+              data: { receiptId: string };
+            }) => {
+              for (const claim of claims.values())
+                if (claim.id === args.where.id)
+                  claim.receiptId = args.data.receiptId;
+              return {};
+            },
+          );
+          // Each receipt has an id, so a claim records that it acted.
+          transactionToolCallUpdateMock.mockImplementation(
+            async (args: {
+              where: { turnId_toolCallId: { toolCallId: string } };
+            }) => ({
+              id: `receipt_${args.where.turnId_toolCallId.toolCallId}`,
+            }),
+          );
+          /** What reply_to_task with a status claims on this wake. */
+          const claimStatusReply = () =>
+            claimTaskEventAction(
+              {
+                sokoBotEventInbox: { findMany: eventClaims.inbox },
+                task: { findFirst: transactionTaskFindFirstMock },
+                sokoBotTaskActionClaim: {
+                  findUnique: eventClaims.findUnique,
+                  create: eventClaims.create,
+                },
+              } as never,
+              {
+                turnId: SCOPE.turnId,
+                sokoBotId: SCOPE.sokoBotId,
+                workspaceId: SCOPE.workspaceId,
+                source: "EVENT",
+              },
+              TASK_ID,
+              "TASK_STATE",
+            );
+          return { claims, keyOf, claimStatusReply };
+        };
+        const setParent = (input: object, toolCallId = "call_set_parent") =>
           new SokoBotRuntimeService().executeTool({
             ...SCOPE,
             capability: "set_task_parent",
-            toolCallId: "call_set_parent",
+            toolCallId,
             input: { taskId: TASK_ID, ...input },
           });
+        const receiptDisposition = () =>
+          transactionToolCallUpdateMock.mock.calls.at(-1)?.[0]?.data
+            ?.disposition;
 
         afterEach(() => {
           // clearAllMocks keeps implementations; later tests expect none.
@@ -3335,6 +3514,11 @@ describe("SokoBotRuntimeService authorization", () => {
             subtaskMove.taskFindUnique,
             subtaskMove.taskFindMany,
             taskFindFirstMock,
+            eventClaims.inbox,
+            eventClaims.findUnique,
+            eventClaims.create,
+            eventClaims.update,
+            transactionToolCallUpdateMock,
           ])
             mock.mockReset();
         });
@@ -3353,6 +3537,29 @@ describe("SokoBotRuntimeService authorization", () => {
             where: { id: TASK_ID },
             data: { parentTaskId: PARENT_ID, position: 1 },
           });
+          expect(receiptDisposition()).toBe("APPLIED");
+          // The Project did not change, so no calendar entry moved.
+          expect(
+            subtaskMove.deliverCalendarInvalidations,
+          ).not.toHaveBeenCalled();
+        });
+
+        it("delivers calendar invalidations when the parent's Project moves the Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree(
+            { [TASK_ID]: null, [PARENT_ID]: null },
+            { projects: { [PARENT_ID]: OTHER_PROJECT } },
+          );
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({
+            parentTaskId: PARENT_ID,
+            projectId: OTHER_PROJECT,
+            projectChanged: true,
+          });
+          expect(subtaskMove.deliverCalendarInvalidations).toHaveBeenCalledWith(
+            SCOPE.workspaceId,
+          );
         });
 
         it("detaches a sub-task into a Task of its own", async () => {
@@ -3367,6 +3574,42 @@ describe("SokoBotRuntimeService authorization", () => {
           });
         });
 
+        it("records a detach of a Task without a parent as already satisfied", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null });
+          await expect(
+            setParent({ parentTaskId: null }),
+          ).resolves.toMatchObject({ id: TASK_ID, parentTaskId: null });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+          expect(receiptDisposition()).toBe("ALREADY_SATISFIED");
+        });
+
+        it("records its own parent again as already satisfied, unless it names a place", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: PARENT_ID, [PARENT_ID]: null });
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({ id: TASK_ID, parentTaskId: PARENT_ID });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+          expect(receiptDisposition()).toBe("ALREADY_SATISFIED");
+
+          // A place in the checklist is a reorder, so it moves the Task.
+          tree({
+            [TASK_ID]: PARENT_ID,
+            [PARENT_ID]: null,
+            [SIBLING_ID]: PARENT_ID,
+          });
+          await setParent(
+            { parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID },
+            "call_set_parent_after",
+          );
+          expect(transactionTaskUpdateMock).toHaveBeenCalledWith({
+            where: { id: TASK_ID },
+            data: { position: expect.any(Number) },
+          });
+          expect(receiptDisposition()).toBe("APPLIED");
+        });
+
         it("refuses to put a Task under one of its own sub-tasks", async () => {
           sharedTurn("set_task_parent", PERSONAL_BOT);
           tree({ [TASK_ID]: null, [PARENT_ID]: TASK_ID });
@@ -3379,18 +3622,104 @@ describe("SokoBotRuntimeService authorization", () => {
         it("refuses a parent its turn cannot read, as if missing", async () => {
           // A personal bot's writes are unscoped; its reader still applies.
           sharedTurn("set_task_parent", PERSONAL_BOT);
-          tree({ [TASK_ID]: null, [PARENT_ID]: null });
-          transactionTaskCountMock.mockResolvedValue(1);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null }, { hidden: [PARENT_ID] });
           await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
             "Task not found",
           );
-          expect(transactionTaskCountMock).toHaveBeenCalledWith({
-            where: expect.objectContaining({
-              id: { in: [TASK_ID, PARENT_ID] },
-              archivedAt: null,
+          expect(subtaskMove.taskFindMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({
+                id: { in: [TASK_ID, PARENT_ID] },
+                archivedAt: null,
+              }),
             }),
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("refuses an afterTaskId its turn cannot read, as if missing", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree(
+            { [TASK_ID]: null, [PARENT_ID]: null, [SIBLING_ID]: PARENT_ID },
+            { hidden: [SIBLING_ID] },
+          );
+          await expect(
+            setParent({ parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID }),
+          ).rejects.toThrow("Task not found");
+          expect(subtaskMove.taskFindMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({
+                id: { in: [TASK_ID, PARENT_ID, SIBLING_ID] },
+              }),
+            }),
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("checks the afterTaskId against a shared bot's write scope", async () => {
+          sharedTurn("set_task_parent", PROJECT_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null, [SIBLING_ID]: PARENT_ID });
+          // The sibling is outside the bot's Project.
+          transactionTaskCountMock.mockResolvedValue(2);
+          await expect(
+            setParent({ parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID }),
+          ).rejects.toThrow("Task not found");
+          expect(transactionTaskCountMock).toHaveBeenCalledWith({
+            where: {
+              AND: [
+                { id: { in: [TASK_ID, PARENT_ID, SIBLING_ID] } },
+                expect.anything(),
+              ],
+            },
           });
           expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("on an event wake, does not collide with a status reply on the same Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree({ [TASK_ID]: null, [PARENT_ID]: null });
+          const { claims, keyOf, claimStatusReply } = wake();
+          // reply_to_task with a status already acted on this wake.
+          claims.set(
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+            {
+              id: "claim_reply",
+              turnId: SCOPE.turnId,
+              handlerBotId: SCOPE.sokoBotId,
+              receiptId: "receipt_reply",
+            },
+          );
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({ parentTaskId: PARENT_ID });
+          expect(transactionTaskUpdateMock).toHaveBeenCalledTimes(1);
+
+          // And the reverse: after the parent change, a status reply may act.
+          claims.clear();
+          await setParent({ parentTaskId: PARENT_ID }, "call_set_parent_2");
+          await expect(claimStatusReply()).resolves.toMatchObject({
+            allowed: true,
+          });
+        });
+
+        it("on an event wake, refuses a second parent change of the same Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree({
+            [TASK_ID]: null,
+            [PARENT_ID]: null,
+            [OTHER_PARENT_ID]: null,
+          });
+          wake();
+          await setParent({ parentTaskId: PARENT_ID });
+          // One action of each kind per woken event: the claim has a receipt.
+          await expect(
+            setParent({ parentTaskId: OTHER_PARENT_ID }, "call_set_parent_2"),
+          ).rejects.toThrow("Someone else answered or changed this Task");
+          expect(transactionTaskUpdateMock).toHaveBeenCalledTimes(1);
         });
 
         it("refuses a shared bot's turn for nobody, before it reads anything", async () => {
@@ -3399,6 +3728,7 @@ describe("SokoBotRuntimeService authorization", () => {
           await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
             "needs a person on this turn",
           );
+          expect(subtaskMove.taskFindMany).not.toHaveBeenCalled();
           expect(transactionTaskCountMock).not.toHaveBeenCalled();
         });
       });
@@ -3416,7 +3746,6 @@ describe("SokoBotRuntimeService authorization", () => {
               input: { taskId: "task_1", peerTaskId: PARENT_ID, relation },
             }),
           ).rejects.toThrow("Use set_task_parent");
-          expect(transactionTaskCountMock).not.toHaveBeenCalled();
         },
       );
     });

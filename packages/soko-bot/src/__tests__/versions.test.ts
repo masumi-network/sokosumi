@@ -370,6 +370,11 @@ describe("versions", () => {
     const content = getSokoBotSkill("coworker-coordination").content;
     expect(content).not.toMatch(/`parent`|`child`/);
     expect(content).toContain("set_task_parent");
+    // A sub-task is hidden from the Taskboard; its parent's checklist shows it.
+    const subtaskSentence = content
+      .split(/(?<=\.)\s/)
+      .find((sentence) => sentence.includes("set_task_parent"));
+    expect(subtaskSentence).toContain("not on the Taskboard");
   });
 
   it("fall back to the default for unknown ids", () => {

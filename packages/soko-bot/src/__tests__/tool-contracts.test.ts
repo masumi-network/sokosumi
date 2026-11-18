@@ -107,6 +107,13 @@ describe("Soko Bot tool contracts", () => {
     expect(SOKO_BOT_TOOL_DESCRIPTIONS.link_tasks).toContain("set_task_parent");
   });
 
+  it("tells the bot get_task_status lists a capped number of sub-tasks", () => {
+    // Core returns at most 25 sub-tasks and a subtaskCount of all of them.
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.get_task_status).toMatch(
+      /first 25.*subtaskCount/,
+    );
+  });
+
   it("sets or clears a parent, and never leaves it out", () => {
     // Core's move reads an absent parentTaskId as "keep the parent", so a
     // call without one would answer success and change nothing.

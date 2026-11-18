@@ -234,6 +234,7 @@ export async function readTask(
         take: SUBTASKS_READ_LIMIT,
         select: { id: true, name: true, status: true },
       },
+      _count: { select: { subtasks: { where: visiblePeerTask } } },
       linksFrom: {
         where: {
           toTask: {
@@ -297,8 +298,10 @@ export async function readTask(
       ? { id: task.project.id, name: task.project.name }
       : null,
     parentTaskId: task.parentTaskId,
-    // Its own checklist, in order.
+    // Its own checklist, in order: the first SUBTASKS_READ_LIMIT of them.
     subtasks: task.subtasks,
+    // Every sub-task the turn can read, also those past the limit.
+    subtaskCount: task._count.subtasks,
     updatedAt: task.updatedAt,
     dueOn: calendarDay(task.dueOn),
     creditsCharged: roundCredits(
