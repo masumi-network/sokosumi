@@ -1944,6 +1944,10 @@ export type Task = {
     share: TaskShare | null;
     links: Array<TaskLink>;
     /**
+     * People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.
+     */
+    followers?: Array<TaskFollower>;
+    /**
      * Files uploaded to this task (newest first).
      */
     files: Array<TaskFile>;
@@ -2360,6 +2364,14 @@ export type TaskLinkPeerTask = {
      * Project identifier and number, e.g. SOK-123. Null when the peer has no project.
      */
     identifier: string | null;
+};
+
+export type TaskFollower = {
+    user: UserSummary;
+    /**
+     * When this person started following the Task.
+     */
+    followedAt: Date;
 };
 
 export type TaskFile = {
@@ -13682,6 +13694,11 @@ export type SokoBotActivity = {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
     lastActivityAt: Date | null;
+    id: string;
+    userId: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    avatarCode: string | null;
 };
 
 export type CreateSokoBotRequest = {
@@ -14690,6 +14707,10 @@ export type TaskLinkDeleted = {
 
 export type TaskParticipants = {
     participants: Array<TaskParticipant>;
+};
+
+export type TaskFollowers = {
+    followers: Array<TaskFollower>;
 };
 
 export type TaskSellerReceipt = {
@@ -97218,6 +97239,171 @@ export type DeleteTasksByIdParticipantsByUserIdResponses = {
 };
 
 export type DeleteTasksByIdParticipantsByUserIdResponse = DeleteTasksByIdParticipantsByUserIdResponses[keyof DeleteTasksByIdParticipantsByUserIdResponses];
+
+export type DeleteTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type DeleteTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdFollowError = DeleteTasksByIdFollowErrors[keyof DeleteTasksByIdFollowErrors];
+
+export type DeleteTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdFollowResponse = DeleteTasksByIdFollowResponses[keyof DeleteTasksByIdFollowResponses];
+
+export type PostTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type PostTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No personal Soko Bot
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdFollowError = PostTasksByIdFollowErrors[keyof PostTasksByIdFollowErrors];
+
+export type PostTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdFollowResponse = PostTasksByIdFollowResponses[keyof PostTasksByIdFollowResponses];
 
 export type DeleteTasksByIdData = {
     body?: never;

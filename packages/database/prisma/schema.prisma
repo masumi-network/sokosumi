@@ -3484,7 +3484,11 @@ model Task {
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
   /// Humans added by @ in Task comment activity. Not owner or assignee.
-  participants TaskParticipant[]
+  participants     TaskParticipant[]
+  /// People whose personal Soko Bot follows the Task for them.
+  followers        TaskFollower[]
+  dueDateChanges   TaskDueDateChange[]
+  momentDeliveries TaskMomentDelivery[]
 
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -3527,6 +3531,7 @@ model Task {
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
+  @@index([dueOn])
   @@index([status, runAt])
   @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")
@@ -4040,6 +4045,7 @@ model TaskEvent {
   @@index([transactionId])
   @@index([sokoBotId])
   @@index([taskId, createdAt])
+  @@index([createdAt])
   @@map("taskEvent")
 }
 

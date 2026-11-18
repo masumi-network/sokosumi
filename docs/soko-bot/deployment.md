@@ -86,6 +86,10 @@ Optional, per network:
   comparison with `pnpm --filter @sokosumi/core soko-bot:judge-eval`, and the
   route classifier's with `soko-bot:router-eval`; results appear under Admin →
   Soko Bots → Model evaluations.
+- `SOKO_BOT_JUDGE_RUNNER` — `gateway` (default) or `claude-code`. Leave it
+  unset on Vercel: `claude-code` runs the judge through the local `claude`
+  CLI for evals on a developer machine, and Core refuses it when `VERCEL_ENV`
+  is set. See [Evals](../agents/evals.md).
 
 Environment changes only apply to the _next_ build, so redeploy after setting
 them.

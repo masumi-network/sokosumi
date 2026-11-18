@@ -285,7 +285,7 @@ export function ChannelsPage({
         <h3>Ad accounts</h3>
         <p className="muted">
           Optional. {AGENT_NAME} writes the ads; you launch each one, and they
-          never spend more than your plan's ad budget.
+          never spend more than your strategy's ad budget.
         </p>
         <ul className="list">
           {AD_PROVIDERS.map(([provider, label]) => (

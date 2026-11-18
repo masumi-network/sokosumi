@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -168,6 +168,23 @@ describe("EmailCodeField", () => {
 
     expect(codeField()).toHaveValue("042917");
     expect(onComplete).toHaveBeenCalledExactlyOnceWith("042917");
+  });
+
+  it("ignores a paste that carries no clipboard, as Lighthouse and some autofill tools send", () => {
+    const thrown: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      thrown.push(event.error);
+      event.preventDefault();
+    };
+    window.addEventListener("error", onError);
+    render(<Field initialCode="0429" />);
+
+    // A paste built in script, with no clipboard behind it.
+    fireEvent(codeField(), new ClipboardEvent("paste", { bubbles: true }));
+    window.removeEventListener("error", onError);
+
+    expect(thrown).toEqual([]);
+    expect(codeField()).toHaveValue("0429");
   });
 
   it("hands over the same code only once, and a changed one again", async () => {

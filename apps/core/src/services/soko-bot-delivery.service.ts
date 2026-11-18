@@ -15,6 +15,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { TASK_SUMMARY_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/system-routes";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
@@ -478,6 +479,11 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       await emitChatMessageNotifications({
         messageId: persisted.messageId,
         mentionedUserIds: mentions.map((mention) => mention.userId),
+        ...(persisted.turn.clientTurnId.startsWith(
+          TASK_SUMMARY_CLIENT_TURN_PREFIX,
+        )
+          ? { osBannerDefaultOn: true }
+          : {}),
         throwOnError: true,
       });
     }

@@ -40,6 +40,9 @@ if (args.includes("--record"))
   process.env.SOKO_BOT_INTEGRATION_FIXTURES = "record";
 if (args.includes("--replay"))
   process.env.SOKO_BOT_INTEGRATION_FIXTURES = "replay";
+// The lab runs on a developer machine: the judge is that developer's Claude
+// Code, not the Gateway. SOKO_BOT_JUDGE_RUNNER=gateway keeps the Gateway judge.
+process.env.SOKO_BOT_JUDGE_RUNNER ??= "claude-code";
 const workspaceIdArg = flag("workspace");
 const noJudge = args.includes("--no-judge");
 // Every run otherwise inherits the Tasks and schedules earlier runs created,

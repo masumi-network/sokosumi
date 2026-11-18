@@ -177,7 +177,7 @@ export const overview: CmoOverview = cmoOverview({
       key: "cmo-weekly-review",
       name: "Weekly review",
       when: "Mondays at 09:00",
-      description: "Reads the week's results and adjusts the plan.",
+      description: "Reads the week's results and adjusts the strategy.",
       nextRunAt: at("09T09:00:00"),
       timezone: "Europe/Berlin",
     },
@@ -327,3 +327,20 @@ export const messages: CusoMessage[] = [
     "04T10:03:30",
   ),
 ];
+
+/**
+ * The chat page's own state: a long German message, to check how the thread
+ * wraps, and Cuso at work, so the typing row shows above the composer.
+ */
+export const chat = {
+  overview: { ...overview, botStatus: "RUNNING" as const },
+  messages: [
+    ...messages,
+    message(
+      "m6",
+      false,
+      "Bitte schreibe die LinkedIn-Beiträge für die Produkteinführung auf Deutsch, mit einem klaren Nutzenversprechen für Produktverantwortliche und einem Hinweis auf die vierzehntägige Testphase. Die Geschwindigkeitsbegrenzung im Wettbewerbsvergleich darf nicht fehlen.",
+      "04T10:05:00",
+    ),
+  ],
+};

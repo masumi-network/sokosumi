@@ -27,6 +27,7 @@ import {
   sokoBotSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
+import { mapTaskFollowerRows } from "./task-follower-rows";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
@@ -502,6 +503,7 @@ export function mapTask(
     share: task.share,
     links,
     files: files.map(mapTaskFile),
+    followers: mapTaskFollowerRows(task, task.followers ?? []),
     selectableStatuses: getSelectableTaskStatuses(task, authContext),
   };
 }

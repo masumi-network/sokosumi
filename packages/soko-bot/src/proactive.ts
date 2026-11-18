@@ -50,6 +50,23 @@ export const SOKO_BOT_BRIEF_FORMAT =
 
 const brief = (prompt: string) => `${prompt} ${SOKO_BOT_BRIEF_FORMAT}`;
 
+/**
+ * The turn a follower's bot runs when a Task they follow completes. Reads and
+ * reports; it changes nothing. The Task's text is not quoted here: the bot
+ * reads it through get_task_status, which marks it as untrusted.
+ */
+export function sokoBotTaskSummaryPrompt(task: {
+  id: string;
+  identifier: string | null;
+}): string {
+  const ref = task.identifier
+    ? `${task.identifier}, id ${task.id}`
+    : `id ${task.id}`;
+  return brief(
+    `A Task the owner follows is completed (${ref}). Read it with get_task_status: the description, the status timeline and who set each status, the comments, the files, the linked Tasks and dueOn. Use get_job_status for a Job it names. Then tell the owner whether what was asked was delivered. First line: the Task's name and one of "done as asked", "done with gaps" or "unclear". Sections: "Delivered" (each result, with its link), "Gaps" (each thing the description asked for that you find no evidence of, written "not shown", never "not done", because work can happen outside Sokosumi), "Next" (linked Tasks still open). End with Numbers: on time, or late by N days (dueOn against the completion date; skip it without a dueOn) · Jobs · credits. Change nothing: no comments, no status changes, no new Tasks.`,
+  );
+}
+
 export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
   {
     key: "standup",

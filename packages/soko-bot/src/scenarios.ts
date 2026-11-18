@@ -295,6 +295,22 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "followed-tasks",
+    title: "Says which Tasks it follows for the owner",
+    intent:
+      "Reads the followed Tasks with list_followed_tasks and changes nothing it was not asked to.",
+    prompt: "Which Tasks are you following for me at the moment?",
+    rubric:
+      "The bot called list_followed_tasks and named only the Tasks it returned, with their status, or said plainly that it follows none. Naming a Task no tool returned is a fabrication and fails. It stops following nothing: the owner only asked.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
+      tools: ["list_followed_tasks"],
+      forbiddenTools: ["stop_following_task", "create_task"],
+      noDelegations: true,
+      noInventedIds: true,
+    },
+  },
+  {
     id: "ambiguous-request",
     rubric: "The bot asked one precise clarifying question and took no action.",
     title: "Ambiguous request",
@@ -1052,6 +1068,9 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
 export const CMO_PLACEHOLDER_PATTERN =
   "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
 
+/** The chat case whose picture must start as a reference library job. */
+export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
+
 /** Cuso (CMO) behaviour; run against a CMO bot, not the personal assistant. */
 export const CMO_SCENARIOS: SokoBotScenario[] = [
   {
@@ -1101,13 +1120,13 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "cmo-change-request",
-    title: "Changes the plan the way the founder asked",
+    title: "Changes the strategy the way the founder asked",
     intent:
-      "A founder's change to the month updates the saved plan, only where asked, and says what changed.",
+      "A founder's change to the month updates the saved strategy, only where asked, and says what changed.",
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole plan, or saying it changed without a successful save_strategy, fails. If no plan exists yet, saying so is correct.",
+      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.",
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
@@ -1132,6 +1151,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["create_task", "hire_agent"],
       // The lane's month is a draft: a pieces save is refused, a calendar save works.
       allowFailedTools: ["save_strategy"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: CMO_POST_WITH_PICTURE_SCENARIO_ID,
+    title: "Makes a chat post's picture in a library style",
+    intent:
+      "Asked in chat for a post with an image, Cuso makes the picture the way a month's pictures are made: in the look of a reference, not a plain generated image.",
+    prompt: "Please make a new LinkedIn post for me with an image.",
+    rubric:
+      "Cuso wrote one finished LinkedIn post in the brand's voice from the Brand Brain, called find_style_references for its picture and started the picture with generate_image carrying a returned id in styleReferenceId (and a headline of at most six words when the picture carries words). He ends the turn waiting for the picture, or with the post created once it is ready, and says plainly where things stand. Where the reference library returns nothing, a plain generate_image is correct. A plain picture when references were returned, an id no result returned, asking which business or topic to write about, or claiming the post has its picture before get_image returned a file fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["find_style_references", "generate_image"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
       noInventedIds: true,
     },
   },

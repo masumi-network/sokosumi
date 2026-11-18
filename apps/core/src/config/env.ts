@@ -266,6 +266,20 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
+  /**
+   * Who runs the judge. `gateway` calls `SOKO_BOT_JUDGE_MODEL` through the AI
+   * Gateway. `claude-code` runs the same prompt through the local `claude`
+   * CLI on the developer's Claude Code subscription, for evals run on a
+   * developer machine. It is refused on Vercel, and it is not pinned to the
+   * EU as the Gateway judge is. The bots under test keep their own models
+   * either way.
+   */
+  SOKO_BOT_JUDGE_RUNNER: z.enum(["gateway", "claude-code"]).default("gateway"),
+  /** The `claude --model` value the `claude-code` judge runs on. */
+  SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL: z
+    .string()
+    .min(1)
+    .default("claude-opus-5-5"),
   /** Immutable operator-issued preview partition; never accepted from API input. */
   SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /**

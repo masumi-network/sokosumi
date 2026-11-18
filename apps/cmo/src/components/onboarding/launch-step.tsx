@@ -189,8 +189,8 @@ export function LaunchStep({
         <div className="ob-celebration-copy">
           <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
           <p className="muted">
-            {AGENT_NAME} makes your month now and posts on your plan's schedule.
-            Pause or change any piece from the calendar.
+            {AGENT_NAME} makes your month now and posts on your strategy's
+            schedule. Pause or change any piece from the calendar.
           </p>
           {summary.length > 0 ? (
             <dl className="ob-summary">
@@ -351,7 +351,7 @@ export function LaunchStep({
       <p className="ob-small muted">
         {waiting
           ? `Connect ${joinNames(required.map(channelLabel), "or")} to launch.`
-          : `${AGENT_NAME} only does what your approved plan says, and you can disconnect any time.`}
+          : `${AGENT_NAME} only does what your approved strategy says, and you can disconnect any time.`}
       </p>
     </section>
   );

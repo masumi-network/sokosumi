@@ -4,6 +4,7 @@ import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { recordTaskDueDateMovedLater } from "@/helpers/task-due-date-change";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -131,6 +132,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: { dueOn: dueDay(to) },
         });
         if (count !== 1) return null;
+        await recordTaskDueDateMovedLater(tx, {
+          taskId: task.id,
+          from,
+          to: dueDay(to),
+          actorUserId: userContext.userId,
+        });
         const { updatedAt } = await tx.task.findUniqueOrThrow({
           where: { id: task.id },
           select: { updatedAt: true },
