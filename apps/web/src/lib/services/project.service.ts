@@ -5,6 +5,7 @@ import type {
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
+  FinalizeProjectSocialConnectionRequest,
   GetProjectsByIdCalendarData,
   GetProjectsData,
   InitiateProjectSocialConnectionRequest,
@@ -331,11 +332,11 @@ export const projectService = (() => {
 
   async function finalizeSocialConnection(
     projectId: string,
-    connectionId: string,
+    input: FinalizeProjectSocialConnectionRequest,
   ): Promise<ProjectSocialConnection> {
     const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
       projectId,
-      { connectionId },
+      input,
     );
     return result.data;
   }

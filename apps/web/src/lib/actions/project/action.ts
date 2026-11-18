@@ -94,6 +94,7 @@ interface InitiateProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   action: InitiateProjectSocialConnectionRequest["action"];
+  callbackUrl?: string;
   provider?: ProjectSocialConnection["provider"];
   socialConnectionId?: string;
 }
@@ -102,6 +103,7 @@ interface FinalizeProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   connectionId: string;
+  callbackProof?: string;
 }
 
 interface DisconnectProjectSocialConnectionParameters
@@ -562,7 +564,7 @@ export const cancelProjectCloseOwedWork = withSession<
 export const initiateProjectSocialConnection = withSession<
   InitiateProjectSocialConnectionParameters,
   ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
->(async ({ projectId, action, socialConnectionId, provider }) => {
+>(async ({ projectId, action, socialConnectionId, provider, callbackUrl }) => {
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) {
     return toActionResult(
@@ -597,7 +599,7 @@ export const initiateProjectSocialConnection = withSession<
   try {
     const connection = await projectService.initiateSocialConnection(
       normalizedProjectId,
-      input,
+      { ...input, callbackUrl },
     );
     return toActionResult(ok(connection));
   } catch (error) {
@@ -608,7 +610,7 @@ export const initiateProjectSocialConnection = withSession<
 export const finalizeProjectSocialConnection = withSession<
   FinalizeProjectSocialConnectionParameters,
   ActionResultDto<ProjectSocialConnection, ActionError>
->(async ({ projectId, connectionId }) => {
+>(async ({ projectId, connectionId, callbackProof }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedConnectionId = connectionId.trim();
   if (!normalizedProjectId || !normalizedConnectionId) {
@@ -623,7 +625,7 @@ export const finalizeProjectSocialConnection = withSession<
   try {
     const connection = await projectService.finalizeSocialConnection(
       normalizedProjectId,
-      normalizedConnectionId,
+      { connectionId: normalizedConnectionId, callbackProof },
     );
     revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
     return toActionResult(ok(connection));
@@ -1141,12 +1143,13 @@ export const publishProjectSocialPost = withSession<
     .extend({
       tikTokSettings: z
         .object({
-          privacyLevel: z.literal("SELF_ONLY"),
+          privacyLevel: z.enum(["SELF_ONLY", "PUBLIC_TO_EVERYONE"]),
           allowComment: z.boolean(),
           allowDuet: z.boolean(),
           allowStitch: z.boolean(),
           promotesOwnBrand: z.boolean(),
           acceptedMusicUsage: z.literal(true),
+          previewConsent: z.literal(true).optional(),
         })
         .optional(),
     })

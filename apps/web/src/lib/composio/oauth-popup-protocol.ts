@@ -155,6 +155,7 @@ export interface ComposioOAuthCallbackPayload {
   status: ComposioOAuthCallbackStatus;
   connectionId: string | null;
   sessionUri: string | null;
+  callbackProof?: string;
   errorMessage: string | null;
   nonce: string;
 }
@@ -185,27 +186,13 @@ export function isComposioOAuthCallbackPayload(
  * Same-tab bot connections have no popup nonce and use the signed-in verifier.
  */
 export function buildComposioCallbackInlineScript(): string {
-  const channel = COMPOSIO_OAUTH_BROADCAST_CHANNEL;
-  const storageKey = COMPOSIO_OAUTH_NONCE_STORAGE_KEY;
-  const popupNamePrefix = COMPOSIO_OAUTH_POPUP_NAME_PREFIX;
   const messageType = COMPOSIO_OAUTH_MESSAGE_TYPE;
-  const ackType = COMPOSIO_OAUTH_ACK_TYPE;
   const botVerifierPath = COMPOSIO_BOT_VERIFIER_PATH;
   const botIdKey = COMPOSIO_BOT_ID_STORAGE_KEY;
   const returnUrlValidator = isFirstPartyReturnUrl.toString();
   const allowLocalReturn = process.env.NODE_ENV === "development";
 
-  return `(function(){
-try{
-var p=new URLSearchParams(window.location.search);
-var popupName=typeof window.name==="string"?window.name:"";
-var namedNonce=popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0?popupName.slice(${JSON.stringify(popupNamePrefix)}.length):"";
-var nonce="";
-try{
-nonce=window.sessionStorage.getItem(${JSON.stringify(storageKey)})||"";
-window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
-}catch(e){}
-var sessionUri=p.get("session_uri")||p.get("sessionUri");
+  return buildPopupScript(`var sessionUri=p.get("session_uri")||p.get("sessionUri");
 var connectionId=p.get("connectedAccountId")||p.get("connected_account_id")||p.get("connectionId")||p.get("id");
 if(!nonce){
 var handoff=null;
@@ -256,7 +243,37 @@ var rawStatus=(p.get("status")||"").toLowerCase();
 var errorMessage=p.get("error")||p.get("error_description");
 var failed=rawStatus==="failed"||rawStatus==="error"||rawStatus==="expired"||rawStatus==="inactive"||!!errorMessage;
 var status=failed?"error":(rawStatus==="success"||rawStatus==="active"||connectionId||sessionUri?"success":"error");
-var payload={type:${JSON.stringify(messageType)},status:status,connectionId:connectionId,sessionUri:sessionUri,errorMessage:errorMessage,nonce:nonce};
+var payload={type:${JSON.stringify(messageType)},status:status,connectionId:connectionId,sessionUri:sessionUri,errorMessage:errorMessage,nonce:nonce};`);
+}
+
+export function buildZernioCallbackInlineScript(): string {
+  return buildPopupScript(`
+nonce=nonce||namedNonce;
+if(!nonce)return;
+var connectionId=p.get("connection");
+var proof=p.get("proof");
+var profileId=p.get("profileId");
+var success=!p.has("error")&&!p.has("error_description")&&p.get("connected")==="tiktok"
+  &&proof&&p.get("accountId")&&profileId&&connectionId==="zernio:"+profileId;
+var payload={type:${JSON.stringify(COMPOSIO_OAUTH_MESSAGE_TYPE)},status:success?"success":"error",connectionId:connectionId,callbackProof:success?proof:undefined,sessionUri:null,errorMessage:null,nonce:nonce};`);
+}
+
+function buildPopupScript(readPayload: string): string {
+  const channel = COMPOSIO_OAUTH_BROADCAST_CHANNEL;
+  const storageKey = COMPOSIO_OAUTH_NONCE_STORAGE_KEY;
+  const popupNamePrefix = COMPOSIO_OAUTH_POPUP_NAME_PREFIX;
+  const ackType = COMPOSIO_OAUTH_ACK_TYPE;
+  return `(function(){
+try{
+var p=new URLSearchParams(window.location.search);
+var popupName=typeof window.name==="string"?window.name:"";
+var namedNonce=popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0?popupName.slice(${JSON.stringify(popupNamePrefix)}.length):"";
+var nonce="";
+try{
+nonce=window.sessionStorage.getItem(${JSON.stringify(storageKey)})||"";
+window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
+}catch(e){}
+${readPayload}
 var origin=window.location.origin;
 function closePopup(){try{window.close()}catch(e){}}
 window.addEventListener("message",function onAck(ev){

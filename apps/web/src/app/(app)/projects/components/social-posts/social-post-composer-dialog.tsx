@@ -495,7 +495,10 @@ export function SocialPostComposerDialog({
     staleTime: 0,
     retry: false,
   });
-  const [audience, setAudience] = useState("");
+  const [audience, setAudience] = useState<{
+    connectionId: string;
+    level: TikTokPostSettings["privacyLevel"];
+  } | null>(null);
   const [acceptMusic, setAcceptMusic] = useState(false);
   const [disclose, setDisclose] = useState(false);
   const [ownBrand, setOwnBrand] = useState(false);
@@ -516,16 +519,17 @@ export function SocialPostComposerDialog({
   const tikTokSettings: TikTokPostSettings | undefined =
     tikTok &&
     selectedConnections.length === 1 &&
-    audience === tikTok.id &&
+    audience?.connectionId === tikTok.id &&
     acceptMusic &&
     (!disclose || ownBrand) &&
     durationValid &&
-    creator.data?.privacy_level_options.includes("SELF_ONLY") &&
+    creator.data?.privacy_level_options.includes(audience.level) &&
     !creator.isError &&
     !creator.isFetching
       ? {
-          privacyLevel: "SELF_ONLY",
+          privacyLevel: audience.level,
           acceptedMusicUsage: true,
+          previewConsent: true,
           allowComment,
           allowDuet,
           allowStitch,
@@ -762,7 +766,7 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
-    setAudience("");
+    setAudience(null);
     setAcceptMusic(false);
     setOwnBrand(false);
     setDisclose(false);
@@ -2191,15 +2195,35 @@ export function SocialPostComposerDialog({
                         {t("composer.ttAudience")}
                         <select
                           className="rounded-md border bg-background p-2"
-                          value={audience === tikTok.id ? audience : ""}
-                          onChange={(event) => setAudience(event.target.value)}
+                          value={
+                            audience?.connectionId === tikTok.id
+                              ? audience.level
+                              : ""
+                          }
+                          onChange={(event) => {
+                            const level = event.target.value;
+                            setAcceptMusic(false);
+                            setAudience(
+                              level === "SELF_ONLY" ||
+                                level === "PUBLIC_TO_EVERYONE"
+                                ? { connectionId: tikTok.id, level }
+                                : null,
+                            );
+                          }}
                         >
                           <option value="">{t("composer.ttSelect")}</option>
                           {creator.data.privacy_level_options.includes(
                             "SELF_ONLY",
                           ) && (
-                            <option value={tikTok.id}>
+                            <option value="SELF_ONLY">
                               {t("composer.ttOnlyMe")}
+                            </option>
+                          )}
+                          {creator.data.privacy_level_options.includes(
+                            "PUBLIC_TO_EVERYONE",
+                          ) && (
+                            <option value="PUBLIC_TO_EVERYONE">
+                              {t("composer.ttEveryone")}
                             </option>
                           )}
                         </select>

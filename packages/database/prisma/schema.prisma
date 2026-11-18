@@ -646,6 +646,8 @@ model ProjectSocialConnection {
   /// X subscription tier read from the provider at connect/reconnect and account sync; null when unknown or not X
   subscriptionType              String?
   composioConnectedAccountId    String
+  /// Dedicated profile to release along with this TikTok authorization.
+  zernioProfileId               String?
   status                        String
   activeExternalAccountKey      String?
   connectorUserId               String
@@ -726,6 +728,7 @@ model ProjectSocialConnectionIntent {
   action             String
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+  /// Composio auth configuration ID, or the digest of the one-use Zernio callback proof.
   authConfigId       String
   callbackRedeemedAt DateTime?
   expiresAt          DateTime
@@ -743,6 +746,8 @@ model ProjectSocialConnectionAudit {
   externalAccountId         String
   externalHandle            String?
   connectedAccountId        String?
+  /// Preserve the retired profile across reconnects so provider cleanup can retry.
+  zernioProfileId           String?
   providerOutcome           String?
   createdAt                 DateTime @default(now())
 

@@ -412,6 +412,9 @@ describe("ProjectSocialAccounts", () => {
           projectId: PROJECT_ID,
           action: "connect",
           provider,
+          ...(provider === "tiktok"
+            ? { callbackUrl: window.location.origin + "/zernio/callback" }
+            : {}),
         }),
       );
     },
