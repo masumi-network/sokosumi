@@ -79,6 +79,7 @@ export async function requireSeoTaskIndexingContext(
       ownerId: actor.userId,
       kind: "metrics",
       source: "search_console",
+      pageIds: { hasEvery: analysis.pageIds },
     },
     orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     select: { payload: true },

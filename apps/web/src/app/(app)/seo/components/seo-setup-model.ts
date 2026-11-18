@@ -10,6 +10,13 @@ import {
  */
 export type SeoSetupState = "done" | "next" | "running" | "waiting";
 
+export function seoSetupPages(workspace: ProjectSeoWorkspace) {
+  const byId = new Map(workspace.pages.map((page) => [page.id, page]));
+  return workspace.scope.pageIds
+    .map((id) => byId.get(id))
+    .filter((page) => page !== undefined);
+}
+
 type SeoAnalysis = ProjectSeoWorkspace["analyses"][number];
 /** Core does not promise an order: the newest by date decides. */
 const newestAnalysis = (analyses: SeoAnalysis[]) =>

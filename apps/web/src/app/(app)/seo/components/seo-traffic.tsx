@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { SeoAiAssistants } from "./seo-ai-assistants";
 import { SeoBreakdown } from "./seo-breakdown";
-import { SeoCsvButton } from "./seo-csv-button";
+import { SeoExportMenu } from "./seo-export-menu";
 import { seoTopPagesExport } from "./seo-export-model";
 import { SeoQueryFilter } from "./seo-keywords";
 import { SeoMeasurements } from "./seo-measurements";
@@ -75,10 +75,11 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("pages.topPages")}
-      foot={
-        <SeoCsvButton
+      actions={
+        <SeoExportMenu
           name="top-pages"
           title={t("pages.topPages")}
+          workspace={model.data}
           table={() => seoTopPagesExport(rows, t, keyEvents)}
         />
       }

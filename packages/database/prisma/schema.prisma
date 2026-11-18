@@ -7,7 +7,7 @@
 generator client {
   provider        = "prisma-client" // ESM-first
   output          = "../src/generated/prisma" // output directory for the generated client
-  previewFeatures = ["partialIndexes"]
+  previewFeatures = ["partialIndexes", "views"]
 }
 
 datasource db {
@@ -3410,149 +3410,6 @@ model CoworkerApiKey {
   @@map("coworker_api_key")
 }
 
-model Task {
-  botActionClaims SokoBotTaskActionClaim[]
-  tableScope      TableTaskScope?
-  id              String                   @id @default(uuid(7))
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  archivedAt      DateTime?
-
-  /// The Owner: the person who answers for the Task, and the only reader of a
-  /// private one (ADR 0057). Private Tasks always have one (DB check
-  /// `task_private_has_owner_check`). Account deletion deletes the private
-  /// Tasks a person owns; on public ones the Owner is emptied.
-  ownerId String?
-  owner   User?   @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  name        String
-  description String?
-
-  /// Controlled vocabulary IDs. Manual additions and rejections survive content edits.
-  automaticTags                String[] @default([])
-  manualTags                   String[] @default([])
-  rejectedTags                 String[] @default([])
-  /// Maintained by task_tag_revision trigger for all writers, including schedules.
-  tagContentRevision           Int      @default(1)
-  tagClassificationState       String   @default("unclassified")
-  tagClassificationAttempts    Int      @default(0)
-  tagClassificationLease       String?
-  tagClassificationAvailableAt DateTime @default(now())
-  tagVocabularyVersion         Int      @default(1)
-
-  status TaskStatus @default(DRAFT)
-
-  /// Workspace-visible vs creator-private. Set at create; immutable in v1.
-  /// Private is meaningful only in organization workspaces (SOK-1046).
-  visibility TaskVisibility @default(PUBLIC)
-
-  priority TaskPriority @default(NONE)
-
-  /// Marketplace coworker assignee. XOR with assigneeSokoBotId (DB check).
-  assigneeId String?
-  assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-
-  /// Personal assistant assignee. XOR with assigneeId (DB check).
-  assigneeSokoBotId String?  @db.Uuid
-  assigneeSokoBot   SokoBot? @relation("TaskAssigneeSokoBot", fields: [assigneeSokoBotId], references: [id], onDelete: SetNull)
-
-  /// Workspace-member assignee. At most one assignee FK is set (DB check).
-  assigneeUserId String?
-  assigneeUser   User?   @relation("TaskAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
-
-  /// Creator: at most one creator FK is set (DB check
-  /// `task_creator_at_most_one_check`); none means a person who deleted their
-  /// account. Immutable after create.
-  creatorUserId String?
-  creatorUser   User?   @relation("TaskCreatorUser", fields: [creatorUserId], references: [id], onDelete: SetNull)
-
-  creatorCoworkerId String?
-  creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
-
-  creatorSokoBotId String?  @db.Uuid
-  creatorSokoBot   SokoBot? @relation("TaskCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
-
-  workspaceId String    @db.Uuid
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-
-  pendingVendorGrantId String?      @db.Uuid
-  /// Cleared when the grant row is deleted (onDelete: SetNull). Exposed on the Core task API while status is GRANT_PENDING.
-  pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
-
-  /// Target status after vendor workspace grant approval. Only set while status is GRANT_PENDING.
-  grantResumeStatus GrantResumeStatus?
-
-  share PublicShare?
-
-  events             TaskEvent[]
-  sokoBotWatches     SokoBotTaskWatch[]
-  jobs               Job[]
-  files              TaskFile[]
-  x402Payments       TaskX402Payment[]
-  sokoBotDelegations SokoBotDelegation[]
-  newsletterIssues   NewsletterIssue[]
-  sokoBotSchedules   SokoBotSchedule[]
-
-  linksFrom TaskLink[] @relation("TaskLinkFrom")
-  linksTo   TaskLink[] @relation("TaskLinkTo")
-
-  /// Humans added by @ in Task comment activity. Not owner or assignee.
-  participants     TaskParticipant[]
-  /// People whose personal Soko Bot follows the Task for them.
-  followers        TaskFollower[]
-  dueDateChanges   TaskDueDateChange[]
-  momentDeliveries TaskMomentDelivery[]
-
-  projectId String?  @db.Uuid
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-
-  /// Per-project sequence number. Set by the task_assign_number trigger (null
-  /// outside a project); never write it directly.
-  number Int?
-
-  /// Former numbers of this Task in projects it has left.
-  identifierAliases TaskIdentifierAlias[]
-
-  /// The Run whose release created this Task.
-  releasedScheduleRun TaskScheduleRun? @relation("TaskScheduleRunReleasedTask")
-
-  /// Task Schedule whose Run created this Task. Deleting the schedule
-  /// keeps the Task (ADR 0041).
-  scheduleId String?       @db.Uuid
-  schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
-
-  /// The one time this Task is set to start instead of now. Never repeats.
-  runAt DateTime?
-
-  /// The day the Task should be done by. A calendar date with no time or
-  /// timezone; overdue is judged against the reader's own today.
-  dueOn DateTime? @db.Date
-
-  @@unique([projectId, number])
-  @@index([organizationId])
-  @@index([workspaceId])
-  @@index([archivedAt])
-  @@index([ownerId])
-  @@index([ownerId, organizationId])
-  @@index([assigneeId])
-  @@index([assigneeSokoBotId])
-  @@index([assigneeUserId])
-  @@index([projectId])
-  @@index([pendingVendorGrantId])
-  @@index([creatorUserId])
-  @@index([creatorCoworkerId])
-  @@index([creatorSokoBotId])
-  @@index([workspaceId, visibility])
-  @@index([scheduleId])
-  @@index([dueOn])
-  @@index([status, runAt])
-  @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
-  @@map("task")
-}
-
 enum TaskScheduleState {
   ACTIVE
   PAUSED
@@ -6069,47 +5926,6 @@ model FileChunk {
   @@index([evidenceScopeId])
   @@index([searchVector], type: Gin, map: "file_chunk_search_vector_idx")
   @@map("file_chunk")
-}
-
-/// Workspace-scoped vocabulary. Shared vocabulary is not shared assignment.
-model WorkspaceLabel {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  workspaceId String    @db.Uuid
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  kind FileLabelKind
-
-  displayName    String
-  /// NFC, trimmed, case-folded. Uniqueness is on this, capitalization is kept.
-  normalizedName String
-  /// A category needs a description so suggestions have a stable rubric.
-  description    String?
-
-  /// Retired names that still redirect after a merge.
-  aliases      String[]
-  /// The label this one was merged into, so old assignments still resolve.
-  mergedIntoId String?          @db.Uuid
-  mergedInto   WorkspaceLabel?  @relation("WorkspaceLabelMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
-  mergedFrom   WorkspaceLabel[] @relation("WorkspaceLabelMerge")
-
-  /// Archived labels keep historical assignments readable but take no new ones.
-  archivedAt DateTime?
-
-  /// Bumped by any vocabulary change. Invalidates stale suggestions.
-  vocabularyVersion Int @default(1)
-
-  createdByUserId String?
-
-  labels    FileLabel[]
-  overrides FileFieldOverride[]
-
-  @@unique([workspaceId, kind, normalizedName], map: "workspace_label_name_key")
-  @@index([workspaceId, kind, archivedAt])
-  @@index([mergedIntoId])
-  @@map("workspace_label")
 }
 
 /// One label on one resource, inside one evidence audience.

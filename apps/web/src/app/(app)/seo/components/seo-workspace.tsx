@@ -56,11 +56,11 @@ import { SeoAgentHome } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoAskButton } from "./seo-ask-button";
 import { seoAuditNameIsHome } from "./seo-audit-name";
+import { SeoBriefDialog } from "./seo-brief-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImproveDialog } from "./seo-improve";
 import { SeoIndexStatus } from "./seo-index-status";
-import { SeoIndexTriage } from "./seo-index-triage";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
@@ -322,6 +322,15 @@ export function SeoWorkspace({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {model.data.availableActions.canEdit ? (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("brief")}
+                >
+                  <PencilLine className="size-4" />
+                  {t("brief.title")}
+                </DropdownMenuItem>
+              ) : null}
               {model.data.availableActions.canSyncMetrics ? (
                 <DropdownMenuItem
                   disabled={unavailable}
@@ -617,8 +626,7 @@ export function SeoWorkspace({
             <TabsContent value="actions" className="stagger space-y-6">
               <SeoSummaryTiles workspace={model.data} filters={model.filters} />
               <SeoActions model={model} />
-              <SeoIndexTriage workspace={model.data} />
-              <SeoIndexStatus model={model} />
+              <SeoIndexStatus workspace={model.data} />
               <SeoHealth model={model} />
             </TabsContent>
           </div>
@@ -632,6 +640,9 @@ export function SeoWorkspace({
       ) : null}
       {!unavailable ? (
         <>
+          {model.dialog === "brief" ? (
+            <SeoBriefDialog key={model.viewerKey} model={model} />
+          ) : null}
           {editDialog ? <SeoEditDialog key={dialogKey} model={model} /> : null}
           {model.dialog === "analysis" || model.dialog === "monitor" ? (
             <SeoAnalysisDialog

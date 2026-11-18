@@ -1,26 +1,46 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { CircleAlert, Loader2, Play, Plus, RotateCw } from "lucide-react";
+import {
+  ChevronDown,
+  CircleAlert,
+  Loader2,
+  Play,
+  Plus,
+  RotateCw,
+} from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";
 import { SeoGoogleConnection } from "./seo-google-connection";
+import { SeoSetupGoal } from "./seo-setup-goal";
 import {
   type SeoSetup,
   type SeoSetupState,
   seoRunAction,
   seoRunningCheck,
   seoRunProgress,
+  seoSetupPages,
 } from "./seo-setup-model";
-import { SEO_GHOST_EDGE_CLASS } from "./seo-shared";
+import { SEO_GHOST_EDGE_CLASS, SeoPageLink } from "./seo-shared";
 import { SeoStep, SeoStepList, type SeoStepMark } from "./seo-steps";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const TITLE_ID = "seo-setup-title";
+const PAUSED_REASON_ID = "seo-setup-paused-reason";
 const MINUTE_MS = 60_000;
 const MARK: Record<SeoSetupState, SeoStepMark> = {
   done: "done",
@@ -87,10 +107,21 @@ export function SeoSetupCard({
   setup: SeoSetup;
 }) {
   const t = useTranslations("App.Seo");
-  const pages = model.data.scope.pageIds.length;
+  const pages = seoSetupPages(model.data);
   // The widest check this workspace can run on these pages: the first result is the full one where it can be.
   const run = seoRunAction(model.data);
   const full = run?.kind === "audit_full";
+  const pausedReason =
+    setup.check === "next" && !model.data.availableActions.canRequestAnalysis
+      ? t(
+          getEnvPublicConfig().NEXT_PUBLIC_VERCEL_ENV === "preview"
+            ? "setup.pausedPreviewReason"
+            : "setup.pausedReason",
+        )
+      : null;
+  const goalPage = model.data.pages.find(
+    (page) => page.id === model.setupGoalPageId,
+  );
   return (
     <section
       aria-labelledby={TITLE_ID}
@@ -107,11 +138,44 @@ export function SeoSetupCard({
           heading="h4"
           mark={MARK[setup.page]}
           doneLabel={t("setup.done")}
-          title={t(setup.page === "done" ? "setup.pageDone" : "setup.page")}
+          expandable={setup.page === "done"}
+          title={
+            setup.page === "done" ? (
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    SEO_GHOST_EDGE_CLASS,
+                    "group -my-1 text-base font-medium",
+                  )}
+                >
+                  {t("setup.pageCount", { count: pages.length })}
+                  <ChevronDown
+                    aria-hidden
+                    className="size-3.5 group-data-[state=open]:rotate-180"
+                  />
+                </Button>
+              </CollapsibleTrigger>
+            ) : (
+              t("setup.page")
+            )
+          }
           body={
-            setup.page === "done"
-              ? t("setup.pageDoneBody", { count: pages })
-              : t("setup.pageBody")
+            setup.page === "done" ? (
+              <CollapsibleContent>
+                <ul className="space-y-1.5 py-1">
+                  {pages.map((page) => (
+                    <li key={page.id}>
+                      <SeoPageLink url={page.url} />
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            ) : (
+              t("setup.pageBody")
+            )
           }
         >
           <Button
@@ -130,9 +194,13 @@ export function SeoSetupCard({
             heading="h4"
             mark={MARK[setup.connection]}
             doneLabel={t("setup.done")}
-            title={t("audits.onboarding.connectTitle")}
+            title={t(
+              setup.connection === "done"
+                ? "statistics.title"
+                : "audits.onboarding.connectTitle",
+            )}
             body={
-              setup.connection === "waiting" ? undefined : t("setup.googleBody")
+              setup.connection === "next" ? t("setup.googleBody") : undefined
             }
           >
             {setup.connection === "waiting" ? null : (
@@ -162,9 +230,10 @@ export function SeoSetupCard({
             mark={MARK[setup.check]}
             title={t(full ? "setup.audit" : "setup.check")}
             body={
-              !model.data.availableActions.canRequestAnalysis &&
-              setup.check !== "running" ? (
-                <span role="status">{t("dispatchPaused")}</span>
+              pausedReason ? (
+                <span id={PAUSED_REASON_ID} role="status">
+                  {pausedReason}
+                </span>
               ) : setup.failed ? (
                 // The failure sits on the step whose button runs the check again.
                 <span className="text-destructive flex items-start gap-1.5">
@@ -184,7 +253,14 @@ export function SeoSetupCard({
               )
             }
           >
-            {!run ? null : (
+            {goalPage ? (
+              <SeoSetupGoal
+                key={`${model.setupScopeKey}:${run?.kind ?? "paused"}`}
+                model={model}
+                page={goalPage}
+                full={full}
+              />
+            ) : !run ? null : (
               <div className="flex flex-wrap items-center gap-2">
                 {/* The button stays while its check runs, so keyboard focus stays too. */}
                 <Button
@@ -216,6 +292,26 @@ export function SeoSetupCard({
                 <SeoCheckRunning workspace={model.data} />
               </div>
             )}
+            {pausedReason ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-disabled="true"
+                    aria-describedby={PAUSED_REASON_ID}
+                    className="bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground mt-2 cursor-not-allowed"
+                  >
+                    <Play />
+                    {t("setup.pausedStart")}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {pausedReason}
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
           </SeoStep>
         ) : null}
       </SeoStepList>

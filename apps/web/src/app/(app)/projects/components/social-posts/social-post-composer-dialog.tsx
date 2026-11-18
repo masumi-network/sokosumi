@@ -119,7 +119,7 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
-      source?: "studio";
+      source?: "studio" | "tiktok-studio";
       /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
       scheduledAt?: string;
     }
@@ -350,9 +350,15 @@ export function SocialPostComposerDialog({
     });
   // A new post may go to several accounts at once, one post each; an existing
   // post belongs to one account.
-  const multiAccount = mode.kind === "create";
+  const multiAccount =
+    mode.kind === "create" && mode.source !== "tiktok-studio";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
     if (mode.kind === "create") {
+      if (mode.source === "tiktok-studio") {
+        return enabledConnections.length === 1
+          ? [enabledConnections[0].id]
+          : [];
+      }
       if (fromStudio) return [];
       return initialCreateConnectionIds(
         connections,
@@ -783,7 +789,7 @@ export function SocialPostComposerDialog({
   }
 
   function rememberCreateAccounts(): void {
-    if (mode.kind !== "create") return;
+    if (mode.kind !== "create" || mode.source === "tiktok-studio") return;
     const ids = selectedConnections.map((connection) => connection.id);
     if (ids.length === 0) return;
     writeRememberedComposerAccounts(organizationId, projectId, ids);

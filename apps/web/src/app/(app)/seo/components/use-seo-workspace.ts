@@ -32,11 +32,13 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import { canSetBriefPage, type SeoSetupGoalChoice } from "./seo-brief-model";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
+import { useSeoBrief, useSeoGoalSuggestion } from "./use-seo-brief";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 
 /** The form of a day in the period filter, as Core reads it. */
@@ -79,6 +81,7 @@ const parseAsSeoTab = createParser<SeoTab>({
 });
 
 export type SeoDialog =
+  | "brief"
   | "page"
   | "scope"
   | "edit_scope"
@@ -277,6 +280,21 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [analysisKind, setAnalysisKind] = useState<SeoAnalysisKind | null>(
     null,
   );
+  const setupScopeKey = JSON.stringify([
+    setupIdentity,
+    session?.session.id,
+    data.scope.id,
+    data.scope.version,
+    data.scope.pageIds,
+  ]);
+  const [reviewGoal, setReviewGoal] = useState<
+    (SeoSetupGoalChoice & { scopeKey: string }) | null
+  >(null);
+  // Returning to an earlier page selection must not restore consent from a closed review.
+  if (reviewGoal && reviewGoal.scopeKey !== setupScopeKey) {
+    setReviewGoal(null);
+    if (dialog === "analysis") setDialogState(null);
+  }
   /**
    * One check at a time. Every way to the check form goes through here, so a press while a check runs opens
    * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
@@ -292,6 +310,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
+    setReviewGoal(null);
     setDialogState(value);
   }
   /** Opens the schedule form on the run button's check: the full audit where these pages allow one. */
@@ -299,8 +318,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setDialog("monitor");
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
-  function openAnalysis(kind: SeoAnalysisKind) {
+  function openAnalysis(kind: SeoAnalysisKind, choice?: SeoSetupGoalChoice) {
     if (requireGoogleSetup() || checkInFlight()) return;
+    setReviewGoal(choice ? { ...choice, scopeKey: setupScopeKey } : null);
     setAnalysisKind(kind);
     setDialogState("analysis");
   }
@@ -330,6 +350,17 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       const response = await mutateSeo({
         owner,
         command,
+        ...(command.kind === "request_analysis" &&
+        (command.body.sharedBrief || command.body.setupGoal) &&
+        session?.user.id
+          ? {
+              briefViewer: {
+                userId: session.user.id,
+                sessionId: session.session.id,
+                organizationId: session.session.activeOrganizationId ?? null,
+              },
+            }
+          : {}),
       });
       if (!response.ok) {
         toast.error(
@@ -340,7 +371,14 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
               : t("saveFailed"),
         );
         // A conflict means this view is stale: read the current revision so the next try can land.
-        if (response.error.status === 409) await refetchForViewer();
+        if (response.error.status === 409) {
+          if (
+            command.kind === "request_analysis" &&
+            (command.body.sharedBrief || command.body.setupGoal)
+          )
+            await brief.reload();
+          await refetchForViewer();
+        }
         return false;
       }
       if (
@@ -356,6 +394,13 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
           )
             operationKeys.current.delete(key);
       }
+      if (
+        command.kind === "record_page_change" ||
+        command.kind === "sync_statistics" ||
+        command.kind === "import_audit" ||
+        (command.kind === "request_analysis" && command.body.setupGoal)
+      )
+        await brief.invalidate();
       toast.success(success);
       setDialog(null);
       await refetchForViewer();
@@ -442,8 +487,48 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  const setupGoalPageId =
+    setup?.check === "next" &&
+    !hasPreviousCheck &&
+    !data.analyses.length &&
+    filters.tab === "agent"
+      ? data.scope.pageIds[0]
+      : undefined;
+  const [advancedScope, setAdvancedScope] = useState<string | null>(null);
+  const setupGoalAdvanced =
+    Boolean(setupGoalPageId) && advancedScope === setupScopeKey;
+  if (advancedScope !== null && !setupGoalAdvanced) setAdvancedScope(null);
+  function setSetupGoalAdvanced(open: boolean) {
+    setAdvancedScope(open && setupGoalPageId ? setupScopeKey : null);
+  }
+  const brief = useSeoBrief(
+    owner,
+    session?.user.id,
+    session?.session.activeOrganizationId ?? null,
+    setupGoalAdvanced ||
+      dialog === "brief" ||
+      dialog === "analysis" ||
+      filters.tab === "actions" ||
+      (filters.tab === "agent" && data.actions.length > 0),
+  );
+  const setupGoalSuggestion = useSeoGoalSuggestion(
+    owner,
+    session?.user.id,
+    session?.session.activeOrganizationId ?? null,
+    setupGoalAdvanced &&
+      setupGoalPageId &&
+      brief.data &&
+      Number.isInteger(brief.data.revision) &&
+      canSetBriefPage(brief.data.pages, setupGoalPageId) &&
+      !brief.data.pages.some(
+        (page) => page.pageId === setupGoalPageId && page.action,
+      )
+      ? setupGoalPageId
+      : undefined,
+  );
   const statisticsSync = useSeoAutopilot({
     data,
+    refreshBrief: brief.invalidate,
     viewerKey: identity,
     enabled:
       Boolean(session?.user.id) &&
@@ -456,6 +541,13 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   });
   return {
     data,
+    brief,
+    setupGoalAdvanced,
+    setSetupGoalAdvanced,
+    setupGoalPageId,
+    setupGoalSuggestion,
+    setupScopeKey,
+    reviewGoal: reviewGoal?.scopeKey === setupScopeKey ? reviewGoal : null,
     statisticsSync,
     setup,
     waitingForGoogle,

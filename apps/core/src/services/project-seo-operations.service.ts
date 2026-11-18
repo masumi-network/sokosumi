@@ -41,6 +41,10 @@ import {
   sha256,
 } from "./project-seo-store";
 import { requireLockedOpenProject } from "./project-social-connections.service";
+import {
+  type PublicPageGoals,
+  pinSeoAuditBrief,
+} from "./seo-audit-brief-dispatch";
 import { createTaskForActor } from "./task-domain.service";
 
 async function requireSeoTaskProject(
@@ -75,7 +79,13 @@ export function seoTaskPacket(
   input: RequestSeoAnalysis,
   pageUrls: string[],
   requestId: string,
+  context?: PublicPageGoals,
 ): Prisma.InputJsonObject {
+  if (
+    Boolean(input.sharedBrief) !== Boolean(context) ||
+    (context && input.kind !== "audit_full")
+  )
+    throw badRequest("Choose shared page goals for one full audit only");
   if (
     input.kind === "audit_full" &&
     input.fullAuditCredits !== undefined &&
@@ -87,7 +97,8 @@ export function seoTaskPacket(
   const packet: Prisma.InputJsonObject =
     input.kind === "audit_full"
       ? {
-          version: 1,
+          version: context ? 2 : 1,
+          ...(context ? { context } : {}),
           requestId,
           pageUrls,
           ...(input.fullAuditCredits !== undefined
@@ -218,6 +229,18 @@ export async function requestProjectSeoAnalysisInTransaction(
   plannedMonitorRun?: PlannedSeoMonitorRun,
 ) {
   requireSeoAnalysisDispatch();
+  const humanOneOff =
+    !actor.sokoBotId && !plannedMonitorRun && !requireScheduledExecutor;
+  if (input.sharedBrief && (!humanOneOff || input.kind !== "audit_full"))
+    throw badRequest(
+      "Choose the goals to share for each full audit in your own session",
+    );
+  if (
+    input.setupGoal &&
+    (!humanOneOff ||
+      (input.kind !== "audit_full" && input.kind !== "page_check"))
+  )
+    throw badRequest("Set a page goal for a one-off check in your own session");
   const requestHash = sha256(JSON.stringify(input));
   await requireLockedSeoOwner(tx, actor, !plannedMonitorRun);
   if (plannedMonitorRun)
@@ -272,7 +295,18 @@ export async function requestProjectSeoAnalysisInTransaction(
       requestedBy: actor.userId,
     },
   });
-  const packet = seoTaskPacket(input, pageUrls, analysis.id);
+  const context =
+    humanOneOff && (input.kind === "audit_full" || input.setupGoal)
+      ? await pinSeoAuditBrief(
+          tx,
+          actor,
+          analysis.id,
+          scope.pages,
+          input.sharedBrief,
+          input.setupGoal,
+        )
+      : undefined;
+  const packet = seoTaskPacket(input, pageUrls, analysis.id, context);
   // A monitor checks its first Run when it is made. Recheck at every dispatch: a later short balance must leave
   // the scheduled Run planned for a top-up, rather than spend provider money before reaching OUT_OF_CREDITS.
   await requireSeoAnalysisBalance(

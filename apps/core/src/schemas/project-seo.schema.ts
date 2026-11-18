@@ -27,7 +27,23 @@ import {
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
 
-export const SEO_MAX_PAGES = 10;
+import {
+  SEO_MAX_PAGES,
+  seoBriefAction,
+  seoIdSchema,
+  seoPageSchema,
+  seoScopeSchema,
+  seoUrlSchema,
+} from "./seo-page.schema";
+
+export {
+  SEO_MAX_PAGES,
+  seoIdSchema,
+  seoPageSchema,
+  seoScopeSchema,
+  seoUrlSchema,
+} from "./seo-page.schema";
+
 export const SEO_MAX_INDEX_ASSESSMENTS = SEO_MAX_PAGES * SEO_MAX_PAGES;
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_COMPETITORS = 10;
@@ -38,7 +54,6 @@ const SEO_SERP_LANGUAGES = new Set(
     " ",
   ),
 );
-export const seoIdSchema = z.string().uuid();
 export const seoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -49,15 +64,6 @@ export const seoDateSchema = z
       date.toISOString().slice(0, 10) === value
     );
   }, "Expected a calendar date");
-export const seoUrlSchema = z
-  .url({ protocol: /^https?$/ })
-  .max(4096)
-  .refine((value) => {
-    // A value that is no address already failed the check above; `new URL` would throw on it.
-    if (!URL.canParse(value)) return true;
-    const url = new URL(value);
-    return !url.username && !url.password;
-  }, "Page URLs cannot contain credentials");
 export const seoDeviceSchema = z.enum(["mobile", "desktop"]);
 export const seoAnalysisKindSchema = z.enum([
   "page_check",
@@ -80,24 +86,6 @@ export const seoAnalysisModuleSchema = z.enum([
   "links.refresh",
 ]);
 
-export const seoPageSchema = z
-  .object({
-    id: seoIdSchema,
-    url: seoUrlSchema,
-    label: z.string(),
-    relationship: z.enum(["primary", "related"]),
-    relatedToPageId: z.union([seoIdSchema, z.null()]),
-    createdAt: dateTimeSchema,
-  })
-  .openapi("ProjectSeoPage");
-export const seoScopeSchema = z
-  .object({
-    id: seoIdSchema,
-    name: z.string(),
-    pageIds: z.array(seoIdSchema),
-    version: z.number().int().positive(),
-  })
-  .openapi("ProjectSeoScope");
 export const seoWorkspaceQuerySchema = z
   .object({
     scopeId: seoIdSchema.optional(),
@@ -122,25 +110,11 @@ export const seoProjectParamsSchema = z.object({ id: seoIdSchema });
 export const seoScopeParamsSchema = seoProjectParamsSchema.extend({
   scopeId: seoIdSchema,
 });
-export const addSeoPageSchema = z
-  .object({
-    url: seoUrlSchema,
-    label: z.string().trim().max(200).optional(),
-    relationship: z.enum(["primary", "related"]).default("primary"),
-    relatedToPageId: seoIdSchema.optional(),
-  })
-  .strict()
-  .openapi("AddProjectSeoPageRequest");
-export const createSeoScopeSchema = z
-  .object({
-    name: z.string().trim().min(1).max(100),
-    pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
-  })
-  .strict()
-  .openapi("CreateProjectSeoScopeRequest");
-export const updateSeoScopeSchema = createSeoScopeSchema
-  .extend({ expectedVersion: z.number().int().positive() })
-  .openapi("UpdateProjectSeoScopeRequest");
+export {
+  addSeoPageSchema,
+  createSeoScopeSchema,
+  updateSeoScopeSchema,
+} from "./seo-page.schema";
 export const importSeoAuditSchema = z
   .object({
     taskId: z.string().min(1).max(128),
@@ -199,6 +173,19 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
+    setupGoal: z
+      .strictObject({
+        pageId: seoIdSchema,
+        expectedRevision: z.number().int().nonnegative(),
+        action: seoBriefAction.nullable(),
+      })
+      .optional(),
+    sharedBrief: z
+      .strictObject({
+        revision: z.number().int().nonnegative(),
+        pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES),
+      })
+      .optional(),
     fullAuditLimits: z
       .object({
         usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
@@ -218,6 +205,22 @@ export const requestSeoAnalysisSchema = z
   .refine(
     (input) => !input.scopeId || input.expectedScopeVersion !== undefined,
     "Reload the page group before requesting an analysis",
+  )
+  .refine(
+    (input) =>
+      !input.setupGoal ||
+      input.kind === "audit_full" ||
+      input.kind === "page_check",
+    "Set a page goal with a full audit or page check",
+  )
+  .refine(
+    (input) =>
+      !input.sharedBrief ||
+      (input.kind === "audit_full" &&
+        (input.setupGoal
+          ? input.sharedBrief.revision === input.setupGoal.expectedRevision
+          : input.sharedBrief.revision > 0)),
+    "Share goals from the reviewed brief revision in a full audit",
   )
   .openapi("RequestProjectSeoAnalysisRequest");
 export const saveSeoKeywordSchema = z
@@ -513,6 +516,7 @@ export const seoIndexedPageSchema = z
     lastCrawlTime: z.string().datetime({ offset: true }).nullable(),
     googleCanonical: z.string().max(2048).nullable(),
     userCanonical: z.string().max(2048).nullable(),
+    indexingState: z.string().max(100).nullable().optional(),
   })
   .strict()
   .openapi("ProjectSeoIndexedPage");

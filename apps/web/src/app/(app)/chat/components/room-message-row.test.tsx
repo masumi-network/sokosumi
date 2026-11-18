@@ -403,6 +403,28 @@ describe("ChatMessageRow", () => {
     expect(avatarWrap).toContainElement(badge);
   });
 
+  it("draws a Soko Bot's live avatar without a ring", () => {
+    const message = sokoBotMessage();
+    if (message.sender.type !== "sokoBot") throw new Error("fixture");
+    message.sender.sokoBot = {
+      ...message.sender.sokoBot,
+      image: "https://blob/avatar.webp",
+      avatarCode: "v1.robot.scarlet.white.ink.r.M",
+    };
+    render(
+      <ChatMessageRow
+        message={message}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+        liveFace
+      />,
+    );
+
+    const avatar = screen.getByTestId("message-sender-avatar");
+    expect(avatar.querySelector(".ring-1")).toBeNull();
+  });
+
   it("does not show coworker bot badge for human senders", () => {
     renderRow({ message: userMessage() });
 
@@ -3352,7 +3374,7 @@ describe("ChatMessageRow coworker Thought", () => {
     );
   });
 
-  it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {
+  it("shows the Thought header on empty stream overlay, not the pixel grid", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",

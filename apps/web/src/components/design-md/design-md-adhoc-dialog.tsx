@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, WandSparkles } from "lucide-react";
+import { Palette, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -171,7 +171,7 @@ export function DesignMdAdHocDialog({
             disabled={!url.trim()}
             loading={generation.isRunning}
           >
-            <WandSparkles className="size-4" />
+            <Palette className="size-4" />
             {t("confirmGenerate")}
           </Button>
         </DialogFooter>

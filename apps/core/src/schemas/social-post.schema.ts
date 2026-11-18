@@ -85,6 +85,7 @@ const socialPostFirstCommentSchema = z
 
 const socialPostMediaFileSchema = z.object({
   ...driveFileRefShape,
+  aiGenerated: z.boolean().optional(),
   size: z.number().int().min(0).openapi({ example: 240000 }),
   mimeType: z.string().min(1).openapi({ example: "image/png" }),
   kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),

@@ -8,13 +8,12 @@ import { normalizeGscInspection } from "./native-gsc-inspection";
 const detailsSchema = z.object({
   inspectionResult: z.object({
     indexStatusResult: z.object({
-      indexingState: z.string().max(100).optional(),
       pageFetchState: z.string().max(100).optional(),
     }),
   }),
 });
 
-/** Reuse the display parser and retain the two extra fields needed by the worker's triage. */
+/** Reuse the display parser for the indexing state and retain the page fetch state needed by the worker's triage. */
 export function normalizeGscTaskInspection(
   pageUrl: string,
   input: unknown,
@@ -30,7 +29,7 @@ export function normalizeGscTaskInspection(
     ...page,
     googleCanonical: safeCanonical(page.googleCanonical),
     userCanonical: safeCanonical(page.userCanonical),
-    indexingState: details.indexingState ?? null,
+    indexingState: page.indexingState ?? null,
     pageFetchState: details.pageFetchState ?? null,
   });
 }

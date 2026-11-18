@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { MAX_TASK_TAGS, taskTagIdSchema } from "@/helpers/task-tags";
+import { workspaceTagColorFields } from "@/schemas/tag-color.schema";
 
 // A title alone is often enough to classify, and the old 40-character floor meant
 // roughly 50 typed characters before the composer showed anything. The client-side
@@ -24,6 +25,17 @@ export const taskTagSuggestionInputSchema = z
 export const taskTagSuggestionResponseSchema = z
   .object({
     tags: z.array(taskTagIdSchema).max(MAX_TASK_TAGS),
+    workspaceSuggestions: z
+      .array(
+        z.object({
+          id: z.uuid(),
+          displayName: z.string(),
+          ...workspaceTagColorFields,
+          autoApply: z.boolean(),
+        }),
+      )
+      .max(MAX_TASK_TAGS)
+      .optional(),
     receipt: z.string(),
   })
   .openapi("TaskTagSuggestion");
