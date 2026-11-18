@@ -30,6 +30,7 @@ import {
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { mapTaskTags, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
+import { setTaskWorkspaceTags } from "@/helpers/task-workspace-tags";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import { recordCoreError } from "@/lib/evlog";
@@ -51,6 +52,7 @@ import {
   taskEventChannelField,
   taskEventDeprecatedOriginField,
   taskSchema,
+  taskWorkspaceTagIdsSchema,
 } from "@/schemas/task.schema";
 import {
   createTaskForActor,
@@ -65,6 +67,7 @@ import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
   .object({
+    workspaceTagIds: taskWorkspaceTagIdsSchema,
     tagSuggestionReceipt: z.string().max(4096).optional(),
     copyOfTaskId: z.uuid().optional().openapi({
       description:
@@ -209,7 +212,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // work, and a readable one gives the copy its name and tags, so a copy
     // calls no model.
     const copySource = body.copyOfTaskId
-      ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId)
+      ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId, prisma, {
+          workspaceTags: {
+            where: { label: { archivedAt: null, mergedIntoId: null } },
+            select: { labelId: true },
+          },
+        })
       : null;
 
     const resolvedName = copySource
@@ -297,6 +305,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         tx,
       );
+      const workspaceTagIds =
+        body.workspaceTagIds ??
+        (copySource?.workspaceId === workspaceContext.workspaceId
+          ? copySource.workspaceTags.map(({ labelId }) => labelId)
+          : []);
+      if (workspaceTagIds.length) {
+        await setTaskWorkspaceTags(
+          tx,
+          createdTask.id,
+          workspaceContext.workspaceId,
+          workspaceTagIds,
+        );
+      }
       if (copiedTags) {
         await tx.task.update({
           where: { id: createdTask.id },

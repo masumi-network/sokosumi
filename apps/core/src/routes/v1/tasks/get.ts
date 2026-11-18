@@ -26,6 +26,7 @@ import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
+import { taskTagIdSchema } from "@/helpers/task-tags";
 import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -157,6 +158,17 @@ const archivedQuerySchema = z
 const query = z
   .object({
     q: taskNameQuerySchema,
+    workspaceTagId: z
+      .uuid()
+      .optional()
+      .openapi({
+        param: { name: "workspaceTagId", in: "query" },
+        description: "Only Tasks with this workspace tag.",
+      }),
+    topicTagId: taskTagIdSchema.optional().openapi({
+      param: { name: "topicTagId", in: "query" },
+      description: "Only Tasks with this visible topic tag.",
+    }),
     status: taskStatusQuerySchema,
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
@@ -407,6 +419,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         statusWhere,
       );
+    }
+
+    if (queryParams.workspaceTagId) {
+      where.workspaceTags = { some: { labelId: queryParams.workspaceTagId } };
+    }
+    if (queryParams.topicTagId) {
+      where.visibleTopics = { some: { topicId: queryParams.topicTagId } };
     }
 
     const takePlusOne = take + 1;

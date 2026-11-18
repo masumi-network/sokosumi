@@ -54,6 +54,10 @@ const taskOwnerAssigneeCreatorInclude = {
   assigneeUser: taskEventApiInclude.user,
   ...workCreatorInclude,
   ...taskParticipantsInclude,
+  workspaceTags: {
+    select: { label: { select: { id: true, displayName: true } } },
+    orderBy: { label: { normalizedName: "asc" } },
+  },
 } as const;
 
 export const taskFileApiInclude = {

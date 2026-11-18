@@ -7478,6 +7478,25 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        workspaceTags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
         number: {
             type: [
                 'integer',
@@ -58665,6 +58684,25 @@ export const TaskListItemSchema = {
         },
         tags: {
             $ref: '#/components/schemas/TaskTags'
+        },
+        workspaceTags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
         },
         number: {
             type: [
