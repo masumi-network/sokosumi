@@ -110,7 +110,7 @@ export function TaskListItem({
         </span>
         {/* Sub-task progress has a column of its own, kept on a row with
             none, so the people after it line up. */}
-        <span className="hidden w-14 xl:flex">
+        <span className="hidden w-14 shrink-0 overflow-x-clip xl:flex">
           <TaskSubtaskProgress progress={task.subtaskProgress} />
         </span>
         <span className="flex w-16 justify-end">
