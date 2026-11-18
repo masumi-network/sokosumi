@@ -281,6 +281,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
+      "tiktokStudio",
       "social",
       "seo",
       "ads",
@@ -349,6 +350,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
+      "tiktokStudio",
       "social",
       "seo",
       "ads",
@@ -399,6 +401,7 @@ describe("MenuItems newsletter", () => {
 
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
+      "tiktokStudio",
       "social",
       "seo",
       "ads",

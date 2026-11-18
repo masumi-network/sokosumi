@@ -116,10 +116,23 @@ describe("CheckoutStep", () => {
     expect(text()).not.toContain("$2,000");
   });
 
+  it("says what each plan posts as the landing page does, and the team check on the top plan only", async () => {
+    await render();
+    expect(cards()[0]).toContain("One post a day on each account you connect.");
+    expect(cards()[1]).toContain(
+      "Two posts a day on each account you connect.",
+    );
+    expect(cards()[2]).toContain(
+      "Up to three posts a day on each account you connect.",
+    );
+    expect(cards()[2]).toContain("our team checks every post");
+    expect(cards()[1]).not.toContain("our team checks every post");
+  });
+
   it("says what the approved month holds before the price", async () => {
     await render({ plan: planAt("active") });
     const gets = container.querySelector(".ob-gets")?.textContent ?? "";
-    expect(gets).toContain("5 pieces");
+    expect(gets).toContain("5 posts");
     expect(gets).toContain("1 picture and 1 video");
   });
 

@@ -108,7 +108,7 @@ export function Mix({
               <b>{APPROACHES[part.approach].name}</b>
               <span className="num">
                 {mine.length > 0
-                  ? `${mine.length} ${mine.length === 1 ? "piece" : "pieces"}`
+                  ? `${mine.length} ${mine.length === 1 ? "post" : "posts"}`
                   : `${part.share}%`}
               </span>
             </div>
@@ -156,8 +156,8 @@ export function Pillars({
       {made ? (
         <p className="note">
           {made.rewriting
-            ? `Some pieces read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
-            : `${AGENT_NAME} read every piece he made and counted what each one is really about.`}
+            ? `Some posts read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
+            : `${AGENT_NAME} read every post he made and counted what each one is really about.`}
         </p>
       ) : null}
       <ul className="bb-mix">
@@ -196,7 +196,7 @@ export function Pillars({
               </span>
               {pillar.why ? <span>{pillar.why}</span> : null}
               <span className="note">
-                {mine.length} {mine.length === 1 ? "piece" : "pieces"} planned
+                {mine.length} {mine.length === 1 ? "post" : "posts"} planned
                 {mine[0] ? `, such as “${withoutLabel(mine[0].title)}”` : ""}
               </span>
             </li>

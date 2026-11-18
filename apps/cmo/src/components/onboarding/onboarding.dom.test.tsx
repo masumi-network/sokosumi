@@ -1130,7 +1130,7 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(text()).not.toContain("Could not launch");
   expect(text()).toContain("Cuso is on it.");
-  expect(text()).toContain("Active, 7 pieces a week");
+  expect(text()).toContain("Active, 7 posts a week");
   expect(text()).toContain("€200 a month");
   expect(text()).toContain("posts on your strategy's schedule");
   expect(text()).not.toContain("Nothing posts until");

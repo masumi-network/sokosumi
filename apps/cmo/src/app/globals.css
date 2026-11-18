@@ -353,12 +353,14 @@ button[aria-busy="true"] {
   overflow-wrap: anywhere;
 }
 
-.note a {
+.note a,
+.muted a {
   color: var(--foreground);
   text-underline-offset: 3px;
 }
 
-.note a:hover {
+.note a:hover,
+.muted a:hover {
   text-decoration-thickness: 2px;
 }
 
@@ -695,6 +697,22 @@ a.button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* A state in words: no line and no fill, so it never reads as a button. */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.state .status-disc {
+  width: 16px;
+  height: 16px;
 }
 
 /* ── Landing ── */
@@ -1131,6 +1149,110 @@ button.cuso-status .ob-stage-art {
   }
 }
 
+/* Cuso at work: the step he is on, and the model's reasoning in a quiet line. */
+.working {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 62ch;
+}
+
+.working-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.working-step .typing {
+  flex: none;
+}
+
+.working-why {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: pre-wrap;
+}
+
+.working-why b {
+  font-weight: 600;
+}
+
+/* While he works the line stays short; the fold under his reply has it all. */
+.working > .working-why,
+.ob-lead > .working-why {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* "How I got here": a fold under a reply. Quiet, since only its row opens. */
+.trace {
+  max-width: 62ch;
+}
+
+.trace > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.trace > summary::-webkit-details-marker {
+  display: none;
+}
+
+.trace > summary:hover {
+  color: var(--foreground);
+}
+
+.trace > summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.trace > summary::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms;
+}
+
+.trace[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.trace-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 4px 12px;
+  border-left: 1px solid var(--border);
+}
+
+.trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  list-style: none;
+}
+
 /* Every card: the thick ink line. Hairlines are for structure inside it. */
 .card {
   overflow: hidden;
@@ -1139,8 +1261,8 @@ button.cuso-status .ob-stage-art {
   background: var(--card);
 }
 
-/* Look here: the card in focus, or one that needs the owner now. */
-.card-focus {
+/* The post that is open on the Calendar: a button, so it may cast the big shadow. */
+button.card-focus {
   box-shadow: var(--shadow-big);
 }
 
@@ -1577,7 +1699,7 @@ button.cuso-status .ob-stage-art {
   gap: 16px;
 }
 
-.page .page-body > .card:not(.card-focus),
+.page .page-body > .card,
 .page .cal-head,
 .page .kpi {
   border-radius: var(--radius-card);
@@ -1716,6 +1838,10 @@ button.cuso-status .ob-stage-art {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .trace > summary::after {
+    transition: none;
+  }
+
   .typing i,
   .step.run .dot,
   .spin {
@@ -2970,7 +3096,6 @@ button.cuso-status .ob-stage-art {
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  align-items: start;
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -3007,6 +3132,18 @@ button.cal-card:hover {
   overflow: hidden;
   border-radius: var(--radius-control);
   background: var(--surface);
+}
+
+/* A post without a picture leads with its opening words in the same box. */
+.cal-words {
+  display: -webkit-box;
+  place-items: initial;
+  padding: 16px;
+  font-size: 1rem;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
 }
 
 .cal-thumb img,
@@ -3069,14 +3206,14 @@ button.cal-card:hover {
   cursor: default;
 }
 
-.cal-making .cal-body {
-  flex: 1;
+.cal-making .cal-thumb {
+  background: none;
 }
 
 .cal-making-lines {
   display: grid;
   gap: 6px;
-  margin: 8px 0;
+  width: 60%;
 }
 
 .cal-making-lines span {
@@ -3087,12 +3224,6 @@ button.cal-card:hover {
 
 .cal-making-lines span:last-child {
   width: 60%;
-}
-
-.cal-making .tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -3116,7 +3247,7 @@ button.cal-card:hover {
   -webkit-line-clamp: 3;
 }
 
-.cal-body .tag {
+.cal-body .state {
   margin-top: auto;
 }
 

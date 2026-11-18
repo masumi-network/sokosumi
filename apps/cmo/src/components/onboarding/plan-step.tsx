@@ -10,6 +10,7 @@ import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
 import { strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
+import { ReasoningLine } from "../cuso-trace";
 import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
@@ -102,7 +103,7 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of pieces`,
+        label: `${pillar.name}: ${pillar.share}% of posts`,
       });
     }
   }
@@ -115,7 +116,7 @@ export function planningRows(
       label: !strategy
         ? "Choosing your idea, channels and pillars"
         : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} pieces so far`
+          ? `Writing four weeks, day by day: ${pieces} posts so far`
           : "Writing four weeks, day by day",
       url: null,
       status: "running",
@@ -278,6 +279,7 @@ function Planning({
           </p>
         )}
         {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
+        {running ? <ReasoningLine activity={overview.activity} /> : null}
         <Checklist items={checklist} />
         <div className="ob-feed" aria-label="What Cuso is writing">
           <p className="ob-feed-title">
@@ -483,7 +485,7 @@ export function PlanReview({
   const line =
     pages > 0
       ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the strategy."}`;
+      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the strategy."}`;
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -541,6 +543,12 @@ export function PlanReview({
   const ads = strategy.ads;
   const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
+  // An approval covers what the owner said yes or no to, not what stayed open.
+  const answers = approved
+    ? questions.filter(
+        (question) => question.answer === "yes" || question.answer === "no",
+      )
+    : questions;
 
   return (
     <section className="ob-plan">
@@ -564,7 +572,7 @@ export function PlanReview({
       {asking && !locked ? (
         <div>
           <form
-            className="card card-focus ob-change"
+            className="card ob-change"
             onSubmit={(event) => {
               event.preventDefault();
               requestChange(note);
@@ -657,41 +665,37 @@ export function PlanReview({
           </div>
         ) : null}
 
-        {locked && hasChecks ? (
-          <div className="card ob-checks">
-            <h2>{approved ? "What you approved" : "Your answers"}</h2>
-            <ul className="ob-approved">
-              {questions.map((question) => (
-                <li key={question.id}>
-                  {question.question}{" "}
-                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                  {question.answer === "no" && question.note
-                    ? `: ${question.note}`
-                    : ""}
-                </li>
-              ))}
-              {pace ? (
-                <li>
-                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                </li>
-              ) : null}
-              {ads ? (
-                <li>
-                  {ads.monthly > 0
-                    ? `${money(ads.monthly, ads.currency)} a month for ads`
-                    : "No ads"}
-                </li>
-              ) : null}
-            </ul>
-          </div>
+        {locked ? (
+          answers.length > 0 || strategy.pace || ads ? (
+            <div className="card ob-checks">
+              <h2>{approved ? "What you approved" : "Your answers"}</h2>
+              <ul className="ob-approved">
+                {answers.map((question) => (
+                  <li key={question.id}>
+                    {question.question}{" "}
+                    <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                    {question.answer === "no" && question.note
+                      ? `: ${question.note}`
+                      : ""}
+                  </li>
+                ))}
+                {pace ? (
+                  <li>
+                    Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
+                  </li>
+                ) : null}
+                {ads ? (
+                  <li>
+                    {ads.monthly > 0
+                      ? `${money(ads.monthly, ads.currency)} a month for ads`
+                      : "No ads"}
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null
         ) : hasChecks ? (
-          <div
-            className={
-              questions.some((question) => !question.answer)
-                ? "card card-focus ob-checks"
-                : "card ob-checks"
-            }
-          >
+          <div className="card ob-checks">
             <h2>Check these</h2>
             {questions.map((question) => (
               <PlanQuestionChip
@@ -903,7 +907,7 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "piece" : "pieces"}` : "",
+      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "post" : "posts"}` : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>

@@ -25,6 +25,7 @@ const MOBILE_TAB_LIST_PATHS = [
   "/newsletter/analytics",
   "/newsletter/settings",
   "/studio",
+  "/tiktok-studio",
   "/projects",
   "/you",
   "/history",
@@ -152,7 +153,8 @@ export function resolveMobileAppBackTarget(
       root === "/schedules" ||
       root === "/contacts" ||
       root === "/social" ||
-      root === "/studio"
+      root === "/studio" ||
+      root === "/tiktok-studio"
     ) {
       return { href: "/", labelKey: "back" };
     }
@@ -226,6 +228,7 @@ export function shouldShowMobileBrandLeading(
     pathname === "/agents" ||
     pathname === "/social" ||
     pathname === "/studio" ||
+    pathname === "/tiktok-studio" ||
     pathname === "/newsletter" ||
     pathname.startsWith("/newsletter/")
   ) {

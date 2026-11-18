@@ -118,6 +118,18 @@ describe("getCoreApiBaseUrl", () => {
     expect(coreApiBaseUrl).toBe("http://localhost:8787/v1");
   });
 
+  it("uses branch Core for workspace reads when the preview has no related project", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
+    try {
+      const { getServerCoreApiBaseUrl } = await import("./core-api-base-url");
+      expect(getServerCoreApiBaseUrl()).toBe(
+        "https://sokosumi-core-mainnet-git-feat-tiktok-sandbox-recording.preview.sokosumi.com/v1",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   it("resolves the server core app url without the /v1 suffix", async () => {
     const { getServerCoreAppBaseUrl } = await import("./core-api-base-url");
 
