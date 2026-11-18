@@ -27,6 +27,7 @@ import {
   getSeoAuditWorkspaceMapping,
   listSeoAudits,
 } from "@/services/seo-audit.service";
+import { deleteSeoAudit } from "@/services/seo-audit-deletion";
 import { createSeoWorkspaceRouter } from "../../projects/[id]/seo";
 import chat from "./chat";
 
@@ -124,5 +125,26 @@ app.openapi(
     ),
 );
 app.route("/:id/chat", chat);
+app.openapi(
+  withOrganizationSlugHeaderParameter(
+    createRoute({
+      method: "delete",
+      path: "/{id}",
+      operationId: "deleteSeoAudit",
+      tags: ["SEO"],
+      description:
+        "Remove a saved SEO audit created by the current user from this workspace.",
+      request: { params: seoProjectParamsSchema },
+      responses: { 204: { description: "Audit removed" }, ...errors },
+    }),
+  ),
+  async (c) => {
+    await deleteSeoAudit(
+      requireSeoWorkspaceRouteActor(c.var),
+      c.req.valid("param").id,
+    );
+    return c.body(null, 204);
+  },
+);
 app.route("/:id", createSeoWorkspaceRouter("audit"));
 export default app;

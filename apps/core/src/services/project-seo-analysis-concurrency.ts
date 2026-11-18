@@ -1,7 +1,8 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { conflict } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 
 export const SEO_INACTIVE_TASK_STATUSES: readonly TaskStatus[] = [
@@ -18,11 +19,12 @@ export async function requireNoActiveSeoAnalysis(
 ): Promise<void> {
   // A row lock alone preserves an older Serializable snapshot. A write makes a stale caller retry after any
   // concurrent dispatch, including the scheduler's Read Committed transaction, before inspecting active Tasks.
-  if (actor.owner.kind === "audit")
-    await tx.$executeRaw`
-      UPDATE "seo_audit" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid
+  if (actor.owner.kind === "audit") {
+    const activeAudit = await tx.$executeRaw`
+      UPDATE "seo_audit" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid AND "deletedAt" IS NULL
     `;
-  else
+    if (!activeAudit) throw notFound("SEO audit not found");
+  } else
     await tx.$executeRaw`
       UPDATE "project" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid
     `;
@@ -40,7 +42,8 @@ export async function requireNoActiveSeoAnalysis(
   `;
   if (active.length)
     throw conflict(
-      "This audit already has an active check. Wait for it to finish or cancel its Task before starting another.",
+      "This audit already has an active check. Wait for it to finish or cancel its Task.",
+      { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHECK },
     );
 }
 

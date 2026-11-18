@@ -95,6 +95,16 @@ export function parseSeoMonitorPlan(
   };
 }
 
+/** Only a readable v2 packet can start a Run for a saved audit. UUID spelling does not change its owner. */
+export function seoMonitorAuditId(description: string | null): string | null {
+  try {
+    const plan = parseSeoMonitorPlan(description);
+    return plan?.version === 2 ? plan.auditId.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The schedule description that stores an approved plan. */
 export function seoMonitorDescription(plan: SeoMonitorPlan): string {
   return `${SEO_MONITOR_MARKER}${JSON.stringify(seoMonitorPacketSchema.parse(plan))}`;
