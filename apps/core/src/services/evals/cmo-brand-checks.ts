@@ -60,6 +60,13 @@ export function brandBrainChecks(
   return { brain, checks };
 }
 
+/**
+ * The share of calendar titles that must carry a word of the posts' language.
+ * A short title carries none ("Hiltl Tartare, frisch serviert"): German
+ * calendars scored 72 to 92 in a hundred, an English one none.
+ */
+const PIECE_LANGUAGE_SHARE = 0.4;
+
 export function strategyChecks(
   brand: CmoEvalBrand,
   saved: unknown,
@@ -115,6 +122,18 @@ export function strategyChecks(
       pass: new RegExp(brand.planLanguage, "i").test(strategy.summary),
       actual: strategy.summary.slice(0, 200),
     });
+  if (brand.pieceLanguage) {
+    const pieces = new RegExp(brand.pieceLanguage, "i");
+    const titles = strategy.calendar.map((entry) => entry.title);
+    const other = titles.filter((title) => !pieces.test(title));
+    checks.push({
+      label: "Calendar titles in the posts' language",
+      pass:
+        titles.length > 0 &&
+        other.length <= titles.length * (1 - PIECE_LANGUAGE_SHARE),
+      actual: `${titles.length - other.length} of ${titles.length} titles${other.length ? `; not: ${other.slice(0, 4).join(" · ")}` : ""}`,
+    });
+  }
   const problems = [
     ...cmoPlanRuleProblems(strategy),
     ...cmoPlanProblems(strategy),

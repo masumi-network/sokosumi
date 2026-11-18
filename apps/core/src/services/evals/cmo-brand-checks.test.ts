@@ -59,6 +59,45 @@ describe("strategyChecks", () => {
     );
   });
 
+  it("fails German posts under English calendar titles", () => {
+    const calendar = (titles: string[]) =>
+      titles.map((title, index) => ({
+        id: `e${index}`,
+        date: "2026-11-20",
+        channel: "instagram",
+        format: "image",
+        title,
+        status: "idea" as const,
+      }));
+    const label = "Calendar titles in the posts' language";
+    expect(
+      checks("Hiltl", {
+        contentLanguage: "German",
+        calendar: calendar([
+          "Choose your first Haus Hiltl buffet format",
+          "Plan dinner around Zurich’s Christmas lights",
+        ]),
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        label,
+        pass: false,
+        actual: expect.stringContaining("0 of 2 titles"),
+      }),
+    );
+    expect(
+      checks("Hiltl", {
+        contentLanguage: "German",
+        calendar: calendar([
+          "Zwei Buffetarten, eine klare Wahl",
+          "Buffet nach Gewicht, kurz erklärt",
+          "Hiltl Tartare, frisch serviert",
+        ]),
+      }),
+    ).toContainEqual(expect.objectContaining({ label, pass: true }));
+    expect(checks("cal.com").map((check) => check.label)).not.toContain(label);
+  });
+
   it("still rejects a side product promoted as the entry offer", () => {
     expect(
       checks("utxo.ag", {
