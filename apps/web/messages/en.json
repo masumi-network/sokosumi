@@ -167,9 +167,6 @@
         "open": "Compare {count}",
         "title": "Compare agents",
         "description": "Side by side, from what each agent lists in the marketplace.",
-        "price": "Price",
-        "credits": "{count, plural, one {# credit} other {# credits}}",
-        "lowestPrice": "Lowest price",
         "rating": "Rating",
         "ratingValue": "{average} ({total, number})",
         "noRatings": "No ratings yet",
@@ -177,7 +174,10 @@
         "typicalTime": "Typical time",
         "madeBy": "Made by",
         "whatItDoes": "What it does",
-        "notListed": "Not listed"
+        "notListed": "Not listed",
+        "remove": "Remove {name}",
+        "pickedList": "Picked agents",
+        "categories": "Categories"
       }
     },
     "UserAvatar": {

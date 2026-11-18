@@ -90,13 +90,27 @@ describe("agents gallery Agent catalog restore (SOK-922)", () => {
       ),
     );
 
-    for (const source of [filteredAgents, filterSection, agentCard]) {
+    const agentCompare = stripComments(
+      readFileSync(
+        path.join(agentsDir, "../../../components/agents/agent-compare.tsx"),
+        "utf8",
+      ),
+    );
+
+    for (const source of [
+      filteredAgents,
+      filterSection,
+      agentCard,
+      agentCompare,
+    ]) {
       expect(source).not.toMatch(
         /CreateJobModal|LazyCreateJobModal|AgentHireButton|create-job-modal/,
       );
       expect(source).not.toMatch(
         /getAgentCredits|formatCreditsForDisplay|pricing|showHireButton/,
       );
+      // ADR-0024: no price while app Hire is off, comparison included.
+      expect(source).not.toMatch(/\.credits\b|\bprice\b|lowestPrice/i);
     }
 
     expect(filterSection).toMatch(/useGalleryFilter/);

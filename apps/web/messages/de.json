@@ -167,9 +167,6 @@
         "open": "{count} vergleichen",
         "title": "Agents vergleichen",
         "description": "Nebeneinander, nach den Angaben der Agents im Marktplatz.",
-        "price": "Preis",
-        "credits": "{count, plural, one {# Credit} other {# Credits}}",
-        "lowestPrice": "Günstigster Preis",
         "rating": "Bewertung",
         "ratingValue": "{average} ({total, number})",
         "noRatings": "Noch keine Bewertungen",
@@ -177,7 +174,10 @@
         "typicalTime": "Typische Dauer",
         "madeBy": "Anbieter",
         "whatItDoes": "Was er macht",
-        "notListed": "Keine Angabe"
+        "notListed": "Keine Angabe",
+        "remove": "{name} entfernen",
+        "pickedList": "Gewählte Agents",
+        "categories": "Kategorien"
       }
     },
     "UserAvatar": {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import FilterSection from "@/app/agents/components/filter-section";
 import {
   AgentCompareBar,
@@ -42,6 +42,7 @@ function FilteredAgentsInner({
 }: FilteredAgentsProps) {
   const t = useTranslations("Components.Agents");
   const { query, categories: selectedCategories, kind } = useGalleryFilter();
+  const catalogRef = useRef<HTMLDivElement>(null);
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
@@ -63,7 +64,12 @@ function FilteredAgentsInner({
 
   return (
     <AgentCompareProvider>
-      <div className="flex flex-col gap-12">
+      {/* Focus target after the last compare pick goes. */}
+      <div
+        ref={catalogRef}
+        tabIndex={-1}
+        className="flex flex-col gap-12 outline-none"
+      >
         {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
         <FilterSection categories={categories} />
         {!filteredAgents.length ? (
@@ -84,7 +90,7 @@ function FilteredAgentsInner({
           ))
         )}
         {/* All agents, so a pick survives a filter that hides it. */}
-        <AgentCompareBar agents={agents} />
+        <AgentCompareBar agents={agents} returnFocusTo={catalogRef} />
       </div>
     </AgentCompareProvider>
   );

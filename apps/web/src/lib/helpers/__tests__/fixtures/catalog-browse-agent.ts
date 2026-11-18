@@ -9,7 +9,6 @@ export function createMockCatalogBrowseAgent(
     name: "Test Agent",
     description: "Test description",
     summary: null,
-    credits: null,
     image: "https://example.com/image.png",
     icon: null,
     categories: [],

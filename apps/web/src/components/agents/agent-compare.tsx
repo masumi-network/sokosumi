@@ -3,8 +3,18 @@
 import { Check, Plus } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { createContext, type ReactNode, use, useMemo, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  use,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   Dialog,
   DialogContent,
@@ -78,9 +88,17 @@ function AgentCompareToggle({ agent }: { agent: CatalogBrowseAgent }) {
   );
 }
 
-function AgentCompareBar({ agents }: { agents: CatalogBrowseAgent[] }) {
+function AgentCompareBar({
+  agents,
+  returnFocusTo,
+}: {
+  agents: CatalogBrowseAgent[];
+  /** Takes focus when the last pick goes, since the bar unmounts. */
+  returnFocusTo: RefObject<HTMLElement | null>;
+}) {
   const t = useTranslations("Components.Agents.Compare");
   const compare = use(AgentCompareContext);
+  const clearRef = useRef<HTMLButtonElement>(null);
   if (!compare || compare.selected.length === 0) return null;
 
   // Keep the order people picked them in.
@@ -89,15 +107,44 @@ function AgentCompareBar({ agents }: { agents: CatalogBrowseAgent[] }) {
     return agent ? [agent] : [];
   });
 
+  const clear = () => {
+    compare.clear();
+    returnFocusTo.current?.focus();
+  };
+  // A pick's card may be hidden by a filter, so the bar can remove it too.
+  const remove = (id: string) => {
+    if (compare.selected.length === 1) return clear();
+    compare.toggle(id);
+    clearRef.current?.focus();
+  };
+
   return (
-    <div className="bg-background border-border sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border p-2 ps-4 shadow-lg">
-      <p className="text-muted-foreground text-sm" aria-live="polite">
-        {picked.length < 2
-          ? t("pickMore", { max: MAX_COMPARED })
-          : t("picked", { count: picked.length, max: MAX_COMPARED })}
-      </p>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={compare.clear}>
+    <div className="bg-background border-border sticky bottom-3 z-10 flex flex-col gap-2 rounded-xl border p-2 ps-4 shadow-lg md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 flex-col gap-2">
+        <p className="text-muted-foreground text-sm" aria-live="polite">
+          {picked.length < 2
+            ? t("pickMore", { max: MAX_COMPARED })
+            : t("picked", { count: picked.length, max: MAX_COMPARED })}
+        </p>
+        <ul className="flex flex-wrap gap-2" aria-label={t("pickedList")}>
+          {picked.map((agent) => (
+            <li key={agent.id} className="min-w-0">
+              <Badge
+                variant="secondary"
+                className="max-w-full gap-1 overflow-visible py-0 pe-0"
+              >
+                <span className="truncate">{getAgentName(agent)}</span>
+                <ChipRemoveButton
+                  aria-label={t("remove", { name: getAgentName(agent) })}
+                  onClick={() => remove(agent.id)}
+                />
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="flex shrink-0 items-center justify-end gap-2">
+        <Button ref={clearRef} variant="ghost" size="sm" onClick={clear}>
           {t("clear")}
         </Button>
         <Dialog>
@@ -123,13 +170,6 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
   const t = useTranslations("Components.Agents.Compare");
   const tDuration = useTranslations("Library.Duration.Long");
   const format = useFormatter();
-
-  const prices = agents.flatMap((agent) =>
-    agent.credits === null ? [] : [agent.credits],
-  );
-  const lowest = Math.min(...prices);
-  // Only call a price lowest when there is something to beat.
-  const marksLowest = prices.length > 1 && prices.some((p) => p > lowest);
   const notListed = (
     <span className="text-muted-foreground">{t("notListed")}</span>
   );
@@ -138,24 +178,6 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
     label: string;
     cell: (agent: CatalogBrowseAgent) => ReactNode;
   }[] = [
-    {
-      label: t("price"),
-      cell: (agent) =>
-        agent.credits === null ? (
-          notListed
-        ) : (
-          <span className="flex flex-col items-start gap-1">
-            <span className="tabular-nums">
-              {t("credits", { count: agent.credits })}
-            </span>
-            {marksLowest && agent.credits === lowest ? (
-              <span className="bg-muted rounded-md px-1.5 py-0.5 text-xs font-medium">
-                {t("lowestPrice")}
-              </span>
-            ) : null}
-          </span>
-        ),
-    },
     {
       label: t("rating"),
       cell: ({ metrics: { ratings } }) =>
@@ -185,6 +207,13 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
       cell: (agent) =>
         formatDuration(agent.metrics.executions.averageTime, tDuration) ??
         notListed,
+    },
+    {
+      label: t("categories"),
+      cell: (agent) =>
+        agent.categories.length > 0
+          ? agent.categories.map((category) => category.name).join(", ")
+          : notListed,
     },
     {
       label: t("madeBy"),
