@@ -10,7 +10,7 @@ import {
   CHAT_CATCH_UP_PATH,
   classifyChatChromeSurface,
 } from "@/app/chat/utils/chat-route-base";
-import { YOU_ROW_LIST_PATHS } from "@/app/components/mobile-app-chrome";
+import { isOpenedYouRow } from "@/app/components/mobile-app-chrome";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -115,7 +115,11 @@ export type ChatMobileTab =
       href: "/" | "/tasks" | "/chat" | "/projects";
       labelKey: Exclude<ChatMobileTabLabelKey, "you">;
       icon: LucideIcon;
-      isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
+      isActive: (
+        pathname: string,
+        searchParams?: SearchParamsLike,
+        openedFromYou?: boolean,
+      ) => boolean;
     }
   | {
       kind: "link";
@@ -124,7 +128,11 @@ export type ChatMobileTab =
       labelKey: "you";
       /** Avatar affordance rendered by the bottom nav (not a Lucide icon). */
       affordance: "avatar";
-      isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
+      isActive: (
+        pathname: string,
+        searchParams?: SearchParamsLike,
+        openedFromYou?: boolean,
+      ) => boolean;
     };
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
@@ -134,11 +142,21 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/",
     labelKey: "home",
     icon: Home,
-    isActive: (pathname, searchParams) =>
-      classifyChatChromeSurface(pathname, searchParams) === "home" ||
-      pathname === "/newsletter" ||
-      pathname.startsWith("/newsletter/") ||
-      pathname === "/notifications",
+    isActive: (pathname, searchParams, openedFromYou) =>
+      !isOpenedYouRow(pathname, openedFromYou) &&
+      (classifyChatChromeSurface(pathname, searchParams) === "home" ||
+        pathname === "/agents" ||
+        pathname === "/drive" ||
+        pathname === "/calendar" ||
+        pathname === "/schedules" ||
+        pathname === "/contacts" ||
+        pathname === "/social" ||
+        pathname === "/newsletter" ||
+        pathname.startsWith("/newsletter/") ||
+        pathname === "/studio" ||
+        pathname === "/tiktok-studio" ||
+        pathname === "/notifications" ||
+        pathname === "/history"),
   },
   {
     id: "tasks",
@@ -174,8 +192,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/you",
     labelKey: "you",
     affordance: "avatar",
-    // Phones open the You rows only from You, so You stays lit there.
-    isActive: (pathname) =>
-      pathname === "/you" || YOU_ROW_LIST_PATHS.has(pathname),
+    // A You row opened from You keeps You lit.
+    isActive: (pathname, _searchParams, openedFromYou) =>
+      pathname === "/you" || isOpenedYouRow(pathname, openedFromYou),
   },
 ];

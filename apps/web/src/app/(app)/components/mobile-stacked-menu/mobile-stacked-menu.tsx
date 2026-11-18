@@ -26,11 +26,13 @@ export function MobileStackedMenuLink({
   icon,
   label,
   testId,
+  onClick,
 }: {
   href: string;
   icon: ReactElement;
   label: string;
   testId: string;
+  onClick?: () => void;
 }): ReactElement {
   return (
     <Button
@@ -40,7 +42,7 @@ export function MobileStackedMenuLink({
       size="sm"
       className="text-muted-foreground hover:text-foreground h-11 w-full justify-between gap-2 rounded-none font-normal md:h-10"
     >
-      <Link href={href} data-testid={testId}>
+      <Link href={href} data-testid={testId} onClick={onClick}>
         <span className="flex min-w-0 items-center gap-2">
           {icon}
           <span className="truncate">{label}</span>

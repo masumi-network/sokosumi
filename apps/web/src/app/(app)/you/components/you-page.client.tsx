@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement } from "react";
+import { type ComponentProps, type ReactElement } from "react";
 import {
   MobileStackedMenuGroup,
   MobileStackedMenuLink,
@@ -36,6 +36,7 @@ import type {
 } from "@/app/components/sidebar/components/account-summary-types";
 import { CreditsCycleOverview } from "@/app/components/sidebar/components/credits-cycle-overview.client";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
+import { rememberYouEntry } from "@/app/you/you-entry";
 import {
   YOU_DEVELOPER_PATH,
   YOU_HELP_PATH,
@@ -174,7 +175,7 @@ export function YouPageClient({
 
         <nav aria-label={tYou("title")} className="space-y-6">
           <MobileStackedMenuGroup>
-            <MobileStackedMenuLink
+            <YouRowLink
               href={HISTORY_HREF}
               icon={<History className="size-4 shrink-0" aria-hidden />}
               label={tMenu("history")}
@@ -185,32 +186,32 @@ export function YouPageClient({
           <MobileStackedMenuGroup>
             {/* The sidebar's Agents, TikTok Studio and Contacts rows: phones
                 have no other way in. */}
-            <MobileStackedMenuLink
+            <YouRowLink
               href={AGENTS_HREF}
               icon={<Bot className="size-4 shrink-0" aria-hidden />}
               label={tMenu("exploreAgents")}
               testId="you-agents"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={TASK_SCHEDULES_PATH}
               icon={<Repeat className="size-4 shrink-0" aria-hidden />}
               label={tMenu("schedules")}
               testId="you-schedules"
             />
             {/* The sidebar's Calendar row: phones have no other way in. */}
-            <MobileStackedMenuLink
+            <YouRowLink
               href="/calendar"
               icon={<CalendarDays className="size-4 shrink-0" aria-hidden />}
               label={tMenu("calendar")}
               testId="you-calendar"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={STUDIO_HREF}
               icon={<ImagePlus className="size-4 shrink-0" aria-hidden />}
               label={tMenu("contentStudio")}
               testId="you-studio"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={hrefFor(TIKTOK_STUDIO_HREF)}
               icon={<Clapperboard className="size-4 shrink-0" aria-hidden />}
               label={tMenu("tiktokStudio")}
@@ -218,39 +219,39 @@ export function YouPageClient({
             />
             {/* The sidebar's Social, SEO and Ads rows, for phones, where the
                 You page is the menu. */}
-            <MobileStackedMenuLink
+            <YouRowLink
               href={SOCIAL_HREF}
               icon={<Share2 className="size-4 shrink-0" aria-hidden />}
               label={tMenu("social")}
               testId="you-social"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={SEO_HREF}
               icon={<SearchCheck className="size-4 shrink-0" aria-hidden />}
               label={tMenu("seo")}
               testId="you-seo"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={ADS_HREF}
               icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
               label={tMenu("ads")}
               testId="you-ads"
             />
             {newsletterEnabled ? (
-              <MobileStackedMenuLink
+              <YouRowLink
                 href="/newsletter"
                 icon={<Mail className="size-4 shrink-0" />}
                 label={tMenu("newsletter")}
                 testId="you-newsletter"
               />
             ) : null}
-            <MobileStackedMenuLink
+            <YouRowLink
               href={CONTACTS_HREF}
               icon={<Users className="size-4 shrink-0" aria-hidden />}
               label={tMenu("contacts")}
               testId="you-contacts"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}
               label={tMenu("drive")}
@@ -316,6 +317,16 @@ export function YouPageClient({
         </Button>
       </div>
     </div>
+  );
+}
+
+/** A destination row: the page it opens keeps You on phones. */
+function YouRowLink(props: ComponentProps<typeof MobileStackedMenuLink>) {
+  return (
+    <MobileStackedMenuLink
+      {...props}
+      onClick={() => rememberYouEntry(props.href)}
+    />
   );
 }
 

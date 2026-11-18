@@ -29,7 +29,11 @@ describe("Newsletter mobile tab selection", () => {
 });
 
 describe("You row mobile tab selection", () => {
-  // Phones open these only from the You page, so You stays lit.
+  const activeTabs = (pathname: string, search = "", openedFromYou = false) =>
+    CHAT_MOBILE_TABS.filter((tab) =>
+      tab.isActive(pathname, new URLSearchParams(search), openedFromYou),
+    ).map((tab) => tab.id);
+
   it.each([
     "/history",
     "/agents",
@@ -40,22 +44,25 @@ describe("You row mobile tab selection", () => {
     "/social",
     "/contacts",
     "/drive",
-  ])("selects You on %s", (pathname) => {
-    expect(
-      CHAT_MOBILE_TABS.filter((tab) => tab.isActive(pathname)).map(
-        (tab) => tab.id,
-      ),
-    ).toEqual(["you"]);
+  ])("selects You on %s opened from You, Home otherwise", (pathname) => {
+    expect(activeTabs(pathname, "", true)).toEqual(["you"]);
+    expect(activeTabs(pathname)).toEqual(["home"]);
+  });
+
+  it("keeps the project on a You row and still selects You", () => {
+    expect(activeTabs("/tiktok-studio", "project=p1", true)).toEqual(["you"]);
+  });
+
+  // A project's post preview opens Social accounts: Home, as before.
+  it("selects Home on Social opened from a project", () => {
+    expect(activeTabs("/social", "projectId=p1&tab=accounts")).toEqual([
+      "home",
+    ]);
   });
 
   it("keeps Home on Home and the inbox", () => {
-    for (const pathname of ["/", "/notifications"]) {
-      expect(
-        CHAT_MOBILE_TABS.filter((tab) => tab.isActive(pathname)).map(
-          (tab) => tab.id,
-        ),
-      ).toEqual(["home"]);
-    }
+    expect(activeTabs("/", "", true)).toEqual(["home"]);
+    expect(activeTabs("/notifications", "", true)).toEqual(["home"]);
   });
 });
 

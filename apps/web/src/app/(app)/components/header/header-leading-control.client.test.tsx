@@ -45,6 +45,7 @@ vi.mock("@/components/masumi-logos", () => ({
 }));
 
 import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client";
+import { YOU_ENTRY_SESSION_KEY } from "@/app/you/you-entry";
 import { HeaderLeadingControl } from "./header-leading-control.client";
 
 describe("HeaderLeadingControl", () => {
@@ -151,7 +152,6 @@ describe("HeaderLeadingControl", () => {
     }
   });
 
-  // Phones open these only from the You page: back names You.
   it.each([
     "/history",
     "/agents",
@@ -162,13 +162,77 @@ describe("HeaderLeadingControl", () => {
     "/social",
     "/contacts",
     "/drive",
-  ])("shows a named back to You on %s", (pathname) => {
+  ])("shows a named back to You on %s opened from You", (pathname) => {
+    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, pathname);
     mockPathname = pathname;
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToYou" });
     expect(back).toHaveAttribute("href", "/you");
     expect(back).toHaveTextContent("you");
     expect(screen.queryByTestId("sokosumi-icon")).toBeNull();
+  });
+
+  it("keeps a project-scoped TikTok Studio opened from You going back to You", () => {
+    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/tiktok-studio");
+    mockPathname = "/tiktok-studio";
+    mockSearchParams = new URLSearchParams("project=p1");
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "backToYou" })).toHaveAttribute(
+      "href",
+      "/you",
+    );
+  });
+
+  it("keeps a nested page of a You row going back to its list", () => {
+    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/agents");
+    mockPathname = "/agents/a1";
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/agents",
+    );
+  });
+
+  // A project's post preview opens its Social accounts: not from You.
+  it("keeps Social opened from a project going back to Home", () => {
+    mockPathname = "/social";
+    mockSearchParams = new URLSearchParams("projectId=p1&tab=accounts");
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  it("forgets the You entry once the reader leaves that page", () => {
+    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/contacts");
+    mockPathname = "/tasks/t1";
+    const { unmount } = render(<HeaderLeadingControl />);
+    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBeNull();
+    unmount();
+    // Contacts opened from a task keeps its own chrome.
+    mockPathname = "/contacts";
+    render(<HeaderLeadingControl />);
+    expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "backToYou" })).toBeNull();
+  });
+
+  it("keeps brand link on /history opened from a task", () => {
+    mockPathname = "/history";
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  it("keeps back to home on Agents opened from elsewhere", () => {
+    mockPathname = "/agents";
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/",
+    );
   });
 
   it("keeps an icon-only back on other pages", () => {

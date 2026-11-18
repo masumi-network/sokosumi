@@ -61,8 +61,9 @@ const YOU_HUB_CHILD_PATHS = [
 ] as const;
 
 /**
- * You page rows that are tab list roots: phones open them only from You, so
- * they light the You tab and go back to You.
+ * You page rows that are tab list roots. Opened from You (`useOpenedFromYou`),
+ * they light the You tab and go back to You; opened from anywhere else they
+ * keep their own chrome.
  */
 export const YOU_ROW_LIST_PATHS = new Set<string>([
   "/history",
@@ -75,6 +76,14 @@ export const YOU_ROW_LIST_PATHS = new Set<string>([
   "/contacts",
   "/drive",
 ]);
+
+/** A You row list root the reader opened from the You page. */
+export function isOpenedYouRow(
+  pathname: string,
+  openedFromYou = false,
+): boolean {
+  return openedFromYou && YOU_ROW_LIST_PATHS.has(pathname);
+}
 
 const BACK_TO_YOU: MobileAppBackTarget = {
   href: "/you",
@@ -143,11 +152,10 @@ function adsListHref(searchParams: SearchParamsLike): string {
 
 /**
  * Back target for main list routes and their nested pages.
- * Tab list roots → null; non-tab hub roots → Chats (Soko Bot setup opened
- * from Home → home); nested → list root.
- * You page rows (Credit history, Agents, Schedules, Calendar, Studios, Social,
- * Contacts, Files, Account, Billing, Connections, SEO, Ads) and You submenus
- * → You, named.
+ * Tab list roots → null; Agents root → home; non-tab hub roots → Chats
+ * (Soko Bot setup opened from Home → home); nested → list root.
+ * You page rows outside `/you/` (Account, Billing, Connections, SEO, Ads) and
+ * You submenus → You, named. You row list roots opened from You → You, named.
  * Ads pages (campaigns) → the Ads list for their project, account and range.
  * Developer sections → the You → Developer menu; their detail pages → the
  * section list.
@@ -155,9 +163,13 @@ function adsListHref(searchParams: SearchParamsLike): string {
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
+  openedFromYou = false,
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
+  }
+  if (isOpenedYouRow(pathname, openedFromYou)) {
+    return BACK_TO_YOU;
   }
   if (pathname.startsWith("/ads/")) {
     return { href: adsListHref(searchParams), labelKey: "back" };
@@ -198,8 +210,17 @@ export function resolveMobileAppBackTarget(
     };
   }
   if (pathname === root) {
-    if (YOU_ROW_LIST_PATHS.has(root)) {
-      return BACK_TO_YOU;
+    if (
+      root === "/agents" ||
+      root === "/drive" ||
+      root === "/calendar" ||
+      root === "/schedules" ||
+      root === "/contacts" ||
+      root === "/social" ||
+      root === "/studio" ||
+      root === "/tiktok-studio"
+    ) {
+      return { href: "/", labelKey: "back" };
     }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
       return null;
@@ -252,12 +273,15 @@ export function shouldShowMobileBottomNav(
 
 /**
  * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
- * root (Tasks / Projects / You). You rows and Newsletter keep back.
+ * root (Tasks / Projects / You). Agents, Social and Studio keep back to home.
  * Nested pages keep back.
+ * `/history` keeps brand chrome after Search left the tab bar.
+ * You row list roots opened from You show back to You instead.
  */
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
+  openedFromYou = false,
 ): boolean {
   const surface = classifyChatChromeSurface(pathname, searchParams);
   if (surface === "home" || surface === "chats") {
@@ -266,8 +290,14 @@ export function shouldShowMobileBrandLeading(
   if (!pathname) {
     return false;
   }
+  if (isOpenedYouRow(pathname, openedFromYou)) {
+    return false;
+  }
   if (
-    YOU_ROW_LIST_PATHS.has(pathname) ||
+    pathname === "/agents" ||
+    pathname === "/social" ||
+    pathname === "/studio" ||
+    pathname === "/tiktok-studio" ||
     pathname === "/newsletter" ||
     pathname.startsWith("/newsletter/")
   ) {

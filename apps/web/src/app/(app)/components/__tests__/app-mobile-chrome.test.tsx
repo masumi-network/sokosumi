@@ -164,8 +164,7 @@ describe("AppMobileChrome", () => {
       expect(
         screen.getByRole("navigation", { name: "ariaLabel" }),
       ).toBeTruthy();
-      // Phones open Studio and Social from You, so You stays lit.
-      expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
         "aria-current",
         "page",
       );

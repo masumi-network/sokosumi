@@ -19,6 +19,7 @@ import {
 import { useIsAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import { getStoredTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
+import { useOpenedFromYou } from "@/app/you/you-entry";
 import { BackLink } from "@/components/back-link";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,8 @@ import { cn } from "@/lib/utils";
  * - other nested list pages → back to list root
  * - Developer sections → back to the You → Developer menu; their detail
  *   pages → back to the section list
- * - You rows and submenus → back to You, with "You" shown beside the chevron
+ * - You rows (lists opened from You) and submenus → back to You, with "You"
+ *   shown beside the chevron
  * - non-tab hub roots → back to chats
  * - otherwise → back to chats
  */
@@ -42,7 +44,12 @@ export function HeaderLeadingControl(): React.ReactElement {
   const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
   const surface = classifyChatChromeSurface(pathname, searchParams);
-  const appBack = resolveMobileAppBackTarget(pathname, searchParams);
+  const openedFromYou = useOpenedFromYou();
+  const appBack = resolveMobileAppBackTarget(
+    pathname,
+    searchParams,
+    openedFromYou,
+  );
   // Only a task's own page goes back to the Calendar it was opened from.
   const allowCalendar = isTaskDetailPathname(pathname);
   const tasksReturnPath = useTasksReturnPath({ allowCalendar });
@@ -50,7 +57,7 @@ export function HeaderLeadingControl(): React.ReactElement {
     getAgentJobsPathAgentId(pathname),
   );
 
-  if (shouldShowMobileBrandLeading(pathname, searchParams)) {
+  if (shouldShowMobileBrandLeading(pathname, searchParams, openedFromYou)) {
     return (
       <Link
         href="/"

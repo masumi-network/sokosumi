@@ -47,11 +47,37 @@ describe("mobile-app-chrome", () => {
     it("returns null on tab list roots (no leading back)", () => {
       expect(resolveMobileAppBackTarget("/tasks")).toBeNull();
       expect(resolveMobileAppBackTarget("/projects")).toBeNull();
-      expect(resolveMobileAppBackTarget("/you")).toBeNull();
+      expect(resolveMobileAppBackTarget("/history")).toBeNull();
     });
 
-    // Phones open these only from the You page, so back names You.
-    it.each([
+    it("sends agents, drive, calendar, schedules, social and studio roots back to home", () => {
+      expect(resolveMobileAppBackTarget("/agents")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/drive")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/calendar")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/schedules")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/studio")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/social")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+    });
+
+    const YOU_ROWS = [
       "/history",
       "/agents",
       "/schedules",
@@ -61,20 +87,44 @@ describe("mobile-app-chrome", () => {
       "/social",
       "/contacts",
       "/drive",
-    ])("sends You row %s back to You", (pathname) => {
-      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+    ];
+
+    it.each(YOU_ROWS)("sends %s opened from You back to You", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname, null, true)).toEqual({
         href: "/you",
         labelKey: "backToYou",
       });
     });
 
-    it("sends a project-scoped TikTok Studio back to You", () => {
+    it("keeps a project-scoped page opened from You going back to You", () => {
       expect(
         resolveMobileAppBackTarget(
           "/tiktok-studio",
           new URLSearchParams("project=p1"),
+          true,
         ),
       ).toEqual({ href: "/you", labelKey: "backToYou" });
+    });
+
+    // A project's post preview links to its Social accounts: not from You.
+    it("keeps Social opened from a project going back to Home", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/social",
+          new URLSearchParams("projectId=p1&tab=accounts"),
+        ),
+      ).toEqual({ href: "/", labelKey: "back" });
+    });
+
+    it("keeps nested pages of a You row going back to their list", () => {
+      expect(resolveMobileAppBackTarget("/agents/a1", null, true)).toEqual({
+        href: "/agents",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/schedules/s1", null, true)).toEqual({
+        href: "/schedules",
+        labelKey: "back",
+      });
     });
 
     it("sends nested studio paths back to the studio root", () => {
@@ -308,6 +358,7 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
       expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
       expect(shouldShowMobileBrandLeading("/you")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
     it("hides brand for rooms, hubs, nested detail, and agents", () => {
@@ -333,15 +384,12 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
     });
 
-    it.each([
-      "/history",
-      "/schedules",
-      "/calendar",
-      "/contacts",
-      "/drive",
-      "/tiktok-studio",
-    ])("hides brand on You row %s so back to You shows", (pathname) => {
-      expect(shouldShowMobileBrandLeading(pathname)).toBe(false);
-    });
+    it.each(["/history", "/schedules", "/calendar", "/contacts", "/drive"])(
+      "swaps brand for back to You on %s opened from You",
+      (pathname) => {
+        expect(shouldShowMobileBrandLeading(pathname)).toBe(true);
+        expect(shouldShowMobileBrandLeading(pathname, null, true)).toBe(false);
+      },
+    );
   });
 });

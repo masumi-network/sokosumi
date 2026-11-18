@@ -41,6 +41,7 @@ vi.mock("@/components/analytics/cookie-banner", () => ({
 
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { YouPageClient } from "@/app/you/components/you-page.client";
+import { YOU_ENTRY_SESSION_KEY } from "@/app/you/you-entry";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -372,6 +373,35 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-legal")).toBeInTheDocument();
     expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
+  });
+
+  it("remembers a destination row opened from You, not a settings row", () => {
+    window.sessionStorage.clear();
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-account"));
+    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBeNull();
+
+    fireEvent.click(screen.getByTestId("you-contacts"));
+    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBe(
+      "/contacts",
+    );
+    window.sessionStorage.clear();
+  });
+
+  it("remembers a project-scoped TikTok Studio row by its path", () => {
+    window.sessionStorage.clear();
+    scopeProjectId = "p1";
+    renderYouPage();
+
+    const row = screen.getByTestId("you-tiktok-studio");
+    expect(row.getAttribute("href")).toContain("p1");
+    fireEvent.click(row);
+    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBe(
+      "/tiktok-studio",
+    );
+    window.sessionStorage.clear();
+    scopeProjectId = null;
   });
 
   // The header bell is the inbox, also called Notifications.

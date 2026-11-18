@@ -56,6 +56,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+import { YOU_ENTRY_SESSION_KEY } from "@/app/you/you-entry";
 import {
   ChatMobileBottomNav,
   resolveChatMobileActiveTabId,
@@ -68,7 +69,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
     expect(resolveChatMobileActiveTabId("/you")).toBe("you");
-    expect(resolveChatMobileActiveTabId("/history")).toBe("you");
+    expect(resolveChatMobileActiveTabId("/history")).toBe("home");
     expect(resolveChatMobileActiveTabId("/notifications")).toBe("home");
   });
 
@@ -94,13 +95,13 @@ describe("resolveChatMobileActiveTabId", () => {
     ).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
-    expect(resolveChatMobileActiveTabId("/agents")).toBe("you");
+    expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
-    expect(resolveChatMobileActiveTabId("/drive")).toBe("you");
-    expect(resolveChatMobileActiveTabId("/calendar")).toBe("you");
-    expect(resolveChatMobileActiveTabId("/schedules")).toBe("you");
-    expect(resolveChatMobileActiveTabId("/studio")).toBe("you");
-    expect(resolveChatMobileActiveTabId("/social")).toBe("you");
+    expect(resolveChatMobileActiveTabId("/drive")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/calendar")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/schedules")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/studio")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/social")).toBe("home");
     expect(resolveChatMobileActiveTabId("/you")).toBe("you");
     expect(resolveChatMobileActiveTabId("/notifications/n1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
@@ -238,12 +239,11 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  // Phones open it only from You, so You stays lit.
-  it("sets aria-current on You for /agents", () => {
+  it("sets aria-current on Home for /agents", () => {
     mockPathname = "/agents";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
-    expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -252,12 +252,26 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  // Phones open it only from You, so You stays lit.
-  it("sets aria-current on You for /history", () => {
-    mockPathname = "/history";
+  it("sets aria-current on You for Contacts opened from You", () => {
+    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/contacts");
+    mockPathname = "/contacts";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    window.sessionStorage.clear();
+  });
+
+  it("sets aria-current on Home for /history", () => {
+    mockPathname = "/history";
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
       "page",
     );
