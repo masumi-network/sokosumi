@@ -7,7 +7,7 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { lockTaskRows } from "@/helpers/calendar-locks";
+import { lockCalendarScope } from "@/helpers/calendar-locks";
 import {
   badRequest,
   conflict,
@@ -91,7 +91,22 @@ export async function requireSubtaskParent(
     ownerId: string | null;
   },
 ): Promise<SubtaskParent> {
-  await lockTaskRows(tx, [input.parentTaskId]);
+  const placement = await tx.task.findFirst({
+    where: {
+      id: input.parentTaskId,
+      workspaceId: input.workspaceId,
+      archivedAt: null,
+    },
+    select: { projectId: true },
+  });
+  if (!placement) throw notFound("Parent Task not found");
+  // Workspace and Project before the Task row, in the order a Task PATCH
+  // takes them; the insert below needs both.
+  if (!(await lockCalendarScope(tx, input.workspaceId, [placement.projectId])))
+    throw conflict("Parent Task changed while adding a sub-task");
+  // A write, not only a lock: a SERIALIZABLE archive whose snapshot predates
+  // this sub-task then fails and retries, rather than missing it.
+  await tx.$executeRaw`UPDATE "task" SET "position" = "position" WHERE "id" = ${input.parentTaskId}`;
   const parent = await tx.task.findFirst({
     where: {
       id: input.parentTaskId,
@@ -101,6 +116,8 @@ export async function requireSubtaskParent(
     select: { id: true, projectId: true, visibility: true, ownerId: true },
   });
   if (!parent) throw notFound("Parent Task not found");
+  if (parent.projectId !== placement.projectId)
+    throw conflict("Parent Task changed while adding a sub-task");
   if (parent.visibility === "PRIVATE" && parent.ownerId !== input.ownerId) {
     throw unprocessableEntity(
       "Only the Owner of a private Task can add sub-tasks to it",

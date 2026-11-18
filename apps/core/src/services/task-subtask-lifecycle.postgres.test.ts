@@ -214,6 +214,59 @@ describe.skipIf(!enabled)("sub-task lifecycle against PostgreSQL", () => {
     expect(after.archivedAt).toBeNull();
   });
 
+  it("refuses a Soko Bot archive that would drop a sub-task's future run", async () => {
+    const parent = await create("Bot parent");
+    const child = await create("Queued child", {
+      parent: { taskId: parent.id },
+    });
+    await prisma.task.update({
+      where: { id: child.id },
+      data: {
+        status: TaskStatus.QUEUED,
+        runAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    await expect(
+      prisma.$transaction((tx) =>
+        archiveTaskRecord(tx, parent, {
+          actor: { kind: "soko_bot", sokoBotId: randomUUID() },
+        }),
+      ),
+    ).rejects.toThrow("A sub-task has a future Run at");
+  });
+
+  it("makes a sub-task restore wait for its parent's archive", async () => {
+    const parent = await create("Racing parent");
+    const child = await create("Racing child", {
+      parent: { taskId: parent.id },
+    });
+    await prisma.task.update({
+      where: { id: child.id },
+      data: { archivedAt: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    let restore: Promise<unknown> = Promise.resolve();
+    await prisma.$transaction(async (tx) => {
+      await archiveTaskRecord(tx, parent);
+      restore = prisma
+        .$transaction(async (other) =>
+          restoreTaskRecord(
+            other,
+            await other.task.findUniqueOrThrow({ where: { id: child.id } }),
+            actor,
+          ),
+        )
+        .catch((error: unknown) => error);
+      // Long enough for the restore to reach its parent check.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    expect(String(await restore)).toContain(
+      "Restore the Task this sub-task belongs to first",
+    );
+  });
+
   it("refuses a PARENT link on a sub-task and allows other links", async () => {
     const parent = await create("Linked parent");
     const child = await create("Linked child", {

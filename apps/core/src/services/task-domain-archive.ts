@@ -42,7 +42,7 @@ export async function archiveTaskRecord(
   )
     throw conflict("Task changed; read it again");
   // Sub-tasks go with their Task, so none is left live under an archived one.
-  const subtasks = await liveSubtasks(tx, task.id);
+  const subtasks = await liveSubtasks(tx, task.id, options.actor);
   const archivedAt = new Date();
   const result = await tx.task.updateMany({
     where: {
@@ -98,6 +98,8 @@ export async function restoreTaskRecord(
   actor: TaskDomainActor,
 ): Promise<void> {
   if (task.parentTaskId) {
+    // An archive of the parent locks it first: no restore slips past it.
+    await lockTaskRows(tx, [task.parentTaskId]);
     const parent = await tx.task.findUnique({
       where: { id: task.parentTaskId },
       select: { archivedAt: true },
@@ -154,16 +156,18 @@ export async function restoreTaskRecord(
 async function liveSubtasks(
   tx: Prisma.TransactionClient,
   taskId: string,
+  actor: TaskDomainActor | undefined,
 ): Promise<{ id: string; status: TaskStatus }[]> {
   const found: { id: string; status: TaskStatus }[] = [];
   let level = [taskId];
   while (level.length > 0) {
-    // A sub-task created meanwhile locks its parent first, so it waits for
-    // this archive and then finds the parent archived.
+    // A sub-task created meanwhile writes its parent first, so it waits for
+    // this archive and then finds the parent archived; one that committed
+    // after a SERIALIZABLE snapshot fails this lock, and the archive retries.
     await lockTaskRows(tx, level);
     const subtasks = await tx.task.findMany({
       where: { parentTaskId: { in: level }, archivedAt: null },
-      select: { id: true, status: true },
+      select: { id: true, status: true, runAt: true },
     });
     const blocked = subtasks.find(
       (subtask) => !canArchiveTaskStatus(subtask.status),
@@ -173,8 +177,17 @@ async function liveSubtasks(
         `A sub-task is ${blocked.status.toLowerCase().replaceAll("_", " ")}. Finish or cancel it before archiving this Task.`,
       );
     }
+    // As for the Task itself: the bot must not cancel a future run.
+    if (
+      actor?.kind === "soko_bot" &&
+      subtasks.some((subtask) => subtask.runAt && subtask.runAt > new Date())
+    ) {
+      throw unprocessableEntity(
+        "A sub-task has a future Run at. Remove it before archiving this Task.",
+      );
+    }
     level = subtasks.map((subtask) => subtask.id);
-    found.push(...subtasks);
+    found.push(...subtasks.map(({ id, status }) => ({ id, status })));
   }
   return found;
 }
