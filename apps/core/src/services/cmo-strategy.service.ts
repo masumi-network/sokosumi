@@ -574,7 +574,7 @@ async function startStrategyTurn(
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this strategy is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the strategy itself (summary, goals, why, briefs) stays in the owner's language.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, unless the owner asked for another. Every piece is in it, from its calendar title, brief and story to its words (hooks, drafts, the offer's action), and so are the pillar names. What explains the strategy to the owner (the idea, summary, goals, each why, the funnel, the questions) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),
