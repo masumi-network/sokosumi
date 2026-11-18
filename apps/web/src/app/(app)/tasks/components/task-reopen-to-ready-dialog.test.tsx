@@ -52,6 +52,21 @@ describe("TaskReopenToReadyDialog", () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
+  it("shows the spinner on the draft button while reopening as a draft", () => {
+    renderDialog({
+      onReopenAsDraft: vi.fn(),
+      isPending: true,
+      isDraftPending: true,
+    });
+
+    expect(
+      screen.getByRole("button", { name: "reopenAsDraft" }),
+    ).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.getByRole("button", { name: "confirm Writer" }),
+    ).not.toHaveAttribute("aria-busy");
+  });
+
   it("disables confirm when comment is whitespace-only", () => {
     renderDialog({ comment: "   " });
 
