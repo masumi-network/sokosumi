@@ -60,6 +60,12 @@ export function SeoIndexNote({
           ) : null}
         </div>
       ) : null}
+      {assessment.auditPageUrl &&
+      assessment.auditPageUrl !== assessment.pageUrl ? (
+        <p className="text-muted-foreground text-xs">
+          {t("auditPage")} <SeoPageLink url={assessment.auditPageUrl} quiet />
+        </p>
+      ) : null}
       {/* The next step follows the reason. An expected exclusion needs nothing, so it stays quiet. */}
       <p
         className={cn(
