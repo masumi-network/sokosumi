@@ -62,6 +62,9 @@ export function TaskCard({
   quietStatus,
 }: TaskCardProps) {
   const t = useTranslations("App.Tasks.Tags");
+  const tTasks = useTranslations("App.Tasks");
+  const hasName = task.name.trim().length > 0;
+  const name = hasName ? task.name : tTasks("noTitle");
   const handleProps = dragHandleProps
     ? { ...dragHandleProps.attributes, ...dragHandleProps.listeners }
     : null;
@@ -123,19 +126,21 @@ export function TaskCard({
         </div>
         <h3
           className={cn(
-            "text-foreground text-sm leading-5 font-medium",
+            "text-sm leading-5 font-medium",
+            // A stand-in is quieter than a title someone wrote.
+            hasName ? "text-foreground" : "text-muted-foreground",
             compact ? "line-clamp-1" : "line-clamp-2",
           )}
         >
           {task.isPending ? (
-            task.name
+            name
           ) : (
             <TaskDetailLink
               href={taskHref(task)}
-              title={task.name}
+              title={name}
               className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
             >
-              {task.name}
+              {name}
             </TaskDetailLink>
           )}
         </h3>

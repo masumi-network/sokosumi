@@ -308,6 +308,19 @@ describe("TaskCard project navigation", () => {
   });
 });
 
+describe("TaskCard without a title", () => {
+  it("says so in place of an empty link", () => {
+    render(
+      <TaskCard task={{ ...buildTask(TaskVisibility.PUBLIC), name: "  " }} />,
+    );
+
+    expect(screen.getByRole("link", { name: "noTitle" })).toHaveAttribute(
+      "href",
+      "/tasks/task-1",
+    );
+  });
+});
+
 describe("TaskCard while it saves", () => {
   it("shows the identifier as text, since a pending Task has nowhere to go", () => {
     const task = {
