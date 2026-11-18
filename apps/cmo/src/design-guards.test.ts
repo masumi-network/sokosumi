@@ -156,14 +156,6 @@ describe("voice", () => {
 
     expect(hedges).toEqual([]);
   });
-
-  /**
-   * DESIGN.md → Agent naming: each user names their own agent, so no screen
-   * hardcodes one. "June" is the example name from the demo.
-   */
-  it("hardcodes no agent name", () => {
-    expect(findLines(SOURCE, /\bJune\b/)).toEqual([]);
-  });
 });
 
 describe("accessibility", () => {

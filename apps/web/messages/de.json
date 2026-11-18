@@ -4721,6 +4721,7 @@
         "submission_uncertain": "Der Bildanbieter hat den Empfang dieser Anfrage nicht bestätigt, sie kann also gelaufen sein oder nicht.",
         "reference_not_sendable": "Ein Referenzbild konnte nicht an den Bildanbieter gesendet werden.",
         "product_cutout_unavailable": "Das Originalfoto muss ein zugängliches, statisches PNG mit transparentem Hintergrund sein.",
+        "voice_unavailable": "Die Stimme für dieses Video konnte nicht erzeugt werden, daher wurde nichts gesendet.",
         "request_not_supported": "Dieses Modell oder diese Einstellungen sind beim Bildanbieter nicht mehr verfügbar.",
         "cancelled": "Abgebrochen, bevor ein Bild entstanden ist.",
         "abandoned_before_send": "Diese Anfrage wurde verworfen, bevor sie den Bildanbieter erreicht hat.",
@@ -10870,7 +10871,7 @@
         "social": "Social-Beiträge",
         "newsletter": "Newsletter",
         "contacts": "Nachfassungen",
-        "marketing": "Marketingplan",
+        "marketing": "Marketingstrategie",
         "sokoBot": "Soko Bot"
       },
       "source": {

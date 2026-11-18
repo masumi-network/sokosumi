@@ -119,7 +119,7 @@ export function EntrySheet({
                 className="sheet-close"
                 onClick={onPrev}
                 disabled={!onPrev}
-                aria-label="Previous piece"
+                aria-label="Previous post"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -131,7 +131,7 @@ export function EntrySheet({
                 className="sheet-close"
                 onClick={onNext}
                 disabled={!onNext}
-                aria-label="Next piece"
+                aria-label="Next post"
               >
                 <ChevronRight size={16} />
               </button>
@@ -247,7 +247,7 @@ function ChangePiece({
           setFailed(false);
           try {
             await onAsk(
-              `Change this piece: "${entry.title}" (${entry.channel}, ${entry.date}, id ${entry.id}). ${request}`,
+              `Change this post: "${entry.title}" (${entry.channel}, ${entry.date}, id ${entry.id}). ${request}`,
             );
             setSent(true);
           } catch {
@@ -257,7 +257,7 @@ function ChangePiece({
       }}
     >
       <label className="label" htmlFor={`change-${entry.id}`}>
-        Change this piece
+        Change this post
       </label>
       <div className="sheet-change-row">
         <input
