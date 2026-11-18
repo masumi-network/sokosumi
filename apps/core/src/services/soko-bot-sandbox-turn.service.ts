@@ -24,6 +24,7 @@ import {
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
+import { withCmoReplyLanguage } from "@/lib/soko-bot/cmo-reply-language";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -181,9 +182,12 @@ export async function startSandboxTurn(
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
-    message: await withActiveBackgroundRuns(
+    message: await withCmoReplyLanguage(
       claims.turnId,
-      await withTurnSkills(claims.turnId, stored.userMessage),
+      await withActiveBackgroundRuns(
+        claims.turnId,
+        await withTurnSkills(claims.turnId, stored.userMessage),
+      ),
     ),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: sokoBotMaxSteps(

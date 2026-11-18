@@ -21,6 +21,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
+import { withCmoReplyLanguage } from "@/lib/soko-bot/cmo-reply-language";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -223,9 +224,12 @@ async function runTurn(
     // it, so the turn still has time to write from their hand-overs.
     const partMs = Math.min(TURN_PART_MAX_MS, budgetMs / 2);
     const userMessage = await withPartHandOvers(
-      await withActiveBackgroundRuns(
+      await withCmoReplyLanguage(
         input.turnId,
-        await withTurnSkills(input.turnId, input.message),
+        await withActiveBackgroundRuns(
+          input.turnId,
+          await withTurnSkills(input.turnId, input.message),
+        ),
       ),
       turn.parts,
       async (part) =>
