@@ -25,15 +25,15 @@ export {
   SOKO_BOT_CMO_SCHEDULES,
 } from "./cmo.js";
 export {
-  CMO_COMPETITOR_SUPPORT,
-  type CmoCompetitorFact,
-  type CmoCompetitorFeedItem,
-  type CmoSaveCompetitorFeedInput,
-  cmoCompetitorFactSchema,
-  cmoCompetitorFeedItemSchema,
+  COMPETITOR_SUPPORT,
+  type CompetitorFact,
+  type CompetitorFeedItem,
   cmoCompetitorWatchBrief,
-  cmoSaveCompetitorFeedInputSchema,
-} from "./cmo-competitors.js";
+  competitorFactSchema,
+  competitorFeedItemSchema,
+  type SaveCompetitorFeedInput,
+  saveCompetitorFeedInputSchema,
+} from "./competitors.js";
 export {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
@@ -71,6 +71,7 @@ export {
   isSokoBotAnnouncementCapability,
   isSokoBotCapability,
   isSokoBotCmoCapability,
+  isSokoBotCompetitorCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSandboxCapability,
   limitSokoBotWrites,
@@ -78,6 +79,7 @@ export {
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   SOKO_BOT_MEMORY_LIMITS,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,

@@ -10,7 +10,7 @@
  * Jev, the strategy request and the turn start are mocked; fixtures are
  * deleted after each test.
  */
-import type { CmoSaveCompetitorFeedInput } from "@sokosumi/soko-bot";
+import type { SaveCompetitorFeedInput } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -155,7 +155,7 @@ async function world(): Promise<World> {
   };
 }
 
-function priceFeed(w: World, text: string): CmoSaveCompetitorFeedInput {
+function priceFeed(w: World, text: string): SaveCompetitorFeedInput {
   return {
     items: [
       {

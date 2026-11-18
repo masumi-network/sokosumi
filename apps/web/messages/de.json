@@ -5624,7 +5624,8 @@
       "thisWeek": {
         "title": "Diese Woche",
         "checked": "Prüfung vom {date}",
-        "none": "Noch keine Zusammenfassung. Alles, was die Prüfungen finden, steht unten mit Quelle.",
+        "none": "Noch keine Zusammenfassung. Bitte einen Soko Bot, die Schritte der Wettbewerber dieser Woche aufzuschreiben; alles, was die Prüfungen finden, steht unten mit Quelle.",
+        "noneReadOnly": "Noch keine Zusammenfassung. Alles, was die Prüfungen finden, steht unten mit Quelle.",
         "quiet": "Eine ruhige Woche: nichts zu berichten.",
         "unknown": "Ein Wettbewerber",
         "big": "Großer Schritt",

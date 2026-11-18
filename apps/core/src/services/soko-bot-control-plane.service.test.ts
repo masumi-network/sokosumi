@@ -6,6 +6,7 @@ import {
   isSokoBotNewsletterCapability,
   SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
@@ -31,6 +32,10 @@ vi.mock("@/services/soko-bot-avatar-code.service", () => ({
 }));
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const competitorChecksOnForMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/competitors.service", () => ({
+  competitorChecksOnFor: competitorChecksOnForMock,
+}));
 const newsletterDraftAvailableMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/newsletter-draft.service", () => ({
   isNewsletterDraftAvailable: newsletterDraftAvailableMock,
@@ -484,6 +489,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
 beforeEach(() => {
   jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
   newsletterDraftAvailableMock.mockResolvedValue(false);
+  competitorChecksOnForMock.mockResolvedValue(false);
 });
 
 describe("SokoBotControlPlane lifecycle", () => {
@@ -569,6 +575,51 @@ describe("SokoBotControlPlane lifecycle", () => {
       const granted = turnCreateMock.mock.calls[0]?.[0]?.data
         ?.capabilityNames as string[];
       for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES) {
+        expect(result.capabilities.includes(capability)).toBe(available);
+        expect(granted.includes(capability)).toBe(available);
+      }
+      // Unrelated reads stay either way.
+      expect(granted).toContain("list_social_posts");
+    },
+  );
+
+  it.each([true, false])(
+    "offers the competitor tools only while a Project's weekly check is on: %s",
+    async (available) => {
+      competitorChecksOnForMock.mockResolvedValue(available);
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "competitor-turn",
+        leaseToken: "competitor-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "competitor-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      const result = await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "competitor-client",
+        message: "What did our competitors do this week?",
+      });
+      expect(competitorChecksOnForMock).toHaveBeenCalledWith({
+        workspaceId: "workspace_1",
+        projectId: undefined,
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_COMPETITOR_CAPABILITIES) {
         expect(result.capabilities.includes(capability)).toBe(available);
         expect(granted.includes(capability)).toBe(available);
       }

@@ -5624,7 +5624,8 @@
       "thisWeek": {
         "title": "Esta semana",
         "checked": "Revisión del {date}",
-        "none": "Aún no hay resumen. Todo lo que encuentran las revisiones está abajo con su fuente.",
+        "none": "Aún no hay resumen. Pide a un Soko Bot que escriba los movimientos de los competidores de esta semana; todo lo que encuentran las revisiones está abajo con su fuente.",
+        "noneReadOnly": "Aún no hay resumen. Todo lo que encuentran las revisiones está abajo con su fuente.",
         "quiet": "Una semana tranquila: nada que contar.",
         "unknown": "Un competidor",
         "big": "Movimiento grande",
