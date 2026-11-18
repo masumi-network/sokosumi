@@ -94,6 +94,7 @@ interface InitiateProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   action: InitiateProjectSocialConnectionRequest["action"];
+  callbackUrl?: string;
   provider?: ProjectSocialConnection["provider"];
   socialConnectionId?: string;
 }
@@ -102,6 +103,7 @@ interface FinalizeProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   connectionId: string;
+  callbackProof?: string;
 }
 
 interface DisconnectProjectSocialConnectionParameters
@@ -185,6 +187,7 @@ interface RecycleProjectSocialAccountPostParameters
 }
 
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
+  tikTokSettings?: import("@sokosumi/core-client").TikTokPostSettings;
   projectId: string;
   postId: string;
   revision: number;
@@ -561,7 +564,7 @@ export const cancelProjectCloseOwedWork = withSession<
 export const initiateProjectSocialConnection = withSession<
   InitiateProjectSocialConnectionParameters,
   ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
->(async ({ projectId, action, socialConnectionId, provider }) => {
+>(async ({ projectId, action, socialConnectionId, provider, callbackUrl }) => {
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) {
     return toActionResult(
@@ -596,7 +599,7 @@ export const initiateProjectSocialConnection = withSession<
   try {
     const connection = await projectService.initiateSocialConnection(
       normalizedProjectId,
-      input,
+      { ...input, callbackUrl },
     );
     return toActionResult(ok(connection));
   } catch (error) {
@@ -607,7 +610,7 @@ export const initiateProjectSocialConnection = withSession<
 export const finalizeProjectSocialConnection = withSession<
   FinalizeProjectSocialConnectionParameters,
   ActionResultDto<ProjectSocialConnection, ActionError>
->(async ({ projectId, connectionId }) => {
+>(async ({ projectId, connectionId, callbackProof }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedConnectionId = connectionId.trim();
   if (!normalizedProjectId || !normalizedConnectionId) {
@@ -622,7 +625,7 @@ export const finalizeProjectSocialConnection = withSession<
   try {
     const connection = await projectService.finalizeSocialConnection(
       normalizedProjectId,
-      normalizedConnectionId,
+      { connectionId: normalizedConnectionId, callbackProof },
     );
     revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
     return toActionResult(ok(connection));
@@ -1135,12 +1138,27 @@ export const recycleProjectSocialAccountPost = withSession<
 export const publishProjectSocialPost = withSession<
   PublishProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, revision }) => {
-  const parsed = publishProjectSocialPostSchema.safeParse({
-    projectId,
-    postId,
-    revision,
-  });
+>(async ({ projectId, postId, revision, tikTokSettings }) => {
+  const parsed = publishProjectSocialPostSchema
+    .extend({
+      tikTokSettings: z
+        .object({
+          privacyLevel: z.enum(["SELF_ONLY", "PUBLIC_TO_EVERYONE"]),
+          allowComment: z.boolean(),
+          allowDuet: z.boolean(),
+          allowStitch: z.boolean(),
+          promotesOwnBrand: z.boolean(),
+          acceptedMusicUsage: z.literal(true),
+          previewConsent: z.literal(true).optional(),
+        })
+        .optional(),
+    })
+    .safeParse({
+      projectId,
+      postId,
+      tikTokSettings,
+      revision,
+    });
   if (!parsed.success) {
     return badSocialPostInput(parsed);
   }
@@ -1149,7 +1167,12 @@ export const publishProjectSocialPost = withSession<
     const post = await projectService.publishSocialPost(
       parsed.data.projectId,
       parsed.data.postId,
-      { revision: parsed.data.revision },
+      {
+        revision: parsed.data.revision,
+        ...(parsed.data.tikTokSettings
+          ? { tikTokSettings: parsed.data.tikTokSettings }
+          : {}),
+      },
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));

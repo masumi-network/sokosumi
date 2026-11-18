@@ -28,8 +28,8 @@ import {
   type AuthorizedSokoBotRuntime,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeValidationError,
-  unsafeSvgReason,
 } from "../soko-bot-runtime.service";
+import { unsafeSvgReason } from "../soko-bot-svg";
 import { driveFolderFor } from "./acting-scope";
 import {
   dataRoomRefusal,

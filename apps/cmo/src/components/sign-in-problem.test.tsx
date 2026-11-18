@@ -65,9 +65,9 @@ describe("sign-in problem page", () => {
     },
   );
 
-  it("says Sokosumi is not reachable when sign in could not start", () => {
+  it("says sign in is not reachable when it could not start", () => {
     expect(alertFor("unavailable")).toContain(
-      '<p role="alert">Sokosumi is not reachable right now. Try again in a minute.</p>',
+      '<p role="alert">Sign in is not reachable right now. Try again in a minute.</p>',
     );
   });
 

@@ -116,7 +116,7 @@ export function StrategyPage({
           onClick={onOpenCalendar}
         >
           <CalendarDays size={15} aria-hidden="true" />
-          See all {pieces} pieces in your calendar
+          See all {pieces} posts in your calendar
           <ArrowRight size={15} aria-hidden="true" />
         </button>
         <StrategyVersions overview={overview} onApprove={onApprove} />

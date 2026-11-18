@@ -448,6 +448,14 @@ export const sokoBotGenerateImageInputSchema = z
     maxCredits: z.number().positive().max(10_000),
     /** A Content Studio model id; leave it out for the default, Muse Image. */
     model: z.string().trim().min(1).max(120).optional(),
+    /**
+     * Cuso only: a reference library image (find_style_references) whose
+     * look the picture takes. Core makes it in that style, checks it and
+     * places the brand's logo. Core refuses it from any other bot.
+     */
+    styleReferenceId: z.uuid().optional(),
+    /** Cuso only: the few words lettered into a styled picture, spelled exactly. */
+    headline: z.string().trim().min(1).max(60).optional(),
   })
   .strict();
 

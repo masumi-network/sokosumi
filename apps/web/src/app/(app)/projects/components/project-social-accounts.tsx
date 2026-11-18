@@ -261,13 +261,23 @@ export function ProjectSocialAccounts({
         initiateProjectSocialConnection({
           projectId,
           action,
+          ...(targetProvider === "tiktok"
+            ? {
+                callbackUrl: new URL("/zernio/callback", window.location.origin)
+                  .href,
+              }
+            : {}),
           ...(provider ? { provider } : {}),
           ...(action !== "connect" && socialConnectionId
             ? { socialConnectionId }
             : {}),
         }),
-      finalize: (connectionId) =>
-        finalizeProjectSocialConnection({ projectId, connectionId }),
+      finalize: (connectionId, callbackProof) =>
+        finalizeProjectSocialConnection({
+          projectId,
+          connectionId,
+          callbackProof,
+        }),
     });
 
     if (outcome.kind === "in_flight") {

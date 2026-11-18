@@ -7,6 +7,7 @@ import {
   ComposioConfigError,
   ComposioIdentityError,
 } from "@/clients/composio.client";
+import { ZernioApiError } from "@/clients/zernio.client";
 import { forbidden } from "@/helpers/error";
 
 import { mapProjectSocialConnectionServiceError } from "./route-helpers";
@@ -81,6 +82,14 @@ describe("mapProjectSocialConnectionServiceError", () => {
       new ComposioApiError(404, undefined, "missing"),
       400,
       "Unable to complete the social account action.",
+    );
+  });
+
+  it("maps Zernio authorization errors to an integration outage", () => {
+    expectMapped(
+      new ZernioApiError(403),
+      503,
+      "Integrations are temporarily unavailable.",
     );
   });
 
