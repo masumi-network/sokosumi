@@ -44,7 +44,9 @@ export function TaskListItem({
 
   const rowClassName = cn(
     // One line. The slots after the title have fixed widths, so the same
-    // fact sits at the same place in every row.
+    // fact sits at the same place in every row. A narrow row keeps the
+    // status and the people, and leaves tags, dates and the comment count
+    // to the wide one, so the title keeps its room.
     "flex items-center gap-3 text-xs",
     "bg-background rounded-lg border border-border px-3 transition-colors",
     compact ? "py-1.5" : "py-2.5",
@@ -91,7 +93,7 @@ export function TaskListItem({
         <TaskStatusBadge
           status={task.status}
           label={statusLabels?.[task.status]}
-          className="w-36"
+          className="w-28 lg:w-36"
           plain
         />
         {/* One date, as on a board card: a scheduled Task says when it
@@ -117,7 +119,7 @@ export function TaskListItem({
             participants={task.participants}
           />
         </span>
-        <span className="text-muted-foreground flex w-8 items-center gap-1">
+        <span className="text-muted-foreground hidden w-8 items-center gap-1 lg:flex">
           {task.commentsCount > 0 ? (
             <>
               <MessageSquare className="size-3.5" aria-hidden />

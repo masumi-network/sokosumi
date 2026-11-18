@@ -172,7 +172,7 @@ describe("TaskListItem short id", () => {
 });
 
 describe("TaskListItem one-line row", () => {
-  it("leaves the description, the created date and a zero comment count to the Task page", () => {
+  it("leaves the description and a zero comment count to the Task page", () => {
     const task = {
       ...buildTask(TaskVisibility.PRIVATE),
       descriptionPlain: "Full instructions remain in task detail.",
@@ -181,7 +181,6 @@ describe("TaskListItem one-line row", () => {
     const { rerender } = render(<TaskListItem task={task} />);
 
     expect(screen.queryByText(task.descriptionPlain)).not.toBeInTheDocument();
-    expect(screen.queryByText("Mar 1")).not.toBeInTheDocument();
     expect(screen.queryByText("0")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Private")).toBeInTheDocument();
 

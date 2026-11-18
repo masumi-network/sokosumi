@@ -220,7 +220,7 @@ export function mapTaskToTaskWithCoworker(
     columnId: getColumnId(task.status),
     tags: task.tags,
     workspaceTags: task.workspaceTags,
-    // A board or list row reads only the plain excerpt. The Task page maps
+    // A board or list row shows no description. The Task page maps
     // a full Task, which has events, and keeps the text.
     description: "events" in task ? (task.description ?? null) : null,
     descriptionPlain,
