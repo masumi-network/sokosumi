@@ -21,6 +21,9 @@ import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
   competitorFeedChecks,
   isCompetitorEvalCase,
+  prepareSokoBotCompetitorCase,
+  SOKO_BOT_COMPETITOR_CASE_ID,
+  sokoBotCompetitorChecks,
 } from "./eval-cmo-competitors";
 import {
   commentChecks,
@@ -149,6 +152,8 @@ async function startScenario(
       timezone: "Europe/Berlin",
       ...schedule,
     });
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
+    await prepareSokoBotCompetitorCase(lane);
   if (seoCase) {
     const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
     scenario = prepared.scenario;
@@ -237,6 +242,12 @@ async function pollScenario(
       scenario.id,
       context.startedAt,
     );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID) {
+    const extra = await sokoBotCompetitorChecks(lane);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

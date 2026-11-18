@@ -243,6 +243,27 @@ export async function removeTrackedCompetitor(
 }
 
 /**
+ * Whether a bot may be offered the competitor tools: its own Project's
+ * weekly check is on, or, for a bot that works across Projects, the check
+ * of any open Project in its workspace.
+ */
+export async function competitorChecksOnFor(bot: {
+  projectId: string | null;
+  workspaceId: string;
+}): Promise<boolean> {
+  const project = await prisma.project.findFirst({
+    where: {
+      ...(bot.projectId ? { id: bot.projectId } : {}),
+      workspaceId: bot.workspaceId,
+      closedAt: null,
+      competitorChecksSince: { not: null },
+    },
+    select: { id: true },
+  });
+  return project !== null;
+}
+
+/**
  * A member turns the weekly check on or off for a Project. On keeps the day
  * it was first turned on; off stops the checks and keeps what they found.
  */

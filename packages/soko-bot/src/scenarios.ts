@@ -9,7 +9,7 @@
  * starts from a clean slate instead, so its outcome does not hinge on what
  * the scenarios before it happened to leave behind.
  */
-import { cmoCompetitorWatchBrief } from "./cmo-competitors.js";
+import { cmoCompetitorWatchBrief } from "./competitors.js";
 import { MUTATING_TOOLS } from "./scenario-mutating-tools.js";
 import { SUBTASK_SCENARIOS } from "./scenario-subtasks.js";
 
@@ -1095,6 +1095,26 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   ...SUBTASK_SCENARIOS,
+  {
+    id: "competitor-week",
+    title: "Writes a Project's competitor week from stored signals only",
+    setup: {},
+    intent:
+      "On a Project whose weekly competitor check is on, the bot reads what the check stored, saves This week citing the signals, invents nothing, and tells the owner the big moves with their sources.",
+    prompt:
+      "What did the competitors of Sokosumi Marketing do this week? Write it up for the Project's Competitors page and tell me the big moves.",
+    rubric:
+      "The Project Sokosumi Marketing has the weekly competitor check on and tracks Calendly, SavvyCal and Zcal. The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. The bot calls check_competitors for that Project, then saves the week with save_competitor_feed: one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Its reply tells the owner both moves with where each was read (the source's name or link). A reason, a number or a customer reaction no signal gives, claiming the week was saved without a successful save_competitor_feed, or creating a Task or hiring an agent for this fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      // A refused save is fine when the bot fixes it and saves again.
+      allowFailedTools: ["save_competitor_feed"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      answerMatches: "calendly",
+      noDelegations: true,
+    },
+  },
 ];
 
 /** Never in front of a founder: template gaps and hedges instead of facts. */
