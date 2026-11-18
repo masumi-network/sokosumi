@@ -30,6 +30,9 @@ type ObservedIndex = z.infer<typeof indexing>;
 const metricSnapshot = z.object({
   indexedPages: z.array(indexing),
   collectedAt: z.iso.datetime().optional(),
+  inspectionCache: z
+    .object({ checkedAt: seoReusedInspectionTimesSchema })
+    .optional(),
 });
 const taskInspection = z.object({
   propertyId: z.string().nullable().optional(),
@@ -66,11 +69,11 @@ function metricPageInspection(
   if (!snapshot.success) return null;
   const page = snapshot.data.indexedPages.find((item) => item.pageUrl === url);
   if (!page) return null;
+  const checkedAt =
+    snapshot.data.inspectionCache?.checkedAt[url] ?? snapshot.data.collectedAt;
   return {
     page,
-    checkedAt: snapshot.data.collectedAt
-      ? Date.parse(snapshot.data.collectedAt)
-      : observedAt.getTime(),
+    checkedAt: checkedAt ? Date.parse(checkedAt) : observedAt.getTime(),
   };
 }
 

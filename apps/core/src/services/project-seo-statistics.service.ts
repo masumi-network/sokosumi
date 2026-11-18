@@ -384,12 +384,13 @@ export async function syncProjectSeoStatistics(
           cached,
         );
       if (cached) {
+        const inspections = await collectIndexedPages();
         const updated = {
           ...cached,
           collectedAt: cached.collectedAt ?? cached.observedAt,
           observedAt: new Date().toISOString(),
         };
-        applyStatisticsInspections(updated, await collectIndexedPages());
+        applyStatisticsInspections(updated, inspections);
         return retain(updated, collectionHooks);
       }
       const tool = await toolFor(

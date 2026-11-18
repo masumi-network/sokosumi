@@ -312,11 +312,13 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
     );
   });
 
-  it.each(["index_inspection", "metrics"])(
+  it.each(["index_inspection", "metrics", "metrics_with_page_times"])(
     "uses the actual Google read time when a later %s reuses an older inspection",
-    async (kind) => {
+    async (source) => {
+      const perPage = source === "metrics_with_page_times";
+      const kind = perPage ? "metrics" : source;
       const page = await addProjectSeoPage(actor, {
-        url: `https://example.test/newest-${kind}`,
+        url: `https://example.test/newest-${source}`,
         relationship: "primary",
       });
       const first = "2026-06-02T10:00:00.000Z";
@@ -362,7 +364,14 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
             payload:
               kind === "metrics"
                 ? {
-                    collectedAt: first,
+                    collectedAt: perPage ? retry : first,
+                    ...(perPage && {
+                      inspectionCache: {
+                        key: "a".repeat(64),
+                        readUrls: [],
+                        checkedAt: { [page.url]: first },
+                      },
+                    }),
                     indexedPages: [
                       { ...indexed, verdict: "FAIL", lastCrawlTime: first },
                     ],

@@ -867,6 +867,11 @@ describe("Search Console query rows", () => {
     const reportsBefore = reports();
     expect(reportsBefore).toBeGreaterThan(0);
     vi.setSystemTime(new Date("2026-01-20T13:00:01Z"));
+    state.answer = (slug, args) => {
+      if (slug.endsWith("INSPECT_URL"))
+        vi.setSystemTime(new Date("2026-01-20T13:00:03Z"));
+      return healthy(slug, args);
+    };
     const recovered = await syncProjectSeoStatistics(actor, request);
     expect(recovered.indexStatus?.pages[0]).toMatchObject({
       verdict: "PASS",
@@ -875,6 +880,8 @@ describe("Search Console query rows", () => {
     expect(inspections()).toBe(2);
     expect(reports()).toBe(reportsBefore);
     expect(recovered.metrics[0].observedAt).toBe(first.metrics[0].observedAt);
+    expect(recovered.metrics[0].selectedAt).toBe("2026-01-20T13:00:03.000Z");
+    state.answer = healthy;
     vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
     const video = await syncProjectSeoStatistics(actor, {
       ...request,
