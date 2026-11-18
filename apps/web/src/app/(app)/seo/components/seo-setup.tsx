@@ -1,10 +1,22 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { CircleAlert, Loader2, Play, Plus, RotateCw } from "lucide-react";
+import {
+  ChevronDown,
+  CircleAlert,
+  Loader2,
+  Play,
+  Plus,
+  RotateCw,
+} from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -22,8 +34,9 @@ import {
   seoRunAction,
   seoRunningCheck,
   seoRunProgress,
+  seoSetupPages,
 } from "./seo-setup-model";
-import { SEO_GHOST_EDGE_CLASS } from "./seo-shared";
+import { SEO_GHOST_EDGE_CLASS, SeoPageLink } from "./seo-shared";
 import { SeoStep, SeoStepList, type SeoStepMark } from "./seo-steps";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -95,7 +108,7 @@ export function SeoSetupCard({
   setup: SeoSetup;
 }) {
   const t = useTranslations("App.Seo");
-  const pages = model.data.scope.pageIds.length;
+  const pages = seoSetupPages(model.data);
   // The widest check this workspace can run on these pages: the first result is the full one where it can be.
   const run = seoRunAction(model.data);
   const full = run?.kind === "audit_full";
@@ -126,11 +139,41 @@ export function SeoSetupCard({
           heading="h4"
           mark={MARK[setup.page]}
           doneLabel={t("setup.done")}
-          title={t(setup.page === "done" ? "setup.pageDone" : "setup.page")}
-          body={
+          title={
             setup.page === "done"
-              ? t("setup.pageDoneBody", { count: pages })
-              : t("setup.pageBody")
+              ? t("setup.pageDone", { count: pages.length })
+              : t("setup.page")
+          }
+          body={
+            setup.page === "done" ? (
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(SEO_GHOST_EDGE_CLASS, "group")}
+                  >
+                    {t("setup.pageCount", { count: pages.length })}
+                    <ChevronDown
+                      aria-hidden
+                      className="size-3.5 group-data-[state=open]:rotate-180"
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ul className="space-y-1.5 py-1">
+                    {pages.map((page) => (
+                      <li key={page.id}>
+                        <SeoPageLink url={page.url} />
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleContent>
+              </Collapsible>
+            ) : (
+              t("setup.pageBody")
+            )
           }
         >
           <Button

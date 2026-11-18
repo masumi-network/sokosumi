@@ -198,6 +198,9 @@ describe("SEO audit first run", () => {
     expect(
       within(setup).queryByRole("button", { name: "Run full audit" }),
     ).toBeNull();
+    expect(
+      within(setup).getByRole("button", { name: "1 page in this audit" }),
+    ).toHaveAttribute("aria-expanded", "false");
     expect(within(setup).getAllByRole("listitem")).toHaveLength(2);
     await userEvent
       .setup()
@@ -834,6 +837,50 @@ describe("SEO audit first run", () => {
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
   });
 
+  it("opens the added page count with the keyboard and lists only the current audit URLs in scope order", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const home = workspace.pages[0];
+    const pricing = {
+      ...home,
+      id: crypto.randomUUID(),
+      label: "Pricing",
+      url: "https://example.com/products/upgrade?plan=annual",
+    };
+    const outside = {
+      ...home,
+      id: crypto.randomUUID(),
+      label: "Support",
+      url: "https://example.com/help",
+    };
+    workspace.pages = [outside, home, pricing];
+    workspace.scope.pageIds = [pricing.id, home.id];
+    network(workspace);
+    await renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    const toggle = setup.getByRole("button", { name: "2 pages in this audit" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(setup.queryByRole("link", { name: pricing.url })).toBeNull();
+    const requests = vi.mocked(fetch).mock.calls.length;
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const links = setup.getAllByRole("link", { name: /^https:\/\// });
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      pricing.url,
+      home.url,
+    ]);
+    expect(links.map((link) => link.textContent)).toEqual([
+      pricing.url,
+      home.url,
+    ]);
+    expect(setup.getByRole("button", { name: copy.addPage })).toBeVisible();
+    await user.keyboard(" ");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveFocus();
+    expect(fetch).toHaveBeenCalledTimes(requests);
+  });
+
   it("shows only the page step before a page is added", async () => {
     const workspace = seoTestWorkspace();
     workspace.pages = [];
@@ -849,6 +896,9 @@ describe("SEO audit first run", () => {
     });
     await renderWorkspace(workspace);
     const setup = within(screen.getByTestId("seo-setup"));
+    expect(
+      setup.queryByRole("button", { name: /pages? in this audit/ }),
+    ).toBeNull();
     expect(setup.getAllByRole("listitem")).toHaveLength(1);
     expect(setup.getByRole("button", { name: copy.addPage })).toBeVisible();
     expect(
