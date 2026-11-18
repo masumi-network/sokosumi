@@ -6,9 +6,10 @@ import {
   Globe2,
   House,
   Images,
+  Lightbulb,
+  Megaphone,
   Shirt,
   ShoppingBag,
-  Sparkles,
   ThumbsUp,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -37,7 +38,7 @@ const CREATIVE_STARTS = [
   },
   {
     id: "campaign",
-    icon: Sparkles,
+    icon: Megaphone,
     aspectRatio: "16:9",
     prompt:
       "Develop a campaign key visual for [brand or launch] aimed at [audience]. Make [campaign idea] the focus and leave space for [approved tagline].",
@@ -104,7 +105,7 @@ export function StudioCreativeStart({
     <Dialog>
       <DialogTrigger asChild>
         <Button size="sm" type="button" variant="outline">
-          <Sparkles aria-hidden />
+          <Lightbulb aria-hidden />
           {t("open")}
         </Button>
       </DialogTrigger>

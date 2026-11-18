@@ -6,7 +6,7 @@ import {
   type ProjectImageAsset,
 } from "@sokosumi/core-client";
 import { newsletterDraftInputSchema } from "@sokosumi/utils";
-import { WandSparkles } from "lucide-react";
+import { PenLine } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -64,7 +64,7 @@ export function DraftIssueButton({
         variant="outline"
         onClick={() => setOpen(true)}
       >
-        <WandSparkles aria-hidden />
+        <PenLine aria-hidden />
         {t("action")}
       </Button>
       {open ? (

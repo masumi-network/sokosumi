@@ -6,8 +6,8 @@ import {
   CircleDashed,
   Eye,
   Hourglass,
-  Sparkles,
   Tag,
+  Users,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -207,7 +207,7 @@ export function TasksViewFilters({
     nextSections.push({
       id: "coworker",
       label: labels.coworkerLabel,
-      icon: Sparkles,
+      icon: Users,
       value:
         filters.assigneeSokoBotId ??
         filters.assigneeUserId ??
