@@ -5,8 +5,8 @@ import { expectCoreLog } from "@/test/core-log";
 
 /**
  * A talking video rides the image job's row, lease, quote and webhook. What is
- * new is that one row carries two provider requests: the presenter model, then
- * the captions.
+ * new is that Core edits the presenter's clip before storing it, and that a
+ * clip without word timings is sent on for captions on the same row.
  */
 
 const {
@@ -23,6 +23,9 @@ const {
   requireProjectAccessMock,
   getBalanceMock,
   speakVoiceoverMock,
+  writeHookLineMock,
+  timeSpokenWordsMock,
+  editTalkingVideoMock,
   putMock,
 } = vi.hoisted(() => ({
   jobCreateMock: vi.fn(),
@@ -38,6 +41,9 @@ const {
   requireProjectAccessMock: vi.fn(),
   getBalanceMock: vi.fn(),
   speakVoiceoverMock: vi.fn(),
+  writeHookLineMock: vi.fn(),
+  timeSpokenWordsMock: vi.fn(),
+  editTalkingVideoMock: vi.fn(),
   putMock: vi.fn(),
 }));
 
@@ -94,6 +100,18 @@ vi.mock("@/lib/image-studio/reference-files", () => ({
 vi.mock("@/lib/soko-bot/voiceover", () => ({
   speakVoiceover: speakVoiceoverMock,
 }));
+vi.mock("@/services/talking-video-scripts.service", () => ({
+  writeTalkingVideoHookLine: writeHookLineMock,
+}));
+vi.mock("@/lib/image-studio/talking-video-words", () => ({
+  timeSpokenWords: timeSpokenWordsMock,
+}));
+vi.mock("@/lib/image-studio/talking-video-edit", async () => ({
+  ...(await vi.importActual<
+    typeof import("@/lib/image-studio/talking-video-edit")
+  >("@/lib/image-studio/talking-video-edit")),
+  editTalkingVideo: editTalkingVideoMock,
+}));
 vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
@@ -109,6 +127,10 @@ import {
 /** 130 characters: quoted at 10 seconds. */
 const SCRIPT = `${"Stop scrolling. ".repeat(8)}ok`;
 const PRESENTER = TALKING_VIDEO_PRESENTERS[0]!;
+const WORDS = [
+  { text: "Stop", start: 0.1, end: 0.4 },
+  { text: "scrolling.", start: 0.45, end: 1 },
+];
 
 const BASE_INPUT = {
   projectId: "project-1",
@@ -161,6 +183,8 @@ beforeEach(() => {
     durationSeconds: 8.4,
     sentences: [],
   });
+  timeSpokenWordsMock.mockResolvedValue(WORDS);
+  writeHookLineMock.mockResolvedValue("Stop the scroll");
   putMock.mockResolvedValue({
     pathname: "projects/project-1/image-studio/job-1-voice.mp3",
   });
@@ -185,8 +209,10 @@ describe("starting a talking video", () => {
           voice: "Sarah",
           presenterId: PRESENTER.id,
           languageCode: "en",
+          words: [],
+          hookLine: null,
         },
-        // 10 s at $0.181, plus the voice and the captions.
+        // 10 s at $0.181, plus the voice and timing its words.
         chargedCents: convertCreditsToCents(183),
       }),
     });
@@ -195,12 +221,21 @@ describe("starting a talking video", () => {
       voice: "Sarah",
       languageCode: "en",
     });
+    expect(timeSpokenWordsMock).toHaveBeenCalledWith({
+      audioUrl: "https://v3b.fal.media/files/voice.mp3",
+      script: SCRIPT,
+      languageCode: "en",
+    });
     // The spoken length replaces the quoted one; the quote stays as shown.
     expect(jobUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
           voiceBlobPathname: "projects/project-1/image-studio/job-1-voice.mp3",
-          settings: expect.objectContaining({ durationSeconds: 9 }),
+          settings: expect.objectContaining({
+            durationSeconds: 9,
+            words: WORDS,
+            hookLine: "Stop the scroll",
+          }),
         },
       }),
     );
@@ -326,7 +361,7 @@ describe("the presenter model's video arriving", () => {
     settings: { languageCode: "de" },
   };
 
-  it("sends it on for captions and moves the row to that request", async () => {
+  it("sends it on for captions when the voice's words were not timed", async () => {
     jobFindUniqueMock.mockResolvedValue(waiting);
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-2" });
 
@@ -377,6 +412,77 @@ describe("the presenter model's video arriving", () => {
     await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("the presenter model's video arriving with word timings", () => {
+  const AVATAR_URL = "https://v3b.fal.media/files/avatar.mp4";
+  const row = {
+    id: "job-1",
+    kind: "TALKING_VIDEO",
+    status: "RUNNING",
+    projectId: "project-1",
+    requestedByUserId: "user-1",
+    falRequestId: "fal-1",
+    idempotencyKey: "key-abcdefgh",
+    pendingMediaUrl: null,
+    settings: { durationSeconds: 9, words: WORDS, hookLine: "Stop the scroll" },
+    asset: null,
+  };
+
+  beforeEach(() => {
+    jobFindUniqueMock.mockResolvedValue(row);
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([9]),
+      contentType: "video/mp4",
+    });
+    // Stop at the upload: storing is the image job's own, tested path.
+    putMock.mockRejectedValue(new Error("stop at the upload"));
+    jobUpdateMock.mockResolvedValue({
+      statusUnreachableSince: null,
+      resultUnreachableSince: null,
+      authUnreachableSince: null,
+    });
+  });
+
+  it("edits the clip from its words and stores the edit, with no caption request", async () => {
+    const edited = new Uint8Array([7, 7, 7]);
+    editTalkingVideoMock.mockResolvedValue({
+      bytes: edited,
+      durationSeconds: 7.2,
+    });
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(editTalkingVideoMock).toHaveBeenCalledWith({
+      clip: new Uint8Array([9]),
+      words: WORDS,
+      clipSeconds: 9,
+      hookLine: "Stop the scroll",
+    });
+    expect(putMock).toHaveBeenCalledWith(
+      expect.any(String),
+      edited,
+      expect.objectContaining({ contentType: "video/mp4" }),
+    );
+  });
+
+  it("stores the clip as it came when the edit fails", async () => {
+    editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
+    const logged = expectCoreLog(
+      "warn",
+      "Delivered a talking video without its edit",
+    );
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(putMock).toHaveBeenCalledWith(
+      expect.any(String),
+      new Uint8Array([9]),
+      expect.anything(),
+    );
+    expect(logged).toHaveLength(1);
   });
 });
 
