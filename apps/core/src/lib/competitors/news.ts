@@ -75,6 +75,31 @@ function onDomain(hostname: string, domain: string): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 
+const MONTH_NAME =
+  "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+/** What a page prints before its first sentence: weekday, dates, times, a wire's tag. */
+const DATELINE = new RegExp(
+  [
+    "^(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\\s+",
+    "^\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\s*",
+    `^(?:${MONTH_NAME})\\.?\\s+\\d{1,2},?\\s+\\d{4},?\\s*`,
+    "^\\d{1,2},\\s+\\d{4}\\s*",
+    "^-?\\s*\\d{1,2}:\\d{2}(?:\\s?(?:[ap]m|et|utc))?,?\\s*",
+    "^\\/[a-z ]+\\/\\s*--\\s*",
+  ].join("|"),
+  "i",
+);
+
+function withoutDateline(sentence: string): string {
+  let text = sentence.trim();
+  for (let pass = 0; pass < 8; pass += 1) {
+    const stripped = text.replace(DATELINE, "").trim();
+    if (stripped === text) break;
+    text = stripped;
+  }
+  return text;
+}
+
 /**
  * The article's own sentence that names the company, without the page
  * furniture a passage starts with (bylines, dates, headings). The first
@@ -85,9 +110,11 @@ export function quoteSentence(
   names: readonly string[],
 ): string | null {
   const sentences = passage
+    // Emphasis marks of the page's markup are not its words.
+    .replace(/\*\*|__|`/g, "")
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+(?=[A-Z0-9"“])|\s#+\s|\s\.\.\.\s/)
-    .map((sentence) => sentence.replace(/^[#\s|·-]+/, "").trim())
+    .map((sentence) => withoutDateline(sentence.replace(/^[#\s|·-]+/, "")))
     .filter((sentence) => sentence.length >= 30 && /[a-z]/.test(sentence));
   const named = sentences.find((sentence) =>
     names.some((name) => squash(sentence).includes(name)),

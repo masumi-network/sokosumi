@@ -40,6 +40,7 @@ import {
   removeTrackedCompetitor,
   syncTrackedCompetitorsFromBrandBrain,
   updateTrackedCompetitor,
+  watchedMapPlayers,
 } from "@/services/cmo-competitors.service";
 import { expectCoreLog } from "@/test/core-log";
 import {
@@ -173,6 +174,24 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     await updateTrackedCompetitor(cuso, calendly.id, { name: "Calendly Inc" });
     await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
     expect(await names(cuso.projectId)).toEqual(["Calendly Inc"]);
+  });
+
+  it("keeps a renamed competitor on the market map and takes a removed one off", async () => {
+    const cuso = await seedCuso();
+    await setBrain(
+      cuso.projectId,
+      brain([company("Calendly"), company("Zcal")], ["Calendly", "Zcal"]),
+    );
+    await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
+    const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
+    if (!calendly || !zcal) throw new Error("not seeded");
+    expect(await watchedMapPlayers(cuso.projectId)).toEqual([
+      "Calendly",
+      "Zcal",
+    ]);
+    await updateTrackedCompetitor(cuso, calendly.id, { name: "Calendly Inc" });
+    await removeTrackedCompetitor(cuso, zcal.id);
+    expect(await watchedMapPlayers(cuso.projectId)).toEqual(["Calendly"]);
   });
 
   it("keeps a removed competitor's signals when a rename takes its name", async () => {

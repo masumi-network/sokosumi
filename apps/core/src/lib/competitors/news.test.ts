@@ -200,6 +200,34 @@ describe("quoteSentence", () => {
     ).toBe("Coffee shops are helping people get to the polls this year.");
   });
 
+  it("drops the dateline a page prints before its first sentence", () => {
+    expect(
+      quoteSentence(
+        "Tue, 11/17/2026 - 12:00 November 17, 2026 Calendly Pro users at UCR, Calendly is phasing out the Pro plan in December.",
+        names,
+      ),
+    ).toBe(
+      "Calendly Pro users at UCR, Calendly is phasing out the Pro plan in December.",
+    );
+    expect(
+      quoteSentence(
+        "13, 2026 /PRNewswire/ -- Ranger Chocolate invites neighbours to a tasting at Calendly's new cafe.",
+        names,
+      ),
+    ).toBe(
+      "Ranger Chocolate invites neighbours to a tasting at Calendly's new cafe.",
+    );
+  });
+
+  it("drops the page's emphasis marks", () => {
+    expect(
+      quoteSentence(
+        "**The Calendly Pro Plan is going away in December 2026.**",
+        names,
+      ),
+    ).toBe("The Calendly Pro Plan is going away in December 2026.");
+  });
+
   it("is empty for a passage without a sentence", () => {
     expect(quoteSentence("Nov 12 · 5 min", names)).toBeNull();
   });

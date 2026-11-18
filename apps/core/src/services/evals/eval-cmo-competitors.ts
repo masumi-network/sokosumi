@@ -10,15 +10,24 @@ const COMPETITORS = ["Calendly", "SavvyCal", "Zcal"] as const;
 
 const BIG_WEEK_ID = "cmo-competitor-feed";
 const QUIET_WEEK_ID = "cmo-competitor-quiet-week";
+const SECOND_HAND_ID = "cmo-competitor-second-hand";
 
 /** What each competitor case finds in its lane. */
 export const COMPETITOR_CASE_SETUPS = {
   [BIG_WEEK_ID]: "cmo-competitors",
   [QUIET_WEEK_ID]: "cmo-competitors-quiet",
+  [SECOND_HAND_ID]: "cmo-competitors-second-hand",
 } as const;
 
+type CompetitorSetup =
+  (typeof COMPETITOR_CASE_SETUPS)[keyof typeof COMPETITOR_CASE_SETUPS];
+
+export function isCompetitorSetup(setup: string): setup is CompetitorSetup {
+  return Object.values<string>(COMPETITOR_CASE_SETUPS).includes(setup);
+}
+
 export function isCompetitorEvalCase(id: string): boolean {
-  return id === BIG_WEEK_ID || id === QUIET_WEEK_ID;
+  return Object.hasOwn(COMPETITOR_CASE_SETUPS, id);
 }
 
 interface SeededSignal {
@@ -84,7 +93,7 @@ const BIG_WEEK: readonly SeededSignal[] = [
     sourceTitle: "Introducing round-robin scheduling",
     sourcePublisher: "savvycal.com",
     daysAgo: 3,
-    raw: {},
+    raw: { event: "launch" },
   },
   {
     competitor: "Calendly",
@@ -95,9 +104,27 @@ const BIG_WEEK: readonly SeededSignal[] = [
     sourceTitle: "How to take meeting notes",
     sourcePublisher: "calendly.com",
     daysAgo: 4,
-    raw: {},
+    raw: { event: "other" },
   },
   instagram("Zcal", 2, 3_400),
+];
+
+const SECOND_HAND_WEEK: readonly SeededSignal[] = [
+  {
+    competitor: "Zcal",
+    kind: "NEWS",
+    summary:
+      "Zcal ends its Pro plan in December 2026 and moves customers to a new licence",
+    quote:
+      "Zcal, the company behind our scheduling tool, is phasing out the Pro plan in December 2026 and moving all customers to a new licence.",
+    sourceUrl: "https://it.example.edu/notices/zcal-licence-update",
+    sourceTitle: "Important licence update for Zcal Pro users",
+    sourcePublisher: "it.example.edu",
+    daysAgo: 1,
+    raw: { event: "pricing" },
+  },
+  instagram("Calendly", 4, 41_000),
+  instagram("SavvyCal", 1, 2_100),
 ];
 
 const QUIET_WEEK: readonly SeededSignal[] = [
@@ -106,6 +133,12 @@ const QUIET_WEEK: readonly SeededSignal[] = [
   instagram("Zcal", 2, 3_400),
 ];
 
+const WEEKS = {
+  "cmo-competitors": BIG_WEEK,
+  "cmo-competitors-quiet": QUIET_WEEK,
+  "cmo-competitors-second-hand": SECOND_HAND_WEEK,
+} as const;
+
 /**
  * The lane's Cuso tracks three competitors, and a check that finished just
  * now stored this week's signals. Eval Cusos never run a real check, so
@@ -113,7 +146,7 @@ const QUIET_WEEK: readonly SeededSignal[] = [
  */
 export async function prepareCompetitorCase(
   lane: EvalLaneRecord,
-  quiet: boolean,
+  setup: CompetitorSetup,
 ): Promise<{ signalIds: string[] }> {
   const projectId = lane.cusoProjectId;
   await prisma.trackedCompetitor.deleteMany({ where: { projectId } });
@@ -151,7 +184,7 @@ export async function prepareCompetitorCase(
     },
   });
   const signalIds: string[] = [];
-  for (const [index, signal] of (quiet ? QUIET_WEEK : BIG_WEEK).entries()) {
+  for (const [index, signal] of WEEKS[setup].entries()) {
     const { competitor, daysAgo, ...data } = signal;
     const created = await prisma.competitorSignal.create({
       data: {
@@ -205,6 +238,23 @@ export async function competitorFeedChecks(
     pass: feed !== null,
     actual: feed ? `${items.length} items` : "no feed",
   };
+  if (scenarioId === SECOND_HAND_ID) {
+    const facts = items.flatMap((item) => item.facts);
+    return [
+      saved,
+      {
+        label: "Reports the plan ending as one move",
+        pass: items.length === 1 && /pro/i.test(facts[0]?.text ?? ""),
+        actual: `${items.length} items: ${facts.map((fact) => fact.text).join(" ")}`,
+      },
+      {
+        label: "Marks a fact from a customer's notice weak",
+        pass:
+          facts.length > 0 && facts.every((fact) => fact.support === "weak"),
+        actual: facts.map((fact) => fact.support).join(", ") || "no facts",
+      },
+    ];
+  }
   if (scenarioId === QUIET_WEEK_ID)
     return [
       saved,
