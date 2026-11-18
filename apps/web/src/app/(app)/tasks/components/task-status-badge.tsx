@@ -177,13 +177,15 @@ export function TaskStatusBadge({
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium",
         plain
-          ? "text-foreground"
+          ? "text-foreground min-w-0 shrink"
           : ["rounded-sm border px-2.5 py-1", style.box, style.label],
         className,
       )}
     >
       <StatusMarker spec={marker} tone={plain ? style.onSurface : undefined} />
-      {showLabel && <span>{statusLabel}</span>}
+      {showLabel && (
+        <span className={plain ? "truncate" : undefined}>{statusLabel}</span>
+      )}
     </span>
   );
 }

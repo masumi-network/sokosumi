@@ -57,6 +57,7 @@ function renderTagBadge(
     TaskWorkspaceTag,
     "id" | "displayName" | "color" | "customColor" | "taskTopicId"
   >,
+  quiet = false,
 ) {
   return (
     <TaskTagBadge
@@ -65,6 +66,7 @@ function renderTagBadge(
       color={tag.color}
       customColor={tag.customColor}
       taskTopicId={tag.taskTopicId}
+      quiet={quiet}
     >
       <span className="truncate">{tag.displayName}</span>
     </TaskTagBadge>
@@ -98,7 +100,7 @@ export function TaskTags({
       )}
       aria-label={t("label")}
     >
-      {visible.map(renderTagBadge)}
+      {visible.map((tag) => renderTagBadge(tag, compact))}
       {remaining > 0 &&
         (inLink ? (
           <span
@@ -118,7 +120,7 @@ export function TaskTags({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "relative z-10 min-h-6 px-1.5 text-xs",
+                  "text-muted-foreground relative z-10 min-h-6 px-1.5 text-xs",
                   // On a card's one-line row the count is no taller than the row.
                   compact && "h-6",
                 )}
@@ -136,7 +138,7 @@ export function TaskTags({
             >
               <p className="text-sm font-medium">{t("label")}</p>
               <div className="flex flex-wrap gap-1">
-                {badges.map(renderTagBadge)}
+                {badges.map((tag) => renderTagBadge(tag))}
               </div>
             </PopoverContent>
           </Popover>
@@ -201,7 +203,7 @@ export function TaskTagSection({
       </h2>
       {hasTags ? (
         <div className="flex flex-wrap items-center gap-1">
-          {workspaceTags.map(renderTagBadge)}
+          {workspaceTags.map((tag) => renderTagBadge(tag))}
           <TopicBadges tags={tags} workspaceTags={workspaceTags} />
         </div>
       ) : (

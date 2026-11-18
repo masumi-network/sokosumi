@@ -85,7 +85,8 @@ export function TaskCard({
           dragHandleProps?.isDragging && "shadow-lg",
         )}
       >
-        <div className="flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        {/* One line: a long status label truncates before anything wraps. */}
+        <div className="flex h-4 items-center gap-2 text-xs">
           <TaskStatusBadge
             status={task.status}
             label={statusLabels?.[task.status]}
@@ -101,19 +102,19 @@ export function TaskCard({
               title={task.project.name}
               // Taller than its text by the row gap, and no taller: a larger
               // target would take taps and drags meant for the title.
-              className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 -my-1 rounded-sm py-1 tabular-nums hover:underline focus-visible:outline-2"
+              className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 -my-1 shrink-0 rounded-sm py-1 tabular-nums hover:underline focus-visible:outline-2"
               onPointerDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
             >
               {task.identifier}
             </Link>
           ) : task.identifier ? (
-            <span className="text-muted-foreground tabular-nums">
+            <span className="text-muted-foreground shrink-0 tabular-nums">
               {task.identifier}
             </span>
           ) : null}
           <TaskPriorityMark priority={task.priority} className="size-3.5" />
-          <span className="ms-auto flex items-center gap-2">
+          <span className="ms-auto flex shrink-0 items-center gap-2">
             {task.statusSince && !task.isPending ? (
               <TaskStatusAge
                 status={task.status}
@@ -147,7 +148,7 @@ export function TaskCard({
         {/* One line. A container, so the tag can leave a narrow card and the
             date can truncate there, and so the line's unwrapped width cannot
             widen a column that sizes to its content. */}
-        <div className="@container flex min-h-5 items-center gap-2">
+        <div className="@container flex h-6 items-center gap-2">
           {/* A scheduled Task says when it starts, and that it is late only
               once it is. Any other Task says when it is due. */}
           {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
