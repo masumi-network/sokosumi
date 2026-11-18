@@ -1,3 +1,4 @@
+import { CMO_PRODUCT_NAME } from "../components/email-shell.js";
 import { createEmailTranslator } from "../i18n/translate.js";
 import { renderActionEmail } from "../templates/action-email.js";
 import { renderCodeEmail } from "../templates/code-email.js";
@@ -101,20 +102,23 @@ export async function renderResetPasswordEmail({
 }
 
 export async function renderEmailCodeEmail({
+  brand,
   code,
   expiresInMinutes,
   locale,
 }: EmailCodeEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
+  const product = brand === "cmo" ? CMO_PRODUCT_NAME : "Sokosumi";
 
   return renderCodeEmail({
     lang,
-    body: t("auth.emailCode.message", { minutes: expiresInMinutes }),
+    brand,
+    body: t("auth.emailCode.message", { minutes: expiresInMinutes, product }),
     code,
     footer: t("auth.emailCode.footer"),
     greeting: t("auth.emailCode.greeting"),
-    subject: t("auth.emailCode.subject", { code }),
-    title: t("auth.emailCode.title"),
+    subject: t("auth.emailCode.subject", { code, product }),
+    title: t("auth.emailCode.title", { product }),
   });
 }
 

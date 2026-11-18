@@ -10,6 +10,7 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
@@ -567,6 +568,8 @@ export class SokoBotTaskboardSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
+          if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+            return;
           const log = createCoreLogger({
             operation: "soko_bot_taskboard_sync",
             sokoBot: { id: bot.id },

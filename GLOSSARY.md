@@ -446,6 +446,18 @@ _Avoid_: Activity feed (when meaning the Notification Center), history (the full
 A project whose close has finished: its scheduled work is stopped, its history kept, and it cannot be reopened. Out of the Project switcher's list, and in the Projects list only under its Closed view; the Open view is the default. Opening one still makes it the Project scope, so its history stays readable, and the switcher then marks it Closed. A project that is closing, or whose close failed, is not yet Closed. Closed is the archive: there is no separate archived state.
 _Avoid_: Archived project, deleted project, inactive project
 
+**Tracked competitor**:
+A competitor a Project watches, up to five. Members add, change and remove them on the Project's Competitors page; in a CMO Project, Cuso's Brand Brain research fills the list and CMO changes it ([ADR-0072](docs/adr/0072-competitor-monitoring-is-a-project-feature.md)).
+_Avoid_: SEO competitor (a site that ranks for the Project's keywords), rival, watched company
+
+**Competitor check**:
+The weekly reading of a Project's Tracked competitors: each one's website and pricing page, news, ads and Instagram numbers. Off until a member turns it on; 3 credits per competitor a week. A CMO Project's runs while its Cuso is paid for.
+_Avoid_: Competitor scan, competitor audit, monitoring run
+
+**Competitor signal**:
+One thing a Competitor check found, with its source's title, publisher, address, date and own words. Written once and never edited; "This week" may only say what its signals say.
+_Avoid_: Finding, alert, competitor update
+
 **Pinned project**:
 The current user's personal pin of a project they can read. Not shared, and not capped. Product UI: Pin / Unpin; the API and database say star ([ADR-0036](docs/adr/0036-project-pins.md)). Activity never moves a Pinned project, and there is no reorder mode: the order is `starredAt` ascending, which here really is the time of pinning. Pinned from the Projects list row or the project header, never from the Project switcher, which is a shortcut rather than a place to curate. Closing a project keeps the pin but drops it out of the switcher for good. Distinct from a Pinned room and a Pinned message.
 _Avoid_: Starred project (API-only name), favorite, treating this as a Pinned room

@@ -1,12 +1,15 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
-import { parseFeedItems } from "@/services/cmo-competitor-feed.service";
-import { competitorNameKey } from "@/services/cmo-competitors.service";
+import { parseFeedItems } from "@/services/competitor-feed.service";
+import { competitorNameKey } from "@/services/competitors.service";
 import type { EvalLaneRecord } from "@/services/evals/eval-lanes.service";
 
 /** The competitors cal.com's lane tracks in the competitor cases. */
 const COMPETITORS = ["Calendly", "SavvyCal", "Zcal"] as const;
+
+/** The Soko Bot case: a Project that turned the weekly check on. */
+export const SOKO_BOT_COMPETITOR_CASE_ID = "competitor-week";
 
 const BIG_WEEK_ID = "cmo-competitor-feed";
 const QUIET_WEEK_ID = "cmo-competitor-quiet-week";
@@ -144,11 +147,33 @@ const WEEKS = {
  * now stored this week's signals. Eval Cusos never run a real check, so
  * check_competitors reads exactly these.
  */
-export async function prepareCompetitorCase(
+export function prepareCompetitorCase(
   lane: EvalLaneRecord,
   setup: CompetitorSetup,
 ): Promise<{ signalIds: string[] }> {
-  const projectId = lane.cusoProjectId;
+  return seedCompetitorWeek(lane.cusoProjectId, WEEKS[setup]);
+}
+
+/**
+ * The lane's "Sokosumi Marketing" Project has the weekly check on, tracks
+ * the same three competitors, and a check just stored the big week. An eval
+ * workspace never runs a real check.
+ */
+export async function prepareSokoBotCompetitorCase(
+  lane: EvalLaneRecord,
+): Promise<void> {
+  const projectId = lane.world.marketingProjectId;
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { competitorChecksSince: new Date() },
+  });
+  await seedCompetitorWeek(projectId, BIG_WEEK);
+}
+
+async function seedCompetitorWeek(
+  projectId: string,
+  week: readonly SeededSignal[],
+): Promise<{ signalIds: string[] }> {
   await prisma.trackedCompetitor.deleteMany({ where: { projectId } });
   await prisma.competitorCheck.deleteMany({ where: { projectId } });
   await prisma.competitorFeed.deleteMany({ where: { projectId } });
@@ -184,7 +209,7 @@ export async function prepareCompetitorCase(
     },
   });
   const signalIds: string[] = [];
-  for (const [index, signal] of WEEKS[setup].entries()) {
+  for (const [index, signal] of week.entries()) {
     const { competitor, daysAgo, ...data } = signal;
     const created = await prisma.competitorSignal.create({
       data: {
@@ -303,6 +328,53 @@ export async function competitorFeedChecks(
       actual: price
         ? price.content.slice(0, 200)
         : `${messages.length} messages, none about $12`,
+    },
+  ];
+}
+
+/**
+ * What the Soko Bot case left on the Project: the week's feed, checked by
+ * Core like Cuso's. The check is turned off again, so the lane's later
+ * cases are not offered the competitor tools.
+ */
+export async function sokoBotCompetitorChecks(
+  lane: EvalLaneRecord,
+): Promise<ScenarioCheck[]> {
+  const projectId = lane.world.marketingProjectId;
+  const feed = await prisma.competitorFeed.findFirst({
+    where: { projectId },
+    orderBy: { updatedAt: "desc" },
+    select: { items: true },
+  });
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { competitorChecksSince: null },
+  });
+  const items = parseFeedItems(feed?.items);
+  return [
+    {
+      label: "Saves the week's feed on the Project",
+      pass: feed !== null,
+      actual: feed ? `${items.length} items` : "no feed",
+    },
+    {
+      label: "Leads with the price change, flagged as a big move",
+      pass: items[0]?.big === true,
+      actual: `${items.filter((item) => item.big).length} big`,
+    },
+    {
+      label: "Says the price went from $10 to $12",
+      pass: items.some((item) =>
+        item.facts.some(
+          (fact) => /\b10\b/.test(fact.text) && /\b12\b/.test(fact.text),
+        ),
+      ),
+      actual: items[0]?.facts.map((fact) => fact.text).join(" ") ?? "no items",
+    },
+    {
+      label: "Leaves the meeting-notes guide and the Instagram counts out",
+      pass: items.length <= 2,
+      actual: `${items.length} items`,
     },
   ];
 }

@@ -134,7 +134,7 @@
       "schedule": "*/10 * * * *"
     },
     {
-      "path": "/sync/cmo-competitors",
+      "path": "/sync/competitors",
       "schedule": "20 * * * *"
     },
     {

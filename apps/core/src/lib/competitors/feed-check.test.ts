@@ -1,4 +1,4 @@
-import type { CmoSaveCompetitorFeedInput } from "@sokosumi/soko-bot";
+import type { SaveCompetitorFeedInput } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const jev = vi.hoisted(() => ({ evaluateWithJev: vi.fn() }));
@@ -59,9 +59,9 @@ const COMPETITORS = new Map([
 ]);
 
 function feed(
-  facts: CmoSaveCompetitorFeedInput["items"][number]["facts"],
-  overrides: Partial<CmoSaveCompetitorFeedInput["items"][number]> = {},
-): CmoSaveCompetitorFeedInput {
+  facts: SaveCompetitorFeedInput["items"][number]["facts"],
+  overrides: Partial<SaveCompetitorFeedInput["items"][number]> = {},
+): SaveCompetitorFeedInput {
   return {
     items: [
       {

@@ -37,10 +37,10 @@ import {
   cmoSaveStrategyInputSchema,
 } from "./cmo.js";
 import {
-  CMO_COMPETITOR_TOOL_DESCRIPTIONS,
-  cmoCheckCompetitorsInputSchema,
-  cmoSaveCompetitorFeedInputSchema,
-} from "./cmo-competitors.js";
+  COMPETITOR_TOOL_DESCRIPTIONS,
+  checkCompetitorsInputSchema,
+  saveCompetitorFeedInputSchema,
+} from "./competitors.js";
 import type { SokoBotCapability } from "./policy.js";
 import { REFERENCE_KINDS, REFERENCE_PURPOSES } from "./project-marketing.js";
 import {
@@ -1528,8 +1528,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
         (input.articles?.length ?? 0) + (input.pageChanges?.length ?? 0) > 0,
       { message: "Save at least one article or page change" },
     ),
-  check_competitors: cmoCheckCompetitorsInputSchema,
-  save_competitor_feed: cmoSaveCompetitorFeedInputSchema,
+  check_competitors: checkCompetitorsInputSchema,
+  save_competitor_feed: saveCompetitorFeedInputSchema,
   handle_social_comment: z.object({
     commentId: z.uuid(),
     action: z.enum(["reply", "skip", "owner"]),
@@ -1768,7 +1768,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Save article ideas and page changes to the owner's SEO tab (never to the strategy calendar). An article: title, the target keyword exactly as research_keywords or read_seo returned it, why (the business reason), an outline, and draft only when the owner asked for the full text (the whole article in Markdown, following the seo writing skill). A page change: the page URL on the brand's site, what to change, newText (the exact new title, description, heading or paragraph, ready to copy) and why. Core attaches the measured numbers itself and refuses a suggestion it has no data for; send id to update one. At most five at a time.",
   handle_social_comment:
     "Act on one comment from list_social_comments: reply posts your reply under it in the brand's name (at most 300 characters, the brand voice, facts from the Brand Brain only); skip marks spam, bots or a thread a reply would not help; owner hands it to the owner (a complaint, refund, legal or press question, an angry customer, or anything you would have to guess) with a one-line note. Every reply is checked for safety before it posts; a refused reply goes to the owner instead. One reply per person per post.",
-  ...CMO_COMPETITOR_TOOL_DESCRIPTIONS,
+  ...COMPETITOR_TOOL_DESCRIPTIONS,
   save_brand_brain:
     "Save the owner's Brand Brain. `sections` holds profile sections (company, offer, problems, customers, buyers, value, pricing, positioning, competition, sales, marketing, content, proof, reputation, momentum, opportunities), each a headline, an answer, findings with evidence, confidence, source, date and implication, and open questions; send them as you finish them. `brandBrain` holds the essentials (summary, voice with do/don't and example lines, audience, products, offers, competitors, channels), the reveal (positioning line, three insights, competitor map, buyers) and up to six yes/no questions for the owner; send it last, with the reveal and questions when you can. `reveal`, `questions` and `marketingToday` may also be sent alone, at the top level, to add to saved essentials; never re-send `brandBrain` for them. Each save merges: a section you send replaces that section, the rest stay. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
   save_strategy:
@@ -1852,7 +1852,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   generate_video:
     "Generate a short video (5, 10 or 15 seconds; 9:16 by default for Reels, Shorts and TikTok) in a Project's Content Studio from a prompt, or animate a finished image by passing its generate_image jobId as imageJobId. It spends the owner's credits: set maxCredits, and it refuses when the video would cost more. Only for a request the owner made in this chat. Generation takes a few minutes: to act on the result, call wait_for with its jobId and end your turn; get_video tells you where it stands now.",
   generate_talking_video:
-    'Make a talking video for TikTok, Reels, Shorts or LinkedIn: a generated presenter speaks the script to camera, with captions, 9:16, in a Project\'s Content Studio. Write the script yourself in the brand\'s voice: one hook sentence first, then one point and one next step, 150 to 400 characters for 15 to 30 seconds. Never as a customer: no "I bought", "I tried", "as a customer" or invented results; Core refuses such a script. presenter is \"owner\" when your context says the owner gave a photo for their videos (ownerPresenter), which then fronts it; otherwise a stock presenter id: maya, jonas, aisha, leo, elena, david, mei or omar (all generated, no real person). Pick one that fits the audience and a matching voice. It spends the owner\'s credits, about 1.4 credits per character of script and at least 111 (a 150-character script costs about 220): set maxCredits and fit the script to it, since Core refuses a video that would cost more. Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.',
+    'Make a talking video for TikTok, Reels, Shorts or LinkedIn: a generated presenter speaks the script to camera, with captions, 9:16, in a Project\'s Content Studio. Write the script yourself in the brand\'s voice: one hook sentence first, then one point and one next step, 150 to 400 characters for 15 to 30 seconds. Never as a customer: no "I bought", "I tried", "as a customer" or invented results; Core refuses such a script. presenter is \"owner\" when your context says the owner gave a photo for their videos (ownerPresenter), which then fronts it; otherwise a stock presenter id: maya, jonas, aisha, leo, elena, david, mei or omar (all generated, no real person). Pick one that fits the audience and a matching voice. It spends the owner\'s credits, about 0.4 credits per character of script (a 150-character script costs about 62): set maxCredits and fit the script to it, since Core refuses a video that would cost more. Core edits the video itself: jump cuts, a hook line, captions, the Project\'s website behind the presenter when it has one (about 0.1 credits per character more), and its logo at the end. Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.',
   get_video:
     "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
   read_file:

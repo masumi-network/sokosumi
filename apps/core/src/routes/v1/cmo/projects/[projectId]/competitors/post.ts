@@ -5,11 +5,10 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
 import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
-import {
-  cmoCompetitorCreateSchema,
-  cmoCompetitorsSchema,
-} from "@/schemas/cmo-competitors.schema";
-import { addTrackedCompetitor } from "@/services/cmo-competitors.service";
+import { cmoCompetitorsSchema } from "@/schemas/cmo-competitors.schema";
+import { projectCompetitorCreateSchema } from "@/schemas/project-competitors.schema";
+import { requireCuso } from "@/services/cmo-cuso.service";
+import { addTrackedCompetitor } from "@/services/competitors.service";
 
 import { competitorsResponse } from "./helpers.js";
 
@@ -24,7 +23,9 @@ const route = createRoute({
     params: cmoProjectParamsSchema,
     body: {
       required: true,
-      content: { "application/json": { schema: cmoCompetitorCreateSchema } },
+      content: {
+        "application/json": { schema: projectCompetitorCreateSchema },
+      },
     },
   },
   responses: {
@@ -41,7 +42,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const target = { userId, projectId: c.req.valid("param").projectId };
-    await addTrackedCompetitor(target, c.req.valid("json")).catch(rethrow);
+    const { projectId } = await requireCuso(target).catch(rethrow);
+    await addTrackedCompetitor(projectId, c.req.valid("json"));
     return ok(c, await competitorsResponse(target));
   });
 }

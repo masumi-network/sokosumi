@@ -18,20 +18,24 @@ const m = vi.hoisted(() => ({
   updateTrackedCompetitor: vi.fn(),
   removeTrackedCompetitor: vi.fn(),
   addCompetitorMoveToStrategy: vi.fn(),
+  requireCuso: vi.fn(),
 }));
 
-vi.mock("@/services/cmo-competitors-overview.service", () => ({
+vi.mock("@/services/cmo-competitors.service", () => ({
   getCmoCompetitors: m.getCmoCompetitors,
-}));
-vi.mock("@/services/cmo-competitor-feed.service", () => ({
   addCompetitorMoveToStrategy: m.addCompetitorMoveToStrategy,
 }));
-vi.mock("@/services/cmo-competitors.service", () => ({
+vi.mock("@/services/competitors.service", () => ({
   addTrackedCompetitor: m.addTrackedCompetitor,
   updateTrackedCompetitor: m.updateTrackedCompetitor,
   removeTrackedCompetitor: m.removeTrackedCompetitor,
 }));
+vi.mock("@/services/cmo-cuso.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-cuso.service")>()),
+  requireCuso: m.requireCuso,
+}));
 
+import { conflict, notFound } from "@/helpers/error";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -145,6 +149,7 @@ const COMPETITORS = {
   ],
   topPosts: [],
   check: {
+    on: true,
     lastCheckedAt: AT,
     nextCheckAt: new Date("2026-11-23T09:00:00Z"),
     creditsPerCompetitor: 3,
@@ -160,6 +165,7 @@ const COMPETITORS = {
 beforeEach(() => {
   vi.clearAllMocks();
   m.getCmoCompetitors.mockResolvedValue(COMPETITORS);
+  m.requireCuso.mockResolvedValue({ projectId: PROJECT_ID });
   m.addTrackedCompetitor.mockResolvedValue(undefined);
   m.updateTrackedCompetitor.mockResolvedValue(undefined);
   m.removeTrackedCompetitor.mockResolvedValue(undefined);
@@ -226,22 +232,40 @@ describe("competitor writes", () => {
       websiteUrl: "zcal.co",
     });
     expect(response.status).toBe(200);
-    expect(m.addTrackedCompetitor).toHaveBeenCalledWith(
-      { userId: "user-1", projectId: PROJECT_ID },
-      { name: "Zcal", websiteUrl: "zcal.co" },
-    );
+    expect(m.requireCuso).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+    });
+    expect(m.addTrackedCompetitor).toHaveBeenCalledWith(PROJECT_ID, {
+      name: "Zcal",
+      websiteUrl: "zcal.co",
+    });
     expect((await response.json()).data.limit).toBe(5);
   });
 
   it("answers 409 when the service refuses", async () => {
     m.addTrackedCompetitor.mockRejectedValue(
-      new CmoConflictError("You can track 5 competitors. Remove one first."),
+      conflict("You can track 5 competitors. Remove one first."),
     );
     const response = await send("POST", BASE, { name: "Zcal" });
     expect(response.status).toBe(409);
     expect((await response.json()).message).toBe(
       "You can track 5 competitors. Remove one first.",
     );
+  });
+
+  it("writes nothing for a Project without a Cuso the person can use", async () => {
+    m.requireCuso.mockRejectedValue(
+      new CmoNotFoundError("Cuso is not hired yet"),
+    );
+    expect((await send("POST", BASE, { name: "Zcal" })).status).toBe(404);
+    expect(
+      (await send("PATCH", `${BASE}/${COMPETITOR_ID}`, { name: "Z" })).status,
+    ).toBe(404);
+    expect((await send("DELETE", `${BASE}/${COMPETITOR_ID}`)).status).toBe(404);
+    expect(m.addTrackedCompetitor).not.toHaveBeenCalled();
+    expect(m.updateTrackedCompetitor).not.toHaveBeenCalled();
+    expect(m.removeTrackedCompetitor).not.toHaveBeenCalled();
   });
 
   it("refuses a write from another client than CMO", async () => {
@@ -269,7 +293,7 @@ describe("competitor writes", () => {
     });
     expect(response.status).toBe(200);
     expect(m.updateTrackedCompetitor).toHaveBeenCalledWith(
-      { userId: "user-1", projectId: PROJECT_ID },
+      PROJECT_ID,
       COMPETITOR_ID,
       { pricingUrl: null, instagramHandle: "@calendly" },
     );
@@ -279,7 +303,7 @@ describe("competitor writes", () => {
     const response = await send("DELETE", `${BASE}/${COMPETITOR_ID}`);
     expect(response.status).toBe(200);
     expect(m.removeTrackedCompetitor).toHaveBeenCalledWith(
-      { userId: "user-1", projectId: PROJECT_ID },
+      PROJECT_ID,
       COMPETITOR_ID,
     );
   });
@@ -303,7 +327,7 @@ describe("competitor writes", () => {
 
   it("answers 404 for a competitor of another Project", async () => {
     m.removeTrackedCompetitor.mockRejectedValue(
-      new CmoNotFoundError("Competitor not found"),
+      notFound("Competitor not found"),
     );
     expect((await send("DELETE", `${BASE}/${COMPETITOR_ID}`)).status).toBe(404);
   });
