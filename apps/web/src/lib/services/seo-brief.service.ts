@@ -2,7 +2,9 @@ import "server-only";
 
 import {
   getProjectSeoBrief,
+  getProjectSeoBriefSuggestion,
   getSeoAuditBrief,
+  getSeoAuditBriefSuggestion,
   type SaveSeoAuditBriefRequest,
   saveProjectSeoBrief,
   saveSeoAuditBrief,
@@ -19,6 +21,19 @@ export const seoBriefService = {
       createCoreGeneratedClient,
       (client) => operation({ client, path: { id: owner.id } }),
       "Failed to read your SEO brief",
+    );
+    return response.data;
+  },
+  async suggestAction(owner: SeoOwner, pageId: string) {
+    const operation =
+      owner.kind === "audit"
+        ? getSeoAuditBriefSuggestion
+        : getProjectSeoBriefSuggestion;
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        operation({ client, path: { id: owner.id }, query: { pageId } }),
+      "Failed to suggest a page goal",
     );
     return response.data;
   },

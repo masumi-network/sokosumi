@@ -16,6 +16,44 @@ import {
   seoOwnerApiPath,
   seoViewerHeaders,
 } from "@/lib/seo/owner";
+import { type BriefPage, SEO_BRIEF_ACTIONS } from "./seo-brief-model";
+
+export function useSeoGoalSuggestion(
+  owner: SeoOwner,
+  viewerId: string | undefined,
+  organizationId: string | null,
+  pageId: string | undefined,
+) {
+  const suggestion = useQuery<BriefPage["action"]>({
+    queryKey: [
+      "seo-goal-suggestion",
+      viewerId,
+      organizationId,
+      owner.kind,
+      owner.id,
+      pageId,
+    ],
+    enabled: Boolean(viewerId && pageId),
+    retry: false,
+    retryOnMount: false,
+    staleTime: Infinity,
+    queryFn: async ({ signal }) => {
+      const response = await fetch(
+        `${seoOwnerApiPath(owner)}/brief/suggestion?pageId=${encodeURIComponent(pageId!)}`,
+        {
+          signal,
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: seoViewerHeaders(viewerId, organizationId),
+        },
+      );
+      if (!response.ok) return null;
+      const value: unknown = (await response.json())?.action;
+      return SEO_BRIEF_ACTIONS.find((action) => action === value) ?? null;
+    },
+  });
+  return pageId ? (suggestion.data ?? null) : null;
+}
 
 export function useSeoBrief(
   owner: SeoOwner,
@@ -40,9 +78,9 @@ export function useSeoBrief(
       return response.json();
     },
   });
-  async function save(
+  async function saveWithRevision(
     body: SaveSeoAuditBriefRequest,
-  ): Promise<"saved" | "conflict" | "error"> {
+  ): Promise<number | "conflict" | "error"> {
     if (!viewerId) return "error";
     try {
       const result = await saveSeoBriefAction({
@@ -54,7 +92,7 @@ export function useSeoBrief(
       if (!result.ok) return result.error.status === 409 ? "conflict" : "error";
       await client.cancelQueries({ queryKey: key, exact: true });
       client.setQueryData(key, result.value);
-      return "saved";
+      return result.value.revision;
     } catch {
       return "error";
     }
@@ -67,6 +105,10 @@ export function useSeoBrief(
     invalidate: () => client.invalidateQueries({ queryKey: key, exact: true }),
     error: query.isError,
     reload: query.refetch,
-    save,
+    saveWithRevision,
+    save: async (body: SaveSeoAuditBriefRequest) => {
+      const result = await saveWithRevision(body);
+      return typeof result === "number" ? ("saved" as const) : result;
+    },
   };
 }

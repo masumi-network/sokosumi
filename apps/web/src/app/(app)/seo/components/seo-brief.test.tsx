@@ -168,7 +168,9 @@ it("sends only the selected goal reference when the reader starts a full audit",
     operationKey: () => "1cbd4274-d331-4ad1-a45c-d4dc20b34f05",
   };
   render(<SeoAnalysisDialog model={confirmed} />, { wrapper });
-  expect(screen.queryByText("Organic landing-page events")).toBeNull();
+  expect(
+    screen.queryByText("Purchases and signups from organic search"),
+  ).toBeNull();
   await user.click(screen.getByRole("checkbox", { name: /Guide · Read/ }));
   await user.click(screen.getByRole("button", { name: "Start check" }));
   expect(execute).toHaveBeenCalledOnce();
@@ -283,7 +285,9 @@ it("shows the ranked sales or support page on Actions and its advice in the matc
   expect(priority.getByText(fixture.audience!)).toBeVisible();
   expect(priority.getByText(fixture.constraints!)).toBeVisible();
   expect(
-    detail.getByRole("region", { name: "Organic landing-page events" }),
+    detail.getByRole("region", {
+      name: "Purchases and signups from organic search",
+    }),
   ).toHaveTextContent("19 events");
   expect(detail.getByRole("link", { name: "Help" })).toHaveAttribute(
     "href",
@@ -296,25 +300,39 @@ it("shows the reported GA4 event, private periods and counts, without treating a
     outcomes:
       | NonNullable<SeoAuditBrief["followUps"][number]["outcomes"]>
       | undefined,
+    changedAt: Date | null = followUp.changedAt,
   ) => (
     <SeoBriefDialog
       model={model({
         ...fixture,
-        followUps: [{ ...followUp, ...(outcomes ? { outcomes } : {}) }],
+        followUps: [
+          { ...followUp, changedAt, ...(outcomes ? { outcomes } : {}) },
+        ],
       })}
     />
   );
   const { rerender } = render(create(undefined), { wrapper });
   expect(
-    screen.queryByRole("region", { name: "Organic landing-page events" }),
+    screen.queryByRole("region", {
+      name: "Purchases and signups from organic search",
+    }),
   ).toBeNull();
+  rerender(create([], null));
+  expect(screen.queryByText(/No verified purchase or signup count/)).toBeNull();
   rerender(create([]));
+  expect(
+    screen.queryByRole("region", {
+      name: "Purchases and signups from organic search",
+    }),
+  ).toBeNull();
   expect(
     screen.getByText(/No verified purchase or signup count/),
   ).toBeVisible();
   rerender(create([privateCounts]));
   const outcomes = within(
-    screen.getByRole("region", { name: "Organic landing-page events" }),
+    screen.getByRole("region", {
+      name: "Purchases and signups from organic search",
+    }),
   );
   expect(outcomes.getByText("purchase")).toBeVisible();
   const before = outcomes.getByText("Before the change").parentElement;

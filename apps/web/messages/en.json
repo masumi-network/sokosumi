@@ -11881,8 +11881,8 @@
           "unknown": "Undecided"
         },
         "events": {
-          "title": "Organic landing-page events",
-          "source": "GA4 counts these events for organic search visits that started on this page.",
+          "title": "Purchases and signups from organic search",
+          "source": "Only you can see these GA4 counts. They cover organic search visits that started on this page.",
           "purchase": "Purchases",
           "sign_up": "Signups",
           "before": "Before the change",
@@ -12812,6 +12812,13 @@
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
       },
       "setup": {
+        "goal": {
+          "question": "What should visitors do on this page?",
+          "skip": "Skip for now",
+          "suggested": "Use suggested goal “{action}”",
+          "include": "Include this goal in the audit",
+          "shareDetails": "If you include it, the public audit will receive {url} and the goal “{goal}”."
+        },
         "historyUnavailable": "Could not check audit setup. Try again before starting a check.",
         "googleBody": "Connect Google to include your search statistics, or continue with public-page checks only.",
         "skipGoogle": "Continue without Google",

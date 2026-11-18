@@ -11881,8 +11881,8 @@
           "unknown": "Unentschieden"
         },
         "events": {
-          "title": "Ereignisse nach organischen Einstiegen",
-          "source": "GA4 zählt diese Ereignisse für Besuche aus der organischen Suche, die auf dieser Seite begannen.",
+          "title": "Käufe und Registrierungen über die organische Suche",
+          "source": "Nur du siehst diese GA4-Zahlen. Sie beziehen sich auf Besuche aus der organischen Suche, die auf dieser Seite begonnen haben.",
           "purchase": "Käufe",
           "sign_up": "Registrierungen",
           "before": "Vor der Änderung",
@@ -12812,6 +12812,13 @@
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"
       },
       "setup": {
+        "goal": {
+          "question": "Was sollen Besucher auf dieser Seite tun?",
+          "skip": "Vorerst überspringen",
+          "suggested": "Vorschlag „{action}“ übernehmen",
+          "include": "Dieses Ziel im Audit verwenden",
+          "shareDetails": "Wenn du dieses Ziel einbeziehst, erhält das öffentliche Audit die URL {url} und das Ziel „{goal}“."
+        },
         "historyUnavailable": "Die Audit-Einrichtung konnte nicht geprüft werden. Versuche es erneut, bevor du eine Prüfung startest.",
         "googleBody": "Verbinde Google, um deine Suchstatistiken einzubeziehen, oder prüfe nur öffentliche Seiten.",
         "skipGoogle": "Ohne Google fortfahren",

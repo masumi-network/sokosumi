@@ -32,12 +32,13 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import { canSetBriefPage } from "./seo-brief-model";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
-import { useSeoBrief } from "./use-seo-brief";
+import { useSeoBrief, useSeoGoalSuggestion } from "./use-seo-brief";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 
 /** The form of a day in the period filter, as Core reads it. */
@@ -279,6 +280,20 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [analysisKind, setAnalysisKind] = useState<SeoAnalysisKind | null>(
     null,
   );
+  const setupScopeKey = JSON.stringify([
+    setupIdentity,
+    data.scope.id,
+    data.scope.version,
+    data.scope.pageIds,
+  ]);
+  const [sharedSetupGoal, setSharedSetupGoal] = useState<{
+    scopeKey: string;
+    pageId: string;
+    revision: number;
+  } | null>(null);
+  // Returning to an earlier page selection must not restore consent from a closed review.
+  if (sharedSetupGoal && sharedSetupGoal.scopeKey !== setupScopeKey)
+    setSharedSetupGoal(null);
   /**
    * One check at a time. Every way to the check form goes through here, so a press while a check runs opens
    * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
@@ -294,6 +309,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
+    setSharedSetupGoal(null);
     setDialogState(value);
   }
   /** Opens the schedule form on the run button's check: the full audit where these pages allow one. */
@@ -301,8 +317,16 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setDialog("monitor");
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
-  function openAnalysis(kind: SeoAnalysisKind) {
+  function openAnalysis(
+    kind: SeoAnalysisKind,
+    approved?: { pageId: string; revision: number },
+  ) {
     if (requireGoogleSetup() || checkInFlight()) return;
+    setSharedSetupGoal(
+      kind === "audit_full" && approved
+        ? { ...approved, scopeKey: setupScopeKey }
+        : null,
+    );
     setAnalysisKind(kind);
     setDialogState("analysis");
   }
@@ -464,14 +488,41 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  const firstPageId =
+    setup?.check === "next" &&
+    !hasPreviousCheck &&
+    !data.analyses.length &&
+    filters.tab === "agent" &&
+    data.availableActions.canRequestAnalysis
+      ? data.scope.pageIds[0]
+      : undefined;
   const brief = useSeoBrief(
     owner,
     session?.user.id,
     session?.session.activeOrganizationId ?? null,
-    dialog === "brief" ||
+    Boolean(firstPageId) ||
+      dialog === "brief" ||
       dialog === "analysis" ||
       filters.tab === "actions" ||
       (filters.tab === "agent" && data.actions.length > 0),
+  );
+  const setupGoalPageId =
+    firstPageId &&
+    brief.data &&
+    Number.isInteger(brief.data.revision) &&
+    canSetBriefPage(brief.data.pages, firstPageId)
+      ? firstPageId
+      : undefined;
+  const setupGoalSuggestion = useSeoGoalSuggestion(
+    owner,
+    session?.user.id,
+    session?.session.activeOrganizationId ?? null,
+    setupGoalPageId &&
+      !brief.data?.pages.some(
+        (page) => page.pageId === setupGoalPageId && page.action,
+      )
+      ? setupGoalPageId
+      : undefined,
   );
   const statisticsSync = useSeoAutopilot({
     data,
@@ -489,6 +540,14 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   return {
     data,
     brief,
+    setupGoalPageId,
+    setupGoalSuggestion,
+    setupScopeKey,
+    sharedSetupGoal:
+      sharedSetupGoal?.scopeKey === setupScopeKey &&
+      setupGoalPageId === sharedSetupGoal.pageId
+        ? sharedSetupGoal
+        : null,
     statisticsSync,
     setup,
     waitingForGoogle,

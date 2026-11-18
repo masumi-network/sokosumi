@@ -17,9 +17,13 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoBriefSummary({
   model,
   edit,
+  setupGoal,
+  onShareChange,
 }: {
   model: SeoWorkspaceModel;
   edit: () => void;
+  setupGoal?: { pageId: string; revision: number } | null;
+  onShareChange?: () => void;
 }) {
   const t = useTranslations("App.Seo");
   const brief = model.brief?.data;
@@ -67,7 +71,10 @@ export function SeoBriefSummary({
         </Button>
       )}
       {!!pageGoals.length && brief && (
-        <fieldset key={brief.revision} className="mt-3 space-y-2">
+        <fieldset
+          key={`${brief.revision}:${model.setupScopeKey}:${model.setupGoalPageId ?? ""}`}
+          className="mt-3 space-y-2"
+        >
           <legend className="text-sm font-medium">{t("brief.share")}</legend>
           <p id="seo-goal-share-help" className="text-muted-foreground text-sm">
             {t("brief.shareHelp")}
@@ -83,6 +90,11 @@ export function SeoBriefSummary({
                 name="sharedGoalPage"
                 value={page.id}
                 id={`seo-goal-${page.id}`}
+                defaultChecked={
+                  setupGoal?.pageId === page.id &&
+                  setupGoal.revision === brief.revision
+                }
+                onCheckedChange={onShareChange}
                 aria-describedby="seo-goal-share-help"
               />
               <Label

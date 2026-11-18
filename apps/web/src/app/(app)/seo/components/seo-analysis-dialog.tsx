@@ -60,6 +60,7 @@ export function SeoAnalysisDialog({
   const t = useTranslations("App.Seo");
   const form = useSeoAnalysisForm(model, monitor);
   const [editingBrief, setEditingBrief] = useState(false);
+  const [keepSetupSelection, setKeepSetupSelection] = useState(true);
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
@@ -126,6 +127,8 @@ export function SeoAnalysisDialog({
             />
             {full && !monitor && model.brief ? (
               <SeoBriefSummary
+                setupGoal={keepSetupSelection ? model.sharedSetupGoal : null}
+                onShareChange={() => setKeepSetupSelection(false)}
                 model={model}
                 edit={() => setEditingBrief(true)}
               />
@@ -171,7 +174,10 @@ export function SeoAnalysisDialog({
                 id="seo-analysis-kind"
                 name="kind"
                 value={form.kind}
-                onValueChange={form.setKind}
+                onValueChange={(value) => {
+                  setKeepSetupSelection(false);
+                  form.setKind(value);
+                }}
                 options={form.kinds.map((value) => ({
                   value,
                   label: t(`analysis.${value}`),

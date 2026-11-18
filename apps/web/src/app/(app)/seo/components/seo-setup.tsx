@@ -9,6 +9,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { SeoGoogleConnection } from "./seo-google-connection";
+import { SeoSetupGoal } from "./seo-setup-goal";
 import {
   type SeoSetup,
   type SeoSetupState,
@@ -91,6 +92,9 @@ export function SeoSetupCard({
   // The widest check this workspace can run on these pages: the first result is the full one where it can be.
   const run = seoRunAction(model.data);
   const full = run?.kind === "audit_full";
+  const goalPage = model.data.pages.find(
+    (page) => page.id === model.setupGoalPageId,
+  );
   return (
     <section
       aria-labelledby={TITLE_ID}
@@ -184,7 +188,15 @@ export function SeoSetupCard({
               )
             }
           >
-            {!run ? null : (
+            {goalPage && run && model.brief?.data ? (
+              <SeoSetupGoal
+                key={`${model.setupScopeKey}:${run.kind}`}
+                model={model}
+                page={goalPage}
+                brief={model.brief.data}
+                full={full}
+              />
+            ) : !run ? null : (
               <div className="flex flex-wrap items-center gap-2">
                 {/* The button stays while its check runs, so keyboard focus stays too. */}
                 <Button

@@ -11881,8 +11881,8 @@
           "unknown": "Sin decidir"
         },
         "events": {
-          "title": "Eventos tras una entrada desde la búsqueda orgánica",
-          "source": "GA4 cuenta estos eventos para las visitas desde la búsqueda orgánica que empezaron en esta página.",
+          "title": "Compras y registros desde la búsqueda orgánica",
+          "source": "Solo tú puedes ver estas cifras de GA4. Corresponden a visitas desde la búsqueda orgánica que comenzaron en esta página.",
           "purchase": "Compras",
           "sign_up": "Registros",
           "before": "Antes del cambio",
@@ -12812,6 +12812,13 @@
         "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
       },
       "setup": {
+        "goal": {
+          "question": "¿Qué deberían hacer los visitantes en esta página?",
+          "skip": "Omitir por ahora",
+          "suggested": "Usar el objetivo sugerido «{action}»",
+          "include": "Incluir este objetivo en la auditoría",
+          "shareDetails": "Si incluyes este objetivo, la auditoría pública recibirá la URL {url} y el objetivo «{goal}»."
+        },
         "historyUnavailable": "No se pudo comprobar la configuración de la auditoría. Inténtalo de nuevo antes de iniciar una comprobación.",
         "googleBody": "Conecta Google para incluir tus estadísticas de búsqueda o continúa solo con comprobaciones de páginas públicas.",
         "skipGoogle": "Continuar sin Google",

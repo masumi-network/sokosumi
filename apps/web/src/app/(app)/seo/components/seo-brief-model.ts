@@ -60,6 +60,13 @@ export function briefPage(pages: BriefPage[], pageId: string): BriefPage {
   );
 }
 
+export function canSetBriefPage(pages: BriefPage[], pageId: string) {
+  return (
+    pages.length < SEO_BRIEF_PAGE_LIMIT ||
+    pages.some((page) => page.pageId === pageId)
+  );
+}
+
 export function changeBriefPage(pages: BriefPage[], page: BriefPage) {
   if (
     !page.role &&

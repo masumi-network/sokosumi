@@ -18,6 +18,7 @@ import {
   briefDraft,
   briefPage,
   briefRequest,
+  canSetBriefPage,
   changeBriefPage,
   SEO_BRIEF_ACTIONS,
   SEO_BRIEF_CONSTRAINTS_LIMIT,
@@ -110,9 +111,7 @@ function BriefEditor({
   const saving = useRef(false);
   const page = briefPage(draft.pages, pageId);
   const followUp = initial.followUps.find((item) => item.pageId === pageId);
-  const full =
-    draft.pages.length >= SEO_BRIEF_PAGE_LIMIT &&
-    !draft.pages.some((p) => p.pageId === pageId);
+  const full = !canSetBriefPage(draft.pages, pageId);
   const options = (values: readonly string[], group: string) =>
     values.map((value) => ({
       value,
