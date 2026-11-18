@@ -383,4 +383,33 @@ describe("getTasksColumnPage", () => {
       descriptionPlain: null,
     });
   });
+
+  it("asks Core for the reader's own Tasks under Needs me", async () => {
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: null });
+    const params = {
+      cursor: null,
+      limit: 10,
+      scope: "workspace" as const,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      needsMe: true,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    };
+
+    await getTasksColumnPage({ columnId: "input-required", ...params });
+    await getTasksColumnPage({ columnId: "done", ...params });
+
+    // Done holds nothing that waits on a person, so it makes no request.
+    expect(listTasksMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        scope: "mine",
+        status: expect.arrayContaining([TaskStatus.INPUT_REQUIRED]),
+      }),
+    );
+  });
 });

@@ -15,6 +15,7 @@ import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   getTaskTagQuery,
+  NEEDS_ME_SCOPE,
   type ProjectFilterOption,
   parseTasksFilters,
   type TasksFiltersSearchParams,
@@ -164,6 +165,7 @@ async function readTasksPageData(
     visibility: activeFilters.visibility,
     tag: activeFilters.tag,
     stuck: activeFilters.stuck,
+    needsMe: activeFilters.needsMe,
     coworkersById,
     personalAssistantFallback,
   };
@@ -191,7 +193,7 @@ async function readTasksPageData(
       ? taskService.listTasks({
           status: TaskStatus.GRANT_PENDING,
           ...getTaskTagQuery(activeFilters.tag),
-          scope: activeFilters.scope,
+          scope: activeFilters.needsMe ? NEEDS_ME_SCOPE : activeFilters.scope,
           assigneeId: activeFilters.assigneeId ?? undefined,
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,

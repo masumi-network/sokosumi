@@ -5,6 +5,7 @@ import {
   Building2,
   CircleDashed,
   Eye,
+  Hand,
   Hourglass,
   Tag,
   Users,
@@ -162,26 +163,29 @@ export function TasksViewFilters({
     const nextSections: FilterDropdownMenuSection[] = [];
 
     if (activeOrganizationId !== null) {
-      nextSections.push({
-        id: "scope",
-        label: labels.scopeLabel,
-        icon: Building2,
-        value: filters.scope,
-        onChange: (scope) =>
-          handleFilterChange({
-            scope: (scope as TasksFilters["scope"]) ?? "workspace",
-          }),
-        options: [
-          {
-            value: "workspace",
-            label: labels.scopeWorkspace,
-          },
-          {
-            value: "owned",
-            label: labels.scopeOwned,
-          },
-        ],
-      });
+      // Needs me reads the reader's own Tasks, so a scope has no effect.
+      if (!filters.needsMe) {
+        nextSections.push({
+          id: "scope",
+          label: labels.scopeLabel,
+          icon: Building2,
+          value: filters.scope,
+          onChange: (scope) =>
+            handleFilterChange({
+              scope: (scope as TasksFilters["scope"]) ?? "workspace",
+            }),
+          options: [
+            {
+              value: "workspace",
+              label: labels.scopeWorkspace,
+            },
+            {
+              value: "owned",
+              label: labels.scopeOwned,
+            },
+          ],
+        });
+      }
 
       nextSections.push({
         id: "visibility",
@@ -307,13 +311,16 @@ export function TasksViewFilters({
   const assigneeId =
     filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId;
   const chips = [
-    filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
-      id: "scope",
-      label: labels.scopeLabel,
-      value:
-        filters.scope === "owned" ? labels.scopeOwned : labels.scopeWorkspace,
-      clear: { scope: getDefaultTasksScope(activeOrganizationId) },
-    },
+    // Needs me reads the reader's own Tasks whatever the scope says, so the
+    // scope chip would name a scope that is not the one shown.
+    !filters.needsMe &&
+      filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
+        id: "scope",
+        label: labels.scopeLabel,
+        value:
+          filters.scope === "owned" ? labels.scopeOwned : labels.scopeWorkspace,
+        clear: { scope: getDefaultTasksScope(activeOrganizationId) },
+      },
     filters.visibility === TaskVisibility.PRIVATE && {
       id: "visibility",
       label: labels.visibilityLabel,
@@ -399,6 +406,20 @@ export function TasksViewFilters({
           {t("stuck", { days: STUCK_AFTER_DAYS })}
         </span>
       </Button>
+      {userId ? (
+        <Button
+          variant={filters.needsMe ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={!!filters.needsMe}
+          title={t("needsMeHint")}
+          className={cn("hit-area", filters.needsMe && "border-control-border")}
+          onClick={() => handleFilterChange({ needsMe: !filters.needsMe })}
+        >
+          <Hand aria-hidden />
+          {/* Icon only on a phone, so the toolbar stays one row. */}
+          <span className="max-sm:sr-only">{t("needsMe")}</span>
+        </Button>
+      ) : null}
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {

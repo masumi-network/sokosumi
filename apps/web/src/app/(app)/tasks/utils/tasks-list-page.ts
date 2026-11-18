@@ -4,10 +4,15 @@ import type { Coworker } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
-import { WAITING_TASK_STATUSES } from "@/app/tasks/utils/task-column";
+import {
+  COLUMN_TASK_STATUSES,
+  NEEDS_PERSON_COLUMN_ID,
+  WAITING_TASK_STATUSES,
+} from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import {
   getTaskTagQuery,
+  NEEDS_ME_SCOPE,
   stuckCutoff,
   type TasksScope,
   type TasksVisibilityFilter,
@@ -28,6 +33,7 @@ interface GetTasksListPageParams {
   visibility: TasksVisibilityFilter;
   tag?: string;
   stuck?: boolean;
+  needsMe?: boolean;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -49,21 +55,29 @@ export async function getTasksListPage({
   visibility,
   tag,
   stuck = false,
+  needsMe = false,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksListPageParams): Promise<GetTasksListPageResult> {
-  const statuses = stuck
-    ? WAITING_TASK_STATUSES.filter(
-        (waiting) => status === null || waiting === status,
-      )
-    : status;
+  // Stuck and Needs me each allow a set of statuses. Both on: only the
+  // statuses in both sets.
+  const allowed = [
+    ...(stuck ? [WAITING_TASK_STATUSES] : []),
+    ...(needsMe ? [COLUMN_TASK_STATUSES[NEEDS_PERSON_COLUMN_ID]] : []),
+  ];
+  const statuses =
+    allowed.length > 0
+      ? allowed
+          .reduce((kept, set) => kept.filter((one) => set.includes(one)))
+          .filter((one) => status === null || one === status)
+      : status;
   // A status that cannot wait, under Stuck: nothing to list.
   if (Array.isArray(statuses) && statuses.length === 0) {
     return { tasks: [], nextCursor: null };
   }
   const result = await taskService.listTasks({
     status: statuses ?? undefined,
-    scope,
+    scope: needsMe ? NEEDS_ME_SCOPE : scope,
     assigneeId: assigneeId ?? undefined,
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,
