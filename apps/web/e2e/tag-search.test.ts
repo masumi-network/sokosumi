@@ -8,10 +8,15 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user finds work by its workspace tag in search: tag a Draft Task
-// "Design", open search with the keyboard, type "#design" and see the tag and
-// its Task (no "No results found"), pick the tag to filter the board, then
-// type "desi" and open the Task from the tag's list. Each size signs up its
-// own disposable mail.tm inbox; everything it does is free.
+// "Design", open search, type "#design" and see the tag and its Task (no "No
+// results found"), pick the tag to filter the board, then type "desi" and open
+// the Task from the tag's list. Each size signs up its own disposable mail.tm
+// inbox; everything it does is free.
+//
+// Tablet and desktop open search with the visible sidebar Search button.
+// A phone has no way in by touch: its header Search opens Credit history,
+// which does not search tags. The phone run presses Ctrl+K, so it covers the
+// dialog at phone width for keyboard users only, not phone touch support.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const TASK_DETAILS = "Draw the launch logo for the spring campaign";
@@ -35,8 +40,13 @@ async function noSidewaysScroll(page: Page) {
   assert.ok(overflow <= 1, `page scrolls sideways by ${overflow}px`);
 }
 
-async function openSearch(page: Page, query: string) {
-  await page.keyboard.press("Control+k");
+async function openSearch(page: Page, size: string, query: string) {
+  if (size === "phone") await page.keyboard.press("Control+k");
+  else {
+    const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+    if (await showSidebar.isVisible()) await showSidebar.click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+  }
   const dialog = page.getByRole("dialog", { name: "Search" });
   await dialog.getByRole("combobox").fill(query);
   return dialog;
@@ -108,13 +118,15 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       const taskName = await page
         .getByRole("heading", { level: 1 })
         .innerText();
+      const taskUrl = page.url();
+      const taskOption = { name: new RegExp(`^${RegExp.escape(taskName)}`) };
 
       // "#design" matches no Task title, so only the tag group answers it.
-      let search = await openSearch(page, "#design");
+      let search = await openSearch(page, size, "#design");
       const tag = search.getByRole("option", { name: "#Design" });
       await tag.waitFor();
-      await search.getByText("Tasks tagged Design").waitFor();
-      await search.getByRole("option", { name: taskName }).first().waitFor();
+      let tagged = search.getByRole("group", { name: "Tasks tagged Design" });
+      await tagged.getByRole("option", taskOption).waitFor();
       assert.equal(
         await search.getByText("No results found").count(),
         0,
@@ -126,15 +138,16 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await tag.click();
       await page.waitForURL(/\/tasks\?tag=/);
       await page.getByText("Tags: Design").first().waitFor();
+      await page.getByRole("link", { name: taskName }).first().waitFor();
       await shot(page, size, "2-board");
 
-      search = await openSearch(page, "desi");
-      await search.getByText("Tasks tagged Design").waitFor();
-      await search
-        .getByRole("option", { name: taskName, exact: true })
-        .first()
-        .click();
+      search = await openSearch(page, size, "desi");
+      tagged = search.getByRole("group", { name: "Tasks tagged Design" });
+      await tagged.getByRole("option", taskOption).click();
+      await page.waitForURL(taskUrl);
       await page.getByRole("heading", { level: 1, name: taskName }).waitFor();
+      await page.getByText(TASK_DETAILS).waitFor();
+      await page.getByRole("heading", { name: "Properties" }).waitFor();
       await noSidewaysScroll(page);
       await shot(page, size, "3-task");
 
