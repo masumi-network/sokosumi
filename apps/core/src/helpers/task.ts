@@ -427,7 +427,13 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
-    workspaceTags: task.workspaceTags?.map(({ label }) => label),
+    workspaceTags: task.workspaceTags?.map(({ label, state }) => ({
+      ...label,
+      source: state === "JEV_ADDED" ? ("jev" as const) : ("manual" as const),
+    })),
+    workspaceTagSuggestions: task.workspaceTagDecisions?.map(
+      ({ label }) => label,
+    ),
     status: task.status,
     priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.

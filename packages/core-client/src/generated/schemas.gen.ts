@@ -7489,6 +7489,38 @@ export const TaskSchema = {
                     },
                     displayName: {
                         type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'manual',
+                            'jev'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
+        workspaceTagSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
                     }
                 },
                 required: [
@@ -8096,6 +8128,25 @@ export const TaskTagIdSchema = {
         'communication',
         'finance',
         'qa'
+    ]
+} as const;
+
+export const TagColorSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'gray',
+        'red',
+        'orange',
+        'yellow',
+        'green',
+        'teal',
+        'blue',
+        'purple',
+        'pink',
+        null
     ]
 } as const;
 
@@ -18572,6 +18623,12 @@ export const DeleteDriveFileRequestSchema = {
 export const WorkspaceLabelSchema = {
     type: 'object',
     properties: {
+        taskTopicId: {
+            $ref: '#/components/schemas/TaskTagId'
+        },
+        color: {
+            $ref: '#/components/schemas/TagColor'
+        },
         id: {
             type: 'string'
         },
@@ -58696,6 +58753,38 @@ export const TaskListItemSchema = {
                     },
                     displayName: {
                         type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [
+                            'manual',
+                            'jev'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName'
+                ]
+            }
+        },
+        workspaceTagSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
                     }
                 },
                 required: [
@@ -58944,6 +59033,33 @@ export const TaskTagSuggestionSchema = {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        workspaceSuggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    color: {
+                        $ref: '#/components/schemas/TagColor'
+                    },
+                    autoApply: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'id',
+                    'displayName',
+                    'autoApply'
+                ]
             },
             maxItems: 5
         },

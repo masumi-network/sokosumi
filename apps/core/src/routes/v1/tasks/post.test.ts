@@ -17,6 +17,9 @@ import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
 import { expectCoreLogWhys } from "@/test/core-log";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
+vi.mock("@/helpers/task-tag-rollout", () => ({
+  TASK_WORKSPACE_JEV_ENABLED: true,
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -25,12 +28,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
+const loadCatalogMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const grantReadMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
 const cachedSuggestionsMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
 vi.mock("@/services/task-tag-suggestions.service", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/services/task-tag-suggestions.service")
   >()),
-  readCachedTaskTagSuggestions: cachedSuggestionsMock,
+  readCachedTaskTagEvaluation: cachedSuggestionsMock,
 }));
 
 // Inline classification runs for real in this file. It is off unless a test turns
@@ -240,6 +245,8 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    workspaceLabel: { findMany: loadCatalogMock },
+    vendorGrant: { findUnique: grantReadMock },
     project: {
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,
@@ -261,6 +268,7 @@ function mockWorkspaceGrantInTransaction(
   status: VendorGrantStatus,
   created = false,
 ) {
+  grantReadMock.mockResolvedValue({ status });
   const grant = {
     id: CREATE_GRANT_ID,
     status,
@@ -706,7 +714,11 @@ describe("POST /tasks", () => {
   it.each([{ tags: [] }, { tags: ["research"] }] as const)(
     "reuses cached suggestions $tags when no browser receipt arrived",
     async ({ tags }) => {
-      cachedSuggestionsMock.mockResolvedValue([...tags]);
+      gateway.enabled = true;
+      cachedSuggestionsMock.mockResolvedValue({
+        tags: [...tags],
+        workspaceSuggestions: [],
+      });
       const body = {
         description:
           "Research competitors and prepare a detailed market analysis report",
@@ -723,6 +735,7 @@ describe("POST /tasks", () => {
           workspaceId: "11111111-1111-7111-8111-111111111111",
         },
         expect.objectContaining(body),
+        [],
       );
       expect(taskUpdateMock).toHaveBeenCalledWith({
         where: { id: "tsk_123" },
@@ -739,8 +752,14 @@ describe("POST /tasks", () => {
       );
     },
   );
+  afterEach(() => {
+    gateway.enabled = false;
+  });
   it("reuses cached suggestions after rejecting a mismatched browser receipt", async () => {
-    cachedSuggestionsMock.mockResolvedValue(["design"]);
+    cachedSuggestionsMock.mockResolvedValue({
+      tags: ["design"],
+      workspaceSuggestions: [],
+    });
     const response = await createApp().request("http://localhost/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1755,7 +1774,9 @@ describe("POST /tasks delegated coworker create grant", () => {
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
           $queryRaw: vi.fn().mockResolvedValue([{ id: initialTagId }]),
+          taskWorkspaceTagDecision: { deleteMany: vi.fn() },
           taskWorkspaceTag: {
+            findMany: vi.fn().mockResolvedValue([]),
             deleteMany: vi.fn(),
             createMany: createWorkspaceTagAssignments,
           },
@@ -1795,11 +1816,15 @@ describe("POST /tasks delegated coworker create grant", () => {
       },
     );
     expect(response.status).toBe(201);
+    expect(
+      taskFindUniqueOrThrowMock.mock.calls[0]?.[0].include.workspaceTagDecisions
+        .where,
+    ).toEqual({ labelId: { in: [] } });
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(cachedSuggestionsMock).not.toHaveBeenCalled();
   });
 
-  it("keeps initial workspace tags while parking a create for grant approval", async () => {
+  it("rejects an ungranted delegated create with private tag IDs before reading the vocabulary", async () => {
     mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
     notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
 
@@ -1819,25 +1844,10 @@ describe("POST /tasks delegated coworker create grant", () => {
       },
     );
 
-    expect(response.status).toBe(201);
-    expect(requestWorkspaceGrantMock).toHaveBeenCalledWith(
-      expect.objectContaining({ notify: false }),
-      expect.anything(),
-    );
-    expect(notifyWorkspaceApproversOfPendingGrantMock).toHaveBeenCalled();
-    expect(createWorkspaceTagAssignments).toHaveBeenCalledWith({
-      data: [{ taskId: "tsk_parked", labelId: initialTagId }],
-      skipDuplicates: true,
-    });
-    expect(taskCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: TaskStatus.GRANT_PENDING,
-          grantResumeStatus: TaskStatus.DRAFT,
-          pendingVendorGrantId: CREATE_GRANT_ID,
-        }),
-      }),
-    );
+    expect(response.status).toBe(403);
+    expect(loadCatalogMock).not.toHaveBeenCalled();
+    expect(createWorkspaceTagAssignments).not.toHaveBeenCalled();
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("parks project create without resolving or attaching owner context", async () => {
@@ -2167,6 +2177,9 @@ describe("POST /tasks delegated coworker create grant", () => {
 describe("POST /tasks inline tag classification failure modes", () => {
   const workspaceLabelId = "01960001-0001-7001-8001-000000000043";
   const createWorkspaceTagAssignments = vi.fn();
+  const createWorkspaceTagDecisions = vi.fn();
+  const restoreCopiedSource = vi.fn();
+  const allowedLabels = vi.fn();
   const gatewayUrl = "https://ai-gateway.vercel.sh/v1/evaluate";
   const body = {
     description:
@@ -2215,6 +2228,11 @@ describe("POST /tasks inline tag classification failure modes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     gateway.enabled = true;
+    createWorkspaceTagAssignments.mockResolvedValue({ count: 1 });
+    createWorkspaceTagDecisions.mockResolvedValue({ count: 1 });
+    allowedLabels
+      .mockReset()
+      .mockResolvedValue([{ id: workspaceLabelId, vocabularyVersion: 1 }]);
     cachedSuggestionsMock.mockResolvedValue(null);
     resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
@@ -2224,9 +2242,15 @@ describe("POST /tasks inline tag classification failure modes", () => {
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         await callback({
-          $queryRaw: vi.fn().mockResolvedValue([{ id: workspaceLabelId }]),
+          $queryRaw: allowedLabels,
+          taskWorkspaceTagDecision: {
+            deleteMany: vi.fn(),
+            createMany: createWorkspaceTagDecisions,
+          },
           taskWorkspaceTag: {
+            findMany: vi.fn().mockResolvedValue([]),
             createMany: createWorkspaceTagAssignments,
+            updateMany: restoreCopiedSource,
             deleteMany: vi.fn(),
           },
           project: { findFirst: projectFindFirstMock },
@@ -2241,6 +2265,81 @@ describe("POST /tasks inline tag classification failure modes", () => {
   afterEach(() => {
     gateway.enabled = false;
     vi.unstubAllGlobals();
+  });
+
+  it("keeps a create pending on a failed optional workspace catalog read", async () => {
+    loadCatalogMock.mockRejectedValueOnce(
+      new Error("database temporarily unavailable"),
+    );
+    vi.stubGlobal("fetch", vi.fn());
+    const response = await createAppForMethod("api_key").request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledOnce();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("persists strong and moderate Jev workspace matches on create and discards a stale label revision", async () => {
+    const ids = [
+      workspaceLabelId,
+      "01960001-0001-7001-8001-000000000044",
+      "01960001-0001-7001-8001-000000000045",
+    ];
+    const catalog = ["Treasury", "Settlement", "Clearing"].map(
+      (displayName, index) => ({
+        id: ids[index]!,
+        displayName,
+        color: "teal",
+        description: null,
+        vocabularyVersion: 1,
+      }),
+    );
+    loadCatalogMock.mockResolvedValueOnce(catalog);
+    allowedLabels.mockResolvedValueOnce(
+      catalog.map((label, index) => ({
+        ...label,
+        vocabularyVersion: index === 2 ? 2 : 1,
+      })),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const { questions } = JSON.parse(String(init.body));
+        const result = jevAnswers(0);
+        const scores = [0.98, 0.85, 0.96];
+        result.answers = Object.fromEntries(
+          Object.keys(questions).map((id) => [
+            id,
+            { type: "boolean", probability: scores[ids.indexOf(id)] ?? 0 },
+          ]),
+        );
+        return Response.json(result);
+      }),
+    );
+    const response = await createAppForMethod("api_key").request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(createWorkspaceTagAssignments).toHaveBeenCalledExactlyOnceWith({
+      data: [{ taskId: "tsk_123", labelId: ids[0], state: "JEV_ADDED" }],
+      skipDuplicates: true,
+    });
+    expect(createWorkspaceTagDecisions).toHaveBeenCalledExactlyOnceWith({
+      data: [{ taskId: "tsk_123", labelId: ids[1], state: "JEV_SUGGESTED" }],
+      skipDuplicates: true,
+    });
   });
 
   it.each(["api_key", "session"] as const)(
@@ -2459,7 +2558,7 @@ describe("POST /tasks inline tag classification failure modes", () => {
           vi.fn(async () => Response.json(jevAnswers(0.97))),
         );
         requireTaskReadForRouteVarsMock.mockResolvedValue({
-          workspaceTags: [{ labelId: workspaceLabelId }],
+          workspaceTags: [{ labelId: workspaceLabelId, state: "JEV_ADDED" }],
           workspaceId: sourceWorkspace,
           id: sourceId,
           automaticTags: ["research"],
@@ -2490,7 +2589,12 @@ describe("POST /tasks inline tag classification failure modes", () => {
         );
         if (!inherits) {
           expect(createWorkspaceTagAssignments).not.toHaveBeenCalled();
+          expect(restoreCopiedSource).not.toHaveBeenCalled();
         } else {
+          expect(restoreCopiedSource).toHaveBeenCalledExactlyOnceWith({
+            where: { taskId: "tsk_123", labelId: { in: [workspaceLabelId] } },
+            data: { state: "JEV_ADDED" },
+          });
           expect(createWorkspaceTagAssignments).toHaveBeenCalledWith({
             data: [{ taskId: "tsk_123", labelId: workspaceLabelId }],
             skipDuplicates: true,

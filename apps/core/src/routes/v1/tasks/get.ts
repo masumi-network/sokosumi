@@ -49,7 +49,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
-import { taskListInclude } from "@/types/task";
+import { taskListInclude, taskTagSuggestionsForViewer } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -461,7 +461,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [...orderBy],
-        include: taskListInclude,
+        include: {
+          ...taskListInclude,
+          ...taskTagSuggestionsForViewer(
+            authContext,
+            c.var.workspaceContext?.workspaceId,
+          ),
+        },
       }),
       prisma.task.count({ where }),
     ]);

@@ -20,6 +20,9 @@ import { taskEventApiInclude } from "@/types/task";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
 
+vi.mock("@/helpers/task-tag-rollout", () => ({
+  TASK_WORKSPACE_JEV_ENABLED: true,
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -1344,6 +1347,11 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
 
 describe("PATCH /tasks/{id} Run at and workspace tags", () => {
   const clearTags = vi.fn();
+  const removedAssignments = vi.fn();
+  const allowedLabels = vi.fn();
+  const saveDecisions = vi.fn();
+  const clearDecisions = vi.fn();
+  const saveAssignments = vi.fn();
   const RUN_AT = "2099-01-05T09:00:00.000Z";
   const LATER_RUN_AT = "2099-01-12T09:00:00.000Z";
   const taskEventCreateMock = vi.fn();
@@ -1400,6 +1408,7 @@ describe("PATCH /tasks/{id} Run at and workspace tags", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    removedAssignments.mockResolvedValue([]);
     taskUpdateMock.mockResolvedValue(createTaskApi(null));
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
@@ -1408,7 +1417,16 @@ describe("PATCH /tasks/{id} Run at and workspace tags", () => {
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
-        taskWorkspaceTag: { deleteMany: clearTags },
+        $queryRaw: allowedLabels,
+        taskWorkspaceTagDecision: {
+          createMany: saveDecisions,
+          deleteMany: clearDecisions,
+        },
+        taskWorkspaceTag: {
+          findMany: removedAssignments,
+          createMany: saveAssignments,
+          deleteMany: clearTags,
+        },
       });
     });
     mockTask();
@@ -1427,6 +1445,46 @@ describe("PATCH /tasks/{id} Run at and workspace tags", () => {
       taskId: "tsk_123",
       eventType: "task_event",
     });
+  });
+
+  it("accepts one suggestion, remembers removed tags and explicitly dismisses others", async () => {
+    const [retained, accepted, removed, dismissed] = [
+      "00000000-1111-4111-8111-111111111111",
+      "00000000-2222-4222-8222-222222222222",
+      "00000000-3333-4333-8333-333333333333",
+      "00000000-4444-4444-8444-444444444444",
+    ] as const;
+    mockTask({ status: TaskStatus.COMPLETED });
+    allowedLabels.mockResolvedValueOnce(
+      [retained, accepted, dismissed].map((id) => ({ id })),
+    );
+    removedAssignments.mockResolvedValueOnce([{ labelId: removed }]);
+    const response = await patch({
+      workspaceTagIds: [retained, accepted],
+      dismissedWorkspaceTagIds: [dismissed, accepted],
+    });
+    expect(response.status).toBe(200);
+    expect(clearDecisions).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        taskId: "tsk_123",
+        labelId: { in: [retained, accepted, dismissed, removed] },
+      },
+    });
+    expect(saveDecisions).toHaveBeenCalledExactlyOnceWith({
+      data: [dismissed, removed].map((labelId) => ({
+        taskId: "tsk_123",
+        labelId,
+        state: "JEV_DISMISSED",
+      })),
+    });
+    expect(saveAssignments).toHaveBeenCalledExactlyOnceWith({
+      data: [retained, accepted].map((labelId) => ({
+        taskId: "tsk_123",
+        labelId,
+      })),
+      skipDuplicates: true,
+    });
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
   });
 
   it("refuses to change labels on a Task outside the active workspace", async () => {

@@ -49,7 +49,10 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
-import { setTaskWorkspaceTags } from "@/helpers/task-workspace-tags";
+import {
+  requireExpectedTaskWorkspaceTags,
+  setTaskWorkspaceTags,
+} from "@/helpers/task-workspace-tags";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -58,6 +61,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
+  dismissedWorkspaceTagIdsSchema,
   taskSchema,
   taskWorkspaceTagIdsSchema,
 } from "@/schemas/task.schema";
@@ -102,6 +106,11 @@ export const patchTaskRequestSchema = z
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
     priority: taskPrioritySchema.optional(),
     workspaceTagIds: taskWorkspaceTagIdsSchema,
+    expectedWorkspaceTagIds: z.array(z.uuid()).optional().openapi({
+      description:
+        "When replacing workspaceTagIds, return 409 if the currently applied workspace tags differ from this set.",
+    }),
+    dismissedWorkspaceTagIds: dismissedWorkspaceTagIdsSchema,
     runAt: dateTimeSchema.nullish().openapi({
       description:
         "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
@@ -115,6 +124,16 @@ export const patchTaskRequestSchema = z
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
+    if (
+      data.expectedWorkspaceTagIds !== undefined &&
+      data.workspaceTagIds === undefined
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "expectedWorkspaceTagIds requires workspaceTagIds",
+        path: ["expectedWorkspaceTagIds"],
+      });
+    }
 
     if (
       data.name === undefined &&
@@ -128,12 +147,13 @@ export const patchTaskRequestSchema = z
       data.priority === undefined &&
       data.runAt === undefined &&
       data.dueOn === undefined &&
-      data.workspaceTagIds === undefined
+      data.workspaceTagIds === undefined &&
+      data.dismissedWorkspaceTagIds === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, dueOn, or workspaceTagIds is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, dueOn, workspaceTagIds, or dismissedWorkspaceTagIds is required",
         path: ["name"],
       });
     }
@@ -194,11 +214,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       runAt,
       dueOn,
       workspaceTagIds,
+      expectedWorkspaceTagIds,
+      dismissedWorkspaceTagIds,
     } = c.req.valid("json");
+    const editsTags =
+      workspaceTagIds !== undefined || dismissedWorkspaceTagIds !== undefined;
     // A due date belongs to the work, not the brief, so it may change while
     // the Task runs or after it ends. The same applies to workspace tags.
     const onlyDueOnOrTags =
-      (dueOn !== undefined || workspaceTagIds !== undefined) &&
+      (dueOn !== undefined || editsTags) &&
       name === undefined &&
       description === undefined &&
       projectId === undefined &&
@@ -216,7 +240,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
       if (
-        workspaceTagIds !== undefined &&
+        editsTags &&
         taskSnapshot.workspaceId !==
           requireWorkspaceContext(c.var.workspaceContext).workspaceId
       ) {
@@ -261,6 +285,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       if (task.workspaceId !== taskSnapshot.workspaceId) {
         throw conflict("Task changed during update");
+      }
+
+      if (expectedWorkspaceTagIds !== undefined) {
+        await requireExpectedTaskWorkspaceTags(tx, id, expectedWorkspaceTagIds);
       }
 
       if (!onlyDueOnOrTags && !isTaskEditableStatus(task.status)) {
@@ -387,8 +415,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : dueOn === null
             ? null
             : new Date(`${dueOn}T00:00:00.000Z`);
-      if (workspaceTagIds !== undefined) {
-        await setTaskWorkspaceTags(tx, id, task.workspaceId, workspaceTagIds);
+      if (editsTags) {
+        await setTaskWorkspaceTags(
+          tx,
+          id,
+          task.workspaceId,
+          workspaceTagIds,
+          dismissedWorkspaceTagIds,
+        );
       }
       let updatedTask = await tx.task.update({
         where: {
@@ -404,7 +438,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         data: {
           name,
-          ...(workspaceTagIds !== undefined ? { updatedAt: new Date() } : {}),
+          ...(editsTags ? { updatedAt: new Date() } : {}),
           description: nextDescription,
           projectId,
           priority,
@@ -413,7 +447,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           dueOn: dueOnWrite,
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
         },
-        include: buildTaskIncludeForViewer(authContext, task.workspaceId),
+        include: buildTaskIncludeForViewer(
+          authContext,
+          task.workspaceId,
+          c.var.workspaceContext?.workspaceId,
+        ),
       });
       if (dueOnWrite !== undefined) {
         await recordTaskDueDateMovedLater(tx, {
@@ -449,7 +487,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
     const ownerId = result.task.ownerId;
-    if ((result.statusChanged || workspaceTagIds !== undefined) && ownerId) {
+    if ((result.statusChanged || editsTags) && ownerId) {
       try {
         await publishTaskEventData({
           userId: ownerId,

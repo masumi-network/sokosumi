@@ -431,6 +431,58 @@ describe("GET /tasks", () => {
     });
   });
 
+  it.each([
+    {
+      actor: "standalone coworker",
+      auth: COWORKER_AUTH_CONTEXT,
+      workspace: null,
+      expected: { labelId: { in: [] } },
+    },
+    {
+      actor: "delegated coworker",
+      auth: DELEGATED_COWORKER_AUTH_CONTEXT,
+      workspace: DELEGATED_WORKSPACE_CONTEXT,
+      expected: {
+        label: {
+          workspaceId: DELEGATED_WORKSPACE_CONTEXT.workspaceId,
+          workspace: {
+            vendorGrants: {
+              some: { vendorId: DELEGATED_VENDOR_ID, status: "GRANTED" },
+            },
+          },
+        },
+      },
+    },
+    {
+      actor: "human API key",
+      auth: { ...USER_AUTH_CONTEXT, authenticationMethod: "api_key" as const },
+      workspace: USER_WORKSPACE_CONTEXT,
+      expected: {
+        state: "JEV_SUGGESTED",
+        label: {
+          workspaceId: USER_WORKSPACE_CONTEXT.workspaceId,
+          workspace: {
+            OR: [
+              { userId: "user_123" },
+              { organization: { members: { some: { userId: "user_123" } } } },
+            ],
+          },
+        },
+      },
+    },
+  ])(
+    "limits workspace-label suggestions on a project list for a $actor",
+    async ({ auth, workspace, expected }) => {
+      const response = await createApp(auth, workspace).request(
+        "http://localhost/?projectId=33333333-3333-4333-8333-333333333333",
+      );
+      expect(response.status).toBe(200);
+      const include = taskFindManyMock.mock.calls[0]?.[0].include;
+      expect(include.workspaceTagDecisions.where).toMatchObject(expected);
+      expect(include.workspaceTags).toBeDefined();
+    },
+  );
+
   it("does not include task links for coworker-scoped task list reads", async () => {
     const app = createApp(COWORKER_AUTH_CONTEXT, null);
 
