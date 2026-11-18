@@ -1812,6 +1812,8 @@
         "searchLabel": "Archivierte Aufgaben durchsuchen",
         "searchPlaceholder": "Nach Name suchen",
         "noMatches": "Keine archivierten Aufgaben passen zu „{query}“.",
+        "searchResults": "{count, plural, =0 {Keine archivierten Aufgaben passen zu „{query}“.} one {# archivierte Aufgabe passt zu „{query}“.} other {# archivierte Aufgaben passen zu „{query}“.}}",
+        "searchResultsLimited": "Die neuesten {shown, number} von {total, number} archivierten Aufgaben, die zu „{query}“ passen.",
         "noProject": "Kein Projekt",
         "archivedOn": "Archiviert am {date}",
         "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."

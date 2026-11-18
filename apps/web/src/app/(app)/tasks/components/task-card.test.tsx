@@ -413,14 +413,6 @@ describe("TaskCard density", () => {
           task={task}
           compact={compact}
           dragHandleProps={{
-            attributes: {
-              role: "button",
-              tabIndex: 0,
-              "aria-disabled": false,
-              "aria-pressed": false,
-              "aria-roledescription": "draggable",
-              "aria-describedby": "drag-instructions",
-            },
             listeners: { onPointerDown, onKeyDown },
             isDragging: false,
           }}
@@ -455,11 +447,9 @@ describe("TaskCard density", () => {
       expect(onKeyDown).not.toHaveBeenCalled();
       fireEvent.pointerDown(screen.getByRole("heading"));
       expect(onPointerDown).toHaveBeenCalledOnce();
-      const draggable = container.querySelector(
-        '[aria-roledescription="draggable"]',
-      );
-      expect(draggable).toHaveAttribute("tabindex", "0");
+      const draggable = container.querySelector(".cursor-grab");
       if (!draggable) throw new Error("Expected a drag handle");
+      expect(draggable).not.toHaveAttribute("tabindex");
       fireEvent.keyDown(draggable, { key: " " });
       expect(onKeyDown).toHaveBeenCalledOnce();
     },
@@ -516,6 +506,49 @@ describe("Compact board card wiring", () => {
       );
     },
   );
+});
+
+describe("Draggable board card for keyboard and screen reader users", () => {
+  // The board drags with the pointer only. dnd-kit's keyboard attributes made
+  // each card a nameless "draggable" button that asked for Space, which did
+  // nothing, and put a dead Tab stop before the task link.
+  it("keeps the task link as the card's only Tab stop", () => {
+    const { container } = render(
+      <DndContext>
+        <KanbanBoard
+          tasks={[buildTask(TaskVisibility.PUBLIC)]}
+          columns={[{ id: "todo", translationKey: "App.Tasks.Columns.todo" }]}
+          labels={{
+            columns: {
+              backlog: "Backlog",
+              todo: "To do",
+              "in-progress": "In progress",
+              "input-required": "Input required",
+              done: "Done",
+            },
+            emptyColumn: "Empty",
+          }}
+          isDragEnabled
+          canDragTask={() => true}
+        />
+      </DndContext>,
+    );
+    const draggable = container.querySelector("[data-dnd-draggable]");
+    if (!draggable) throw new Error("Expected a draggable card");
+    expect(draggable.querySelector("[role='button']")).toBeNull();
+    expect(draggable.querySelector("[aria-roledescription]")).toBeNull();
+    expect(draggable.querySelector("[tabindex]")).toBeNull();
+    expect(draggable.querySelector(".cursor-grab")).not.toBeNull();
+    const link = screen.getByRole("link", { name: "Ship filter" });
+    expect(link).toBeVisible();
+    // One focus ring, the card's (DESIGN.md clickable card ring), never a
+    // second outline around each line of the title.
+    expect(link).toHaveClass(
+      "outline-none",
+      "focus-visible:after:ring-2",
+      "focus-visible:after:ring-ring",
+    );
+  });
 });
 
 describe("TaskCard mention mark", () => {

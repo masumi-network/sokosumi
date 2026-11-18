@@ -1812,6 +1812,8 @@
         "searchLabel": "Buscar tareas archivadas",
         "searchPlaceholder": "Buscar por nombre",
         "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "searchResults": "{count, plural, =0 {Ninguna tarea archivada coincide con «{query}».} one {# tarea archivada coincide con «{query}».} other {# tareas archivadas coinciden con «{query}».}}",
+        "searchResultsLimited": "Se muestran las {shown, number} más recientes de {total, number} tareas archivadas que coinciden con «{query}».",
         "noProject": "Sin proyecto",
         "archivedOn": "Archivada el {date}",
         "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."

@@ -67,9 +67,7 @@ export function TaskCard({
   const tTasks = useTranslations("App.Tasks");
   const hasName = task.name.trim().length > 0;
   const name = hasName ? task.name : tTasks("noTitle");
-  const handleProps = dragHandleProps
-    ? { ...dragHandleProps.attributes, ...dragHandleProps.listeners }
-    : null;
+  const handleProps = dragHandleProps?.listeners;
   return (
     <div
       className={cn(
@@ -149,7 +147,7 @@ export function TaskCard({
             <TaskDetailLink
               href={taskHref(task)}
               title={name}
-              className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
+              className="outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
             >
               {name}
             </TaskDetailLink>

@@ -20,8 +20,10 @@ vi.mock("@/app/tasks/components/back-to-tasks-button", () => ({
   BackToTasksButton: () => null,
 }));
 vi.mock("./archived-tasks-list", () => ({
-  ArchivedTasksList: ({ query }: { query?: string }) => (
-    <p data-testid="archived-list">{query ?? ""}</p>
+  ArchivedTasksList: ({ query, total }: { query?: string; total: number }) => (
+    <p data-testid="archived-list" data-total={total}>
+      {query ?? ""}
+    </p>
   ),
 }));
 vi.mock("@/lib/services/task.service", () => ({
@@ -69,5 +71,16 @@ describe("ArchivedTasksPage search", () => {
     await renderPage();
 
     expect(listTasksMock.mock.calls[0]?.[0]).not.toHaveProperty("q");
+  });
+});
+
+describe("ArchivedTasksPage result count", () => {
+  it("hands Core's match count to the list", async () => {
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: { total: 240 } });
+    await renderPage("spring");
+    expect(screen.getByTestId("archived-list")).toHaveAttribute(
+      "data-total",
+      "240",
+    );
   });
 });

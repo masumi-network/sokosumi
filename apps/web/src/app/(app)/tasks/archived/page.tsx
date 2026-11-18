@@ -32,7 +32,7 @@ export default async function ArchivedTasksPage({
 }) {
   await connection();
   const query = readArchivedSearch((await searchParams).q);
-  const [t, format, { tasks }] = await Promise.all([
+  const [t, format, { tasks, pagination }] = await Promise.all([
     getTranslations("App.Tasks.Archived"),
     getFormatter(),
     taskService.listTasks({
@@ -66,9 +66,8 @@ export default async function ArchivedTasksPage({
         />
       </Form>
       <ArchivedTasksList
-        // Remount on a new search, so restored rows from the last one go.
-        key={query ?? ""}
         query={query}
+        total={pagination?.total ?? tasks.length}
         tasks={tasks.map((task) => ({
           id: task.id,
           identifier: task.identifier,
