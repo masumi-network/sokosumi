@@ -22,6 +22,8 @@ import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
 import {
+  addCompetitor,
+  addCompetitorMoveToStrategy,
   addMailingList,
   answerBrandQuestion,
   answerPlanQuestion,
@@ -38,6 +40,7 @@ import {
   fixBrandSection,
   launchAd,
   loadAdCampaigns,
+  loadCompetitors,
   loadCusos,
   loadMessages,
   loadOverview,
@@ -48,6 +51,7 @@ import {
   onboard,
   openPortal,
   pauseEntry,
+  removeCompetitor,
   requestStrategy,
   retryLearning,
   revertUpdate,
@@ -63,6 +67,7 @@ import {
   startOver,
   startPlanCheckout,
   startTopUp,
+  updateCompetitor,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -366,6 +371,13 @@ export async function Home({ searchParams, view }: HomeProps) {
         retryLearning: retryLearning.bind(null, projectId),
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
+        competitors: {
+          loadCompetitors: loadCompetitors.bind(null, projectId),
+          addCompetitor: addCompetitor.bind(null, projectId),
+          updateCompetitor: updateCompetitor.bind(null, projectId),
+          removeCompetitor: removeCompetitor.bind(null, projectId),
+          addMoveToStrategy: addCompetitorMoveToStrategy.bind(null, projectId),
+        },
         connectChannel: connectChannel.bind(null, projectId),
         addMailingList: addMailingList.bind(null, projectId),
         connectMeasurement: connectMeasurement.bind(null, projectId),

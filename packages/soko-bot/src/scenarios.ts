@@ -1307,6 +1307,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       answerMatches: "nothing to add",
     },
   },
+  {
+    id: "cmo-competitor-second-hand",
+    title: "Reports a move a second-hand source carries, marked weak",
+    intent:
+      "A competitor's plan ending, known only from a customer's notice, is still a move: Cuso reports it and marks its support weak.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what it means for cal.com and one concrete move. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
 ];
 
 /**

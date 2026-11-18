@@ -13666,6 +13666,10 @@ export type CmoCompetitors = {
      */
     limit: number;
     /**
+     * The Brand Brain market map's players that are still watched, in the map's spelling.
+     */
+    mapPlayers: Array<string>;
+    /**
      * What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.
      */
     signals: Array<CmoCompetitorSignal>;
@@ -13757,17 +13761,23 @@ export type CmoCompetitorScoreRow = {
      */
     competitorId: string | null;
     name: string;
-    postsPerWeek: CmoCompetitorMeasure;
-    engagementPerPost: CmoCompetitorMeasure & unknown;
-    followers: CmoCompetitorMeasure;
-    followerGrowth: CmoCompetitorMeasure & unknown;
+    postsPerWeek: CmoCompetitorMeasure | null;
+    /**
+     * Likes and comments per post over the week's posts.
+     */
+    engagementPerPost: CmoCompetitorMeasure | null;
+    followers: CmoCompetitorMeasure | null;
+    /**
+     * Followers gained since the reading a week before.
+     */
+    followerGrowth: CmoCompetitorMeasure | null;
 };
 
 export type CmoCompetitorMeasure = {
     value: number;
     sourceUrl: string | null;
     observedAt: Date;
-} | null;
+};
 
 export type CmoCompetitorTopPost = {
     competitorId: string;
