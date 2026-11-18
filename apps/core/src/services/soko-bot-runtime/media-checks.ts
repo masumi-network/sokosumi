@@ -41,6 +41,7 @@ import { getJob } from "@/services/image-studio-assets.service";
 import {
   DEFAULT_SETTINGS,
   type ImageJobSettings,
+  talkingVideoShowsSite,
 } from "@/services/image-studio-jobs.service";
 import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import {
@@ -395,12 +396,13 @@ export async function checkTalkingVideoRequest(
   if (posesAsCustomerTestimonial(input.script))
     throw new SokoBotRuntimeValidationError(TALKING_VIDEO_TESTIMONIAL_MESSAGE);
   const model = talkingVideoModel();
-  const credits = creditsPerTalkingVideo(model, input.script);
+  const extras = { siteShots: await talkingVideoShowsSite(input.projectId) };
+  const credits = creditsPerTalkingVideo(model, input.script, extras);
   if (credits > input.maxCredits) {
     let fits = input.script.length;
     while (
       fits > 0 &&
-      creditsPerTalkingVideo(model, "x".repeat(fits)) > input.maxCredits
+      creditsPerTalkingVideo(model, "x".repeat(fits), extras) > input.maxCredits
     )
       fits--;
     throw new SokoBotRuntimeValidationError(

@@ -58,6 +58,25 @@ it("renders the app for a visitor with a session", async () => {
   expect(response.headers.has("x-middleware-rewrite")).toBe(false);
 });
 
+it("forgets the sign out once someone is signed in", async () => {
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+  const visit = () =>
+    proxy(
+      new NextRequest("https://app.cmo.xyz/login", {
+        headers: { cookie: "cmo-signed-out=1" },
+      }),
+    );
+
+  const signedOut = await visit();
+  vi.mocked(hasSessionCookie).mockReturnValueOnce(true);
+  const signedIn = await visit();
+
+  expect(signedOut.cookies.has("cmo-signed-out")).toBe(false);
+  expect(signedIn.cookies.get("cmo-signed-out")?.value).toBe("");
+});
+
 it("remembers on this device the Cuso an address opens", async () => {
   vi.mocked(hasSessionCookie).mockReturnValue(true);
   vi.mocked(renewSession).mockResolvedValue(

@@ -169,7 +169,7 @@ model CompetitorFeed {
 
   /// The UTC day of the check it was written from ("2026-11-17").
   checkDay        String
-  /// The moves, validated by `cmoCompetitorFeedItemSchema` in
+  /// The moves, validated by `competitorFeedItemSchema` in
   /// `@sokosumi/soko-bot`.
   items         Json
   openQuestions String[] @default([])

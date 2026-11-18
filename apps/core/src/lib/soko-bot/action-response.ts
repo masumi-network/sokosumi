@@ -31,6 +31,7 @@ export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
 
 export const ACTION_LABELS: Record<string, string> = {
+  save_competitor_feed: "Saved this week's competitor moves",
   add_seo_page: "Added SEO page",
   save_seo_scope: "Saved SEO page group",
   save_seo_keyword: "Saved SEO keyword",

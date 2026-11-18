@@ -1,4 +1,4 @@
-import type { CmoSaveCompetitorFeedInput } from "@sokosumi/soko-bot";
+import type { SaveCompetitorFeedInput } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 
 import { cusoFeedProblems } from "./cmo-competitor-feed-check";
@@ -13,7 +13,7 @@ const SIGNAL = "33333333-3333-4333-8333-333333333333";
 
 function feed(
   ...items: { competitorId: string; meaning: string; move: string }[]
-): CmoSaveCompetitorFeedInput {
+): SaveCompetitorFeedInput {
   return {
     items: items.map((item) => ({
       ...item,

@@ -24,6 +24,16 @@ export interface SiteImage {
 export const DESKTOP = { width: 1440, height: 900 } as const;
 export const MOBILE = { width: 390, height: 844 } as const;
 
+/** A capture's viewport, and optionally a sharper or taller screenshot. */
+export interface CaptureViewport {
+  width: number;
+  height: number;
+  /** Device pixels per CSS pixel; 1 when omitted. */
+  scale?: number;
+  /** How many screens down the screenshot reaches; 1 when omitted. */
+  screens?: number;
+}
+
 const NAVIGATION_TIMEOUT_MS = 20_000;
 const SETTLE_MS = 1_500;
 const MAX_RESOURCE_BYTES = 8_000_000;
@@ -96,7 +106,7 @@ export async function withBrowser<T>(
 export async function capturePage(
   browser: Browser,
   url: string,
-  viewport: { width: number; height: number } = DESKTOP,
+  viewport: CaptureViewport = DESKTOP,
 ): Promise<PageCapture | null> {
   const release = await openSlot();
   try {
@@ -109,13 +119,14 @@ export async function capturePage(
 async function capture(
   browser: Browser,
   url: string,
-  viewport: { width: number; height: number },
+  viewport: CaptureViewport,
 ): Promise<PageCapture | null> {
   const target = await finalUrl(url);
   const page = await browser.newPage();
   const abort = new AbortController();
   try {
-    await page.setViewport({ ...viewport, deviceScaleFactor: 1 });
+    const { width, height, scale = 1, screens = 1 } = viewport;
+    await page.setViewport({ width, height, deviceScaleFactor: scale });
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       void guardRequest(request, abort.signal);
@@ -133,18 +144,40 @@ async function capture(
       return null;
     await declineCookies(page);
     await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
-    const screenshot = Buffer.from(
-      await page.screenshot({ type: "jpeg", quality: JPEG_QUALITY }),
-    );
     // Lazy pictures load only once they scroll into view.
-    await page
-      .evaluate(async () => {
-        for (let screen = 1; screen <= 6; screen++) {
-          window.scrollTo(0, window.innerHeight * screen);
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
-      })
-      .catch(() => undefined);
+    const scrollThrough = () =>
+      page
+        .evaluate(async () => {
+          for (let screen = 1; screen <= 6; screen++) {
+            window.scrollTo(0, window.innerHeight * screen);
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+        })
+        .catch(() => undefined);
+    let clip: { x: number; y: number; width: number; height: number } | null =
+      null;
+    if (screens > 1) {
+      await scrollThrough();
+      const pageHeight = await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        return document.documentElement.scrollHeight;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      clip = {
+        x: 0,
+        y: 0,
+        width,
+        height: Math.max(height, Math.min(pageHeight, height * screens)),
+      };
+    }
+    const screenshot = Buffer.from(
+      await page.screenshot({
+        type: "jpeg",
+        quality: JPEG_QUALITY,
+        ...(clip ? { clip } : {}),
+      }),
+    );
+    if (!clip) await scrollThrough();
     return {
       url: page.url(),
       title: (await page.title()).slice(0, 200),

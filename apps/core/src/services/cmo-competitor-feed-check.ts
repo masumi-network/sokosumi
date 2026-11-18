@@ -1,4 +1,4 @@
-import type { CmoSaveCompetitorFeedInput } from "@sokosumi/soko-bot";
+import type { SaveCompetitorFeedInput } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
 const SOCIAL_NETWORKS = Object.entries(CMO_CHANNELS)
@@ -38,7 +38,7 @@ function namesCompetitor(text: string, competitor: string): boolean {
  * network the business has connected or says to connect it first.
  */
 export function cusoFeedProblems(
-  feed: CmoSaveCompetitorFeedInput,
+  feed: SaveCompetitorFeedInput,
   competitorNames: ReadonlyMap<string, string>,
   connectedNetworks: ReadonlySet<string>,
 ): string[] {

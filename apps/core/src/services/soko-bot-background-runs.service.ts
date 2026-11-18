@@ -11,6 +11,7 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
@@ -120,6 +121,8 @@ export async function startBackgroundRun(
             started.reconciliationLeaseToken,
           )
           .catch((error: unknown) => {
+            if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+              return;
             // After the tool call's response: its own event.
             const log = createCoreLogger({
               operation: "soko_bot_background_run",

@@ -4,6 +4,7 @@ import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import { persistSokoBotChatTurn } from "@/services/soko-bot-chat.service";
 import {
@@ -445,11 +446,16 @@ export async function runSokoBotMentionDispatch(params: {
       result.reconciliationLeaseToken &&
       (result.status === "STARTING" || result.status === "RUNNING")
     ) {
-      await sokoBotControlPlane.reconcileTurn(
-        result.turnId,
-        undefined,
-        result.reconciliationLeaseToken,
-      );
+      await sokoBotControlPlane
+        .reconcileTurn(
+          result.turnId,
+          undefined,
+          result.reconciliationLeaseToken,
+        )
+        .catch((error) => {
+          if (!reportSokoBotReconciliationLeaseLoss(result.turnId, error))
+            throw error;
+        });
     }
   } catch (error) {
     // If even the checked write fails, write nothing: an unchecked write could
