@@ -53,6 +53,17 @@ function show(
 describe("SEO audit list", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("uses the only list heading to name the region containing the saved audits", () => {
+    show([AUDIT], false);
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
+    const list = screen.getByRole("region", {
+      name: messages.App.Seo.audits.saved,
+    });
+    expect(
+      within(list).getByRole("link", { name: /Battery audit/ }),
+    ).toBeVisible();
+  });
+
   it("offers deletion only on permitted audits and returns keyboard focus on cancel", async () => {
     const user = userEvent.setup();
     const readonly = {

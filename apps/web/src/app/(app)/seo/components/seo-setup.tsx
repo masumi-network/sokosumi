@@ -13,7 +13,6 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
@@ -139,38 +138,41 @@ export function SeoSetupCard({
           heading="h4"
           mark={MARK[setup.page]}
           doneLabel={t("setup.done")}
+          expandable={setup.page === "done"}
           title={
-            setup.page === "done"
-              ? t("setup.pageDone", { count: pages.length })
-              : t("setup.page")
+            setup.page === "done" ? (
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    SEO_GHOST_EDGE_CLASS,
+                    "group -my-1 text-base font-medium",
+                  )}
+                >
+                  {t("setup.pageCount", { count: pages.length })}
+                  <ChevronDown
+                    aria-hidden
+                    className="size-3.5 group-data-[state=open]:rotate-180"
+                  />
+                </Button>
+              </CollapsibleTrigger>
+            ) : (
+              t("setup.page")
+            )
           }
           body={
             setup.page === "done" ? (
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className={cn(SEO_GHOST_EDGE_CLASS, "group")}
-                  >
-                    {t("setup.pageCount", { count: pages.length })}
-                    <ChevronDown
-                      aria-hidden
-                      className="size-3.5 group-data-[state=open]:rotate-180"
-                    />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <ul className="space-y-1.5 py-1">
-                    {pages.map((page) => (
-                      <li key={page.id}>
-                        <SeoPageLink url={page.url} />
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleContent>
-              </Collapsible>
+              <CollapsibleContent>
+                <ul className="space-y-1.5 py-1">
+                  {pages.map((page) => (
+                    <li key={page.id}>
+                      <SeoPageLink url={page.url} />
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
             ) : (
               t("setup.pageBody")
             )

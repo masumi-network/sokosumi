@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
   HOLDER_ITEM_HOVER_CLASS,
 } from "@/components/ui/holder-surface";
@@ -42,7 +43,7 @@ import { cn } from "@/lib/utils";
 import { seoAuditHref, seoIndexHref, seoProjectHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
 import { SeoAuditOnboarding } from "./seo-audit-onboarding";
-import { SeoDate, SeoSection } from "./seo-shared";
+import { SeoDate } from "./seo-shared";
 import { useCreateSeoAudit } from "./use-create-seo-audit";
 import {
   AUDIT_LIST_MORE_ID,
@@ -51,6 +52,8 @@ import {
   auditMenuId,
   useDeleteSeoAudit,
 } from "./use-delete-seo-audit";
+
+const SAVED_AUDITS_TITLE_ID = "seo-saved-audits";
 
 export function SeoAuditIndex({
   audits,
@@ -75,11 +78,10 @@ export function SeoAuditIndex({
     <div className="space-y-6">
       {hasAudits ? (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold">{t("pickTitle")}</h2>
-              <p className="text-muted-foreground text-sm">{t("pickBody")}</p>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id={SAVED_AUDITS_TITLE_ID} className="text-xl font-semibold">
+              {t("audits.saved")}
+            </h2>
             <div className="flex flex-wrap gap-2">
               {projectId ? (
                 <Button variant="outline" asChild>
@@ -94,20 +96,9 @@ export function SeoAuditIndex({
               </Button>
             </div>
           </div>
-          <SeoSection
-            title={t("audits.saved")}
-            foot={
-              nextCursor ? (
-                <Button variant="outline" asChild>
-                  <Link
-                    id={AUDIT_LIST_MORE_ID}
-                    href={seoIndexHref(projectId, nextCursor)}
-                  >
-                    {t("more")}
-                  </Link>
-                </Button>
-              ) : null
-            }
+          <section
+            aria-labelledby={SAVED_AUDITS_TITLE_ID}
+            className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}
           >
             <ul className="space-y-2" hidden={!deletion.rows.length}>
               {deletion.rows.map((audit) => (
@@ -172,7 +163,19 @@ export function SeoAuditIndex({
                 </li>
               ))}
             </ul>
-          </SeoSection>
+            {nextCursor ? (
+              <div className="px-2">
+                <Button variant="outline" asChild>
+                  <Link
+                    id={AUDIT_LIST_MORE_ID}
+                    href={seoIndexHref(projectId, nextCursor)}
+                  >
+                    {t("more")}
+                  </Link>
+                </Button>
+              </div>
+            ) : null}
+          </section>
         </>
       ) : cursor ? (
         <Button asChild variant="outline">

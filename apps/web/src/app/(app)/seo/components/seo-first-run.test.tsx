@@ -858,7 +858,13 @@ describe("SEO audit first run", () => {
     network(workspace);
     await renderWorkspace(workspace);
     const setup = within(screen.getByTestId("seo-setup"));
-    const toggle = setup.getByRole("button", { name: "2 pages in this audit" });
+    const heading = setup.getByRole("heading", {
+      level: 4,
+      name: /2 pages in this audit/,
+    });
+    const toggle = within(heading).getByRole("button", {
+      name: "2 pages in this audit",
+    });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(setup.queryByRole("link", { name: pricing.url })).toBeNull();
     const requests = vi.mocked(fetch).mock.calls.length;
