@@ -25,6 +25,7 @@ import {
   personAssignee,
   type SokoBotActionContext,
   SokoBotRuntimeAuthorizationError,
+  SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actionPrincipalId } from "./acting-scope";
 import { DECISION_TTL_MS } from "./execution-limits";
@@ -167,6 +168,8 @@ export async function createTask(
   // brakes are the owner's daily cap and pause, plus the version prompt's
   // instruction to weigh cost and ask first when the work looks expensive.
   const input = taskCreateInputSchema.parse(rawInput);
+  if (input.afterTaskId && !input.parentTaskId)
+    throw new SokoBotRuntimeValidationError("afterTaskId needs parentTaskId");
   return serializableTransaction(async (tx) => {
     const workspace = await runtime.requireMutationAuthority(
       tx,
@@ -229,6 +232,14 @@ export async function createTask(
         organizationId: workspace.organizationId,
         workspaceId: authorized.turn.workspaceId,
         projectId: input.projectId,
+        ...(input.parentTaskId
+          ? {
+              parent: {
+                taskId: input.parentTaskId,
+                afterTaskId: input.afterTaskId,
+              },
+            }
+          : {}),
         name: input.name,
         description: input.description,
         ...toolAssigneeFields(

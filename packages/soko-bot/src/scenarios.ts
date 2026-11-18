@@ -9,6 +9,8 @@
  * starts from a clean slate instead, so its outcome does not hinge on what
  * the scenarios before it happened to leave behind.
  */
+import { SUBTASK_SCENARIOS } from "./scenario-subtasks.js";
+
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
 export interface SokoBotLabTurn {
   /** Owner message or event text; ids it mentions are known, not invented. */
@@ -1062,6 +1064,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       noEmptyPromise: true,
     },
   },
+  ...SUBTASK_SCENARIOS,
 ];
 
 /** Never in front of a founder: template gaps and hedges instead of facts. */

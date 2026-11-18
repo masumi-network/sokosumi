@@ -47,6 +47,7 @@ export async function listTasks(
             ? { status: { in: finished } }
             : {},
       input.projectId ? { projectId: input.projectId } : {},
+      input.parentTaskId ? { parentTaskId: input.parentTaskId } : {},
       input.idleDays
         ? {
             updatedAt: {
@@ -77,7 +78,9 @@ export async function listTasks(
   const [tasks, total] = await Promise.all([
     prisma.task.findMany({
       where,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      orderBy: input.parentTaskId
+        ? [{ position: "asc" }, { id: "asc" }]
+        : [{ updatedAt: "desc" }, { id: "desc" }],
       take: input.limit,
       select: {
         id: true,
@@ -86,6 +89,7 @@ export async function listTasks(
         updatedAt: true,
         dueOn: true,
         number: true,
+        parentTaskId: true,
         ownerId: true,
         owner: { select: { name: true } },
         assignee: { select: { name: true } },
@@ -117,6 +121,7 @@ export async function listTasks(
         identifier: formatTaskIdentifier(task.project?.identifier, task.number),
         name: task.name,
         status: task.status,
+        ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
         dueOn: calendarDay(task.dueOn),
         owner: taskOwnerLabel(task, authorized.turn.actingUserId),
         assignee: task.assignee

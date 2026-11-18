@@ -40,6 +40,7 @@ export type EvalCase =
 /** Soko Bot scenarios by area, in the order they run: later ones use what earlier ones made. */
 const SOKO_BOT_AREAS: Record<string, string> = {
   "delegate-with-daily-checkin": "Delegation",
+  "break-task-into-subtasks": "Delegation",
   "coworker-question": "Coworkers",
   "coworker-failure": "Coworkers",
   "coworker-result": "Coworkers",

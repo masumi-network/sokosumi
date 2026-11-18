@@ -2209,6 +2209,72 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(taskCountMock).toHaveBeenCalledWith({ where });
   });
 
+  it("lists one Task's sub-tasks in checklist order and marks them (SOKD-279)", async () => {
+    const parentTaskId = "01960001-0001-7001-8001-0000000000aa";
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "What are the steps of the offsite Task?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    const input = { parentTaskId, state: "all" };
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000011",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify(input))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "task-step",
+        name: "Book the venue",
+        status: "DRAFT",
+        updatedAt: new Date(),
+        dueOn: null,
+        number: null,
+        parentTaskId,
+        ownerId: SCOPE.userId,
+        owner: { name: "Owner" },
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+        project: null,
+        events: [],
+      },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_list_subtasks",
+      input,
+    });
+
+    expect(result).toMatchObject({
+      tasks: [{ id: "task-step", parentTaskId }],
+    });
+    const { where, orderBy } = taskFindManyMock.mock.calls[0][0];
+    expect(where.AND).toContainEqual({ parentTaskId });
+    expect(orderBy).toEqual([{ position: "asc" }, { id: "asc" }]);
+  });
+
   it("filters by exact status and counts every match by status", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "What is stuck?",
