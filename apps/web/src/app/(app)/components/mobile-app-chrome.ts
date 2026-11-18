@@ -61,9 +61,9 @@ const YOU_HUB_CHILD_PATHS = [
 ] as const;
 
 /**
- * You page rows that are tab list roots. Opened from You (`useOpenedFromYou`),
- * they light the You tab and go back to You; opened from anywhere else they
- * keep their own chrome.
+ * You page rows that are tab list roots. Opened from You (`withYouEntry`
+ * marks the link), they light the You tab and go back to You; opened from
+ * anywhere else they keep their own chrome.
  */
 export const YOU_ROW_LIST_PATHS = new Set<string>([
   "/history",
@@ -77,12 +77,34 @@ export const YOU_ROW_LIST_PATHS = new Set<string>([
   "/drive",
 ]);
 
+/**
+ * Marks a You row link with `from=you`, keeping its other params. The marker
+ * lives on that history entry, so reload, Back and Forward keep it, a new tab
+ * from a modified click gets it, and the same page reached any other way
+ * does not.
+ */
+const YOU_ENTRY_PARAM = "from";
+const YOU_ENTRY_VALUE = "you";
+
+export function withYouEntry(href: string): string {
+  const [path = href, query = ""] = href.split("?");
+  if (!YOU_ROW_LIST_PATHS.has(path)) {
+    return href;
+  }
+  const params = new URLSearchParams(query);
+  params.set(YOU_ENTRY_PARAM, YOU_ENTRY_VALUE);
+  return `${path}?${params.toString()}`;
+}
+
 /** A You row list root the reader opened from the You page. */
 export function isOpenedYouRow(
   pathname: string,
-  openedFromYou = false,
+  searchParams: SearchParamsLike,
 ): boolean {
-  return openedFromYou && YOU_ROW_LIST_PATHS.has(pathname);
+  return (
+    YOU_ROW_LIST_PATHS.has(pathname) &&
+    searchParams?.get?.(YOU_ENTRY_PARAM) === YOU_ENTRY_VALUE
+  );
 }
 
 const BACK_TO_YOU: MobileAppBackTarget = {
@@ -163,12 +185,11 @@ function adsListHref(searchParams: SearchParamsLike): string {
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
-  openedFromYou = false,
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
   }
-  if (isOpenedYouRow(pathname, openedFromYou)) {
+  if (isOpenedYouRow(pathname, searchParams)) {
     return BACK_TO_YOU;
   }
   if (pathname.startsWith("/ads/")) {
@@ -281,7 +302,6 @@ export function shouldShowMobileBottomNav(
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
-  openedFromYou = false,
 ): boolean {
   const surface = classifyChatChromeSurface(pathname, searchParams);
   if (surface === "home" || surface === "chats") {
@@ -290,7 +310,7 @@ export function shouldShowMobileBrandLeading(
   if (!pathname) {
     return false;
   }
-  if (isOpenedYouRow(pathname, openedFromYou)) {
+  if (isOpenedYouRow(pathname, searchParams)) {
     return false;
   }
   if (

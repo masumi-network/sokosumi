@@ -24,6 +24,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, type ReactElement } from "react";
+import { withYouEntry } from "@/app/components/mobile-app-chrome";
 import {
   MobileStackedMenuGroup,
   MobileStackedMenuLink,
@@ -36,7 +37,6 @@ import type {
 } from "@/app/components/sidebar/components/account-summary-types";
 import { CreditsCycleOverview } from "@/app/components/sidebar/components/credits-cycle-overview.client";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
-import { rememberYouEntry } from "@/app/you/you-entry";
 import {
   YOU_DEVELOPER_PATH,
   YOU_HELP_PATH,
@@ -321,13 +321,11 @@ export function YouPageClient({
 }
 
 /** A destination row: the page it opens keeps You on phones. */
-function YouRowLink(props: ComponentProps<typeof MobileStackedMenuLink>) {
-  return (
-    <MobileStackedMenuLink
-      {...props}
-      onClick={() => rememberYouEntry(props.href)}
-    />
-  );
+function YouRowLink({
+  href,
+  ...props
+}: ComponentProps<typeof MobileStackedMenuLink>) {
+  return <MobileStackedMenuLink {...props} href={withYouEntry(href)} />;
 }
 
 function YouPageAvatar({

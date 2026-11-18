@@ -135,6 +135,53 @@ for (const { name: size, ...viewport } of PROJECTS) {
         }
         await shot("3-back-to-you");
 
+        const youTab = tabs.getByRole("link", { name: "You" });
+        const homeTab = tabs.getByRole("link", { name: "Home" });
+        const brand = page.getByRole("link", { name: "Go to home" });
+        const expectYouChrome = async (why: string) => {
+          assert.equal(await youTab.getAttribute("aria-current"), "page", why);
+          assert.equal(await backToYou.count(), 1, why);
+        };
+        const expectOwnChrome = async (why: string) => {
+          assert.equal(await homeTab.getAttribute("aria-current"), "page", why);
+          assert.equal(await backToYou.count(), 0, why);
+          assert.equal(await brand.count(), 1, why);
+        };
+
+        // Each visit keeps its own chrome through Back, Forward and reload.
+        await menu.getByRole("link", { name: "Contacts", exact: true }).click();
+        await page.waitForURL(`${BASE_URL}/contacts?from=you`);
+        await page.goBack();
+        await page.waitForURL(`${BASE_URL}/you`);
+        await page.goForward();
+        await page.waitForURL(`${BASE_URL}/contacts?from=you`);
+        await expectYouChrome("Forward to Contacts opened from You");
+        await page.reload();
+        await expectYouChrome("reload of Contacts opened from You");
+
+        // A fresh visit that did not come from You keeps Home.
+        await page.goto(`${BASE_URL}/contacts`);
+        await expectOwnChrome("Contacts opened directly");
+
+        // A Cmd/Ctrl-click opens a marked new tab and leaves this tab alone:
+        // Back here still lands on the earlier, unmarked visit.
+        await youTab.click();
+        await page.waitForURL(`${BASE_URL}/you`);
+        const [newTab] = await Promise.all([
+          context.waitForEvent("page"),
+          menu
+            .getByRole("link", { name: "Contacts", exact: true })
+            .click({ modifiers: ["ControlOrMeta"] }),
+        ]);
+        await newTab.waitForLoadState();
+        assert.equal(new URL(newTab.url()).searchParams.get("from"), "you");
+        await newTab.close();
+        assert.equal(page.url(), `${BASE_URL}/you`);
+        await page.goBack();
+        await page.waitForURL(`${BASE_URL}/contacts`);
+        await expectOwnChrome("Back to the visit opened directly");
+        await openYou();
+
         await menu.getByRole("link", { name: "Ads", exact: true }).click();
         await page.waitForURL(`${BASE_URL}/ads**`);
         await backToYou.click();

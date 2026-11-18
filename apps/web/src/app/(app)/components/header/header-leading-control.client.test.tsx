@@ -45,7 +45,6 @@ vi.mock("@/components/masumi-logos", () => ({
 }));
 
 import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client";
-import { YOU_ENTRY_SESSION_KEY } from "@/app/you/you-entry";
 import { HeaderLeadingControl } from "./header-leading-control.client";
 
 describe("HeaderLeadingControl", () => {
@@ -163,8 +162,8 @@ describe("HeaderLeadingControl", () => {
     "/contacts",
     "/drive",
   ])("shows a named back to You on %s opened from You", (pathname) => {
-    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, pathname);
     mockPathname = pathname;
+    mockSearchParams = new URLSearchParams("from=you");
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToYou" });
     expect(back).toHaveAttribute("href", "/you");
@@ -173,9 +172,8 @@ describe("HeaderLeadingControl", () => {
   });
 
   it("keeps a project-scoped TikTok Studio opened from You going back to You", () => {
-    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/tiktok-studio");
     mockPathname = "/tiktok-studio";
-    mockSearchParams = new URLSearchParams("project=p1");
+    mockSearchParams = new URLSearchParams("project=p1&from=you");
     render(<HeaderLeadingControl />);
     expect(screen.getByRole("link", { name: "backToYou" })).toHaveAttribute(
       "href",
@@ -184,8 +182,8 @@ describe("HeaderLeadingControl", () => {
   });
 
   it("keeps a nested page of a You row going back to its list", () => {
-    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/agents");
     mockPathname = "/agents/a1";
+    mockSearchParams = new URLSearchParams("from=you");
     render(<HeaderLeadingControl />);
     expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
       "href",
@@ -204,14 +202,27 @@ describe("HeaderLeadingControl", () => {
     );
   });
 
-  it("forgets the You entry once the reader leaves that page", () => {
-    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/contacts");
-    mockPathname = "/tasks/t1";
-    const { unmount } = render(<HeaderLeadingControl />);
-    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBeNull();
-    unmount();
-    // Contacts opened from a task keeps its own chrome.
+  // Each history entry carries its own marker, so Back and Forward restore
+  // the chrome of the visit they land on.
+  it("restores each Contacts visit's own chrome on Back and Forward", () => {
+    const visits = [
+      ["", "goHome"], // Contacts opened from a task
+      ["from=you", "backToYou"], // then from You
+      ["", "goHome"], // Back to the earlier visit
+      ["from=you", "backToYou"], // Forward again
+    ] as const;
+    for (const [search, name] of visits) {
+      mockPathname = "/contacts";
+      mockSearchParams = new URLSearchParams(search);
+      const { unmount } = render(<HeaderLeadingControl />);
+      expect(screen.getByRole("link", { name })).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("keeps Contacts opened fresh from Newsletter on its own chrome", () => {
     mockPathname = "/contacts";
+    mockSearchParams = new URLSearchParams("contact=c1");
     render(<HeaderLeadingControl />);
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "backToYou" })).toBeNull();

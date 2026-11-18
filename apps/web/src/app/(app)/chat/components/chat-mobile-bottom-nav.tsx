@@ -4,7 +4,6 @@ import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useOpenedFromYou } from "@/app/you/you-entry";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSession } from "@/lib/auth/auth.client";
@@ -25,10 +24,9 @@ type SearchParamsLike =
 export function resolveChatMobileActiveTabId(
   pathname: string,
   searchParams?: SearchParamsLike,
-  openedFromYou = false,
 ): ChatMobileTabId | null {
   for (const tab of CHAT_MOBILE_TABS) {
-    if (!tab.isActive(pathname, searchParams, openedFromYou)) {
+    if (!tab.isActive(pathname, searchParams)) {
       continue;
     }
     return tab.id;
@@ -74,12 +72,7 @@ export function ChatMobileBottomNav({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
-  const openedFromYou = useOpenedFromYou();
-  const activeTabId = resolveChatMobileActiveTabId(
-    pathname,
-    searchParams,
-    openedFromYou,
-  );
+  const activeTabId = resolveChatMobileActiveTabId(pathname, searchParams);
   const isApple = useIsApplePlatform();
   const { data: session } = useSession();
   const sessionUser = session?.user ?? null;

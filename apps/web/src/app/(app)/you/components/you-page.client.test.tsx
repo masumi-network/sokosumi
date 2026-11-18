@@ -41,7 +41,6 @@ vi.mock("@/components/analytics/cookie-banner", () => ({
 
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { YouPageClient } from "@/app/you/components/you-page.client";
-import { YOU_ENTRY_SESSION_KEY } from "@/app/you/you-entry";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -142,7 +141,7 @@ describe("YouPageClient", () => {
 
     const history = screen.getByTestId("you-history");
 
-    expect(history).toHaveAttribute("href", "/history");
+    expect(history).toHaveAttribute("href", "/history?from=you");
     expect(
       screen.getByTestId("you-buy-credits").compareDocumentPosition(history) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -153,7 +152,7 @@ describe("YouPageClient", () => {
     renderYouPage();
 
     const social = screen.getByTestId("you-social");
-    expect(social).toHaveAttribute("href", "/social");
+    expect(social).toHaveAttribute("href", "/social?from=you");
     expect(
       screen.getByTestId("you-studio").compareDocumentPosition(social) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -240,9 +239,9 @@ describe("YouPageClient", () => {
     const studio = screen.getByTestId("you-studio");
     const files = screen.getByTestId("you-files");
 
-    expect(schedules).toHaveAttribute("href", "/schedules");
-    expect(studio).toHaveAttribute("href", "/studio");
-    expect(files).toHaveAttribute("href", "/drive");
+    expect(schedules).toHaveAttribute("href", "/schedules?from=you");
+    expect(studio).toHaveAttribute("href", "/studio?from=you");
+    expect(files).toHaveAttribute("href", "/drive?from=you");
     expect(
       schedules.compareDocumentPosition(studio) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -259,7 +258,7 @@ describe("YouPageClient", () => {
     const studio = screen.getByTestId("you-studio");
     const files = screen.getByTestId("you-files");
 
-    expect(studio).toHaveAttribute("href", "/studio");
+    expect(studio).toHaveAttribute("href", "/studio?from=you");
     expect(studio).toHaveTextContent("contentStudio");
     expect(
       schedules.compareDocumentPosition(studio) &
@@ -275,7 +274,7 @@ describe("YouPageClient", () => {
 
     expect(screen.getByTestId("you-schedules")).toHaveAttribute(
       "href",
-      "/schedules",
+      "/schedules?from=you",
     );
   });
 
@@ -285,7 +284,7 @@ describe("YouPageClient", () => {
     const schedules = screen.getByTestId("you-schedules");
     const calendar = screen.getByTestId("you-calendar");
 
-    expect(calendar).toHaveAttribute("href", "/calendar");
+    expect(calendar).toHaveAttribute("href", "/calendar?from=you");
     expect(
       schedules.compareDocumentPosition(calendar) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -304,9 +303,9 @@ describe("YouPageClient", () => {
     const contacts = screen.getByTestId("you-contacts");
     const files = screen.getByTestId("you-files");
 
-    expect(agents).toHaveAttribute("href", "/agents");
-    expect(tiktok).toHaveAttribute("href", "/tiktok-studio");
-    expect(contacts).toHaveAttribute("href", "/contacts");
+    expect(agents).toHaveAttribute("href", "/agents?from=you");
+    expect(tiktok).toHaveAttribute("href", "/tiktok-studio?from=you");
+    expect(contacts).toHaveAttribute("href", "/contacts?from=you");
     for (const [before, after] of [
       [agents, schedules],
       [studio, tiktok],
@@ -326,7 +325,7 @@ describe("YouPageClient", () => {
       renderYouPage();
       expect(screen.getByTestId("you-tiktok-studio")).toHaveAttribute(
         "href",
-        "/tiktok-studio?projectId=p-1",
+        "/tiktok-studio?projectId=p-1&from=you",
       );
     } finally {
       scopeProjectId = null;
@@ -375,33 +374,20 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
-  it("remembers a destination row opened from You, not a settings row", () => {
-    window.sessionStorage.clear();
+  // The marker rides on the link, so a new tab from a modified click gets it
+  // and the visit it opens keeps it through reload, Back and Forward.
+  it("marks destination rows as opened from You, not settings rows", () => {
     renderYouPage();
 
-    fireEvent.click(screen.getByTestId("you-account"));
-    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBeNull();
-
-    fireEvent.click(screen.getByTestId("you-contacts"));
-    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBe(
-      "/contacts",
+    expect(screen.getByTestId("you-contacts")).toHaveAttribute(
+      "href",
+      "/contacts?from=you",
     );
-    window.sessionStorage.clear();
-  });
-
-  it("remembers a project-scoped TikTok Studio row by its path", () => {
-    window.sessionStorage.clear();
-    scopeProjectId = "p1";
-    renderYouPage();
-
-    const row = screen.getByTestId("you-tiktok-studio");
-    expect(row.getAttribute("href")).toContain("p1");
-    fireEvent.click(row);
-    expect(window.sessionStorage.getItem(YOU_ENTRY_SESSION_KEY)).toBe(
-      "/tiktok-studio",
+    expect(screen.getByTestId("you-account")).toHaveAttribute(
+      "href",
+      "/account",
     );
-    window.sessionStorage.clear();
-    scopeProjectId = null;
+    expect(screen.getByTestId("you-seo")).toHaveAttribute("href", "/seo");
   });
 
   // The header bell is the inbox, also called Notifications.

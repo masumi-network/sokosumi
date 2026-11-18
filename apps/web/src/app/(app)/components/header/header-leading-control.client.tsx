@@ -19,7 +19,6 @@ import {
 import { useIsAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import { getStoredTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
-import { useOpenedFromYou } from "@/app/you/you-entry";
 import { BackLink } from "@/components/back-link";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
@@ -44,12 +43,7 @@ export function HeaderLeadingControl(): React.ReactElement {
   const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
   const surface = classifyChatChromeSurface(pathname, searchParams);
-  const openedFromYou = useOpenedFromYou();
-  const appBack = resolveMobileAppBackTarget(
-    pathname,
-    searchParams,
-    openedFromYou,
-  );
+  const appBack = resolveMobileAppBackTarget(pathname, searchParams);
   // Only a task's own page goes back to the Calendar it was opened from.
   const allowCalendar = isTaskDetailPathname(pathname);
   const tasksReturnPath = useTasksReturnPath({ allowCalendar });
@@ -57,7 +51,7 @@ export function HeaderLeadingControl(): React.ReactElement {
     getAgentJobsPathAgentId(pathname),
   );
 
-  if (shouldShowMobileBrandLeading(pathname, searchParams, openedFromYou)) {
+  if (shouldShowMobileBrandLeading(pathname, searchParams)) {
     return (
       <Link
         href="/"

@@ -56,7 +56,6 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { YOU_ENTRY_SESSION_KEY } from "@/app/you/you-entry";
 import {
   ChatMobileBottomNav,
   resolveChatMobileActiveTabId,
@@ -253,8 +252,8 @@ describe("ChatMobileBottomNav", () => {
   });
 
   it("sets aria-current on You for Contacts opened from You", () => {
-    window.sessionStorage.setItem(YOU_ENTRY_SESSION_KEY, "/contacts");
     mockPathname = "/contacts";
+    mockSearchParams = new URLSearchParams("from=you");
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
@@ -264,7 +263,7 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
       "aria-current",
     );
-    window.sessionStorage.clear();
+    mockSearchParams = new URLSearchParams();
   });
 
   it("sets aria-current on Home for /history", () => {

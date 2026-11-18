@@ -115,11 +115,7 @@ export type ChatMobileTab =
       href: "/" | "/tasks" | "/chat" | "/projects";
       labelKey: Exclude<ChatMobileTabLabelKey, "you">;
       icon: LucideIcon;
-      isActive: (
-        pathname: string,
-        searchParams?: SearchParamsLike,
-        openedFromYou?: boolean,
-      ) => boolean;
+      isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
     }
   | {
       kind: "link";
@@ -128,11 +124,7 @@ export type ChatMobileTab =
       labelKey: "you";
       /** Avatar affordance rendered by the bottom nav (not a Lucide icon). */
       affordance: "avatar";
-      isActive: (
-        pathname: string,
-        searchParams?: SearchParamsLike,
-        openedFromYou?: boolean,
-      ) => boolean;
+      isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
     };
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
@@ -142,8 +134,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/",
     labelKey: "home",
     icon: Home,
-    isActive: (pathname, searchParams, openedFromYou) =>
-      !isOpenedYouRow(pathname, openedFromYou) &&
+    isActive: (pathname, searchParams) =>
+      !isOpenedYouRow(pathname, searchParams) &&
       (classifyChatChromeSurface(pathname, searchParams) === "home" ||
         pathname === "/agents" ||
         pathname === "/drive" ||
@@ -193,7 +185,7 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "you",
     affordance: "avatar",
     // A You row opened from You keeps You lit.
-    isActive: (pathname, _searchParams, openedFromYou) =>
-      pathname === "/you" || isOpenedYouRow(pathname, openedFromYou),
+    isActive: (pathname, searchParams) =>
+      pathname === "/you" || isOpenedYouRow(pathname, searchParams),
   },
 ];
