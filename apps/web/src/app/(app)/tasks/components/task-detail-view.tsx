@@ -130,6 +130,7 @@ export async function TaskDetailView({
         <div className={TASK_DETAIL_GRID_CLASS}>
           <div className={TASK_DETAIL_MAIN_CLASS}>
             <TaskDetailHeader
+              taskId={task.id}
               taskName={task.name}
               identifier={task.identifier}
               identifierLabels={
