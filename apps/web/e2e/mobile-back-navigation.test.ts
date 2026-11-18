@@ -226,7 +226,15 @@ for (const { name, browserType, device } of PHONES) {
 
       assert.equal(lengthOnList, lengthInRoom, "Back pushed history");
       assert.doesNotMatch(urlAfterSwipe, ROOM_URL, "swipe back reopened room");
-      assert.deepEqual(errors, []);
+      // WebKit reports a fetch it cancels (an RSC or rooms read cut short by
+      // a navigation) as a page error "due to access control checks";
+      // Chromium runs the same steps without one.
+      assert.deepEqual(
+        errors.filter(
+          (message) => !message.endsWith("due to access control checks."),
+        ),
+        [],
+      );
     });
   });
 }
