@@ -1,6 +1,7 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/core-client";
+import { MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -8,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
-import { TaskMetaDetails } from "./task-meta";
+import { TaskActorCluster } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
@@ -42,73 +43,89 @@ export function TaskListItem({
     : null;
 
   const rowClassName = cn(
-    "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-    "bg-background rounded-lg border border-border px-4 py-3 transition-colors",
+    // One line. The slots after the title have fixed widths, so the same
+    // fact sits at the same place in every row.
+    "flex items-center gap-3 text-xs",
+    "bg-background rounded-lg border border-border px-3 transition-colors",
+    compact ? "py-1.5" : "py-2.5",
     "hover:bg-accent",
     "press content-in",
     (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
   );
   const row = (
     <>
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="flex w-4 shrink-0 justify-center">
         <TaskPriorityMark priority={task.priority} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex min-w-0 items-baseline gap-2">
-            {task.identifier ? (
-              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                {task.identifier}
-              </span>
-            ) : null}
-            <span
-              className={cn(
-                "line-clamp-1 text-sm font-medium",
-                hasName ? "text-foreground" : "text-muted-foreground",
-              )}
-            >
-              {hasName ? task.name : t("noTitle")}
-            </span>
-          </div>
-          <TaskTags
-            tags={task.tags}
-            showManualTopics={!compact}
-            workspaceTags={task.workspaceTags}
-            compact
-            inLink
-          />
-          {!compact && (
-            <p className="text-muted-foreground line-clamp-1 text-xs break-all">
-              {task.descriptionPlain ?? "—"}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-        <div className="flex items-center gap-1.5">
-          <TaskStatusBadge
-            status={task.status}
-            label={statusLabels?.[task.status]}
-            className="w-fit shrink-0 rounded-sm"
-          />
-          <TaskPrivateIndicator visibility={task.visibility} />
-        </div>
-        {task.statusSince && !task.isPending ? (
-          <TaskStatusAge status={task.status} statusSince={task.statusSince} />
-        ) : null}
-        {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
-        {task.dueOn ? (
-          <TaskDueBadge dueOn={task.dueOn} status={task.status} />
-        ) : null}
-        <TaskSubtaskProgress progress={task.subtaskProgress} />
-        <TaskMetaDetails
-          project={compact ? null : task.project}
-          assignee={task.assignee}
-          participants={task.participants}
-          commentsCount={task.commentsCount}
-          createdAt={task.createdAt}
-          variant="list"
+      </span>
+      <span className="text-muted-foreground w-20 shrink-0 truncate tabular-nums">
+        {task.identifier}
+      </span>
+      <span
+        className={cn(
+          "line-clamp-1 min-w-0 text-sm font-medium",
+          hasName ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {hasName ? task.name : t("noTitle")}
+      </span>
+      <span className="hidden min-w-0 shrink-[2] lg:flex">
+        <TaskTags
+          tags={task.tags}
+          showManualTopics={!compact}
+          workspaceTags={task.workspaceTags}
+          compact
+          quiet
+          inLink
         />
-      </div>
+      </span>
+
+      <span className="ms-auto flex shrink-0 items-center gap-4">
+        <TaskPrivateIndicator visibility={task.visibility} />
+        {task.statusSince && !task.isPending ? (
+          <TaskStatusAge
+            status={task.status}
+            statusSince={task.statusSince}
+            stuckOnly
+          />
+        ) : null}
+        <TaskStatusBadge
+          status={task.status}
+          label={statusLabels?.[task.status]}
+          className="w-36"
+          plain
+        />
+        {/* One date, as on a board card: a scheduled Task says when it
+            starts, and that it is late only once it is. */}
+        <span className="hidden w-44 items-center gap-2 lg:flex">
+          {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
+          {task.dueOn ? (
+            <TaskDueBadge
+              dueOn={task.dueOn}
+              status={task.status}
+              overdueOnly={!!task.runAt}
+            />
+          ) : null}
+        </span>
+        {/* Sub-task progress has a column of its own, kept on a row with
+            none, so the people after it line up. */}
+        <span className="hidden w-14 xl:flex">
+          <TaskSubtaskProgress progress={task.subtaskProgress} />
+        </span>
+        <span className="flex w-16 justify-end">
+          <TaskActorCluster
+            assignee={task.assignee}
+            participants={task.participants}
+          />
+        </span>
+        <span className="text-muted-foreground flex w-8 items-center gap-1">
+          {task.commentsCount > 0 ? (
+            <>
+              <MessageSquare className="size-3.5" aria-hidden />
+              <span className="tabular-nums">{task.commentsCount}</span>
+            </>
+          ) : null}
+        </span>
+      </span>
     </>
   );
 

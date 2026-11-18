@@ -175,16 +175,14 @@ function TasksListLoading({ compact }: { compact: boolean }) {
             </div>
             <div
               data-testid="task-row-skeleton"
-              className="bg-background hidden items-center gap-4 rounded-lg border border-border px-4 py-3 md:flex"
+              className={cn(
+                "bg-background hidden items-center gap-3 rounded-lg border border-border px-3 md:flex",
+                compact ? "py-1.5" : "py-2.5",
+              )}
             >
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <TextLineSkeleton className="w-3/5 text-sm" />
-                {compact ? null : (
-                  <TextLineSkeleton className="w-4/5 text-xs" />
-                )}
-              </div>
-              <StatusBadgeSkeleton />
-              <TextLineSkeleton className="w-24 shrink-0 text-xs" />
+              <TextLineSkeleton className="w-2/5 text-sm" />
+              <TextLineSkeleton className="ms-auto w-36 shrink-0 text-xs" />
+              <Skeleton className="size-5 shrink-0 rounded-full" />
             </div>
           </div>
         ))}
@@ -217,15 +215,6 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
 function TextLineSkeleton({ className }: { className: string }) {
   return (
     <Skeleton className={cn("text-transparent select-none", className)}>
-      &nbsp;
-    </Skeleton>
-  );
-}
-
-/** Box of `TaskStatusBadge`: same border, padding and type size. */
-function StatusBadgeSkeleton() {
-  return (
-    <Skeleton className="w-20 shrink-0 rounded-sm border border-transparent py-1 text-xs text-transparent select-none">
       &nbsp;
     </Skeleton>
   );

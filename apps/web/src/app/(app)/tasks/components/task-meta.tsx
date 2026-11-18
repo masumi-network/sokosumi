@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSummary } from "@sokosumi/core-client";
-import { Calendar, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type {
@@ -14,7 +14,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 const MAX_CLUSTER_FACES = 3;
 
@@ -23,8 +22,6 @@ interface TaskMetaDetailsProps {
   assignee: TaskWithCoworker["assignee"];
   participants: TaskWithCoworker["participants"];
   commentsCount: TaskWithCoworker["commentsCount"];
-  createdAt: TaskWithCoworker["createdAt"];
-  variant?: "card" | "list";
 }
 
 function TaskProjectMark({ project }: { project: ProjectSummary }) {
@@ -68,7 +65,7 @@ function collectTaskActors(
   return actors;
 }
 
-function TaskActorCluster({
+export function TaskActorCluster({
   assignee,
   participants,
 }: Pick<TaskMetaDetailsProps, "assignee" | "participants">) {
@@ -119,30 +116,7 @@ export function TaskMetaDetails({
   assignee,
   participants,
   commentsCount,
-  createdAt,
-  variant = "card",
 }: TaskMetaDetailsProps) {
-  const { formatShortDate } = useLocalizedDateTime();
-
-  if (variant === "list") {
-    return (
-      <>
-        {project ? <TaskProjectMark project={project} /> : null}
-        <TaskActorCluster assignee={assignee} participants={participants} />
-        <div className="text-muted-foreground flex items-center gap-1 text-xs">
-          <MessageSquare className="size-3.5" aria-hidden />
-          <span>{commentsCount}</span>
-        </div>
-        <div className="text-muted-foreground flex items-center gap-1 text-xs">
-          <Calendar className="size-3" aria-hidden />
-          <span className="whitespace-nowrap">
-            {formatShortDate(createdAt)}
-          </span>
-        </div>
-      </>
-    );
-  }
-
   return (
     <span className="ms-auto flex shrink-0 items-center gap-2">
       {commentsCount > 0 && (

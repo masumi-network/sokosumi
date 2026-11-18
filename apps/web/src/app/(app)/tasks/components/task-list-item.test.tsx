@@ -171,51 +171,22 @@ describe("TaskListItem short id", () => {
   });
 });
 
-describe("TaskListItem description preview", () => {
-  it("hides description and project in Compact and restores them in Normal", () => {
+describe("TaskListItem one-line row", () => {
+  it("leaves the description, the created date and a zero comment count to the Task page", () => {
     const task = {
       ...buildTask(TaskVisibility.PRIVATE),
       descriptionPlain: "Full instructions remain in task detail.",
-      project: {
-        id: "project-1",
-        name: "Launch project",
-        identifier: "SOK",
-        logo: null,
-      },
+      commentsCount: 0,
     };
     const { rerender } = render(<TaskListItem task={task} />);
-    expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();
-    expect(
-      screen.getByRole("img", { name: task.project.name }),
-    ).toBeInTheDocument();
-    rerender(<TaskListItem task={task} compact />);
+
     expect(screen.queryByText(task.descriptionPlain)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("img", { name: task.project.name }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
-      "href",
-      "/tasks/task-1",
-    );
+    expect(screen.queryByText("Mar 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Private")).toBeInTheDocument();
-    expect(screen.getByText("Mar 1")).toBeInTheDocument();
-    rerender(<TaskListItem task={task} compact={false} />);
-    expect(
-      screen.getByRole("img", { name: task.project.name }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();
-  });
-  it("shows an em dash instead of raw context attachment markdown", () => {
-    const task = {
-      ...buildTask(TaskVisibility.PUBLIC),
-      description: "[CONTEXT.md](https://blob.example/CONTEXT.md)",
-      descriptionPlain: null,
-    };
 
-    render(<TaskListItem task={task} />);
-
-    expect(screen.getByText("—")).toBeInTheDocument();
-    expect(screen.queryByText(/CONTEXT\.md/)).not.toBeInTheDocument();
+    rerender(<TaskListItem task={{ ...task, commentsCount: 4 }} />);
+    expect(screen.getByText("4")).toBeInTheDocument();
   });
 });
 
