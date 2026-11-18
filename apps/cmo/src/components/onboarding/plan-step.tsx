@@ -543,6 +543,12 @@ export function PlanReview({
   const ads = strategy.ads;
   const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
+  // An approval covers what the owner said yes or no to, not what stayed open.
+  const answers = approved
+    ? questions.filter(
+        (question) => question.answer === "yes" || question.answer === "no",
+      )
+    : questions;
 
   return (
     <section className="ob-plan">
@@ -566,7 +572,7 @@ export function PlanReview({
       {asking && !locked ? (
         <div>
           <form
-            className="card card-focus ob-change"
+            className="card ob-change"
             onSubmit={(event) => {
               event.preventDefault();
               requestChange(note);
@@ -659,41 +665,37 @@ export function PlanReview({
           </div>
         ) : null}
 
-        {locked && hasChecks ? (
-          <div className="card ob-checks">
-            <h2>{approved ? "What you approved" : "Your answers"}</h2>
-            <ul className="ob-approved">
-              {questions.map((question) => (
-                <li key={question.id}>
-                  {question.question}{" "}
-                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                  {question.answer === "no" && question.note
-                    ? `: ${question.note}`
-                    : ""}
-                </li>
-              ))}
-              {pace ? (
-                <li>
-                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                </li>
-              ) : null}
-              {ads ? (
-                <li>
-                  {ads.monthly > 0
-                    ? `${money(ads.monthly, ads.currency)} a month for ads`
-                    : "No ads"}
-                </li>
-              ) : null}
-            </ul>
-          </div>
+        {locked ? (
+          answers.length > 0 || strategy.pace || ads ? (
+            <div className="card ob-checks">
+              <h2>{approved ? "What you approved" : "Your answers"}</h2>
+              <ul className="ob-approved">
+                {answers.map((question) => (
+                  <li key={question.id}>
+                    {question.question}{" "}
+                    <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                    {question.answer === "no" && question.note
+                      ? `: ${question.note}`
+                      : ""}
+                  </li>
+                ))}
+                {pace ? (
+                  <li>
+                    Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
+                  </li>
+                ) : null}
+                {ads ? (
+                  <li>
+                    {ads.monthly > 0
+                      ? `${money(ads.monthly, ads.currency)} a month for ads`
+                      : "No ads"}
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null
         ) : hasChecks ? (
-          <div
-            className={
-              questions.some((question) => !question.answer)
-                ? "card card-focus ob-checks"
-                : "card ob-checks"
-            }
-          >
+          <div className="card ob-checks">
             <h2>Check these</h2>
             {questions.map((question) => (
               <PlanQuestionChip
