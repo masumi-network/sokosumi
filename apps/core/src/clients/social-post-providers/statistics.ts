@@ -11,6 +11,7 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
+import { getZernioAccountId, zernioRequest } from "@/clients/zernio.client";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
 export interface SocialPostStatisticsContext {
@@ -86,6 +87,18 @@ function matchingVideo(
   return items.map(record).find((item) => item?.id === externalId) ?? null;
 }
 
+/** TikTok exposes these four engagement counters; unsupported metrics are absent. */
+export function zernioTikTokMetrics(raw: unknown): SocialPostMetrics {
+  const values = record(raw);
+  return {
+    ...emptyMetrics(),
+    views: counter(values?.views),
+    likes: counter(values?.likes),
+    comments: counter(values?.comments),
+    shares: counter(values?.shares),
+  };
+}
+
 /** Reads only the published post through its existing connected account. */
 export async function fetchSocialPostStatistics(
   context: SocialPostStatisticsContext,
@@ -99,6 +112,33 @@ export async function fetchSocialPostStatistics(
   const unavailable = `${label} statistics are unavailable. Check the connection permissions or try again later.`;
   let sessionId: string | undefined;
   try {
+    const zernioAccountId =
+      context.provider === "tiktok" &&
+      getZernioAccountId(context.connectedAccountId);
+    if (zernioAccountId) {
+      const query = new URLSearchParams({
+        platform: "tiktok",
+        accountId: zernioAccountId,
+        postId: context.externalId,
+      });
+      const result = record(
+        await zernioRequest(`/analytics?${query}`, { signal: context.signal }),
+      );
+      const platform =
+        Array.isArray(result?.platformAnalytics) &&
+        result.platformAnalytics
+          .map(record)
+          .find(
+            (entry) =>
+              entry?.accountId === zernioAccountId &&
+              entry.platform === "tiktok" &&
+              entry.syncStatus === "synced",
+          );
+      const metrics = zernioTikTokMetrics(platform && platform.analytics);
+      if (Object.values(metrics).every((value) => value === null))
+        throw new SocialPostStatisticsUnavailableError(unavailable);
+      return metrics;
+    }
     const activeSessionId = await createComposioToolSession({
       toolkitSlug: context.provider === "x" ? "twitter" : context.provider,
       connectedAccountId: context.connectedAccountId,

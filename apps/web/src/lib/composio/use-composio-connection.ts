@@ -40,13 +40,17 @@ interface ConnectOptions<T> {
   initiate: () => Promise<
     ActionResultDto<ComposioConnectionInitiation, ActionError>
   >;
-  finalize: (connectionId: string) => Promise<ActionResultDto<T, ActionError>>;
+  finalize: (
+    connectionId: string,
+    callbackProof?: string,
+  ) => Promise<ActionResultDto<T, ActionError>>;
 }
 
 /**
  * One Composio connection through the OAuth popup: initiate, send the popup to
  * the provider, wait for its callback, redeem the callback, then finalize.
  * Every way it can end comes back as an outcome, so callers only word them.
+ * A Zernio connection redeems its proof during finalization in Core.
  */
 export function useComposioConnection() {
   const { runPopupOAuth } = useComposioOAuthPopup();
@@ -78,18 +82,33 @@ export function useComposioConnection() {
 
             const { payload } = callback;
             if (payload.status === "error") return failed("provider_callback");
-            if (payload.connectionId && payload.connectionId !== connectionId) {
-              return failed("legacy_callback");
+            if (connectionId.startsWith("zernio:")) {
+              if (
+                payload.connectionId !== connectionId ||
+                !payload.callbackProof
+              ) {
+                return failed("provider_callback");
+              }
+            } else {
+              if (
+                payload.connectionId &&
+                payload.connectionId !== connectionId
+              ) {
+                return failed("legacy_callback");
+              }
+              if (!payload.sessionUri) return failed("legacy_callback");
+
+              const completion = await completeComposioAuthCallbackAction({
+                connectionId,
+                sessionUri: payload.sessionUri,
+              });
+              if (!completion.ok) return failed("verify", completion.error);
             }
-            if (!payload.sessionUri) return failed("legacy_callback");
 
-            const completion = await completeComposioAuthCallbackAction({
+            const finalization = await finalize(
               connectionId,
-              sessionUri: payload.sessionUri,
-            });
-            if (!completion.ok) return failed("verify", completion.error);
-
-            const finalization = await finalize(connectionId);
+              payload.callbackProof,
+            );
             if (!finalization.ok) return failed("finalize", finalization.error);
 
             return { kind: "connected", value: finalization.value };

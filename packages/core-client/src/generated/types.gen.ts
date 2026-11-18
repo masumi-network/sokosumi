@@ -6231,6 +6231,7 @@ export type ProjectImageStudioCatalog = {
     defaultVideoModelId: string;
     defaultAnimateModelId: string;
     videoModels: Array<ProjectImageStudioVideoCatalogModel>;
+    talkingVideo: ProjectImageStudioTalkingVideoCatalog;
     snapshotDate: string;
     refreshedAt: string | null;
 };
@@ -6289,6 +6290,35 @@ export type ProjectImageStudioVideoCatalogModel = {
     };
 };
 
+export type ProjectImageStudioTalkingVideoCatalog = {
+    defaultModelId: string;
+    models: Array<{
+        id: string;
+        label: string;
+        description: string;
+        endpoint: string;
+        price: {
+            perSecondUsd: number;
+            minimumVideoUsd: number;
+            voicePer1000CharactersUsd: number;
+            captionsPerMinuteUsd: number;
+            basis: string;
+            sourceUrl: string;
+            verifiedAt: string;
+        };
+    }>;
+    presenters: Array<{
+        id: string;
+        name: string;
+        description: string;
+        imageUrl: string;
+    }>;
+    defaultVoice: string;
+    voices: Array<string>;
+    scriptMinLength: number;
+    scriptMaxLength: number;
+};
+
 export type ImageStudioWorkspaceState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
@@ -6317,6 +6347,7 @@ export type ProjectImageAsset = {
     contentType: string;
     mediaType: 'IMAGE' | 'VIDEO';
     video: ProjectVideoSettings | null;
+    aiGenerated?: boolean;
     createdAt: Date;
     jobId: string;
     settings: ProjectImageSettings;
@@ -6346,7 +6377,7 @@ export type ProjectImageJob = {
     id: string;
     projectId: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
+    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO' | 'TALKING_VIDEO';
     model: string;
     prompt: string;
     templateId?: string;
@@ -6354,6 +6385,7 @@ export type ProjectImageJob = {
     variationIndex?: number;
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
+    talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
     referenceFileIds?: Array<string>;
     exportHeadline?: string;
@@ -6361,7 +6393,7 @@ export type ProjectImageJob = {
     lettering?: 'overlay' | 'ideogram';
     product?: StudioProductIdentity;
     error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'voice_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
     assetId: string | null;
     createdAt: Date;
@@ -6371,6 +6403,12 @@ export type ProjectImageJob = {
     retryMayDuplicateCharge: boolean;
     credits: number | null;
     refunded: boolean;
+};
+
+export type ProjectTalkingVideo = {
+    voice: string;
+    presenterId: string | null;
+    languageCode: string;
 };
 
 export type ImageStudioRecentProjects = {
@@ -9917,6 +9955,10 @@ export type InitiateProjectSocialConnectionRequest = {
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
+    /**
+     * Proof returned with a Zernio connection callback.
+     */
+    callbackProof?: string;
     connectionId: string;
 };
 
@@ -10788,12 +10830,13 @@ export type PublishSocialPostRequest = {
 };
 
 export type TikTokPostSettings = {
-    privacyLevel: 'SELF_ONLY';
+    privacyLevel: 'SELF_ONLY' | 'PUBLIC_TO_EVERYONE';
     allowComment: boolean;
     allowDuet: boolean;
     allowStitch: boolean;
     promotesOwnBrand: boolean;
     acceptedMusicUsage: true;
+    previewConsent?: true;
 };
 
 export type CreateSocialPostRequest = {
@@ -11116,6 +11159,39 @@ export type CreateProjectVideoJobRequest = {
     sourceAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
+};
+
+export type CreateProjectTalkingVideoJobRequest = {
+    modelId?: string;
+    script: string;
+    voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
+    languageCode?: string;
+    presenter: {
+        kind: 'stock';
+        id: string;
+    } | {
+        kind: 'file';
+        fileId: string;
+        consent: true;
+    };
+    idempotencyKey: string;
+};
+
+export type ProjectTalkingVideoScripts = {
+    scripts: Array<{
+        hook: string;
+        script: string;
+    }>;
+};
+
+export type WriteProjectTalkingVideoScriptsRequest = {
+    topic?: string;
+    languageCode?: string;
+};
+
+export type ProjectTalkingVideos = {
+    jobs: Array<ProjectImageJob>;
+    assets: Array<ProjectImageAsset>;
 };
 
 export type CancelProjectImageJobResponse = {
@@ -74201,6 +74277,369 @@ export type PostProjectsByIdImageStudioVideoJobsResponses = {
 };
 
 export type PostProjectsByIdImageStudioVideoJobsResponse = PostProjectsByIdImageStudioVideoJobsResponses[keyof PostProjectsByIdImageStudioVideoJobsResponses];
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsData = {
+    body: CreateProjectTalkingVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-video-jobs';
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsError = PostProjectsByIdImageStudioTalkingVideoJobsErrors[keyof PostProjectsByIdImageStudioTalkingVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsResponses = {
+    /**
+     * Talking video started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsResponse = PostProjectsByIdImageStudioTalkingVideoJobsResponses[keyof PostProjectsByIdImageStudioTalkingVideoJobsResponses];
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsData = {
+    body: WriteProjectTalkingVideoScriptsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-video-scripts';
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsError = PostProjectsByIdImageStudioTalkingVideoScriptsErrors[keyof PostProjectsByIdImageStudioTalkingVideoScriptsErrors];
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsResponses = {
+    /**
+     * Scripts written
+     */
+    200: {
+        data: ProjectTalkingVideoScripts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsResponse = PostProjectsByIdImageStudioTalkingVideoScriptsResponses[keyof PostProjectsByIdImageStudioTalkingVideoScriptsResponses];
+
+export type GetProjectsByIdImageStudioTalkingVideosData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-videos';
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosError = GetProjectsByIdImageStudioTalkingVideosErrors[keyof GetProjectsByIdImageStudioTalkingVideosErrors];
+
+export type GetProjectsByIdImageStudioTalkingVideosResponses = {
+    /**
+     * The Project's talking videos
+     */
+    200: {
+        data: ProjectTalkingVideos;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosResponse = GetProjectsByIdImageStudioTalkingVideosResponses[keyof GetProjectsByIdImageStudioTalkingVideosResponses];
 
 export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
     body?: never;

@@ -108,7 +108,7 @@ export function CalendarPage({
     <div className="cal">
       <div className="card cal-head">
         <p className="note num">
-          {live.length} pieces this month · {ready} ready
+          {live.length} posts this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
         </p>
         <div className="cal-filters" role="group" aria-label="Network">

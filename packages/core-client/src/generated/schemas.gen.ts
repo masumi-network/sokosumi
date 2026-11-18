@@ -21741,6 +21741,9 @@ export const ProjectImageStudioCatalogSchema = {
                 $ref: '#/components/schemas/ProjectImageStudioVideoCatalogModel'
             }
         },
+        talkingVideo: {
+            $ref: '#/components/schemas/ProjectImageStudioTalkingVideoCatalog'
+        },
         snapshotDate: {
             type: 'string'
         },
@@ -21757,6 +21760,7 @@ export const ProjectImageStudioCatalogSchema = {
         'defaultVideoModelId',
         'defaultAnimateModelId',
         'videoModels',
+        'talkingVideo',
         'snapshotDate',
         'refreshedAt'
     ]
@@ -22013,6 +22017,127 @@ export const ProjectImageStudioVideoCatalogModelSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioTalkingVideoCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    endpoint: {
+                        type: 'string'
+                    },
+                    price: {
+                        type: 'object',
+                        properties: {
+                            perSecondUsd: {
+                                type: 'number'
+                            },
+                            minimumVideoUsd: {
+                                type: 'number'
+                            },
+                            voicePer1000CharactersUsd: {
+                                type: 'number'
+                            },
+                            captionsPerMinuteUsd: {
+                                type: 'number'
+                            },
+                            basis: {
+                                type: 'string'
+                            },
+                            sourceUrl: {
+                                type: 'string'
+                            },
+                            verifiedAt: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'perSecondUsd',
+                            'minimumVideoUsd',
+                            'voicePer1000CharactersUsd',
+                            'captionsPerMinuteUsd',
+                            'basis',
+                            'sourceUrl',
+                            'verifiedAt'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'label',
+                    'description',
+                    'endpoint',
+                    'price'
+                ]
+            }
+        },
+        presenters: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    imageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'description',
+                    'imageUrl'
+                ]
+            }
+        },
+        defaultVoice: {
+            type: 'string'
+        },
+        voices: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        scriptMinLength: {
+            type: 'integer'
+        },
+        scriptMaxLength: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'presenters',
+        'defaultVoice',
+        'voices',
+        'scriptMinLength',
+        'scriptMaxLength'
+    ]
+} as const;
+
 export const ImageStudioWorkspaceStateSchema = {
     type: 'object',
     properties: {
@@ -22141,6 +22266,9 @@ export const ProjectImageAssetSchema = {
                     type: 'null'
                 }
             ]
+        },
+        aiGenerated: {
+            type: 'boolean'
         },
         createdAt: {
             type: 'string',
@@ -22335,7 +22463,8 @@ export const ProjectImageJobSchema = {
                 'GENERATE',
                 'EDIT',
                 'TEXT_TO_VIDEO',
-                'IMAGE_TO_VIDEO'
+                'IMAGE_TO_VIDEO',
+                'TALKING_VIDEO'
             ]
         },
         model: {
@@ -22367,6 +22496,9 @@ export const ProjectImageJobSchema = {
                     type: 'null'
                 }
             ]
+        },
+        talkingVideo: {
+            $ref: '#/components/schemas/ProjectTalkingVideo'
         },
         referenceAssetIds: {
             type: 'array',
@@ -22420,6 +22552,7 @@ export const ProjectImageJobSchema = {
                 'submission_uncertain',
                 'reference_not_sendable',
                 'product_cutout_unavailable',
+                'voice_unavailable',
                 'request_not_supported',
                 'cancelled',
                 'abandoned_before_send',
@@ -22506,6 +22639,29 @@ export const ProjectImageJobSchema = {
         'retryMayDuplicateCharge',
         'credits',
         'refunded'
+    ]
+} as const;
+
+export const ProjectTalkingVideoSchema = {
+    type: 'object',
+    properties: {
+        voice: {
+            type: 'string'
+        },
+        presenterId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        languageCode: {
+            type: 'string'
+        }
+    },
+    required: [
+        'voice',
+        'presenterId',
+        'languageCode'
     ]
 } as const;
 
@@ -37868,6 +38024,12 @@ export const InitiateProjectSocialConnectionRequestSchema = {
 export const FinalizeProjectSocialConnectionRequestSchema = {
     type: 'object',
     properties: {
+        callbackProof: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256,
+            description: 'Proof returned with a Zernio connection callback.'
+        },
         connectionId: {
             type: 'string',
             minLength: 1,
@@ -40757,7 +40919,8 @@ export const TikTokPostSettingsSchema = {
         privacyLevel: {
             type: 'string',
             enum: [
-                'SELF_ONLY'
+                'SELF_ONLY',
+                'PUBLIC_TO_EVERYONE'
             ]
         },
         allowComment: {
@@ -40773,6 +40936,12 @@ export const TikTokPostSettingsSchema = {
             type: 'boolean'
         },
         acceptedMusicUsage: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        previewConsent: {
             type: 'boolean',
             enum: [
                 true
@@ -42072,6 +42241,178 @@ export const CreateProjectVideoJobRequestSchema = {
     required: [
         'prompt',
         'idempotencyKey'
+    ]
+} as const;
+
+export const CreateProjectTalkingVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        script: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 600
+        },
+        voice: {
+            type: 'string',
+            enum: [
+                'Aria',
+                'Roger',
+                'Sarah',
+                'Laura',
+                'Charlie',
+                'George',
+                'Callum',
+                'River',
+                'Liam',
+                'Charlotte',
+                'Alice',
+                'Matilda',
+                'Will',
+                'Jessica',
+                'Eric',
+                'Chris',
+                'Brian',
+                'Daniel',
+                'Lily',
+                'Bill'
+            ],
+            default: 'Sarah'
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        },
+        presenter: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'stock'
+                            ]
+                        },
+                        id: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 100
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'id'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'file'
+                            ]
+                        },
+                        fileId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        consent: {
+                            type: 'boolean',
+                            enum: [
+                                true
+                            ]
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'fileId',
+                        'consent'
+                    ]
+                }
+            ]
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'script',
+        'presenter',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const ProjectTalkingVideoScriptsSchema = {
+    type: 'object',
+    properties: {
+        scripts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    hook: {
+                        type: 'string'
+                    },
+                    script: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'hook',
+                    'script'
+                ]
+            }
+        }
+    },
+    required: [
+        'scripts'
+    ]
+} as const;
+
+export const WriteProjectTalkingVideoScriptsRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        }
+    }
+} as const;
+
+export const ProjectTalkingVideosSchema = {
+    type: 'object',
+    properties: {
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        }
+    },
+    required: [
+        'jobs',
+        'assets'
     ]
 } as const;
 
