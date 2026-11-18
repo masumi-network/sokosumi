@@ -1454,6 +1454,8 @@ body:has(.ob) .site-header {
 
 .ob-plan-body {
   display: grid;
+  /* One column no wider than the page, however wide a child's content is. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -2256,6 +2258,16 @@ body:has(.ob) .site-header {
     justify-content: space-between;
   }
 
+  /* Five labels are wider than a phone; the other steps keep their number or tick. */
+  .ob-step:not(.now) .ob-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .ob-main {
     padding: 16px 16px 48px;
   }
@@ -2724,4 +2736,23 @@ body:has(.ob) .site-header {
 .ob-where input:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+.ob-presenter {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px;
+}
+
+.ob-presenter-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ob-presenter-consent input {
+  margin-top: 2px;
 }

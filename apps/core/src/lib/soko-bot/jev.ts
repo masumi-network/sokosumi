@@ -49,6 +49,8 @@ export async function evaluateWithJev(options: {
   state: JevState;
   questions: Record<string, JevQuestion>;
   timeoutMs: number;
+  /** Confidence-based suggestions require the model's reported probability for its choice. */
+  requireChoiceProbability?: boolean;
 }): Promise<{ answers: Map<string, JevAnswer>; costUsd: number }> {
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
@@ -72,6 +74,8 @@ export async function evaluateWithJev(options: {
     if (
       question.type === "choice" &&
       "choice" in answer &&
+      (!options.requireChoiceProbability ||
+        answer.probabilities?.[answer.choice] !== undefined) &&
       Object.hasOwn(question.criteria, answer.choice)
     )
       answers.set(key, {

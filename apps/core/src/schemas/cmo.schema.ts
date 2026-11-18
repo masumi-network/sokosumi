@@ -393,6 +393,8 @@ export const cmoOverviewSchema = z
       ),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
+    /** The owner gave their photo, with consent, to front talking videos. */
+    presenterSet: z.boolean(),
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(

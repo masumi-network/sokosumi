@@ -21,7 +21,11 @@ import {
   searchCmoKeywords,
   setCmoSeoSuggestionStatus,
 } from "./cmo-seo.service";
-import { keepCmoSeoAudit, verifyCmoSeoChanges } from "./cmo-seo-audit.service";
+import {
+  keepCmoSeoAudit,
+  pauseCmoSeoAuditsWithoutCuso,
+  verifyCmoSeoChanges,
+} from "./cmo-seo-audit.service";
 import { seoCheckOutcome } from "./cmo-seo-rankings.service";
 
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
@@ -358,13 +362,28 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         ?.status,
     ).toBe("done");
 
+    const withRedirectCheck = (result: "pass" | "not_checked") => ({
+      ...report,
+      findings: report.findings.filter(
+        (finding: { rowId: string }) => finding.rowId !== "AC-10",
+      ),
+      checks: report.checks.map((check: { rowId: string }) =>
+        check.rowId === "AC-10" ? { ...check, result } : check,
+      ),
+    });
+    // An audit that could not run the check finds nothing and confirms nothing.
     await storeAudit(
-      {
-        ...report,
-        findings: report.findings.filter(
-          (finding: { rowId: string }) => finding.rowId !== "AC-10",
-        ),
-      },
+      withRedirectCheck("not_checked"),
+      new Date("2026-11-20T06:10:00Z"),
+    );
+    await verifyCmoSeoChanges(cuso);
+    expect(
+      (await readCmoSeo(cuso)).pageChanges.find((c) => c.id === redirect.id)
+        ?.status,
+    ).toBe("done");
+
+    await storeAudit(
+      withRedirectCheck("pass"),
       new Date("2026-11-23T06:10:00Z"),
     );
     await verifyCmoSeoChanges(cuso);
@@ -488,5 +507,67 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     expect(await seoCheckOutcome(analysis.id)).toMatch(
       /failed: The worker timed out\. Nothing was charged/,
     );
+  });
+
+  it("reads the fixes of a report of several pages, whose finding ids carry the page's index", async () => {
+    const before = (await readCmoSeo(cuso)).pageChanges.length;
+    await storeAudit(
+      {
+        ...report,
+        findings: report.findings.map((finding: { id: string }) => ({
+          ...finding,
+          id: `0:${finding.id}`,
+        })),
+        actions: report.actions.map(
+          (action: { id: string; findingIds: string[] }) => ({
+            ...action,
+            id: `0:${action.id}`,
+            findingIds: action.findingIds.map((id) => `0:${id}`),
+          }),
+        ),
+      },
+      new Date("2026-11-30T06:10:00Z"),
+    );
+    // The same fixes as the single-page report: no new rows, none keyed by the index.
+    const after = await readCmoSeo(cuso);
+    expect(after.pageChanges).toHaveLength(before);
+    expect(
+      await prisma.projectSeoSuggestion.count({
+        where: { projectId, key: { endsWith: ":0" } },
+      }),
+    ).toBe(0);
+  });
+
+  it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {
+    const active = (await monitors()).find((m) => m.state === "ACTIVE");
+    if (!active) throw new Error("fixture has an active monitor");
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(0);
+
+    await prisma.sokoBot.update({
+      where: { id: cuso.sokoBotId },
+      data: { archivedAt: new Date() },
+    });
+    const operation =
+      await prisma.taskScheduleCreateOperation.findUniqueOrThrow({
+        where: { scheduleId: active.id },
+      });
+    // Under another operation id it is a monitor a person made in this Project.
+    await prisma.taskScheduleCreateOperation.update({
+      where: { id: operation.id },
+      data: { operationId: randomUUID() },
+    });
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(0);
+    await prisma.taskScheduleCreateOperation.update({
+      where: { id: operation.id },
+      data: { operationId: operation.operationId },
+    });
+
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(1);
+    const paused = await prisma.taskSchedule.findUniqueOrThrow({
+      where: { id: active.id },
+    });
+    expect(paused.state).toBe("PAUSED");
+    expect(paused.nextRunAt).toBeNull();
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(0);
   });
 });

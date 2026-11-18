@@ -19,6 +19,13 @@ import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  competitorFeedChecks,
+  isCompetitorEvalCase,
+  prepareSokoBotCompetitorCase,
+  SOKO_BOT_COMPETITOR_CASE_ID,
+  sokoBotCompetitorChecks,
+} from "./eval-cmo-competitors";
+import {
   commentChecks,
   pollCmoCase,
   prepareCmoChatCase,
@@ -145,6 +152,8 @@ async function startScenario(
       timezone: "Europe/Berlin",
       ...schedule,
     });
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
+    await prepareSokoBotCompetitorCase(lane);
   if (seoCase) {
     const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
     scenario = prepared.scenario;
@@ -223,6 +232,22 @@ async function pollScenario(
     ?.comments;
   if (comments) {
     const extra = commentChecks(turn.toolCalls, comments);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (isCompetitorEvalCase(scenario.id)) {
+    const extra = await competitorFeedChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+    );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID) {
+    const extra = await sokoBotCompetitorChecks(lane);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

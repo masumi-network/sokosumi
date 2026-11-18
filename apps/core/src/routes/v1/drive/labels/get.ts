@@ -3,6 +3,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  toWorkspaceLabel,
+  workspaceLabelSelect,
+} from "@/helpers/workspace-label";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -59,28 +63,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(query.includeArchived === "true" ? {} : { archivedAt: null }),
       },
       orderBy: [{ kind: "asc" }, { normalizedName: "asc" }],
-      select: {
-        id: true,
-        kind: true,
-        displayName: true,
-        description: true,
-        archivedAt: true,
-        vocabularyVersion: true,
-      },
+      select: workspaceLabelSelect,
     });
 
-    return ok(
-      c,
-      z.array(workspaceLabelSchema).parse(
-        labels.map((label) => ({
-          id: label.id,
-          kind: label.kind,
-          displayName: label.displayName,
-          description: label.description,
-          archived: label.archivedAt !== null,
-          vocabularyVersion: label.vocabularyVersion,
-        })),
-      ),
-    );
+    return ok(c, labels.map(toWorkspaceLabel));
   });
 }

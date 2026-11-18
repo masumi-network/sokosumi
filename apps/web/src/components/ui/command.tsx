@@ -35,15 +35,20 @@ function CommandDialog({
   description = "Search for a command to run...",
   children,
   commandProps,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   commandProps?: React.ComponentProps<typeof CommandPrimitive>
+  onCloseAutoFocus?: React.ComponentProps<typeof DialogContent>["onCloseAutoFocus"]
 }) {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0">
+      <DialogContent
+        className="overflow-hidden p-0"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         {/* Inside the content, so a closed dialog leaves no heading behind. */}
         <DialogHeader className="sr-only">
           <DialogTitle>{title}</DialogTitle>

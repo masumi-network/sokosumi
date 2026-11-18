@@ -187,22 +187,55 @@ it("gives the first focus to no button when the account states are already known
   expect(document.activeElement?.tagName).not.toBe("BUTTON");
 });
 
-it("does not claim a read from the one property that misses the selected pages", async () => {
+it("explains missing Search Console access in Traffic and settings when no property covers the selection", async () => {
+  const user = userEvent.setup();
   const workspace = connectedSearchConsole([
     { id: "sc-domain:unrelated.example", name: "Other" },
+    { id: "sc-domain:another.example", name: "Another site" },
   ]);
+  renderWithClient(<SeoWorkspace workspace={workspace} />);
+  await user.click(screen.getByRole("tab", { name: "Traffic" }));
+  const traffic = within(screen.getByRole("tabpanel", { name: "Traffic" }));
+  const explanation = /Search Console property covers .*example\.com/;
+  expect(await traffic.findByText(explanation)).toBeVisible();
+  expect(
+    traffic.queryByRole("button", { name: "Choose a property" }),
+  ).toBeNull();
+  await user.click(traffic.getByRole("button", { name: "Google connections" }));
+  const search = within(
+    await screen.findByRole("region", { name: "Search Console" }),
+  );
+  expect(await search.findByText(explanation)).toBeVisible();
+  expect(search.queryByRole("combobox")).toBeNull();
+  expect(
+    search.queryByTestId("seo-statistics-reads-search_console"),
+  ).toBeNull();
+});
+
+it("offers only properties covering all selected pages", async () => {
+  const user = userEvent.setup();
+  const workspace = connectedSearchConsole([
+    { id: "sc-domain:example.com", name: "Whole domain" },
+    { id: "https://example.com/", name: "Website" },
+    { id: "https://example.com/shop/", name: "Shop section" },
+  ]);
+  workspace.pages[0].url = "https://example.com/shop/item";
+  const helpPage = {
+    ...workspace.pages[0],
+    id: "f404c581-27e5-4732-ab0a-800194e00638",
+    url: "https://example.com/help",
+  };
+  workspace.pages.push(helpPage);
+  workspace.scope.pageIds.push(helpPage.id);
   function Settings() {
-    const model = useSeoWorkspace(workspace);
-    return <SeoStatisticsDialog model={model} />;
+    return <SeoStatisticsDialog model={useSeoWorkspace(workspace)} />;
   }
   renderWithClient(<Settings />);
   const search = within(
     await screen.findByRole("region", { name: "Search Console" }),
   );
-  expect(
-    await search.findByText(messages.App.Seo.statistics.propertyNotMatching),
-  ).toBeVisible();
-  expect(
-    search.queryByTestId("seo-statistics-reads-search_console"),
-  ).toBeNull();
+  await user.click(await search.findByRole("combobox", { name: "Property" }));
+  expect(screen.getByRole("option", { name: "Whole domain" })).toBeVisible();
+  expect(screen.getByRole("option", { name: "Website" })).toBeVisible();
+  expect(screen.queryByRole("option", { name: "Shop section" })).toBeNull();
 });

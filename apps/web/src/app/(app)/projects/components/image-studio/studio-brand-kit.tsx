@@ -12,13 +12,7 @@ import {
   resolveUserUploadContentType,
   STUDIO_LOGO_MIME_TYPES,
 } from "@sokosumi/utils";
-import {
-  ExternalLink,
-  Globe,
-  ImagePlus,
-  Palette,
-  WandSparkles,
-} from "lucide-react";
+import { ExternalLink, Globe, ImagePlus, Palette, Pipette } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -791,7 +785,7 @@ export function StudioBrandKitDialog({
                       websiteUrl={websiteUrl}
                       trigger={
                         <Button size="sm" type="button" variant="outline">
-                          <WandSparkles aria-hidden />
+                          <Pipette aria-hidden />
                           {t("BrandKit.extractWebsiteStyle")}
                         </Button>
                       }

@@ -16,7 +16,10 @@ import {
   seoAlertRowsSchema,
   seoSerpReadsSchema,
 } from "./project-seo-report-serps";
-import { publicSiteFindings } from "./project-seo-site-findings";
+import {
+  auditedSeoPageKey,
+  publicSiteFindings,
+} from "./project-seo-site-findings";
 import { publicSeoStrategy } from "./project-seo-strategy";
 
 const text = z.string().max(20_000);
@@ -156,11 +159,6 @@ const sameSet = (a: string[], b: string[]) =>
   a.length === new Set(a).size &&
   a.length === b.length &&
   a.every((value) => b.includes(value));
-const normalizedUrl = (value: string) => {
-  const url = new URL(value);
-  url.hash = "";
-  return url.href;
-};
 
 // A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
 const siteSkipped = z.object({
@@ -187,9 +185,9 @@ export function assertSeoArtifactMatchesRequest(
   if (!parsed.success)
     throw badRequest("The frozen SEO request is not readable");
   const request = parsed.data,
-    pageUrls = request.pageUrls.map(normalizedUrl),
-    reported = payload.pageUrls.map(normalizedUrl),
-    skipped = skippedPages(raw).map((page) => normalizedUrl(page.url));
+    pageUrls = request.pageUrls.map(auditedSeoPageKey),
+    reported = payload.pageUrls.map(auditedSeoPageKey),
+    skipped = skippedPages(raw).map((page) => auditedSeoPageKey(page.url));
   // Every reported page is in scope, and every page in scope is reported or named as skipped, never both.
   if (
     payload.kind !== expected.kind ||
@@ -205,16 +203,16 @@ export function assertSeoArtifactMatchesRequest(
     );
   if (
     payload.checks.some(
-      (row) => !pageUrls.includes(normalizedUrl(row.pageUrl)),
+      (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     ) ||
     payload.findings.some(
-      (row) => !pageUrls.includes(normalizedUrl(row.pageUrl)),
+      (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     ) ||
     payload.actions.some(
-      (row) => !pageUrls.includes(normalizedUrl(row.pageUrl)),
+      (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     ) ||
     payload.keywords.some(
-      (row) => !pageUrls.includes(normalizedUrl(row.pageUrl)),
+      (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     )
   )
     throw badRequest(
@@ -248,12 +246,12 @@ export function assertSeoArtifactMatchesRequest(
     )
   )
     throw badRequest("The result contains unrequested keywords or devices");
-  const competitors = request.competitorUrls?.map(normalizedUrl) ?? [];
+  const competitors = request.competitorUrls?.map(auditedSeoPageKey) ?? [];
   if (
     payload.competitors.some(
       (row) =>
         !(row.role === "page" ? pageUrls : competitors).includes(
-          normalizedUrl(row.pageUrl),
+          auditedSeoPageKey(row.pageUrl),
         ),
     )
   )
@@ -521,16 +519,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       throw badRequest("The site report does not match its supported format");
     const pages = site.data.pages.map(parsePublicSeoArtifact),
       first = pages[0],
-      { strategy, note } = publicSeoStrategy(raw),
-      siteFindings = publicSiteFindings(
-        raw,
-        pages.flatMap((page) => page.pageUrls),
-        first.observedAt,
-      );
+      pageUrls = pages.flatMap((page) => page.pageUrls),
+      { strategy, note } = publicSeoStrategy(raw, pageUrls),
+      siteFindings = publicSiteFindings(raw, pageUrls, first.observedAt);
     return publicSeoPayloadSchema.parse({
       ...first,
       kind: "audit_full",
-      pageUrls: pages.flatMap((page) => page.pageUrls),
+      pageUrls,
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),

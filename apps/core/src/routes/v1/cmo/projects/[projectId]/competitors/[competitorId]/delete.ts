@@ -8,7 +8,8 @@ import {
   cmoCompetitorParamsSchema,
   cmoCompetitorsSchema,
 } from "@/schemas/cmo-competitors.schema";
-import { removeTrackedCompetitor } from "@/services/cmo-competitors.service";
+import { requireCuso } from "@/services/cmo-cuso.service";
+import { removeTrackedCompetitor } from "@/services/competitors.service";
 
 import { competitorsResponse } from "../helpers.js";
 
@@ -33,7 +34,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, competitorId } = c.req.valid("param");
     const target = { userId, projectId };
-    await removeTrackedCompetitor(target, competitorId).catch(rethrow);
+    await requireCuso(target).catch(rethrow);
+    await removeTrackedCompetitor(projectId, competitorId);
     return ok(c, await competitorsResponse(target));
   });
 }

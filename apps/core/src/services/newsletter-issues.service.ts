@@ -34,10 +34,10 @@ import {
 } from "@/services/newsletter.service";
 import { assertNewsletterSenderConfigured } from "@/services/newsletter-sending-domain.service";
 import {
-  archiveTaskRecord,
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
+import { archiveTaskRecord } from "@/services/task-domain-archive";
 
 type NewsletterClient = Prisma.TransactionClient | typeof prisma;
 

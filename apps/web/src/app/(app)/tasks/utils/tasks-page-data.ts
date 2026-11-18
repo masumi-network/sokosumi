@@ -14,8 +14,11 @@ import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-m
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
+  getTaskTagQuery,
   type ProjectFilterOption,
   parseTasksFilters,
+  type TasksFiltersSearchParams,
+  tasksQueryScope,
 } from "@/app/tasks/utils/tasks-filters";
 import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
@@ -29,20 +32,8 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 
-type QueryValue = string | string[] | undefined;
-
 export interface TasksPageDataInput {
-  filterParams: {
-    scope?: QueryValue;
-    assigneeId?: QueryValue;
-    assigneeSokoBotId?: QueryValue;
-    assigneeUserId?: QueryValue;
-    coworkerId?: QueryValue;
-    status?: QueryValue;
-    projectId?: QueryValue;
-    visibility?: QueryValue;
-    stuck?: QueryValue;
-  };
+  filterParams: TasksFiltersSearchParams;
   viewMode: TasksViewMode;
   personalAssistantFallback: string;
   /** Resolves `?assignee=` to an id only when the create dialog opens. */
@@ -86,6 +77,9 @@ async function readTasksPageData(
       loadTasksPageOptions(),
       listTaskAssigneeMemberOptions(activeOrganizationId),
     ]);
+  // Runs beside the board reads, not after them.
+  const canCreateTaskPromise =
+    organizationSeatService.hasAssignedSeat(activeOrganizationId);
   // Core decides schedule eligibility; start that request before loading the board.
   const coworkerOptionsPromise = listTaskAssigneeOptions(
     activeOrganizationId,
@@ -169,7 +163,10 @@ async function readTasksPageData(
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     visibility: activeFilters.visibility,
+    tag: activeFilters.tag,
     stuck: activeFilters.stuck,
+    needsMe: activeFilters.needsMe,
+    mentions: activeFilters.mentions,
     coworkersById,
     personalAssistantFallback,
   };
@@ -196,7 +193,9 @@ async function readTasksPageData(
     shouldCountGrantPendingTasks
       ? taskService.listTasks({
           status: TaskStatus.GRANT_PENDING,
-          scope: activeFilters.scope,
+          ...getTaskTagQuery(activeFilters.tag),
+          scope: tasksQueryScope(activeFilters.scope, activeFilters),
+          ...(activeFilters.mentions ? { unansweredMention: true } : {}),
           assigneeId: activeFilters.assigneeId ?? undefined,
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,
@@ -237,8 +236,7 @@ async function readTasksPageData(
         ) as Record<KanbanColumnId, number>);
 
   const coworkerOptions = await coworkerOptionsPromise;
-  const canCreateTask =
-    await organizationSeatService.hasAssignedSeat(activeOrganizationId);
+  const canCreateTask = await canCreateTaskPromise;
 
   return {
     tasks,

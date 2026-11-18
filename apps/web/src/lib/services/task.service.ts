@@ -4,6 +4,7 @@ import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
+  MoveTaskRequest,
   Task,
   TaskActivitySummary,
   TaskEvent,
@@ -13,6 +14,7 @@ import type {
   TaskLinkDeleted,
   TaskParticipant,
   TaskPriority,
+  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarEntry,
@@ -27,6 +29,8 @@ interface ListTasksParams {
   assigneeSokoBotId?: string;
   assigneeUserId?: string;
   projectId?: string;
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
   q?: string;
   scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
@@ -41,9 +45,16 @@ interface ListTasksParams {
   statusBefore?: Date;
   /** Archived Tasks instead, most recently archived first. */
   archived?: boolean;
+  /** Only this Task's direct sub-tasks, in their order. */
+  parentTaskId?: string;
+  /** Only Tasks with a mention of the caller that the caller has not answered. */
+  unansweredMention?: boolean;
 }
 
 interface CreateTaskInput {
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
@@ -56,9 +67,18 @@ interface CreateTaskInput {
   /** Start at this future time: Core creates the Task Queued. */
   runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
+  /** Makes the Task a sub-task of this one, last or after `afterTaskId`. */
+  parentTaskId?: string;
+  afterTaskId?: string;
+  /** `YYYY-MM-DD`. */
+  dueOn?: string | null;
 }
 
 interface PatchTaskInput {
+  expectedWorkspaceTagIds?: string[];
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
@@ -152,10 +172,16 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      parentTaskId: params.parentTaskId,
+      workspaceTagId: params.workspaceTagId,
+      topicTagId: params.topicTagId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
       statusBefore: params.statusBefore,
       ...(params.archived ? { archived: "true" as const } : {}),
+      ...(params.unansweredMention
+        ? { unansweredMention: "true" as const }
+        : {}),
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
@@ -288,6 +314,14 @@ export const taskService = (() => {
       throw new Error("Failed to create task");
     }
 
+    return result.data;
+  }
+
+  async function moveSubtask(
+    taskId: string,
+    move: MoveTaskRequest,
+  ): Promise<Task> {
+    const result = await coreClient.moveSubtask(taskId, move);
     return result.data;
   }
 
@@ -487,6 +521,7 @@ export const taskService = (() => {
     listTaskEvents,
     listTaskEventsBefore,
     createTask,
+    moveSubtask,
     suggestTaskTags,
     createTaskLink,
     createTaskEvent,

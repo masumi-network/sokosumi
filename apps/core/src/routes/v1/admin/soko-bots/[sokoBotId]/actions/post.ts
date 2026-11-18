@@ -5,6 +5,7 @@ import { ok } from "@/helpers/response";
 import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
   adminSokoBotActionRequestSchema,
@@ -82,6 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 retry.leaseToken ?? undefined,
               ),
             ).catch((error) => {
+              if (reportSokoBotReconciliationLeaseLoss(retry.id, error)) return;
               // A turn's error can quote what the member asked: content-free
               // fields only.
               emitCoreError(

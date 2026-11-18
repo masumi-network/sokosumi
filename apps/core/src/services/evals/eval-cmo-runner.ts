@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
@@ -36,6 +37,10 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import {
+  isCompetitorSetup,
+  prepareCompetitorCase,
+} from "./eval-cmo-competitors";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -133,8 +138,8 @@ async function cusoIsBusy(lane: EvalLaneRecord) {
     },
     select: { id: true, deadlineAt: true },
   });
-  const now = Date.now();
-  const dead = active.filter((turn) => turn.deadlineAt.getTime() <= now);
+  const now = await databaseNow();
+  const dead = active.filter((turn) => turn.deadlineAt <= now);
   await Promise.all(dead.map((turn) => endTurn(turn.id)));
   return active.length > dead.length;
 }
@@ -402,10 +407,14 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
 export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
-): Promise<{ comments?: Record<string, string> }> {
+): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
   if (setup === "cmo-plan") {
     await prepareCmoPlan(lane);
     return {};
+  }
+  if (isCompetitorSetup(setup)) {
+    await prepareCmoChat(lane, true);
+    return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup !== "cmo-comments") return {};
@@ -516,13 +525,15 @@ export async function startCmoCase(
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
+    // createdAt and the cap's window are PostgreSQL time.
+    const now = (await databaseNow()).getTime();
     await prisma.sokoBotTurn.updateMany({
       where: {
         sokoBotId: lane.cusoBotId,
         clientTurnId: { startsWith: CMO_PRODUCTION_TURN_PREFIX },
-        createdAt: { gt: new Date(Date.now() - DAY_MS) },
+        createdAt: { gt: new Date(now - DAY_MS) },
       },
-      data: { createdAt: new Date(Date.now() - DAY_MS - 60 * 60_000) },
+      data: { createdAt: new Date(now - DAY_MS - 60 * 60_000) },
     });
     const plan = monthPlanFromTomorrow(frozen, new Date());
     await connectPlanChannels(lane, plan);
@@ -588,11 +599,9 @@ async function cancelMonthPosts(strategyId: string) {
   });
 }
 
-async function monthProductionTurns(
-  botId: string,
-  prefix: string,
-  since: Date,
-) {
+// Scoped by the approval's id prefix and the parent chain, not by time: the
+// turns' createdAt is PostgreSQL time and the case start is the host's.
+async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
     status: true,
@@ -603,7 +612,6 @@ async function monthProductionTurns(
     where: {
       sokoBotId: botId,
       source: "EVENT",
-      createdAt: { gte: since },
       clientTurnId: { startsWith: prefix },
     },
     select,
@@ -613,7 +621,6 @@ async function monthProductionTurns(
     const children = await prisma.sokoBotTurn.findMany({
       where: {
         sokoBotId: botId,
-        createdAt: { gte: since },
         parentTurnId: { in: frontier.map((turn) => turn.id) },
       },
       select,
@@ -656,11 +663,7 @@ async function pollMonth(
   if (approval.approvedAt) {
     // Production IDs bind retries to the current approval, including rewrites.
     const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
-    const productionTurns = await monthProductionTurns(
-      lane.cusoBotId,
-      prefix,
-      context.startedAt,
-    );
+    const productionTurns = await monthProductionTurns(lane.cusoBotId, prefix);
     const exhausted = productionTurns.find(
       (turn) => evalInfrastructureFailure(turn)?.stopsRun,
     );

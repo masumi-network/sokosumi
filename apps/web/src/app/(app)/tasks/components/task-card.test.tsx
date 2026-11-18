@@ -13,7 +13,11 @@ vi.mock("next-intl", () => ({
   useFormatter: () => ({
     dateTime: (value: Date) => value.toISOString(),
   }),
+  useNow: () => new Date(),
+  useTimeZone: () => "UTC",
 }));
+
+vi.mock("@/components/time-ago", () => ({ TimeAgo: () => null }));
 
 vi.mock("./task-detail-link", () => ({
   TaskDetailLink: ({
@@ -60,6 +64,23 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
 }
 
 describe("TaskCard privacy cue", () => {
+  it("shows sub-task progress, and nothing for a Task without sub-tasks", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard
+        task={{ ...task, subtaskProgress: { completed: 2, total: 3 } }}
+      />,
+    );
+    expect(screen.getByText("2/3")).toBeTruthy();
+
+    rerender(
+      <TaskCard
+        task={{ ...task, subtaskProgress: { completed: 0, total: 0 } }}
+      />,
+    );
+    expect(screen.queryByText("0/0")).toBeNull();
+  });
+
   it("shows the privacy icon on the status row for PRIVATE tasks", () => {
     render(<TaskCard task={buildTask(TaskVisibility.PRIVATE)} />);
 
@@ -70,6 +91,64 @@ describe("TaskCard privacy cue", () => {
     render(<TaskCard task={buildTask(TaskVisibility.PUBLIC)} />);
 
     expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskCard status", () => {
+  it("drops the status word the column already names, and keeps its name for assistive technology", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(<TaskCard task={task} />);
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+
+    rerender(<TaskCard task={task} quietStatus={TaskStatus.READY} />);
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Ready" })).toBeInTheDocument();
+
+    rerender(<TaskCard task={task} quietStatus={TaskStatus.RUNNING} />);
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+  });
+
+  it("shows how long a Task has waited only once it is stuck", () => {
+    const day = 24 * 60 * 60 * 1000;
+    const since = (days: number) =>
+      new Date(Date.now() - days * day).toISOString();
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard task={{ ...task, statusSince: since(1) }} />,
+    );
+    // A fresh waiting Task would say "label" with its age; the card says nothing.
+    expect(screen.queryByText("label")).not.toBeInTheDocument();
+    expect(screen.queryByText("stuck")).not.toBeInTheDocument();
+
+    rerender(<TaskCard task={{ ...task, statusSince: since(10) }} />);
+    expect(screen.getByText("stuck")).toBeInTheDocument();
+  });
+});
+
+describe("TaskCard dates", () => {
+  const task = buildTask(TaskVisibility.PUBLIC);
+  const runAt = "2030-01-02T09:00:00.000Z";
+
+  it("shows the start of a scheduled Task in place of a due day still ahead", () => {
+    const { container } = render(
+      <TaskCard task={{ ...task, runAt, dueOn: "2999-01-01" }} />,
+    );
+
+    const times = container.querySelectorAll("time");
+    expect(times).toHaveLength(1);
+    expect(times[0]).toHaveAttribute("dateTime", runAt);
+  });
+
+  it("still says a scheduled Task is overdue", () => {
+    const { container } = render(
+      <TaskCard task={{ ...task, runAt, dueOn: "2000-01-01" }} />,
+    );
+
+    expect(
+      Array.from(container.querySelectorAll("time"), (time) =>
+        time.getAttribute("dateTime"),
+      ),
+    ).toEqual([runAt, "2000-01-01"]);
   });
 });
 
@@ -221,16 +300,70 @@ describe("TaskCard project navigation", () => {
         logo: null,
       },
     };
-    render(<TaskCard task={task} />);
-    const project = screen.getByRole("link", { name: "openProject" });
+    render(<TaskCard task={{ ...task, identifier: "SOK-12" }} />);
+    const project = screen.getByRole("link", { name: "SOK-12, openProject" });
     expect(project).toHaveAttribute("href", "/projects/project-1");
+    expect(project).toHaveAttribute("title", "Long project name");
     expect(project.closest('[data-testid="task-detail-link"]')).toBeNull();
-    expect(screen.getByText("Long project name")).toBeInTheDocument();
+  });
+});
+
+describe("TaskCard without a title", () => {
+  it("says so in place of an empty link", () => {
+    render(
+      <TaskCard task={{ ...buildTask(TaskVisibility.PUBLIC), name: "  " }} />,
+    );
+
+    expect(screen.getByRole("link", { name: "noTitle" })).toHaveAttribute(
+      "href",
+      "/tasks/task-1",
+    );
+  });
+});
+
+describe("TaskCard without a project", () => {
+  it("says so where the identifier would be, and only then", () => {
+    const base = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard task={{ ...base, identifier: null, project: null }} />,
+    );
+    expect(screen.getByText("noProject")).toBeInTheDocument();
+
+    rerender(
+      <TaskCard
+        task={{
+          ...base,
+          identifier: "SOK-12",
+          project: {
+            id: "project-1",
+            name: "Sok",
+            identifier: "SOK",
+            logo: null,
+          },
+        }}
+      />,
+    );
+    expect(screen.queryByText("noProject")).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskCard while it saves", () => {
+  it("shows the identifier as text, since a pending Task has nowhere to go", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      isPending: true,
+      identifier: "SOK-12",
+      project: { id: "project-1", name: "Sok", identifier: "SOK", logo: null },
+    };
+    render(<TaskCard task={task} />);
+
+    expect(screen.getByText("SOK-12")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });
 
 describe("TaskCard density", () => {
-  it("hides empty metadata in Compact and restores it in Normal", () => {
+  it("tightens the card in Compact and restores it in Normal", () => {
     const task = buildTask(TaskVisibility.PRIVATE);
     const { rerender } = render(<TaskCard task={task} />);
     const normalClasses = screen.getByRole("article").className;
@@ -239,21 +372,17 @@ describe("TaskCard density", () => {
     rerender(<TaskCard task={task} compact />);
 
     expect(screen.getByRole("article").className).not.toBe(normalClasses);
-    expect(screen.getByRole("article")).toHaveClass("p-2", "space-y-1");
+    // The side inset is the same in both densities.
+    expect(screen.getByRole("article")).toHaveClass("px-3", "py-2", "gap-1");
     expect(screen.getByRole("heading")).toHaveClass("line-clamp-1");
     expect(screen.getByRole("link", { name: task.name })).toHaveAttribute(
       "href",
       "/tasks/task-1",
     );
-    expect(screen.queryByText("empty")).not.toBeInTheDocument();
-    expect(screen.queryByText("noProject")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Private")).toBeInTheDocument();
-    expect(screen.getByText("Mar 1")).toBeInTheDocument();
 
     rerender(<TaskCard task={task} compact={false} />);
     expect(screen.getByRole("article").className).toBe(normalClasses);
-    expect(screen.queryByText("empty")).not.toBeInTheDocument();
-    expect(screen.getByText("noProject")).toBeInTheDocument();
   });
 
   it.each([false, true])(
@@ -264,6 +393,7 @@ describe("TaskCard density", () => {
       const task: TaskWithCoworker = {
         ...buildTask(TaskVisibility.PUBLIC),
         name: "A long task title that remains available to assistive technology",
+        identifier: "SOK-12",
         project: {
           id: "project-1",
           name: "A very long project name with international campaign details",
@@ -275,7 +405,8 @@ describe("TaskCard density", () => {
           automatic: [],
           rejected: [],
         },
-        runAt: "2030-01-02T09:00:00.000Z",
+        // No start time: a scheduled card shows that in place of its tag.
+        dueOn: "2999-01-01",
       };
       const { container } = render(
         <TaskCard
@@ -293,30 +424,22 @@ describe("TaskCard density", () => {
       );
       expect(container.querySelector("time")).toHaveAttribute(
         "dateTime",
-        task.runAt,
+        task.dueOn,
       );
+      // The identifier is the way to the project in both densities.
+      const project = screen.getByRole("link", { name: "SOK-12, openProject" });
+      expect(project).toHaveAttribute("href", "/projects/project-1");
+      fireEvent.pointerDown(project);
+      fireEvent.keyDown(project, { key: "Enter" });
       if (compact) {
-        expect(
-          screen.queryByRole("link", { name: "openProject" }),
-        ).not.toBeInTheDocument();
-        expect(
-          screen.queryByText(task.project?.name ?? ""),
-        ).not.toBeInTheDocument();
         expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
         expect(
           screen.queryByRole("button", { name: "showAll" }),
         ).not.toBeInTheDocument();
       } else {
-        const project = screen.getByRole("link", { name: "openProject" });
-        expect(project).toHaveAttribute("title", task.project?.name);
-        expect(screen.getByText(task.project?.name ?? "")).toHaveClass(
-          "line-clamp-2",
-        );
         expect(screen.getByText("vocabulary.design")).toBeInTheDocument();
         const overflow = screen.getByRole("button", { name: "showAll" });
-        expect(overflow).toHaveTextContent("+1");
-        fireEvent.pointerDown(project);
-        fireEvent.keyDown(project, { key: "Enter" });
+        expect(overflow).toHaveTextContent("+2");
         fireEvent.pointerDown(overflow);
         fireEvent.keyDown(overflow, { key: "Enter" });
       }
@@ -425,5 +548,16 @@ describe("Draggable board card for keyboard and screen reader users", () => {
       "focus-visible:after:ring-2",
       "focus-visible:after:ring-ring",
     );
+  });
+});
+
+describe("TaskCard mention mark", () => {
+  it("marks only a Task with an unanswered mention of the reader", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(<TaskCard task={task} />);
+    expect(screen.queryByLabelText(/mention/i)).not.toBeInTheDocument();
+
+    rerender(<TaskCard task={{ ...task, hasUnansweredMention: true }} />);
+    expect(screen.getByLabelText(/mention/i)).toBeInTheDocument();
   });
 });

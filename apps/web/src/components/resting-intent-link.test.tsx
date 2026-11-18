@@ -234,4 +234,24 @@ describe("RestingIntentLink", () => {
       expect(routerPrefetchMock).toHaveBeenCalledOnce();
     });
   });
+
+  // A card stretches its title link over itself with a pseudo-element, which
+  // is not part of the link's box. The card is what the cursor heads for.
+  it("takes a card that marks itself as the link's area for the approach", async () => {
+    const { container } = render(
+      <article data-intent-area>
+        <RestingIntentLink href="/tasks/1" prefetchContent>
+          Task
+        </RestingIntentLink>
+      </article>,
+    );
+    const card = container.querySelector("article") as HTMLElement;
+
+    expect(await act(() => approachElement(card))).toBe(true);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks/1",
+      expect.objectContaining({ kind: "full" }),
+    );
+  });
 });

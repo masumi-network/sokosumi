@@ -1,0 +1,124 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { countMock, projectFindUniqueMock, requireProjectAccessMock } =
+  vi.hoisted(() => ({
+    countMock: vi.fn(),
+    projectFindUniqueMock: vi.fn(),
+    requireProjectAccessMock: vi.fn(),
+  }));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    sokoBotToolCall: { count: countMock },
+    project: { findUnique: projectFindUniqueMock },
+  },
+}));
+vi.mock("@/lib/image-studio/access", () => ({
+  requireProjectAccess: requireProjectAccessMock,
+}));
+
+import { checkTalkingVideoRequest } from "./media-checks";
+import type { RuntimeOperations } from "./operations";
+
+const runtime = {
+  mayActForOwner: vi.fn(),
+  refuseCmoRunMedia: vi.fn(),
+  mediaPerTurn: vi.fn(),
+  requireImageProject: vi.fn(),
+} as unknown as RuntimeOperations;
+
+const authorized = {
+  turn: { id: "turn-1", workspaceId: "workspace-1", userId: "user-1" },
+} as unknown as Parameters<typeof checkTalkingVideoRequest>[1];
+
+const SCRIPT =
+  "Your inbox is not a to-do list. Soko Bot reads every mail and leaves only what matters unread. Try it this week.";
+
+function request(input: Record<string, unknown> = {}) {
+  return checkTalkingVideoRequest(
+    runtime,
+    authorized,
+    {
+      projectId: "project-1",
+      script: SCRIPT,
+      presenter: "maya",
+      maxCredits: 250,
+      ...input,
+    },
+    "call-1",
+  );
+}
+
+beforeEach(() => {
+  vi.mocked(runtime.mayActForOwner).mockResolvedValue(true);
+  vi.mocked(runtime.mediaPerTurn).mockResolvedValue({ images: 4, videos: 2 });
+  countMock.mockResolvedValue(0);
+  projectFindUniqueMock.mockResolvedValue({ websiteUrl: null });
+  requireProjectAccessMock.mockResolvedValue({ organizationId: null });
+});
+
+describe("checkTalkingVideoRequest", () => {
+  it("quotes the script on the talking video model", async () => {
+    const { credits, model } = await request();
+
+    expect(model.id).toBe("avatar-6-turbo");
+    // 112 characters is about 9 s: 45 cents of video, plus the voice and
+    // timing its words.
+    expect(credits).toBe(47);
+  });
+
+  it("adds the cut-out to the price when the Project has a website", async () => {
+    projectFindUniqueMock.mockResolvedValue({
+      websiteUrl: "https://sokosumi.com",
+    });
+
+    // 9 s of cut-out at about a cent a second on top.
+    expect((await request()).credits).toBe(56);
+  });
+
+  it("adds the extras the bot asked for to the price", async () => {
+    expect((await request({ music: true, broll: true })).credits).toBe(107);
+  });
+
+  it("refuses an unknown presenter and passes the owner's photo on", async () => {
+    await expect(request({ presenter: "patrick" })).rejects.toThrow(
+      "presenter must be owner",
+    );
+    // Whether the owner gave a photo with consent is settled when it starts.
+    await expect(request({ presenter: "owner" })).resolves.toMatchObject({
+      input: { presenter: "owner" },
+    });
+  });
+
+  it("refuses a script that speaks as a customer", async () => {
+    await expect(
+      request({
+        script: "I've been using Soko Bot for a month and it changed my life.",
+      }),
+    ).rejects.toThrow("cannot speak as a customer");
+  });
+
+  it("refuses a price above maxCredits", async () => {
+    await expect(request({ maxCredits: 20 })).rejects.toThrow(
+      "more than the 20 allowed",
+    );
+    await expect(request({ maxCredits: 40 })).rejects.toThrow(
+      /A script of at most \d+ characters fits/,
+    );
+  });
+
+  it("counts talking videos against the turn's video allowance", async () => {
+    countMock.mockResolvedValue(2);
+
+    await expect(request()).rejects.toThrow("at most 2 videos");
+    expect(countMock.mock.calls[0]![0].where.capability).toEqual({
+      in: ["generate_video", "generate_talking_video"],
+    });
+  });
+
+  it("refuses outside an owner's chat", async () => {
+    vi.mocked(runtime.mayActForOwner).mockResolvedValue(false);
+
+    await expect(request()).rejects.toThrow("only when a person asks");
+  });
+});

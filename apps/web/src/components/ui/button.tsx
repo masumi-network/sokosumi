@@ -90,7 +90,7 @@ function Button({
       // Loading wins over disabled: a native `disabled` would drop focus and
       // fade the bar, and the two must never be set together.
       disabled={loading ? undefined : disabled}
-      aria-busy={loading || undefined}
+      aria-busy={loading || props["aria-busy"] || undefined}
       aria-disabled={loading || props["aria-disabled"]}
       onClick={loading ? preventActivation : onClick}
     >

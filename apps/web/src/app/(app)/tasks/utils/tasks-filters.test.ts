@@ -7,6 +7,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  getTaskTagQuery,
   hasActiveTasksFilters,
   hasClearableTasksFilters,
   parseTasksFilters,
@@ -375,7 +376,7 @@ describe("tasks-filters", () => {
         "org-1",
       ),
     ).toBe(
-      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:all:any",
+      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:all:any:all",
     );
   });
 
@@ -574,6 +575,34 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     ).toEqual({ ...defaults, projectId: PROJECT_ID });
   });
 
+  it.each([
+    ["research", { topicTagId: "research" }],
+    [PROJECT_ID, { workspaceTagId: PROJECT_ID }],
+  ])(
+    "preserves tag %s across URL, Core query and filter reset",
+    (tag, query) => {
+      const initial = new URLSearchParams({ tag, projectId: PROJECT_ID });
+      const filters = getTasksFiltersFromSearchParams(initial, "org-1", []);
+      expect(getTaskTagQuery(filters.tag)).toEqual(query);
+      expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+      const cleared = clearTasksFilters(filters, "org-1");
+      expect(getTasksFiltersResetKey(filters, "org-1")).not.toBe(
+        getTasksFiltersResetKey(cleared, "org-1"),
+      );
+      expect(
+        buildTasksFiltersSearchParams(initial, cleared, "org-1").toString(),
+      ).toBe(`projectId=${PROJECT_ID}`);
+    },
+  );
+
+  it("drops malformed tag identifiers before sending a Core query", () => {
+    expect(
+      parseTasksFilters({ tag: "build me a tag" }, null).tag,
+    ).toBeUndefined();
+    expect(getTaskTagQuery(["qa"])).toEqual({});
+    expect(getTaskTagQuery("12345678-1234-1234-1234-123456789abc")).toEqual({});
+  });
+
   it("reads, writes and clears the Stuck filter", () => {
     const filters = parseTasksFilters({ stuck: "1" }, "org-1");
     expect(filters.stuck).toBe(true);
@@ -595,6 +624,43 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     expect(cleared.stuck).toBe(false);
     expect(
       buildTasksFiltersSearchParams(params, cleared, "org-1").has("stuck"),
+    ).toBe(false);
+  });
+
+  it("reads, writes and clears the Needs me filter", () => {
+    const filters = parseTasksFilters({ needsMe: "1" }, "org-1");
+    expect(filters.needsMe).toBe(true);
+    expect(parseTasksFilters({ needsMe: "yes" }, "org-1").needsMe).toBeFalsy();
+    expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+
+    const params = buildTasksFiltersSearchParams(
+      new URLSearchParams(),
+      filters,
+      "org-1",
+    );
+    expect(params.get("needsMe")).toBe("1");
+
+    const cleared = clearTasksFilters(filters, "org-1");
+    expect(
+      buildTasksFiltersSearchParams(params, cleared, "org-1").has("needsMe"),
+    ).toBe(false);
+  });
+
+  it("reads, writes and clears the Mentions filter", () => {
+    const filters = parseTasksFilters({ mentions: "1" }, "org-1");
+    expect(filters.mentions).toBe(true);
+    expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+
+    const params = buildTasksFiltersSearchParams(
+      new URLSearchParams(),
+      filters,
+      "org-1",
+    );
+    expect(params.get("mentions")).toBe("1");
+
+    const cleared = clearTasksFilters(filters, "org-1");
+    expect(
+      buildTasksFiltersSearchParams(params, cleared, "org-1").has("mentions"),
     ).toBe(false);
   });
 });

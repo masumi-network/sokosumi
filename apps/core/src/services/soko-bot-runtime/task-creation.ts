@@ -5,6 +5,10 @@ import {
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
 } from "@sokosumi/soko-bot";
 import { jsonInput } from "@/helpers/prisma-json";
+import {
+  buildSokoBotReaderTaskWhere,
+  type SokoBotTurnReader,
+} from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -25,6 +29,7 @@ import {
   personAssignee,
   type SokoBotActionContext,
   SokoBotRuntimeAuthorizationError,
+  SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actionPrincipalId } from "./acting-scope";
 import { DECISION_TTL_MS } from "./execution-limits";
@@ -157,7 +162,8 @@ export async function createDecision(
 
 export async function createTask(
   runtime: RuntimeOperations,
-  authorized: SokoBotActionContext,
+  // An approved decision has no reader: its targets were scope-checked.
+  authorized: SokoBotActionContext & { reader?: SokoBotTurnReader },
   rawInput: unknown,
   toolCallId: string,
   approved = false,
@@ -167,6 +173,8 @@ export async function createTask(
   // brakes are the owner's daily cap and pause, plus the version prompt's
   // instruction to weigh cost and ask first when the work looks expensive.
   const input = taskCreateInputSchema.parse(rawInput);
+  if (input.afterTaskId && !input.parentTaskId)
+    throw new SokoBotRuntimeValidationError("afterTaskId needs parentTaskId");
   return serializableTransaction(async (tx) => {
     const workspace = await runtime.requireMutationAuthority(
       tx,
@@ -175,6 +183,21 @@ export async function createTask(
       "create_task",
       decisionProposalTargets("create_task", input),
     );
+    // A sub-task inherits its parent's visibility: the turn must be able to
+    // read the parent, as the REST route requires of a person.
+    if (
+      input.parentTaskId &&
+      authorized.reader &&
+      !(await tx.task.count({
+        where: {
+          id: input.parentTaskId,
+          workspaceId: authorized.turn.workspaceId,
+          archivedAt: null,
+          ...buildSokoBotReaderTaskWhere(authorized.reader),
+        },
+      }))
+    )
+      throw new SokoBotRuntimeValidationError("Parent Task not found");
     const triggeringTaskId =
       input.triggeringTaskId ??
       (authorized.turn.source === "EVENT"
@@ -228,7 +251,16 @@ export async function createTask(
         ownerId: authorized.turn.actingUserId,
         organizationId: workspace.organizationId,
         workspaceId: authorized.turn.workspaceId,
-        projectId: input.projectId,
+        // A sub-task takes its parent's Project, so a stray null is not a move.
+        projectId: input.parentTaskId ? undefined : input.projectId,
+        ...(input.parentTaskId
+          ? {
+              parent: {
+                taskId: input.parentTaskId,
+                afterTaskId: input.afterTaskId,
+              },
+            }
+          : {}),
         name: input.name,
         description: input.description,
         ...toolAssigneeFields(

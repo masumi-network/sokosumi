@@ -89,9 +89,11 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
+import { NavigationProgress } from "@/components/navigation-progress.client";
 import { HOVER_DWELL_MS } from "@/components/resting-intent-link";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { approachElement } from "@/test/approach-element";
+import { startNavigation } from "@/test/pending-navigation";
 import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
@@ -285,6 +287,7 @@ describe("MenuItems groups", () => {
       "social",
       "seo",
       "ads",
+      "competitors",
     ]);
   });
 
@@ -354,6 +357,7 @@ describe("MenuItems groups", () => {
       "social",
       "seo",
       "ads",
+      "competitors",
     ]);
   });
 });
@@ -405,6 +409,7 @@ describe("MenuItems newsletter", () => {
       "social",
       "seo",
       "ads",
+      "competitors",
       "newsletter",
     ]);
   });
@@ -479,6 +484,57 @@ function markedHrefs() {
     link.getAttribute("href"),
   );
 }
+
+describe("MenuItems during a navigation", () => {
+  it("marks the row a click is heading for, then the page on screen again", async () => {
+    pathnameRef.current = "/tasks";
+    searchRef.current = "";
+    sidebarIsMobile = false;
+    render(
+      <NavigationProgress>
+        <TestQueryProvider>
+          <OrganizationSeatContext value>
+            <MenuItems />
+          </OrganizationSeatContext>
+        </TestQueryProvider>
+      </NavigationProgress>,
+    );
+    expect(markedHrefs()).toEqual(["/tasks"]);
+
+    const arrive = await startNavigation("/calendar");
+    try {
+      expect(markedHrefs()).toEqual(["/calendar"]);
+    } finally {
+      await arrive();
+    }
+
+    // The mocked pathname stays on Tasks, as after a navigation that failed.
+    expect(markedHrefs()).toEqual(["/tasks"]);
+  });
+
+  it("keeps the mark on Overview while a click switches to another project", async () => {
+    pathnameRef.current = "/projects/p1";
+    searchRef.current = "";
+    sidebarIsMobile = false;
+    render(
+      <NavigationProgress>
+        <TestQueryProvider>
+          <OrganizationSeatContext value>
+            <MenuItems />
+          </OrganizationSeatContext>
+        </TestQueryProvider>
+      </NavigationProgress>,
+    );
+    expect(markedHrefs()).toEqual(["/projects/p1"]);
+
+    const arrive = await startNavigation("/projects/p2");
+    try {
+      expect(markedHrefs()).toEqual(["/projects/p1"]);
+    } finally {
+      await arrive();
+    }
+  });
+});
 
 describe("MenuItems project scope", () => {
   beforeEach(() => {

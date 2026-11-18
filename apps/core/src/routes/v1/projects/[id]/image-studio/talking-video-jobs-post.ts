@@ -77,6 +77,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
                 },
                 consentAt: new Date(),
               },
+        siteShots: input.siteShots,
+        broll: input.broll,
+        music: input.music,
         idempotencyKey: input.idempotencyKey,
       });
 

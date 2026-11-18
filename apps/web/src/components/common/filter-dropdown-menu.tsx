@@ -40,6 +40,7 @@ export interface FilterDropdownMenuOption {
   label: string;
   /** Compact selected value; the full label wraps in the options and appears in a tooltip. */
   shortLabel?: string;
+  mark?: ReactNode;
   avatarLabel?: string;
   image?: string | null;
   useAgentIcon?: boolean;
@@ -72,6 +73,11 @@ interface FilterDropdownMenuProps {
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
   showActiveIndicator?: boolean;
+  /**
+   * The trigger edge the desktop menu lines up with. `start` for a trigger at
+   * the left of its toolbar, where `end` would open the menu over the sidebar.
+   */
+  align?: "start" | "end";
   /** How many filters are set, shown on the trigger; `label` reads it out ("2 active"). */
   activeCount?: { count: number; label: string };
   /**
@@ -97,6 +103,7 @@ export function FilterDropdownMenu({
   emptyResultsLabel,
   sections,
   showActiveIndicator = false,
+  align = "end",
   activeCount,
   triggerClassName,
   hideMobileTrigger = false,
@@ -160,7 +167,7 @@ export function FilterDropdownMenu({
             ) : null}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align={align} className="w-64">
           {sections.map((section) => (
             <FilterDropdownMenuSectionItem
               key={section.id}
@@ -433,9 +440,10 @@ function FilterDropdownMenuOptionAvatar({
 }: {
   option: Pick<
     FilterDropdownMenuOption,
-    "avatarLabel" | "image" | "useAgentIcon"
+    "avatarLabel" | "image" | "useAgentIcon" | "mark"
   >;
 }) {
+  if (option.mark) return option.mark;
   if (!option.avatarLabel) {
     return null;
   }

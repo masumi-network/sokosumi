@@ -31,6 +31,7 @@ import { mapTaskFollowerRows } from "./task-follower-rows";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
+import { workspaceLabelTopicId } from "./workspace-label";
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
 
@@ -381,6 +382,17 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
   return null;
 }
 
+// Fixtures and narrow selects may omit the relation; that reads as none.
+function mapSubtaskProgress(
+  subtasks: readonly { status: TaskStatus }[] | undefined,
+) {
+  const rows = subtasks ?? [];
+  return {
+    completed: rows.filter((row) => row.status === TaskStatus.COMPLETED).length,
+    total: rows.length,
+  };
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -427,6 +439,17 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
+    workspaceTags: task.workspaceTags?.map(({ label, state }) => ({
+      id: label.id,
+      displayName: label.displayName,
+      color: label.color,
+      customColor: label.customColor,
+      taskTopicId: workspaceLabelTopicId(label),
+      source: state === "JEV_ADDED" ? ("jev" as const) : ("manual" as const),
+    })),
+    workspaceTagSuggestions: task.workspaceTagDecisions?.map(
+      ({ label }) => label,
+    ),
     status: task.status,
     priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
@@ -444,6 +467,9 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     runAt: task.runAt ?? null,
     // A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day.
     dueOn: task.dueOn ? task.dueOn.toISOString().slice(0, 10) : null,
+    parentTaskId: task.parentTaskId ?? null,
+    position: task.position ?? null,
+    subtaskProgress: mapSubtaskProgress(task.subtasks),
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
     participants: mapTaskParticipants(task),
