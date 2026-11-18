@@ -89,6 +89,8 @@ import {
   getTaskContextSelectionFromDescription,
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
+  toTaskContextSelectionInput,
+  withProjectBrandSource,
 } from "./task-context-attachments";
 import { TaskCreateProgress } from "./task-create-progress";
 import { TaskCreatedCelebration } from "./task-created-celebration";
@@ -566,17 +568,9 @@ export function TaskForm({
         (nextProjectId
           ? localProjectOptions.find((item) => item.id === nextProjectId)
           : undefined);
-      setContextSelection((current) => ({
-        ...current,
-        brand: {
-          ...current.brand,
-          source: project?.designMd
-            ? "project"
-            : current.brand.source === "project"
-              ? "default"
-              : current.brand.source,
-        },
-      }));
+      setContextSelection((current) =>
+        withProjectBrandSource(current, project),
+      );
     },
     [localProjectOptions],
   );
@@ -719,17 +713,7 @@ export function TaskForm({
     try {
       const trimmedDescription = description.trim();
       const trimmedName = name.trim();
-      const context: TaskContextSelectionInput = {
-        brand: {
-          enabled: contextSelection.brand.enabled,
-          source: contextSelection.brand.source,
-          custom: contextSelection.brand.custom
-            ? { url: contextSelection.brand.custom.url }
-            : null,
-        },
-        briefingEnabled: contextSelection.briefingEnabled,
-        contextMdEnabled: contextSelection.contextMdEnabled,
-      };
+      const context = toTaskContextSelectionInput(contextSelection);
       const assigneeFields = resolveTaskAssigneeFields(
         assigneeId,
         coworkerOptions,

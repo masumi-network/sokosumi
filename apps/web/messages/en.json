@@ -2143,7 +2143,24 @@
         "followError": "Couldn’t follow. Try again.",
         "credits": "Credits used in this workspace",
         "creditsUsed": "{credits, plural, one {# credit used in this workspace} other {# credits used in this workspace}}",
-        "noCreditsUsed": "No credits used in this workspace"
+        "noCreditsUsed": "No credits used in this workspace",
+        "assigneeField": {
+          "change": "Assign to…",
+          "noMatches": "No one matches",
+          "membersGroup": "Members",
+          "agentsGroup": "Coworkers",
+          "agentRequiredHint": "Scheduled tasks need a coworker or Soko Bot.",
+          "privateHint": "Only a coworker or Soko Bot can take a private task.",
+          "updateError": "Failed to update assignee"
+        },
+        "projectField": {
+          "change": "Move to project…",
+          "noMatches": "No project matches",
+          "open": "Open {name}",
+          "updateError": "Failed to update project",
+          "needsDescription": "This task has no text, so it can only move where a context file stays attached. Add a description to move it anywhere."
+        },
+        "organizationReadOnly": "read-only"
       },
       "NewTask": {
         "ContextAttachments": {

@@ -2143,7 +2143,24 @@
         "followError": "Folgen fehlgeschlagen. Bitte erneut versuchen.",
         "credits": "In diesem Workspace verbrauchte Credits",
         "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
-        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht"
+        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht",
+        "assigneeField": {
+          "change": "Zuweisen an…",
+          "noMatches": "Niemand gefunden",
+          "membersGroup": "Mitglieder",
+          "agentsGroup": "Coworker",
+          "agentRequiredHint": "Geplante Aufgaben brauchen einen Coworker oder Soko Bot.",
+          "privateHint": "Nur ein Coworker oder Soko Bot kann eine private Aufgabe übernehmen.",
+          "updateError": "Zuweisung konnte nicht geändert werden"
+        },
+        "projectField": {
+          "change": "In Projekt verschieben…",
+          "noMatches": "Kein Projekt gefunden",
+          "open": "{name} öffnen",
+          "updateError": "Projekt konnte nicht geändert werden",
+          "needsDescription": "Diese Aufgabe hat keinen Text. Sie kann nur dorthin, wo eine Kontextdatei angehängt bleibt. Füge eine Beschreibung hinzu, um sie frei zu verschieben."
+        },
+        "organizationReadOnly": "schreibgeschützt"
       },
       "NewTask": {
         "ContextAttachments": {
