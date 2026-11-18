@@ -169,7 +169,10 @@ export async function checkImageRequest(
   }
   if (credits > input.maxCredits)
     throw new SokoBotRuntimeValidationError(
-      `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+      style
+        ? // The owner asked for the picture, and a month's pictures cost the same.
+          `A picture in a library style costs ${credits} credits a try, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(credits)}.`
+        : `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
   return { input, model, settings, credits, referenceFileIds, style };
 }
