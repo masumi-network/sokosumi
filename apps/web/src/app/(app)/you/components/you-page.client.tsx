@@ -2,7 +2,9 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
+  Bot,
   CalendarDays,
+  Clapperboard,
   Code2,
   Coins,
   HardDrive,
@@ -17,6 +19,7 @@ import {
   SearchCheck,
   Share2,
   ShieldCheck,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -45,6 +48,9 @@ import { useSelfPresence } from "@/hooks/use-self-presence";
 import { getInitials } from "@/lib/utils/text";
 
 const ADMIN_HREF = "/admin";
+const AGENTS_HREF = "/agents";
+const CONTACTS_HREF = "/contacts";
+const TIKTOK_STUDIO_HREF = "/tiktok-studio";
 const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
 const STUDIO_HREF = "/studio";
@@ -176,6 +182,14 @@ export function YouPageClient({
           </MobileStackedMenuGroup>
 
           <MobileStackedMenuGroup>
+            {/* The sidebar's Agents, TikTok Studio and Contacts rows: phones
+                have no other way in. */}
+            <MobileStackedMenuLink
+              href={AGENTS_HREF}
+              icon={<Bot className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("exploreAgents")}
+              testId="you-agents"
+            />
             <MobileStackedMenuLink
               href={TASK_SCHEDULES_PATH}
               icon={<Repeat className="size-4 shrink-0" aria-hidden />}
@@ -194,6 +208,12 @@ export function YouPageClient({
               icon={<ImagePlus className="size-4 shrink-0" aria-hidden />}
               label={tMenu("contentStudio")}
               testId="you-studio"
+            />
+            <MobileStackedMenuLink
+              href={TIKTOK_STUDIO_HREF}
+              icon={<Clapperboard className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("tiktokStudio")}
+              testId="you-tiktok-studio"
             />
             {/* The sidebar's Social, SEO and Ads rows, for phones, where the
                 You page is the menu. */}
@@ -223,6 +243,12 @@ export function YouPageClient({
                 testId="you-newsletter"
               />
             ) : null}
+            <MobileStackedMenuLink
+              href={CONTACTS_HREF}
+              icon={<Users className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("contacts")}
+              testId="you-contacts"
+            />
             <MobileStackedMenuLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}

@@ -207,14 +207,25 @@ describe("mobile-app-chrome", () => {
       "/account/notifications",
       "/billing",
       "/connections",
-      // Phones open SEO from the You page.
+      // Phones open SEO and Ads from the You page.
       "/seo",
+      "/ads",
     ])("sends You page row %s back to You", (pathname) => {
       expect(resolveMobileAppBackTarget(pathname)).toEqual({
         href: "/you",
         labelKey: "back",
       });
     });
+
+    it.each(["/ads/campaigns/c1", "/ads/campaigns/c1/edit"])(
+      "sends Ads page %s back to Ads",
+      (pathname) => {
+        expect(resolveMobileAppBackTarget(pathname)).toEqual({
+          href: "/ads",
+          labelKey: "back",
+        });
+      },
+    );
   });
 
   describe("shouldShowMobileBottomNav", () => {

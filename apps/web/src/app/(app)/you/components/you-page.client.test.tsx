@@ -278,6 +278,34 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
+  // Phones have no sidebar: every sidebar destination needs a row here.
+  it("lists the sidebar's Agents, TikTok Studio and Contacts in sidebar order", () => {
+    renderYouPage();
+
+    const agents = screen.getByTestId("you-agents");
+    const schedules = screen.getByTestId("you-schedules");
+    const studio = screen.getByTestId("you-studio");
+    const tiktok = screen.getByTestId("you-tiktok-studio");
+    const social = screen.getByTestId("you-social");
+    const contacts = screen.getByTestId("you-contacts");
+    const files = screen.getByTestId("you-files");
+
+    expect(agents).toHaveAttribute("href", "/agents");
+    expect(tiktok).toHaveAttribute("href", "/tiktok-studio");
+    expect(contacts).toHaveAttribute("href", "/contacts");
+    for (const [before, after] of [
+      [agents, schedules],
+      [studio, tiktok],
+      [tiktok, social],
+      [contacts, files],
+    ]) {
+      expect(
+        before.compareDocumentPosition(after) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
   it("shows Admin alone before account links when admin is enabled", () => {
     renderYouPage();
 

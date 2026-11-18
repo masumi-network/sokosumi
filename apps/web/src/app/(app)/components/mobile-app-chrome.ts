@@ -52,6 +52,7 @@ const YOU_HUB_CHILD_PATHS = [
   "/billing",
   "/connections",
   "/seo",
+  "/ads",
 ] as const;
 
 const DEVELOPER_PATH = /^\/developer(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/;
@@ -100,6 +101,7 @@ export function getAgentJobsPathAgentId(
  * Tab list roots → null; Agents root → home; non-tab hub roots → Chats
  * (Soko Bot setup opened from Home → home); nested → list root.
  * You page rows outside `/you/` (Account, Billing, Connections) → You.
+ * Ads pages (campaigns) → Ads.
  * Developer sections → the You → Developer menu; their detail pages → the
  * section list.
  */
@@ -109,6 +111,9 @@ export function resolveMobileAppBackTarget(
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
+  }
+  if (pathname.startsWith("/ads/")) {
+    return { href: "/ads", labelKey: "back" };
   }
   if (
     YOU_HUB_CHILD_PATHS.some(
