@@ -13,7 +13,8 @@ import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
-import { tryUseLogger } from "@/lib/evlog";
+import { recordCoreWarning, tryUseLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
@@ -25,6 +26,7 @@ import {
   saveBrandBrain,
 } from "@/services/brand-brain.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
+import { syncTrackedCompetitorsFromBrandBrain } from "@/services/cmo-competitors.service";
 import {
   CmoNotFoundError,
   startCmoProduction,
@@ -358,6 +360,22 @@ export async function saveCmoRecord(
           });
         });
         if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
+        if (save.brandBrain || save.reveal)
+          await syncTrackedCompetitorsFromBrandBrain(saved.projectId).catch(
+            (error) =>
+              recordCoreWarning(
+                {
+                  operation: "cmo_competitor_sync",
+                  project: { id: saved.projectId },
+                },
+                {
+                  message: "Could not fill the tracked competitors",
+                  why: "Reading them from the saved Brand Brain threw",
+                  fix: "The Brand Brain is saved. The weekly competitor check fills the list again before it runs.",
+                },
+                { failure: messageSafeErrorFields(error) },
+              ),
+          );
         const stored = parseBrandBrain(saved.body);
         // The owner opens on the reveal and answers the questions next, so
         // essentials without them leave two empty screens.
