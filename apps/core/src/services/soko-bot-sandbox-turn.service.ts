@@ -670,8 +670,11 @@ export async function proxySandboxModelCall(
  * first stops any VM still holding the bot's workspace, so the order here
  * cannot race it.
  */
-async function settleAndStop(log: RuntimeEventLog): Promise<void> {
-  await closeTurn(log, log.turnId);
+async function settleAndStop(
+  log: RuntimeEventLog,
+  launchLeaseToken: string | undefined,
+): Promise<void> {
+  await closeTurn(log, launchLeaseToken);
   await stopTurnSandbox(log.turnId);
 }
 
@@ -718,7 +721,7 @@ export async function completeSandboxTurn(
       message: error instanceof Error ? error.message : "Could not finish",
     });
   }
-  await settleAndStop(log);
+  await settleAndStop(log, claims.reconciliationLeaseToken);
 }
 
 /**
@@ -796,5 +799,5 @@ export async function failSandboxTurn(
       { turnId: claims.turnId, sessionId: claims.sessionId },
       diagnostic,
     );
-  await settleAndStop(log);
+  await settleAndStop(log, claims.reconciliationLeaseToken);
 }
