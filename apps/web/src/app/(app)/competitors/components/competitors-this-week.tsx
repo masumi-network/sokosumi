@@ -16,8 +16,11 @@ import { CompetitorsSource } from "./competitors-source";
  */
 export async function CompetitorsThisWeek({
   data,
+  readOnly,
 }: {
   data: ProjectCompetitors;
+  /** A CMO Project: Cuso writes its week, no Soko Bot does. */
+  readOnly: boolean;
 }) {
   const t = await getTranslations("App.Competitors.thisWeek");
   const format = await getFormatter();
@@ -42,7 +45,9 @@ export async function CompetitorsThisWeek({
       title={t("title")}
     >
       {!feed ? (
-        <CompetitorsEmpty>{t("none")}</CompetitorsEmpty>
+        <CompetitorsEmpty>
+          {readOnly ? t("noneReadOnly") : t("none")}
+        </CompetitorsEmpty>
       ) : feed.items.length === 0 ? (
         <CompetitorsEmpty>{t("quiet")}</CompetitorsEmpty>
       ) : (

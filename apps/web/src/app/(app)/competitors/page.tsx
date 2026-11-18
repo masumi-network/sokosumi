@@ -58,7 +58,7 @@ export default async function CompetitorsPage({
         {readOnly ? <CmoProjectBanner projectId={project.id} /> : null}
         <div className="grid items-start gap-4 xl:grid-cols-3">
           <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
-            <CompetitorsThisWeek data={competitors} />
+            <CompetitorsThisWeek data={competitors} readOnly={readOnly} />
             <CompetitorsFindings data={competitors} />
             <CompetitorsScoreboard data={competitors} />
           </div>

@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
-  type CmoCompetitorFeedItem,
-  type CmoSaveCompetitorFeedInput,
-  cmoCompetitorFeedItemSchema,
+  type CompetitorFeedItem,
+  competitorFeedItemSchema,
+  type SaveCompetitorFeedInput,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import {
@@ -135,13 +135,13 @@ export class CompetitorFeedRefusedError extends Error {
  * One move: its competitor and the signals it cites. A rewrite of the week
  * that cites the same signals is the same move, however it is worded.
  */
-function moveKey(item: CmoSaveCompetitorFeedInput["items"][number]): string {
+function moveKey(item: SaveCompetitorFeedInput["items"][number]): string {
   return `${item.competitorId}:${[...new Set(item.facts.flatMap((fact) => fact.signalIds))].sort().join(",")}`;
 }
 
 /** The feed's moves as stored in `competitor_feed.items`. */
 export function feedItemsJson(
-  items: readonly CmoCompetitorFeedItem[],
+  items: readonly CompetitorFeedItem[],
 ): Prisma.InputJsonValue {
   return items.map((item) => ({
     ...item,
@@ -173,13 +173,13 @@ export type CitedSignal = CitableSignal & { sourceUrl: string | null };
 export async function saveCompetitorFeed(input: {
   projectId: string;
   turnId: string | null;
-  feed: CmoSaveCompetitorFeedInput;
+  feed: SaveCompetitorFeedInput;
   now?: Date;
 }): Promise<{
   saved: number;
   bigMoves: { competitor: string; fact: string }[];
   costUsd: number;
-  items: CmoCompetitorFeedItem[];
+  items: CompetitorFeedItem[];
   competitorNames: ReadonlyMap<string, string>;
   signals: ReadonlyMap<string, CitedSignal>;
 }> {
@@ -245,7 +245,7 @@ export async function saveCompetitorFeed(input: {
           fact.signalIds.flatMap((id) => byId.get(id) ?? []),
         ),
       );
-      const made: CmoCompetitorFeedItem = {
+      const made: CompetitorFeedItem = {
         ...item,
         id: kept?.id ?? randomUUID(),
         big: rank !== null,
@@ -287,8 +287,8 @@ export async function saveCompetitorFeed(input: {
   };
 }
 
-export function parseFeedItems(value: unknown): CmoCompetitorFeedItem[] {
-  const parsed = z.array(cmoCompetitorFeedItemSchema).safeParse(value);
+export function parseFeedItems(value: unknown): CompetitorFeedItem[] {
+  const parsed = z.array(competitorFeedItemSchema).safeParse(value);
   return parsed.success ? parsed.data : [];
 }
 

@@ -221,13 +221,29 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "research_keywords",
   "check_search_rankings",
   "save_seo_suggestions",
-  // The weekly competitor watch: what Core's check found, and the feed.
-  "check_competitors",
-  "save_competitor_feed",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {
   return (SOKO_BOT_CMO_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/**
+ * A Project's competitor monitoring: what Core's weekly check found, and
+ * the week's feed. Core offers them to a bot only while the weekly check is
+ * on for a Project it works in, and checks the Project again on each call.
+ * A CMO bot always carries them: its check runs while it is paid for.
+ */
+export const SOKO_BOT_COMPETITOR_CAPABILITIES = [
+  "check_competitors",
+  "save_competitor_feed",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCompetitorCapability(
+  value: string,
+): value is (typeof SOKO_BOT_COMPETITOR_CAPABILITIES)[number] {
+  return (SOKO_BOT_COMPETITOR_CAPABILITIES as readonly string[]).includes(
+    value,
+  );
 }
 
 /**
