@@ -164,6 +164,7 @@ export {
   isCmoChannelFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
