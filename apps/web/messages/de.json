@@ -1914,7 +1914,7 @@
         "topicTags": "Standardthemen",
         "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
         "needsMe": "Wartet auf mich",
-        "needsMeHint": "Tasks, die auf deine Eingabe, Freigabe oder Anmeldung warten und die dir gehören oder dir zugewiesen sind"
+        "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind"
       },
       "Detail": {
         "back": "Zurück zu Tasks",

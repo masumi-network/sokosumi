@@ -308,13 +308,16 @@ export function TasksViewFilters({
   const assigneeId =
     filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId;
   const chips = [
-    filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
-      id: "scope",
-      label: labels.scopeLabel,
-      value:
-        filters.scope === "owned" ? labels.scopeOwned : labels.scopeWorkspace,
-      clear: { scope: getDefaultTasksScope(activeOrganizationId) },
-    },
+    // Needs me reads the reader's own Tasks whatever the scope says, so the
+    // scope chip would name a scope that is not the one shown.
+    !filters.needsMe &&
+      filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
+        id: "scope",
+        label: labels.scopeLabel,
+        value:
+          filters.scope === "owned" ? labels.scopeOwned : labels.scopeWorkspace,
+        clear: { scope: getDefaultTasksScope(activeOrganizationId) },
+      },
     filters.visibility === TaskVisibility.PRIVATE && {
       id: "visibility",
       label: labels.visibilityLabel,
