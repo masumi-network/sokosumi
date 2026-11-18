@@ -85,7 +85,10 @@ import {
   CmoForbiddenError,
   CmoNotFoundError,
 } from "@/services/cmo-cuso.service";
-import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
+import {
+  SokoBotBusyError,
+  SokoBotTurnInProgressError,
+} from "@/services/soko-bot-control-plane.service";
 
 import cmoRouter from "./index";
 
@@ -519,6 +522,27 @@ describe("CMO routes", () => {
       },
     );
     expect(response.status).toBe(409);
+    expect((await response.json()).message).toBe("Cuso is already working");
+  });
+
+  it.each([
+    ["Soko Bot is paused", "Cuso is paused"],
+    [
+      "This Soko Bot has reached its owner's daily limit",
+      "Cuso has reached its owner's daily limit",
+    ],
+  ])("never names the Soko Bot in a refusal: %s", async (thrown, shown) => {
+    strategyMock.mockRejectedValue(new SokoBotBusyError(thrown));
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/strategy`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    expect(response.status).toBe(409);
+    expect((await response.json()).message).toBe(shown);
   });
 
   it("archives the named Cuso on starting over and names no next one", async () => {

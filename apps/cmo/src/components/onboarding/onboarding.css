@@ -2256,6 +2256,16 @@ body:has(.ob) .site-header {
     justify-content: space-between;
   }
 
+  /* Five labels are wider than a phone; the other steps keep their number or tick. */
+  .ob-step:not(.now) .ob-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .ob-main {
     padding: 16px 16px 48px;
   }
