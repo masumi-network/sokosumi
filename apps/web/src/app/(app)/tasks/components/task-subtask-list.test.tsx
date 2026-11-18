@@ -108,18 +108,6 @@ function addByDialog(name: string) {
   fireEvent.click(screen.getByRole("button", { name: "create" }));
 }
 
-/** What Core's list read returns for a sub-task. */
-function listItem(id: string, name = id) {
-  return {
-    id,
-    identifier: null,
-    name,
-    status: TaskStatus.READY,
-    dueOn: null,
-    subtaskProgress: { completed: 0, total: 0 },
-  };
-}
-
 function rowNames() {
   // An open dialog hides the rest of the page from the accessibility tree.
   return screen
@@ -231,6 +219,22 @@ describe("TaskSubtaskList", () => {
     expect(rowNames()).toEqual(["a"]);
   });
 
+  it("keeps a failure that is not Core's refusal off the toast", async () => {
+    createSubtask.mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "fetch failed" },
+    });
+    renderList([row("a")]);
+
+    addByDialog("Book the venue");
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("createError", {
+        description: undefined,
+      }),
+    );
+  });
+
   it("takes newer page rows after a refresh", async () => {
     const { rerender } = renderList([row("a")], undefined, 1_000);
 
@@ -298,13 +302,10 @@ describe("TaskSubtaskList", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("sends the name, assignee and due date from the + dialog and reads the list again", async () => {
+  it("sends the name, assignee and due date from the + dialog and takes the refreshed page rows", async () => {
     const user = userEvent.setup();
     createSubtask.mockResolvedValue({ ok: true, value: {} });
-    renderList([row("a")]);
-    getTasks.mockResolvedValue({
-      data: [listItem("a"), listItem("new", "Book it")],
-    });
+    const { rerender } = renderList([row("a")]);
 
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.type(screen.getByRole("textbox", { name: "name" }), "Book it");
@@ -327,8 +328,14 @@ describe("TaskSubtaskList", () => {
         dueOn: "2026-12-01",
       }),
     );
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
+    );
+    // The action re-renders the page. A read of its own could land before a
+    // toggle in flight and undo it on screen.
+    expect(getTasks).not.toHaveBeenCalled();
+    rerender([row("a"), row("new", { name: "Book it" })], 2_000);
     await waitFor(() => expect(rowNames()).toEqual(["a", "Book it"]));
-    expect(screen.queryByRole("textbox", { name: "name" })).toBeNull();
   });
 
   it("labels the assignee picker in the + dialog", () => {

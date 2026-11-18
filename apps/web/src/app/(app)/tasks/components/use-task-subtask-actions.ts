@@ -15,6 +15,7 @@ import type { TaskPickerTask } from "./task-detail-api-types";
 import type { TaskPickerOption } from "./task-link-task-picker-dialog";
 import {
   invalidateSubtaskLists,
+  refusalDescription,
   taskSubtasksQueryKey,
   useCreateSubtask,
 } from "./use-task-subtasks";
@@ -106,12 +107,11 @@ export function useTaskSubtaskActions({
         const result = await setTaskParent(input);
         if (!result.ok) {
           toast.error(t("moveError"), {
-            description: result.error.message || undefined,
+            description: refusalDescription(result.error),
           });
           return;
         }
-        invalidateSubtaskLists(queryClient, [
-          taskId,
+        invalidateSubtaskLists(queryClient, taskId, [
           input.parentTaskId,
           oldParentTaskId,
         ]);

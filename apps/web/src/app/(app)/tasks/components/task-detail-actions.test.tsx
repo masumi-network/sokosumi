@@ -2544,7 +2544,7 @@ describe("TaskDetailActions", () => {
         ?.isInvalidated;
     }
 
-    it("reads the old and the new parent's checklists again after a move", async () => {
+    it("reads the old and the new parent's checklists again after a move, not this page's", async () => {
       const user = userEvent.setup();
       listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
       for (const id of ["task-1", "task-parent", "task-new", "task-other"])
@@ -2562,11 +2562,12 @@ describe("TaskDetailActions", () => {
 
       await waitFor(() => expect(isStale("task-new")).toBe(true));
       expect(isStale("task-parent")).toBe(true);
-      expect(isStale("task-1")).toBe(true);
+      // The action re-renders this page with newer rows.
+      expect(isStale("task-1")).toBe(false);
       expect(isStale("task-other")).toBe(false);
     });
 
-    it("reads a picked Task's old parent's checklist again after Add existing", async () => {
+    it("reads a picked Task's old parent's checklist again after Add existing, not this page's", async () => {
       const user = userEvent.setup();
       listTasks(
         buildTaskListItem({
@@ -2585,10 +2586,10 @@ describe("TaskDetailActions", () => {
       );
 
       await waitFor(() => expect(isStale("task-old")).toBe(true));
-      expect(isStale("task-1")).toBe(true);
+      expect(isStale("task-1")).toBe(false);
     });
 
-    it("reads the old parent's checklist again after Remove from parent", async () => {
+    it("reads the old parent's checklist again after Remove from parent, not this page's", async () => {
       const user = userEvent.setup();
       for (const id of ["task-1", "task-parent"]) cacheSubtasks(id, []);
       renderActions({ parentTaskId: "task-parent" });
@@ -2599,7 +2600,7 @@ describe("TaskDetailActions", () => {
       );
 
       await waitFor(() => expect(isStale("task-parent")).toBe(true));
-      expect(isStale("task-1")).toBe(true);
+      expect(isStale("task-1")).toBe(false);
     });
 
     it("keeps the picker open while the move runs and closes it on success", async () => {
@@ -2775,6 +2776,28 @@ describe("TaskDetailActions", () => {
       );
     });
 
+    it("keeps a failure that is not Core's refusal off the move toast", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
+      setTaskParentMock.mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "fetch failed" },
+      });
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "New parent" }),
+      );
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("moveError", {
+          description: undefined,
+        }),
+      );
+    });
+
     it("removes a sub-task from its parent, and offers that only to a sub-task", async () => {
       const user = userEvent.setup();
       const { unmount } = renderActions();
@@ -2852,7 +2875,7 @@ describe("TaskDetailActions", () => {
       );
     });
 
-    it("reads the checklist again and returns focus to the menu after a new sub-task", async () => {
+    it("leaves the checklist to the page refresh and returns focus to the menu after a new sub-task", async () => {
       const user = userEvent.setup();
       createSubtaskMock.mockResolvedValue({ ok: true, value: {} });
       cacheSubtasks("task-1", []);
@@ -2867,7 +2890,9 @@ describe("TaskDetailActions", () => {
       await waitFor(() =>
         expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
       );
-      expect(isStale("task-1")).toBe(true);
+      // The action re-renders this page; a read here could undo a toggle
+      // still in flight.
+      expect(isStale("task-1")).toBe(false);
       await waitFor(() => expect(trigger).toHaveFocus());
     });
 

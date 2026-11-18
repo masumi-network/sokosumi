@@ -2083,9 +2083,9 @@
             "moveUnderSuccess": "Tarea movida",
             "removeFromParent": "Quitar de la tarea principal",
             "removeFromParentSuccess": "Tarea quitada de su tarea principal",
-            "moveError": "No se pudo mover la tarea. Inténtalo de nuevo.",
+            "moveError": "No se pudo mover la tarea.",
             "createSuccess": "Subtarea añadida",
-            "createError": "No se pudo añadir la subtarea. Inténtalo de nuevo."
+            "createError": "No se pudo añadir la subtarea."
           }
         },
         "ShareModal": {

@@ -16,6 +16,8 @@ import {
   type SubtaskRow,
   toSubtaskRow,
 } from "@/app/tasks/utils/task-subtask-row";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { createSubtask, moveSubtask } from "@/lib/actions/task/subtask-action";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -25,17 +27,32 @@ export function taskSubtasksQueryKey(parentTaskId: string) {
   return ["task-subtasks", parentTaskId] as const;
 }
 
-/** Reads again the checklists of the parents a change touched. */
+/**
+ * Reads again the checklists of the parents a change touched, except the open
+ * page's own. The action already re-renders that page with newer rows, and a
+ * read here could land before a toggle in flight and undo it on screen. The
+ * other lists are not on screen, so this only marks them stale.
+ */
 export function invalidateSubtaskLists(
   queryClient: QueryClient,
+  pageTaskId: string,
   parentTaskIds: readonly (string | null | undefined)[],
 ) {
   for (const id of new Set(parentTaskIds)) {
-    if (id)
+    if (id && id !== pageTaskId)
       void queryClient.invalidateQueries({
         queryKey: taskSubtasksQueryKey(id),
       });
   }
+}
+
+/**
+ * Core's own words for a refusal, such as a cycle or a tree too deep. Any
+ * other failure keeps its raw text, such as "fetch failed", off the toast.
+ */
+export function refusalDescription(error: ActionError): string | undefined {
+  if (error.code === CommonErrorCode.INTERNAL_SERVER_ERROR) return undefined;
+  return error.message || undefined;
 }
 
 /** What the "Add sub-task" dialog asks for. */
@@ -68,18 +85,16 @@ export function createSubtaskFromDraft(
  */
 export function useCreateSubtask(parentTaskId: string) {
   const t = useTranslations("App.Tasks.Detail.actions.subtasks");
-  const queryClient = useQueryClient();
 
   return async function handleCreate(draft: NewSubtaskDraft): Promise<boolean> {
     try {
       const result = await createSubtaskFromDraft(parentTaskId, draft);
       if (!result.ok) {
         toast.error(t("createError"), {
-          description: result.error.message || undefined,
+          description: refusalDescription(result.error),
         });
         return false;
       }
-      invalidateSubtaskLists(queryClient, [parentTaskId]);
       toast.success(t("createSuccess"));
       return true;
     } catch (error) {
