@@ -8,6 +8,7 @@ import {
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreWarning,
@@ -640,7 +641,9 @@ export async function readCmoProduction(
     working,
   });
   if (!context.subscribed) return read("waiting");
-  const all = await productionRuns(cuso.sokoBotId, approvedAt, now);
+  // Runs' createdAt is PostgreSQL time, so their day is measured on it.
+  const runsNow = await databaseNow();
+  const all = await productionRuns(cuso.sokoBotId, approvedAt, runsNow);
   const prefix = approvalRunPrefix(cuso.sokoBotId, approvedAt);
   const runs = all.filter((run) => run.clientTurnId.startsWith(prefix));
   // A follow-up a run left behind (wait_for) works on the same pieces.
@@ -658,7 +661,7 @@ export async function readCmoProduction(
   // Every piece has its words and visual: Core is making the pictures.
   if (pending.length === 0) return read("running", runs);
   const today = all.filter(
-    (run) => now.getTime() - run.createdAt.getTime() < DAY_MS,
+    (run) => runsNow.getTime() - run.createdAt.getTime() < DAY_MS,
   );
   // The last run finished without making a single piece ready (images
   // refused, a tool down): another run today would only fail the same way.
@@ -667,7 +670,7 @@ export async function readCmoProduction(
   const lastReady = last ? readyAtStart(last) : null;
   const stalled =
     last?.status === "COMPLETED" &&
-    now.getTime() - last.createdAt.getTime() < DAY_MS &&
+    runsNow.getTime() - last.createdAt.getTime() < DAY_MS &&
     lastReady !== null &&
     ready.size <= lastReady;
   if (today.length >= CMO_PRODUCTION_RUNS_PER_DAY || stalled)

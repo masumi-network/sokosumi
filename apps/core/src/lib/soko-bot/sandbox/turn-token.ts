@@ -44,10 +44,15 @@ export function issueTurnToken(claims: TurnTokenClaims): string {
   return `${payload}.${sign(payload)}`;
 }
 
-/** The claims of a valid, unexpired token for `turnId`, or null. */
+/**
+ * The claims of a valid token for `turnId` unexpired at `now` (Unix
+ * milliseconds), or null. `expiresAt` comes from the turn's PostgreSQL-time
+ * deadline, so callers pass PostgreSQL time.
+ */
 export function verifyTurnToken(
   token: string | undefined,
   turnId: string,
+  now: number,
 ): TurnTokenClaims | null {
   if (!token) return null;
   const [payload, signature] = token.split(".");
@@ -66,7 +71,5 @@ export function verifyTurnToken(
   } catch {
     return null;
   }
-  return claims.turnId === turnId && claims.expiresAt > Date.now()
-    ? claims
-    : null;
+  return claims.turnId === turnId && claims.expiresAt > now ? claims : null;
 }

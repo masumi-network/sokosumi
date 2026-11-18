@@ -16,7 +16,7 @@ describe("turn tokens", () => {
       sessionId: "sess_1",
       expiresAt,
     });
-    expect(verifyTurnToken(token, TURN)).toEqual({
+    expect(verifyTurnToken(token, TURN, Date.now())).toEqual({
       turnId: TURN,
       sessionId: "sess_1",
       expiresAt,
@@ -29,7 +29,7 @@ describe("turn tokens", () => {
       sessionId: "sess_1",
       expiresAt: Date.now() + 60_000,
     });
-    expect(verifyTurnToken(token, "another-turn")).toBeNull();
+    expect(verifyTurnToken(token, "another-turn", Date.now())).toBeNull();
     expect(
       verifyTurnToken(
         issueTurnToken({
@@ -38,6 +38,7 @@ describe("turn tokens", () => {
           expiresAt: Date.now() - 1,
         }),
         TURN,
+        Date.now(),
       ),
     ).toBeNull();
     const [payload, signature] = token.split(".");
@@ -48,8 +49,10 @@ describe("turn tokens", () => {
         expiresAt: Date.now() + 1e9,
       }),
     ).toString("base64url");
-    expect(verifyTurnToken(`${forged}.${signature}`, TURN)).toBeNull();
-    expect(verifyTurnToken(`${payload}.`, TURN)).toBeNull();
-    expect(verifyTurnToken(undefined, TURN)).toBeNull();
+    expect(
+      verifyTurnToken(`${forged}.${signature}`, TURN, Date.now()),
+    ).toBeNull();
+    expect(verifyTurnToken(`${payload}.`, TURN, Date.now())).toBeNull();
+    expect(verifyTurnToken(undefined, TURN, Date.now())).toBeNull();
   });
 });

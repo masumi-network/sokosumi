@@ -242,16 +242,17 @@ export async function authorize(
 }
 
 export async function requireMutationAuthority(
-  runtime: RuntimeOperations,
+  runtime: Pick<RuntimeOperations, "requireWriteScope">,
   tx: Prisma.TransactionClient,
   authorized: SokoBotActionContext,
   approved: boolean,
   capability?: SokoBotCapability,
   targets: SokoBotWriteTargets = {},
 ) {
-  const now = await databaseNow(tx);
   if (approved && authorized.confirmationTurnId) {
     await tx.$queryRaw`SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
+    // Sampled after the lock, so a lease that ends during the wait counts.
+    const now = await databaseNow(tx);
     const confirmation = await tx.sokoBotTurn.findFirst({
       where: {
         id: authorized.confirmationTurnId,
@@ -307,7 +308,8 @@ export async function requireMutationAuthority(
         sokoBotId: authorized.turn.sokoBotId,
         workspaceId: authorized.turn.workspaceId,
         state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },
-        expiresAt: { gt: now },
+        // Host time: intents are issued and looked up on the host clock.
+        expiresAt: { gt: new Date() },
       },
       select: { id: true },
     });
@@ -336,6 +338,8 @@ export async function requireMutationAuthority(
     return workspace;
   }
 
+  // Sampled after the turn and bot locks above.
+  const now = await databaseNow(tx);
   const writable = await tx.sokoBotTurn.findFirst({
     where: {
       id: authorized.turn.id,

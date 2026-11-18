@@ -20,6 +20,10 @@ const service = vi.hoisted(() => ({
   sandboxFileSource: vi.fn(),
   startSandboxTurn: vi.fn(),
 }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/services/soko-bot-sandbox-turn.service", () => service);
 
 const { default: runtimeRouter } = await import("./index");

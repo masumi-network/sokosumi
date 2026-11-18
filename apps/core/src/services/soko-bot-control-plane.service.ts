@@ -2475,6 +2475,9 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        // One sample under the bot lock: the daily cap's day start and the
+        // new turn's createdAt, which graces and cutoffs read, share it.
+        const reservedAt = await databaseNow(tx);
         const currentBot = await tx.sokoBot.findUnique({
           where: { id: bot.id },
           select: {
@@ -2514,7 +2517,7 @@ export class SokoBotControlPlane {
             where: {
               sokoBotId: bot.id,
               createdAt: {
-                gte: localDayStart(new Date(), currentBot.ingestTimezone),
+                gte: localDayStart(reservedAt, currentBot.ingestTimezone),
               },
               clientTurnId: { not: { startsWith: "lab:" } },
               OR: [
@@ -2578,8 +2581,7 @@ export class SokoBotControlPlane {
             route: classification.classification.route,
             clientTurnId,
             versionId: version.id,
-            // Recovery graces and watchdog cutoffs compare it with PostgreSQL time.
-            createdAt: await databaseNow(tx),
+            createdAt: reservedAt,
             userMessage: message,
             destinationRoomId: destinationRoom?.id ?? null,
             destinationAudience: destinationAudience

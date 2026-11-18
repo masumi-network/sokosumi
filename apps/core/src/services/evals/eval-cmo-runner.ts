@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
@@ -133,8 +134,8 @@ async function cusoIsBusy(lane: EvalLaneRecord) {
     },
     select: { id: true, deadlineAt: true },
   });
-  const now = Date.now();
-  const dead = active.filter((turn) => turn.deadlineAt.getTime() <= now);
+  const now = await databaseNow();
+  const dead = active.filter((turn) => turn.deadlineAt <= now);
   await Promise.all(dead.map((turn) => endTurn(turn.id)));
   return active.length > dead.length;
 }
@@ -516,13 +517,15 @@ export async function startCmoCase(
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
+    // createdAt and the cap's window are PostgreSQL time.
+    const now = (await databaseNow()).getTime();
     await prisma.sokoBotTurn.updateMany({
       where: {
         sokoBotId: lane.cusoBotId,
         clientTurnId: { startsWith: CMO_PRODUCTION_TURN_PREFIX },
-        createdAt: { gt: new Date(Date.now() - DAY_MS) },
+        createdAt: { gt: new Date(now - DAY_MS) },
       },
-      data: { createdAt: new Date(Date.now() - DAY_MS - 60 * 60_000) },
+      data: { createdAt: new Date(now - DAY_MS - 60 * 60_000) },
     });
     const plan = monthPlanFromTomorrow(frozen, new Date());
     await connectPlanChannels(lane, plan);
