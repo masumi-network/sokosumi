@@ -198,7 +198,9 @@ export function useTasksViewModel({
   // A pending row has no confirmed tags. Core supplies the matching row on save.
   // Needs me shows only Tasks that wait for a person, and a new Task does not.
   const shownItems =
-    routeFilters.tag || routeFilters.needsMe ? items : itemsWithPending;
+    routeFilters.tag || routeFilters.needsMe || routeFilters.mentions
+      ? items
+      : itemsWithPending;
   const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
   // Every setListCursor / setIsLoadingListMore call writes these refs directly.
@@ -299,7 +301,10 @@ export function useTasksViewModel({
       // A missing Task on a tagged board may have lost its tag, and under
       // Needs me it may no longer wait for a person.
       keepLocalOnlyTasks:
-        !isListView && !initialFilters.tag && !initialFilters.needsMe,
+        !isListView &&
+        !initialFilters.tag &&
+        !initialFilters.needsMe &&
+        !initialFilters.mentions,
     });
 
     setItems(next);

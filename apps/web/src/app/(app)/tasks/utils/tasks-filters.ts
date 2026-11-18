@@ -9,6 +9,18 @@ export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 /** Core's scope for Tasks the reader owns or is the assignee of. */
 export const NEEDS_ME_SCOPE = "mine" as const;
 
+/**
+ * The scope a Task query runs with. Needs me reads the reader's own Tasks.
+ * Mentions reads the whole workspace, because a mention is often on a
+ * teammate's Task.
+ */
+export function tasksQueryScope(
+  scope: "workspace" | "owned",
+  { needsMe, mentions }: { needsMe?: boolean; mentions?: boolean },
+): "workspace" | "owned" | typeof NEEDS_ME_SCOPE {
+  return needsMe ? NEEDS_ME_SCOPE : mentions ? "workspace" : scope;
+}
+
 export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
 
 export interface TasksFilters {
@@ -28,6 +40,11 @@ export interface TasksFilters {
    * reader owns the Task or is its assignee.
    */
   needsMe?: boolean;
+  /**
+   * Only Tasks where a comment mentions the reader and the reader has not
+   * commented since, anywhere in the workspace.
+   */
+  mentions?: boolean;
 }
 
 /** Days in one status after which a waiting Task counts as stuck. */
@@ -64,6 +81,7 @@ export interface TasksFiltersSearchParams {
   visibility?: TasksFilterQueryParam;
   stuck?: TasksFilterQueryParam;
   needsMe?: TasksFilterQueryParam;
+  mentions?: TasksFilterQueryParam;
   tag?: TasksFilterQueryParam;
 }
 
@@ -79,6 +97,7 @@ export const TASKS_FILTER_PARAM_KEYS = {
   visibility: "visibility",
   stuck: "stuck",
   needsMe: "needsMe",
+  mentions: "mentions",
   tag: "tag",
 } as const;
 
@@ -237,6 +256,7 @@ export function getTasksFiltersFromSearchParams(
       tag: searchParams.get(TASKS_FILTER_PARAM_KEYS.tag) ?? undefined,
       stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
       needsMe: searchParams.get(TASKS_FILTER_PARAM_KEYS.needsMe) ?? undefined,
+      mentions: searchParams.get(TASKS_FILTER_PARAM_KEYS.mentions) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -327,6 +347,9 @@ export function parseTasksFilters(
     ...(sanitizeTasksStuckInput(firstQueryString(searchParams.needsMe))
       ? { needsMe: true }
       : {}),
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.mentions))
+      ? { mentions: true }
+      : {}),
   };
 }
 
@@ -412,6 +435,12 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.needsMe);
   }
 
+  if (filters.mentions) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.mentions, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.mentions);
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -434,7 +463,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}`;
 }
 
 /**
@@ -457,7 +486,8 @@ export function hasClearableTasksFilters(
         filters.visibility ||
         filters.tag ||
         filters.stuck ||
-        filters.needsMe,
+        filters.needsMe ||
+        filters.mentions,
     )
   );
 }
@@ -478,6 +508,7 @@ export function clearTasksFilters(
     tag: undefined,
     stuck: false,
     needsMe: undefined,
+    mentions: undefined,
   };
 }
 

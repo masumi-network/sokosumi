@@ -40,6 +40,7 @@ interface TasksPageProps {
     tag?: string | string[];
     stuck?: string | string[];
     needsMe?: string | string[];
+    mentions?: string | string[];
     /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
     tab?: string | string[];
     date?: string;
@@ -83,6 +84,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     tag,
     stuck,
     needsMe,
+    mentions,
   } = resolvedSearchParams;
   const [t, tColumns, tDetailActions, cookieStore, defaultViewMode] =
     await Promise.all([
@@ -127,6 +129,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       tag,
       stuck,
       needsMe,
+      mentions,
     },
     viewMode: defaultViewMode,
     personalAssistantFallback: t("personalAssistant"),

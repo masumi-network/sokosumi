@@ -1847,6 +1847,7 @@
         "loadMore": "Mehr laden"
       },
       "noTitle": "(Kein Titel)",
+      "unansweredMention": "Du hast eine unbeantwortete Erwähnung",
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
       "sokoBot": "Soko Bot",
@@ -1914,7 +1915,9 @@
         "topicTags": "Standardthemen",
         "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
         "needsMe": "Wartet auf mich",
-        "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind"
+        "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
+        "mentions": "Erwähnungen",
+        "mentionsHint": "Tasks, in denen dich ein Kommentar erwähnt und du seitdem nicht kommentiert hast"
       },
       "Detail": {
         "back": "Zurück zu Tasks",

@@ -412,4 +412,29 @@ describe("getTasksColumnPage", () => {
       }),
     );
   });
+
+  it("asks Core for unanswered mentions in the whole workspace under Mentions", async () => {
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: null });
+
+    await getTasksColumnPage({
+      columnId: "done",
+      cursor: null,
+      limit: 10,
+      // The reader's own scope: a mention is often on a teammate's Task.
+      scope: "owned",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      mentions: true,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    });
+
+    expect(listTasksMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ scope: "workspace", unansweredMention: true }),
+    );
+  });
 });

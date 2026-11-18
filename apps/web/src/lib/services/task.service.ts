@@ -47,6 +47,8 @@ interface ListTasksParams {
   archived?: boolean;
   /** Only this Task's direct sub-tasks, in their order. */
   parentTaskId?: string;
+  /** Only Tasks with a mention of the caller that the caller has not answered. */
+  unansweredMention?: boolean;
 }
 
 interface CreateTaskInput {
@@ -177,6 +179,9 @@ export const taskService = (() => {
       dueOnTo: params.dueOnTo,
       statusBefore: params.statusBefore,
       ...(params.archived ? { archived: "true" as const } : {}),
+      ...(params.unansweredMention
+        ? { unansweredMention: "true" as const }
+        : {}),
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),

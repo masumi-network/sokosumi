@@ -645,4 +645,22 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
       buildTasksFiltersSearchParams(params, cleared, "org-1").has("needsMe"),
     ).toBe(false);
   });
+
+  it("reads, writes and clears the Mentions filter", () => {
+    const filters = parseTasksFilters({ mentions: "1" }, "org-1");
+    expect(filters.mentions).toBe(true);
+    expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+
+    const params = buildTasksFiltersSearchParams(
+      new URLSearchParams(),
+      filters,
+      "org-1",
+    );
+    expect(params.get("mentions")).toBe("1");
+
+    const cleared = clearTasksFilters(filters, "org-1");
+    expect(
+      buildTasksFiltersSearchParams(params, cleared, "org-1").has("mentions"),
+    ).toBe(false);
+  });
 });
