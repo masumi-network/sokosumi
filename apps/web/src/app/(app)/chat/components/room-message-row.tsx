@@ -2196,7 +2196,8 @@ function SenderFace({
         avatarCode={sender.avatarCode}
         avatarState={streaming ? "working" : "idle"}
         avatarSize={orbSize / 2}
-        className={cn("ring-border ring-1", className)}
+        // A live avatar is a picture, never the orb, so it gets no ring.
+        className={className}
       />
     );
   }
