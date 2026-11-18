@@ -1454,6 +1454,8 @@ body:has(.ob) .site-header {
 
 .ob-plan-body {
   display: grid;
+  /* One column no wider than the page, however wide a child's content is. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 

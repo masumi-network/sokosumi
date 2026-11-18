@@ -50,7 +50,7 @@ export interface SokoBotScheduleSyncInput {
   shouldContinue: () => boolean;
   enqueueReconciliation?: (input: {
     turnId: string;
-    leaseToken?: string;
+    leaseToken: string;
   }) => void;
 }
 
@@ -474,7 +474,6 @@ export class SokoBotSchedulesSyncService {
       let turnStatus: string | null = null;
       let turnErrorKind: string | null = null;
       let reconciliationLeaseToken: string | undefined;
-      let startedFresh = false;
       if (turnId) {
         const existing = await prisma.sokoBotTurn.findUnique({
           where: { id: turnId },
@@ -591,7 +590,6 @@ export class SokoBotSchedulesSyncService {
         turnStatus = started.status;
         turnErrorKind = started.errorKind ?? null;
         reconciliationLeaseToken = started.reconciliationLeaseToken;
-        startedFresh = true;
         if (nudgeKeys.length > 0) {
           await stageSokoBotNudges(
             schedule.sokoBotId,
@@ -637,7 +635,7 @@ export class SokoBotSchedulesSyncService {
         data: { status: "RUNNING" },
       });
       if (linked.count === 0) return "deferred";
-      if (startedFresh && turnId) {
+      if (reconciliationLeaseToken && turnId) {
         try {
           enqueueReconciliation?.({
             turnId,

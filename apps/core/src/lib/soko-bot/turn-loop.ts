@@ -16,6 +16,7 @@ import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
   ACTION_LABELS,
@@ -180,6 +181,7 @@ export async function settleNow(turnId: string): Promise<void> {
     await sokoBotControlPlane.reconcileTurn(turnId);
   } catch (error) {
     // The cron will retry; a lost lease just means it got there first.
+    if (reportSokoBotReconciliationLeaseLoss(turnId, error)) return;
     // Only safe fields: settling writes the turn's reply, and a Prisma error
     // quotes what it writes.
     recordCoreWarning(

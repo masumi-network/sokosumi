@@ -6,6 +6,7 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
@@ -650,13 +651,12 @@ export class SokoBotEventsSyncService {
           })),
         });
         result.woken += 1;
-        // A duplicate that only observed lost the race to another sync, which
-        // drains the turn under the lease it shares. A duplicate this call
-        // acknowledged (a resumed or recovered start, a lost acknowledgement
-        // response) owns the drain: the watchdog would reach it only after
-        // its heartbeat is 45 s stale, and not at all past the deadline.
+        // The start result grants this call the drain after its own fresh start
+        // or won recovery claim, including when a CAS proves its acknowledgement
+        // committed despite a lost response. An observing duplicate leaves the
+        // drain to the owner. The watchdog can take over after the heartbeat
+        // goes stale, while the turn's deadline is still in the future.
         if (
-          (!started.duplicate || started.acknowledgedByCaller) &&
           started.reconciliationLeaseToken &&
           (started.status === "STARTING" || started.status === "RUNNING")
         ) {
@@ -667,6 +667,8 @@ export class SokoBotEventsSyncService {
               started.reconciliationLeaseToken,
             )
             .catch((error) => {
+              if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+                return;
               const log = createCoreLogger({
                 operation: OPERATION,
                 sokoBot: { id: work.sokoBotId },

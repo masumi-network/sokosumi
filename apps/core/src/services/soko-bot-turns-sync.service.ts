@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-
 import { SokoBotTurnStatus } from "@sokosumi/database";
-
 import { getEnv } from "@/config/env";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   ACTIVE_TURN_STATUSES,
   sokoBotControlPlane,
@@ -206,8 +205,14 @@ export class SokoBotTurnsSyncService {
         result.reconciled += 1;
         continue;
       }
+      const turnId = claimed[index]?.id;
+      if (
+        turnId &&
+        reportSokoBotReconciliationLeaseLoss(turnId, outcome.reason)
+      )
+        continue;
       result.interrupted += 1;
-      logInterrupted(claimed[index]?.id, outcome.reason, {
+      logInterrupted(turnId, outcome.reason, {
         message: "Could not resume a stalled Soko Bot turn",
         why: "Turn reconciliation threw",
       });

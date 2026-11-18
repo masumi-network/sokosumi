@@ -3,7 +3,6 @@
 import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
 import { CheckCheck, Loader2, Sunrise } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -28,6 +27,7 @@ import {
   roomUnreadReads,
 } from "@/components/chat/room-attention";
 import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
+import { useNavPathname } from "@/components/navigation-progress.client";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarMenu,
@@ -238,7 +238,7 @@ export function ChatUnreadNavRows({
   onUnreadOnlyChange,
 }: ChatUnreadNavRowsProps) {
   const t = useTranslations("App.Channels.UnreadNav");
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const showsChip = onUnreadOnlyChange !== undefined;
 
   const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);
