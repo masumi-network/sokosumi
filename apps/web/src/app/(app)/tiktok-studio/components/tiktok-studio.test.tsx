@@ -78,6 +78,8 @@ const CATALOG: ProjectImageStudioTalkingVideoCatalog = {
         voicePer1000CharactersUsd: 0.08,
         captionsPerMinuteUsd: 0.03,
         cutoutPerSecondUsd: 0.01,
+        brollUsd: 0.5,
+        musicUsd: 0.1,
         basis: "",
         sourceUrl: "",
         verifiedAt: "2026-11-18",
@@ -198,6 +200,20 @@ describe("TikTokStudio", () => {
     );
   });
 
+  it("adds music and an opening clip only when they are ticked", async () => {
+    startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
+    renderStudio();
+    fireEvent.click(screen.getByLabelText("addMusic"));
+    fireEvent.click(screen.getByLabelText("addBroll"));
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ music: true, broll: true }),
+      ),
+    );
+  });
+
   it("says what is missing instead of a cost, and keeps the button off", () => {
     renderStudio();
     fireEvent.change(screen.getByLabelText("script"), {
@@ -218,12 +234,12 @@ describe("TikTokStudio", () => {
         files: [new File(["x"], "me.jpg", { type: "image/jpeg" })],
       },
     });
-    await screen.findByRole("checkbox");
+    await screen.findByLabelText("consent");
 
     expect(screen.getByText("consentMissing")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "create" })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByLabelText("consent"));
     startTalkingVideoMock.mockResolvedValue({
       ok: true,
       job: {
