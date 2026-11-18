@@ -40,12 +40,13 @@ export function useNavPathname(): string {
 const BAR_CLASS =
   "pointer-events-none fixed inset-x-0 top-[env(safe-area-inset-top)] z-50 h-[3px] origin-left scale-x-0 bg-primary opacity-0 [transition:opacity_200ms_ease-out,scale_0s_linear_200ms] data-[pending=true]:scale-x-90 data-[pending=true]:opacity-100 data-[pending=true]:[transition:opacity_40ms_linear_120ms,scale_4s_cubic-bezier(0.05,0.7,0.1,1)_120ms] motion-reduce:scale-x-100 motion-reduce:data-[pending=true]:scale-x-100 forced-colors:bg-[CanvasText]";
 
-function NavigationProgressBar() {
+function NavigationProgressBar({ onScreen }: { onScreen: boolean }) {
   const pathname = usePathname();
   const pendingPathname = usePendingPathname();
   // The same page with other search params is a filter or a tab, not a page
-  // load.
-  const isPending = pendingPathname !== null && pendingPathname !== pathname;
+  // load. Nor is a page a cache already paints.
+  const isPending =
+    pendingPathname !== null && pendingPathname !== pathname && !onScreen;
 
   return (
     <div
@@ -67,20 +68,25 @@ export function NavigationProgress({ children }: { children: ReactNode }) {
   // hard navigation the reader cancels at a "Leave site?" prompt never
   // arrives: the bar and the row mark then stay until the next navigation
   // does.
-  const [pendingPathname, setPendingPathname] = useOptimistic<string | null>(
-    null,
+  const [pending, setPending] = useOptimistic<{
+    pathname: string;
+    onScreen: boolean;
+  } | null>(null);
+  useMountEffect(() =>
+    listenForNavigationStart((pathname, onScreen) =>
+      setPending({ pathname, onScreen }),
+    ),
   );
-  useMountEffect(() => listenForNavigationStart(setPendingPathname));
 
   return (
-    <PendingPathnameContext value={pendingPathname}>
+    <PendingPathnameContext value={pending?.pathname ?? null}>
       {children}
       {/* Decoration: Next's route announcer tells a screen reader. After the
           children, so at the overlay layer it paints over a sticky header.
           `usePathname` can suspend in a prerender, so the bar reads it behind
           its own boundary. */}
       <Suspense fallback={null}>
-        <NavigationProgressBar />
+        <NavigationProgressBar onScreen={pending?.onScreen === true} />
       </Suspense>
     </PendingPathnameContext>
   );

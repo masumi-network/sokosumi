@@ -27,6 +27,6 @@ describe("onRouterTransitionStart", () => {
       "/tasks?view=board",
       "push",
     );
-    expect(listener).toHaveBeenCalledWith("/tasks");
+    expect(listener).toHaveBeenCalledWith("/tasks", false);
   });
 });

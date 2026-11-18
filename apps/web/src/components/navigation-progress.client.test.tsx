@@ -5,6 +5,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/tasks",
 }));
 
+import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { startNavigation } from "@/test/pending-navigation";
 import {
   NavigationProgress,
@@ -50,6 +51,25 @@ describe("NavigationProgress", () => {
       expect(bar()).toHaveAttribute("data-pending", "false");
     } finally {
       await arrive();
+    }
+  });
+
+  it("stays quiet for a page a cache already paints, and still moves the nav rows", async () => {
+    markPageOnScreen("/calendar");
+    const arrive = await startNavigation("/calendar");
+    try {
+      expect(bar()).toHaveAttribute("data-pending", "false");
+      expect(screen.getByRole("status")).toHaveTextContent("/calendar");
+    } finally {
+      await arrive();
+    }
+
+    // The mark covers that one navigation only.
+    const arriveAgain = await startNavigation("/calendar");
+    try {
+      expect(bar()).toHaveAttribute("data-pending", "true");
+    } finally {
+      await arriveAgain();
     }
   });
 

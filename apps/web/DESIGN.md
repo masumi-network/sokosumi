@@ -442,8 +442,10 @@ prop/state-driven.
 - **Navigation progress bar:** `NavigationProgress`, in the root layout, draws a 3px Iris bar
   along the top of every page while a link, `router.push` or `replace`, or back and forward
   loads another page, and the sidebar row it heads for is current from the click. The phone tab
-  bar moves its mark on arrival. The bar waits 120ms, so a page that opens faster shows none. A
-  search-param change on the same page and a Server Action's `redirect()` show none either.
+  bar moves its mark on arrival. The bar waits 120ms, so a page that opens faster shows none: that
+  covers a page the router already holds. A chat room the room cache paints ahead of its route
+  shows none either (`markPageOnScreen`), nor does a search-param change on the same page or a
+  Server Action's `redirect()`.
   Under reduced motion the full bar fades in and holds still.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
