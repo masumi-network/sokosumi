@@ -38,6 +38,7 @@ function toSourceScope(scope: "user" | "organization"): FileSourceScope {
 /** Selects whether a row is a copy still being made (see reserveDriveCopyResource). */
 const COPY_CLAIM_SELECT = {
   lifecycle: true,
+  createdAt: true,
   overrides: {
     where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
     select: { id: true },
@@ -53,6 +54,24 @@ function isCopyClaim(row: {
     row.lifecycle === FileResourceLifecycle.PENDING && row.overrides.length > 0
   );
 }
+
+/** The same test as `isCopyClaim`, as a filter that excludes claims. */
+const NOT_A_COPY_CLAIM = {
+  NOT: {
+    lifecycle: FileResourceLifecycle.PENDING,
+    overrides: {
+      some: { labelId: null, decision: FileFieldOverrideDecision.PIN },
+    },
+  },
+} satisfies Prisma.FileResourceWhereInput;
+
+/**
+ * How long a copy holds its name. Well past the longest a copy request can
+ * run (300 s), so a claim older than this has no request left to finish or
+ * undo it, and any write it started has settled.
+ * ponytail: lazy expiry on upload only; a sweep if stale names ever matter.
+ */
+const COPY_CLAIM_TTL_MS = 15 * 60_000;
 
 /**
  * Make one revision live and queue its extraction in one transaction, only
@@ -124,10 +143,14 @@ export async function reserveDriveUploadResource(input: {
     });
 
     if (existing && isCopyClaim(existing)) {
-      // A copy owns this name until it finishes or gives it back.
-      throw conflict("A copy is being made at this name");
-    }
-    if (existing) {
+      // A copy owns this name until it finishes, gives it back or expires.
+      // An expired claim is dropped, so the upload starts a new document
+      // that inherits none of the copy's pins.
+      if (Date.now() - existing.createdAt.getTime() < COPY_CLAIM_TTL_MS) {
+        throw conflict("A copy is being made at this name");
+      }
+      await tx.fileResource.delete({ where: { id: existing.id } });
+    } else if (existing) {
       // Replacing the bytes at a live pathname is a new version of the same
       // document, so manual metadata and the deep link both survive it. A
       // tombstoned resource cannot appear here: deletion releases its path.
@@ -261,30 +284,21 @@ export async function reserveDriveCopyResource(input: {
 }
 
 /**
- * Give back a failed copy's name. `removeBytes` deletes whatever this
- * request wrote; the row goes only if that succeeds, and only while it is
- * still this request's pending claim at this pathname. Otherwise nothing is
- * touched: a live copy keeps its bytes, and a claim whose bytes could not be
- * removed stays pending and unlabelled rather than leaving unowned bytes.
+ * Give back a copy's name. Only this request's claim, still pending at its
+ * pathname and revision 1; a database step only, after any storage work.
  */
-export async function releaseDriveCopyResource(
-  claim: { resourceId: string; pathname: string },
-  removeBytes: () => Promise<void>,
-): Promise<void> {
-  await prisma.$transaction(
-    async (tx) => {
-      const { count } = await tx.fileResource.deleteMany({
-        where: {
-          id: claim.resourceId,
-          sourceId: claim.pathname,
-          lifecycle: FileResourceLifecycle.PENDING,
-          contentRevision: 1,
-        },
-      });
-      if (count > 0) await removeBytes();
+export async function releaseDriveCopyResource(claim: {
+  resourceId: string;
+  pathname: string;
+}): Promise<void> {
+  await prisma.fileResource.deleteMany({
+    where: {
+      id: claim.resourceId,
+      sourceId: claim.pathname,
+      lifecycle: FileResourceLifecycle.PENDING,
+      contentRevision: 1,
     },
-    { timeout: 20_000 },
-  );
+  });
 }
 
 /**
@@ -338,10 +352,16 @@ export async function activateDriveUploadResource(input: {
   if (!resource || resource.tombstonedAt) return null;
 
   const activated = await prisma.$transaction((tx) =>
-    activateRevision(tx, { id: resource.id }, resource.contentRevision, {
-      sizeBytes: input.sizeBytes,
-      mimeType: input.mimeType,
-    }),
+    // A pending copy is made live only by its own request.
+    activateRevision(
+      tx,
+      { id: resource.id, ...NOT_A_COPY_CLAIM },
+      resource.contentRevision,
+      {
+        sizeBytes: input.sizeBytes,
+        mimeType: input.mimeType,
+      },
+    ),
   );
   return activated ? { resourceId: resource.id } : null;
 }

@@ -199,17 +199,17 @@ beforeEach(() => {
       removed.push(`bytes:${pathname}`);
     },
   );
-  // The real one deletes the row in a transaction that commits only if the
-  // bytes went; a throw from removeBytes keeps the row.
   catalog.release.mockImplementation(
-    async (
-      { resourceId, pathname }: { resourceId: string; pathname: string },
-      removeBytes: () => Promise<void>,
-    ) => {
+    async ({
+      resourceId,
+      pathname,
+    }: {
+      resourceId: string;
+      pathname: string;
+    }) => {
       const row = rows.get(pathname);
       if (!row || row.id !== resourceId || row.active || row.revision !== 1)
         return;
-      await removeBytes();
       rows.delete(pathname);
       removed.push(`row:${pathname}`);
     },
@@ -432,7 +432,7 @@ describe("races and failures never activate the wrong bytes", () => {
     expect(removed).toEqual([`bytes:${TARGET}`, `row:${TARGET}`]);
   });
 
-  it("returns 409 and gives back its bytes when the copy was renamed first", async () => {
+  it("does not activate a claim renamed before it finished, and leaves it to expire", async () => {
     blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
       stored.set(to, { token: "public-token", etag: "c1", size: 42 });
       const row = rows.get(to);
@@ -447,36 +447,46 @@ describe("races and failures never activate the wrong bytes", () => {
 
     expect(response.status).toBe(409);
     expect(rows.get(`${FOLDER}elsewhere.md`)?.active).toBe(false);
-    // The claim moved, so the cleanup fenced to this pathname touches nothing.
-    expect(removed).toEqual([]);
+    // Its own write is deleted; the moved row is not this pathname's, so the
+    // fenced release leaves it.
+    expect(removed).toEqual([`bytes:${TARGET}`]);
   });
 
-  it("releases the claim when no bytes landed, and a retry starts fresh", async () => {
-    blob.copy.mockRejectedValueOnce(new Error("Blob service unavailable"));
+  describe("when the copy call itself fails, its outcome is unknown", () => {
+    it("never deletes an object it cannot prove it wrote", async () => {
+      // A rename lands its own file on the claimed name before the copy does.
+      blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
+        stored.set(to, { token: "public-token", etag: "theirs", size: 5 });
+        throw new Error("This blob already exists");
+      });
 
-    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+      const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
 
-    expect(failed.status).toBe(500);
-    expect(removed).toEqual([`row:${TARGET}`]);
-
-    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
-
-    expect((await retried.json()).data.pathname).toBe(TARGET);
-  });
-
-  it("removes bytes a failed copy call still wrote, then its claim", async () => {
-    blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
-      stored.set(to, { token: "public-token", etag: "late", size: 42 });
-      throw new Error("Blob service unavailable");
+      expect(failed.status).toBe(500);
+      expect(blob.del).not.toHaveBeenCalled();
+      expect(stored.get(TARGET)?.etag).toBe("theirs");
+      expect(rows.get(TARGET)?.active).toBe(false);
     });
 
-    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+    it("keeps the claim when the write may still land later", async () => {
+      blob.copy.mockRejectedValueOnce(new Error("socket timeout"));
 
-    expect(failed.status).toBe(500);
-    expect(removed).toEqual([`bytes:${TARGET}`, `row:${TARGET}`]);
+      const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+      expect(failed.status).toBe(500);
+      expect(blob.del).not.toHaveBeenCalled();
+      expect(catalog.release).not.toHaveBeenCalled();
+      expect(rows.get(TARGET)?.active).toBe(false);
+
+      const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+      expect((await retried.json()).data.pathname).toBe(
+        `${FOLDER}weekly (copy) 2.md`,
+      );
+    });
   });
 
-  it("keeps the claim pending, never activated, when its bytes cannot be removed", async () => {
+  it("keeps the claim, never activated, when its own bytes cannot be removed", async () => {
     expectCoreLog("warn", "Kept a failed Drive copy's claim");
     catalog.activate.mockRejectedValueOnce(new Error("database down"));
     blob.del.mockRejectedValueOnce(new Error("Blob service unavailable"));
@@ -484,6 +494,7 @@ describe("races and failures never activate the wrong bytes", () => {
     const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(failed.status).toBe(500);
+    expect(catalog.release).not.toHaveBeenCalled();
     expect(rows.get(TARGET)?.active).toBe(false);
     expect(stored.has(TARGET)).toBe(true);
   });

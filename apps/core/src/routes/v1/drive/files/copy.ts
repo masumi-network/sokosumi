@@ -107,27 +107,21 @@ export function copyName(source: string, label: string, attempt: number) {
 }
 
 /**
- * Delete this request's bytes, then its claim. When the copy call itself
- * failed there is no ETag, so the one at the target is used: the pending
- * claim keeps every catalog writer off this name, so those bytes are this
- * request's. If they cannot be removed the claim stays, pending and
- * unlabelled, and is never adopted.
+ * Undo a write this request provably made: the copy call returned its ETag,
+ * and the delete only matches that ETag. Then give back the claim. Storage
+ * and catalog are separate steps; when either fails the claim stays, pending
+ * and unlabelled, and expires (see reserveDriveUploadResource).
  */
-async function giveBack(resourceId: string, target: string, etag?: string) {
+async function giveBack(resourceId: string, target: string, etag: string) {
   try {
-    await releaseDriveCopyResource(
-      { resourceId, pathname: target },
-      async () => {
-        const there = etag ?? (await driveHead(target))?.etag;
-        if (there) await driveUncopy(target, there);
-      },
-    );
+    await driveUncopy(target, etag);
+    await releaseDriveCopyResource({ resourceId, pathname: target });
   } catch (error) {
     recordCoreWarning(
       { route: "drive.files.copy" },
       {
         message: "Kept a failed Drive copy's claim",
-        why: "Its bytes could not be removed, so its name stays held.",
+        why: "Its write could not be undone, so its name stays held until the claim expires.",
         cause: error,
       },
       { target },
@@ -210,15 +204,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!target) throw conflict("No free name for the copy");
     const name = target.slice(folderPrefix.length);
 
-    // From here on this request owns the claim and anything it writes, so
-    // every failure gives both back before it surfaces.
-    let copied: { url: string; etag: string } | undefined;
-    let written: Awaited<ReturnType<typeof driveHead>> = null;
+    let copied: { url: string; etag: string };
     try {
       copied = await driveCopy(pathname, target, {
         contentType: source.contentType,
         cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
       });
+    } catch (error) {
+      // The store answered "no source": nothing was written.
+      if (error instanceof BlobNotFoundError) {
+        await releaseDriveCopyResource({ resourceId, pathname: target });
+        throw notFound("Source file not found");
+      }
+      // Any other failure may still land, or may be someone else's file at
+      // this name. Touch nothing; the claim keeps it unlabelled and expires.
+      throw error;
+    }
+
+    let written: Awaited<ReturnType<typeof driveHead>>;
+    try {
       // The target must still be this write, and the source unchanged since
       // its head, so the bytes copied are the ones its type describes.
       const [targetNow, sourceNow] = await Promise.all([
@@ -237,10 +241,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       if (!activated) throw conflict("The copy was moved; try again");
     } catch (error) {
-      await giveBack(resourceId, target, copied?.etag);
-      if (error instanceof BlobNotFoundError) {
-        throw notFound("Source file not found");
-      }
+      await giveBack(resourceId, target, copied.etag);
       throw error;
     }
 

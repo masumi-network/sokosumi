@@ -13,6 +13,7 @@ import {
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import {
   activateDriveCopyResource,
+  activateDriveUploadResource,
   adoptDriveUploadResource,
   releaseDriveCopyResource,
   renameDriveUploadResource,
@@ -318,59 +319,144 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
   });
 
   describe("releasing a failed copy", () => {
-    it("drops the row only once its own bytes are gone", async () => {
+    it("drops only its own pending claim, so the name is free again", async () => {
       const id = await reserve("memo (copy).md");
-      const removed: string[] = [];
 
-      await releaseDriveCopyResource(
-        { resourceId: id, pathname: key("memo (copy).md").pathname },
-        async () => {
-          removed.push("bytes");
-        },
-      );
+      await releaseDriveCopyResource({
+        resourceId: id,
+        pathname: key("memo (copy).md").pathname,
+      });
 
-      expect(removed).toEqual(["bytes"]);
       expect(await prisma.fileResource.count({ where: { id } })).toBe(0);
       await expect(reserve("memo (copy).md")).resolves.toEqual(
         expect.any(String),
       );
     });
 
-    it("keeps the claim pending when its bytes cannot be removed", async () => {
-      const id = await reserve("stuck (copy).md");
-
-      await expect(
-        releaseDriveCopyResource(
-          { resourceId: id, pathname: key("stuck (copy).md").pathname },
-          async () => {
-            throw new Error("Blob service unavailable");
-          },
-        ),
-      ).rejects.toThrow("Blob service unavailable");
-
-      expect((await row(id)).lifecycle).toBe("PENDING");
-    });
-
-    it("touches neither bytes nor row once the copy is live", async () => {
-      const name = "live (copy).md";
-      const id = await reserve(name);
+    it("leaves a live copy and a moved claim alone", async () => {
+      const live = await reserve("live (copy).md");
       await activateDriveCopyResource({
-        resourceId: id,
-        pathname: key(name).pathname,
+        resourceId: live,
+        pathname: key("live (copy).md").pathname,
         sizeBytes: 42,
         mimeType: "text/markdown",
       });
-      let removed = false;
+      const moved = await reserve("gone (copy).md");
+      await renameDriveUploadResource({
+        workspaceId,
+        scope: "user",
+        fromPathname: key("gone (copy).md").pathname,
+        toPathname: key("here.md").pathname,
+        displayName: "here.md",
+      });
 
-      await releaseDriveCopyResource(
-        { resourceId: id, pathname: key(name).pathname },
-        async () => {
-          removed = true;
-        },
-      );
+      await releaseDriveCopyResource({
+        resourceId: live,
+        pathname: key("live (copy).md").pathname,
+      });
+      await releaseDriveCopyResource({
+        resourceId: moved,
+        pathname: key("gone (copy).md").pathname,
+      });
 
-      expect(removed).toBe(false);
-      expect((await row(id)).lifecycle).toBe("ACTIVE");
+      expect((await row(live)).lifecycle).toBe("ACTIVE");
+      expect((await row(moved)).lifecycle).toBe("PENDING");
+    });
+  });
+
+  describe("upload finalize", () => {
+    it("never makes a pending copy live", async () => {
+      const name = "final (copy).md";
+      const id = await reserve(name);
+
+      expect(
+        await activateDriveUploadResource({
+          key: key(name),
+          sizeBytes: 9,
+          mimeType: "text/plain",
+        }),
+      ).toBeNull();
+      expect(await row(id)).toMatchObject({
+        lifecycle: "PENDING",
+        mimeType: "text/markdown",
+      });
+      expect(await extractJobs(id)).toBe(0);
+    });
+
+    it("still finalizes an upload, and again after a replace", async () => {
+      const { resourceId } = await upload("report.txt");
+      const finalize = () =>
+        activateDriveUploadResource({
+          key: key("report.txt"),
+          sizeBytes: 9,
+          mimeType: "text/plain",
+        });
+
+      expect(await finalize()).toEqual({ resourceId });
+      expect(await finalize()).toEqual({ resourceId });
+      await upload("report.txt", 12);
+      expect(await finalize()).toEqual({ resourceId });
+      expect(await row(resourceId)).toMatchObject({
+        lifecycle: "ACTIVE",
+        contentRevision: 2,
+      });
+    });
+  });
+
+  describe("an expired claim", () => {
+    async function expire(id: string) {
+      await prisma.fileResource.update({
+        where: { id },
+        data: { createdAt: new Date(Date.now() - 16 * 60_000) },
+      });
+    }
+
+    it("lets an upload take the name as a new document without the copy's pins", async () => {
+      const name = "old (copy).md";
+      const claim = await reserve(name);
+      await expire(claim);
+
+      const { resourceId } = await upload(name);
+
+      expect(resourceId).not.toBe(claim);
+      expect(await prisma.fileResource.count({ where: { id: claim } })).toBe(0);
+      expect(
+        await prisma.fileFieldOverride.count({ where: { resourceId } }),
+      ).toBe(0);
+    });
+
+    it("makes a renamed claim's name usable again by an upload", async () => {
+      const claim = await reserve("renamed (copy).md");
+      await renameDriveUploadResource({
+        workspaceId,
+        scope: "user",
+        fromPathname: key("renamed (copy).md").pathname,
+        toPathname: key("renamed.md").pathname,
+        displayName: "renamed.md",
+      });
+      await expect(upload("renamed.md")).rejects.toMatchObject({
+        status: 409,
+      });
+      await expire(claim);
+
+      const { resourceId } = await upload("renamed.md");
+      expect(
+        await activateDriveUploadResource({
+          key: key("renamed.md"),
+          sizeBytes: 9,
+          mimeType: "text/plain",
+        }),
+      ).toEqual({ resourceId });
+    });
+
+    it("is still never adopted by the backfill", async () => {
+      const claim = await reserve("stale (copy).md");
+      await expire(claim);
+
+      await adopt("stale (copy).md");
+
+      expect((await row(claim)).lifecycle).toBe("PENDING");
+      expect(await extractJobs(claim)).toBe(0);
     });
   });
 
