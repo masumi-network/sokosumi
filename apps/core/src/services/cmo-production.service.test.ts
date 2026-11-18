@@ -54,6 +54,11 @@ const {
   listCmoChannels: vi.fn(),
 }));
 
+// PostgreSQL's clock: the test clock, or the time a test sets.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => pgClock.now ?? new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotSchedule: { updateMany: scheduleUpdateMany },
@@ -554,6 +559,7 @@ describe("cmoProductionMessage", () => {
 
 describe("advanceCmoProduction", () => {
   beforeEach(() => {
+    pgClock.now = null;
     vi.clearAllMocks();
     isCmoSubscribed.mockResolvedValue(true);
     listCmoChannels.mockResolvedValue([]);
@@ -869,6 +875,7 @@ describe("advanceCmoProduction", () => {
   });
 
   it("stops after four runs in a day and tries again the next", async () => {
+    pgClock.now = NOW;
     const runs = [1, 2, 3, 4].map((n) => ({
       clientTurnId: `${RUN}:${5 - n}:0`,
       status: "FAILED",
@@ -878,11 +885,13 @@ describe("advanceCmoProduction", () => {
     expect(stuck.state).toBe("stuck");
     expect(startTurn).not.toHaveBeenCalled();
     const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000);
+    pgClock.now = nextDay;
     await advanceCmoProduction(cuso([post({})], runs), nextDay);
     expect(startTurn).toHaveBeenCalledTimes(1);
   });
 
   it("waits a day when the last run made nothing ready", async () => {
+    pgClock.now = NOW;
     const posts = [
       post({ draft: "Done." }),
       post({ id: "img", format: "image", draft: "Words" }),

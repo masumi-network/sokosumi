@@ -14,6 +14,7 @@ import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreWarning,
@@ -494,7 +495,8 @@ export async function retryCmoOnboarding(
   }
   const turn = await newestResearchTurn(cuso.sokoBotId);
   if (turn && (await settledTurnStatus(turn, now)) === "running") {
-    if (!cmoRunIsSlow("research", turn.createdAt, now)) {
+    // createdAt is PostgreSQL time.
+    if (!cmoRunIsSlow("research", turn.createdAt, await databaseNow())) {
       throw new CmoConflictError("Cuso is still learning the business");
     }
     const { sokoBotControlPlane } = await import(

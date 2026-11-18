@@ -66,6 +66,7 @@ import {
   sokoBotSharedScopeOf,
   sokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -678,6 +679,7 @@ export class SokoBotControlPlane {
     turnId: string,
     leaseToken: string,
   ): Promise<boolean> {
+    const now = await databaseNow();
     const retained = await prisma.sokoBotTurn.updateMany({
       where: {
         id: turnId,
@@ -685,8 +687,8 @@ export class SokoBotControlPlane {
         leaseToken,
       },
       data: {
-        leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        reconcilerHeartbeatAt: new Date(),
+        leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+        reconcilerHeartbeatAt: now,
       },
     });
     return retained.count === 1;
@@ -981,7 +983,7 @@ export class SokoBotControlPlane {
         errorKind: completed.errorKind,
       };
     }
-    if (turn.deadlineAt <= new Date()) {
+    if (turn.deadlineAt <= (await databaseNow())) {
       throw new SokoBotRetryableStartError(
         "Ambiguous Soko Bot start reached its deadline",
       );
@@ -1062,7 +1064,7 @@ export class SokoBotControlPlane {
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
             startedAt: new Date(runtimeTurn.acceptedAt),
-            reconcilerHeartbeatAt: new Date(),
+            reconcilerHeartbeatAt: await databaseNow(tx),
             errorKind: null,
             errorDetail: null,
           },
@@ -1169,12 +1171,13 @@ export class SokoBotControlPlane {
       include: { sokoBot: true },
     });
     if (!turn) return null;
+    const claimedAt = await databaseNow();
     const recoveryActivityAt =
       turn.reconcilerHeartbeatAt ?? turn.createdAt ?? null;
     if (
       recoveryActivityAt instanceof Date &&
       recoveryActivityAt.getTime() >
-        Date.now() - SOKO_BOT_START_RECOVERY_GRACE_MS
+        claimedAt.getTime() - SOKO_BOT_START_RECOVERY_GRACE_MS
     ) {
       return null;
     }
@@ -1196,7 +1199,6 @@ export class SokoBotControlPlane {
     }
 
     const leaseToken = randomUUID();
-    const claimedAt = new Date();
     const claimed = await prisma.sokoBotTurn.updateMany({
       where: {
         id: turn.id,
@@ -2025,7 +2027,7 @@ export class SokoBotControlPlane {
         duplicate.status === "STARTING" &&
         duplicate.eveSessionId === null &&
         duplicate.createdAt.getTime() <=
-          Date.now() - SOKO_BOT_START_RECOVERY_GRACE_MS &&
+          (await databaseNow()).getTime() - SOKO_BOT_START_RECOVERY_GRACE_MS &&
         bot.status !== "PAUSED" &&
         bot.adminPausedAt === null
       ) {
@@ -2192,7 +2194,9 @@ export class SokoBotControlPlane {
               workspaceId: input.workspaceId,
               source: "CHAT",
               createdAt: {
-                gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
+                gte: new Date(
+                  (await databaseNow()).getTime() - PREVIOUS_REPLY_WINDOW_MS,
+                ),
               },
               askedByUserId,
               ...(conversationMention?.message.roomId
@@ -2396,8 +2400,9 @@ export class SokoBotControlPlane {
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
+    const startNow = (await databaseNow()).getTime();
     const deadlineAt = new Date(
-      Date.now() +
+      startNow +
         (input.background
           ? BACKGROUND_RUN_DEADLINE_MS
           : personAsked || input.personStarted
@@ -2405,7 +2410,7 @@ export class SokoBotControlPlane {
             : TURN_DEADLINE_MS),
     );
     const leaseToken = randomUUID();
-    const leaseExpiresAt = new Date(Date.now() + TURN_LEASE_MS);
+    const leaseExpiresAt = new Date(startNow + TURN_LEASE_MS);
     // Eve only offers create-operation idempotency. A fresh session per Core
     // turn makes ambiguous retries exactly-once; Context carries bounded prior
     // conversation and durable memory supplies continuity across sessions.
@@ -2480,6 +2485,9 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        // One sample under the bot lock: the daily cap's day start and the
+        // new turn's createdAt, which graces and cutoffs read, share it.
+        const reservedAt = await databaseNow(tx);
         const currentBot = await tx.sokoBot.findUnique({
           where: { id: bot.id },
           select: {
@@ -2519,7 +2527,7 @@ export class SokoBotControlPlane {
             where: {
               sokoBotId: bot.id,
               createdAt: {
-                gte: localDayStart(new Date(), currentBot.ingestTimezone),
+                gte: localDayStart(reservedAt, currentBot.ingestTimezone),
               },
               clientTurnId: { not: { startsWith: "lab:" } },
               OR: [
@@ -2583,6 +2591,7 @@ export class SokoBotControlPlane {
             route: classification.classification.route,
             clientTurnId,
             versionId: version.id,
+            createdAt: reservedAt,
             userMessage: message,
             destinationRoomId: destinationRoom?.id ?? null,
             destinationAudience: destinationAudience
@@ -2927,7 +2936,7 @@ export class SokoBotControlPlane {
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
             startedAt: new Date(runtimeTurn.acceptedAt),
-            reconcilerHeartbeatAt: new Date(),
+            reconcilerHeartbeatAt: await databaseNow(tx),
           },
         });
         if (acknowledged.count === 0) {
@@ -3184,7 +3193,7 @@ export class SokoBotControlPlane {
       turn.errorKind === null &&
       turn.reconcilerHeartbeatAt === null &&
       turn.leaseExpiresAt !== null &&
-      turn.leaseExpiresAt.getTime() > Date.now()
+      turn.leaseExpiresAt > (await databaseNow())
     ) {
       return;
     }
@@ -3256,6 +3265,7 @@ export class SokoBotControlPlane {
     const heartbeat = async (
       client: Prisma.TransactionClient = prisma,
     ): Promise<void> => {
+      const now = await databaseNow(client);
       const updated = await client.sokoBotTurn.updateMany({
         where: {
           id: turn.id,
@@ -3263,8 +3273,8 @@ export class SokoBotControlPlane {
           status: { in: [...ACTIVE_TURN_STATUSES] },
         },
         data: {
-          reconcilerHeartbeatAt: new Date(),
-          leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
+          reconcilerHeartbeatAt: now,
+          leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
         },
       });
       if (updated.count === 0) {
@@ -3589,7 +3599,8 @@ export class SokoBotControlPlane {
         error instanceof Error
           ? safeRuntimeDiagnostic(error.message)
           : "Unknown runtime stream error";
-      const expired = turn.deadlineAt.getTime() <= Date.now();
+      const now = await databaseNow();
+      const expired = turn.deadlineAt <= now;
       if (expired) {
         await this.expireTurn(turn.id);
       } else {
@@ -3602,7 +3613,7 @@ export class SokoBotControlPlane {
           data: {
             errorKind: "runtime_stream_interrupted",
             errorDetail: detail,
-            reconcilerHeartbeatAt: new Date(),
+            reconcilerHeartbeatAt: now,
           },
         });
       }

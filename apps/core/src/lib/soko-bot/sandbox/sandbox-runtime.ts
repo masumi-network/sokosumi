@@ -15,6 +15,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { Drive, type NetworkPolicy, Sandbox } from "@vercel/sandbox";
 import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreError,
@@ -206,7 +207,7 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
       resources: { vcpus: SANDBOX_VCPUS },
       timeout: Math.max(
         60_000,
-        turn.deadlineAt.getTime() - Date.now() + 60_000,
+        turn.deadlineAt.getTime() - (await databaseNow()).getTime() + 60_000,
       ),
       networkPolicy: networkPolicy(input.turnId, token),
       ...(drive ? { mounts: { [SANDBOX_WORKSPACE]: drive } } : {}),
