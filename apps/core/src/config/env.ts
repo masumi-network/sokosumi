@@ -232,6 +232,12 @@ const baseEnvSchema = z.object({
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
   /**
+   * A Meta user access token with Ad Library API access (an identity-verified
+   * Meta account on an app with the Ad Library API). Without it the
+   * competitor check reads no ads and says so.
+   */
+  META_AD_LIBRARY_ACCESS_TOKEN: z.string().min(1).optional(),
+  /**
    * Soko Bot ids that may write the announcements every user sees (the
    * sidebar card and popup). Comma-separated; empty, no bot has the tools.
    */
