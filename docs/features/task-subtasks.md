@@ -339,6 +339,96 @@ Soko Bot:
   stored `toolCallId` prefix `subtask:` and action `follow_subtask` keep their
   values, because existing rows use them.
 
+## Parent changes and PARENT links
+
+Decided after the build above: PARENT Task links merge into sub-tasks, and
+a sub-task's parent can change. This replaces "Sub-tasks are not Task
+links", the out-of-scope item "Moving a sub-task to another parent", and
+the 400 for a PARENT link on a sub-task.
+
+CORRECTION, VERIFIED by reading `20261118140000_task_subtasks` in this
+session: two rules in "Data model" were wrong about the first build.
+
+- There was no CHECK `parentTaskId <> id`, and no cycle check. A self-parent
+  failed only as a parent mismatch, and a cycle could not form only
+  because the parent never changed.
+- Item 5 was never built. No other trigger got `"parentTaskId"` in its
+  column list. It is also not needed: a move to a parent in another
+  project writes `"projectId"` in the same UPDATE, and that column fires
+  the numbering, alias, placement and tag triggers.
+
+Database, `20261118150000_task_subtask_reparent`:
+
+- CHECK `task_subtask_not_self_check` (`"parentTaskId" <> "id"`), added
+  `NOT VALID` and validated at the end of the same file.
+- `task_subtask_guard` no longer pins the parent. On an INSERT with a parent,
+  or an UPDATE to a different non-null parent, it refuses a cycle
+  (`task_subtask_cycle`), a level plus the height of the Task's own
+  sub-task tree above 5 (`task_subtask_too_deep`), and a private parent
+  with another Owner (`task_subtask_private_owner`). It still refuses a
+  workspace, project or visibility that differs from the parent's.
+- `task_subtask_follow_parent` also passes `visibility` down.
+
+Backfill, `20261118150010_task_parent_links_to_subtasks`. A PARENT link
+becomes the child's parent only when all of these hold:
+
+- same workspace, same project (both null counts as the same), same
+  visibility, and the same Owner under a PRIVATE parent,
+- the child has exactly one incoming PARENT link,
+- neither Task is archived,
+- the child has no parent, and the parent was not a sub-task before the
+  backfill,
+- no cycle, and at most 5 levels.
+
+Links run top-down, so a chain of links becomes a chain of sub-tasks.
+A parent that the backfill itself attached counts as allowed: "neither
+Task is already a sub-task" means before the backfill. Converted children
+go after the parent's sub-tasks, in link order, 1 apart. A converted link
+is deleted. Any other PARENT link becomes RELATES and keeps its
+direction. The `PARENT` enum value stays. The backfill is one `DO`
+statement, so it commits or rolls back as a whole. Each link has its own
+`BEGIN ... EXCEPTION` block, so a link that raises (a guard rule, or a
+lock conflict with the old Core) becomes RELATES.
+
+Core API:
+
+- `POST /v1/tasks/{id}/move` takes `{ parentTaskId?, afterTaskId? }`. At
+  least one is required.
+  - `parentTaskId` omitted or equal to the current parent: reorder, as
+    before.
+  - A different Task: attach or re-parent, with the Task's sub-tasks. The
+    Task goes last, or after `afterTaskId`. A parent in another Project
+    moves the Task and its sub-tasks there, with new numbers and aliases.
+    That move uses the PATCH project guards: not parked, and no frozen SEO
+    analysis.
+  - `null`: detach. The Task keeps its Project.
+  - Refused with 404: an archived or unwritable Task or parent. With 422:
+    the Task itself, one of its own sub-tasks, a depth above 5, another
+    workspace, another visibility, a private parent with another Owner.
+  - The write runs in `serializableTransaction`. It locks the Workspace and
+    both Projects, then the Task and both parents, then writes both
+    parents (`touchTaskRow`). Detach locks the Task and the old parent and
+    writes the old parent. The code is `helpers/task-subtask-move.ts`.
+- A Task link with relation `parent` or `child`: POST and PATCH return
+  400 "Parent links are now sub-tasks. Use POST /v1/tasks/{id}/move with
+  parentTaskId." `UserWritableTaskLinkRelation` no longer has them. The
+  read enum keeps them for older links.
+- `POST /v1/tasks` takes `dueOn` (YYYY-MM-DD), like PATCH.
+- A sub-task's project still does not change alone (`requireNotSubtask` in
+  PATCH, the Soko Bot project move, and the Project task routes). Detach
+  it first, or move its parent.
+
+Open after this change:
+
+- Soko Bot `link_tasks` still accepts `parent` and `child` and writes a
+  PARENT link (`services/soko-bot-runtime/task-replies.ts`). Another
+  change owns it.
+- The old Core instance can write a new PARENT link during the deploy.
+  That link stays a PARENT link. Not determined: whether a second backfill
+  is needed.
+- No Task event records a move. A Project change by move is visible only
+  through the new number and the alias of the old one.
+
 ## Least confident decisions
 
 1. Archive cascades to descendants. A sub-task archived on its own is then
@@ -354,3 +444,8 @@ Soko Bot:
 5. Account deletion: the cascade on `parentTaskId` deletes descendants, while
    `task_x402_payment.taskId` is `Restrict`. The private-owner rule should keep
    the set closed. REPORTED, not tested.
+6. The backfill reads "neither Task is already a sub-task" as "before the
+   backfill". The literal reading would stop every chain of PARENT links
+   after one level.
+7. A transient lock error in the backfill turns a valid PARENT link into
+   RELATES instead of retrying it.
