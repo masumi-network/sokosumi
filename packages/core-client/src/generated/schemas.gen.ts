@@ -38024,6 +38024,12 @@ export const InitiateProjectSocialConnectionRequestSchema = {
 export const FinalizeProjectSocialConnectionRequestSchema = {
     type: 'object',
     properties: {
+        callbackProof: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256,
+            description: 'Proof returned with a Zernio connection callback.'
+        },
         connectionId: {
             type: 'string',
             minLength: 1,
@@ -40913,7 +40919,8 @@ export const TikTokPostSettingsSchema = {
         privacyLevel: {
             type: 'string',
             enum: [
-                'SELF_ONLY'
+                'SELF_ONLY',
+                'PUBLIC_TO_EVERYONE'
             ]
         },
         allowComment: {
@@ -40929,6 +40936,12 @@ export const TikTokPostSettingsSchema = {
             type: 'boolean'
         },
         acceptedMusicUsage: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        previewConsent: {
             type: 'boolean',
             enum: [
                 true
