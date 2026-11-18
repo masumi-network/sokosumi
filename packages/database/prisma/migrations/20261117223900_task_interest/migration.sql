@@ -1,5 +1,12 @@
--- AlterTable
-ALTER TABLE "task_participant" ADD COLUMN     "subscribedAt" TIMESTAMP(3);
+-- CreateTable
+CREATE TABLE "task_follower" (
+    "id" UUID NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "taskId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "task_follower_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "task_due_date_change" (
@@ -27,6 +34,12 @@ CREATE TABLE "task_moment_delivery" (
 );
 
 -- CreateIndex
+CREATE INDEX "task_follower_userId_createdAt_idx" ON "task_follower"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "task_follower_taskId_userId_key" ON "task_follower"("taskId", "userId");
+
+-- CreateIndex
 CREATE INDEX "task_due_date_change_createdAt_id_idx" ON "task_due_date_change"("createdAt", "id");
 
 -- CreateIndex
@@ -43,6 +56,12 @@ CREATE INDEX "task_moment_delivery_retryAt_idx" ON "task_moment_delivery"("retry
 
 -- CreateIndex
 CREATE UNIQUE INDEX "task_moment_delivery_userId_momentKey_key" ON "task_moment_delivery"("userId", "momentKey");
+
+-- AddForeignKey
+ALTER TABLE "task_follower" ADD CONSTRAINT "task_follower_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "task_follower" ADD CONSTRAINT "task_follower_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "task_due_date_change" ADD CONSTRAINT "task_due_date_change_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;

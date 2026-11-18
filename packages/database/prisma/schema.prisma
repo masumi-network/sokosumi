@@ -3485,6 +3485,8 @@ model Task {
 
   /// Humans added by @ in Task comment activity. Not owner or assignee.
   participants     TaskParticipant[]
+  /// People whose personal Soko Bot follows the Task for them.
+  followers        TaskFollower[]
   dueDateChanges   TaskDueDateChange[]
   momentDeliveries TaskMomentDelivery[]
 
@@ -3650,6 +3652,22 @@ model TaskIdentifierAlias {
   @@id([projectId, number])
   @@index([taskId])
   @@map("task_identifier_alias")
+}
+
+model TaskParticipant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
+  @@index([userId], map: "task_participant_userId_idx")
+  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
+  @@map("task_participant")
 }
 
 /// Idempotency ledger for Task Schedule create. A key is scoped to the active
