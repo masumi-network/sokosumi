@@ -17,10 +17,14 @@ const m = vi.hoisted(() => ({
   addTrackedCompetitor: vi.fn(),
   updateTrackedCompetitor: vi.fn(),
   removeTrackedCompetitor: vi.fn(),
+  addCompetitorMoveToStrategy: vi.fn(),
 }));
 
 vi.mock("@/services/cmo-competitors-overview.service", () => ({
   getCmoCompetitors: m.getCmoCompetitors,
+}));
+vi.mock("@/services/cmo-competitor-feed.service", () => ({
+  addCompetitorMoveToStrategy: m.addCompetitorMoveToStrategy,
 }));
 vi.mock("@/services/cmo-competitors.service", () => ({
   addTrackedCompetitor: m.addTrackedCompetitor,
@@ -38,6 +42,7 @@ import cmoRouter from "../../../index";
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const COMPETITOR_ID = "22222222-2222-4222-8222-222222222222";
 const SIGNAL_ID = "33333333-3333-4333-8333-333333333333";
+const ITEM_ID = "44444444-4444-4444-8444-444444444444";
 const AT = new Date("2026-11-16T09:00:00Z");
 const BASE = `/projects/${PROJECT_ID}/competitors`;
 
@@ -83,6 +88,28 @@ const COMPETITORS = {
       source: "RESEARCH",
     },
   ],
+  feed: {
+    checkDay: "2026-11-16",
+    savedAt: AT,
+    items: [
+      {
+        id: ITEM_ID,
+        competitorId: COMPETITOR_ID,
+        facts: [
+          {
+            text: "Calendly raised Standard from $10 to $12.",
+            signalIds: [SIGNAL_ID],
+            support: "strong",
+          },
+        ],
+        meaning: "Our Teams plan is now the cheaper one.",
+        move: "Lead with the price per seat on LinkedIn next week.",
+        big: true,
+        addedToStrategyAt: null,
+      },
+    ],
+    openQuestions: [],
+  },
   limit: 5,
   signals: [
     {
@@ -135,6 +162,7 @@ beforeEach(() => {
   m.addTrackedCompetitor.mockResolvedValue(undefined);
   m.updateTrackedCompetitor.mockResolvedValue(undefined);
   m.removeTrackedCompetitor.mockResolvedValue(undefined);
+  m.addCompetitorMoveToStrategy.mockResolvedValue({ turnId: "turn-1" });
 });
 
 describe("GET /cmo/projects/{projectId}/competitors", () => {
@@ -157,6 +185,12 @@ describe("GET /cmo/projects/{projectId}/competitors", () => {
       source: "RESEARCH",
     });
     expect(data.signals[0].quote).toBe("$12");
+    expect(data.feed.items[0]).toMatchObject({
+      id: ITEM_ID,
+      big: true,
+      facts: [{ signalIds: [SIGNAL_ID], support: "strong" }],
+      addedToStrategyAt: null,
+    });
     expect(data.scoreboard[1].followers).toEqual({
       value: 40_000,
       sourceUrl: "https://www.instagram.com/calendly/",
@@ -247,6 +281,23 @@ describe("competitor writes", () => {
       { userId: "user-1", projectId: PROJECT_ID },
       COMPETITOR_ID,
     );
+  });
+
+  it("sends a move to the strategy and answers with the tab", async () => {
+    const response = await send("POST", `${BASE}/feed/${ITEM_ID}/strategy`);
+    expect(response.status).toBe(200);
+    expect(m.addCompetitorMoveToStrategy).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: PROJECT_ID },
+      ITEM_ID,
+    );
+  });
+
+  it("answers 409 for a move already in the strategy", async () => {
+    m.addCompetitorMoveToStrategy.mockRejectedValue(
+      new CmoConflictError("This move is already in the strategy"),
+    );
+    const response = await send("POST", `${BASE}/feed/${ITEM_ID}/strategy`);
+    expect(response.status).toBe(409);
   });
 
   it("answers 404 for a competitor of another Project", async () => {
