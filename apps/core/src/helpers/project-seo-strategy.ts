@@ -6,10 +6,17 @@ import {
   SEO_STRATEGY_PLACES_NOTES_MAX,
   SEO_STRATEGY_TEXT_MAX_LENGTH,
   type SeoStrategyPayload,
+  seoStrategyIntentDemand,
+  seoStrategyMissingDemand,
+  seoStrategyOpportunity,
   seoStrategyPayloadSchema,
   seoStrategyPlaceSchema,
+  seoStrategyPurpose,
+  seoStrategyPurposeSource,
 } from "@/schemas/project-seo-strategy.schema";
 import { publicSeoKeywordReach } from "./project-seo-keyword-reach";
+
+import { auditedSeoPageKey } from "./project-seo-site-findings";
 
 const count = z.number().finite().nullable();
 /** The fields Core reads from a site report. Zod drops every other field of the strategy block. */
@@ -20,6 +27,15 @@ const source = z.object({
     })
     .optional(),
   strategy: z.object({
+    purpose: seoStrategyPurpose.optional().catch(undefined),
+    purposeSource: seoStrategyPurposeSource.optional().catch(undefined),
+    demandByIntent: seoStrategyIntentDemand.optional().catch(undefined),
+    missingDemandByIntent: seoStrategyMissingDemand.optional().catch(undefined),
+    purposeOpportunity: seoStrategyOpportunity
+      .omit({ pageUrl: true })
+      .extend({ page: z.number().int().positive() })
+      .optional()
+      .catch(undefined),
     verdict: z.string(),
     why: z.string(),
     groups: z.array(
@@ -32,6 +48,7 @@ const source = z.object({
         trend: z.enum(["falling", "rising", "flat"]).nullable(),
         reach: z.string(),
         position: count,
+        forums: z.boolean().optional().catch(undefined),
       }),
     ),
     actions: z
@@ -91,7 +108,10 @@ export const SEO_STRATEGY_NOT_IMPORTED =
  * The strategy section of a site report. A report without one gives nothing.
  * A section Core cannot read gives a note, so the audit still imports.
  */
-export function publicSeoStrategy(raw: unknown): {
+export function publicSeoStrategy(
+  raw: unknown,
+  auditedPageUrls: string[],
+): {
   strategy?: SeoStrategyPayload;
   note?: string;
 } {
@@ -103,9 +123,16 @@ export function publicSeoStrategy(raw: unknown): {
     return {};
   const parsed = source.safeParse(raw);
   if (!parsed.success) return { note: SEO_STRATEGY_NOT_IMPORTED };
-  const pages = new Map(
-    parsed.data.selection?.pages.map((page) => [page.n, page.url]),
-  );
+  const selection = parsed.data.selection?.pages ?? [];
+  const pages = new Map<number, string>();
+  const audited = new Set(auditedPageUrls.map(auditedSeoPageKey));
+  const verifiedPages = new Map<number, string>();
+  for (const page of selection) {
+    const canonical = auditedSeoPageKey(page.url);
+    if (pages.has(page.n)) verifiedPages.delete(page.n);
+    else if (audited.has(canonical)) verifiedPages.set(page.n, canonical);
+    pages.set(page.n, page.url);
+  }
   const {
     verdict,
     why,
@@ -113,6 +140,11 @@ export function publicSeoStrategy(raw: unknown): {
     actions = [],
     placesNotes: sentNotes,
     placesNote,
+    purpose,
+    purposeSource,
+    purposeOpportunity: opportunity,
+    demandByIntent,
+    missingDemandByIntent,
   } = parsed.data.strategy;
   // One line per note; an entry that is no text, blank or longer than the payload allows is dropped, not the strategy.
   const lines = (notes: unknown[]) =>
@@ -127,11 +159,65 @@ export function publicSeoStrategy(raw: unknown): {
       ? listed
       : lines((placesNote ?? "").split(PLACES_NOTE_SEPARATOR))
   ).slice(0, SEO_STRATEGY_PLACES_NOTES_MAX);
+  const groupDemand = (group: (typeof groups)[number]) =>
+    group.volume === null
+      ? null
+      : group.trend === "falling"
+        ? group.recent
+        : group.volume;
+  const opportunityUrl = opportunity && verifiedPages.get(opportunity.page);
+  const supportedOpportunity =
+    opportunity &&
+    opportunityUrl &&
+    groups.some(
+      (group) =>
+        (group.page ?? START_PAGE) === opportunity.page &&
+        group.lead === opportunity.keyword &&
+        group.keywords.includes(opportunity.keyword) &&
+        group.reach === opportunity.reach &&
+        group.position !== 1 &&
+        groupDemand(group) === opportunity.demand,
+    );
+  const auditedGroups = groups.every((group) =>
+    verifiedPages.get(group.page ?? START_PAGE),
+  );
+  const measured = groups.map(groupDemand);
+  const sumBuckets = (buckets: {
+    buyer: number;
+    informational: number;
+    other: number;
+  }) => buckets.buyer + buckets.informational + buckets.other;
+  const knownTotal = measured.reduce<number>(
+    (sum, value) => sum + (value ?? 0),
+    0,
+  );
+  const missingTotal = measured.filter((value) => value === null).length;
   const strategy = seoStrategyPayloadSchema.safeParse({
     verdict,
     why,
-    groups: groups.map(({ page, ...group }) => ({
+    ...(purpose && { purpose }),
+    ...(purpose && purposeSource && { purposeSource }),
+    ...(purpose &&
+      supportedOpportunity && {
+        purposeOpportunity: {
+          pageUrl: opportunityUrl,
+          keyword: opportunity.keyword,
+          demand: opportunity.demand,
+          reach: opportunity.reach,
+        },
+      }),
+    ...(auditedGroups &&
+      demandByIntent &&
+      sumBuckets(demandByIntent) === knownTotal && { demandByIntent }),
+    ...(auditedGroups &&
+      missingDemandByIntent &&
+      sumBuckets(missingDemandByIntent) === missingTotal && {
+        missingDemandByIntent,
+      }),
+    groups: groups.map(({ page, forums, ...group }) => ({
       ...group,
+      ...(forums !== undefined &&
+        verifiedPages.get(page ?? START_PAGE) && { forums }),
       // The worker leaves the page number out when only the start page has keywords.
       pageUrl: pages.get(page ?? START_PAGE) ?? null,
     })),

@@ -11623,6 +11623,24 @@ export type ProjectSeoIndexAssessedPage = {
 export type ProjectSeoStrategy = {
     verdict: string;
     why: string;
+    purpose?: 'sales' | 'traffic';
+    purposeSource?: 'owner' | 'inferred';
+    purposeOpportunity?: {
+        pageUrl: string;
+        keyword: string;
+        demand: number;
+        reach: 'ranks' | 'in reach';
+    };
+    demandByIntent?: {
+        buyer: number;
+        informational: number;
+        other: number;
+    };
+    missingDemandByIntent?: {
+        buyer: number;
+        informational: number;
+        other: number;
+    };
     groups: Array<{
         lead: string;
         keywords: Array<string>;
@@ -11632,6 +11650,7 @@ export type ProjectSeoStrategy = {
         trend: 'falling' | 'rising' | 'flat' | null;
         reach: string;
         position: number | null;
+        forums?: boolean;
     }>;
     actions: Array<{
         kind: string;
@@ -11881,6 +11900,15 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    setupGoal?: {
+        pageId: string;
+        expectedRevision: number;
+        action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+    };
+    sharedBrief?: {
+        revision: number;
+        pageIds: Array<string>;
+    };
     fullAuditLimits?: {
         usd: number;
         seconds: number;
@@ -11952,6 +11980,53 @@ export type SaveProjectSeoBrandTermsRequest = {
     terms: Array<string>;
 };
 
+export type SeoAuditBrief = {
+    objective: 'sales' | 'traffic' | 'support' | null;
+    audience: string | null;
+    outcome: string | null;
+    constraints: string | null;
+    pages: Array<{
+        pageId: string;
+        role: 'guide' | 'product' | 'pricing' | 'support' | 'comparison' | 'other' | null;
+        job: string | null;
+        action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+        indexIntent: 'index' | 'exclude' | 'unknown';
+    }>;
+    revision: number;
+    updatedAt: Date | null;
+    followUps: Array<{
+        pageId: string;
+        changedAt: Date | null;
+        lastCrawlAt: Date | null;
+        status: 'awaiting_recrawl' | 'recrawled' | 'unknown';
+        indexReview: 'expected_exclusion' | 'review_exclusion' | 'review_indexing' | 'unknown' | 'matches_intent';
+    }>;
+    priorities: Array<{
+        pageId: string;
+        why: Array<string>;
+        nextStep: string;
+    }>;
+};
+
+export type SaveSeoAuditBriefRequest = {
+    objective: 'sales' | 'traffic' | 'support' | null;
+    audience: string | null;
+    outcome: string | null;
+    constraints: string | null;
+    pages: Array<{
+        pageId: string;
+        role: 'guide' | 'product' | 'pricing' | 'support' | 'comparison' | 'other' | null;
+        job: string | null;
+        action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+        indexIntent: 'index' | 'exclude' | 'unknown';
+    }>;
+    expectedRevision: number;
+};
+
+export type SeoBriefSuggestion = {
+    action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -11979,6 +12054,7 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
+    canDelete?: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -77801,6 +77877,326 @@ export type SaveProjectSeoBrandTermsResponses = {
 
 export type SaveProjectSeoBrandTermsResponse = SaveProjectSeoBrandTermsResponses[keyof SaveProjectSeoBrandTermsResponses];
 
+export type GetProjectSeoBriefData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/brief';
+};
+
+export type GetProjectSeoBriefErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The brief changed. Reload it before saving.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectSeoBriefError = GetProjectSeoBriefErrors[keyof GetProjectSeoBriefErrors];
+
+export type GetProjectSeoBriefResponses = {
+    /**
+     * The requesting user's SEO brief
+     */
+    200: {
+        data: SeoAuditBrief;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectSeoBriefResponse = GetProjectSeoBriefResponses[keyof GetProjectSeoBriefResponses];
+
+export type SaveProjectSeoBriefData = {
+    body: SaveSeoAuditBriefRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/brief';
+};
+
+export type SaveProjectSeoBriefErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The brief changed. Reload it before saving.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveProjectSeoBriefError = SaveProjectSeoBriefErrors[keyof SaveProjectSeoBriefErrors];
+
+export type SaveProjectSeoBriefResponses = {
+    /**
+     * The requesting user's SEO brief
+     */
+    200: {
+        data: SeoAuditBrief;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveProjectSeoBriefResponse = SaveProjectSeoBriefResponses[keyof SaveProjectSeoBriefResponses];
+
+export type GetProjectSeoBriefSuggestionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        pageId: string;
+    };
+    url: '/projects/{id}/seo/brief/suggestion';
+};
+
+export type GetProjectSeoBriefSuggestionErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectSeoBriefSuggestionError = GetProjectSeoBriefSuggestionErrors[keyof GetProjectSeoBriefSuggestionErrors];
+
+export type GetProjectSeoBriefSuggestionResponses = {
+    /**
+     * A suggested page action, or null for manual selection
+     */
+    200: {
+        data: SeoBriefSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectSeoBriefSuggestionResponse = GetProjectSeoBriefSuggestionResponses[keyof GetProjectSeoBriefSuggestionResponses];
+
 export type ListSeoAuditsData = {
     body?: never;
     headers?: {
@@ -78448,6 +78844,110 @@ export type SendSeoAuditChatResponses = {
 };
 
 export type SendSeoAuditChatResponse = SendSeoAuditChatResponses[keyof SendSeoAuditChatResponses];
+
+export type DeleteSeoAuditData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}';
+};
+
+export type DeleteSeoAuditErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid SEO audit request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSeoAuditError = DeleteSeoAuditErrors[keyof DeleteSeoAuditErrors];
+
+export type DeleteSeoAuditResponses = {
+    /**
+     * Audit removed
+     */
+    204: void;
+};
+
+export type DeleteSeoAuditResponse = DeleteSeoAuditResponses[keyof DeleteSeoAuditResponses];
 
 export type GetSeoAuditWorkspaceData = {
     body?: never;
@@ -80148,6 +80648,326 @@ export type SaveSeoAuditBrandTermsResponses = {
 };
 
 export type SaveSeoAuditBrandTermsResponse = SaveSeoAuditBrandTermsResponses[keyof SaveSeoAuditBrandTermsResponses];
+
+export type GetSeoAuditBriefData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/brief';
+};
+
+export type GetSeoAuditBriefErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The brief changed. Reload it before saving.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSeoAuditBriefError = GetSeoAuditBriefErrors[keyof GetSeoAuditBriefErrors];
+
+export type GetSeoAuditBriefResponses = {
+    /**
+     * The requesting user's SEO brief
+     */
+    200: {
+        data: SeoAuditBrief;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSeoAuditBriefResponse = GetSeoAuditBriefResponses[keyof GetSeoAuditBriefResponses];
+
+export type SaveSeoAuditBriefData = {
+    body: SaveSeoAuditBriefRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/brief';
+};
+
+export type SaveSeoAuditBriefErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The brief changed. Reload it before saving.
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveSeoAuditBriefError = SaveSeoAuditBriefErrors[keyof SaveSeoAuditBriefErrors];
+
+export type SaveSeoAuditBriefResponses = {
+    /**
+     * The requesting user's SEO brief
+     */
+    200: {
+        data: SeoAuditBrief;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveSeoAuditBriefResponse = SaveSeoAuditBriefResponses[keyof SaveSeoAuditBriefResponses];
+
+export type GetSeoAuditBriefSuggestionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        pageId: string;
+    };
+    url: '/seo/audits/{id}/brief/suggestion';
+};
+
+export type GetSeoAuditBriefSuggestionErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSeoAuditBriefSuggestionError = GetSeoAuditBriefSuggestionErrors[keyof GetSeoAuditBriefSuggestionErrors];
+
+export type GetSeoAuditBriefSuggestionResponses = {
+    /**
+     * A suggested page action, or null for manual selection
+     */
+    200: {
+        data: SeoBriefSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSeoAuditBriefSuggestionResponse = GetSeoAuditBriefSuggestionResponses[keyof GetSeoAuditBriefSuggestionResponses];
 
 export type DisconnectSeoConnectionData = {
     body?: never;
