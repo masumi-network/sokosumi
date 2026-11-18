@@ -11921,8 +11921,6 @@
       "title": "SEO",
       "intro": "See what changed, what needs work, and what to check next.",
       "edit": "Edit",
-      "pickTitle": "SEO audits",
-      "pickBody": "Keep related pages, checks, statistics, actions and chat together in an audit.",
       "pickUnavailable": "This audit is unavailable. Open another audit.",
       "errorTitle": "Failed to load SEO",
       "errorBody": "Refresh this audit or return to the audit list.",
@@ -11961,6 +11959,93 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
+      "brief": {
+        "title": "Audit brief",
+        "private": "Only you can read this brief. A full audit shares a page goal only when you select it.",
+        "confirmed": "Confirmed by you on {date}.",
+        "objective": "Site goal",
+        "audience": "Who is the site for?",
+        "outcome": "What result matters to you?",
+        "constraints": "Limits on changes",
+        "pageSettings": "Page settings",
+        "page": "Page",
+        "role": "Page role",
+        "job": "What should visitors accomplish here?",
+        "action": "Desired action",
+        "index": "Visibility in Google Search",
+        "pageLimit": "You can set a purpose for up to {count} pages. Clear another page to add this one.",
+        "unset": "Unspecified",
+        "save": "Save brief",
+        "empty": "Add a site goal to record what this audit is for.",
+        "edit": "Edit brief",
+        "add": "Add brief",
+        "readFailed": "Your brief could not be loaded.",
+        "retry": "Try again",
+        "conflict": "This brief changed while you were editing. Reload the saved version to continue.",
+        "reload": "Reload saved brief",
+        "followUp": "Page follow-up",
+        "recordedChange": "Change recorded on {date}.",
+        "lastCrawl": "Last crawl reported by Google on {date}.",
+        "share": "Share page goals in this public task",
+        "shareHelp": "For each page you select, the public SEO task will show its URL, role and desired action. Other brief fields stay private.",
+        "priority": "Priority from your brief",
+        "nextStep": "Recommended next step",
+        "why": "Why this page",
+        "objectives": {
+          "sales": "Sales",
+          "traffic": "Search traffic",
+          "support": "Customer support"
+        },
+        "roles": {
+          "guide": "Guide",
+          "product": "Product",
+          "pricing": "Pricing",
+          "support": "Support",
+          "comparison": "Comparison",
+          "other": "Other"
+        },
+        "actions": {
+          "sign_up": "Sign up",
+          "buy": "Buy",
+          "contact_sales": "Contact sales",
+          "book": "Book",
+          "subscribe": "Subscribe",
+          "download": "Download",
+          "call": "Call",
+          "visit": "Visit",
+          "read": "Read",
+          "none": "No action"
+        },
+        "visibility": {
+          "index": "Include this page",
+          "exclude": "Keep this page out",
+          "unknown": "Undecided"
+        },
+        "events": {
+          "title": "Purchases and signups from organic search",
+          "source": "Only you can see these GA4 counts. They cover organic search visits that started on this page.",
+          "purchase": "Purchases",
+          "sign_up": "Signups",
+          "before": "Before the change",
+          "after": "After the change",
+          "latest": "Latest reported period",
+          "count": "{count, plural, one {# event} other {# events}}",
+          "noComparison": "The audit lacks comparable periods before and after the recorded change.",
+          "observed": "Other factors can also affect these counts.",
+          "missing": "No verified purchase or signup count is available for organic visits that started on this page."
+        },
+        "followUps": {
+          "awaiting_recrawl": "Awaiting evidence of a crawl after the change.",
+          "recrawled": "Google crawled this page after the change.",
+          "unknown": "Crawl timing is unknown."
+        },
+        "indexReview": {
+          "expected_exclusion": "The exclusion matches your visibility setting.",
+          "review_exclusion": "Check why this page appears in search. You want it excluded.",
+          "review_indexing": "Check why this page is excluded. You want it to appear in search.",
+          "matches_intent": "Google’s index status matches your visibility setting."
+        }
+      },
       "manageStatistics": "Google connections",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
@@ -12139,6 +12224,7 @@
             "opportunity": "Related search"
           },
           "short": "Ideas",
+          "name": "Keyword ideas",
           "more": "{count, plural, one {Show # more idea} other {Show # more ideas}}"
         },
         "addButton": "Add a keyword",
@@ -12571,6 +12657,16 @@
       },
       "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
       "audits": {
+        "moreOptions": "More options for {name}",
+        "delete": "Delete audit",
+        "deleteTitle": "Delete “{name}”?",
+        "deleteDescription": "This removes the audit and its results from this workspace. Its link will stop working.",
+        "deleteFailed": "Could not delete this audit. Try again.",
+        "deleteActiveCheck": "Wait for the current check to finish, or cancel its task. Then try again.",
+        "deleteActiveChat": "A chat reply is in progress. Wait for it to finish, then try again.",
+        "deleteScheduled": "End this audit’s scheduled checks, then try again.",
+        "deleteBlocked": "This audit changed. Try again.",
+        "deleteUnavailable": "You can no longer delete this audit.",
         "continue": "Continue",
         "create": "Create audit",
         "saved": "Saved audits",
@@ -12868,6 +12964,27 @@
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
       },
       "setup": {
+        "pausedStart": "Start audit",
+        "pausedReason": "This workspace has no available SEO worker to run a check. Google statistics still work.",
+        "pausedPreviewReason": "This preview has no SEO worker available for this workspace. Google statistics still work.",
+        "goal": {
+          "pausedDraft": "This choice is saved only when you start an audit.",
+          "reviewChanged": "The page goal changed. Return to setup to review it before starting.",
+          "unsupportedCheck": "This check won’t save your page goal. Choose Full audit or Page check to save it.",
+          "draft": "Your choice will be saved when the audit starts.",
+          "freeDraft": "Your choice will be saved when the check starts.",
+          "private": "Private page goal: {goal}",
+          "pausedUnavailable": "Your page goal is unavailable.",
+          "advanced": "Advanced",
+          "automatic": "The audit detects the page goal from its content.",
+          "autoOption": "Automatic",
+          "selected": "This audit will use “{goal}”.",
+          "unavailable": "You can still start the check while the page goal is unavailable.",
+          "question": "Page goal",
+          "suggested": "Use suggested goal “{action}”",
+          "include": "Share this goal with the audit",
+          "shareDetails": "If you include it, the public audit will receive {url} and the goal “{goal}”."
+        },
         "historyUnavailable": "Could not check audit setup. Try again before starting a check.",
         "googleBody": "Connect Google to include your search statistics, or continue with public-page checks only.",
         "skipGoogle": "Continue without Google",
@@ -12875,9 +12992,8 @@
         "steps": "Setup steps",
         "done": "done",
         "page": "Add a page",
-        "pageDone": "Page added",
         "pageBody": "Add the public page you want to rank.",
-        "pageDoneBody": "{count, plural, one {# page is in this audit.} other {# pages are in this audit.}} You can add more pages later.",
+        "pageCount": "{count, plural, one {# page in this audit} other {# pages in this audit}}",
         "audit": "Run the first audit",
         "auditBody": "The agent checks your pages, reads your keyword positions and competitors, and drafts fixes. You approve each one.",
         "check": "Run the first check",
@@ -12895,6 +13011,39 @@
       "strategy": {
         "title": "Keyword strategy",
         "from": "From the check of",
+        "purpose": {
+          "title": "Search intent",
+          "goal": {
+            "sales": "The audit focuses on sales.",
+            "traffic": "The audit focuses on search traffic."
+          },
+          "source": {
+            "owner": "The owner selected the desired action on the starting page.",
+            "inferred": "The audit inferred the desired action from the starting page.",
+            "unspecified": "The audit used the desired action on the starting page."
+          },
+          "first": {
+            "sales": "Review the buyer search “{keyword}”",
+            "traffic": "Review the informational search “{keyword}”"
+          },
+          "groupDemand": "This group has an estimated {count, number} monthly searches.",
+          "ranked": "The page ranked or appeared in a featured snippet for a search in this group.",
+          "inReach": "The referring-domain comparison puts this group within reach.",
+          "measure": {
+            "sales": "After the edit, check clicks from buyer searches and how often visitors complete the desired page action.",
+            "traffic": "After the edit, check clicks from the informational searches in this group."
+          },
+          "demand": "Estimated monthly searches from measured keyword groups",
+          "intents": {
+            "buyer": "Buyer searches",
+            "informational": "Informational searches",
+            "other": "Other searches"
+          },
+          "unmeasured": "Unmeasured",
+          "atLeast": "At least {count, number}",
+          "estimate": "{count, number}",
+          "missing": "{count, plural, one {# group without an estimate} other {# groups without estimates}}"
+        },
         "verdict": {
           "keep": "Keep these keywords",
           "outOfReach": "Most searches of these keywords are out of reach for the site",
@@ -12918,10 +13067,15 @@
           "notDetermined": "{groups} {count, plural, one {has} other {have}} no known reach"
         },
         "moving": "{count, plural, one {Searches change for # group} other {Searches change for # groups}}",
+        "forumQuestions": {
+          "title": "Questions seen in forum results",
+          "keyword": "Search group “{keyword}”",
+          "more": "{count, plural, one {Show # more search group} other {Show # more search groups}}"
+        },
         "reachHelp": {
           "ranks": "A group ranks when a page of the site is in the results or in the featured snippet.",
           "inReach": "A group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
-          "open": "A forum in the search results is a sign that the results are open to new pages."
+          "open": "Inspect the discussion to see which questions people ask. Ranking potential needs separate evidence."
         },
         "trend": {
           "falling": "Searches are falling",
@@ -13042,19 +13196,17 @@
         "keyEventsNotRead": "Not read: shares a landing path with another selected page"
       },
       "export": {
+        "menu": "Export: {table}",
         "csv": "Download CSV",
         "action": "Action",
         "kind": "Type",
         "status": "Status",
-        "csvLabel": "Download CSV: {table}",
         "table": "Copy to a table",
-        "tableLabel": "Copy to a table: {table}",
         "tableTitle": "{table} · {site} · {date}",
         "tableDescription": "Copied from SEO on {date}. A snapshot: it does not change when SEO checks again.",
-        "tableCopied": "{count, plural, one {# keyword copied to a new table.} other {# keywords copied to a new table.}}",
+        "tableCopied": "{count, plural, one {# row copied to a new table.} other {# rows copied to a new table.}}",
         "openTable": "Open table",
-        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it.",
-        "list": "List"
+        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it."
       },
       "datePresets": {
         "label": "Quick periods",
@@ -13278,7 +13430,7 @@
           },
           "38": {
             "title": "Export and date presets",
-            "missing": "No comparison with the same period last year. The countries and devices, competitors, keyword ideas and AI assistants tables have no CSV download. The CSV separator follows the app language, not the computer's region."
+            "missing": "No comparison with the same period last year. The Countries and devices table and the AI assistants table have no export. The CSV separator follows the app language, not the computer's region."
           },
           "39": {
             "title": "AI Overview citation history",

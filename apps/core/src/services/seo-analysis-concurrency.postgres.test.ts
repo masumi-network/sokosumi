@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   afterAll,
   beforeAll,
@@ -23,6 +24,8 @@ import {
   requestProjectSeoAnalysis,
   requestProjectSeoAnalysisInTransaction,
 } from "./project-seo-operations.service";
+import { createSeoAudit } from "./seo-audit.service";
+import { deleteSeoAudit } from "./seo-audit-deletion";
 import { restoreTaskRecord } from "./task-domain-archive";
 import { taskScheduleReleaseService } from "./task-schedule-runs.service";
 
@@ -130,6 +133,107 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.delete({ where: { id: vendorId } });
   });
+  it("preserves the completed source Task and prevents reopening it after deleting a saved audit", async () => {
+    const saved = await createSeoAudit(actor, {
+      name: "One-off check",
+      firstPage: {
+        url: "https://example.test/one-off",
+        relationship: "primary",
+      },
+    });
+    const id = saved.auditId!;
+    const start = () =>
+      requestProjectSeoAnalysis(
+        { ...actor, owner: { kind: "audit", id } },
+        { ...request(), pageIds: [saved.pages[0].id] },
+      );
+    const run = await start();
+    await expect(deleteSeoAudit(actor, id)).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHECK },
+    });
+    const taskId = run.taskId!;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    await deleteSeoAudit(actor, id);
+    await expect(start()).rejects.toMatchObject({ status: 404 });
+    await expect(
+      prisma.$transaction((tx) =>
+        applyGuardedTaskStatusUpdate({
+          tx,
+          taskId,
+          expectedStatus: "COMPLETED",
+          eventStatus: "READY",
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(
+      await prisma.task.findUnique({ where: { id: taskId } }),
+    ).toMatchObject({ status: "COMPLETED" });
+    expect(
+      await prisma.projectSeoAnalysis.findUnique({ where: { taskId } }),
+    ).toMatchObject({ auditId: id });
+  });
+
+  it("protects a paused monitor until it ends and ignores schedules for other audits", async () => {
+    const saved = await createSeoAudit(actor, {
+      name: "Paused checks",
+      firstPage: {
+        url: "https://example.test/paused",
+        relationship: "primary",
+      },
+    });
+    const id = saved.auditId!;
+    const vars = {
+      isAuthenticated: true,
+      authContext: {
+        actor: "user" as const,
+        userId,
+        organizationId: null,
+        role: "user",
+      },
+      workspaceContext: { workspaceId, userId, organizationId: null },
+    };
+    const rule = {
+      expr: "0 9 * * *",
+      timezone: "UTC",
+      endsMode: "AFTER" as const,
+      targetRunCount: 2,
+    };
+    await createProjectSeoMonitor(vars, actor, {
+      operationId: randomUUID(),
+      rule,
+      analysis: request(),
+    });
+    const monitor = await createProjectSeoMonitor(
+      vars,
+      { ...actor, owner: { kind: "audit", id } },
+      {
+        operationId: randomUUID(),
+        rule,
+        analysis: { ...request(), pageIds: [saved.pages[0].id] },
+      },
+    );
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { state: "PAUSED", nextRunAt: null },
+    });
+    await expect(deleteSeoAudit(actor, id)).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_RESUMABLE_MONITOR },
+    });
+    await prisma.taskSchedule.update({
+      where: { id: monitor.id },
+      data: { state: "ENDED" },
+    });
+    await deleteSeoAudit(actor, id);
+    expect(
+      await prisma.taskSchedule.findUnique({ where: { id: monitor.id } }),
+    ).toMatchObject({ state: "ENDED" });
+  });
+
   it("rejects a different kind and page while an audit Task is active", async () => {
     await requestProjectSeoAnalysis(actor, request());
     await expect(

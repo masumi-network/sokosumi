@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, WandSparkles } from "lucide-react";
+import { Bot, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -235,7 +235,7 @@ function PageDetail({
                 )
               }
             >
-              <WandSparkles />
+              <Bot />
               {t(measure ? "agent.draftFix" : "overview.askAgent")}
             </Button>
           ) : null}

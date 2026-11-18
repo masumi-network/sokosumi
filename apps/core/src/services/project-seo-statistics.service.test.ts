@@ -95,13 +95,21 @@ vi.mock("@/lib/db/prisma", () => {
         where,
         take,
       }: {
-        where: { ownerId?: unknown; payload?: { equals: string } };
+        where: {
+          kind?: string | object;
+          ownerId?: unknown;
+          payload?: { equals: string };
+        };
         take?: number;
       }) =>
         state.observations
           .filter(
             (row) =>
               (where.ownerId === null ? !row.ownerId : Boolean(row.ownerId)) &&
+              (!where.kind ||
+                (typeof where.kind === "string"
+                  ? row.kind === where.kind
+                  : row.kind !== "landing_outcomes")) &&
               (!where.payload ||
                 nativeSeoMetricsSchema.parse(row.payload)
                   .collectionFingerprint === where.payload.equals),
@@ -614,6 +622,56 @@ describe("native statistics collection boundary", () => {
     ]);
   });
 
+  it("keeps verified named organic event counts owner-private while public and workspace responses omit them", async () => {
+    state.answer = (slug, args) =>
+      JSON.stringify(args.dimensions ?? []).includes('"eventName"')
+        ? {
+            successful: true,
+            data: JSON.stringify({
+              dimensionHeaders: [
+                { name: "landingPagePlusQueryString" },
+                { name: "eventName" },
+              ],
+              metricHeaders: [{ name: "eventCount" }],
+              rows: [
+                {
+                  dimensionValues: [{ value: "/a" }, { value: "purchase" }],
+                  metricValues: [{ value: "12" }],
+                },
+              ],
+              rowCount: 1,
+              metadata: { timeZone: "Europe/Oslo" },
+            }),
+          }
+        : answer(slug, args);
+    const workspace = await syncProjectSeoStatistics(
+      { ...actor, sokoBotId: undefined },
+      input,
+    );
+    const evidence = state.observations.find(
+      (r) => r.kind === "landing_outcomes",
+    );
+    expect(evidence).toMatchObject({
+      ownerId: "owner",
+      visibility: "PRIVATE",
+      payload: {
+        rows: [{ pageUrl: state.pageUrl, event: "purchase", count: 12 }],
+      },
+    });
+    expect(JSON.stringify(workspace)).not.toContain('"purchase"');
+    expect(
+      JSON.stringify(
+        state.observations.find((r) => r.kind === "metrics")?.payload,
+      ),
+    ).not.toContain('"purchase"');
+    const request = state.reads.find((r) =>
+      JSON.stringify(r.args.dimensions ?? []).includes('"eventName"'),
+    );
+    expect(request?.args.metrics).toEqual([{ name: "eventCount" }]);
+    expect(JSON.stringify(request?.args.dimensionFilter)).toContain(
+      "Organic Search",
+    );
+  });
   it("keeps the totals and says so when the landing page read fails", async () => {
     state.answer = (slug, args) =>
       JSON.stringify(args.dimensions ?? []).includes("landingPage")

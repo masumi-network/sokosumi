@@ -22,6 +22,10 @@ import {
   type NativeSeoMetrics,
   nativeSeoMetricsSchema,
 } from "@/schemas/project-seo-native-metrics.schema";
+import {
+  type PrivateLandingOutcomes,
+  privateLandingOutcomeSchema,
+} from "@/schemas/seo-landing-outcomes.schema";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
@@ -46,6 +50,7 @@ import {
   seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
+import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
 
 export async function addProjectSeoPage(
   actor: SeoActor,
@@ -208,6 +213,7 @@ export async function recordNativeSeoMetrics(
   input: NativeSeoMetrics,
   options: SeoMutationHooks & {
     client?: Prisma.TransactionClient;
+    outcomes?: PrivateLandingOutcomes;
     scope?: { id: string | null; version: number; pageIds: string[] };
   } = {},
 ) {
@@ -273,6 +279,45 @@ export async function recordNativeSeoMetrics(
       },
       update: {},
     });
+    if (options.outcomes) {
+      const named = privateLandingOutcomeSchema.parse(options.outcomes);
+      const scopeUrls = new Set(pages.map((page) => page.url));
+      if (
+        actor.sokoBotId ||
+        payload.provider !== "ga4" ||
+        named.propertyId !== payload.propertyId ||
+        named.verifiedHost !== payload.landingPages?.verifiedHost ||
+        payload.landingPages.channel !== "organic" ||
+        named.from !== payload.from ||
+        named.to !== payload.to ||
+        named.rows.some((row) => !scopeUrls.has(row.pageUrl))
+      )
+        throw badRequest(
+          "Named GA4 landing outcomes must match the verified collection",
+        );
+      const collectedAt = payload.collectedAt ?? payload.observedAt;
+      const hash = sha256(JSON.stringify([actor.userId, named, collectedAt]));
+      const sourceKey = `landing-outcomes:${hash}`;
+      const observedUrls = new Set(named.rows.map((row) => row.pageUrl));
+      await client.projectSeoObservation.upsert({
+        where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
+        create: {
+          ...seoOwnerWhere(actor),
+          ownerId: actor.userId,
+          visibility: "PRIVATE",
+          kind: SEO_LANDING_OUTCOMES_KIND,
+          source: "ga4",
+          sourceKey,
+          artifactHash: hash,
+          pageIds: pages
+            .filter((p) => observedUrls.has(p.url))
+            .map((p) => p.id),
+          payload: named,
+          observedAt: new Date(collectedAt),
+        },
+        update: {},
+      });
+    }
     return commitSeoMutation(client, result, options);
   };
   return options.client

@@ -7,8 +7,9 @@ import {
   Film,
   Image,
   Images,
+  Info,
+  PenLine,
   Repeat,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -302,7 +303,7 @@ export function MonthPanel({
     <div className="ob-month">
       {pending ? (
         <div className="ob-month-pending">
-          <Sparkles size={16} aria-hidden="true" />
+          <Info size={16} aria-hidden="true" />
           <p>
             <b>These are the topics.</b> Once you approve, I write every post
             and make its pictures and videos.
@@ -408,7 +409,7 @@ function measureLine(measure: Measure): string {
 /** What Cuso does on his own schedule; it matches his daily, weekly and monthly runs. */
 const RHYTHM = [
   {
-    icon: Sparkles,
+    icon: PenLine,
     when: "Once you approve",
     does: "I make the whole month",
     detail:

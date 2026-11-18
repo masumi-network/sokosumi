@@ -11921,8 +11921,6 @@
       "title": "SEO",
       "intro": "Sieh Änderungen, offene Arbeiten und die nächsten Prüfungen.",
       "edit": "Bearbeiten",
-      "pickTitle": "SEO-Audits",
-      "pickBody": "Fasse zusammengehörige Seiten, Prüfungen, Statistiken, Aktionen und Chat in einem Audit zusammen.",
       "pickUnavailable": "Dieses Audit ist nicht verfügbar. Öffne ein anderes Audit.",
       "errorTitle": "SEO konnte nicht geladen werden",
       "errorBody": "Lade dieses Audit neu oder kehre zur Audit-Liste zurück.",
@@ -11961,6 +11959,93 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
+      "brief": {
+        "title": "Audit-Briefing",
+        "private": "Nur du kannst dieses Briefing lesen. Ein vollständiges Audit teilt ein Seitenziel nur, wenn du es auswählst.",
+        "confirmed": "Von dir am {date} bestätigt.",
+        "objective": "Ziel der Website",
+        "audience": "An wen richtet sich die Website?",
+        "outcome": "Welches Ergebnis ist dir wichtig?",
+        "constraints": "Vorgaben für Änderungen",
+        "pageSettings": "Seiteneinstellungen",
+        "page": "Seite",
+        "role": "Seitentyp",
+        "job": "Was sollen Besucher hier erreichen?",
+        "action": "Gewünschte Aktion",
+        "index": "Sichtbarkeit in der Google Suche",
+        "pageLimit": "Du kannst für bis zu {count} Seiten einen Zweck festlegen. Leere die Angaben einer anderen Seite, um diese hinzuzufügen.",
+        "unset": "Nicht angegeben",
+        "save": "Briefing speichern",
+        "empty": "Ergänze das Ziel der Website, um den Zweck dieses Audits festzuhalten.",
+        "edit": "Briefing bearbeiten",
+        "add": "Briefing hinzufügen",
+        "readFailed": "Dein Briefing konnte nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "conflict": "Das Briefing wurde während der Bearbeitung geändert. Lade zum Fortfahren die gespeicherte Version.",
+        "reload": "Gespeichertes Briefing laden",
+        "followUp": "Status der Seite",
+        "recordedChange": "Änderung am {date} erfasst.",
+        "lastCrawl": "Letzter von Google gemeldeter Crawl am {date}.",
+        "share": "Seitenziele in dieser öffentlichen Aufgabe teilen",
+        "shareHelp": "Für jede ausgewählte Seite zeigt die öffentliche SEO-Aufgabe die URL, den Seitentyp und die gewünschte Aktion. Die übrigen Angaben im Briefing bleiben privat.",
+        "priority": "Priorität aus deinem Briefing",
+        "nextStep": "Empfohlener nächster Schritt",
+        "why": "Warum diese Seite?",
+        "objectives": {
+          "sales": "Vertrieb",
+          "traffic": "Suchzugriffe",
+          "support": "Kundenservice"
+        },
+        "roles": {
+          "guide": "Ratgeber",
+          "product": "Produkt",
+          "pricing": "Preise",
+          "support": "Hilfe",
+          "comparison": "Vergleich",
+          "other": "Sonstiges"
+        },
+        "actions": {
+          "sign_up": "Registrieren",
+          "buy": "Kaufen",
+          "contact_sales": "Vertrieb kontaktieren",
+          "book": "Buchen",
+          "subscribe": "Abonnieren",
+          "download": "Herunterladen",
+          "call": "Anrufen",
+          "visit": "Besuchen",
+          "read": "Lesen",
+          "none": "Keine Aktion"
+        },
+        "visibility": {
+          "index": "Seite aufnehmen",
+          "exclude": "Seite ausschließen",
+          "unknown": "Unentschieden"
+        },
+        "events": {
+          "title": "Käufe und Registrierungen über die organische Suche",
+          "source": "Nur du siehst diese GA4-Zahlen. Sie beziehen sich auf Besuche aus der organischen Suche, die auf dieser Seite begonnen haben.",
+          "purchase": "Käufe",
+          "sign_up": "Registrierungen",
+          "before": "Vor der Änderung",
+          "after": "Nach der Änderung",
+          "latest": "Zuletzt gemeldeter Zeitraum",
+          "count": "{count, plural, one {# Ereignis} other {# Ereignisse}}",
+          "noComparison": "Dem Audit fehlen vergleichbare Zeiträume vor und nach der erfassten Änderung.",
+          "observed": "Auch andere Faktoren können die Zahlen beeinflussen.",
+          "missing": "Für Besuche aus der organischen Suche mit Einstieg auf dieser Seite liegt keine bestätigte Zahl von Käufen oder Registrierungen vor."
+        },
+        "followUps": {
+          "awaiting_recrawl": "Es fehlt noch ein Crawl-Nachweis für die Zeit nach der Änderung.",
+          "recrawled": "Google hat die Seite nach der Änderung gecrawlt.",
+          "unknown": "Der Zeitpunkt des Crawls ist unbekannt."
+        },
+        "indexReview": {
+          "expected_exclusion": "Der Ausschluss entspricht deiner Einstellung.",
+          "review_exclusion": "Prüfe, weshalb diese Seite in der Suche erscheint. Du möchtest sie ausschließen.",
+          "review_indexing": "Prüfe, weshalb diese Seite ausgeschlossen ist. Du möchtest sie in der Suche anzeigen.",
+          "matches_intent": "Der Indexstatus bei Google entspricht deiner Einstellung."
+        }
+      },
       "manageStatistics": "Google-Verbindungen",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
@@ -12139,6 +12224,7 @@
             "opportunity": "Verwandte Suche"
           },
           "short": "Ideen",
+          "name": "Keyword-Ideen",
           "more": "{count, plural, one {# weitere Idee anzeigen} other {# weitere Ideen anzeigen}}"
         },
         "addButton": "Keyword hinzufügen",
@@ -12571,6 +12657,16 @@
       },
       "historyLimited": "Es werden die neuesten {limit} Prüfungen und die neuesten {limit} Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
       "audits": {
+        "moreOptions": "Weitere Optionen für {name}",
+        "delete": "Audit löschen",
+        "deleteTitle": "„{name}“ löschen?",
+        "deleteDescription": "Das Audit und seine Ergebnisse werden aus diesem Workspace entfernt. Der Link zum Audit funktioniert danach nicht mehr.",
+        "deleteFailed": "Das Audit konnte nicht gelöscht werden. Versuche es erneut.",
+        "deleteActiveCheck": "Warte, bis die laufende Prüfung abgeschlossen ist, oder brich die zugehörige Aufgabe ab. Versuche es dann erneut.",
+        "deleteActiveChat": "Eine Chatantwort wird erstellt. Warte, bis sie fertig ist, und versuche es erneut.",
+        "deleteScheduled": "Beende die geplanten Prüfungen für dieses Audit und versuche es erneut.",
+        "deleteBlocked": "Dieses Audit wurde geändert. Versuche es erneut.",
+        "deleteUnavailable": "Du kannst dieses Audit nicht mehr löschen.",
         "continue": "Weiter",
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",
@@ -12868,6 +12964,27 @@
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"
       },
       "setup": {
+        "pausedStart": "Audit starten",
+        "pausedReason": "In diesem Workspace ist kein SEO-Worker für eine Prüfung verfügbar. Die Google-Statistiken funktionieren weiterhin.",
+        "pausedPreviewReason": "In dieser Vorschau ist für diesen Workspace kein SEO-Worker verfügbar. Die Google-Statistiken funktionieren weiterhin.",
+        "goal": {
+          "pausedDraft": "Diese Auswahl wird erst gespeichert, wenn du ein Audit startest.",
+          "reviewChanged": "Das Seitenziel hat sich geändert. Prüfe es vor dem Start erneut in der Einrichtung.",
+          "unsupportedCheck": "Diese Prüfung speichert dein Seitenziel nicht. Wähle ein vollständiges Audit oder eine Seitenprüfung, um es zu speichern.",
+          "draft": "Deine Auswahl wird beim Start des Audits gespeichert.",
+          "freeDraft": "Deine Auswahl wird beim Start der Prüfung gespeichert.",
+          "private": "Privates Seitenziel: {goal}",
+          "pausedUnavailable": "Das Seitenziel ist nicht verfügbar.",
+          "advanced": "Erweitert",
+          "automatic": "Das Audit erkennt das Ziel der Seite anhand ihres Inhalts.",
+          "autoOption": "Automatisch",
+          "selected": "Dieses Audit verwendet das Ziel „{goal}“.",
+          "unavailable": "Du kannst die Prüfung auch starten, wenn das Seitenziel gerade nicht verfügbar ist.",
+          "question": "Seitenziel",
+          "suggested": "Vorschlag „{action}“ übernehmen",
+          "include": "Dieses Ziel mit dem Audit teilen",
+          "shareDetails": "Wenn du dieses Ziel einbeziehst, erhält das öffentliche Audit die URL {url} und das Ziel „{goal}“."
+        },
         "historyUnavailable": "Die Audit-Einrichtung konnte nicht geprüft werden. Versuche es erneut, bevor du eine Prüfung startest.",
         "googleBody": "Verbinde Google, um deine Suchstatistiken einzubeziehen, oder prüfe nur öffentliche Seiten.",
         "skipGoogle": "Ohne Google fortfahren",
@@ -12875,9 +12992,8 @@
         "steps": "Einrichtungsschritte",
         "done": "erledigt",
         "page": "Seite hinzufügen",
-        "pageDone": "Seite hinzugefügt",
         "pageBody": "Füge die öffentliche Seite hinzu, die ranken soll.",
-        "pageDoneBody": "{count, plural, one {# Seite ist in diesem Audit.} other {# Seiten sind in diesem Audit.}} Weitere Seiten kannst du später hinzufügen.",
+        "pageCount": "{count, plural, one {# Seite in diesem Audit} other {# Seiten in diesem Audit}}",
         "audit": "Erstes Audit starten",
         "auditBody": "Der Agent prüft deine Seiten, liest deine Keyword-Positionen und Wettbewerber und entwirft Korrekturen. Du gibst jede einzeln frei.",
         "check": "Erste Prüfung starten",
@@ -12895,6 +13011,39 @@
       "strategy": {
         "title": "Keyword-Strategie",
         "from": "Aus der Prüfung vom",
+        "purpose": {
+          "title": "Suchintention",
+          "goal": {
+            "sales": "Das Audit legt den Schwerpunkt auf Verkäufe.",
+            "traffic": "Das Audit legt den Schwerpunkt auf Suchzugriffe."
+          },
+          "source": {
+            "owner": "Der Inhaber hat die gewünschte Aktion auf der Startseite ausgewählt.",
+            "inferred": "Das Audit hat die gewünschte Aktion aus der Startseite abgeleitet.",
+            "unspecified": "Das Audit hat die gewünschte Aktion auf der Startseite verwendet."
+          },
+          "first": {
+            "sales": "Prüfe die Suchanfrage „{keyword}“ mit Kaufabsicht",
+            "traffic": "Prüfe die Informationssuche „{keyword}“"
+          },
+          "groupDemand": "Für diese Gruppe werden {count, number} Suchanfragen pro Monat geschätzt.",
+          "ranked": "Die Seite erschien für eine Suchanfrage dieser Gruppe in den Ergebnissen oder in einem Featured Snippet.",
+          "inReach": "Laut dem Vergleich der verweisenden Domains liegt diese Gruppe in Reichweite.",
+          "measure": {
+            "sales": "Prüfe nach der Änderung die Klicks aus kaufbezogenen Suchen und wie oft Besucher die gewünschte Aktion auf der Seite ausführen.",
+            "traffic": "Prüfe nach der Änderung die Klicks aus den Informationssuchen dieser Gruppe."
+          },
+          "demand": "Geschätzte monatliche Suchen der gemessenen Keyword-Gruppen",
+          "intents": {
+            "buyer": "Suchen mit Kaufabsicht",
+            "informational": "Informationssuchen",
+            "other": "Sonstige Suchen"
+          },
+          "unmeasured": "Nicht gemessen",
+          "atLeast": "Mindestens {count, number}",
+          "estimate": "{count, number}",
+          "missing": "{count, plural, one {# Gruppe ohne Schätzung} other {# Gruppen ohne Schätzung}}"
+        },
         "verdict": {
           "keep": "Behalte diese Keywords",
           "outOfReach": "Die meisten Suchen dieser Keywords sind für die Website außer Reichweite",
@@ -12918,10 +13067,15 @@
           "notDetermined": "{groups} {count, plural, one {hat} other {haben}} keine bekannte Reichweite"
         },
         "moving": "{count, plural, one {Die Suchen ändern sich bei # Gruppe} other {Die Suchen ändern sich bei # Gruppen}}",
+        "forumQuestions": {
+          "title": "Fragen aus Forentreffern",
+          "keyword": "Suchgruppe „{keyword}“",
+          "more": "{count, plural, one {# weitere Suchgruppe anzeigen} other {# weitere Suchgruppen anzeigen}}"
+        },
         "reachHelp": {
           "ranks": "Eine Gruppe rankt, wenn eine Seite der Website in den Ergebnissen oder im Featured Snippet steht.",
           "inReach": "Eine Gruppe ist in Reichweite, wenn die verweisenden Domains der Website nah an denen der schwächsten Top-10-Seite liegen, die das Audit zählen konnte.",
-          "open": "Ein Forum in den Suchergebnissen ist ein Zeichen, dass die Ergebnisse für neue Seiten offen sind."
+          "open": "Lies die Diskussion, um die Fragen der Nutzer zu sehen. Für die Rankingchancen sind eigene Belege nötig."
         },
         "trend": {
           "falling": "Suchen fallen",
@@ -13042,19 +13196,17 @@
         "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite"
       },
       "export": {
+        "menu": "Exportieren: {table}",
         "csv": "CSV herunterladen",
         "action": "Aktion",
         "kind": "Art",
         "status": "Status",
-        "csvLabel": "CSV herunterladen: {table}",
         "table": "In eine Tabelle kopieren",
-        "tableLabel": "In eine Tabelle kopieren: {table}",
         "tableTitle": "{table} · {site} · {date}",
         "tableDescription": "Aus SEO kopiert am {date}. Ein Schnappschuss: Er ändert sich nicht, wenn SEO erneut prüft.",
-        "tableCopied": "{count, plural, one {# Keyword in eine neue Tabelle kopiert.} other {# Keywords in eine neue Tabelle kopiert.}}",
+        "tableCopied": "{count, plural, one {# Zeile in eine neue Tabelle kopiert.} other {# Zeilen in eine neue Tabelle kopiert.}}",
         "openTable": "Tabelle öffnen",
-        "tableFailed": "Die Tabelle ist noch nicht vollständig. Drücke erneut auf „In eine Tabelle kopieren“, um sie fertigzustellen.",
-        "list": "Liste"
+        "tableFailed": "Die Tabelle ist noch nicht vollständig. Drücke erneut auf „In eine Tabelle kopieren“, um sie fertigzustellen."
       },
       "datePresets": {
         "label": "Schnellauswahl",
@@ -13278,7 +13430,7 @@
           },
           "38": {
             "title": "Export und Zeitraum-Vorlagen",
-            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen Länder und Geräte, Mitbewerber, Keyword-Ideen und KI-Assistenten haben keinen CSV-Download. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
+            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen „Länder und Geräte“ und „KI-Assistenten“ haben keinen Export. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",

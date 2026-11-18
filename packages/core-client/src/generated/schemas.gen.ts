@@ -44720,6 +44720,95 @@ export const ProjectSeoStrategySchema = {
             type: 'string',
             maxLength: 20000
         },
+        purpose: {
+            type: 'string',
+            enum: [
+                'sales',
+                'traffic'
+            ]
+        },
+        purposeSource: {
+            type: 'string',
+            enum: [
+                'owner',
+                'inferred'
+            ]
+        },
+        purposeOpportunity: {
+            type: 'object',
+            properties: {
+                pageUrl: {
+                    type: 'string',
+                    maxLength: 4096
+                },
+                keyword: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000
+                },
+                demand: {
+                    type: 'number',
+                    exclusiveMinimum: 0
+                },
+                reach: {
+                    type: 'string',
+                    enum: [
+                        'ranks',
+                        'in reach'
+                    ]
+                }
+            },
+            required: [
+                'pageUrl',
+                'keyword',
+                'demand',
+                'reach'
+            ]
+        },
+        demandByIntent: {
+            type: 'object',
+            properties: {
+                buyer: {
+                    type: 'number',
+                    minimum: 0
+                },
+                informational: {
+                    type: 'number',
+                    minimum: 0
+                },
+                other: {
+                    type: 'number',
+                    minimum: 0
+                }
+            },
+            required: [
+                'buyer',
+                'informational',
+                'other'
+            ]
+        },
+        missingDemandByIntent: {
+            type: 'object',
+            properties: {
+                buyer: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                informational: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                other: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'buyer',
+                'informational',
+                'other'
+            ]
+        },
         groups: {
             type: 'array',
             items: {
@@ -44777,6 +44866,32 @@ export const ProjectSeoStrategySchema = {
                             'number',
                             'null'
                         ]
+                    },
+                    forums: {
+                        type: 'boolean'
+                    },
+                    forumQuestions: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                title: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 300,
+                                    pattern: '[?？؟]/u'
+                                },
+                                url: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                }
+                            },
+                            required: [
+                                'title'
+                            ]
+                        },
+                        maxItems: 5
                     }
                 },
                 required: [
@@ -46150,6 +46265,67 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 750
             ]
         },
+        setupGoal: {
+            type: 'object',
+            properties: {
+                pageId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                action: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'sign up',
+                        'buy',
+                        'contact sales',
+                        'book',
+                        'subscribe',
+                        'download',
+                        'call',
+                        'visit',
+                        'read',
+                        'none',
+                        null
+                    ]
+                }
+            },
+            required: [
+                'pageId',
+                'expectedRevision',
+                'action'
+            ],
+            additionalProperties: false
+        },
+        sharedBrief: {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    minItems: 1,
+                    maxItems: 10
+                }
+            },
+            required: [
+                'revision',
+                'pageIds'
+            ],
+            additionalProperties: false
+        },
         fullAuditLimits: {
             type: 'object',
             properties: {
@@ -46497,6 +46673,478 @@ export const SaveProjectSeoBrandTermsRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SeoAuditBriefSchema = {
+    type: 'object',
+    properties: {
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sales',
+                'traffic',
+                'support',
+                null
+            ]
+        },
+        audience: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        constraints: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 600
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'guide',
+                            'product',
+                            'pricing',
+                            'support',
+                            'comparison',
+                            'other',
+                            null
+                        ]
+                    },
+                    job: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    action: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'sign up',
+                            'buy',
+                            'contact sales',
+                            'book',
+                            'subscribe',
+                            'download',
+                            'call',
+                            'visit',
+                            'read',
+                            'none',
+                            null
+                        ]
+                    },
+                    indexIntent: {
+                        type: 'string',
+                        enum: [
+                            'index',
+                            'exclude',
+                            'unknown'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'role',
+                    'job',
+                    'action',
+                    'indexIntent'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        updatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        followUps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    changedAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    lastCrawlAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    outcomes: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                event: {
+                                    type: 'string',
+                                    enum: [
+                                        'purchase',
+                                        'sign_up'
+                                    ]
+                                },
+                                latest: {
+                                    type: 'object',
+                                    properties: {
+                                        from: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        to: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        count: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        }
+                                    },
+                                    required: [
+                                        'from',
+                                        'to',
+                                        'count'
+                                    ],
+                                    additionalProperties: false
+                                },
+                                comparison: {
+                                    type: 'object',
+                                    properties: {
+                                        before: {
+                                            type: 'object',
+                                            properties: {
+                                                from: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                to: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'from',
+                                                'to',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        },
+                                        after: {
+                                            type: 'object',
+                                            properties: {
+                                                from: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                to: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'from',
+                                                'to',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        }
+                                    },
+                                    required: [
+                                        'before',
+                                        'after'
+                                    ],
+                                    additionalProperties: false
+                                }
+                            },
+                            required: [
+                                'event',
+                                'latest'
+                            ],
+                            additionalProperties: false
+                        },
+                        maxItems: 2
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'awaiting_recrawl',
+                            'recrawled',
+                            'unknown'
+                        ]
+                    },
+                    indexReview: {
+                        type: 'string',
+                        enum: [
+                            'expected_exclusion',
+                            'review_exclusion',
+                            'review_indexing',
+                            'unknown',
+                            'matches_intent'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'changedAt',
+                    'lastCrawlAt',
+                    'status',
+                    'indexReview'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        priorities: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    why: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    nextStep: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'pageId',
+                    'why',
+                    'nextStep'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'objective',
+        'audience',
+        'outcome',
+        'constraints',
+        'pages',
+        'revision',
+        'updatedAt',
+        'followUps',
+        'priorities'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SaveSeoAuditBriefRequestSchema = {
+    type: 'object',
+    properties: {
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sales',
+                'traffic',
+                'support',
+                null
+            ]
+        },
+        audience: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 300
+        },
+        constraints: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 600
+        },
+        pages: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    role: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'guide',
+                            'product',
+                            'pricing',
+                            'support',
+                            'comparison',
+                            'other',
+                            null
+                        ]
+                    },
+                    job: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    action: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'sign up',
+                            'buy',
+                            'contact sales',
+                            'book',
+                            'subscribe',
+                            'download',
+                            'call',
+                            'visit',
+                            'read',
+                            'none',
+                            null
+                        ]
+                    },
+                    indexIntent: {
+                        type: 'string',
+                        enum: [
+                            'index',
+                            'exclude',
+                            'unknown'
+                        ]
+                    }
+                },
+                required: [
+                    'pageId',
+                    'role',
+                    'job',
+                    'action',
+                    'indexIntent'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'objective',
+        'audience',
+        'outcome',
+        'constraints',
+        'pages',
+        'expectedRevision'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoBriefSuggestionSchema = {
+    type: 'object',
+    properties: {
+        action: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sign up',
+                'buy',
+                'contact sales',
+                'book',
+                'subscribe',
+                'download',
+                'call',
+                'visit',
+                'read',
+                'none',
+                null
+            ]
+        }
+    },
+    required: [
+        'action'
+    ],
+    additionalProperties: false
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -46584,6 +47232,9 @@ export const SeoAuditSummarySchema = {
         pageCount: {
             type: 'integer',
             minimum: 0
+        },
+        canDelete: {
+            type: 'boolean'
         },
         createdAt: {
             type: 'string',

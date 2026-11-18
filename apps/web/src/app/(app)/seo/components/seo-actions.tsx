@@ -4,7 +4,8 @@ import { Play, Plug, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SeoActionWorklist } from "./seo-action-worklist";
-import { SeoCsvButton } from "./seo-csv-button";
+import { SeoBriefPagePriority } from "./seo-brief-summary";
+import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
 import { seoOverviewModel } from "./seo-overview-model";
 import { SeoEmpty, SeoSection } from "./seo-shared";
@@ -15,12 +16,11 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const overview = seoOverviewModel(model.data);
   const csv = (
-    <SeoCsvButton
+    <SeoExportMenu
       name="actions"
       title={t("actions.title")}
+      workspace={model.data}
       table={() => seoActionsExport(overview.actions, t)}
-      // 40 px on a phone, as the filter beside it.
-      className="ms-0 max-sm:h-10"
     />
   );
   // The strategy actions are a group with a title of their own: a group over them needs one too.
@@ -35,12 +35,14 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   if (strategyOnly)
     return (
       <div className="space-y-5">
+        <SeoBriefPagePriority model={model} />
         <SeoStrategyActions model={model} />
         <SeoStrategyPlaceNotes model={model} />
       </div>
     );
   return (
     <div className="space-y-5">
+      <SeoBriefPagePriority model={model} />
       <SeoSection
         title={t("actions.title")}
         description={tracked ? t("actions.help") : undefined}

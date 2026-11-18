@@ -23,6 +23,8 @@ import {
   releaseSeoMonitorRun,
 } from "./project-seo-monitor.service";
 import { requestProjectSeoAnalysis } from "./project-seo-operations.service";
+import { createSeoAudit } from "./seo-audit.service";
+import { getSeoBrief, saveSeoBrief } from "./seo-audit-brief.service";
 import {
   createTaskSchedule,
   runTaskScheduleNow,
@@ -186,6 +188,161 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     await setBalance(150n);
     const analysis = await requestProjectSeoAnalysis(actor, rankings());
     expect(analysis.taskId).not.toBeNull();
+  });
+
+  it("rolls back a goal on insufficient credit and commits a shared first revision once with its Task", async () => {
+    const { auditId: id, pages } = await createSeoAudit(actor, {
+      name: "Atomic launch",
+      firstPage: {
+        url: "https://example.test/pricing",
+        relationship: "primary",
+      },
+    });
+    const owner = { ...actor, owner: { kind: "audit" as const, id: id! } };
+    const page = pages[0];
+    const input = {
+      ...fullAudit(),
+      pageIds: [page.id],
+      setupGoal: {
+        pageId: page.id,
+        expectedRevision: 0,
+        action: "buy" as const,
+      },
+      sharedBrief: { revision: 0, pageIds: [page.id] },
+    };
+    const evidence = () =>
+      prisma.projectSeoObservation.findMany({
+        where: {
+          auditId: id!,
+          kind: { in: ["audit_brief", "audit_brief_run"] },
+        },
+        select: {
+          kind: true,
+          payload: true,
+          scopeVersion: true,
+          visibility: true,
+        },
+        orderBy: { kind: "asc" },
+      });
+    await expect(requestProjectSeoAnalysis(owner, input)).rejects.toMatchObject(
+      { status: 422 },
+    );
+    expect(await evidence()).toEqual([]);
+    expect(
+      await prisma.projectSeoAnalysis.count({ where: { auditId: id! } }),
+    ).toBe(0);
+    await setBalance(750n);
+    const first = await requestProjectSeoAnalysis(owner, input);
+    const retry = await requestProjectSeoAnalysis(owner, input);
+    expect(retry.taskId).toBe(first.taskId);
+    expect(first.request).toMatchObject({
+      version: 2,
+      context: { pages: [{ url: page.url, action: "buy" }] },
+    });
+    expect(first.request).not.toHaveProperty("setupGoal");
+    expect(await evidence()).toMatchObject([
+      {
+        kind: "audit_brief",
+        visibility: "PRIVATE",
+        scopeVersion: 1,
+        payload: { pages: [{ pageId: page.id, action: "buy" }] },
+      },
+      {
+        kind: "audit_brief_run",
+        visibility: "PRIVATE",
+        payload: { revision: 1, sharedPageIds: [page.id] },
+      },
+    ]);
+    await expect(
+      requestProjectSeoAnalysis(owner, {
+        ...input,
+        setupGoal: { ...input.setupGoal, action: "read" },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      requestProjectSeoAnalysis({ ...owner, sokoBotId: randomUUID() }, input),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("limits a private page-check edit to its scope and preserves other goals and notes", async () => {
+    const saved = await createSeoAudit(actor, {
+      name: "Private draft",
+      firstPage: { url: "https://example.test/docs", relationship: "primary" },
+    });
+    const owner = {
+      ...actor,
+      owner: { kind: "audit" as const, id: saved.auditId! },
+    };
+    const page = saved.pages[0];
+    const other = await addProjectSeoPage(owner, {
+      url: "https://example.test/shop",
+      relationship: "related",
+    });
+    const content = {
+      objective: "support",
+      audience: "private-audience",
+      outcome: null,
+      constraints: null,
+      pages: [
+        {
+          pageId: page.id,
+          action: "buy",
+          role: "guide",
+          job: "private-job",
+          indexIntent: "index",
+        },
+        {
+          pageId: other.id,
+          action: "sign up",
+          role: null,
+          job: null,
+          indexIntent: "unknown",
+        },
+      ],
+    };
+    await saveSeoBrief(owner, { ...content, expectedRevision: 0 });
+    const input = requestSeoAnalysisSchema.parse({
+      kind: "page_check",
+      pageIds: [page.id],
+      countryCode: "US",
+      languageCode: "en",
+      idempotencyKey: randomUUID(),
+      setupGoal: { pageId: page.id, expectedRevision: 1, action: "read" },
+    });
+    await expect(
+      requestProjectSeoAnalysis(owner, {
+        ...input,
+        setupGoal: { ...input.setupGoal!, pageId: other.id },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      requestProjectSeoAnalysis(owner, {
+        ...input,
+        setupGoal: { ...input.setupGoal!, expectedRevision: 0 },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    const run = await requestProjectSeoAnalysis(owner, input);
+    expect(run.request).toMatchObject({ version: 1, kind: "page_check" });
+    const task = await prisma.task.findUniqueOrThrow({
+      where: { id: run.taskId! },
+    });
+    for (const privateValue of [
+      "setupGoal",
+      "private-audience",
+      "private-job",
+      '"action":"read"',
+      other.url,
+    ])
+      expect(task.description).not.toContain(privateValue);
+    expect(await getSeoBrief(owner)).toMatchObject({
+      ...content,
+      revision: 2,
+      pages: [{ ...content.pages[0], action: "read" }, content.pages[1]],
+    });
+    const pin = await prisma.projectSeoObservation.findFirstOrThrow({
+      where: { auditId: saved.auditId!, kind: "audit_brief_run" },
+    });
+    expect(pin.payload).toMatchObject({ revision: 2, sharedPageIds: [] });
   });
 
   it("requires the fixed 750 credits before a one-page full audit", async () => {
