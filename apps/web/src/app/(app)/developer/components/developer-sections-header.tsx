@@ -28,8 +28,10 @@ export function DeveloperSectionsHeader({
     return null;
   }
 
+  // `w-full`: the page column is a flex column, and auto margins alone
+  // would shrink the row to its links instead of lining it up with the page.
   return (
-    <div className="mx-auto hidden max-w-4xl space-y-4 px-4 pt-2 pb-4 md:block">
+    <div className="mx-auto hidden w-full max-w-4xl space-y-4 px-4 pt-2 pb-4 md:block">
       <h1 className="text-2xl font-light tracking-tight">{t("title")}</h1>
       <ProjectTabs
         ariaLabel={t("sectionsLabel")}
