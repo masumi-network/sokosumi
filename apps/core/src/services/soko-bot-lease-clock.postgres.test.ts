@@ -348,12 +348,20 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     ).toBe("STARTING");
   });
 
-  it("counts a turn of today against the daily cap after the host has passed midnight", async (context) => {
+  it("counts a turn of today against the daily cap after the host has passed midnight", async () => {
     const now = await databaseNow();
-    // localDayStart keeps the sample's seconds (a separate follow-up), so in
-    // the day's first minutes a turn stamped just before the gate's sample
-    // falls outside it whatever the clock.
-    if (now.getUTCHours() === 0 && now.getUTCMinutes() < 2) context.skip();
+    // The bot's day is placed around the sample: a fixed-offset zone in which
+    // it is local noon, so the turn and the gate's later sample share a local
+    // day at any real time of day.
+    const offsetHours = 12 - now.getUTCHours();
+    const ingestTimezone =
+      offsetHours === 0
+        ? "Etc/GMT"
+        : `Etc/GMT${offsetHours > 0 ? "-" : "+"}${Math.abs(offsetHours)}`;
+    await prisma.sokoBot.update({
+      where: { id: botId },
+      data: { ingestTimezone },
+    });
     await createTurn(now, {
       status: "RUNNING",
       eveSessionId: "session_clock",
@@ -361,11 +369,10 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       leaseInMs: 16 * MINUTE,
       source: "SCHEDULE",
     });
-    const nextUtcMidnight = new Date(now);
-    nextUtcMidnight.setUTCHours(24, 0, 0, 0);
-    await skewApplicationClock(
-      nextUtcMidnight.getTime() - now.getTime() + MINUTE,
-    );
+    const msIntoLocalDay =
+      (now.getTime() + offsetHours * 60 * MINUTE) % (24 * 60 * MINUTE);
+    const untilLocalMidnight = 24 * 60 * MINUTE - msIntoLocalDay;
+    await skewApplicationClock(untilLocalMidnight + MINUTE);
 
     await expect(proactiveGate(botId)).resolves.toMatchObject({
       ok: false,
