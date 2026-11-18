@@ -248,6 +248,13 @@ export function EmailCodeField({
           }
         }}
         onPasteCapture={(event) => {
+          // A paste built in script (Lighthouse, some autofill tools) has no
+          // clipboard. There is nothing to paste, and InputOTP's own handler
+          // would read it anyway, so it stops here.
+          if (!event.clipboardData) {
+            event.stopPropagation();
+            return;
+          }
           // InputOTP pastes at the caret, which sits on the last slot of a
           // full field; a whole code replaces what is there instead.
           const pasted = keepDigits(event.clipboardData.getData("text/plain"));

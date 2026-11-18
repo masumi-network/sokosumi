@@ -16,11 +16,11 @@ import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
-  findSokoBotDirectRoom,
   sokoBotFailureLead,
   toImportantChats,
   toNewSchedules,
   toTeamDay,
+  withSokoBotChat,
 } from "./components/soko-bot-home-data";
 import { SokoBotSetup } from "./components/soko-bot-setup";
 import { loadHomeData, loadHomeGate } from "./home-page-data";
@@ -119,8 +119,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     </Suspense>
   );
   const {
+    botRoom,
     needsYou,
-    rooms,
     important,
     recentTasks,
     sokoBot,
@@ -137,18 +137,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   );
 
   if (sokoBot && userId) {
-    const roomId = findSokoBotDirectRoom(rooms, sokoBot.id)?.id ?? null;
+    const roomId = botRoom?.roomId ?? null;
     // A failed bot waits on the reader too: the sidebar and the bot's page
     // say so, and Home said "Nothing waits on you".
     const [tHome, tChannels] = await Promise.all([
       getTranslations("App.Chat.Landing.SokoBotHome"),
       getTranslations("App.Channels"),
     ]);
+    const botName = sokoBot.name?.trim() || tHome("defaultName");
+    const untitled = tChannels("SavedMessages.untitled");
     const failedLead = sokoBotFailureLead(
-      {
-        name: sokoBot.name?.trim() || tHome("defaultName"),
-        status: sokoBot.status,
-      },
+      { name: botName, status: sokoBot.status },
       lastFailure,
       tHome,
     );
@@ -174,9 +173,14 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           needsYouCount={needsYou?.total ?? null}
           now={now}
           teamTasks={toTeamDay(recentTasks, now)}
-          chats={toImportantChats(
-            important,
-            tChannels("SavedMessages.untitled"),
+          // Unread important messages, plus the reader's latest chat with
+          // the bot even once read, so a first chat does not leave Home
+          // saying nothing moved.
+          chats={withSokoBotChat(
+            toImportantChats(important, untitled),
+            botRoom,
+            { userId, botName, untitled },
+            now,
           )}
           schedules={toNewSchedules(sokoBot.schedules ?? [], now)}
           myDay={myDay}

@@ -388,7 +388,7 @@ button[aria-busy="true"] {
   place-items: center;
   margin-bottom: 48px;
   aspect-ratio: 1;
-  border: var(--line-hero) solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: 50%;
   background: var(--stage);
 }
@@ -548,7 +548,6 @@ a.button {
   border-radius: var(--radius-pill);
   border: var(--line-pill) solid var(--line);
   background: var(--card);
-  box-shadow: var(--shadow-pill);
   color: var(--foreground);
   font-size: 0.75rem;
   font-weight: 600;
@@ -885,6 +884,12 @@ button.cuso-status {
   cursor: pointer;
 }
 
+/* He needs the owner and the card opens the chat: now it is an action. */
+button.cuso-status .ob-stage-art {
+  border-width: var(--line-thick);
+  box-shadow: var(--shadow-pill);
+}
+
 /* The person, at the foot of the sidebar: the whole row opens the account menu. */
 .side .ob-who {
   display: block;
@@ -1024,10 +1029,15 @@ button.cuso-status {
 }
 
 /* ── Chat: rows like Sokosumi's chat rooms, no bubbles ── */
+/* The chat scrolls right down to the composer: no empty band above it. */
+.scroll.chat {
+  padding: 24px 24px 12px;
+}
+
 .thread {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   max-width: 720px;
   margin: 0 auto;
 }
@@ -1053,7 +1063,7 @@ button.cuso-status {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1077,7 +1087,7 @@ button.cuso-status {
   font-size: 0.875rem;
   max-width: 62ch;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .txt a {
@@ -1093,7 +1103,7 @@ button.cuso-status {
 .typing {
   display: inline-flex;
   gap: 4px;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .typing i {
@@ -1400,7 +1410,7 @@ button.cuso-status {
 
 .composer-wrap {
   flex: none;
-  padding: 8px 24px 20px;
+  padding: 4px 24px 20px;
 }
 
 .suggest {
@@ -1408,7 +1418,7 @@ button.cuso-status {
   flex-wrap: wrap;
   gap: 8px;
   max-width: 720px;
-  margin: 0 auto 10px;
+  margin: 0 auto 8px;
 }
 
 .suggest:empty {
@@ -1426,9 +1436,10 @@ button.cuso-status {
   transition: border-color 150ms;
 }
 
+/* Focus thickens the one line: a ring set apart would read as a second box. */
 .composer:focus-within {
   outline: 2px solid var(--foreground);
-  outline-offset: 2px;
+  outline-offset: 0;
 }
 
 /* The composer's frame draws the ring; forced-colors mode still shows this one. */
@@ -1672,6 +1683,10 @@ button.cuso-status {
 
   .scroll {
     padding: 16px;
+  }
+
+  .scroll.chat {
+    padding: 16px 16px 12px;
   }
 
   .vhead {
