@@ -50,4 +50,15 @@ describe("withoutSokosumiLinks", () => {
     const text = "Use [brackets] and (parentheses) freely.";
     expect(withoutSokosumiLinks(text, web)).toBe(text);
   });
+
+  it.each([
+    ["spaces", `${"\t".repeat(50_000)}x`],
+    ["open brackets", `[${"[[".repeat(25_000)}`],
+    ["empty links", `[[](${"[!](!".repeat(12_500)}`],
+    ["addresses", "https://a.".repeat(5_000)],
+  ])("reads a long run of %s in linear time", (_, text) => {
+    const started = performance.now();
+    withoutSokosumiLinks(text, web);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
 });

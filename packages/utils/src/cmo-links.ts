@@ -1,8 +1,11 @@
+// Each pattern can only fail at the next bracket, so a run of brackets or
+// spaces is read once, not once per character (CodeQL: polynomial regex).
+
 /** `[label](url)`, and the brackets Core's receipts wrap an "Open …" link in. */
-const MARKDOWN_LINK = /(\s*\()?\[((?:[^\]\\\n]|\\.)+)\]\(([^)\s]+)\)(\))?/g;
+const MARKDOWN_LINK = /(\()?\[((?:[^[\]\\\n]|\\.)+)\]\(([^()[\]\s]+)\)(\))?/g;
 
 /** An address written out in the text, without the punctuation after it. */
-const BARE_ADDRESS = /(\s*)(?<![(\[])(https?:\/\/[^\s)\]]*[^\s)\].,;:!?])/g;
+const BARE_ADDRESS = /(?<![(\[])https?:\/\/[^\s)\]]*[^\s)\].,;:!?]/g;
 
 /** Web's sections, by the first part of their path. */
 const SOKOSUMI_ROUTE =
@@ -32,13 +35,30 @@ function opensSokosumi(url: string, origin: string): boolean {
  */
 export function withoutSokosumiLinks(text: string, webOrigin: string): string {
   const origin = new URL(webOrigin).origin;
-  return text
-    .replace(MARKDOWN_LINK, (match, open, label, url, close) => {
-      if (!opensSokosumi(url, origin)) return match;
-      if (open && close) return "";
-      return `${open ?? ""}${label}${close ?? ""}`;
-    })
-    .replace(BARE_ADDRESS, (match, space, url) =>
-      opensSokosumi(url, origin) ? "" : match,
-    );
+  const withoutLinks = rewrite(text, MARKDOWN_LINK, (match) => {
+    const [whole, open, label, url, close] = match;
+    if (!opensSokosumi(url ?? "", origin)) return whole;
+    if (open && close) return null;
+    return `${open ?? ""}${label}${close ?? ""}`;
+  });
+  return rewrite(withoutLinks, BARE_ADDRESS, ([url]) =>
+    opensSokosumi(url, origin) ? null : url,
+  );
+}
+
+/** Replaces each match; `null` drops it together with the spaces before it. */
+function rewrite(
+  text: string,
+  pattern: RegExp,
+  replace: (match: RegExpExecArray) => string | null,
+): string {
+  let out = "";
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    const before = text.slice(last, match.index);
+    const replacement = replace(match);
+    out += replacement === null ? before.trimEnd() : before + replacement;
+    last = match.index + match[0].length;
+  }
+  return out + text.slice(last);
 }
