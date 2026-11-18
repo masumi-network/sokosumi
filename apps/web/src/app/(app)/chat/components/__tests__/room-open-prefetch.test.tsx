@@ -329,6 +329,9 @@ describe("app chrome while a room paints ahead of its route", () => {
         <a href="/chat/rooms/room-b" onClick={(e) => e.preventDefault()}>
           Open B
         </a>
+        <a href="/chat" onClick={(e) => e.preventDefault()}>
+          Back to chats
+        </a>
         <PersistentRoomView>
           <div>Chats list</div>
         </PersistentRoomView>
@@ -346,6 +349,20 @@ describe("app chrome while a room paints ahead of its route", () => {
 
     await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
     expect(mockPathname()).toBe("/chat");
+  });
+
+  // Back while the room's route still loads: the URL is already the list, so
+  // the replace Back makes changes no pathname.
+  it("drops a room still ahead of its route when Back leads to the list", async () => {
+    mockPathname.mockImplementation(() => "/chat");
+    render(<Page />, { wrapper: CacheWrapper });
+    fireEvent.click(screen.getByText("Open B"));
+    await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
+
+    fireEvent.click(screen.getByText("Back to chats"));
+
+    await waitFor(() => expect(chromePath()).toBe("/chat"));
+    expect(screen.getByText("Chats list")).toBeVisible();
   });
 
   // A swipe back drops the room at once; the route catches up after.

@@ -246,9 +246,13 @@ function RoomCacheSession({
       )
         return;
       const url = new URL(link.href);
+      if (url.origin !== window.location.origin) return;
+      // A room link selects the room. A link to the page already under a
+      // room painted ahead of its route (Back while the room still loads)
+      // selects that page: its navigation changes no pathname to reset on.
       if (
-        url.origin === window.location.origin &&
-        /^\/chat\/rooms\/[^/]+\/?$/.test(url.pathname)
+        /^\/chat\/rooms\/[^/]+\/?$/.test(url.pathname) ||
+        url.pathname === window.location.pathname
       )
         select(url);
     };
