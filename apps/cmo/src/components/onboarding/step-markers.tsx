@@ -29,7 +29,7 @@ export function StepMarkers({ current, reached, open }: StepMarkersProps) {
             ) : (
               <span aria-hidden="true">{index + 1}</span>
             )}
-            {step.label}
+            <span className="ob-step-label">{step.label}</span>
           </>
         );
         return (
