@@ -420,7 +420,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url),
     );
-    await runCompetitorCheck(cuso, first);
+    await runCusoCompetitorCheck(cuso, first);
 
     readers.readCompetitorPage.mockImplementation(async (url: string) => {
       if (url.endsWith("/pricing")) throw new Error("socket hang up");
@@ -435,7 +435,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
       },
       costUsd: 0.0004,
     });
-    await runCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
+    await runCusoCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
     expectCoreLog("warn", "A competitor check source failed");
 
     const signals = await prisma.competitorSignal.findMany({
@@ -460,7 +460,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url, url.endsWith("/pricing") ? ["Premium", "$ 15 /user/mo"] : []),
     );
-    await runCompetitorCheck(cuso, first);
+    await runCusoCompetitorCheck(cuso, first);
 
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url, url.endsWith("/pricing") ? ["Premium", "$ 17 /user/mo"] : []),
@@ -478,13 +478,16 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     const store = vi
       .spyOn(prisma.competitorSignal, "createMany")
       .mockRejectedValueOnce(new Error("connection closed"));
-    await expect(runCompetitorCheck(cuso, second)).rejects.toThrow(
+    await expect(runCusoCompetitorCheck(cuso, second)).rejects.toThrow(
       "connection closed",
     );
     store.mockRestore();
 
     // The check that died is redone after an hour.
-    await runCompetitorCheck(cuso, new Date(second.getTime() + 2 * 3_600_000));
+    await runCusoCompetitorCheck(
+      cuso,
+      new Date(second.getTime() + 2 * 3_600_000),
+    );
     expect(
       await prisma.competitorSignal.findMany({
         where: { projectId: cuso.projectId },
