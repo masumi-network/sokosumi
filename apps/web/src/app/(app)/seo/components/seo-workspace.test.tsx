@@ -4059,6 +4059,46 @@ describe("SEO workspace integration", () => {
     });
   });
 
+  it("opens the first full audit automatically while the private brief is unavailable", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const read = vi.fn(async (url: string) =>
+      url.includes("/brief")
+        ? new Promise<Response>(() => {})
+        : connectedSeoResponse(workspace, url),
+    );
+    vi.stubGlobal("fetch", read);
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await readConnectedGoogle();
+    expect(
+      await setup.findByRole("button", { name: "Advanced" }),
+    ).toBeVisible();
+    expect(
+      setup.queryByRole("combobox", {
+        name: "What should visitors do on this page?",
+      }),
+    ).toBeNull();
+    expect(read.mock.calls.some(([url]) => url.includes("/brief"))).toBe(false);
+
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    const review = within(await screen.findByRole("dialog"));
+    expect(review.getByRole("button", { name: "Start check" })).toBeEnabled();
+    expect(saveGoal).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+
+    await user.click(review.getByRole("button", { name: "Start check" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
+    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+      "sharedBrief",
+    );
+    expect(
+      read.mock.calls.some(([url]) => url.includes("/brief/suggestion")),
+    ).toBe(false);
+    expect(saveGoal).not.toHaveBeenCalled();
+  });
+
   it("carries an explicitly accepted goal into one full-audit review without sharing it on reopen", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -4089,12 +4129,13 @@ describe("SEO workspace integration", () => {
     });
     const { client } = renderWorkspace(workspace);
     const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
     const accept = await setup.findByRole("button", {
       name: /Use suggested goal .*Buy/,
     });
     expect(
       setup.getByLabelText("What should visitors do on this page?"),
-    ).toHaveTextContent("Skip for now");
+    ).toHaveTextContent("Detect automatically");
     await user.click(accept);
     expect(
       setup.getByLabelText("What should visitors do on this page?"),
@@ -4104,6 +4145,11 @@ describe("SEO workspace integration", () => {
     });
     expect(share).not.toBeChecked();
     await user.click(share);
+    await user.click(setup.getByRole("button", { name: "Advanced" }));
+    expect(setup.getByRole("button", { name: "Advanced" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     await user.click(setup.getByRole("button", { name: "Run full audit" }));
     const review = within(await screen.findByRole("dialog"));
     expect(review.getByRole("checkbox", { name: /Buy/ })).toBeChecked();
@@ -4143,6 +4189,54 @@ describe("SEO workspace integration", () => {
     expect(saveGoal).toHaveBeenCalledTimes(1);
   });
 
+  it("clears the saved action when the owner switches back to automatic detection", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const page = {
+      pageId: workspace.pages[0].id,
+      role: null,
+      action: "buy",
+      job: "Compare plans",
+      indexIntent: "unknown",
+    };
+    const brief = { revision: 2, pages: [page], priorities: [], followUps: [] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/brief")
+          ? Response.json(brief)
+          : connectedSeoResponse(workspace, url),
+      ),
+    );
+    saveGoal.mockImplementation(async ({ body }) => ({
+      ok: true,
+      value: { ...brief, revision: 3, pages: body.pages },
+    }));
+    renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    const action = await setup.findByRole("combobox", {
+      name: "What should visitors do on this page?",
+    });
+    expect(action).toHaveTextContent("Buy");
+    await user.click(action);
+    await user.click(
+      await screen.findByRole("option", { name: "Detect automatically" }),
+    );
+    await user.click(setup.getByRole("button", { name: "Run full audit" }));
+    const review = within(await screen.findByRole("dialog"));
+    expect(saveGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          expectedRevision: 2,
+          pages: [{ ...page, action: null }],
+        }),
+      }),
+    );
+    expect(review.queryByRole("checkbox", { name: /Buy/ })).toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
   it("shares only the named starting page when a new audit includes several pages", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -4175,6 +4269,7 @@ describe("SEO workspace integration", () => {
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
     const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
     expect(await setup.findByText(first.url)).toBeVisible();
     expect(
       setup.getByLabelText("What should visitors do on this page?"),
@@ -4213,6 +4308,8 @@ describe("SEO workspace integration", () => {
     );
     vi.stubGlobal("fetch", read);
     const { client } = renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
     await waitFor(() =>
       expect(
         client.getQueryData([
@@ -4224,7 +4321,6 @@ describe("SEO workspace integration", () => {
         ]),
       ).toEqual(brief),
     );
-    const setup = within(screen.getByTestId("seo-setup"));
     expect(
       setup.queryByLabelText("What should visitors do on this page?"),
     ).toBeNull();
@@ -4277,6 +4373,13 @@ describe("SEO workspace integration", () => {
       await screen.findByRole("button", { name: "Continue without Google" }),
     );
     const setup = within(screen.getByTestId("seo-setup"));
+    expect(
+      setup.queryByText("The audit detects the page goal from its content."),
+    ).toBeNull();
+    await user.click(await setup.findByRole("button", { name: "Advanced" }));
+    expect(
+      setup.queryByText("The audit detects the page goal from its content."),
+    ).toBeNull();
     await user.click(
       await setup.findByRole("combobox", {
         name: "What should visitors do on this page?",

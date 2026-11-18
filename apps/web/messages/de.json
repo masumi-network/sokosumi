@@ -12895,6 +12895,10 @@
       },
       "setup": {
         "goal": {
+          "advanced": "Erweitert",
+          "automatic": "Das Audit erkennt das Ziel der Seite anhand ihres Inhalts.",
+          "autoOption": "Automatisch erkennen",
+          "unavailable": "Du kannst die Prüfung auch starten, wenn das Seitenziel gerade nicht verfügbar ist.",
           "question": "Was sollen Besucher auf dieser Seite tun?",
           "skip": "Vorerst überspringen",
           "suggested": "Vorschlag „{action}“ übernehmen",

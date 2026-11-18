@@ -188,12 +188,11 @@ export function SeoSetupCard({
               )
             }
           >
-            {goalPage && run && model.brief?.data ? (
+            {goalPage && run ? (
               <SeoSetupGoal
                 key={`${model.setupScopeKey}:${run.kind}`}
                 model={model}
                 page={goalPage}
-                brief={model.brief.data}
                 full={full}
               />
             ) : !run ? null : (

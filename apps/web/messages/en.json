@@ -12895,6 +12895,10 @@
       },
       "setup": {
         "goal": {
+          "advanced": "Advanced",
+          "automatic": "The audit detects the page goal from its content.",
+          "autoOption": "Detect automatically",
+          "unavailable": "You can still start the check while the page goal is unavailable.",
           "question": "What should visitors do on this page?",
           "skip": "Skip for now",
           "suggested": "Use suggested goal “{action}”",

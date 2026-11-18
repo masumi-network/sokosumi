@@ -282,6 +282,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   );
   const setupScopeKey = JSON.stringify([
     setupIdentity,
+    session?.session.id,
     data.scope.id,
     data.scope.version,
     data.scope.pageIds,
@@ -488,7 +489,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
-  const firstPageId =
+  const setupGoalPageId =
     setup?.check === "next" &&
     !hasPreviousCheck &&
     !data.analyses.length &&
@@ -496,29 +497,33 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     data.availableActions.canRequestAnalysis
       ? data.scope.pageIds[0]
       : undefined;
+  const [advancedScope, setAdvancedScope] = useState<string | null>(null);
+  const setupGoalAdvanced =
+    Boolean(setupGoalPageId) && advancedScope === setupScopeKey;
+  if (advancedScope !== null && !setupGoalAdvanced) setAdvancedScope(null);
+  function setSetupGoalAdvanced(open: boolean) {
+    setAdvancedScope(open && setupGoalPageId ? setupScopeKey : null);
+  }
   const brief = useSeoBrief(
     owner,
     session?.user.id,
     session?.session.activeOrganizationId ?? null,
-    Boolean(firstPageId) ||
+    setupGoalAdvanced ||
       dialog === "brief" ||
       dialog === "analysis" ||
       filters.tab === "actions" ||
       (filters.tab === "agent" && data.actions.length > 0),
   );
-  const setupGoalPageId =
-    firstPageId &&
-    brief.data &&
-    Number.isInteger(brief.data.revision) &&
-    canSetBriefPage(brief.data.pages, firstPageId)
-      ? firstPageId
-      : undefined;
   const setupGoalSuggestion = useSeoGoalSuggestion(
     owner,
     session?.user.id,
     session?.session.activeOrganizationId ?? null,
-    setupGoalPageId &&
-      !brief.data?.pages.some(
+    setupGoalAdvanced &&
+      setupGoalPageId &&
+      brief.data &&
+      Number.isInteger(brief.data.revision) &&
+      canSetBriefPage(brief.data.pages, setupGoalPageId) &&
+      !brief.data.pages.some(
         (page) => page.pageId === setupGoalPageId && page.action,
       )
       ? setupGoalPageId
@@ -540,12 +545,15 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   return {
     data,
     brief,
+    setupGoalAdvanced,
+    setSetupGoalAdvanced,
     setupGoalPageId,
     setupGoalSuggestion,
     setupScopeKey,
     sharedSetupGoal:
       sharedSetupGoal?.scopeKey === setupScopeKey &&
-      setupGoalPageId === sharedSetupGoal.pageId
+      setupGoalPageId === sharedSetupGoal.pageId &&
+      brief.data?.revision === sharedSetupGoal.revision
         ? sharedSetupGoal
         : null,
     statisticsSync,
