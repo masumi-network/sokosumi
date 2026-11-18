@@ -189,6 +189,9 @@ export const FOREGROUND_TURN = { parentTurnId: null } as const;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
+/** A heartbeat this old means its writer is dead. */
+export const SOKO_BOT_TURN_STALE_HEARTBEAT_MS = 45_000;
+
 /** How far back a bare "yes" can reach for the reply it answers. */
 const PREVIOUS_REPLY_WINDOW_MS = 12 * 60 * 60 * 1_000;
 
@@ -3184,18 +3187,25 @@ export class SokoBotControlPlane {
     // acknowledged it. That caller reconciles once it has a session. Only the
     // first start, under its live lease: a recovery claim sets the heartbeat
     // and errorKind, and a stalled first start (null heartbeat) stays with the
-    // watchdog's abandoned-start recovery.
+    // watchdog's abandoned-start recovery. A first start that renews its
+    // heartbeat is live until the heartbeat goes stale.
     if (
       expectedLeaseToken &&
       turn?.status === "STARTING" &&
       !turn.eveSessionId &&
       turn.leaseToken === expectedLeaseToken &&
       turn.errorKind === null &&
-      turn.reconcilerHeartbeatAt === null &&
-      turn.leaseExpiresAt !== null &&
-      turn.leaseExpiresAt > (await databaseNow())
+      turn.leaseExpiresAt !== null
     ) {
-      return;
+      const now = await databaseNow();
+      if (
+        turn.leaseExpiresAt > now &&
+        (turn.reconcilerHeartbeatAt === null ||
+          turn.reconcilerHeartbeatAt.getTime() >
+            now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS)
+      ) {
+        return;
+      }
     }
     if (!turn?.eveSessionId || !turn.leaseToken) {
       throw new SokoBotNotFoundError("Runtime turn not found");

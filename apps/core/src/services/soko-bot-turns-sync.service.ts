@@ -9,12 +9,12 @@ import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   SOKO_BOT_START_RECOVERY_GRACE_MS,
+  SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 
 const BATCH_SIZE = 20;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
-export const SOKO_BOT_TURN_STALE_HEARTBEAT_MS = 45_000;
 export const SOKO_BOT_TURN_STARTING_GRACE_MS = 30_000;
 export const SOKO_BOT_TURN_STARTING_ABANDON_MS =
   SOKO_BOT_START_RECOVERY_GRACE_MS;
