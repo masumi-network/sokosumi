@@ -1,5 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { isAPIError } from "better-auth/api";
+import { HTTPException } from "hono/http-exception";
 import { ComposioConfigError } from "@/clients/composio.client";
 import {
   conflict,
@@ -124,6 +125,16 @@ export function rethrow(error: unknown): never {
       "Connecting is not working right now. Try again later.",
     );
   }
-  // Cuso busy, paused or out of credits: as on the Soko Bot routes.
-  mapControlPlaneError(error);
+  // Cuso busy, paused or out of credits: as on the Soko Bot routes, in the
+  // words of CMO.xyz, whose members only know Cuso.
+  try {
+    mapControlPlaneError(error);
+  } catch (mapped) {
+    if (!(mapped instanceof HTTPException)) throw mapped;
+    const message = mapped.message.replace(SOKO_BOT, "Cuso");
+    if (message === mapped.message) throw mapped;
+    throw new HTTPException(mapped.status, { message, cause: mapped.cause });
+  }
 }
+
+const SOKO_BOT = /\b(?:(?:this|the|a) )?(?:shared )?Soko Bot\b/gi;
