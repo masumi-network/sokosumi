@@ -16,6 +16,18 @@ export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
   done: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
 };
 
+/**
+ * The status a column's title already names. A board card in that column
+ * shows the marker without the word. `input-required` has none: its statuses
+ * each ask for something different.
+ */
+export const COLUMN_MAIN_STATUS: Partial<Record<KanbanColumnId, TaskStatus>> = {
+  backlog: TaskStatus.DRAFT,
+  todo: TaskStatus.READY,
+  "in-progress": TaskStatus.RUNNING,
+  done: TaskStatus.COMPLETED,
+};
+
 const STATUS_TO_COLUMN_ID = (() => {
   const map = new Map<TaskStatus, KanbanColumnId>();
   for (const [columnId, statuses] of Object.entries(COLUMN_TASK_STATUSES)) {

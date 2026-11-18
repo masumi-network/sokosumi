@@ -67,10 +67,15 @@ export function TaskTagBadge({
   color,
   customColor,
   taskTopicId,
+  quiet = false,
   className,
   children,
   ...props
-}: Omit<ComponentProps<typeof Badge>, "id" | "color"> & TagColorProps) {
+}: Omit<ComponentProps<typeof Badge>, "id" | "color"> &
+  TagColorProps & {
+    /** A dot and the name with no box, for a line that holds other facts. */
+    quiet?: boolean;
+  }) {
   const accent = useTagColor({ id, color, customColor, taskTopicId });
   return (
     <Badge
@@ -80,7 +85,7 @@ export function TaskTagBadge({
       style={accentStyle(accent)}
       className={cn(
         styles.color,
-        styles.badge,
+        quiet ? "text-muted-foreground border-transparent px-0" : styles.badge,
         "max-w-full gap-1 rounded-sm font-normal has-[button]:overflow-visible has-[button]:py-0 has-[button]:pe-0",
         className,
       )}

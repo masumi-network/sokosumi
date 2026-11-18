@@ -144,25 +144,15 @@ export function TaskMetaDetails({
   }
 
   return (
-    <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
-      <div className="flex items-center gap-1.5">
-        {project ? <TaskProjectMark project={project} /> : null}
-        <TaskActorCluster assignee={assignee} participants={participants} />
-      </div>
-      <div className="text-muted-foreground flex items-center gap-2">
-        {commentsCount > 0 && (
-          <div className="flex items-center gap-1">
-            <MessageSquare className="size-3" aria-hidden />
-            <span className="text-2xs tabular-nums">{commentsCount}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-1">
-          <Calendar className="size-3" aria-hidden />
-          <span className="text-2xs tabular-nums">
-            {formatShortDate(createdAt)}
-          </span>
-        </div>
-      </div>
-    </div>
+    <span className="ms-auto flex shrink-0 items-center gap-2">
+      {commentsCount > 0 && (
+        <span className="text-muted-foreground flex items-center gap-1 text-xs">
+          <MessageSquare className="size-3.5" aria-hidden />
+          <span className="tabular-nums">{commentsCount}</span>
+        </span>
+      )}
+      {project ? <TaskProjectMark project={project} /> : null}
+      <TaskActorCluster assignee={assignee} participants={participants} />
+    </span>
   );
 }

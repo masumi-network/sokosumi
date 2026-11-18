@@ -1,6 +1,7 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/core-client";
+import { useTranslations } from "next-intl";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,8 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
+  const t = useTranslations("App.Tasks");
+  const hasName = task.name.trim().length > 0;
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -56,8 +59,13 @@ export function TaskListItem({
                 {task.identifier}
               </span>
             ) : null}
-            <span className="text-foreground line-clamp-1 text-sm font-medium">
-              {task.name}
+            <span
+              className={cn(
+                "line-clamp-1 text-sm font-medium",
+                hasName ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {hasName ? task.name : t("noTitle")}
             </span>
           </div>
           <TaskTags

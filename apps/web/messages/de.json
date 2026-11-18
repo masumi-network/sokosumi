@@ -1846,6 +1846,7 @@
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden"
       },
+      "noTitle": "(Kein Titel)",
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
       "sokoBot": "Soko Bot",
