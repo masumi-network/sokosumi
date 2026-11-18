@@ -3,15 +3,17 @@ import {
   type TaskTags,
   TaskVisibility,
 } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import { setTaskWorkspaceTags } from "@/lib/actions/task/action";
 import { TaskCard } from "./task-card";
 import { TaskTags as CardTags, TaskTagSection } from "./task-tags";
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
+vi.mock("@/lib/actions/task/action", () => ({ setTaskWorkspaceTags: vi.fn() }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: (value: Date) => value.toISOString() }),
@@ -76,6 +78,33 @@ describe("TaskTagSection", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("restores a workspace tag after an edit fails and preserves Jev’s suggestions", async () => {
+    vi.mocked(setTaskWorkspaceTags).mockResolvedValue({
+      ok: false,
+      error: { code: "forbidden" },
+    });
+    render(
+      <TaskTagSection
+        tags={initialTags}
+        workspaceTags={[{ id: "release", displayName: "Release" }]}
+        edit={{ taskId: "task-1", activeOrganizationId: null }}
+      />,
+    );
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "remove" }));
+    await waitFor(() =>
+      expect(screen.getByText("Release")).toBeInTheDocument(),
+    );
+    expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
+      taskId: "task-1",
+      workspaceTagIds: [],
+    });
+    expect(screen.getByTitle("automatic")).toHaveTextContent(
+      "vocabulary.research",
+    );
   });
 
   it("says so when a task has no tags yet", () => {

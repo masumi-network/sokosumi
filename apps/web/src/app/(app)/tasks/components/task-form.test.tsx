@@ -1,5 +1,6 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -13,6 +14,10 @@ import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import {
+  createWorkspaceTag,
+  fetchWorkspaceLabels,
+} from "@/lib/utils/file-search.client";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
@@ -28,6 +33,11 @@ const {
   toastCustomMock: vi.fn(),
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
+}));
+
+vi.mock("@/lib/utils/file-search.client", () => ({
+  createWorkspaceTag: vi.fn(),
+  fetchWorkspaceLabels: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -716,6 +726,59 @@ describe("TaskForm", () => {
     expect(privateButton).not.toHaveClass("w-full");
   });
 
+  it("submits new and existing workspace tags together when creating a Task", async () => {
+    const user = userEvent.setup();
+    const tag = {
+      kind: "TAG" as const,
+      description: null,
+      archived: false,
+      vocabularyVersion: 1,
+      id: "one",
+      displayName: "Release",
+    };
+    vi.mocked(fetchWorkspaceLabels).mockResolvedValue([tag]);
+    vi.mocked(createWorkspaceTag).mockResolvedValue({
+      ...tag,
+      id: "two",
+      displayName: "Finance",
+    });
+    vi.mocked(createTask).mockResolvedValue(
+      createTaskSuccess("task-1", "Title"),
+    );
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <TaskForm
+          mode="create"
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{
+            assigneeUserId: "user-1",
+            description: "A short brief",
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.click(await screen.findByRole("button", { name: "Release" }));
+    await user.type(screen.getByRole("textbox", { name: "search" }), "Finance");
+    await user.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Finance", pressed: true }),
+      ).toBeInTheDocument(),
+    );
+    expect(createWorkspaceTag).toHaveBeenCalledWith({
+      activeOrganizationId: "org-1",
+      displayName: "Finance",
+    });
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceTagIds: ["one", "two"] }),
+    );
+  });
+
   it("omits name on create", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
@@ -748,6 +811,7 @@ describe("TaskForm", () => {
     });
 
     function renderCopy(initialValues: Record<string, unknown>) {
+      const client = new QueryClient();
       render(
         <TaskForm
           mode="create"
@@ -765,6 +829,13 @@ describe("TaskForm", () => {
           }}
           onSuccess={vi.fn()}
         />,
+        {
+          wrapper: ({ children }) => (
+            <QueryClientProvider client={client}>
+              {children}
+            </QueryClientProvider>
+          ),
+        },
       );
     }
 
@@ -772,6 +843,34 @@ describe("TaskForm", () => {
       vi.mocked(createTask)
         .mockReset()
         .mockResolvedValue(createTaskSuccess("task-2", "Weekly"));
+    });
+
+    it("retains live workspace tags and skips archived tags when editing a copy", async () => {
+      const user = userEvent.setup();
+      const active = {
+        kind: "TAG" as const,
+        archived: false,
+        vocabularyVersion: 1,
+        description: null,
+        id: "a",
+        displayName: "Current",
+      };
+      vi.mocked(fetchWorkspaceLabels).mockResolvedValue([
+        active,
+        { ...active, id: "b", displayName: "Next" },
+      ]);
+      renderCopy({
+        workspaceTags: [active, { id: "old", displayName: "Archived" }],
+      });
+      expect(await screen.findByText("Current")).toBeInTheDocument();
+      expect(screen.queryByText("Archived")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "add" }));
+      await user.click(await screen.findByRole("button", { name: "Next" }));
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ workspaceTagIds: ["a", "b"] }),
+      );
     });
 
     it("creates a reviewed private Draft and drops a project the viewer cannot pick", async () => {

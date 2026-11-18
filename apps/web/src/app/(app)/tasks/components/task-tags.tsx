@@ -1,7 +1,11 @@
 "use client";
 
 import type { TaskTags as TaskTagsDto } from "@sokosumi/core-client";
+import { Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useOptimistic, useState, useTransition } from "react";
+import { toast } from "sonner";
+import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,64 +13,103 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { setTaskWorkspaceTags } from "@/lib/actions/task/action";
+import { TaskWorkspaceTagPicker } from "./task-workspace-tag-picker";
+
+interface TaskTagsProps {
+  tags?: TaskTagsDto;
+  workspaceTags?: TaskWorkspaceTag[];
+}
 
 export function TaskTags({
   tags,
+  workspaceTags = [],
   compact = false,
-}: {
-  tags?: TaskTagsDto;
+  inLink = false,
+}: TaskTagsProps & {
   compact?: boolean;
+  inLink?: boolean;
 }) {
   const t = useTranslations("App.Tasks.Tags");
-  const ids = [...(tags?.manual ?? []), ...(tags?.automatic ?? [])];
-  const visible = ids.slice(0, compact ? 1 : 2);
-  const remaining = ids.length - visible.length;
-  if (!ids.length) return null;
+  const badges = [
+    ...workspaceTags.map((tag) => ({
+      key: tag.id,
+      label: tag.displayName,
+      source: "workspace" as const,
+    })),
+    ...(tags?.manual ?? []).map((id) => ({
+      key: id,
+      label: t(`vocabulary.${id}`),
+      source: "manual" as const,
+    })),
+    ...(tags?.automatic ?? []).map((id) => ({
+      key: id,
+      label: t(`vocabulary.${id}`),
+      source: "automatic" as const,
+    })),
+  ];
+  if (!badges.length) return null;
+  const visible = badges.slice(0, compact ? 1 : 2);
+  const remaining = badges.length - visible.length;
+  function renderBadge(tag: (typeof badges)[number]) {
+    return (
+      <Badge
+        key={tag.key}
+        title={t(tag.source)}
+        variant={tag.source === "workspace" ? "secondary" : "outline"}
+        className="max-w-full gap-1 rounded-sm font-normal"
+      >
+        {tag.source === "automatic" && (
+          <Sparkles className="size-3 shrink-0" aria-hidden />
+        )}
+        <span className="truncate">{tag.label}</span>
+      </Badge>
+    );
+  }
   return (
     <div
       className="flex min-w-0 flex-wrap items-center gap-1"
       aria-label={t("label")}
     >
-      {visible.map((id) => (
-        <Badge
-          key={id}
-          variant="outline"
-          className="text-muted-foreground rounded-sm font-normal"
-        >
-          {t(`vocabulary.${id}`)}
-        </Badge>
-      ))}
-      {remaining > 0 ? (
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="relative z-10 min-h-6 px-1.5 text-xs"
-              aria-label={t("showAll", { count: ids.length })}
-              onPointerDown={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
-            >
-              +{remaining}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            aria-label={t("label")}
-            className="w-64 space-y-2"
-            onPointerDown={(event) => event.stopPropagation()}
+      {visible.map(renderBadge)}
+      {remaining > 0 &&
+        (inLink ? (
+          <span
+            className="text-muted-foreground text-xs"
+            title={badges
+              .slice(visible.length)
+              .map((tag) => tag.label)
+              .join(", ")}
           >
-            <p className="text-sm font-medium">{t("label")}</p>
-            <div className="flex flex-wrap gap-1">
-              {ids.map((id) => (
-                <Badge key={id} variant="outline">
-                  {t(`vocabulary.${id}`)}
-                </Badge>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-      ) : null}
+            +{remaining}
+          </span>
+        ) : (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="relative z-10 min-h-6 px-1.5 text-xs"
+                aria-label={t("showAll", { count: badges.length })}
+                onPointerDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                +{remaining}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              aria-label={t("label")}
+              className="w-64 space-y-2"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <p className="text-sm font-medium">{t("label")}</p>
+              <div className="flex flex-wrap gap-1">
+                {badges.map(renderBadge)}
+              </div>
+            </PopoverContent>
+          </Popover>
+        ))}
     </div>
   );
 }
@@ -76,29 +119,118 @@ export function TaskTags({
  * user corrected while the editor existed still show those choices first, because
  * `mapTaskTags` keeps preferring the stored manual list over the automatic one.
  */
-export function TaskTagSection({ tags }: { tags?: TaskTagsDto }) {
+function ClassifiedTags({ tags }: Pick<TaskTagsProps, "tags">) {
   const t = useTranslations("App.Tasks.Tags");
-  const ids = [...(tags?.manual ?? []), ...(tags?.automatic ?? [])];
+  if (!tags?.manual.length && !tags?.automatic.length) return null;
   return (
-    <section className="space-y-2">
-      <h2 className="text-muted-foreground text-xs font-medium">
-        {t("autoGeneratedTitle")}
-      </h2>
-      <div className="flex flex-wrap gap-1">
-        {ids.length ? (
-          ids.map((id) => (
-            <Badge
-              key={id}
-              variant="outline"
-              title={t(tags?.manual.includes(id) ? "manual" : "automatic")}
-            >
-              {t(`vocabulary.${id}`)}
-            </Badge>
-          ))
-        ) : (
+    <>
+      {tags.manual.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-muted-foreground text-xs font-medium">
+            {t("manual")}
+          </h2>
+          <div className="flex flex-wrap gap-1">
+            {tags.manual.map((id) => (
+              <Badge key={id} variant="outline" title={t("manual")}>
+                {t(`vocabulary.${id}`)}
+              </Badge>
+            ))}
+          </div>
+        </section>
+      )}
+      {tags.automatic.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-muted-foreground text-xs font-medium">
+            {t("autoGeneratedTitle")}
+          </h2>
+          <div className="flex flex-wrap gap-1">
+            {tags.automatic.map((id) => (
+              <Badge key={id} variant="outline" title={t("automatic")}>
+                <Sparkles className="size-3" aria-hidden />
+                {t(`vocabulary.${id}`)}
+              </Badge>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+export function TaskTagSection({
+  tags,
+  workspaceTags = [],
+  edit,
+}: TaskTagsProps & {
+  edit?: { taskId: string; activeOrganizationId: string | null };
+}) {
+  const t = useTranslations("App.Tasks.Tags");
+  return (
+    <div className="space-y-4">
+      {edit ? (
+        <EditableWorkspaceTags initialTags={workspaceTags} {...edit} />
+      ) : workspaceTags.length > 0 ? (
+        <section className="space-y-2">
+          <h2 className="text-muted-foreground text-xs font-medium">
+            {t("workspace")}
+          </h2>
+          <div className="flex flex-wrap gap-1">
+            {workspaceTags.map((tag) => (
+              <Badge key={tag.id} variant="secondary">
+                {tag.displayName}
+              </Badge>
+            ))}
+          </div>
+        </section>
+      ) : null}
+      <ClassifiedTags tags={tags} />
+      {!edit &&
+        !workspaceTags.length &&
+        !tags?.manual.length &&
+        !tags?.automatic.length && (
           <p className="text-muted-foreground text-xs">{t("empty")}</p>
         )}
-      </div>
-    </section>
+    </div>
+  );
+}
+
+function EditableWorkspaceTags({
+  initialTags,
+  taskId,
+  activeOrganizationId,
+}: {
+  initialTags: TaskWorkspaceTag[];
+  taskId: string;
+  activeOrganizationId: string | null;
+}) {
+  const t = useTranslations("App.Tasks.Tags");
+  const [confirmed, setConfirmed] = useState(initialTags);
+  const [selected, setOptimisticTags] = useOptimistic(confirmed);
+  const [saving, startTransition] = useTransition();
+  function handleChange(next: TaskWorkspaceTag[]) {
+    startTransition(async () => {
+      setOptimisticTags(next);
+      try {
+        const result = await setTaskWorkspaceTags({
+          taskId,
+          workspaceTagIds: next.map((tag) => tag.id),
+        });
+        if (result.ok) {
+          setConfirmed(result.value.workspaceTags);
+          return;
+        }
+      } catch {
+        // A transport failure also restores the last confirmed selection.
+      }
+      toast.error(t("saveError"));
+    });
+  }
+  return (
+    <TaskWorkspaceTagPicker
+      activeOrganizationId={activeOrganizationId}
+      selected={selected}
+      onChange={handleChange}
+      disabled={saving}
+    />
   );
 }

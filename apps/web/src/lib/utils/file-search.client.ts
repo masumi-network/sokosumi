@@ -21,10 +21,12 @@ import {
   patchDriveCollectionsById,
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
+  postDriveLabels,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   putDriveShares,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
+import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 
 /**
  * Browser calls for the Files surface.
@@ -141,6 +143,7 @@ export async function fetchWorkspaceLabels(input: {
    * the file detail page asks for TAG; leaving it off returns both, which
    * is what the filter panel and the bulk bar want.
    *
+   * With the default picker query:
    * Archived entries are never returned — they keep historical
    * assignments readable but take no new ones — and a merged entry is
    * omitted in favour of the label it redirects to. Both are decided by
@@ -148,12 +151,31 @@ export async function fetchWorkspaceLabels(input: {
    * edit would then refuse.
    */
   kind?: "TAG" | "CATEGORY";
+  /** Filtering historical assignments can also need retired names. */
+  includeArchived?: boolean;
   signal?: AbortSignal;
 }): Promise<WorkspaceLabel[]> {
   const response = await getDriveLabels({
     client: getBrowserCoreClient(),
-    query: { ...storeQuery(input.store), kind: input.kind },
+    query: {
+      ...storeQuery(input.store),
+      kind: input.kind,
+      ...(input.includeArchived ? { includeArchived: "true" } : {}),
+    },
     signal: input.signal,
+    throwOnError: true,
+  });
+  return response.data.data;
+}
+
+export async function createWorkspaceTag(input: {
+  activeOrganizationId: string | null;
+  displayName: string;
+}): Promise<WorkspaceLabel> {
+  const store = driveStoreForActiveWorkspace(input.activeOrganizationId);
+  const response = await postDriveLabels({
+    client: getBrowserCoreClient(),
+    body: { ...storeQuery(store), kind: "TAG", displayName: input.displayName },
     throwOnError: true,
   });
   return response.data.data;

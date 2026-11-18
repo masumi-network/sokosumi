@@ -286,6 +286,34 @@ describe("workspace switcher", () => {
     });
   });
 
+  it.each([
+    ["11223344-55aa-7111-8123-456789012345", "/tasks?status=READY"],
+    ["research", null],
+  ])(
+    "keeps portable filters when switching a board filtered by %s",
+    async (tag, redirect) => {
+      pathnameMock = "/tasks";
+      window.history.replaceState(null, "", `/tasks?tag=${tag}&status=READY`);
+      vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+      vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+        ok: true,
+        value: { organizationId: "org-1" },
+      });
+      render(<WorkspaceSwitcherTestComponent />);
+      await userEvent.click(
+        screen.getByRole("button", { name: "Switch workspace" }),
+      );
+      await waitFor(() =>
+        expect(updatePreferredOrganization).toHaveBeenCalled(),
+      );
+      if (redirect) expect(replaceMock).toHaveBeenCalledWith(redirect);
+      else expect(replaceMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("keeps an open Audit in the address after a switch on the SEO page", async () => {
     pathnameMock = "/seo";
     window.history.replaceState(

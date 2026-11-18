@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Tag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactElement } from "react";
@@ -15,10 +14,8 @@ import {
 } from "@/components/ui/popover";
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { cn } from "@/lib/utils";
-import {
-  type FileStore,
-  fetchWorkspaceLabels,
-} from "@/lib/utils/file-search.client";
+import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
+import { useWorkspaceTags } from "@/queries/workspace-tags";
 
 export function toggleTagLabelId(
   selected: string[],
@@ -30,7 +27,7 @@ export function toggleTagLabelId(
 }
 
 interface DriveRecentsTagFilterProps {
-  store: FileStore;
+  store: DriveWorkspaceStore;
   /** Selected label ids, from the URL. */
   selected: string[];
   onChange: (labelIds: string[]) => void;
@@ -48,12 +45,9 @@ export function DriveRecentsTagFilter({
   className,
 }: DriveRecentsTagFilterProps): ReactElement {
   const t = useTranslations("App.Drive");
-  const tags = useQuery({
-    queryKey: ["drive-tag-labels", store.scope, store.organizationId ?? null],
-    queryFn: ({ signal }) =>
-      fetchWorkspaceLabels({ store, kind: "TAG", signal }),
-    staleTime: 60_000,
-  });
+  const tags = useWorkspaceTags(
+    store.scope === "org" ? store.organizationId : null,
+  );
   const count = selected.length;
 
   return (

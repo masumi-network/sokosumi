@@ -1223,7 +1223,7 @@ describe("task participant actions", () => {
 
 describe("draft task tag actions", () => {
   it.each([false, true])(
-    "forwards the suggestion receipt when creating (related=%s)",
+    "keeps workspace tags and the Jev receipt together when creating (related=%s)",
     async (related) => {
       taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
       taskServiceMock.createTaskLink.mockResolvedValue({ id: "link-1" });
@@ -1235,6 +1235,7 @@ describe("draft task tag actions", () => {
         assigneeId: null,
         status: TaskStatus.DRAFT,
         tagSuggestionReceipt: "receipt-1",
+        workspaceTagIds: ["tag-1", "tag-2"],
       };
       if (related)
         await createTaskAndLink({
@@ -1247,6 +1248,7 @@ describe("draft task tag actions", () => {
         expect.objectContaining({
           name: input.name,
           tagSuggestionReceipt: input.tagSuggestionReceipt,
+          workspaceTagIds: input.workspaceTagIds,
         }),
       );
       // Tags are automatic: nothing in web still sends hand corrections.
@@ -1255,6 +1257,23 @@ describe("draft task tag actions", () => {
       );
     },
   );
+
+  it("sends an empty selection when an edit clears every workspace tag", async () => {
+    taskServiceMock.patchTask.mockReset().mockResolvedValue(buildTask());
+    const { updateTask } = await import("./action");
+    await updateTask({
+      taskId: "task-created",
+      name: "Weekly report",
+      description: "Summarise the week",
+      assigneeId: null,
+      desiredStatus: TaskStatus.READY,
+      workspaceTagIds: [],
+    });
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-created",
+      expect.objectContaining({ workspaceTagIds: [] }),
+    );
+  });
 
   it("forwards a copy's source Task so Core takes its tags", async () => {
     taskServiceMock.createTask.mockReset().mockResolvedValue(buildTask());
