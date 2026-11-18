@@ -36,12 +36,7 @@ export function TaskListItem({
 }: TaskListItemProps) {
   const t = useTranslations("App.Tasks");
   const hasName = task.name.trim().length > 0;
-  const handleProps = dragHandleProps
-    ? {
-        ...dragHandleProps.attributes,
-        ...dragHandleProps.listeners,
-      }
-    : null;
+  const handleProps = dragHandleProps?.listeners;
 
   const rowClassName = cn(
     // One line. The slots after the title have fixed widths, so the same
