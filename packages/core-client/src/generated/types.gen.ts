@@ -11602,6 +11602,7 @@ export type ProjectSeoIndexedPage = {
     lastCrawlTime: Date | null;
     googleCanonical: string | null;
     userCanonical: string | null;
+    indexingState?: string | null;
 };
 
 export type ProjectSeoIndexTriage = {
@@ -100890,6 +100891,21 @@ export type PostTasksByIdSeoIndexingContextV1Errors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Google access could not be verified
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
