@@ -62,34 +62,57 @@ const initialTags: TaskTags = {
   automatic: ["research"],
   rejected: [],
 };
+const emptyTags: TaskTags = { manual: [], automatic: [], rejected: [] };
+
+function removeButton(label: string) {
+  const badge = screen
+    .getByText(label)
+    .closest<HTMLElement>("[data-slot=badge]");
+  expect(badge).not.toBeNull();
+  return within(badge!).getByRole("button", { name: "remove" });
+}
 
 describe("TaskTagSection", () => {
-  it("titles the section like the other sidebar headings, without a colon", () => {
-    render(<TaskTagSection tags={initialTags} />);
-
-    const heading = screen.getByRole("heading", {
-      level: 2,
-      name: "appliedByJev",
-    });
+  it("groups saved workspace and topic tags under one heading, without exposing their source", () => {
+    render(
+      <TaskTagSection
+        tags={initialTags}
+        workspaceTags={[
+          { id: "workspace-manual", displayName: "Planning", source: "manual" },
+          {
+            id: "workspace-auto",
+            displayName: "Launch",
+            source: "jev",
+            color: "teal",
+          },
+        ]}
+      />,
+    );
+    const heading = screen.getByRole("heading", { level: 2, name: "label" });
+    expect(screen.getAllByRole("heading")).toEqual([heading]);
     expect(heading).toHaveClass(
       "text-muted-foreground",
       "text-xs",
       "font-medium",
     );
-  });
-
-  it("shows automatic and legacy manual tags with no edit affordance", () => {
-    render(<TaskTagSection tags={initialTags} />);
-    expect(screen.getByText("appliedByJev")).toBeInTheDocument();
-    // Legacy manual choices still lead and are still labelled as the user's.
-    expect(screen.getByText("vocabulary.design")).toHaveAttribute(
-      "title",
-      "manual",
+    // Legacy manual choices still lead the automatically classified topics.
+    const badges = Array.from(
+      screen
+        .getByRole("region", { name: "label" })
+        .querySelectorAll("[data-slot=badge]"),
     );
-    expect(screen.getByText("vocabulary.research")).toHaveAttribute(
-      "title",
-      "automatic",
-    );
+    expect(badges.map((badge) => badge.textContent)).toEqual([
+      "Planning",
+      "Launch",
+      "vocabulary.design",
+      "vocabulary.research",
+    ]);
+    expect(badges[1]).toHaveAttribute("data-tag-color", "teal");
+    for (const badge of badges) {
+      expect(badge.className).toBe(badges[0]!.className);
+      expect(badge).not.toHaveAttribute("title");
+      expect(badge.querySelector("svg")).toBeNull();
+    }
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
@@ -107,9 +130,7 @@ describe("TaskTagSection", () => {
         edit={{ taskId: "task-1", activeOrganizationId: null }}
       />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "remove" }));
+    await userEvent.setup().click(removeButton("Release"));
     await waitFor(() =>
       expect(screen.getByText("Release")).toBeInTheDocument(),
     );
@@ -118,9 +139,38 @@ describe("TaskTagSection", () => {
       expectedWorkspaceTagIds: ["release"],
       workspaceTagIds: [],
     });
-    expect(screen.getByTitle("automatic")).toHaveTextContent(
-      "vocabulary.research",
+    const topic = screen
+      .getByText("vocabulary.research")
+      .closest("[data-slot=badge]");
+    const workspaceTag = screen
+      .getByText("Release")
+      .closest("[data-slot=badge]");
+    expect(topic?.parentElement).toBe(workspaceTag?.parentElement);
+    expect(topic).not.toHaveAttribute("title");
+    expect(removeButton("vocabulary.research")).toBeEnabled();
+  });
+
+  it("removes a saved topic immediately and restores it when the save fails", async () => {
+    const pending =
+      Promise.withResolvers<Awaited<ReturnType<typeof setTaskWorkspaceTags>>>();
+    vi.mocked(setTaskWorkspaceTags).mockReturnValueOnce(pending.promise);
+    render(
+      <TaskTagSection
+        tags={initialTags}
+        edit={{ taskId: "task-1", activeOrganizationId: null }}
+      />,
     );
+    await userEvent.setup().click(removeButton("vocabulary.research"));
+    expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
+      taskId: "task-1",
+      dismissedTopicIds: ["research"],
+    });
+    expect(screen.queryByText("vocabulary.research")).not.toBeInTheDocument();
+    expect(screen.getByText("vocabulary.design")).toBeVisible();
+    await act(async () =>
+      pending.resolve({ ok: false, error: { code: "forbidden" } }),
+    );
+    expect(removeButton("vocabulary.research")).toBeEnabled();
   });
 
   it("applies a pending workspace suggestion and shows later classifier updates on an open detail", async () => {
@@ -140,6 +190,7 @@ describe("TaskTagSection", () => {
     vi.mocked(setTaskWorkspaceTags).mockResolvedValue({
       ok: true,
       value: {
+        tags: emptyTags,
         workspaceTags: [{ ...tag, source: "manual" }],
         workspaceTagSuggestions: [],
       },
@@ -163,10 +214,15 @@ describe("TaskTagSection", () => {
         suggestions={[]}
       />,
     );
-    expect(screen.getByText("appliedByJev")).toBeVisible();
+    expect(screen.queryByText("appliedByJev")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("appliedByJev")).not.toBeInTheDocument();
     vi.mocked(setTaskWorkspaceTags).mockResolvedValue({
       ok: true,
-      value: { workspaceTags: [], workspaceTagSuggestions: [] },
+      value: {
+        tags: emptyTags,
+        workspaceTags: [],
+        workspaceTagSuggestions: [],
+      },
     });
     await user.click(screen.getByRole("button", { name: "remove" }));
     expect(setTaskWorkspaceTags).toHaveBeenLastCalledWith({
@@ -175,6 +231,34 @@ describe("TaskTagSection", () => {
       workspaceTagIds: [],
       dismissedWorkspaceTagIds: ["label"],
     });
+  });
+
+  it("removes a legacy manual topic and shows the server's confirmed tags", async () => {
+    render(
+      <TaskTagSection
+        tags={initialTags}
+        edit={{ taskId: "task", activeOrganizationId: null }}
+      />,
+    );
+    vi.mocked(setTaskWorkspaceTags).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        tags: {
+          manual: [],
+          automatic: ["research", "writing"],
+          rejected: ["design"],
+        },
+        workspaceTags: [],
+        workspaceTagSuggestions: [],
+      },
+    });
+    await userEvent.setup().click(removeButton("vocabulary.design"));
+    expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
+      taskId: "task",
+      dismissedTopicIds: ["design"],
+    });
+    expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+    expect(removeButton("vocabulary.writing")).toBeEnabled();
   });
 
   it("keeps a concurrent detail edit after refreshing and retrying a rejected replacement", async () => {
@@ -188,9 +272,14 @@ describe("TaskTagSection", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        value: { workspaceTags: [added], workspaceTagSuggestions: [] },
+        value: {
+          tags: initialTags,
+          workspaceTags: [added],
+          workspaceTagSuggestions: [],
+        },
       });
     vi.mocked(loadTaskWorkspaceTags).mockResolvedValue({
+      tags: initialTags,
       workspaceTags: [tag, added],
       workspaceTagSuggestions: [],
     });
@@ -204,6 +293,7 @@ describe("TaskTagSection", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("conflict");
     expect(screen.getByText("Design")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "reloadTags" }));
+    expect(removeButton("vocabulary.research")).toBeEnabled();
     await user.click(
       within(screen.getByText("Design").parentElement!).getByRole("button", {
         name: "remove",
@@ -216,6 +306,7 @@ describe("TaskTagSection", () => {
       dismissedWorkspaceTagIds: ["old"],
     });
     expect(screen.getByText("Finance")).toBeVisible();
+    expect(screen.getByText("vocabulary.research")).toBeVisible();
   });
   it("says so when a task has no tags yet", () => {
     render(<TaskTagSection />);
@@ -276,6 +367,8 @@ it("opens card tag overflow without following the task link", async () => {
   const dialog = await screen.findByRole("dialog", { name: "label" });
   expect(within(dialog).getByText("vocabulary.writing")).toBeInTheDocument();
   expect(within(dialog).getByText("vocabulary.design")).toBeInTheDocument();
+  expect(within(dialog).queryByText("appliedByJev")).not.toBeInTheDocument();
+  expect(within(dialog).queryByTitle("automatic")).not.toBeInTheDocument();
   expect(navigateMock).not.toHaveBeenCalled();
   await user.keyboard("{Escape}");
   await user.click(screen.getByRole("link", { name: task.name }));
@@ -300,6 +393,80 @@ function cachedCatalog(client: QueryClient) {
     );
   };
 }
+
+it("removes a canonical topic and its workspace alias with a single click", async () => {
+  const client = new QueryClient();
+  const label = {
+    ...baseLabel,
+    id: "seed-design",
+    displayName: "Design",
+    taskTopicId: "design" as const,
+    color: "teal" as const,
+  };
+  client.setQueryData(workspaceTagsQueryKey("org"), [label]);
+  const view = render(
+    <TaskTagSection
+      tags={{ manual: [], automatic: ["design"], rejected: [] }}
+      workspaceTags={[{ ...label, source: "jev" }]}
+      edit={{ taskId: "task", activeOrganizationId: "org" }}
+    />,
+    { wrapper: cachedCatalog(client) },
+  );
+  expect(screen.getByText("Design")).toBeVisible();
+  expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+  vi.mocked(setTaskWorkspaceTags).mockResolvedValue({
+    ok: true,
+    value: {
+      tags: { automatic: [], manual: [], rejected: ["design"] },
+      workspaceTags: [],
+      workspaceTagSuggestions: [],
+    },
+  });
+  await userEvent.setup().click(screen.getByRole("button", { name: "remove" }));
+  expect(setTaskWorkspaceTags).toHaveBeenCalledTimes(1);
+  expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
+    taskId: "task",
+    workspaceTagIds: [],
+    expectedWorkspaceTagIds: [label.id],
+    dismissedWorkspaceTagIds: [label.id],
+    dismissedTopicIds: ["design"],
+  });
+  expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+  expect(screen.queryByText("Design")).not.toBeInTheDocument();
+  view.rerender(
+    <CardTags
+      tags={{ manual: [], automatic: ["design", "research"], rejected: [] }}
+      workspaceTags={[label]}
+      compact
+      inLink
+    />,
+  );
+  expect(screen.getByText("+1")).toHaveAttribute(
+    "title",
+    "vocabulary.research",
+  );
+});
+
+it("shows a confirmed alias once on a read-only detail without workspace catalog access", () => {
+  render(
+    <TaskTagSection
+      tags={{ manual: [], automatic: ["design", "research"], rejected: [] }}
+      workspaceTags={[
+        {
+          id: "seed",
+          displayName: "Design",
+          color: "teal",
+          taskTopicId: "design",
+        },
+        { id: "custom-research", displayName: "Research" },
+      ]}
+    />,
+  );
+  expect(screen.getByText("Design")).toBeVisible();
+  expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+  expect(screen.getByText("Research")).toBeVisible();
+  expect(screen.getByText("vocabulary.research")).toBeVisible();
+});
 
 it("uses the workspace color for a verified default topic and keeps a human homonym distinct", () => {
   const client = new QueryClient();
@@ -326,15 +493,15 @@ it("uses the workspace color for a verified default topic and keeps a human homo
     />,
     { wrapper: cachedCatalog(client) },
   );
-  expect(screen.getByText("vocabulary.design")).toHaveAttribute(
-    "data-tag-color",
-    "pink",
-  );
-  expect(screen.getByText("Research")).toHaveAttribute("data-tag-color", "red");
-  expect(screen.getByText("vocabulary.research")).not.toHaveAttribute(
-    "data-tag-color",
-    "red",
-  );
+  expect(
+    screen.getByText("vocabulary.design").closest("[data-slot=badge]"),
+  ).toHaveAttribute("data-tag-color", "pink");
+  expect(
+    screen.getByText("Research").closest("[data-slot=badge]"),
+  ).toHaveAttribute("data-tag-color", "red");
+  expect(
+    screen.getByText("vocabulary.research").closest("[data-slot=badge]"),
+  ).not.toHaveAttribute("data-tag-color", "red");
 });
 
 it("drops a newly selected label from a draft when the catalog subsequently archives it", async () => {

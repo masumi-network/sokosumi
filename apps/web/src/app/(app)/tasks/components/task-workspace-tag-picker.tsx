@@ -3,9 +3,9 @@
 import type { TagColor, WorkspaceLabel } from "@sokosumi/core-client";
 import { checkFileLabelName } from "@sokosumi/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus, Sparkles, X } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,14 @@ import {
   useWorkspaceTags,
   workspaceTagsQueryKey,
 } from "@/queries/workspace-tags";
+import { JevTagIndicator } from "./task-draft-tags";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TaskTagColorSelect } from "./task-tag-color-select";
-import { TaskTagBadge, TaskTagDot } from "./task-tag-colors";
+import {
+  TaskTagBadge,
+  TaskTagDot,
+  TaskTagRemoveButton,
+} from "./task-tag-colors";
 import {
   TaskTagConflict,
   type TaskTagConflictProps,
@@ -33,12 +38,15 @@ import {
 import { WorkspaceTagSuggestions } from "./task-workspace-tag-suggestions";
 
 interface TaskWorkspaceTagPickerProps {
+  children?: ReactNode;
+  liveAutomaticIds?: ReadonlySet<string>;
   activeOrganizationId: string | null;
   selected: TaskWorkspaceTag[];
   onChange: (tags: TaskWorkspaceTag[]) => void;
   onCreatingChange?: (pending: boolean) => void;
   disabled?: boolean;
   copying?: boolean;
+  canChooseWorkspaceTags?: boolean;
   conflict?: TaskTagConflictProps;
   suggestions?: TaskWorkspaceTag[];
   onDismissSuggestion?: (tag: TaskWorkspaceTag) => void;
@@ -72,13 +80,7 @@ function CopyTagPicker(props: TaskWorkspaceTagPickerProps) {
         {t("retry")}
       </Button>
     );
-  const liveIds = new Set(catalog.data.map((tag) => tag.id));
-  return (
-    <TagPicker
-      {...props}
-      selected={props.selected.filter((tag) => liveIds.has(tag.id))}
-    />
-  );
+  return <TagPicker {...props} />;
 }
 
 function TagPicker(props: TaskWorkspaceTagPickerProps) {
@@ -94,73 +96,65 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
   return (
     <section aria-labelledby={labelId} className="space-y-2">
       <h2 id={labelId} className="text-muted-foreground text-xs font-medium">
-        {t("workspace")}
+        {t("label")}
       </h2>
       <div className="flex flex-wrap items-center gap-1">
+        {props.children}
         {props.selected.map((tag) => (
           <TaskTagBadge
             id={tag.id}
             color={tag.color}
+            taskTopicId={tag.taskTopicId}
             key={tag.id}
             className="gap-1"
           >
+            {props.liveAutomaticIds?.has(tag.id) && <JevTagIndicator />}
             <span className="truncate">{tag.displayName}</span>
-            {tag.source === "jev" && (
-              <span
-                title={t("appliedByJev")}
-                className="text-muted-foreground inline-flex items-center gap-0.5"
-              >
-                <Sparkles aria-hidden className="size-3" />
-                {t("appliedByJev")}
-              </span>
-            )}
-            <button
-              type="button"
+            <TaskTagRemoveButton
+              name={tag.displayName}
               disabled={props.disabled || creating}
-              aria-label={t("remove", { name: tag.displayName })}
-              className="hit-area relative rounded-sm focus-visible:outline-ring focus-visible:outline-2"
-              onClick={() =>
+              onRemove={() =>
                 props.onChange(
                   props.selected.filter((item) => item.id !== tag.id),
                 )
               }
-            >
-              <X className="size-3" aria-hidden />
-            </button>
+            />
           </TaskTagBadge>
         ))}
-        <Popover
-          open={open}
-          onOpenChange={(next) => {
-            if (!creating) setOpen(next);
-          }}
-        >
-          <PopoverTrigger asChild>
-            <Button
-              ref={addButton}
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={props.disabled}
-            >
-              <Plus className="size-4" aria-hidden />
-              {t("add")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            data-task-form-portal=""
-            align="start"
-            className="w-72 space-y-2"
+        {props.canChooseWorkspaceTags !== false && (
+          <Popover
+            open={open}
+            onOpenChange={(next) => {
+              if (!creating) setOpen(next);
+            }}
           >
-            {open && (
-              <TagChoices
-                {...props}
-                creating={creating}
-                setPending={setPending}
-              />
-            )}
-          </PopoverContent>
-        </Popover>
+            <PopoverTrigger asChild>
+              <Button
+                ref={addButton}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={props.disabled}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t("add")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              data-task-form-portal=""
+              align="start"
+              className="w-72 space-y-2"
+            >
+              {open && (
+                <TagChoices
+                  {...props}
+                  creating={creating}
+                  setPending={setPending}
+                />
+              )}
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
       {props.conflict && (
         <TaskTagConflict

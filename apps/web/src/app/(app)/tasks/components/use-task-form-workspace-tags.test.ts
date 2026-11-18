@@ -4,7 +4,9 @@ import { useTaskFormWorkspaceTags } from "./use-task-form-workspace-tags";
 
 it("omits the tag patch after undoing an edit, preserving concurrent changes", () => {
   const initial = [{ id: "launch", displayName: "Launch" }];
-  const { result } = renderHook(() => useTaskFormWorkspaceTags("org", initial));
+  const { result } = renderHook(() =>
+    useTaskFormWorkspaceTags("org", { workspaceTags: initial }),
+  );
   act(() => result.current.setWorkspaceTags([]));
   expect(result.current.workspaceTagIds).toEqual([]);
   act(() => result.current.setWorkspaceTags([...initial]));
@@ -30,7 +32,12 @@ it("keeps confirmed choices while refreshed Jev matches replace only provisional
   const auto = { id: "a", displayName: "Company launch", autoApply: true };
   const offered = { id: "b", displayName: "Launch partner", autoApply: false };
   const { result, rerender } = renderHook(
-    ({ matches }) => useTaskFormWorkspaceTags("one", [], matches),
+    ({ matches }) =>
+      useTaskFormWorkspaceTags(
+        "one",
+        {},
+        { tags: [], workspaceSuggestions: matches },
+      ),
     { initialProps: { matches: [auto, offered] } },
   );
   expect(result.current.workspaceTags).toEqual([
@@ -56,12 +63,41 @@ it("keeps confirmed choices while refreshed Jev matches replace only provisional
   expect(result.current.workspaceTagIds).toEqual(["b", "a"]);
 });
 
+it("keeps explicitly removed manual choices out of a late Jev response", () => {
+  const preset = {
+    id: "preset",
+    displayName: "Design",
+    taskTopicId: "design" as const,
+  };
+  const custom = { id: "custom", displayName: "Design" };
+  const { result, rerender } = renderHook(
+    ({ arrived }) =>
+      useTaskFormWorkspaceTags("org", undefined, {
+        tags: arrived ? ["design"] : [],
+        workspaceSuggestions: arrived ? [{ ...custom, autoApply: true }] : [],
+      }),
+    { initialProps: { arrived: false } },
+  );
+  act(() => result.current.setWorkspaceTags([preset, custom]));
+  act(() => result.current.setWorkspaceTags([]));
+  rerender({ arrived: true });
+  expect(result.current.workspaceTags).toEqual([]);
+  expect(result.current.visibleTopics).toEqual([]);
+  expect(result.current.dismissedWorkspaceTagIds).toEqual(["preset", "custom"]);
+  expect(result.current.dismissedTopicIds).toEqual(["design"]);
+  act(() => result.current.setWorkspaceTags([custom]));
+  expect(result.current.dismissedTopicIds).toEqual(["design"]);
+  act(() => result.current.setWorkspaceTags([custom, preset]));
+  expect(result.current.dismissedWorkspaceTagIds).toBeUndefined();
+  expect(result.current.dismissedTopicIds).toBeUndefined();
+});
+
 it("holds the original assignment snapshot while another editor updates the task", () => {
   const original = { id: "old", displayName: "Old" };
   const added = { id: "added", displayName: "Added" };
   const concurrent = { id: "concurrent", displayName: "Concurrent" };
   const { result, rerender } = renderHook(
-    ({ tags }) => useTaskFormWorkspaceTags("org", tags),
+    ({ tags }) => useTaskFormWorkspaceTags("org", { workspaceTags: tags }),
     { initialProps: { tags: [original] } },
   );
   act(() => result.current.setWorkspaceTags([original, added]));

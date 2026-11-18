@@ -65,6 +65,7 @@ export function useTaskFormSubmission(
   const {
     workspaceTagIds,
     dismissedWorkspaceTagIds,
+    dismissedTopicIds,
     expectedWorkspaceTagIds,
     reportConflict,
   } = workspaceSelection;
@@ -136,6 +137,7 @@ export function useTaskFormSubmission(
         const result = await createTaskHandler({
           ...(workspaceTagIds ? { workspaceTagIds } : {}),
           ...(dismissedWorkspaceTagIds ? { dismissedWorkspaceTagIds } : {}),
+          ...(dismissedTopicIds ? { dismissedTopicIds } : {}),
           ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
@@ -193,6 +195,7 @@ export function useTaskFormSubmission(
           ? { workspaceTagIds, expectedWorkspaceTagIds }
           : {}),
         ...(dismissedWorkspaceTagIds ? { dismissedWorkspaceTagIds } : {}),
+        ...(dismissedTopicIds ? { dismissedTopicIds } : {}),
         name: trimmedName,
         description: trimmedDescription,
         ...assigneeFields,
@@ -232,6 +235,7 @@ export function useTaskFormSubmission(
     expectedWorkspaceTagIds,
     reportConflict,
     dismissedWorkspaceTagIds,
+    dismissedTopicIds,
     workspaceTagIds,
     copyOfTaskId,
     isCopy,

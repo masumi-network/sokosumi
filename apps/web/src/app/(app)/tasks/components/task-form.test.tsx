@@ -822,13 +822,28 @@ describe("TaskForm", () => {
           initialValues={{
             name: "Task",
             description: "A short brief",
-            workspaceTags: [tag],
+            tags: {
+              manual: ["design"],
+              automatic: ["research"],
+              rejected: ["writing"],
+            },
+            workspaceTags: [{ ...tag, source: "jev" }],
           }}
         />
       </QueryClientProvider>,
     );
     const chip = screen.getByText("Payroll").closest("[data-slot=badge]");
     expect(chip).toHaveAttribute("data-tag-color", "blue");
+    const tags = screen.getByRole("region", { name: "Tags" });
+    expect(within(tags).getByText("vocabulary.design")).toBeVisible();
+    expect(within(tags).getByText("vocabulary.research")).toBeVisible();
+    expect(
+      within(tags).queryByText("vocabulary.writing"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(tags).queryByRole("img", { name: "appliedByJev" }),
+    ).not.toBeInTheDocument();
+    expect(within(tags).queryByText("appliedByJev")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.selectOptions(
       await screen.findByRole("combobox", { name: "changeColor" }),
@@ -843,6 +858,62 @@ describe("TaskForm", () => {
       color: "green",
     });
     expect(updateTask).not.toHaveBeenCalled();
+  });
+
+  it("removes both parts of a merged preset badge without dismissing a same-named custom topic", async () => {
+    const user = userEvent.setup();
+    const client = new QueryClient();
+    const label = {
+      kind: "TAG" as const,
+      archived: false,
+      description: null,
+      vocabularyVersion: 1,
+    };
+    const preset = {
+      ...label,
+      id: "preset",
+      displayName: "Design",
+      taskTopicId: "design" as const,
+    };
+    const custom = { ...label, id: "custom", displayName: "Research" };
+    client.setQueryData(workspaceTagsQueryKey("org-1"), [preset, custom]);
+    vi.mocked(updateTask).mockResolvedValue(updateTaskSuccess("t"));
+    render(
+      <TaskForm
+        mode="edit"
+        taskId="t"
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{
+          name: "Design task",
+          description: "Research the latest design",
+          tags: { manual: [], automatic: ["design", "research"], rejected: [] },
+          workspaceTags: [preset, custom],
+        }}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    const tags = within(screen.getByRole("region", { name: "Tags" }));
+    expect(tags.queryByText("vocabulary.design")).not.toBeInTheDocument();
+    expect(tags.getByText("vocabulary.research")).toBeVisible();
+    const badge = tags.getByText("Design").closest("[data-slot=badge]");
+    if (!(badge instanceof HTMLElement))
+      throw new Error("Expected the preset badge");
+    await user.click(within(badge).getByRole("button", { name: "remove" }));
+    expect(tags.queryByText("vocabulary.design")).not.toBeInTheDocument();
+    expect(tags.getByText("Research")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceTagIds: ["custom"],
+        expectedWorkspaceTagIds: ["preset", "custom"],
+        dismissedTopicIds: ["design"],
+      }),
+    );
   });
 
   it("keeps the newer confirmed tag color when a closed picker’s earlier change fails", async () => {
@@ -910,61 +981,85 @@ describe("TaskForm", () => {
     expect(chip).toHaveAttribute("data-tag-color", "green");
   });
 
-  it("reloads a conflicting tag selection without losing other unsaved task edits", async () => {
-    const user = userEvent.setup();
-    const original = { id: "original", displayName: "Original" };
-    const concurrent = { id: "later", displayName: "Later" };
-    vi.mocked(loadTaskWorkspaceTags).mockResolvedValue({
-      workspaceTags: [original, concurrent],
-      workspaceTagSuggestions: [],
-    });
-    vi.mocked(updateTask)
-      .mockResolvedValueOnce({
-        ok: false,
-        error: { kind: "task_workspace_tags_changed" },
-      })
-      .mockResolvedValueOnce({ ok: true, value: { taskId: "task" } });
-    render(
-      <TaskForm
-        mode="edit"
-        taskId="task"
-        labels={baseLabels}
-        coworkerOptions={coworkerOptions}
-        initialValues={{
-          name: "Edit task",
-          description: "Initial brief",
-          workspaceTags: [original],
-        }}
-      />,
-    );
-    fireEvent.change(screen.getByTestId("markdown-editor"), {
-      target: { value: "New unsaved brief" },
-    });
-    await user.click(screen.getByRole("button", { name: "remove" }));
-    await user.click(screen.getByRole("button", { name: baseLabels.submit }));
-    expect(updateTask).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        expectedWorkspaceTagIds: ["original"],
-        workspaceTagIds: [],
-      }),
-    );
-    expect(screen.getByText("Original")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "reloadTags" }));
-    expect(screen.getByText("Later")).toBeVisible();
-    await user.click(
-      within(screen.getByText("Original").parentElement!).getByRole("button", {
-        name: "remove",
-      }),
-    );
-    await user.click(screen.getByRole("button", { name: baseLabels.submit }));
-    expect(updateTask).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        expectedWorkspaceTagIds: ["original", "later"],
-        workspaceTagIds: ["later"],
-        description: "New unsaved brief",
-      }),
-    );
-  });
+  it.each([
+    { selectAgain: true, retry: "the user's new tag choice" },
+    { selectAgain: false, retry: "only the unsaved description" },
+  ])(
+    "reloads a conflicting tag selection and saves $retry",
+    async ({ selectAgain }) => {
+      const user = userEvent.setup();
+      const original = {
+        id: "original",
+        displayName: "Design",
+        taskTopicId: "design" as const,
+      };
+      const concurrent = { id: "later", displayName: "Later" };
+      vi.mocked(loadTaskWorkspaceTags).mockResolvedValue({
+        tags: { manual: [], automatic: ["design", "research"], rejected: [] },
+        workspaceTags: [original, concurrent],
+        workspaceTagSuggestions: [],
+      });
+      vi.mocked(updateTask)
+        .mockResolvedValueOnce({
+          ok: false,
+          error: { kind: "task_workspace_tags_changed" },
+        })
+        .mockResolvedValueOnce({ ok: true, value: { taskId: "task" } });
+      render(
+        <TaskForm
+          mode="edit"
+          taskId="task"
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{
+            name: "Edit task",
+            description: "Initial brief",
+            workspaceTags: [original],
+            tags: { manual: [], automatic: ["design"], rejected: [] },
+          }}
+        />,
+      );
+      fireEvent.change(screen.getByTestId("markdown-editor"), {
+        target: { value: "New unsaved brief" },
+      });
+      await user.click(screen.getByRole("button", { name: "remove" }));
+      await user.click(screen.getByRole("button", { name: baseLabels.submit }));
+      expect(updateTask).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          dismissedTopicIds: ["design"],
+          expectedWorkspaceTagIds: ["original"],
+          workspaceTagIds: [],
+        }),
+      );
+      expect(screen.getByText("Design")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "reloadTags" }));
+      expect(screen.getByText("Later")).toBeVisible();
+      expect(screen.getByText("vocabulary.research")).toBeVisible();
+      if (selectAgain) {
+        await user.click(
+          within(screen.getByText("Design").parentElement!).getByRole(
+            "button",
+            {
+              name: "remove",
+            },
+          ),
+        );
+      }
+      await user.click(screen.getByRole("button", { name: baseLabels.submit }));
+      const retry = vi.mocked(updateTask).mock.lastCall?.[0];
+      expect(retry?.description).toBe("New unsaved brief");
+      if (selectAgain) {
+        expect(retry).toMatchObject({
+          expectedWorkspaceTagIds: ["original", "later"],
+          workspaceTagIds: ["later"],
+          dismissedTopicIds: ["design"],
+        });
+      } else {
+        expect(retry).not.toHaveProperty("workspaceTagIds");
+        expect(retry).not.toHaveProperty("dismissedTopicIds");
+      }
+    },
+  );
 
   it("omits name on create", async () => {
     const user = userEvent.setup();
@@ -1032,6 +1127,31 @@ describe("TaskForm", () => {
         .mockResolvedValue(createTaskSuccess("task-2", "Weekly"));
     });
 
+    it("shows inherited topics when an older copy has no workspace tag snapshot", async () => {
+      vi.mocked(fetchWorkspaceLabels).mockResolvedValue([]);
+      renderCopy({ tags: { manual: [], automatic: ["design"], rejected: [] } });
+      const tags = within(screen.getByRole("region", { name: "Tags" }));
+      expect(tags.getByText("vocabulary.design")).toBeVisible();
+      expect(
+        tags.queryByRole("button", { name: "add" }),
+      ).not.toBeInTheDocument();
+      expect(
+        tags.queryByRole("img", { name: "appliedByJev" }),
+      ).not.toBeInTheDocument();
+      const user = userEvent.setup();
+      await user.click(tags.getByRole("button", { name: "remove" }));
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          copyOfTaskId: "source-task",
+          dismissedTopicIds: ["design"],
+        }),
+      );
+      expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+        "workspaceTagIds",
+      );
+    });
+
     it("retains live workspace tags and skips archived tags when editing a copy", async () => {
       const user = userEvent.setup();
       const active = {
@@ -1047,16 +1167,35 @@ describe("TaskForm", () => {
         { ...active, id: "b", displayName: "Next" },
       ]);
       renderCopy({
-        workspaceTags: [active, { id: "old", displayName: "Archived" }],
+        tags: { manual: ["design"], automatic: ["research"], rejected: [] },
+        workspaceTags: [
+          { ...active, source: "jev" },
+          {
+            id: "old",
+            displayName: "Archived",
+            source: "jev",
+            taskTopicId: "design",
+          },
+        ],
       });
       expect(await screen.findByText("Current")).toBeInTheDocument();
       expect(screen.queryByText("Archived")).not.toBeInTheDocument();
+      const tags = screen.getByRole("region", { name: "Tags" });
+      expect(within(tags).getByText("vocabulary.research")).toBeVisible();
+      expect(within(tags).getByText("vocabulary.design")).toBeVisible();
+      expect(
+        within(tags).queryByRole("img", { name: "appliedByJev" }),
+      ).not.toBeInTheDocument();
+      expect(within(tags).queryByText("appliedByJev")).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "add" }));
       await user.click(await screen.findByRole("button", { name: "Next" }));
       await user.keyboard("{Escape}");
       await user.click(screen.getByRole("button", { name: "Create Task" }));
       expect(createTask).toHaveBeenCalledWith(
         expect.objectContaining({ workspaceTagIds: ["a", "b"] }),
+      );
+      expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+        "dismissedWorkspaceTagIds",
       );
     });
 
@@ -3872,6 +4011,55 @@ describe("TaskForm draft tags", () => {
     }
   });
 
+  it("drops a retired draft workspace veto while keeping its built-in topic veto", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = new QueryClient();
+      const label = {
+        id: "preset",
+        displayName: "Design",
+        taskTopicId: "design",
+        kind: "TAG",
+        archived: false,
+        description: null,
+        vocabularyVersion: 1,
+      };
+      const queryKey = workspaceTagsQueryKey("org-1");
+      client.setQueryData(queryKey, [label]);
+      vi.stubGlobal("fetch", suggestTaskTags);
+      suggestTaskTags.mockReset().mockImplementation(async () =>
+        Response.json({
+          tags: ["design"],
+          receipt: "receipt",
+          workspaceSuggestions: [{ ...label, autoApply: true }],
+        }),
+      );
+      const onCreateTask = vi
+        .fn()
+        .mockResolvedValue(createTaskSuccess("t", "Task"));
+      renderComposer(onCreateTask, client);
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      fireEvent.click(screen.getByRole("button", { name: "remove" }));
+      client.setQueryData(queryKey, [{ ...label, archived: true }], {
+        updatedAt: Date.now() + 1,
+      });
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+      await act(async () =>
+        fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
+      );
+      expect(onCreateTask.mock.lastCall?.[0]).toMatchObject({
+        dismissedTopicIds: ["design"],
+      });
+      expect(onCreateTask.mock.lastCall?.[0]).not.toHaveProperty(
+        "dismissedWorkspaceTagIds",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps Jev workspace matches removable after a punctuation or case edit without sending the old receipt", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", suggestTaskTags);
@@ -3945,10 +4133,27 @@ describe("TaskForm draft tags", () => {
         .mockResolvedValue(createTaskSuccess("t", "Task"));
       renderComposer(onCreate);
       await act(() => vi.advanceTimersByTimeAsync(1200));
+      const tags = within(screen.getByRole("region", { name: "Tags" }));
+      const topic = tags
+        .getByText("vocabulary.research")
+        .closest("[data-slot=badge]");
+      const workspace = tags
+        .getByText("Procurement")
+        .closest("[data-slot=badge]");
+      expect(topic?.parentElement).toBe(workspace?.parentElement);
+      expect(tags.getAllByRole("img", { name: "appliedByJev" })).toHaveLength(
+        2,
+      );
+      expect(tags.queryByText("appliedByJev")).not.toBeInTheDocument();
+      const offer = tags.getByRole("button", { name: "acceptSuggestion" });
+      expect(workspace?.parentElement).not.toContainElement(offer);
+      fireEvent.click(offer);
+      expect(tags.getAllByRole("img", { name: "appliedByJev" })).toHaveLength(
+        2,
+      );
       expect(
-        screen.getByText("Procurement").closest("[data-slot=badge]"),
-      ).toHaveTextContent("appliedByJev");
-      fireEvent.click(screen.getByRole("button", { name: "acceptSuggestion" }));
+        tags.getByText("Vendors").closest("[data-slot=badge]")?.parentElement,
+      ).toBe(topic?.parentElement);
       fireEvent.click(
         screen
           .getAllByRole("button", { name: "remove" })
@@ -4031,13 +4236,13 @@ describe("TaskForm draft tags", () => {
     },
   );
 
-  it("shows suggested tags read-only and submits the reusable receipt", async () => {
+  it("keeps a dismissed suggested topic off a rescored draft and submits its receipt and dismissal", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", suggestTaskTags);
     try {
       vi.mocked(suggestTaskTags)
         .mockReset()
-        .mockResolvedValue(
+        .mockImplementation(async () =>
           Response.json({ tags: ["research"], receipt: "receipt-1" }),
         );
       const onCreateTask = vi
@@ -4045,16 +4250,30 @@ describe("TaskForm draft tags", () => {
         .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
       renderComposer(onCreateTask);
       await act(() => vi.advanceTimersByTimeAsync(1200));
-      const tags = screen.getByRole("region", { name: "autoGenerated" });
-      expect(tags).toHaveTextContent("vocabulary.research");
-      // Item 1: no per-badge X, no "Edit tags" popover, nothing to toggle.
-      expect(within(tags).queryByRole("button")).not.toBeInTheDocument();
-      expect(within(tags).queryByRole("checkbox")).not.toBeInTheDocument();
+      const tags = screen.getByRole("region", { name: "Tags" });
+      const topic = within(tags)
+        .getByText("vocabulary.research")
+        .closest("[data-slot=badge]");
+      if (!(topic instanceof HTMLElement))
+        throw new Error("Expected the topic badge");
+      // Dismissals act directly on each badge and leave the current receipt reusable.
+      fireEvent.click(within(topic).getByRole("button", { name: "remove" }));
+      fireEvent.change(screen.getByTestId("markdown-editor"), {
+        target: { value: `${description} before Friday` },
+      });
+      await act(() => vi.advanceTimersByTimeAsync(10000));
+      expect(suggestTaskTags).toHaveBeenCalledTimes(2);
+      expect(
+        within(tags).queryByText("vocabulary.research"),
+      ).not.toBeInTheDocument();
       await act(async () =>
         fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
       );
       expect(onCreateTask).toHaveBeenCalledWith(
-        expect.objectContaining({ tagSuggestionReceipt: "receipt-1" }),
+        expect.objectContaining({
+          tagSuggestionReceipt: "receipt-1",
+          dismissedTopicIds: ["research"],
+        }),
       );
       expect(vi.mocked(onCreateTask).mock.calls[0]?.[0]).not.toHaveProperty(
         "tagCorrections",

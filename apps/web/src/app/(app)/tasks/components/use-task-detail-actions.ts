@@ -23,7 +23,6 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
-import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import {
   markTaskArchived,
   unmarkTaskArchived,
@@ -48,6 +47,7 @@ import { buildNewTaskFormLabels } from "./task-detail-new-task-labels";
 import { useOptimisticTaskStatus } from "./task-detail-optimistic";
 import { useOptimisticTaskLinks } from "./task-detail-optimistic-links";
 import { type TaskFormInitialDesignMdAttachment } from "./task-form";
+import type { TaskFormTagPrefill } from "./task-form-types";
 import {
   buildCreateRelatedOptions,
   buildTaskPickerOptions,
@@ -115,9 +115,7 @@ export interface TaskDetailActionsProps {
    * "Duplicate" (a new Draft). Omitted where the viewer cannot create either;
    * the Task itself is never changed.
    */
-  taskBlueprint?: TaskScheduleBlueprintPrefill & {
-    workspaceTags?: TaskWorkspaceTag[];
-  };
+  taskBlueprint?: TaskScheduleBlueprintPrefill & TaskFormTagPrefill;
   /**
    * "Send to chat": post the Task's link into a chat room. Omitted for
    * private Tasks and read-only views; Core re-checks both at send time and
@@ -210,6 +208,7 @@ export function useTaskDetailActions({
       prompt: taskBlueprint.description ?? null,
       projectId: taskBlueprint.projectId ?? null,
       copy: {
+        tags: taskBlueprint.tags,
         workspaceTags: taskBlueprint.workspaceTags,
         taskId,
         name: taskBlueprint.name ?? "",

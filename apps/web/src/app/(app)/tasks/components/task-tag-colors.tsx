@@ -1,8 +1,10 @@
 "use client";
 
-import { TagColor } from "@sokosumi/core-client";
+import { TagColor, type TaskTagId } from "@sokosumi/core-client";
+import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
 import { Badge } from "@/components/ui/badge";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { cn } from "@/lib/utils";
 import { useTaskTagCatalog } from "./task-tag-catalog";
 import styles from "./task-tag-colors.module.css";
@@ -25,10 +27,14 @@ export function resolvedTaskTagColor(
   return TAG_COLORS[index] ?? "gray";
 }
 
-function useTagColor(id: string, color?: TagColor | null) {
+function useTagColor(
+  id: string,
+  color?: TagColor | null,
+  taskTopicId?: TaskTagId,
+) {
   const cached = useTaskTagCatalog()?.byId.get(id);
   return resolvedTaskTagColor(
-    cached?.taskTopicId ?? id,
+    (cached ? cached.taskTopicId : taskTopicId) ?? id,
     cached ? cached.color : color,
   );
 }
@@ -52,21 +58,23 @@ export function TaskTagDot({
 export function TaskTagBadge({
   id,
   color,
+  taskTopicId,
   className,
   ...props
 }: Omit<ComponentProps<typeof Badge>, "id" | "color"> & {
   id: string;
   color?: TagColor | null;
+  taskTopicId?: TaskTagId;
 }) {
   return (
     <Badge
       {...props}
       variant="outline"
-      data-tag-color={useTagColor(id, color)}
+      data-tag-color={useTagColor(id, color, taskTopicId)}
       className={cn(
         styles.color,
         styles.badge,
-        "max-w-full gap-1 rounded-sm font-normal",
+        "max-w-full gap-1 rounded-sm font-normal has-[button]:overflow-visible has-[button]:py-0 has-[button]:pe-0",
         className,
       )}
     />
@@ -79,6 +87,25 @@ export function TagColorSwatch({ color }: { color: TagColor }) {
       aria-hidden
       data-tag-color={color}
       className={cn(styles.color, styles.dot, "size-3 shrink-0 rounded-full")}
+    />
+  );
+}
+
+export function TaskTagRemoveButton({
+  name,
+  onRemove,
+  disabled,
+}: {
+  name: string;
+  onRemove: () => void;
+  disabled?: boolean;
+}) {
+  const t = useTranslations("App.Tasks.Tags");
+  return (
+    <ChipRemoveButton
+      disabled={disabled}
+      aria-label={t("remove", { name })}
+      onClick={onRemove}
     />
   );
 }

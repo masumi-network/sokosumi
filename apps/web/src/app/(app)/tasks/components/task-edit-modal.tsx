@@ -3,7 +3,6 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
-import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type {
@@ -12,12 +11,12 @@ import type {
 } from "./task-form";
 import { TaskForm } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
+import type { TaskFormTagPrefill } from "./task-form-types";
 
 interface TaskEditModalProps {
   taskId: string;
   title: string;
-  initialValues: {
-    workspaceTags?: TaskWorkspaceTag[];
+  initialValues: TaskFormTagPrefill & {
     name: string;
     description: string;
     assigneeId: string;

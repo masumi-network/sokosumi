@@ -1,5 +1,5 @@
 "use client";
-import type { WorkspaceLabel } from "@sokosumi/core-client";
+import type { TaskTagId, WorkspaceLabel } from "@sokosumi/core-client";
 import { QueryClientContext } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
@@ -15,6 +15,29 @@ const Context = createContext<Catalog | null>(null);
 
 export function useTaskTagCatalog() {
   return useContext(Context);
+}
+
+export function representedTaskTopics(
+  catalog: Catalog | null,
+  workspaceTags: readonly Pick<WorkspaceLabel, "id" | "taskTopicId">[],
+): Set<TaskTagId> {
+  const topics = new Set<TaskTagId>();
+  for (const tag of workspaceTags) {
+    const latest = catalog?.byId.get(tag.id);
+    const topic = latest ? latest.taskTopicId : tag.taskTopicId;
+    if (topic) topics.add(topic);
+  }
+  return topics;
+}
+
+/** A selected workspace label can represent a built-in topic; custom homonyms keep their own badge. */
+export function useVisibleTaskTopicIds(
+  topicIds: readonly TaskTagId[],
+  selectedWorkspaceTags: readonly Pick<WorkspaceLabel, "id" | "taskTopicId">[],
+): TaskTagId[] {
+  const catalog = useTaskTagCatalog();
+  const selectedTopics = representedTaskTopics(catalog, selectedWorkspaceTags);
+  return topicIds.filter((id) => !selectedTopics.has(id));
 }
 
 export function TaskTagCatalogProvider({

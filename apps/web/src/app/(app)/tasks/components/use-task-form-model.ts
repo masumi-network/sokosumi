@@ -464,8 +464,8 @@ export function useTaskFormModel(
 
   const workspaceSelection = useTaskFormWorkspaceTags(
     workspaceKey,
-    initialValues?.workspaceTags,
-    draftTags.workspaceSuggestions,
+    initialValues,
+    mode === "create" && !isCopy ? draftTags : undefined,
   );
   const isSaveDisabled =
     workspaceSelection.hasConflict ||
