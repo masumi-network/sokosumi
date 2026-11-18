@@ -7620,6 +7620,14 @@ export const TaskSchema = {
             },
             example: []
         },
+        followers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFollower'
+            },
+            example: [],
+            description: 'People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.'
+        },
         files: {
             type: 'array',
             items: {
@@ -8953,6 +8961,25 @@ export const TaskLinkPeerTaskSchema = {
         archivedAt: null,
         identifier: 'SOK-12'
     }
+} as const;
+
+export const TaskFollowerSchema = {
+    type: 'object',
+    properties: {
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        followedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-09-24T12:00:00.000Z',
+            description: 'When this person started following the Task.'
+        }
+    },
+    required: [
+        'user',
+        'followedAt'
+    ]
 } as const;
 
 export const TaskFileSchema = {
@@ -55158,13 +55185,45 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        id: {
+            type: 'string'
+        },
+        userId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
         'status',
         'activeTurnId',
         'lastTurnAt',
-        'lastActivityAt'
+        'lastActivityAt',
+        'id',
+        'userId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'avatarCode'
     ]
 } as const;
 
@@ -58615,6 +58674,21 @@ export const TaskParticipantsSchema = {
     },
     required: [
         'participants'
+    ]
+} as const;
+
+export const TaskFollowersSchema = {
+    type: 'object',
+    properties: {
+        followers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFollower'
+            }
+        }
+    },
+    required: [
+        'followers'
     ]
 } as const;
 
