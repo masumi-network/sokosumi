@@ -117,31 +117,35 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       // clear of it once it has focus.
       const barBox = await bar.boundingBox();
       assert.ok(barBox, "no compare bar");
-      const hiddenHref = await page.evaluate(
+      // The element itself, not a selector: a card can repeat in two rows.
+      const hidden = await page.evaluateHandle(
         ({ top, bottom }) =>
           [
             ...document.querySelectorAll<HTMLAnchorElement>(
               'main a[href^="/agents/"]',
             ),
-          ]
-            .find((a) => {
-              const r = a.getBoundingClientRect();
-              return r.height > 0 && r.top < bottom && r.bottom > top;
-            })
-            ?.getAttribute("href") ?? null,
+          ].find((a) => {
+            const r = a.getBoundingClientRect();
+            return r.height > 0 && r.top < bottom && r.bottom > top;
+          }) ?? null,
         { top: barBox.y, bottom: barBox.y + barBox.height },
       );
-      assert.ok(hiddenHref, "no catalog card link under the bar to test");
-      const target = page.locator(`main a[href="${hiddenHref}"]`).first();
+      const target = hidden.asElement();
+      assert.ok(target, "no catalog card link under the bar to test");
       await target.focus();
       const [focusBox, barAfter] = await Promise.all([
         target.boundingBox(),
         bar.boundingBox(),
       ]);
       assert.ok(focusBox && barAfter);
+      assert.equal(
+        await target.evaluate((el) => el === document.activeElement),
+        true,
+        "the card under the bar did not take focus",
+      );
       assert.ok(
         focusBox.y + focusBox.height <= barAfter.y,
-        `the compare bar covers the focused card ${hiddenHref}`,
+        "the compare bar covers the focused card",
       );
       assert.ok(focusBox.y >= 0, "the focused card scrolled off the top");
       await shot(page, size, "1-picked");
@@ -195,9 +199,30 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
           true,
           "Tab did not reach the table",
         );
-        for (let step = 0; step < 8 && (await clipped()); step++)
+        // Chrome animates keyboard scrolling: let each press settle.
+        const thirdHandle = await third.elementHandle();
+        for (let step = 0; step < 8 && (await clipped()); step++) {
           await page.keyboard.press("ArrowRight");
+          await page
+            .waitForFunction(
+              ([el, box]) =>
+                (el as Element).getBoundingClientRect().right <=
+                (box as Element).getBoundingClientRect().right + 1,
+              [thirdHandle, scroller],
+              { timeout: 500 },
+            )
+            .catch(() => {});
+        }
         assert.equal(await clipped(), false, "arrow keys did not scroll");
+        // Row labels stay in view while the columns scroll under them.
+        const labelInView = await table
+          .getByRole("rowheader", { name: "Rating" })
+          .evaluate((el, box) => {
+            const s = (box as HTMLElement).getBoundingClientRect();
+            const r = el.getBoundingClientRect();
+            return r.left >= s.left - 1 && r.right <= s.right + 1;
+          }, scroller);
+        assert.equal(labelInView, true, "row labels scrolled away");
       }
 
       // Keyboard only, as a person would: Escape returns focus to Compare N,

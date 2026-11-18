@@ -269,7 +269,8 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
   ];
 
   // A real table laid out as a grid: on phones each row's label spans the
-  // full width above its values.
+  // full width above its values and sticks to the start when three columns
+  // scroll sideways.
   return (
     <div className="overflow-x-auto overscroll-x-contain">
       <table
@@ -300,7 +301,7 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
             <tr key={row.label} className="contents">
               <th
                 scope="row"
-                className="text-muted-foreground col-span-full pt-3 text-start text-xs font-medium md:col-span-1 md:py-3 md:text-sm"
+                className="text-muted-foreground sticky start-0 col-span-full justify-self-start pt-3 text-start text-xs font-medium md:static md:col-span-1 md:justify-self-stretch md:py-3 md:text-sm"
               >
                 {row.label}
               </th>
