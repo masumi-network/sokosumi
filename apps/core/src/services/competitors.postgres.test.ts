@@ -5,6 +5,7 @@ const readers = vi.hoisted(() => ({
   readCompetitorPage: vi.fn(),
   searchExa: vi.fn(),
   ask: vi.fn(),
+  startCmoTurn: vi.fn(),
 }));
 vi.mock("@/config/env", async (original) => {
   const actual = await original<typeof import("@/config/env")>();
@@ -28,9 +29,14 @@ vi.mock("@/lib/competitors/model", () => ({
 vi.mock("@/helpers/cuso-low-credit-notification", () => ({
   notifyCusoLowCreditsAfterCharge: vi.fn(),
 }));
+vi.mock("@/services/cmo-cuso.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-cuso.service")>()),
+  startCmoTurn: readers.startCmoTurn,
+}));
 
 import prisma from "@/lib/db/prisma";
 import {
+  keepCusoFirstCompetitorCheck,
   runCusoCompetitorCheck,
   syncTrackedCompetitorsFromBrandBrain,
   watchedMapPlayers,
@@ -366,6 +372,77 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
       await runCusoCompetitorCheck(cuso, new Date(monday.getTime() + 7 * DAY)),
     ).toBe("checked");
     expect(await spentCredits(cuso)).toBe(BigInt(COMPETITOR_CHECK_CREDITS * 4));
+  });
+
+  it("checks a newly paid Cuso at once, charges once and starts his watch run", async () => {
+    const cuso = await cusoTracking("Calendly", "Zcal");
+    const paid = new Date("2026-11-18T20:59:00Z");
+    await keepCusoFirstCompetitorCheck(cuso, paid);
+    const check = await prisma.competitorCheck.findFirstOrThrow({
+      where: { projectId: cuso.projectId },
+    });
+    expect(check.finishedAt).not.toBeNull();
+    expect(readers.startCmoTurn).toHaveBeenCalledWith(
+      cuso,
+      cuso.userId,
+      expect.objectContaining({ clientTurnId: `cmo:competitors:${check.id}` }),
+    );
+
+    // The next sync, ten minutes on: the same check, nothing charged again.
+    await keepCusoFirstCompetitorCheck(
+      cuso,
+      new Date(paid.getTime() + 600_000),
+    );
+    expect(
+      await prisma.competitorCheck.count({
+        where: { projectId: cuso.projectId },
+      }),
+    ).toBe(1);
+    expect(await spentCredits(cuso)).toBe(BigInt(COMPETITOR_CHECK_CREDITS * 2));
+  });
+
+  it("stops retrying the first watch run after an hour", async () => {
+    const cuso = await cusoTracking("Calendly");
+    const paid = new Date("2026-11-18T20:59:00Z");
+    await keepCusoFirstCompetitorCheck(cuso, paid);
+    readers.startCmoTurn.mockClear();
+    await keepCusoFirstCompetitorCheck(
+      cuso,
+      new Date(paid.getTime() + 3_000_000),
+    );
+    expect(readers.startCmoTurn).toHaveBeenCalledTimes(1);
+    await keepCusoFirstCompetitorCheck(
+      cuso,
+      new Date(paid.getTime() + 4_200_000),
+    );
+    expect(readers.startCmoTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not check a Cuso nobody pays for", async () => {
+    const cuso = await cusoTracking("Calendly");
+    await prisma.polarSubscription.updateMany({
+      where: { projectId: cuso.projectId },
+      data: { status: "canceled", endedAt: new Date("2026-11-01T00:00:00Z") },
+    });
+    await keepCusoFirstCompetitorCheck(cuso, new Date("2026-11-18T20:59:00Z"));
+    expect(
+      await prisma.competitorCheck.count({
+        where: { projectId: cuso.projectId },
+      }),
+    ).toBe(0);
+    expect(readers.startCmoTurn).not.toHaveBeenCalled();
+  });
+
+  it("leaves a Cuso to the weekly sync from his second check on", async () => {
+    const cuso = await cusoTracking("Calendly");
+    const first = new Date("2026-11-09T09:00:00Z");
+    await runCusoCompetitorCheck(cuso, first);
+    await runCusoCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
+    await keepCusoFirstCompetitorCheck(
+      cuso,
+      new Date(first.getTime() + 7 * DAY + 600_000),
+    );
+    expect(readers.startCmoTurn).not.toHaveBeenCalled();
   });
 
   it("stores a price move once, with its quote, and keeps the newest page", async () => {
