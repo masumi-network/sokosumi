@@ -89,7 +89,7 @@ export function TikTokStudio({
   const t = useTranslations("App.TikTokStudio");
   const tStudio = useTranslations("App.Studio");
   const locale = useLocale();
-  const ids = { script: useId(), voice: useId(), quality: useId() };
+  const ids = { script: useId(), voice: useId() };
   const languageId = useId();
   const consentId = useId();
   const queryClient = useQueryClient();
@@ -102,7 +102,6 @@ export function TikTokStudio({
   const [photo, setPhoto] = useState<{ id: string; name: string } | null>(null);
   const [consent, setConsent] = useState(false);
   const [voice, setVoice] = useState(catalog.defaultVoice);
-  const [modelId, setModelId] = useState(catalog.defaultModelId);
   const [languageCode, setLanguageCode] = useState<string>(
     SCRIPT_LANGUAGES.find((code) => locale.startsWith(code)) ?? "en",
   );
@@ -124,8 +123,9 @@ export function TikTokStudio({
   });
 
   const model =
-    catalog.models.find((candidate) => candidate.id === modelId) ??
-    catalog.models[0];
+    catalog.models.find(
+      (candidate) => candidate.id === catalog.defaultModelId,
+    ) ?? catalog.models[0];
   const trimmed = script.trim();
   const credits =
     model && trimmed.length >= catalog.scriptMinLength
@@ -427,7 +427,7 @@ export function TikTokStudio({
         <fieldset
           className={cn(
             HOLDER_ITEM_CLASS,
-            "grid min-w-0 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3",
+            "grid min-w-0 gap-3 p-4 sm:grid-cols-2",
           )}
           disabled={readOnly}
         >
@@ -457,23 +457,6 @@ export function TikTokStudio({
                 {SCRIPT_LANGUAGES.map((code) => (
                   <SelectItem key={code} value={code}>
                     {languageNames.of(code) ?? code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <Label htmlFor={ids.quality}>{t("quality")}</Label>
-            <Select onValueChange={setModelId} value={modelId}>
-              <SelectTrigger className="w-full" id={ids.quality}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {catalog.models.map((candidate) => (
-                  <SelectItem key={candidate.id} value={candidate.id}>
-                    {candidate.id === catalog.defaultModelId
-                      ? t("qualityStandard")
-                      : t("qualityHigher")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -646,7 +629,7 @@ function VideoTile({
         {job.prompt}
       </p>
       {asset ? (
-        <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <Badge title={t("aiLabelHint")} variant="outline">
             {t("aiLabel")}
           </Badge>
