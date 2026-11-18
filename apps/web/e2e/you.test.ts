@@ -68,18 +68,21 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await openYou();
 
       const menu = page.getByRole("navigation", { name: "You" });
-      for (const [name, href] of [
+      // Rows carry `from=you` and keep their own params (the component test
+      // covers TikTok Studio's project).
+      for (const [name, pathname] of [
         ["Agents", "/agents"],
         ["TikTok Studio", "/tiktok-studio"],
         ["Contacts", "/contacts"],
       ]) {
-        assert.equal(
-          await menu
+        const href = new URL(
+          (await menu
             .getByRole("link", { name, exact: true })
-            .getAttribute("href"),
-          href,
-          `${name} row`,
+            .getAttribute("href")) ?? "",
+          BASE_URL,
         );
+        assert.equal(href.pathname, pathname, `${name} row`);
+        assert.equal(href.searchParams.get("from"), "you", `${name} marker`);
       }
       assert.equal(
         await menu
