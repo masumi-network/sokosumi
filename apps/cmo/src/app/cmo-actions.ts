@@ -2,12 +2,16 @@
 
 import {
   type AvailableAdAccount,
+  addCmoCompetitorForProject,
+  addCmoCompetitorMoveToStrategyForProject,
   answerCmoBrandBrainQuestionForProject,
   answerCmoMarketingStrategyQuestionForProject,
   applyCmoPlanAnswersForProject,
   approveCmoMarketingStrategyForProject,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
+  type CmoCompetitorCreate,
+  type CmoCompetitors,
   type CmoCusoList,
   type CmoKeywordSearch,
   type CmoMeasurement,
@@ -26,6 +30,7 @@ import {
   fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
+  getCmoCompetitorsForProject,
   getCmoOverviewForProject,
   getCmoSeoForProject,
   getContactLists,
@@ -41,6 +46,7 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  removeCmoCompetitorForProject,
   requestCmoArticleDraftForProject,
   requestCmoArticleIdeasForProject,
   requestCmoStrategyForProject,
@@ -56,6 +62,7 @@ import {
   startCmoPlanCheckoutForProject,
   startCmoTopUpForProject,
   updateCmoBrandBrainForProject,
+  updateCmoCompetitorForProject,
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
@@ -1093,4 +1100,87 @@ export async function askCusoForArticles(
       })
     : await requestCmoArticleIdeasForProject({ ...core, path: { projectId } });
   return error ? errorText(error, `${AGENT_NAME} could not start`) : null;
+}
+
+/** The Competitors page of this Cuso; null when it cannot be read. */
+export async function loadCompetitors(
+  projectId: string,
+): Promise<CmoCompetitors | null> {
+  const core = await requireCore();
+  const { data } = await getCmoCompetitorsForProject({
+    ...core,
+    path: { projectId },
+  });
+  return data?.data ?? null;
+}
+
+export interface CompetitorResult {
+  competitors: CmoCompetitors | null;
+  error: string | null;
+}
+
+function competitorResult(
+  response: { data?: { data: CmoCompetitors }; error?: unknown },
+  fallback: string,
+): CompetitorResult {
+  return response.data
+    ? { competitors: response.data.data, error: null }
+    : { competitors: null, error: errorText(response.error, fallback) };
+}
+
+/** Adds a competitor to watch; a refusal (the limit, a name taken) comes back as text. */
+export async function addCompetitor(
+  projectId: string,
+  body: CmoCompetitorCreate,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await addCmoCompetitorForProject({ ...core, path: { projectId }, body }),
+    "Could not add this competitor",
+  );
+}
+
+export async function updateCompetitor(
+  projectId: string,
+  competitorId: string,
+  body: CmoCompetitorCreate,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await updateCmoCompetitorForProject({
+      ...core,
+      path: { projectId, competitorId },
+      body,
+    }),
+    "Could not save this competitor",
+  );
+}
+
+export async function removeCompetitor(
+  projectId: string,
+  competitorId: string,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await removeCmoCompetitorForProject({
+      ...core,
+      path: { projectId, competitorId },
+    }),
+    "Could not remove this competitor",
+  );
+}
+
+/** Sends one move from This week to the strategy: Cuso patches it. */
+export async function addCompetitorMoveToStrategy(
+  projectId: string,
+  itemId: string,
+): Promise<CompetitorResult> {
+  const core = await requireCore();
+  return competitorResult(
+    await addCmoCompetitorMoveToStrategyForProject({
+      ...core,
+      path: { projectId, itemId },
+    }),
+    "Could not add this to the strategy",
+  );
 }

@@ -5298,10 +5298,18 @@ const cmoCompetitorMeasureSchemaResponseTransformer = (data: any) => {
 };
 
 const cmoCompetitorScoreRowSchemaResponseTransformer = (data: any) => {
-    data.postsPerWeek = cmoCompetitorMeasureSchemaResponseTransformer(data.postsPerWeek);
-    data.engagementPerPost = cmoCompetitorMeasureSchemaResponseTransformer(data.engagementPerPost);
-    data.followers = cmoCompetitorMeasureSchemaResponseTransformer(data.followers);
-    data.followerGrowth = cmoCompetitorMeasureSchemaResponseTransformer(data.followerGrowth);
+    if (data.postsPerWeek) {
+        data.postsPerWeek = cmoCompetitorMeasureSchemaResponseTransformer(data.postsPerWeek);
+    }
+    if (data.engagementPerPost) {
+        data.engagementPerPost = cmoCompetitorMeasureSchemaResponseTransformer(data.engagementPerPost);
+    }
+    if (data.followers) {
+        data.followers = cmoCompetitorMeasureSchemaResponseTransformer(data.followers);
+    }
+    if (data.followerGrowth) {
+        data.followerGrowth = cmoCompetitorMeasureSchemaResponseTransformer(data.followerGrowth);
+    }
     return data;
 };
 
