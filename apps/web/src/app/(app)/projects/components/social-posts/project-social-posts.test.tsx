@@ -4863,7 +4863,9 @@ describe("ProjectSocialPosts", () => {
     const audience = dialog.getByLabelText("Who can see this video?");
     expect(audience).toHaveValue("");
     expect(dialog.getByLabelText("Allow comments")).toBeDisabled();
-    expect(dialog.getByLabelText("Allow Duet")).not.toBeChecked();
+    expect(
+      dialog.getByLabelText("Allow Duet with this video"),
+    ).not.toBeChecked();
     await user.click(dialog.getByRole("button", { name: "Add from Drive" }));
     await user.click(screen.getByRole("button", { name: "pick clip.mp4" }));
     const submit = dialog.getByRole("button", { name: "Post now" });
