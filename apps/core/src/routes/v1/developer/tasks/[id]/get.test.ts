@@ -178,6 +178,10 @@ describe("GET /developer/tasks/{id}", () => {
       }),
     );
     const body = await response.json();
+    const include = taskFindFirstMock.mock.calls[0]?.[0].include;
+    expect(include).not.toHaveProperty("workspaceTagDecisions");
+    expect(include.workspaceTags).toBeDefined();
+    expect(body.data.task).not.toHaveProperty("workspaceTagSuggestions");
     expect(body.data.task).toMatchObject({
       id: "0195b9f4-7d35-7a4e-b14e-111111111111",
       name: "Quarterly report",

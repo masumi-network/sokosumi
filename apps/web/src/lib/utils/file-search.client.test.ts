@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { deleteMock } = vi.hoisted(() => ({ deleteMock: vi.fn() }));
+const { deleteMock, patchLabelMock } = vi.hoisted(() => ({
+  deleteMock: vi.fn(),
+  patchLabelMock: vi.fn(),
+}));
 vi.mock("@sokosumi/core-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
   deleteDriveFilesDelete: deleteMock,
+  patchDriveLabelsById: patchLabelMock,
 }));
 vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({}),
@@ -13,7 +17,21 @@ import {
   countActiveFileFilters,
   deleteDriveUploads,
   EMPTY_FILE_FILTERS,
+  setWorkspaceTagColor,
 } from "@/lib/utils/file-search.client";
+
+it.each([
+  ["#127DA2", { customColor: "#127DA2" }],
+  ["purple", { color: "purple" }],
+  [null, { color: null }],
+] as const)("persists a workspace tag color of %s", async (color, field) => {
+  patchLabelMock.mockResolvedValue({ data: { data: { id: "tag", ...field } } });
+  await setWorkspaceTagColor({ activeOrganizationId: null, id: "tag", color });
+  expect(patchLabelMock.mock.lastCall?.[0].body).toEqual({
+    scope: "me",
+    ...field,
+  });
+});
 
 describe("deleteDriveUploads", () => {
   it("deletes each file and reports only the ones that failed", async () => {

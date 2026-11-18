@@ -14,6 +14,7 @@ import { TaskMetadataAssigneeField } from "@/app/tasks/components/task-metadata-
 import { TaskMetadataParticipantsField } from "@/app/tasks/components/task-metadata-participants-field";
 import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
 import { TaskMetadataProjectField } from "@/app/tasks/components/task-metadata-project-field";
+import { TaskTagCatalogProvider } from "@/app/tasks/components/task-tag-catalog";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
 import {
   taskFormAssigneeId,
@@ -256,7 +257,25 @@ export async function TaskMetadataSection({
           updateStatusError: tTasks("Errors.updateStatus"),
         }}
       />
-      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
+      <TaskTagCatalogProvider
+        organizationId={task.workspace.organizationId ?? null}
+        enabled={!forceReadOnly}
+      >
+        <TaskTagSection
+          key={task.updatedAt.toString()}
+          tags={task.tags}
+          workspaceTags={task.workspaceTags}
+          suggestions={task.workspaceTagSuggestions}
+          edit={
+            isReadOnly
+              ? undefined
+              : {
+                  taskId: task.id,
+                  activeOrganizationId: task.workspace.organizationId ?? null,
+                }
+          }
+        />
+      </TaskTagCatalogProvider>
     </div>
   );
 }

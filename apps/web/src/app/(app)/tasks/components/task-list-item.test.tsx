@@ -84,6 +84,36 @@ describe("TaskListItem privacy cue", () => {
   });
 });
 
+it("shows a saved Jev workspace tag and a name-only overflow summary inside the Task link", () => {
+  const task: TaskWithCoworker = {
+    ...buildTask(TaskVisibility.PUBLIC),
+    workspaceTags: [
+      {
+        id: "procurement",
+        displayName: "Procurement",
+        color: "green",
+        source: "jev",
+      },
+    ],
+    tags: { manual: ["design"], automatic: ["research"], rejected: [] },
+  };
+  const { rerender } = render(<TaskListItem task={task} compact={false} />);
+  const badge = screen.getByText("Procurement").closest("[data-slot=badge]");
+  expect(badge).toHaveTextContent(/^Procurement$/);
+  expect(badge).toHaveAttribute("data-tag-color", "green");
+  expect(badge).not.toHaveAttribute("title");
+  expect(badge?.querySelector("svg")).toBeNull();
+  expect(screen.getByText("+2")).toHaveAttribute(
+    "title",
+    "vocabulary.design, vocabulary.research",
+  );
+  rerender(<TaskListItem task={task} compact />);
+  expect(screen.getByText("+1")).toHaveAttribute(
+    "title",
+    "vocabulary.research",
+  );
+});
+
 describe("TaskListItem priority", () => {
   it("shows the priority icon before the name", () => {
     render(

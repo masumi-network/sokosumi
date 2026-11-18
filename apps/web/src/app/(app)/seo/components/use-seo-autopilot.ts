@@ -25,6 +25,7 @@ const SEO_STATISTICS_BUSY_RETRIES = 20;
 export class SeoStatisticsCollectionBusyError extends Error {}
 
 interface StatisticsContext {
+  refreshBrief: () => Promise<void>;
   data: ProjectSeoWorkspace;
   viewerKey: string;
   enabled: boolean;
@@ -127,15 +128,18 @@ function useAutomaticProvider(
         );
       if (!response.ok)
         throw new Error("Automatic statistics collection did not complete");
-      await queryClient.invalidateQueries({
-        queryKey: [
-          "seo-workspace",
-          session?.session.activeOrganizationId,
-          session?.user.id,
-          owner.kind,
-          owner.id,
-        ],
-      });
+      await Promise.all([
+        context.refreshBrief(),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "seo-workspace",
+            session?.session.activeOrganizationId,
+            session?.user.id,
+            owner.kind,
+            owner.id,
+          ],
+        }),
+      ]);
       return true;
     },
     // Core must reactivate the selected cached snapshot when a previous selection is revisited.

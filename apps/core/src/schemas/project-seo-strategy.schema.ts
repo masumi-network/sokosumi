@@ -100,24 +100,78 @@ export type SeoKeywordReach = {
   articleIdeas?: z.infer<typeof seoArticleIdeasSchema>;
 };
 
+export const seoStrategyPurpose = z.enum(["sales", "traffic"]);
+export const seoStrategyPurposeSource = z.enum(["owner", "inferred"]);
+const demand = z.number().finite().nonnegative();
+const missing = z.number().int().nonnegative();
+export const seoStrategyIntentDemand = z.object({
+  buyer: demand,
+  informational: demand,
+  other: demand,
+});
+export const seoStrategyMissingDemand = z.object({
+  buyer: missing,
+  informational: missing,
+  other: missing,
+});
+export const seoStrategyOpportunity = z.object({
+  pageUrl: url,
+  keyword: text.min(1),
+  demand: z.number().finite().positive(),
+  reach: z.enum(["ranks", "in reach"]),
+});
+
+const maxForumQuestions = 5;
+const maxForumTitle = 300;
+const forumSource = z
+  .url({ protocol: /^https?$/ })
+  .max(4096)
+  .refine((value) => {
+    const url = URL.parse(value);
+    return url && !url.username && !url.password;
+  });
+const forumQuestion = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(maxForumTitle)
+    .regex(/[?？؟]/u),
+  url: forumSource.optional(),
+});
+const seoForumQuestions = z.array(forumQuestion).max(maxForumQuestions);
+export const importedSeoForumQuestions = z
+  .array(
+    forumQuestion.extend({
+      url: forumSource.optional().catch(undefined),
+    }),
+  )
+  .max(maxForumQuestions);
+
+const seoStrategyGroup = z.object({
+  lead: text,
+  keywords: z.array(text).max(100),
+  pageUrl: url.nullable(),
+  volume: count,
+  recent: count,
+  trend: z.enum(["falling", "rising", "flat"]).nullable(),
+  reach: label,
+  position: count,
+  forums: z.boolean().optional(),
+  forumQuestions: seoForumQuestions.optional(),
+});
+const strategyGroupsMax = 1000;
+
 /** The strategy results of a site audit that Core keeps. The helper checks each URL at import. */
-export const seoStrategyPayloadSchema = z.object({
+const seoStrategyFields = z.object({
   verdict: label,
   why: text,
-  groups: z
-    .array(
-      z.object({
-        lead: text,
-        keywords: z.array(text).max(100),
-        pageUrl: url.nullable(),
-        volume: count,
-        recent: count,
-        trend: z.enum(["falling", "rising", "flat"]).nullable(),
-        reach: label,
-        position: count,
-      }),
-    )
-    .max(1000),
+  purpose: seoStrategyPurpose.optional(),
+  purposeSource: seoStrategyPurposeSource.optional(),
+  purposeOpportunity: seoStrategyOpportunity.optional(),
+  demandByIntent: seoStrategyIntentDemand.optional(),
+  missingDemandByIntent: seoStrategyMissingDemand.optional(),
+  groups: z.array(seoStrategyGroup).max(strategyGroupsMax),
   actions: z
     .array(
       z.object({
@@ -156,9 +210,32 @@ export const seoStrategyPayloadSchema = z.object({
   rivalKeywords: seoRivalKeywordsSchema,
   articleIdeas: seoArticleIdeasSchema,
 });
+// A missing or malformed extension in a saved observation must leave the older evidence readable.
+const {
+  purpose,
+  purposeSource,
+  purposeOpportunity,
+  demandByIntent,
+  missingDemandByIntent,
+} = seoStrategyFields.shape;
+export const seoStrategyPayloadSchema = seoStrategyFields.extend({
+  purpose: purpose.catch(undefined),
+  purposeSource: purposeSource.catch(undefined),
+  purposeOpportunity: purposeOpportunity.catch(undefined),
+  demandByIntent: demandByIntent.catch(undefined),
+  missingDemandByIntent: missingDemandByIntent.catch(undefined),
+  groups: z
+    .array(
+      seoStrategyGroup.extend({
+        forums: seoStrategyGroup.shape.forums.catch(undefined),
+        forumQuestions: seoStrategyGroup.shape.forumQuestions.catch(undefined),
+      }),
+    )
+    .max(strategyGroupsMax),
+});
 export type SeoStrategyPayload = z.infer<typeof seoStrategyPayloadSchema>;
 
-export const seoStrategySchema = seoStrategyPayloadSchema
+export const seoStrategySchema = seoStrategyFields
   .extend({
     observationId: z.string().uuid(),
     observedAt: dateTimeSchema,
