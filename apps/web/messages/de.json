@@ -11872,6 +11872,19 @@
           "exclude": "Seite ausschließen",
           "unknown": "Unentschieden"
         },
+        "events": {
+          "title": "Ereignisse nach organischen Einstiegen",
+          "source": "GA4 zählt diese Ereignisse für Besuche aus der organischen Suche, die auf dieser Seite begannen.",
+          "purchase": "Käufe",
+          "sign_up": "Registrierungen",
+          "before": "Vor der Änderung",
+          "after": "Nach der Änderung",
+          "latest": "Zuletzt gemeldeter Zeitraum",
+          "count": "{count, plural, one {# Ereignis} other {# Ereignisse}}",
+          "noComparison": "Dem Audit fehlen vergleichbare Zeiträume vor und nach der erfassten Änderung.",
+          "observed": "Auch andere Faktoren können die Zahlen beeinflussen.",
+          "missing": "Für Besuche aus der organischen Suche mit Einstieg auf dieser Seite liegt keine bestätigte Zahl von Käufen oder Registrierungen vor."
+        },
         "followUps": {
           "awaiting_recrawl": "Es fehlt noch ein Crawl-Nachweis für die Zeit nach der Änderung.",
           "recrawled": "Google hat die Seite nach der Änderung gecrawlt.",
@@ -12874,6 +12887,11 @@
           "notDetermined": "{groups} {count, plural, one {hat} other {haben}} keine bekannte Reichweite"
         },
         "moving": "{count, plural, one {Die Suchen ändern sich bei # Gruppe} other {Die Suchen ändern sich bei # Gruppen}}",
+        "forumQuestions": {
+          "title": "Fragen aus Forentreffern",
+          "keyword": "Suchgruppe „{keyword}“",
+          "more": "{count, plural, one {# weitere Suchgruppe anzeigen} other {# weitere Suchgruppen anzeigen}}"
+        },
         "reachHelp": {
           "ranks": "Eine Gruppe rankt, wenn eine Seite der Website in den Ergebnissen oder im Featured Snippet steht.",
           "inReach": "Eine Gruppe ist in Reichweite, wenn die verweisenden Domains der Website nah an denen der schwächsten Top-10-Seite liegen, die das Audit zählen konnte.",

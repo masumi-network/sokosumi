@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { SeoBriefOutcomes } from "./seo-brief-outcomes";
 import { SeoPageLink, seoSiteUrl } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -207,6 +208,7 @@ export function SeoBriefFollowUp({
       {followUp.indexReview && followUp.indexReview !== "unknown" && (
         <p>{t(`indexReview.${followUp.indexReview}`)}</p>
       )}
+      <SeoBriefOutcomes followUp={followUp} />
     </section>
   );
 }

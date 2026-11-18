@@ -11872,6 +11872,19 @@
           "exclude": "Excluir esta página",
           "unknown": "Sin decidir"
         },
+        "events": {
+          "title": "Eventos tras una entrada desde la búsqueda orgánica",
+          "source": "GA4 cuenta estos eventos para las visitas desde la búsqueda orgánica que empezaron en esta página.",
+          "purchase": "Compras",
+          "sign_up": "Registros",
+          "before": "Antes del cambio",
+          "after": "Después del cambio",
+          "latest": "Último periodo registrado",
+          "count": "{count, plural, one {# evento} other {# eventos}}",
+          "noComparison": "Faltan periodos comparables anteriores y posteriores al cambio registrado.",
+          "observed": "Otros factores también pueden afectar a estas cifras.",
+          "missing": "No hay un recuento verificado de compras o registros para las visitas orgánicas que empezaron en esta página."
+        },
         "followUps": {
           "awaiting_recrawl": "Pendiente de confirmar un rastreo posterior al cambio.",
           "recrawled": "Google ha rastreado la página después del cambio.",
@@ -12874,6 +12887,11 @@
           "notDetermined": "{groups} {count, plural, one {no tiene} other {no tienen}} un alcance conocido"
         },
         "moving": "{count, plural, one {Las búsquedas cambian en # grupo} other {Las búsquedas cambian en # grupos}}",
+        "forumQuestions": {
+          "title": "Preguntas vistas en resultados de foros",
+          "keyword": "Grupo de búsqueda «{keyword}»",
+          "more": "{count, plural, one {Mostrar # grupo de búsqueda más} other {Mostrar # grupos de búsqueda más}}"
+        },
         "reachHelp": {
           "ranks": "Un grupo posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
           "inReach": "Un grupo está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",

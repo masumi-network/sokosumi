@@ -34,6 +34,21 @@ const fixture: SeoAuditBrief = {
   followUps: [],
   priorities: [],
 };
+const followUp = {
+  pageId: page.id,
+  changedAt: new Date("2026-03-08T12:00:00Z"),
+  lastCrawlAt: null,
+  status: "unknown",
+  indexReview: "unknown",
+} as const;
+const privateCounts = {
+  event: "purchase" as const,
+  latest: { from: "2026-03-09", to: "2026-03-15", count: 19 },
+  comparison: {
+    before: { from: "2026-03-01", to: "2026-03-07", count: 0 },
+    after: { from: "2026-03-09", to: "2026-03-15", count: 19 },
+  },
+};
 const model = (
   brief: SeoAuditBrief,
   save = vi.fn().mockResolvedValue("saved"),
@@ -144,12 +159,16 @@ it("sends only the selected goal reference when the reader starts a full audit",
   const user = userEvent.setup();
   const execute = vi.fn().mockResolvedValue(true);
   const confirmed = {
-    ...model(fixture),
+    ...model({
+      ...fixture,
+      followUps: [{ ...followUp, outcomes: [privateCounts] }],
+    }),
     execute,
     analysisKind: "audit_full" as const,
     operationKey: () => "1cbd4274-d331-4ad1-a45c-d4dc20b34f05",
   };
   render(<SeoAnalysisDialog model={confirmed} />, { wrapper });
+  expect(screen.queryByText("Organic landing-page events")).toBeNull();
   await user.click(screen.getByRole("checkbox", { name: /Guide · Read/ }));
   await user.click(screen.getByRole("button", { name: "Start check" }));
   expect(execute).toHaveBeenCalledOnce();
@@ -166,6 +185,8 @@ it("sends only the selected goal reference when the reader starts a full audit",
     fixture.constraints,
     fixture.pages[0].job,
     fixture.pages[0].indexIntent,
+    "purchase",
+    privateCounts.latest.from,
   ]) {
     expect(sent).not.toContain(privateValue);
   }
@@ -220,7 +241,14 @@ it("shows the ranked sales or support page on Actions and its advice in the matc
     priorities: typeof fixture.priorities,
   ) {
     return {
-      ...model({ ...fixture, objective, priorities }),
+      ...model({
+        ...fixture,
+        objective,
+        priorities,
+        followUps: [
+          { ...followUp, pageId: support.id, outcomes: [privateCounts] },
+        ],
+      }),
       data: workspace,
       filters: { ...model(fixture).filters, pageId: null },
     };
@@ -254,8 +282,62 @@ it("shows the ranked sales or support page on Actions and its advice in the matc
   );
   expect(priority.getByText(fixture.audience!)).toBeVisible();
   expect(priority.getByText(fixture.constraints!)).toBeVisible();
+  expect(
+    detail.getByRole("region", { name: "Organic landing-page events" }),
+  ).toHaveTextContent("19 events");
   expect(detail.getByRole("link", { name: "Help" })).toHaveAttribute(
     "href",
     support.url,
   );
+});
+
+it("shows the reported GA4 event, private periods and counts, without treating an unavailable signup count as zero", () => {
+  const create = (
+    outcomes:
+      | NonNullable<SeoAuditBrief["followUps"][number]["outcomes"]>
+      | undefined,
+  ) => (
+    <SeoBriefDialog
+      model={model({
+        ...fixture,
+        followUps: [{ ...followUp, ...(outcomes ? { outcomes } : {}) }],
+      })}
+    />
+  );
+  const { rerender } = render(create(undefined), { wrapper });
+  expect(
+    screen.queryByRole("region", { name: "Organic landing-page events" }),
+  ).toBeNull();
+  rerender(create([]));
+  expect(
+    screen.getByText(/No verified purchase or signup count/),
+  ).toBeVisible();
+  rerender(create([privateCounts]));
+  const outcomes = within(
+    screen.getByRole("region", { name: "Organic landing-page events" }),
+  );
+  expect(outcomes.getByText("purchase")).toBeVisible();
+  const before = outcomes.getByText("Before the change").parentElement;
+  const after = outcomes.getByText("After the change").parentElement;
+  expect(before).toHaveTextContent(/Mar 1.*7, 2026/);
+  expect(before).toHaveTextContent("0 events");
+  expect(after).toHaveTextContent(/Mar 9.*15, 2026/);
+  expect(after).toHaveTextContent("19 events");
+  expect(outcomes.queryByText("Latest reported period")).toBeNull();
+  expect(outcomes.queryByText("sign_up")).toBeNull();
+  expect(outcomes.getByText(/Other factors/)).toBeVisible();
+  rerender(
+    create([
+      {
+        event: "sign_up",
+        latest: { from: "2026-03-19", to: "2026-03-25", count: 1 },
+      },
+    ]),
+  );
+  expect(outcomes.getByText("sign_up")).toBeVisible();
+  expect(
+    outcomes.getByText("Latest reported period").parentElement,
+  ).toHaveTextContent("1 event");
+  expect(outcomes.getByText(/comparable periods/)).toBeVisible();
+  expect(outcomes.queryByText("Before the change")).toBeNull();
 });

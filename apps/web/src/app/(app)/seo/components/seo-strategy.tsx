@@ -20,6 +20,7 @@ import {
   SeoSource,
   seoFoldCount,
 } from "./seo-shared";
+import { SeoStrategyForumQuestions } from "./seo-strategy-forum-questions";
 import {
   SEO_STRATEGY_PLACE_FORMS,
   SEO_STRATEGY_REACHES,
@@ -170,6 +171,10 @@ export function SeoStrategyFold({
         >
           {reason.lead}
         </p>
+        <SeoStrategyForumQuestions
+          workspace={model.data}
+          selectedPageId={model.filters.pageId}
+        />
         {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
         <StrategyLines lines={reason.notes} />
         {dated ? null : (

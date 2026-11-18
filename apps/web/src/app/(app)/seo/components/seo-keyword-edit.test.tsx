@@ -789,6 +789,50 @@ describe("Keywords after a check", () => {
     },
   );
 
+  it("shows only questions from selected keyword groups and links a captured public source when available", () => {
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    const strategy = seoTestStrategy();
+    const group = {
+      ...strategy.groups[0],
+      pageUrl: workspace.pages[0].url,
+      forums: true,
+      reach: "out of reach",
+      forumQuestions: [
+        {
+          title: "How can I compare plans?",
+          url: "https://community.example.com/thread/plan",
+        },
+        { title: "What happens when the trial ends?" },
+        { title: "Can I move an existing plan?", url: "javascript:void(0)" },
+      ],
+    };
+    workspace.strategy = {
+      ...strategy,
+      groups: [
+        group,
+        {
+          ...group,
+          pageUrl: pricingPage.url,
+          forumQuestions: [{ title: "Outside the selected page?" }],
+        },
+      ],
+    };
+    renderWorkspace(workspace);
+    const fold = screen.getByTestId("seo-strategy-verdict").closest("details")!;
+    fold.open = true;
+    const cues = within(
+      screen.getByRole("region", { name: "Questions seen in forum results" }),
+    );
+    expect(
+      cues.getByRole("link", { name: "How can I compare plans?" }),
+    ).toHaveAttribute("href", "https://community.example.com/thread/plan");
+    expect(cues.getByText("What happens when the trial ends?")).toBeVisible();
+    expect(cues.getByText("Can I move an existing plan?")).toBeVisible();
+    expect(cues.getAllByRole("link")).toHaveLength(1);
+    expect(cues.queryByText("Outside the selected page?")).toBeNull();
+    expect(within(fold).getByText(/(?:is|are) out of reach/)).toBeVisible();
+  });
+
   it("keeps the legacy search verdict without inventing a purpose, page or demand breakdown", () => {
     const { workspace } = savedKeywordWorkspace();
     workspace.strategy = seoTestStrategy();
