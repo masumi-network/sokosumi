@@ -1207,12 +1207,6 @@ export class SokoBotControlPlane {
 
     const leaseToken = randomUUID();
     const claimedAt = new Date();
-    // The pause is part of the claim rather than a read before it: any check
-    // that happens first is stale by the time the row is won, and this turn
-    // can spend. A pause committed mid-flight now loses the claim outright.
-    if (unpromptedTurn(turn) && getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
-      return null;
-    }
     const claimed = await prisma.sokoBotTurn.updateMany({
       where: {
         id: turn.id,
