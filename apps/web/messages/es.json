@@ -1927,6 +1927,8 @@
         "updated": "Actualizado",
         "description": "Descripción",
         "context": "Contexto",
+        "subtasks": "Subtareas",
+        "subtaskOf": "Subtarea de",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
@@ -2302,7 +2304,16 @@
         }
       },
       "Subtasks": {
-        "progressLabel": "{completed} de {total} subtareas completadas"
+        "progressLabel": "{completed} de {total} subtareas completadas",
+        "title": "Subtareas",
+        "add": "Añadir subtarea",
+        "addPlaceholder": "Escribe una subtarea y pulsa Intro",
+        "movedTo": "Movida a la posición {position} de {total}",
+        "reorderHandle": "Mover {name}. Usa flecha arriba o abajo.",
+        "toggleLabel": "{name} hecha",
+        "agentDoneHint": "Al desmarcarla vuelve a {assignee}",
+        "changeError": "No se pudo guardar el cambio de la subtarea. Inténtalo de nuevo.",
+        "truncated": "Se muestran las primeras {count} subtareas."
       },
       "Due": {
         "label": "Fecha límite",

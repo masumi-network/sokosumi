@@ -1928,6 +1928,8 @@
         "updated": "Updated",
         "description": "Description",
         "context": "Context",
+        "subtasks": "Sub-tasks",
+        "subtaskOf": "Sub-task of",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",
@@ -2302,7 +2304,16 @@
         }
       },
       "Subtasks": {
-        "progressLabel": "{completed} of {total} sub-tasks done"
+        "progressLabel": "{completed} of {total} sub-tasks done",
+        "title": "Sub-tasks",
+        "add": "Add sub-task",
+        "addPlaceholder": "Add a sub-task and press Enter",
+        "movedTo": "Moved to position {position} of {total}",
+        "reorderHandle": "Move {name}. Use Arrow Up or Arrow Down.",
+        "toggleLabel": "{name} done",
+        "agentDoneHint": "Unchecking sends it back to {assignee}",
+        "changeError": "Could not save the sub-task change. Try again.",
+        "truncated": "Showing the first {count} sub-tasks."
       },
       "Due": {
         "label": "Due date",

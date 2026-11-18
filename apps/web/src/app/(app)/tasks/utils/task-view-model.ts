@@ -86,7 +86,7 @@ function replaceMentionsWithAgentNames(
   return result;
 }
 
-function mapTaskAssignee(
+export function mapTaskAssignee(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   personalAssistantFallback: string,

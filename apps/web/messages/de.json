@@ -1927,6 +1927,8 @@
         "updated": "Aktualisiert",
         "description": "Beschreibung",
         "context": "Kontext",
+        "subtasks": "Teilaufgaben",
+        "subtaskOf": "Teilaufgabe von",
         "copyIdentifier": "Task-ID kopieren",
         "identifierCopied": "{identifier} kopiert",
         "identifierCopyError": "Task-ID konnte nicht kopiert werden",
@@ -2302,7 +2304,16 @@
         }
       },
       "Subtasks": {
-        "progressLabel": "{completed} von {total} Teilaufgaben erledigt"
+        "progressLabel": "{completed} von {total} Teilaufgaben erledigt",
+        "title": "Teilaufgaben",
+        "add": "Teilaufgabe hinzufügen",
+        "addPlaceholder": "Teilaufgabe eingeben und Enter drücken",
+        "movedTo": "Auf Position {position} von {total} verschoben",
+        "reorderHandle": "{name} verschieben. Pfeil nach oben oder unten verwenden.",
+        "toggleLabel": "{name} erledigt",
+        "agentDoneHint": "Abwählen gibt sie an {assignee} zurück",
+        "changeError": "Die Änderung an der Teilaufgabe wurde nicht gespeichert. Versuche es erneut.",
+        "truncated": "Die ersten {count} Teilaufgaben werden angezeigt."
       },
       "Due": {
         "label": "Fälligkeitsdatum",

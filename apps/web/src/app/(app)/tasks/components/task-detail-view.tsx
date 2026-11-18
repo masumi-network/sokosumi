@@ -3,8 +3,9 @@ import {
   removeTaskContextAttachmentLinks,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -17,6 +18,7 @@ import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { TaskSubtaskSection } from "@/app/tasks/components/task-subtask-section";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import {
@@ -139,6 +141,28 @@ export async function TaskDetailView({
               calendarBackLabel={t("backToCalendar")}
               parentLink={
                 <>
+                  {task.ancestors?.length ? (
+                    <nav
+                      aria-label={t("subtaskOf")}
+                      className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm"
+                    >
+                      <span>{t("subtaskOf")}</span>
+                      {task.ancestors.map((ancestor, index) => (
+                        <Fragment key={ancestor.id}>
+                          {index > 0 ? <span aria-hidden>/</span> : null}
+                          <Link
+                            href={taskLinkHref(
+                              ancestor,
+                              relatedTaskHrefBasePath,
+                            )}
+                            className="text-foreground underline underline-offset-4"
+                          >
+                            {ancestor.name}
+                          </Link>
+                        </Fragment>
+                      ))}
+                    </nav>
+                  ) : null}
                   {parentTask ? (
                     <TaskParentLine
                       parent={parentTask}
@@ -195,6 +219,19 @@ export async function TaskDetailView({
                 task={task}
               />
             </Suspense>
+
+            {forceReadOnly ? null : (
+              <Suspense
+                fallback={
+                  <TaskSectionFallback title={t("subtasks")} rows={2} />
+                }
+              >
+                <TaskSubtaskSection
+                  task={task}
+                  hasAssignedSeatPromise={hasAssignedSeatPromise}
+                />
+              </Suspense>
+            )}
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
