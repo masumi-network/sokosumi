@@ -199,6 +199,8 @@ describe("a Soko Bot archiving a Task", () => {
       findMany: vi.fn().mockResolvedValue([]),
     },
     taskEvent: { create: vi.fn() },
+    // The archive locks the Task before it reads its sub-tasks.
+    $queryRaw: vi.fn(),
   };
   const archive = () =>
     updateTaskForActor(
@@ -220,6 +222,7 @@ describe("a Soko Bot archiving a Task", () => {
     tx.task.updateMany.mockResolvedValue({ count: 1 });
     tx.task.findMany.mockResolvedValue([]);
     tx.task.findUniqueOrThrow.mockResolvedValue(teammateTask);
+    tx.$queryRaw.mockResolvedValue([{ id: "locked" }]);
   });
 
   it("archives a teammate's Task its owner could archive in the app", async () => {

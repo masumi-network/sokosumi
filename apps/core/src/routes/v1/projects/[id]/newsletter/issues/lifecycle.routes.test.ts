@@ -81,6 +81,8 @@ vi.mock("@/lib/db/prisma", () => {
       update: m.taskMetadata,
     },
     taskEvent: { create: m.event },
+    // Archiving the approval Task locks it before it reads its sub-tasks.
+    $queryRaw: async () => [{ id: "locked" }],
   };
   return {
     default: {

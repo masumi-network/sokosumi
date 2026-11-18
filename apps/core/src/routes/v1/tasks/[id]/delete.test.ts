@@ -179,6 +179,11 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
+// The archive locks the Task before it reads its sub-tasks.
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockTaskRows: async () => true,
+}));
+
 vi.mock("@/helpers/access-control", () => ({
   requireTaskWriteAccess: requireTaskWriteAccessMock,
 }));

@@ -3,7 +3,9 @@ import {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
 } from "@sokosumi/utils";
+import { lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { TASK_RESTORED_COMMENT } from "@/helpers/task-reopen-instructions";
 import {
   requireSeoTaskReactivation,
   SEO_INACTIVE_TASK_STATUSES,
@@ -40,7 +42,7 @@ export async function archiveTaskRecord(
   )
     throw conflict("Task changed; read it again");
   // Sub-tasks go with their Task, so none is left live under an archived one.
-  const subtaskIds = await liveSubtaskIds(tx, task.id);
+  const subtasks = await liveSubtasks(tx, task.id);
   const archivedAt = new Date();
   const result = await tx.task.updateMany({
     where: {
@@ -53,11 +55,15 @@ export async function archiveTaskRecord(
   });
   if (result.count !== 1)
     throw conflict("Task was modified concurrently; retry archive");
-  if (subtaskIds.length > 0) {
-    await tx.task.updateMany({
-      where: { id: { in: subtaskIds }, archivedAt: null },
+  if (subtasks.length > 0) {
+    // Only in the status checked above: one that started running since stops
+    // the archive.
+    const archived = await tx.task.updateMany({
+      where: { archivedAt: null, OR: subtasks },
       data: { archivedAt },
     });
+    if (archived.count !== subtasks.length)
+      throw conflict("A sub-task changed while archiving; retry archive");
   }
   if (options.effectEventId && options.actor) {
     await tx.taskEvent.create({
@@ -127,7 +133,7 @@ export async function restoreTaskRecord(
   await tx.taskEvent.create({
     data: {
       taskId: task.id,
-      comment: "Task restored",
+      comment: TASK_RESTORED_COMMENT,
       ...(keepStatus ? {} : { status: TaskStatus.DRAFT }),
       ...eventActorFields(actor),
     },
@@ -145,13 +151,16 @@ export async function restoreTaskRecord(
 }
 
 /** Every live sub-task below a Task, at any depth. Refuses one that cannot be archived. */
-async function liveSubtaskIds(
+async function liveSubtasks(
   tx: Prisma.TransactionClient,
   taskId: string,
-): Promise<string[]> {
-  const ids: string[] = [];
+): Promise<{ id: string; status: TaskStatus }[]> {
+  const found: { id: string; status: TaskStatus }[] = [];
   let level = [taskId];
   while (level.length > 0) {
+    // A sub-task created meanwhile locks its parent first, so it waits for
+    // this archive and then finds the parent archived.
+    await lockTaskRows(tx, level);
     const subtasks = await tx.task.findMany({
       where: { parentTaskId: { in: level }, archivedAt: null },
       select: { id: true, status: true },
@@ -165,7 +174,7 @@ async function liveSubtaskIds(
       );
     }
     level = subtasks.map((subtask) => subtask.id);
-    ids.push(...level);
+    found.push(...subtasks);
   }
-  return ids;
+  return found;
 }
