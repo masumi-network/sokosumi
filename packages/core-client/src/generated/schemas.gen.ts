@@ -43982,6 +43982,95 @@ export const ProjectSeoStrategySchema = {
             type: 'string',
             maxLength: 20000
         },
+        purpose: {
+            type: 'string',
+            enum: [
+                'sales',
+                'traffic'
+            ]
+        },
+        purposeSource: {
+            type: 'string',
+            enum: [
+                'owner',
+                'inferred'
+            ]
+        },
+        purposeOpportunity: {
+            type: 'object',
+            properties: {
+                pageUrl: {
+                    type: 'string',
+                    maxLength: 4096
+                },
+                keyword: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000
+                },
+                demand: {
+                    type: 'number',
+                    exclusiveMinimum: 0
+                },
+                reach: {
+                    type: 'string',
+                    enum: [
+                        'ranks',
+                        'in reach'
+                    ]
+                }
+            },
+            required: [
+                'pageUrl',
+                'keyword',
+                'demand',
+                'reach'
+            ]
+        },
+        demandByIntent: {
+            type: 'object',
+            properties: {
+                buyer: {
+                    type: 'number',
+                    minimum: 0
+                },
+                informational: {
+                    type: 'number',
+                    minimum: 0
+                },
+                other: {
+                    type: 'number',
+                    minimum: 0
+                }
+            },
+            required: [
+                'buyer',
+                'informational',
+                'other'
+            ]
+        },
+        missingDemandByIntent: {
+            type: 'object',
+            properties: {
+                buyer: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                informational: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                other: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'buyer',
+                'informational',
+                'other'
+            ]
+        },
         groups: {
             type: 'array',
             items: {
@@ -44039,6 +44128,9 @@ export const ProjectSeoStrategySchema = {
                             'number',
                             'null'
                         ]
+                    },
+                    forums: {
+                        type: 'boolean'
                     }
                 },
                 required: [

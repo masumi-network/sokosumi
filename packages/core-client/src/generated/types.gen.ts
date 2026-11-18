@@ -11455,6 +11455,24 @@ export type ProjectSeoIndexAssessedPage = {
 export type ProjectSeoStrategy = {
     verdict: string;
     why: string;
+    purpose?: 'sales' | 'traffic';
+    purposeSource?: 'owner' | 'inferred';
+    purposeOpportunity?: {
+        pageUrl: string;
+        keyword: string;
+        demand: number;
+        reach: 'ranks' | 'in reach';
+    };
+    demandByIntent?: {
+        buyer: number;
+        informational: number;
+        other: number;
+    };
+    missingDemandByIntent?: {
+        buyer: number;
+        informational: number;
+        other: number;
+    };
     groups: Array<{
         lead: string;
         keywords: Array<string>;
@@ -11464,6 +11482,7 @@ export type ProjectSeoStrategy = {
         trend: 'falling' | 'rising' | 'flat' | null;
         reach: string;
         position: number | null;
+        forums?: boolean;
     }>;
     actions: Array<{
         kind: string;
