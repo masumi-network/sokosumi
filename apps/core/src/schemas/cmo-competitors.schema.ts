@@ -1,213 +1,24 @@
 import { z } from "@hono/zod-openapi";
 
-import { dateTimeSchema } from "@/helpers/datetime";
 import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
-import { COMPETITOR_SOURCE_STATUSES } from "@/services/cmo-competitor-check.service";
+import {
+  competitorIdParam,
+  projectCompetitorsShape,
+} from "@/schemas/project-competitors.schema";
 
 export const cmoCompetitorParamsSchema = cmoProjectParamsSchema.extend({
-  competitorId: z
-    .string()
-    .uuid()
-    .openapi({ param: { name: "competitorId", in: "path" } }),
+  competitorId: competitorIdParam,
 });
 
-const address = z.string().trim().max(500);
-const account = z.string().trim().max(200);
-
-/** What a member may set; `null` or an empty string clears a field. */
-const competitorFields = {
-  websiteUrl: address
-    .nullable()
-    .optional()
-    .describe("Its website. A bare domain is read as https."),
-  pricingUrl: address
-    .nullable()
-    .optional()
-    .describe("The page that lists its prices."),
-  instagramHandle: account
-    .nullable()
-    .optional()
-    .describe("Its Instagram account: the handle or its address."),
-  facebookHandle: account
-    .nullable()
-    .optional()
-    .describe("Its Facebook Page: the name in its address, or the address."),
-};
-
-export const cmoCompetitorCreateSchema = z
-  .object({ name: z.string().trim().min(1).max(80), ...competitorFields })
-  .openapi("CmoCompetitorCreate");
-
-export const cmoCompetitorUpdateSchema = z
-  .object({
-    name: z.string().trim().min(1).max(80).optional(),
-    ...competitorFields,
-  })
-  .openapi("CmoCompetitorUpdate");
-
-const competitorSchema = z
-  .object({
-    id: z.string().uuid(),
-    name: z.string(),
-    websiteUrl: z.string().nullable(),
-    pricingUrl: z.string().nullable(),
-    instagramHandle: z.string().nullable(),
-    facebookHandle: z.string().nullable(),
-    source: z
-      .enum(["RESEARCH", "MEMBER"])
-      .describe("Who put it on the list: Brand Brain research, or a member."),
-    createdAt: dateTimeSchema,
-  })
-  .openapi("CmoCompetitor");
-
-const signalSchema = z
-  .object({
-    id: z.string().uuid(),
-    competitorId: z.string().uuid(),
-    kind: z.enum(["WEBSITE_CHANGE", "PRICE_CHANGE", "NEWS", "AD", "SOCIAL"]),
-    summary: z.string().describe("What happened, in one line."),
-    observedAt: dateTimeSchema,
-    sourceUrl: z.string().nullable(),
-    sourceTitle: z.string().nullable(),
-    sourcePublisher: z.string().nullable(),
-    quote: z
-      .string()
-      .nullable()
-      .describe("The source's own words that back the summary."),
-  })
-  .openapi("CmoCompetitorSignal");
-
-/** A number with where and when it was read, for the hover. */
-const measureSchema = z
-  .object({
-    value: z.number(),
-    sourceUrl: z.string().nullable(),
-    observedAt: dateTimeSchema,
-  })
-  .openapi("CmoCompetitorMeasure");
-
-/**
- * A cell that may have no data. A union, not `.nullable()`: on a named
- * schema that makes the generated client's transformer read into `null`.
- */
-const cellSchema = z.union([measureSchema, z.null()]);
-
-const scoreRowSchema = z
-  .object({
-    competitorId: z
-      .string()
-      .uuid()
-      .nullable()
-      .describe("Null for the business itself."),
-    name: z.string(),
-    postsPerWeek: cellSchema,
-    engagementPerPost: cellSchema.describe(
-      "Likes and comments per post over the week's posts.",
-    ),
-    followers: cellSchema,
-    followerGrowth: cellSchema.describe(
-      "Followers gained since the reading a week before.",
-    ),
-  })
-  .openapi("CmoCompetitorScoreRow");
-
-const topPostSchema = z
-  .object({
-    competitorId: z.string().uuid(),
-    signalId: z.string().uuid(),
-    url: z.string().nullable(),
-    caption: z.string().nullable(),
-    type: z.string().nullable(),
-    postedAt: dateTimeSchema,
-    likes: z.number().nullable(),
-    comments: z.number().nullable(),
-  })
-  .openapi("CmoCompetitorTopPost");
-
-const sourceSchema = z
-  .object({
-    status: z
-      .enum(COMPETITOR_SOURCE_STATUSES)
-      .describe(
-        "not_configured: CMO lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.",
-      ),
-    needs: z
-      .string()
-      .nullable()
-      .describe("What it takes to read this source, when it cannot be read."),
-  })
-  .openapi("CmoCompetitorSource");
-
-const feedItemSchema = z
-  .object({
-    id: z.string().uuid(),
-    competitorId: z.string().uuid(),
-    facts: z.array(
-      z.object({
-        text: z.string(),
-        signalIds: z
-          .array(z.string().uuid())
-          .describe("The signals that back it; their sources show on hover."),
-        support: z
-          .enum(["strong", "weak"])
-          .describe("weak: the sources back it only in part."),
-      }),
-    ),
-    meaning: z.string().describe("What this means for you."),
-    move: z.string().describe("One suggested move."),
-    big: z
-      .boolean()
-      .describe("A price change, launch or ad burst, told in chat at once."),
-    addedToStrategyAt: z.string().nullable(),
-  })
-  .openapi("CmoCompetitorFeedItem");
-
+/** Cuso's Competitors tab: his Project's page and his market map's players. */
 export const cmoCompetitorsSchema = z
   .object({
-    competitors: z.array(competitorSchema),
-    feed: z
-      .object({
-        checkDay: z
-          .string()
-          .describe("The day of the check it was written from."),
-        savedAt: dateTimeSchema,
-        items: z.array(feedItemSchema),
-        openQuestions: z
-          .array(z.string())
-          .describe("What the sources could not settle this week."),
-      })
-      .nullable()
-      .describe("Cuso's This week: null until he wrote one."),
-    limit: z.number().int().describe("How many competitors can be tracked."),
+    ...projectCompetitorsShape,
     mapPlayers: z
       .array(z.string())
       .describe(
         "The Brand Brain market map's players that are still watched, in the map's spelling.",
       ),
-    signals: z
-      .array(signalSchema)
-      .describe(
-        "What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.",
-      ),
-    scoreboard: z
-      .array(scoreRowSchema)
-      .describe(
-        "Instagram numbers: the business first, then each competitor. A null cell has no data.",
-      ),
-    topPosts: z
-      .array(topPostSchema)
-      .describe("Each competitor's three strongest Instagram posts."),
-    check: z.object({
-      lastCheckedAt: dateTimeSchema.nullable(),
-      nextCheckAt: dateTimeSchema.nullable(),
-      creditsPerCompetitor: z.number(),
-      sources: z.object({
-        pages: sourceSchema,
-        news: sourceSchema,
-        ads: sourceSchema,
-        social: sourceSchema,
-      }),
-    }),
   })
   .openapi("CmoCompetitors");
 
