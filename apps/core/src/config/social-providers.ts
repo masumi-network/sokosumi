@@ -4,7 +4,6 @@ import {
   type SocialProviderWorkspace,
   socialProviderUnavailableMessage,
 } from "@sokosumi/utils";
-import { getEnv } from "@/config/env";
 import { badRequest } from "@/helpers/error";
 
 export const PROJECT_SOCIAL_PROVIDERS = {
@@ -59,6 +58,9 @@ export function socialProviderWorkspace(
   organizationSlug: string | null,
   owner?: { email: string; emailVerified: boolean } | null,
 ): SocialProviderWorkspace {
+  const recordingPreview =
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "feat/tiktok-sandbox-recording";
   const eligible =
     process.env.NETWORK === "Mainnet"
       ? organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG
@@ -66,13 +68,7 @@ export function socialProviderWorkspace(
         organizationSlug === null &&
         owner?.emailVerified === true &&
         owner.email.toLowerCase() === "albina.nikiforova@nmkr.io";
-  return {
-    organizationSlug,
-    tiktokSandbox:
-      eligible &&
-      process.env.VERCEL_ENV === "preview" &&
-      Boolean(getEnv().COMPOSIO_TIKTOK_AUTH_CONFIG_ID),
-  };
+  return { organizationSlug, tiktokSandbox: recordingPreview && eligible };
 }
 
 /** Always resolve availability from the owning Project, never the actor's memberships. */

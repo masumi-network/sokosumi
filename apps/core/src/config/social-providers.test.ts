@@ -21,13 +21,11 @@ describe("isProjectSocialProvider", () => {
   );
 });
 
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({ COMPOSIO_TIKTOK_AUTH_CONFIG_ID: "ac_test" }),
-}));
 afterEach(() => vi.unstubAllEnvs());
 
 it("enables only the verified recording account's personal workspace in preview", () => {
   vi.stubEnv("VERCEL_ENV", "preview");
+  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
   vi.stubEnv("NETWORK", "Preprod");
   const owner = { email: "Albina.Nikiforova@nmkr.io", emailVerified: true };
   expect(socialProviderWorkspace(null, owner).tiktokSandbox).toBe(true);
@@ -47,6 +45,7 @@ it("enables only the verified recording account's personal workspace in preview"
 
 it("allows only the utxo organization in a Mainnet preview", () => {
   vi.stubEnv("VERCEL_ENV", "preview");
+  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
   vi.stubEnv("NETWORK", "Mainnet");
   expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(true);
   expect(socialProviderWorkspace("other").tiktokSandbox).toBe(false);
@@ -56,6 +55,9 @@ it("allows only the utxo organization in a Mainnet preview", () => {
       emailVerified: true,
     }).tiktokSandbox,
   ).toBe(false);
+  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "another-branch");
+  expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(false);
+  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
   vi.stubEnv("VERCEL_ENV", "production");
   expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(false);
 });
