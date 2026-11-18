@@ -548,7 +548,7 @@ export function CmoApp({
 const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   calendar: {
     title: "Your month",
-    line: `Every piece ${AGENT_NAME} makes. Each one opens once it is made.`,
+    line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
   },
   results: {
     title: "How it's going",
@@ -583,7 +583,7 @@ function PauseButton({ pause }: { pause: () => Promise<void> }) {
       disabled={pending}
       onClick={() => startTransition(pause)}
     >
-      {pending ? "Pausing…" : "Pause this piece"}
+      {pending ? "Pausing…" : "Pause this post"}
     </button>
   );
 }
@@ -636,8 +636,8 @@ function ThreadEntry({
     return (
       <CusoSays at={item.at}>
         <p className="txt">
-          Your strategy is ready. I'm making this month's pieces now and publish
-          each one on its day; the Calendar shows every piece. Ask me anything
+          Your strategy is ready. I'm making this month's posts now and publish
+          each one on its day; the Calendar shows every post. Ask me anything
           here, or tell me what to change.
         </p>
       </CusoSays>
@@ -772,9 +772,9 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? `A few pieces didn't finish. ${AGENT_NAME} tries them again on his next round.`
+            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
             : notStarted
-              ? "He starts shortly: first every piece's words, then the pictures."
+              ? "He starts shortly: first every post's words, then the pictures."
               : production.state === "starting"
                 ? `${productionSteps(production)}. He makes the rest shortly.`
                 : `${productionSteps(production)}. First the words, then the pictures.`}
