@@ -219,30 +219,38 @@ for (const { name: size, ...viewport } of PROJECTS) {
       );
       await shot(page, size, "3-archived");
 
-      // Search says what it found in a live region, and keeps focus in the box.
+      // Search says what it found in one polite status line that stays the
+      // same element across searches (a fresh one is often not read), and
+      // focus stays in the search box.
       const search = page.getByRole("searchbox", {
         name: "Search archived tasks",
       });
-      const status = page.getByRole("status").filter({ hasText: "match" });
-      await search.fill(LONG_NAME);
-      await search.press("Enter");
-      await status
-        .getByText(`1 archived task matches “${LONG_NAME}”.`)
-        .waitFor();
+      const status = await page
+        .locator('main p[role="status"]')
+        .elementHandle();
+      assert.ok(status, "no status line before the first search");
+      assert.equal(await status.textContent(), "");
+      const searchFor = async (query: string, said: string) => {
+        await search.fill(query);
+        await search.press("Enter");
+        await page.waitForFunction(
+          ([el, text]) => el.isConnected && el.textContent === text,
+          [status, said] as const,
+        );
+        assert.equal(
+          await search.evaluate((el) => el === document.activeElement),
+          true,
+          `search box loses focus after searching "${query}"`,
+        );
+      };
+      await searchFor(LONG_NAME, `1 archived task matches “${LONG_NAME}”.`);
       await row.waitFor();
       await shot(page, size, "4-archived-search");
-      await search.fill("zz-no-such-task");
-      await search.press("Enter");
-      await status
-        .getByText("No archived tasks match “zz-no-such-task”.")
-        .waitFor();
-      assert.equal(
-        await search.evaluate((el) => el === document.activeElement),
-        true,
-        "search box loses focus after a search",
+      await searchFor(
+        "zz-no-such-task",
+        "No archived tasks match “zz-no-such-task”.",
       );
-      await search.fill("");
-      await search.press("Enter");
+      await searchFor("", "");
       await row.waitFor();
 
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();

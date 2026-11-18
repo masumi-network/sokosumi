@@ -1813,7 +1813,7 @@
         "searchPlaceholder": "Search by name",
         "noMatches": "No archived tasks match “{query}”.",
         "searchResults": "{count, plural, =0 {No archived tasks match “{query}”.} one {# archived task matches “{query}”.} other {# archived tasks match “{query}”.}}",
-        "searchResultsLimited": "Showing the latest {shown} of {total} archived tasks that match “{query}”.",
+        "searchResultsLimited": "Showing the latest {shown, number} of {total, number} archived tasks that match “{query}”.",
         "noProject": "No project",
         "archivedOn": "Archived {date}",
         "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
