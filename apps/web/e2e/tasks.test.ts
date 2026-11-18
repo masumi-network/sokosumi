@@ -9,7 +9,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 
 // A new user's Task, end to end: create, rename to a long title, see its card on
 // the board, archive, find it in Archived, restore. Each size signs up its own
-// disposable mail.tm inbox.
+// disposable mail.tm inbox. Screen reader checks ride along: the task page is
+// titled with the task's name, closed dialogs leave no headings behind, and a
+// board card is a link, not a nameless "draggable" button.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const MAIL_API = "https://api.mail.tm";
@@ -129,6 +131,20 @@ for (const { name: size, ...viewport } of PROJECTS) {
         participantsBox && participantsBox.height >= 24,
         `Participants is ${participantsBox?.height}px tall`,
       );
+      const title = await page.getByRole("heading", { level: 1 }).innerText();
+      await page.waitForFunction(
+        (name) => document.title.includes(name),
+        title,
+      );
+      for (const leaked of ["...", "Search"]) {
+        assert.equal(
+          await page
+            .getByRole("heading", { name: leaked, exact: true })
+            .count(),
+          0,
+          `a closed dialog leaves the heading "${leaked}" on the page`,
+        );
+      }
       await shot(page, size, "1-task");
 
       await page.getByRole("button", { name: "Actions" }).click();
@@ -156,6 +172,11 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .click();
       const card = page.getByRole("link", { name: LONG_NAME });
       await card.waitFor();
+      assert.equal(
+        await page.locator('[aria-roledescription="draggable"]').count(),
+        0,
+        "a board card is a nameless draggable button",
+      );
       assert.equal(
         await page.locator("article").getByText("No tags yet").count(),
         0,

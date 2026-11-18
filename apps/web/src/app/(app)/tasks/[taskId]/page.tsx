@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
@@ -14,6 +15,20 @@ import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.clie
 import { getPrivateCachedSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
 import { isUuidString } from "@/lib/utils/uuid";
+
+/**
+ * The task's name as the tab title, which is also what a screen reader
+ * announces when the task opens. Same private-cached read as the page.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ taskId: string }>;
+}): Promise<Metadata> {
+  const { taskId } = await params;
+  const task = await getPrivateCachedTask(taskId).catch(() => null);
+  return task ? { title: task.name } : {};
+}
 
 export default async function TaskDetailPage({
   params,

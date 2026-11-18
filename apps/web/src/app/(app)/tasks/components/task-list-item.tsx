@@ -29,12 +29,7 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
-  const handleProps = dragHandleProps
-    ? {
-        ...dragHandleProps.attributes,
-        ...dragHandleProps.listeners,
-      }
-    : null;
+  const handleProps = dragHandleProps?.listeners;
 
   const rowClassName = cn(
     "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",

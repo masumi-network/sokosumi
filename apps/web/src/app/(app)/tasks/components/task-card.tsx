@@ -53,9 +53,7 @@ export function TaskCard({
   statusLabels,
 }: TaskCardProps) {
   const t = useTranslations("App.Tasks.Tags");
-  const handleProps = dragHandleProps
-    ? { ...dragHandleProps.attributes, ...dragHandleProps.listeners }
-    : null;
+  const handleProps = dragHandleProps?.listeners;
   return (
     <div
       className={cn(
