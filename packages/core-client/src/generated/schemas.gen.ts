@@ -22241,9 +22241,6 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                             perSecondUsd: {
                                 type: 'number'
                             },
-                            minimumVideoUsd: {
-                                type: 'number'
-                            },
                             voicePer1000CharactersUsd: {
                                 type: 'number'
                             },
@@ -22262,7 +22259,6 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                         },
                         required: [
                             'perSecondUsd',
-                            'minimumVideoUsd',
                             'voicePer1000CharactersUsd',
                             'captionsPerMinuteUsd',
                             'basis',

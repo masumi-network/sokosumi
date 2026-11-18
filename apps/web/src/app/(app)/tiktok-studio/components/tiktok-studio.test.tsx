@@ -74,8 +74,7 @@ const CATALOG: ProjectImageStudioTalkingVideoCatalog = {
       description: "",
       endpoint: "vendor/talk-a",
       price: {
-        perSecondUsd: 0.181,
-        minimumVideoUsd: 1.1,
+        perSecondUsd: 0.05,
         voicePer1000CharactersUsd: 0.08,
         captionsPerMinuteUsd: 0.03,
         basis: "",
@@ -141,7 +140,7 @@ describe("TikTokStudio", () => {
     });
     renderStudio();
 
-    // 4 s quoted, so the $1.10 minimum plus voice and captions.
+    // 4 s quoted: 20 cents of video plus voice and captions.
     expect(screen.getByText("creditsCount")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "preview" })).toHaveTextContent(
       SCRIPT,
