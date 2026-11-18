@@ -17,6 +17,7 @@ import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
 import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { seoMonitorDescription } from "@/lib/seo/monitor-plan";
 import seo from "@/routes/v1/projects/[id]/seo";
 import {
   requestSeoAnalysisSchema,
@@ -58,6 +59,7 @@ import {
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import {
   changeTaskScheduleState,
+  createTaskSchedule,
   runTaskScheduleNow,
   updateTaskSchedule,
 } from "./task-schedule.service";
@@ -550,6 +552,89 @@ describe.skipIf(!enabled)(
           })
         ).taskId,
       ).toBe(link.taskId);
+    });
+
+    it("refuses generic schedule creation, conversion and resume for a removed audit", async () => {
+      const vars = {
+        isAuthenticated: true,
+        authContext: {
+          actor: "user" as const,
+          userId,
+          organizationId: null,
+          role: "user",
+        },
+        workspaceContext: { workspaceId, userId, organizationId: null },
+      };
+      const audit = await prisma.seoAudit.create({
+        data: {
+          workspaceId,
+          createdById: userId,
+          name: "Removed monitor target",
+        },
+      });
+      const page = await addProjectSeoPage(
+        { ...actor, owner: { kind: "audit", id: audit.id } },
+        {
+          url: SEO_TEST_PAGE,
+          relationship: "primary",
+        },
+      );
+      const rule = {
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "AFTER" as const,
+        targetRunCount: 2,
+      };
+      const blueprint = {
+        name: "Generic schedule",
+        rule,
+        assigneeId: coworkerId,
+      };
+      const description = seoMonitorDescription({
+        version: 2,
+        auditId: audit.id,
+        rule,
+        scopeVersion: 0,
+        analysis: requestSeoAnalysisSchema.parse({
+          kind: "page_check",
+          pageIds: [page.id],
+          countryCode: "US",
+          languageCode: "en",
+          coworkerId,
+          idempotencyKey: randomUUID(),
+        }),
+      });
+      const ordinary = await createTaskSchedule(vars, blueprint);
+      const monitor = await createTaskSchedule(vars, {
+        ...blueprint,
+        description,
+      });
+      await changeTaskScheduleState(vars, monitor.id, "pause");
+      // A legacy paused schedule can still refer to retained history. It can be ended, never restarted.
+      await prisma.seoAudit.update({
+        where: { id: audit.id },
+        data: { deletedAt: new Date() },
+      });
+      await expect(
+        createTaskSchedule(vars, { ...blueprint, description }),
+      ).rejects.toMatchObject({ status: 404 });
+      await expect(
+        updateTaskSchedule(vars, ordinary.id, {
+          expectedRevision: ordinary.revision,
+          description,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      await expect(
+        changeTaskScheduleState(vars, monitor.id, "resume"),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(
+        await prisma.taskSchedule.findUniqueOrThrow({
+          where: { id: ordinary.id },
+        }),
+      ).toMatchObject({ revision: ordinary.revision, description: null });
+      expect(
+        (await changeTaskScheduleState(vars, monitor.id, "end")).state,
+      ).toBe("ENDED");
     });
 
     it("releases distinct frozen finite monitor Runs and refuses an unapproved assignee or manual extra Run", async () => {

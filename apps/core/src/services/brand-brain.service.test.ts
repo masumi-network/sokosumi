@@ -6,6 +6,10 @@ import {
   resetCmoServiceMocks,
 } from "@/test-fixtures/cmo-service";
 
+// PostgreSQL's clock: when the fixes below are asked.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date("2026-11-10T10:00:00.000Z"),
+}));
 vi.mock(
   "@/lib/db/prisma",
   async () =>
@@ -562,7 +566,6 @@ describe("Brand Brain fixes", () => {
     await requestBrandBrainFix(PROJECT_ID, {
       section: "pricing",
       note: "From 19 dollars a month.",
-      at: new Date(asked),
     });
 
     const body = brainUpdate.mock.lastCall?.[0].data.body;
@@ -595,7 +598,6 @@ describe("Brand Brain fixes", () => {
     await requestBrandBrainFix(PROJECT_ID, {
       section: "pricing",
       note: "Teams pay per seat.",
-      at: new Date(asked),
     });
     expect(
       brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
@@ -607,7 +609,6 @@ describe("Brand Brain fixes", () => {
     await requestBrandBrainFix(PROJECT_ID, {
       section: "pricing",
       note: no,
-      at: new Date(asked),
     });
     expect(
       brainUpdate.mock.lastCall?.[0].data.body.profile.pricing.fix.note,
@@ -620,7 +621,6 @@ describe("Brand Brain fixes", () => {
       requestBrandBrainFix(PROJECT_ID, {
         section: "pricing",
         note: "Teams pay per seat.",
-        at: new Date(asked),
       }),
     ).rejects.toThrow(/waiting/);
     expect(brainUpdate).not.toHaveBeenCalled();
@@ -662,6 +662,40 @@ describe("Brand Brain fixes", () => {
     // Asked while the turn wrote: the next change still has it.
     await rewrite("2026-11-10T10:01:00.000Z");
     expect(fixOf()).toMatchObject({ fixed: false });
+  });
+
+  it("closes a fix asked before the turn started when the asking host runs 5 minutes ahead", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(asked).getTime() + 5 * 60_000);
+    try {
+      brainFindUnique.mockResolvedValueOnce({
+        body: { ...essentials, profile: sixteen, questions: [] },
+      });
+      await requestBrandBrainFix(PROJECT_ID, {
+        section: "pricing",
+        note: "From 19 dollars.",
+      });
+      const withFix = brainUpdate.mock.lastCall?.[0].data.body;
+      brainFindUnique.mockResolvedValueOnce({ body: withFix });
+
+      // The fix turn is created a second later, by PostgreSQL's clock.
+      await saveBrandBrain(
+        PROJECT_ID,
+        {
+          sections: {
+            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
+          },
+        },
+        undefined,
+        { briefedAt: new Date(new Date(asked).getTime() + 1_000) },
+      );
+
+      expect(
+        brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix,
+      ).toMatchObject({ at: asked, fixed: true });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps a no open on its question while its section's fix stays open", async () => {

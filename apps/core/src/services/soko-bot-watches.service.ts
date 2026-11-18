@@ -7,6 +7,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { createError } from "evlog";
 import type { z } from "zod";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   createCoreLogger,
@@ -359,7 +360,10 @@ export async function followUpConnectedApp(
   provider: string,
 ): Promise<void> {
   if (!PROVIDER_SLUG.test(provider)) return;
-  const since = new Date(Date.now() - APP_CONNECTED_TIMEOUT_MINUTES * 60_000);
+  // PostgreSQL time: the turns' createdAt is.
+  const since = new Date(
+    (await databaseNow()).getTime() - APP_CONNECTED_TIMEOUT_MINUTES * 60_000,
+  );
   const linked = new RegExp(`[?&]connect=${provider}(?![a-z0-9_-])`);
   const turns = await prisma.sokoBotTurn.findMany({
     where: {

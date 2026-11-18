@@ -10,6 +10,7 @@ import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
 import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import {
+  getTaskTagQuery,
   stuckCutoff,
   type TasksScope,
   type TasksVisibilityFilter,
@@ -29,6 +30,7 @@ interface GetTasksColumnPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  tag?: string;
   stuck?: boolean;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
@@ -52,6 +54,7 @@ export async function getTasksColumnPage({
   status,
   projectId,
   visibility,
+  tag,
   stuck = false,
   coworkersById,
   personalAssistantFallback,
@@ -74,6 +77,7 @@ export async function getTasksColumnPage({
     assigneeUserId: assigneeUserId ?? undefined,
     projectId: projectId ?? undefined,
     ...(visibility ? { visibility } : {}),
+    ...getTaskTagQuery(tag),
     ...(stuck ? { statusBefore: stuckCutoff(new Date()) } : {}),
     cursor,
     limit,
