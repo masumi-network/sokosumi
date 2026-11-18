@@ -284,6 +284,30 @@ describe("image studio job submission", () => {
     );
   });
 
+  it("takes the edit endpoint for a job whose only reference is a library style", async () => {
+    // The generate endpoint refuses the style reference it is then sent.
+    // This row has no library store to read from, so sending stops early.
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+    ]);
+    const stored = jobRow({ model: "google/nano-banana-2.1/edit" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    await createImageJob({
+      ...BASE_INPUT,
+      modelId: "nano-banana-2-1",
+      referenceLibraryIds: ["0199c1f0-0000-7000-8000-000000000001"],
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "EDIT",
+          model: "google/nano-banana-2.1/edit",
+        }),
+      }),
+    );
+  });
+
   it("sends only the provider fields the chosen endpoint declares", async () => {
     // `num_images` and `limit_generations` are Gemini's fields. Sending them to
     // a model that never declared them is a 422 on a generation that would

@@ -96,6 +96,25 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Atlas");
   });
 
+  it("says a name is needed when it holds only spaces", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    const input = screen.getByLabelText("Name");
+
+    await user.type(input, "   ");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Name your Soko Bot" }),
+    ).toBeTruthy();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("Enter a name.");
+    expect(input).toHaveFocus();
+
+    await user.type(input, "Atlas");
+    expect(input).not.toHaveAttribute("aria-invalid");
+  });
+
   it("moves focus into each step, since the old step hides the focused control", async () => {
     const user = userEvent.setup();
     renderCreate();

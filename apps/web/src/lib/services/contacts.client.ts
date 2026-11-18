@@ -43,6 +43,7 @@ import {
   postContactsByIdArchive,
   postContactsByIdChannels,
   postContactsByIdEnrich,
+  postContactsByIdUnarchive,
   postContactsCompanyLists,
   postContactsCompanyListsByListIdMembers,
   postContactsDuplicatesDismiss,
@@ -196,6 +197,10 @@ export const contactsService = {
   async archive(id: string) {
     return (await postContactsByIdArchive({ ...options(), path: { id } })).data
       .data;
+  },
+  async unarchive(id: string) {
+    return (await postContactsByIdUnarchive({ ...options(), path: { id } }))
+      .data.data;
   },
   async addChannel(
     id: string,
