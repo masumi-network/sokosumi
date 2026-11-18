@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
 import {
+  MAX_SUBTASK_DEPTH,
   SUBTASK_LIST_LIMIT,
   toSubtaskRow,
 } from "@/app/tasks/utils/task-subtask-row";
@@ -30,8 +31,10 @@ export async function TaskSubtaskSection({
     taskStatus: task.status,
     hasAssignedSeat,
   });
+  // A new sub-task's level is this Task's chain length.
+  const canAdd = (task.ancestors?.length ?? 0) < MAX_SUBTASK_DEPTH;
   // Nothing to show and nothing the reader may add.
-  if (readOnly && listed.tasks.length === 0) return null;
+  if ((readOnly || !canAdd) && listed.tasks.length === 0) return null;
 
   return (
     <TaskSubtaskList
@@ -40,6 +43,7 @@ export async function TaskSubtaskSection({
         toSubtaskRow(child, tTasks("personalAssistant")),
       )}
       readOnly={readOnly}
+      canAdd={canAdd}
     />
   );
 }

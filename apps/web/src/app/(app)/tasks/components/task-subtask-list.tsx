@@ -35,6 +35,8 @@ interface TaskSubtaskListProps {
   parentTaskId: string;
   initialRows: SubtaskRow[];
   readOnly: boolean;
+  /** False at the deepest level, where Core refuses another sub-task. */
+  canAdd: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export function TaskSubtaskList({
   parentTaskId,
   initialRows,
   readOnly,
+  canAdd,
 }: TaskSubtaskListProps) {
   const t = useTranslations("App.Tasks.Subtasks");
   const tTasks = useTranslations("App.Tasks");
@@ -53,11 +56,18 @@ export function TaskSubtaskList({
     parentTaskId,
     initialRows,
     personalAssistantFallback: tTasks("personalAssistant"),
-    onError: () => toast.error(t("changeError")),
+    onError: (change) => {
+      toast.error(t("changeError"));
+      // Back in the field, so nothing typed is lost.
+      if (change.kind === "add")
+        setDraftName((current) => current || change.name);
+    },
   });
   const [draftName, setDraftName] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  // Kept after close, so the closing dialog still names the assignee.
   const [reopening, setReopening] = useState<SubtaskRow | null>(null);
+  const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
   const handles = useRef(new Map<string, HTMLButtonElement>());
   const sensors = useSensors(
@@ -79,8 +89,10 @@ export function TaskSubtaskList({
   }
 
   function moveBy(id: string, step: -1 | 1) {
-    const neighbour = ids[ids.indexOf(id) + step];
-    if (neighbour) moveTo(id, moveIdToSlot(ids, id, neighbour));
+    const neighbour = rows[ids.indexOf(id) + step];
+    // Core does not know a row still being created, so nothing moves past it.
+    if (neighbour && !neighbour.isPending)
+      moveTo(id, moveIdToSlot(ids, id, neighbour.id));
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -96,6 +108,7 @@ export function TaskSubtaskList({
       // Its Coworker or Soko Bot would run again: ask what to fix first.
       setReopenComment("");
       setReopening(row);
+      setReopenOpen(true);
     } else {
       setStatus(row.id, TaskStatus.READY);
     }
@@ -109,8 +122,7 @@ export function TaskSubtaskList({
         target === "DRAFT" ? undefined : reopenComment.trim(),
       );
     }
-    setReopening(null);
-    setReopenComment("");
+    setReopenOpen(false);
   }
 
   function handleAdd(event: FormEvent) {
@@ -159,7 +171,7 @@ export function TaskSubtaskList({
           {t("truncated", { count: SUBTASK_LIST_LIMIT })}
         </p>
       ) : null}
-      {readOnly ? null : (
+      {readOnly || !canAdd ? null : (
         <form onSubmit={handleAdd}>
           <Input
             value={draftName}
@@ -174,7 +186,7 @@ export function TaskSubtaskList({
         {announcement}
       </p>
       <TaskReopenToReadyDialog
-        open={reopening !== null}
+        open={reopenOpen}
         onOpenChange={(open) => {
           if (!open) closeReopen();
         }}

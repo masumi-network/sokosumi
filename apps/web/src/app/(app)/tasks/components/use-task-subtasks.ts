@@ -73,8 +73,8 @@ interface UseTaskSubtasksOptions {
   parentTaskId: string;
   initialRows: SubtaskRow[];
   personalAssistantFallback: string;
-  /** Core refused or the request failed; the checklist is already rolled back. */
-  onError: () => void;
+  /** Core refused `change` or the request failed; the checklist is rolled back. */
+  onError: (change: SubtaskChange) => void;
 }
 
 /**
@@ -103,7 +103,11 @@ export function useTaskSubtasks({
     initialData: initialRows,
   });
 
+  // Changes overlap: a quick second toggle starts before the first settles.
+  const lastInFlight = () =>
+    queryClient.isMutating({ mutationKey: queryKey }) <= 1;
   const mutation = useMutation({
+    mutationKey: queryKey,
     mutationFn: async (change: SubtaskChange) => {
       const result = await sendSubtaskChange(parentTaskId, change);
       if (!result.ok) throw new Error("Sub-task change refused");
@@ -114,11 +118,16 @@ export function useTaskSubtasks({
       queryClient.setQueryData(queryKey, applySubtaskChange(previous, change));
       return { previous };
     },
-    onError: (_error, _change, context) => {
-      if (context) queryClient.setQueryData(queryKey, context.previous);
-      onError();
+    onError: (_error, change, context) => {
+      // The snapshot predates later changes still in flight; the reload after
+      // the last one shows what Core holds instead.
+      if (context && lastInFlight())
+        queryClient.setQueryData(queryKey, context.previous);
+      onError(change);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: () => {
+      if (lastInFlight()) return queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   return {

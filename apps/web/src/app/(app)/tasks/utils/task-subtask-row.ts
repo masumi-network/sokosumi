@@ -11,6 +11,9 @@ import { mapTaskAssignee } from "./task-view-model";
 /** Core's page size cap; a checklist longer than this shows its first page. */
 export const SUBTASK_LIST_LIMIT = 100;
 
+/** Core's `LIMITS.MAX_SUBTASK_DEPTH`: levels of sub-tasks below a root Task. */
+export const MAX_SUBTASK_DEPTH = 5;
+
 /** One row of a Task's sub-task checklist. */
 export interface SubtaskRow {
   id: string;

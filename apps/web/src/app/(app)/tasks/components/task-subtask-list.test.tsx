@@ -54,6 +54,7 @@ function renderList(rows: SubtaskRow[]) {
         parentTaskId="parent"
         initialRows={rows}
         readOnly={false}
+        canAdd
       />
     </QueryClientProvider>,
   );
@@ -120,6 +121,36 @@ describe("TaskSubtaskList", () => {
 
     await waitFor(() => expect(moveSubtask).toHaveBeenCalled());
     await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
+  });
+
+  it("does not move a row past a sub-task Core has not created yet", async () => {
+    createSubtask.mockImplementation(() => new Promise(() => {}));
+    renderList([row("a")]);
+
+    const input = screen.getByRole("textbox", { name: "add" });
+    fireEvent.change(input, { target: { value: "b" } });
+    fireEvent.submit(input);
+    await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
+    fireEvent.keyDown(screen.getByRole("button", { name: "reorderHandle a" }), {
+      key: "ArrowDown",
+    });
+
+    // The announcement is set in the same tick as a move would start.
+    expect(screen.queryByText(/^movedTo/)).not.toBeInTheDocument();
+    expect(rowNames()).toEqual(["a", "b"]);
+    expect(moveSubtask).not.toHaveBeenCalled();
+  });
+
+  it("puts a refused sub-task's name back in the field", async () => {
+    createSubtask.mockResolvedValue({ ok: false });
+    renderList([]);
+    getTasks.mockImplementation(() => new Promise(() => {}));
+
+    const input = screen.getByRole("textbox", { name: "add" });
+    fireEvent.change(input, { target: { value: "Book the venue" } });
+    fireEvent.submit(input);
+
+    await waitFor(() => expect(input).toHaveValue("Book the venue"));
   });
 
   it("reopens a person's done sub-task to Ready without asking", async () => {

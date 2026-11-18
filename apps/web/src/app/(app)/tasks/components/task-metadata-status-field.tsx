@@ -164,7 +164,13 @@ export function TaskMetadataStatusField({
         comment={reopenComment}
         onCommentChange={setReopenComment}
         onConfirm={handleReopenConfirm}
-        onReopenAsDraft={handleReopenAsDraft}
+        // Only a finished Task reopens; an Input Required one is still running.
+        onReopenAsDraft={
+          currentStatus === TaskStatus.COMPLETED ||
+          currentStatus === TaskStatus.CANCELED
+            ? handleReopenAsDraft
+            : undefined
+        }
         isPending={isPending && currentStatus === TaskStatus.READY}
       />
     </>
