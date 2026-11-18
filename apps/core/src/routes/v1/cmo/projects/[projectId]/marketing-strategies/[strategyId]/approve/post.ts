@@ -11,6 +11,7 @@ import {
   requireCuso,
   startCmoProductionForProject,
 } from "@/services/cmo-cuso.service";
+import { requireCmoStrategyFitted } from "@/services/cmo-strategy.service";
 import { approveMarketingStrategy } from "@/services/marketing-strategy.service";
 
 const route = createRoute({
@@ -38,6 +39,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, strategyId } = c.req.valid("param");
     const cuso = await requireCuso({ userId, projectId }).catch(rethrow);
+    await requireCmoStrategyFitted(cuso, strategyId).catch(rethrow);
     const version = await approveMarketingStrategy({
       userId,
       projectId: cuso.projectId,
