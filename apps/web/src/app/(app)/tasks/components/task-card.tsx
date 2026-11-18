@@ -79,6 +79,7 @@ export function TaskCard({
       {...handleProps}
     >
       <article
+        data-intent-area
         className={cn(
           "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-control-border hover:shadow-sm press content-in",
           TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],

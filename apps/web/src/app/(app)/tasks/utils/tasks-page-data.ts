@@ -76,6 +76,9 @@ async function readTasksPageData(
       loadTasksPageOptions(),
       listTaskAssigneeMemberOptions(activeOrganizationId),
     ]);
+  // Runs beside the board reads, not after them.
+  const canCreateTaskPromise =
+    organizationSeatService.hasAssignedSeat(activeOrganizationId);
   // Core decides schedule eligibility; start that request before loading the board.
   const coworkerOptionsPromise = listTaskAssigneeOptions(
     activeOrganizationId,
@@ -229,8 +232,7 @@ async function readTasksPageData(
         ) as Record<KanbanColumnId, number>);
 
   const coworkerOptions = await coworkerOptionsPromise;
-  const canCreateTask =
-    await organizationSeatService.hasAssignedSeat(activeOrganizationId);
+  const canCreateTask = await canCreateTaskPromise;
 
   return {
     tasks,

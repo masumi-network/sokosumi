@@ -124,6 +124,19 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(map(detail).statusSince).toBe("2026-01-03T00:00:00.000Z");
   });
 
+  it("sends the full description only for a Task page, not for a list item", () => {
+    const listItem = buildTask(TaskStatus.READY, {
+      description: "Write the **copy**",
+    });
+    const mapped = map(listItem);
+    expect(mapped.description).toBeNull();
+    expect(mapped.descriptionPlain).toBe("Write the copy");
+
+    const { statusSince: _statusSince, ...rest } = listItem;
+    const detail = { ...rest, events: [] } as unknown as Task;
+    expect(map(detail).description).toBe("Write the **copy**");
+  });
+
   it("maps queued tasks to backlog column", () => {
     const task = buildTask(TaskStatus.QUEUED);
 
