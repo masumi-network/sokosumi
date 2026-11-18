@@ -9,6 +9,8 @@ model SeoAudit {
   createdById  String
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
+  /// Removed from the workspace. Retain analysis links, billing history and chat usage.
+  deletedAt    DateTime?
   pages        ProjectSeoPage[]
   scopes       ProjectSeoScope[]
   observations ProjectSeoObservation[]

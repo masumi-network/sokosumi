@@ -37,7 +37,10 @@ interface TasksPageProps {
     status?: string | string[];
     projectId?: string | string[];
     visibility?: string | string[];
+    tag?: string | string[];
     stuck?: string | string[];
+    needsMe?: string | string[];
+    mentions?: string | string[];
     /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
     tab?: string | string[];
     date?: string;
@@ -78,14 +81,16 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     status,
     projectId,
     visibility,
+    tag,
     stuck,
+    needsMe,
+    mentions,
   } = resolvedSearchParams;
-  const [t, tColumns, tDetailActions, tApp, cookieStore, defaultViewMode] =
+  const [t, tColumns, tDetailActions, cookieStore, defaultViewMode] =
     await Promise.all([
       getTranslations("App.Tasks"),
       getTranslations("App.Tasks.Columns"),
       getTranslations("App.Tasks.Detail.actions"),
-      getTranslations("App"),
       cookies(),
       // `?view=board` (Home's "need your input" link) opens the board even
       // where the list is the saved or device default, without saving it.
@@ -121,7 +126,10 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       status,
       projectId,
       visibility,
+      tag,
       stuck,
+      needsMe,
+      mentions,
     },
     viewMode: defaultViewMode,
     personalAssistantFallback: t("personalAssistant"),
@@ -217,15 +225,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           dragError: t("Errors.updateStatus"),
           loadMoreError: t("Errors.loadMore"),
           reopenToReady: {
-            title: tDetailActions("reopenToReadyTitle"),
-            description: tDetailActions("reopenToReadyDescription"),
-            commentLabel: tDetailActions("reopenToReadyCommentLabel"),
-            commentPlaceholder: tDetailActions(
-              "reopenToReadyCommentPlaceholder",
-            ),
             commentRequired: tDetailActions("reopenToReadyCommentRequired"),
-            confirm: tDetailActions("reopenToReadyConfirm"),
-            cancel: tApp("cancel"),
           },
           display: {
             button: t("Display.button"),

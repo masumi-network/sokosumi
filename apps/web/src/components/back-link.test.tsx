@@ -1,11 +1,19 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BackLink } from "./back-link";
 
 const routerPrefetchMock = vi.fn();
+const routerBackMock = vi.fn();
+const routerReplaceMock = vi.fn();
+const routerPushMock = vi.fn();
 // Next's router is one stable object, so the mock is too.
-const router = { prefetch: routerPrefetchMock };
+const router = {
+  prefetch: routerPrefetchMock,
+  back: routerBackMock,
+  replace: routerReplaceMock,
+  push: routerPushMock,
+};
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -29,11 +37,80 @@ function stubLayout() {
 describe("BackLink", () => {
   beforeEach(() => {
     routerPrefetchMock.mockReset();
+    routerBackMock.mockReset();
+    routerReplaceMock.mockReset();
+    routerPushMock.mockReset();
     stubLayout();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  describe("a click", () => {
+    /** Navigation API history whose last entry is the current page. */
+    function stubHistory(...paths: string[]) {
+      const entries = paths.map((path, index) => ({
+        key: `k${index}`,
+        url: `${window.location.origin}${path}`,
+        sameDocument: true,
+      }));
+      vi.stubGlobal("navigation", {
+        currentEntry: entries.at(-1),
+        entries: () => entries,
+      });
+    }
+
+    it("pops back to the parent the reader came from", () => {
+      stubHistory("/chat", "/chat/rooms/r1");
+      render(<BackLink href="/chat">Back</BackLink>);
+
+      fireEvent.click(screen.getByRole("link", { name: "Back" }));
+
+      expect(routerBackMock).toHaveBeenCalledOnce();
+      expect(routerPushMock).not.toHaveBeenCalled();
+    });
+
+    it("swaps the page for the parent when the reader came from elsewhere", () => {
+      stubHistory("/", "/chat/rooms/r1");
+      render(<BackLink href="/chat">Back</BackLink>);
+
+      fireEvent.click(screen.getByRole("link", { name: "Back" }));
+
+      expect(routerReplaceMock).toHaveBeenCalledWith("/chat");
+      expect(routerBackMock).not.toHaveBeenCalled();
+      expect(routerPushMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves a modified click to open the parent in a new tab", () => {
+      stubHistory("/chat", "/chat/rooms/r1");
+      render(<BackLink href="/chat">Back</BackLink>);
+
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        metaKey: true,
+      });
+      screen.getByRole("link", { name: "Back" }).dispatchEvent(event);
+
+      expect(routerBackMock).not.toHaveBeenCalled();
+      expect(routerReplaceMock).not.toHaveBeenCalled();
+    });
+
+    it("lets the caller's own click handler take over", () => {
+      stubHistory("/chat", "/chat/rooms/r1");
+      render(
+        <BackLink href="/chat" onClick={(event) => event.preventDefault()}>
+          Back
+        </BackLink>,
+      );
+
+      fireEvent.click(screen.getByRole("link", { name: "Back" }));
+
+      expect(routerBackMock).not.toHaveBeenCalled();
+      expect(routerReplaceMock).not.toHaveBeenCalled();
+    });
   });
 
   it("loads a content parent's page with its query once it shows", () => {

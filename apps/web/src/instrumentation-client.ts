@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { notifyNavigationStart } from "@/lib/navigation/navigation-start";
 import { ablyAuthSessionIgnoreErrors } from "@/lib/sentry/ably-auth-session-errors";
 import { ablyChannelLifecycleIgnoreErrors } from "@/lib/sentry/ably-channel-lifecycle-errors";
 import { webSentryDataCollection } from "@/lib/sentry/data-collection";
@@ -54,4 +55,10 @@ Sentry.init({
   debug: false,
 });
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export function onRouterTransitionStart(url: string, navigationType: string) {
+  try {
+    Sentry.captureRouterTransitionStart(url, navigationType);
+  } finally {
+    notifyNavigationStart(url);
+  }
+}

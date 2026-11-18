@@ -5,11 +5,11 @@ import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import prisma from "@/lib/db/prisma";
+import { retriedTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import { restoreTaskRecord } from "@/services/task-domain.service";
+import { restoreTaskRecord } from "@/services/task-domain-archive";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -43,7 +43,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await retriedTransaction(async (tx) => {
       const archivedTask = await requireTaskWriteAccess(userContext, id, tx, {
         right: "manage",
         archived: true,
@@ -60,11 +60,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           include: buildTaskIncludeForViewer(
             authContext,
             archivedTask.workspaceId,
+            c.var.workspaceContext?.workspaceId,
           ),
         }),
         workspaceId: archivedTask.workspaceId,
       };
-    });
+    }, "Task changed while restoring it. Retry.");
     await deliverCalendarInvalidationsNow(result.workspaceId);
 
     return ok(c, taskSchema.parse(mapTask(result.task, authContext)));

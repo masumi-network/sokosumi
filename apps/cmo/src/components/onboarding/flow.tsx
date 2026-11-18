@@ -356,6 +356,8 @@ export function OnboardingFlow({
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
+            onSetPresenter={actions.setPresenter}
+            onClearPresenter={actions.clearPresenter}
             notice={returnNotice}
             // Core is done at the first connection, so the celebration is
             // client-only. Go to Today records the finish in a cookie, and a

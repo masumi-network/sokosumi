@@ -2,8 +2,9 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSession } from "@/lib/auth/auth.client";
@@ -69,7 +70,7 @@ interface ChatMobileBottomNavProps {
 export function ChatMobileBottomNav({
   showUnreadDot,
 }: ChatMobileBottomNavProps): React.ReactElement {
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
   const activeTabId = resolveChatMobileActiveTabId(pathname, searchParams);

@@ -3,7 +3,9 @@
 import type {
   ProjectImageJob,
   ProjectImageStudioTalkingVideoCatalog,
+  ProjectSocialConnection,
   ProjectTalkingVideos,
+  SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
@@ -13,6 +15,7 @@ import {
 } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Upload } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RadioGroup } from "radix-ui";
@@ -34,12 +37,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import {
   prepareStudioAssetSocialMedia,
   startTalkingVideo,
   writeTalkingVideoScripts,
 } from "@/lib/actions/image-studio/action";
 import { authClient } from "@/lib/auth/auth.client";
+import { coreClient } from "@/lib/clients/core.browser.client";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -55,6 +60,12 @@ import {
   StagePreview,
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
+
+const TikTokComposer = dynamic(() =>
+  import(
+    "@/app/projects/components/social-posts/social-post-composer-dialog"
+  ).then((module) => module.SocialPostComposerDialog),
+);
 
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_MIB = 12;
@@ -84,11 +95,14 @@ async function fetchTalkingVideos(
 
 export function TikTokStudio({
   projectId,
+  hasWebsite,
   catalog,
   initialVideos,
   readOnly,
 }: {
   projectId: string;
+  /** The Project has a website a video can show. */
+  hasWebsite: boolean;
   catalog: ProjectImageStudioTalkingVideoCatalog;
   initialVideos: ProjectTalkingVideos;
   /** A CMO Project is changed in CMO only. */
@@ -102,6 +116,7 @@ export function TikTokStudio({
   const voiceId = useId();
   const languageId = useId();
   const consentId = useId();
+  const showSiteId = useId();
   const makeHintId = useId();
   const queryClient = useQueryClient();
   const queryKey = ["talking-videos", projectId];
@@ -117,6 +132,8 @@ export function TikTokStudio({
     previewUrl: string;
   } | null>(null);
   const [consent, setConsent] = useState(false);
+  const [showSite, setShowSite] = useState(true);
+  const siteShots = hasWebsite && showSite;
   const [voice, setVoice] = useState(catalog.defaultVoice);
   const [languageCode, setLanguageCode] = useState<string>(
     SCRIPT_LANGUAGES.find((code) => locale.startsWith(code)) ?? "en",
@@ -126,6 +143,12 @@ export function TikTokStudio({
   const [uploading, setUploading] = useState(false);
   const [writing, startWriting] = useTransition();
   const [starting, startStarting] = useTransition();
+  const { isProviderEnabled } = useSocialProviderAvailability();
+  const tikTokEnabled = isProviderEnabled("tiktok");
+  const [composeVideo, setComposeVideo] = useState<{
+    media: SocialPostMediaRef;
+    accounts: ProjectSocialConnection[];
+  } | null>(null);
   const [posting, startPosting] = useTransition();
   /** The video on the stage; none shows the preview of the one being set up. */
   const [stageJobId, setStageJobId] = useState<string | null>(
@@ -255,6 +278,7 @@ export function TikTokStudio({
           ownPhoto && photo
             ? { kind: "file", fileId: photo.id, consent: true }
             : { kind: "stock", id: presenterId },
+        siteShots,
         idempotencyKey,
       });
       if (!result.ok) {
@@ -297,7 +321,21 @@ export function TikTokStudio({
         toast.error(t("postFailed"));
         return;
       }
-      writeSocialComposePrefill(projectId, { media: [result.value] });
+      const media = { ...result.value, aiGenerated: true };
+      if (tikTokEnabled) {
+        try {
+          const { data } =
+            await coreClient.getProjectsByIdSocialConnections(projectId);
+          setComposeVideo({
+            media,
+            accounts: data.filter((account) => account.provider === "tiktok"),
+          });
+        } catch {
+          toast.error(t("postFailed"));
+        }
+        return;
+      }
+      writeSocialComposePrefill(projectId, { media: [media] });
       router.push(
         `/social?projectId=${encodeURIComponent(projectId)}&compose=new`,
       );
@@ -560,6 +598,24 @@ export function TikTokStudio({
         </Step>
 
         <Step number={3} title={t("stepMake")}>
+          {hasWebsite ? (
+            <div className="flex items-start gap-2">
+              <Checkbox
+                checked={showSite}
+                className="mt-0.5"
+                id={showSiteId}
+                onCheckedChange={(checked) =>
+                  edit(() => setShowSite(checked === true))
+                }
+              />
+              <Label
+                className="text-sm leading-normal font-normal"
+                htmlFor={showSiteId}
+              >
+                {t("showSite")}
+              </Label>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <p className="text-sm tabular-nums" id={makeHintId}>
               {missing || !model ? (
@@ -568,7 +624,9 @@ export function TikTokStudio({
                 <>
                   <span className="font-medium">
                     {tStudio("creditsCount", {
-                      count: creditsPerTalkingVideoCents(model.price, trimmed),
+                      count: creditsPerTalkingVideoCents(model.price, trimmed, {
+                        siteShots,
+                      }),
                     })}
                   </span>
                   <span className="text-muted-foreground">
@@ -609,7 +667,8 @@ export function TikTokStudio({
               asset={assetFor(stageJob)}
               image={presenterImage(stageJob.talkingVideo?.presenterId)}
               job={stageJob}
-              onPost={handlePost}
+              onPost={readOnly ? undefined : handlePost}
+              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
               onReuse={() => reuse(stageJob)}
               posting={posting}
             />
@@ -643,6 +702,28 @@ export function TikTokStudio({
         </div>
       </section>
 
+      {composeVideo ? (
+        <TikTokComposer
+          open
+          projectId={projectId}
+          connections={composeVideo.accounts}
+          mode={{
+            kind: "create",
+            source: "tiktok-studio",
+            media: [composeVideo.media],
+          }}
+          onConnectAccount={() =>
+            router.push(
+              `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`,
+            )
+          }
+          onOpenChange={(open) => {
+            if (!open) setComposeVideo(null);
+          }}
+          onError={(error) => toast.error(error.message || t("postFailed"))}
+          onSaved={() => router.refresh()}
+        />
+      ) : null}
       {videos.jobs.length > 0 ? (
         <TikTokStudioLibrary
           assetFor={assetFor}

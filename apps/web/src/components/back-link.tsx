@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type ComponentProps, useCallback } from "react";
+import { type ComponentProps, type MouseEvent, useCallback } from "react";
 
 import { RestingIntentLink } from "@/components/resting-intent-link";
 import { canPrefetchRouteContent } from "@/lib/navigation/content-prefetch-routes";
+import { navigateBack } from "@/lib/navigation/navigate-back";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 type BackLinkProps = Omit<
@@ -25,8 +26,16 @@ function isRendered(element: Element): boolean {
  * only its loading skeleton) loads once the link is rendered: back is the
  * likely next step, and a touch gives no approach to predict from. A
  * predicted approach, a resting hover or focus loads it again once stale.
+ *
+ * A plain click goes back through history (`navigateBack`), never pushing
+ * the parent, so the swipe-back gesture afterwards cannot reopen this page.
+ * A caller's `onClick` that prevents the default takes over the click.
  */
-export function BackLink({ prefetchOnMount = true, ...props }: BackLinkProps) {
+export function BackLink({
+  prefetchOnMount = true,
+  onClick,
+  ...props
+}: BackLinkProps) {
   const router = useRouter();
   const { href } = props;
   const prefetchContent = canPrefetchRouteContent(href);
@@ -49,11 +58,27 @@ export function BackLink({ prefetchOnMount = true, ...props }: BackLinkProps) {
     [router, href, loadOnShow],
   );
 
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    onClick?.(event);
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    navigateBack(router, href);
+  }
+
   return (
     <RestingIntentLink
       {...props}
       ref={showRef}
       prefetchContent={prefetchContent}
+      onClick={handleClick}
     />
   );
 }

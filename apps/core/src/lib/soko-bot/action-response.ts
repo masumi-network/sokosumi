@@ -65,6 +65,7 @@ export const ACTION_LABELS: Record<string, string> = {
   reply_to_task: "Added a task comment",
   update_assigned_task: "Updated assigned task",
   link_tasks: "Linked tasks",
+  set_task_parent: "Changed a task's parent",
   stop_following_task: "Stopped following task",
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
@@ -97,6 +98,7 @@ export const ACTION_LABELS: Record<string, string> = {
   remove_skill: "Removed skill",
   generate_image: "Started image",
   generate_video: "Started video",
+  generate_talking_video: "Started talking video",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",
@@ -340,11 +342,25 @@ function describeRead(capability: string, value: unknown): string[] {
  */
 const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
 
-function inputCovers(later: unknown, earlier: unknown): boolean {
+/**
+ * A talking video refused for its price is made again with a shorter script,
+ * as the refusal asks: the same video for the owner.
+ */
+const REWRITTEN_KEYS: Record<string, Set<string>> = {
+  generate_talking_video: new Set(["script", "maxCredits"]),
+};
+
+function inputCovers(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  const rewritten = REWRITTEN_KEYS[capability];
   return Object.entries(earlier).every(
     ([key, value]) =>
       FILE_NAMING_KEYS.has(key) ||
+      rewritten?.has(key) ||
       JSON.stringify(later[key]) === JSON.stringify(value),
   );
 }
@@ -466,7 +482,7 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input)),
+          inputCovers(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(

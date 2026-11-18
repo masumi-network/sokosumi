@@ -10,7 +10,6 @@ import {
   approveCmoMarketingStrategyForProject,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
-  type CmoCompetitorCreate,
   type CmoCompetitors,
   type CmoCusoList,
   type CmoKeywordSearch,
@@ -20,6 +19,7 @@ import {
   type CmoSubscriptionPlan,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
+  clearCmoPresenterForProject,
   completeSokoBotIntegrationAuth,
   confirmCmoBrandBrainForProject,
   connectCmoAdsForProject,
@@ -41,6 +41,7 @@ import {
   listCmoCusos,
   listCmoPlans,
   openCmoCustomerPortalForProject,
+  type ProjectCompetitorCreate,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
@@ -55,6 +56,7 @@ import {
   searchCmoKeywordsForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
+  setCmoPresenterForProject,
   setCmoSeoSuggestionStatusForProject,
   skipCmoSubscriptionForProject,
   startCmoOnboarding,
@@ -1049,6 +1051,37 @@ export async function finalizeMeasurement(
   return !error;
 }
 
+/**
+ * The owner's photo for Cuso's talking videos, sent with their consent. The
+ * browser scales it down first; a refusal comes back as text.
+ */
+export async function setPresenter(
+  projectId: string,
+  photo: string,
+): Promise<{ error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await setCmoPresenterForProject({
+    ...core,
+    path: { projectId },
+    body: { photo, consent: true },
+  });
+  return { error: data ? null : errorText(error, "Could not save the photo") };
+}
+
+/** Stop using the owner's photo in talking videos. */
+export async function clearPresenter(
+  projectId: string,
+): Promise<{ error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await clearCmoPresenterForProject({
+    ...core,
+    path: { projectId },
+  });
+  return {
+    error: data ? null : errorText(error, "Could not remove the photo"),
+  };
+}
+
 /** The SEO tab: the weekly audit, Search Console, suggestions and keyword searches. */
 export async function loadSeo(projectId: string): Promise<CmoSeo | null> {
   const core = await requireCore();
@@ -1131,7 +1164,7 @@ function competitorResult(
 /** Adds a competitor to watch; a refusal (the limit, a name taken) comes back as text. */
 export async function addCompetitor(
   projectId: string,
-  body: CmoCompetitorCreate,
+  body: ProjectCompetitorCreate,
 ): Promise<CompetitorResult> {
   const core = await requireCore();
   return competitorResult(
@@ -1143,7 +1176,7 @@ export async function addCompetitor(
 export async function updateCompetitor(
   projectId: string,
   competitorId: string,
-  body: CmoCompetitorCreate,
+  body: ProjectCompetitorCreate,
 ): Promise<CompetitorResult> {
   const core = await requireCore();
   return competitorResult(

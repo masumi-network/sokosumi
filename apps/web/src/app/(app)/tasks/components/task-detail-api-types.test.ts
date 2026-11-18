@@ -66,4 +66,28 @@ describe("task-detail-api-types", () => {
 
     expect(result[0]?.name).toBe("Task Name: Weekly");
   });
+
+  it.each([TaskLinkRelation.PARENT, TaskLinkRelation.CHILD])(
+    "lists a %s link left from before sub-tasks as related",
+    (relation) => {
+      const [result] = mapVisibleTaskLinks([
+        {
+          id: "link-1",
+          createdAt: new Date("2026-03-31T10:00:00.000Z"),
+          updatedAt: new Date("2026-03-31T10:00:00.000Z"),
+          relation,
+          note: null,
+          peerTask: {
+            id: "task-2",
+            name: "Old parent",
+            status: TaskStatus.READY,
+            archivedAt: null,
+            identifier: null,
+          },
+        },
+      ]);
+
+      expect(result?.relation).toBe(TaskLinkRelation.RELATED);
+    },
+  );
 });

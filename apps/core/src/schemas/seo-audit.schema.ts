@@ -10,6 +10,7 @@ export const seoAuditSummarySchema = z
     name: z.string(),
     projectId: seoIdSchema.nullable(),
     pageCount: z.number().int().nonnegative(),
+    canDelete: z.boolean().optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })

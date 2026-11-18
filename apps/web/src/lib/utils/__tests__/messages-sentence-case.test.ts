@@ -87,7 +87,9 @@ const PROPER_WORDS = new Set([
   "LinkedIn",
   "Claude",
   "Eve",
+  "Jev",
   "YouTube",
+  "TikTok",
   // AI assistants that GA4 counts in its AI Assistant channel.
   "ChatGPT",
   "Gemini",
@@ -100,6 +102,8 @@ const PROPER_WORDS = new Set([
   "Office",
   "Drive",
   "Social",
+  // The rank data provider, named in the rank source line.
+  "DataForSEO",
   // Task status, quoted as the board column's name ("Reopen to Ready").
   "Ready",
 ]);

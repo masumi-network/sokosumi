@@ -32,6 +32,7 @@ import {
   approveStrategy,
   askCusoForArticles,
   changePlan,
+  clearPresenter,
   connectAds,
   connectChannel,
   connectMeasurement,
@@ -60,6 +61,7 @@ import {
   sendMessage,
   setAdBudget,
   setAdCampaignStatus,
+  setPresenter,
   setSeoSuggestionStatus,
   skipBrandQuestions,
   skippedSteps,
@@ -300,13 +302,12 @@ export async function Home({ searchParams, view }: HomeProps) {
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
-        // Approving the plan opens Subscribe in place, so the plans load
-        // while the strategy waits for approval too.
+        // The steps up to Subscribe open in place, without this page
+        // rendering again, so the plans load from the first of them.
         plans={
-          overview.onboardingStep === "checkout" ||
-          overview.onboardingStep === "strategy"
-            ? await loadPlans().catch(() => [])
-            : []
+          overview.onboardingStep === "accounts"
+            ? []
+            : await loadPlans().catch(() => [])
         }
         returnedFromCheckout={step === "subscribed"}
         actions={{
@@ -327,6 +328,8 @@ export async function Home({ searchParams, view }: HomeProps) {
           connectChannel: connectSetupChannel.bind(null, projectId),
           connectMeasurement: connectMeasurement.bind(null, projectId),
           connectAds: connectAds.bind(null, projectId),
+          setPresenter: setPresenter.bind(null, projectId),
+          clearPresenter: clearPresenter.bind(null, projectId),
           startPlanCheckout: startPlanCheckout.bind(null, projectId),
           startOver: startOver.bind(null, projectId),
           startTopUp: startTopUp.bind(null, projectId),

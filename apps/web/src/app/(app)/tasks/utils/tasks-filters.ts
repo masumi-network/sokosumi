@@ -1,8 +1,25 @@
-import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
+import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
+
+import { isUuidString } from "@/lib/utils/uuid";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
 export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
+
+/** Core's scope for Tasks the reader owns or is the assignee of. */
+export const NEEDS_ME_SCOPE = "mine" as const;
+
+/**
+ * The scope a Task query runs with. Needs me reads the reader's own Tasks.
+ * Mentions reads the whole workspace, because a mention is often on a
+ * teammate's Task.
+ */
+export function tasksQueryScope(
+  scope: "workspace" | "owned",
+  { needsMe, mentions }: { needsMe?: boolean; mentions?: boolean },
+): "workspace" | "owned" | typeof NEEDS_ME_SCOPE {
+  return needsMe ? NEEDS_ME_SCOPE : mentions ? "workspace" : scope;
+}
 
 export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
 
@@ -14,8 +31,20 @@ export interface TasksFilters {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  /** A workspace tag UUID or a built-in topic ID. */
+  tag?: string;
   /** Only Tasks that have sat in a waiting status for {@link STUCK_AFTER_DAYS} days or more. */
   stuck: boolean;
+  /**
+   * Only Tasks that wait on the reader: an input-required status, and the
+   * reader owns the Task or is its assignee.
+   */
+  needsMe?: boolean;
+  /**
+   * Only Tasks where a comment mentions the reader and the reader has not
+   * commented since, anywhere in the workspace.
+   */
+  mentions?: boolean;
 }
 
 /** Days in one status after which a waiting Task counts as stuck. */
@@ -51,6 +80,9 @@ export interface TasksFiltersSearchParams {
   projectId?: TasksFilterQueryParam;
   visibility?: TasksFilterQueryParam;
   stuck?: TasksFilterQueryParam;
+  needsMe?: TasksFilterQueryParam;
+  mentions?: TasksFilterQueryParam;
+  tag?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -64,6 +96,9 @@ export const TASKS_FILTER_PARAM_KEYS = {
   projectId: "projectId",
   visibility: "visibility",
   stuck: "stuck",
+  needsMe: "needsMe",
+  mentions: "mentions",
+  tag: "tag",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -121,6 +156,23 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 
   const normalized = raw.trim();
   return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
+/** Built-in topic IDs and workspace label UUIDs are disjoint. */
+export function getTaskTagQuery(raw: unknown): {
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
+} {
+  if (typeof raw !== "string") return {};
+  const tag = raw.trim();
+  const topicTagId = Object.values(TaskTagId).find((topic) => topic === tag);
+  if (topicTagId) return { topicTagId };
+  return isUuidString(tag) ? { workspaceTagId: tag.toLowerCase() } : {};
+}
+
+export function sanitizeTaskTagFilter(raw: unknown): string | undefined {
+  const { workspaceTagId, topicTagId } = getTaskTagQuery(raw);
+  return workspaceTagId ?? topicTagId;
 }
 
 export function sanitizeTasksVisibilityInput(
@@ -201,7 +253,10 @@ export function getTasksFiltersFromSearchParams(
         searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
       visibility:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.visibility) ?? undefined,
+      tag: searchParams.get(TASKS_FILTER_PARAM_KEYS.tag) ?? undefined,
       stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
+      needsMe: searchParams.get(TASKS_FILTER_PARAM_KEYS.needsMe) ?? undefined,
+      mentions: searchParams.get(TASKS_FILTER_PARAM_KEYS.mentions) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -286,7 +341,15 @@ export function parseTasksFilters(
     status,
     projectId,
     visibility,
+    tag: sanitizeTaskTagFilter(firstQueryString(searchParams.tag)),
     stuck: sanitizeTasksStuckInput(firstQueryString(searchParams.stuck)),
+    // Left out when off, like `tag`.
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.needsMe))
+      ? { needsMe: true }
+      : {}),
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.mentions))
+      ? { mentions: true }
+      : {}),
   };
 }
 
@@ -354,10 +417,28 @@ export function buildTasksFiltersSearchParams(
     );
   }
 
+  if (filters.tag) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.tag, filters.tag);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.tag);
+  }
+
   if (filters.stuck) {
     nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.stuck, "1");
   } else {
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.stuck);
+  }
+
+  if (filters.needsMe) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.needsMe, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.needsMe);
+  }
+
+  if (filters.mentions) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.mentions, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.mentions);
   }
 
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
@@ -382,12 +463,13 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}`;
 }
 
 /**
  * True when the Filters menu narrows the board past its defaults: a
- * non-default scope, an assignee, a status, private visibility or Stuck.
+ * non-default scope, an assignee, a status, private visibility, Stuck,
+ * Needs me or Mentions.
  * Clear filters resets these.
  */
 export function hasClearableTasksFilters(
@@ -402,7 +484,10 @@ export function hasClearableTasksFilters(
         filters.assigneeUserId ||
         filters.status ||
         filters.visibility ||
-        filters.stuck,
+        filters.tag ||
+        filters.stuck ||
+        filters.needsMe ||
+        filters.mentions,
     )
   );
 }
@@ -420,7 +505,10 @@ export function clearTasksFilters(
     assigneeUserId: null,
     status: null,
     visibility: null,
+    tag: undefined,
     stuck: false,
+    needsMe: undefined,
+    mentions: undefined,
   };
 }
 
@@ -446,6 +534,7 @@ export function hasActiveTasksFilters(
       filters.assigneeSokoBotId ||
       filters.assigneeUserId ||
       filters.status ||
+      filters.tag ||
       filters.visibility === TaskVisibility.PRIVATE,
   );
 

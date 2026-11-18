@@ -26,6 +26,7 @@ import {
   createSeoAuditActionTask,
   createSeoAuditMonitor,
   createSeoAuditScope,
+  deleteSeoAudit,
   getProjectSeoWorkspace,
   getSeoAuditWorkspace,
   getSeoAuditWorkspaceMapping,
@@ -76,6 +77,13 @@ export const seoServiceNoRedirect = {
       "Failed to create SEO audit",
     );
     return response.data;
+  },
+  async deleteAudit(auditId: string) {
+    await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) => deleteSeoAudit({ client, path: { id: auditId } }),
+      "Failed to delete SEO audit",
+    );
   },
   async getWorkspace(owner: SeoOwner, query: SeoWorkspaceQuery = {}) {
     const response = await executeCoreOperation(

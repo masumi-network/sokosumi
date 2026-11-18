@@ -26,9 +26,11 @@ export function TaskListView({
   const hasAnyTasks = tasks.length > 0;
 
   return (
-    <div className="bg-card-background overflow-hidden rounded-xl p-2">
+    // Cards on a tinted ground below `md`. From `md` up the rows share one
+    // surface and a hairline, so the list reads as one table.
+    <div className="bg-card-background md:bg-background md:border-border overflow-hidden rounded-xl p-2 md:border md:p-0">
       {hasAnyTasks ? (
-        <div className="flex flex-col gap-2">
+        <div className="md:divide-border flex flex-col gap-2 md:gap-0 md:divide-y">
           {tasks.map((task) => (
             <div key={task.id}>
               <div className="md:hidden">
@@ -47,7 +49,7 @@ export function TaskListView({
               </div>
             </div>
           ))}
-          {footer ? <div className="py-3">{footer}</div> : null}
+          {footer ? <div className="py-3 md:px-3">{footer}</div> : null}
         </div>
       ) : (
         <EmptyState description={labels.emptyList} action={<NewTaskButton />} />

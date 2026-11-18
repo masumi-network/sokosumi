@@ -1,10 +1,13 @@
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import type { VisibleTaskLink } from "./task-detail-api-types";
+import type {
+  VisibleTaskLink,
+  VisibleTaskLinkRelation,
+} from "./task-detail-api-types";
 import { applyTaskLinkChanges } from "./task-detail-optimistic-links";
 
-function link(id: string, relation: TaskLinkRelation): VisibleTaskLink {
+function link(id: string, relation: VisibleTaskLinkRelation): VisibleTaskLink {
   return { id, name: id, identifier: null, status: TaskStatus.READY, relation };
 }
 

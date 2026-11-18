@@ -60,6 +60,7 @@ export default async function TikTokStudioPage({
           initialVideos={videos}
           // Remounted per project: no draft or selection survives the switch.
           key={project.id}
+          hasWebsite={Boolean(project.websiteUrl)}
           projectId={project.id}
           readOnly={project.cmo}
         />

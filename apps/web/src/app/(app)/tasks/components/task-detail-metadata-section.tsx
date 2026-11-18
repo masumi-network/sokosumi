@@ -1,4 +1,6 @@
 import type { Task } from "@sokosumi/core-client";
+import { isTaskEditableStatus } from "@sokosumi/utils";
+import { unstable_rethrow } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TaskCreditsUsed } from "@/app/tasks/components/task-credits-used";
@@ -8,15 +10,29 @@ import type {
 } from "@/app/tasks/components/task-detail-view";
 import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskMetadataAssigneeField } from "@/app/tasks/components/task-metadata-assignee-field";
 import { TaskMetadataParticipantsField } from "@/app/tasks/components/task-metadata-participants-field";
 import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
+import { TaskMetadataProjectField } from "@/app/tasks/components/task-metadata-project-field";
+import { TaskTagCatalogProvider } from "@/app/tasks/components/task-tag-catalog";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
+import {
+  taskFormAssigneeId,
+  withCurrentTaskAssigneeOption,
+} from "@/app/tasks/utils/coworker-options";
+import type { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
+import {
+  assigneePeopleLock,
+  withCurrentProjectOption,
+} from "@/app/tasks/utils/task-property-options";
 import {
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { latestStatusChange } from "@/app/tasks/utils/task-view-model";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { designMdService } from "@/lib/services/design-md.service";
 
 export async function TaskMetadataSection({
   task,
@@ -24,12 +40,20 @@ export async function TaskMetadataSection({
   hasAssignedSeatPromise,
   projectPromise,
   sessionPromise,
+  assigneeOptionsPromise,
+  projectOptionsPromise,
 }: {
   task: Task;
   forceReadOnly: boolean;
   hasAssignedSeatPromise: Promise<boolean>;
   projectPromise: Promise<ProjectResult>;
   sessionPromise: Promise<SessionResult>;
+  assigneeOptionsPromise: ReturnType<typeof listTaskAssigneeOptions>;
+  /**
+   * Projects the Task can move to; the current one is added below. Null when
+   * the list failed: the row then stays read-only, not half-filled.
+   */
+  projectOptionsPromise: Promise<ProjectFilterOption[] | null>;
 }) {
   const [project, session, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
     await Promise.all([
@@ -55,6 +79,23 @@ export async function TaskMetadataSection({
     taskStatus: task.status,
     hasAssignedSeat,
   });
+  // Core PATCH takes assignee and project only while the Task has not started.
+  const canEditAssignment = !isReadOnly && isTaskEditableStatus(task.status);
+  const [assigneeOptions, listedProjects, defaultBrand] = canEditAssignment
+    ? await Promise.all([
+        assigneeOptionsPromise,
+        projectOptionsPromise,
+        designMdService.resolveEffectiveDesignMd().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return null;
+        }),
+      ])
+    : [[], [], null];
+  const projectOptions = withCurrentProjectOption(
+    listedProjects,
+    task.projectId ?? null,
+    project,
+  );
 
   return (
     <div className="space-y-6">
@@ -129,11 +170,50 @@ export async function TaskMetadataSection({
             />
           )
         }
+        assigneeField={
+          canEditAssignment ? (
+            <TaskMetadataAssigneeField
+              key={task.id}
+              taskId={task.id}
+              assigneeId={taskFormAssigneeId(task)}
+              options={withCurrentTaskAssigneeOption(
+                assigneeOptions,
+                task.assignee,
+                {
+                  fallbackName: tTasks("personalAssistant"),
+                  vendorName: tTasks("sokoBots"),
+                },
+              )}
+              peopleLock={assigneePeopleLock(task)}
+              labels={{
+                assignee: t("assignee"),
+                noAssignee: t("noAssignee"),
+              }}
+            />
+          ) : null
+        }
+        projectField={
+          canEditAssignment && projectOptions ? (
+            <TaskMetadataProjectField
+              key={task.id}
+              taskId={task.id}
+              projectId={task.projectId ?? null}
+              options={projectOptions}
+              context={{
+                description: task.description ?? "",
+                defaultBrandUrl: defaultBrand?.url ?? null,
+                userId: session?.user.id ?? null,
+              }}
+              labels={{ project: t("project"), noProject: t("noProject") }}
+            />
+          ) : null
+        }
         labels={{
           privateBadge: t("privateBadge"),
           status: t("status"),
           statusLabels,
           organization: t("organization"),
+          organizationReadOnly: t("organizationReadOnly"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
           noProject: t("noProject"),
@@ -162,22 +242,32 @@ export async function TaskMetadataSection({
           statusLabels,
           changeStatus: t("actions.changeStatus"),
           noStatusMatches: t("actions.noStatusMatches"),
-          reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-          reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-          reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-          reopenToReadyCommentPlaceholder: t(
-            "actions.reopenToReadyCommentPlaceholder",
-          ),
           reopenToReadyCommentRequired: t(
             "actions.reopenToReadyCommentRequired",
           ),
-          reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
-          cancel: t("actions.cancel"),
           updateStatusSuccess: t("actions.updateStatusSuccess"),
           updateStatusError: tTasks("Errors.updateStatus"),
         }}
       />
-      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
+      <TaskTagCatalogProvider
+        organizationId={task.workspace.organizationId ?? null}
+        enabled={!forceReadOnly}
+      >
+        <TaskTagSection
+          key={task.updatedAt.toString()}
+          tags={task.tags}
+          workspaceTags={task.workspaceTags}
+          suggestions={task.workspaceTagSuggestions}
+          edit={
+            isReadOnly
+              ? undefined
+              : {
+                  taskId: task.id,
+                  activeOrganizationId: task.workspace.organizationId ?? null,
+                }
+          }
+        />
+      </TaskTagCatalogProvider>
     </div>
   );
 }
