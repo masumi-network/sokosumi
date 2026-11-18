@@ -2060,6 +2060,9 @@ describe("project social connections service", () => {
           status: "disconnected",
           provider: "x",
           externalAccountId: { in: ["123"] },
+          intents: {
+            none: { action: "replace", expiresAt: { gt: expect.any(Date) } },
+          },
         },
       },
       data: {
@@ -2067,6 +2070,34 @@ describe("project social connections service", () => {
         revision: { increment: 1 },
       },
     });
+  });
+
+  it("leaves posts on a row a pending replace is moving to another account", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("connect"),
+    );
+    socialConnectionCreateMock.mockResolvedValue({
+      ...socialConnection,
+      id: "77777777-7777-4777-8777-777777777777",
+      composioConnectedAccountId: CONNECTION_ID,
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    const before = Date.now();
+    await finalizeProjectSocialConnection({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      connectionId: CONNECTION_ID,
+    });
+
+    const [call] = socialPostUpdateManyMock.mock.calls.at(-1) ?? [];
+    const pending = call?.where?.socialConnection?.intents?.none;
+    expect(pending?.action).toBe("replace");
+    expect(pending?.expiresAt?.gt.getTime()).toBeGreaterThanOrEqual(before);
   });
 
   it("moves unsent posts off a retired row when a reconnect activates the account's newer row", async () => {
@@ -2103,6 +2134,9 @@ describe("project social connections service", () => {
           status: "disconnected",
           provider: "x",
           externalAccountId: { in: ["123"] },
+          intents: {
+            none: { action: "replace", expiresAt: { gt: expect.any(Date) } },
+          },
         },
       },
       data: {
@@ -2161,6 +2195,9 @@ describe("project social connections service", () => {
             status: "disconnected",
             provider: "linkedin",
             externalAccountId: { in: ["abc", "urn:li:person:abc"] },
+            intents: {
+              none: { action: "replace", expiresAt: { gt: expect.any(Date) } },
+            },
           },
         }),
       }),

@@ -24,11 +24,18 @@ loadEnv({
 
 // LinkedIn rows may hold the person URN instead of the bare id. The revision
 // bump makes a publisher that read the retired connection lose its claim.
+// A row a pending replace retired keeps its posts for that replace.
 const CONNECTIONS = `"project_social_connection" AS retired,
      "project_social_connection" AS active`;
 const STUCK_POST = `post."socialConnectionId" = retired."id"
   AND post."status" IN ('DRAFT', 'NEEDS_APPROVAL', 'SCHEDULED', 'FAILED', 'MISSED')
   AND retired."status" = 'disconnected'
+  AND NOT EXISTS (
+    SELECT 1 FROM "project_social_connection_intent" AS intent
+    WHERE intent."socialConnectionId" = retired."id"
+      AND intent."action" = 'replace'
+      AND intent."expiresAt" > NOW()
+  )
   AND active."projectId" = post."projectId"
   AND active."status" = 'active'
   AND active."provider" = retired."provider"

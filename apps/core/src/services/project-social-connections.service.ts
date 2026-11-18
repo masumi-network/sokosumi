@@ -665,7 +665,9 @@ export async function finalizeProjectSocialConnection(
       // on a new row, or on another row that a reconnect just activated.
       // Unsent posts follow the account there, or they stay flagged for a
       // reconnect that cannot happen. The revision bump makes a publisher
-      // that read the retired connection lose its claim.
+      // that read the retired connection lose its claim. A row a pending
+      // replace retired keeps its posts: the user chose another account for
+      // them, and the replace moves them when it finishes.
       await tx.socialPost.updateMany({
         where: {
           projectId: input.projectId,
@@ -678,6 +680,9 @@ export async function finalizeProjectSocialConnection(
                 currentIntent.provider,
                 identity.id,
               ),
+            },
+            intents: {
+              none: { action: "replace", expiresAt: { gt: now } },
             },
           },
         },
