@@ -19,6 +19,10 @@ import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  competitorFeedChecks,
+  isCompetitorEvalCase,
+} from "./eval-cmo-competitors";
+import {
   commentChecks,
   pollCmoCase,
   prepareCmoChatCase,
@@ -223,6 +227,16 @@ async function pollScenario(
     ?.comments;
   if (comments) {
     const extra = commentChecks(turn.toolCalls, comments);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (isCompetitorEvalCase(scenario.id)) {
+    const extra = await competitorFeedChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+    );
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
