@@ -19,7 +19,7 @@ interface ParticipantClient {
  * Personal workspace: its user. Organization workspace: current members.
  */
 async function listTaskWorkspaceMembers(
-  tx: ParticipantClient,
+  tx: Pick<ParticipantClient, "workspace">,
   workspaceId: string,
 ): Promise<Array<{ id: string; name: string }>> {
   const workspace = await tx.workspace.findUnique({
@@ -47,32 +47,31 @@ async function listTaskWorkspaceMembers(
   return workspace.user ? [workspace.user] : [];
 }
 
+interface TaskCommentMentionParams {
+  workspaceId: string;
+  comment: string;
+  visibility: TaskVisibility;
+  ownerId: string | null;
+  /** Human who wrote the comment. Null when a Coworker or agent wrote. */
+  excludeUserId?: string | null;
+  mentionedUserIds?: readonly string[];
+}
+
 /**
- * Add workspace members named by a Task comment. Unknown ids are ignored.
- * `@all` does not add the workspace. Already-present users are left as they are.
- * The human comment author is skipped (same as chat `excludeUserId`).
- * PRIVATE Tasks only enroll humans who can already open them (the owner).
- * Returns only the user ids inserted by this call.
+ * The workspace members a Task comment names. Unknown ids are ignored, `@all`
+ * names nobody, the human author is skipped, and a PRIVATE Task names only
+ * humans who can already open it (the owner).
  */
-export async function addTaskParticipantsFromComment(
-  tx: ParticipantClient,
-  params: {
-    taskId: string;
-    workspaceId: string;
-    comment: string;
-    visibility: TaskVisibility;
-    ownerId: string | null;
-    /** Human who wrote the comment. Null when a Coworker or agent wrote. */
-    excludeUserId?: string | null;
-    mentionedUserIds?: readonly string[];
-  },
+export async function resolveTaskCommentMentionedUserIds(
+  tx: Pick<ParticipantClient, "workspace">,
+  params: TaskCommentMentionParams,
 ): Promise<string[]> {
   if (!params.comment.includes("@") && !params.mentionedUserIds?.length) {
     return [];
   }
 
   const members = await listTaskWorkspaceMembers(tx, params.workspaceId);
-  const mentionedUserIds = resolveMentionedUserIds({
+  return resolveMentionedUserIds({
     content: params.comment,
     explicitUserIds: params.mentionedUserIds,
     roomUsers: members,
@@ -84,6 +83,27 @@ export async function addTaskParticipantsFromComment(
       userId,
     ),
   );
+}
+
+/**
+ * Add workspace members named by a Task comment. Unknown ids are ignored.
+ * `@all` does not add the workspace. Already-present users are left as they are.
+ * The human comment author is skipped (same as chat `excludeUserId`).
+ * PRIVATE Tasks only enroll humans who can already open them (the owner).
+ * Returns only the user ids inserted by this call.
+ */
+export async function addTaskParticipantsFromComment(
+  tx: ParticipantClient,
+  params: TaskCommentMentionParams & {
+    taskId: string;
+    /** The comment's mentions when the caller resolved them already. */
+    resolvedMentionedUserIds?: readonly string[];
+  },
+): Promise<string[]> {
+  const mentionedUserIds = [
+    ...(params.resolvedMentionedUserIds ??
+      (await resolveTaskCommentMentionedUserIds(tx, params))),
+  ];
 
   if (mentionedUserIds.length === 0) {
     return [];

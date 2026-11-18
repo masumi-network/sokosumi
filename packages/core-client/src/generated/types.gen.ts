@@ -14951,6 +14951,10 @@ export type TaskListItem = {
      * When the Task last changed status, or its creation time if it never did.
      */
     statusSince: Date;
+    /**
+     * True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.
+     */
+    hasUnansweredMention?: boolean;
 };
 
 export type TaskActivitySummary = {
@@ -97631,6 +97635,10 @@ export type GetTasksData = {
          * true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.
          */
         includeSubtasks?: 'true' | 'false';
+        /**
+         * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
+         */
+        unansweredMention?: 'true' | 'false';
         /**
          * Filter tasks by assignee coworker ID
          */
