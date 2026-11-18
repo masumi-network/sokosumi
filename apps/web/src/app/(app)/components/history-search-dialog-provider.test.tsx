@@ -138,6 +138,27 @@ describe("HistorySearchDialogProvider", () => {
     expect(opener).toHaveFocus();
   });
 
+  it("keeps the original opener when the shortcut is pressed while open", async () => {
+    const user = userEvent.setup();
+    render(
+      <HistorySearchDialogProvider activeOrganizationId={null}>
+        <SearchTrigger />
+      </HistorySearchDialogProvider>,
+    );
+    const opener = screen.getByRole("button", { name: "Open search" });
+
+    await user.click(opener);
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+    await user.keyboard("{Control>}k{/Control}");
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.queryByTestId("history-search-dialog"),
+    ).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
   it("ignores non-matching keys", () => {
     render(
       <HistorySearchDialogProvider activeOrganizationId={null}>

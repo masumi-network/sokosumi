@@ -62,14 +62,19 @@ export function HistorySearchDialogProvider({
   // The dialog has no DialogTrigger, so Radix cannot return focus itself.
   const openerRef = useRef<HTMLElement | null>(null);
 
-  const openHistorySearch = useCallback((opener?: HTMLElement | null) => {
-    openerRef.current =
-      opener ??
-      (document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null);
-    setOpen(true);
-  }, []);
+  const openHistorySearch = useCallback(
+    (opener?: HTMLElement | null) => {
+      // Already open (⌘K again): keep the original opener, not a dialog control.
+      if (open) return;
+      openerRef.current =
+        opener ??
+        (document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null);
+      setOpen(true);
+    },
+    [open],
+  );
 
   const restoreOpenerFocus = useCallback((event: Event) => {
     const opener = openerRef.current;

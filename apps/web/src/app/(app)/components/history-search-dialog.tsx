@@ -410,13 +410,16 @@ function SearchNote({ children }: { children: string }) {
 
 /** `CommandList`'s usual `max-h-[300px]`. */
 const LIST_MAX_HEIGHT_PX = 300;
-/** Two result rows, so a short visible area still scrolls. */
-const LIST_MIN_HEIGHT_PX = 88;
 const LIST_KEYBOARD_GAP_PX = 8;
+/** Tailwind `max-sm`, where the dialog is pinned to the top. */
+const PHONE_LAYOUT_QUERY = "(width < 40rem)";
 
 /**
- * Caps the results list at the bottom of the visual viewport, which the
- * on-screen keyboard shrinks, so every row stays reachable by scrolling.
+ * Phone layout only: caps the results list at the bottom of the visual
+ * viewport, which the on-screen keyboard shrinks, so every row stays
+ * reachable by scrolling. No floor: a floor would push the list's end back
+ * under the keyboard. The centered tablet and desktop dialog keeps its
+ * 300px cap, since its list top moves with result count.
  */
 function useListFitsVisibleViewport(open: boolean) {
   // State, not a ref: the dialog portal mounts the list after the first effect.
@@ -429,12 +432,14 @@ function useListFitsVisibleViewport(open: boolean) {
 
     function fit() {
       if (!list || !viewport) return;
+      if (!window.matchMedia(PHONE_LAYOUT_QUERY).matches) {
+        setListMaxHeight(undefined);
+        return;
+      }
       const visibleBottom = viewport.offsetTop + viewport.height;
       const room =
         visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
-      setListMaxHeight(
-        Math.min(LIST_MAX_HEIGHT_PX, Math.max(LIST_MIN_HEIGHT_PX, room)),
-      );
+      setListMaxHeight(Math.min(LIST_MAX_HEIGHT_PX, Math.max(0, room)));
     }
 
     fit();

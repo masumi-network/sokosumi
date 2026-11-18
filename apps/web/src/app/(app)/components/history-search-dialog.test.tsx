@@ -130,17 +130,31 @@ describe("HistorySearchDialog", () => {
     vi.useRealTimers();
   });
 
-  it("keeps results scrollable above the on-screen keyboard", async () => {
+  describe("results height under the on-screen keyboard", () => {
+    let phone = true;
     const viewport = Object.assign(new EventTarget(), {
       height: 300,
       offsetTop: 0,
     });
-    vi.stubGlobal("visualViewport", viewport);
-    const rect = vi
-      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockReturnValue({ top: 80 } as DOMRect);
 
-    try {
+    beforeEach(() => {
+      phone = true;
+      viewport.height = 300;
+      vi.stubGlobal("visualViewport", viewport);
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: query === "(width < 40rem)" && phone,
+      }));
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+        top: 80,
+      } as DOMRect);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    function renderList() {
       renderWithQuery(
         <HistorySearchDialog
           open
@@ -149,23 +163,46 @@ describe("HistorySearchDialog", () => {
           labels={labels}
         />,
       );
-
       const dialog = screen.getByRole("dialog");
       expect(dialog.className).toMatch(/max-sm:top-/);
-      const list = dialog.querySelector<HTMLElement>("[cmdk-list]");
+      return dialog.querySelector<HTMLElement>("[cmdk-list]");
+    }
+
+    function resizeTo(height: number) {
+      viewport.height = height;
+      act(() => {
+        viewport.dispatchEvent(new Event("resize"));
+      });
+    }
+
+    it("ends the list above the keyboard on phones", () => {
+      const list = renderList();
       // 300px visible, list starts at 80px, 8px gap above the keyboard.
       expect(list?.style.maxHeight).toBe("212px");
 
       // Keyboard closes: back to the usual 300px cap.
-      viewport.height = 812;
-      act(() => {
-        viewport.dispatchEvent(new Event("resize"));
-      });
+      resizeTo(812);
       expect(list?.style.maxHeight).toBe("300px");
-    } finally {
-      rect.mockRestore();
-      vi.unstubAllGlobals();
-    }
+    });
+
+    it("never grows past the visible space, however little is left", () => {
+      viewport.height = 145;
+      const list = renderList();
+
+      expect(list?.style.maxHeight).toBe("57px");
+    });
+
+    it("leaves the list alone outside the phone layout", () => {
+      phone = false;
+      const list = renderList();
+
+      expect(list?.style.maxHeight).toBe("");
+
+      // Narrowing to the phone layout starts tracking the keyboard.
+      phone = true;
+      resizeTo(300);
+      expect(list?.style.maxHeight).toBe("212px");
+    });
   });
 
   it("requests owned scope for organization users", async () => {
