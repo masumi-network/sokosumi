@@ -175,6 +175,7 @@ export function TasksViewFilters({
 
     if (activeOrganizationId !== null) {
       // Needs me reads the reader's own Tasks, so a scope has no effect.
+      // Mentions reads the whole workspace, so it has none there either.
       if (!filters.needsMe && !filters.mentions) {
         nextSections.push({
           id: "scope",
@@ -323,7 +324,8 @@ export function TasksViewFilters({
     filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId;
   const chips = [
     // Needs me reads the reader's own Tasks whatever the scope says, so the
-    // scope chip would name a scope that is not the one shown.
+    // scope chip would name a scope that is not the one shown. Mentions
+    // reads the whole workspace, with the same result.
     !filters.needsMe &&
       !filters.mentions &&
       filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
@@ -440,8 +442,9 @@ export function TasksViewFilters({
           onClick={() => handleFilterChange({ mentions: !filters.mentions })}
         >
           <AtSign aria-hidden />
-          {/* Icon only on a phone, so the toolbar stays one row. */}
-          <span className="max-sm:sr-only">{t("mentions")}</span>
+          {/* Icon only below lg, so the toolbar stays one row beside an
+              open sidebar. */}
+          <span className="max-lg:sr-only">{t("mentions")}</span>
         </Button>
       ) : null}
       {display}
