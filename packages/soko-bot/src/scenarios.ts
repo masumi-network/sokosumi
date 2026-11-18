@@ -904,10 +904,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Make me a short TikTok for the Sokosumi Marketing project about Soko Bots triaging your inbox, with a presenter talking to camera. You can spend up to 250 credits.",
     rubric:
-      'The bot started exactly one generate_talking_video for the Sokosumi Marketing Project with maxCredits of at most 250. Its script opens with a hook sentence, makes one point about inbox triage and ends with a next step, in the brand\'s own voice, and is 150 to 600 characters. It speaks for the product, never as a customer: "I bought", "I tried", "as a user" or an invented personal result fails. It chose a stock presenter and a voice that fit. It says the video takes a few minutes and does not claim the video is ready or posted. Asking which project or which presenter instead of acting fails; making an image or a plain generate_video instead fails.',
+      'The bot started exactly one generate_talking_video for the Sokosumi Marketing Project with maxCredits of at most 250. Its script opens with a hook sentence, makes one point about inbox triage and ends with a next step, in the brand\'s own voice, and is 150 to 600 characters. It speaks for the product, never as a customer: "I bought", "I tried", "as a user" or an invented personal result fails. It chose a stock presenter and a voice that fit. It tells the owner the video is being made and does not claim it is ready or posted. In this eval the video is not really made, so a follow-up check that fails is fine when the answer stays honest about it. Asking which project or which presenter instead of acting fails; making an image or a plain generate_video instead fails.',
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
       tools: ["generate_talking_video"],
+      // Eval workspaces do not make the video, so checking on it fails.
+      allowFailedTools: ["wait_for", "get_video", "preview_result"],
       forbiddenTools: [
         "generate_video",
         "generate_image",

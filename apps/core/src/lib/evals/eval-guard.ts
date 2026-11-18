@@ -86,9 +86,9 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   handle_social_comment: () => ({ handled: true }),
   // A real one costs more than a dollar of provider time per run.
   generate_talking_video: () => ({
-    jobId: null,
+    jobId: "eval-simulated-talking-video",
     status: "QUEUED",
-    note: "Started. A talking video takes a few minutes.",
+    note: "Started. A talking video takes a few minutes; it lands in the owner's Files when it is ready.",
   }),
 };
 
