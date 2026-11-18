@@ -549,18 +549,18 @@ test("tasks link resolves both tasks and posts the relation", async () => {
   const output: string[] = [];
   await runTasksCommand({
     client: resolvingClient(calls, {
-      data: { id: "tl-1", relation: "child", peerTask: { id: PEER_UUID } },
+      data: { id: "tl-1", relation: "blocks", peerTask: { id: PEER_UUID } },
     }),
     stdout: { write: (value) => output.push(value) },
     json: true,
     subcommand: "link",
     positionalId: "SOK4-71",
-    options: { to: "SOK4-79", relation: "child", note: "Part of builder" },
+    options: { to: "SOK4-79", relation: "blocks", note: "Part of builder" },
   });
   assert.deepEqual(calls.at(-1), {
     method: "POST",
     path: `/v1/tasks/${TASK_UUID}/links`,
-    body: { toTaskId: PEER_UUID, relation: "child", note: "Part of builder" },
+    body: { toTaskId: PEER_UUID, relation: "blocks", note: "Part of builder" },
   });
   assert.equal(JSON.parse(output.join("")).link.id, "tl-1");
 });
@@ -574,11 +574,29 @@ test("tasks link validates --to and --relation", async () => {
       positionalId: TASK_UUID,
       options,
     });
-  await assert.rejects(() => run({ relation: "parent" }), /--to is required/);
+  await assert.rejects(() => run({ relation: "blocks" }), /--to is required/);
   await assert.rejects(
     () => run({ to: PEER_UUID, relation: "child_of" }),
-    /--relation must be one of: related, blocks, blocked_by, parent, child, duplicate/,
+    /--relation must be one of: related, blocks, blocked_by, duplicate/,
   );
+});
+
+test("tasks link and relink refuse parent and child before any request", async () => {
+  for (const subcommand of ["link", "relink"])
+    for (const relation of ["parent", "Child"]) {
+      const calls: Call[] = [];
+      await assert.rejects(
+        runTasksCommand({
+          client: recordingClient(calls),
+          stdout: { write() {} },
+          subcommand,
+          positionalId: "SOK4-71",
+          options: { to: "SOK4-79", relation },
+        }),
+        /Parent links are now sub-tasks\. Use `tasks move TASK_ID --parent PARENT_ID`/,
+      );
+      assert.deepEqual(calls, []);
+    }
 });
 
 test("tasks update --unassign and --clear-project send nulls", async () => {
@@ -719,7 +737,7 @@ function linksClient(
     if (call.method === "GET") return { data: links };
     if (call.method === "POST" && failPost) throw new Error("Core said no");
     if (call.method === "DELETE") return { data: { deleted: true } };
-    return { data: { id: "tl-new", relation: "child" } };
+    return { data: { id: "tl-new", relation: "blocks" } };
   });
 }
 
@@ -783,7 +801,7 @@ test("tasks relink replaces the link and keeps its note", async () => {
     json: true,
     subcommand: "relink",
     positionalId: TASK_UUID,
-    options: { to: "SOK4-79", relation: "child" },
+    options: { to: "SOK4-79", relation: "blocks" },
   });
   assert.deepEqual(
     calls.filter((call) => call.method !== "GET"),
@@ -792,7 +810,7 @@ test("tasks relink replaces the link and keeps its note", async () => {
       {
         method: "POST",
         path: `/v1/tasks/${TASK_UUID}/links`,
-        body: { toTaskId: PEER_UUID, relation: "child", note: "epic" },
+        body: { toTaskId: PEER_UUID, relation: "blocks", note: "epic" },
       },
     ],
   );
@@ -809,13 +827,13 @@ test("tasks relink names the restore command when the new link fails", async () 
         positionalId: TASK_UUID,
         options: {
           to: PEER_UUID,
-          relation: "child",
+          relation: "blocks",
           preprod: true,
           "organization-slug": "pilot",
         },
       }),
     new RegExp(
-      `Removed the parent link but could not create the child link: Core said no. Restore it with: sokosumi --preprod tasks link ${TASK_UUID} --relation 'parent' --to ${PEER_UUID} --organization-slug pilot --note 'epic'`,
+      `Removed the parent link but could not create the blocks link: Core said no. Restore it with: sokosumi --preprod tasks link ${TASK_UUID} --relation 'parent' --to ${PEER_UUID} --organization-slug pilot --note 'epic'`,
     ),
   );
 });
@@ -831,7 +849,7 @@ test("tasks relink restore command shell-quotes notes and keeps --api-url", asyn
         positionalId: TASK_UUID,
         options: {
           to: PEER_UUID,
-          relation: "child",
+          relation: "blocks",
           "api-url": "https://core.example.test",
         },
       }),
@@ -869,14 +887,19 @@ test("tasks archive resolves the id and archives the task", async () => {
   assert.equal(JSON.parse(output.join("")).task.id, TASK_UUID);
 });
 
-test("tasks create --parent --after posts both as resolved Task ids", async () => {
+test("tasks create --parent --after --due posts the resolved Task ids and dueOn", async () => {
   const calls: Call[] = [];
   await runTasksCommand({
     client: resolvingClient(calls, { data: { id: "new-task" } }),
     stdout: { write() {} },
     json: true,
     subcommand: "create",
-    options: { description: "Step", parent: "SOK4-71", after: "SOK4-79" },
+    options: {
+      description: "Step",
+      parent: "SOK4-71",
+      after: "SOK4-79",
+      due: "2026-12-01",
+    },
   });
   const post = calls.find((call) => call.method === "POST");
   assert.deepEqual(post, {
@@ -884,6 +907,7 @@ test("tasks create --parent --after posts both as resolved Task ids", async () =
     path: "/v1/tasks",
     body: {
       description: "Step",
+      dueOn: "2026-12-01",
       parentTaskId: TASK_UUID,
       afterTaskId: PEER_UUID,
     },
@@ -914,6 +938,70 @@ test("tasks move --first posts a null afterTaskId; it needs exactly one target",
     run({ after: "SOK4-79", first: true }),
     /--after SIBLING_ID or --first/,
   );
+});
+
+test("tasks move --parent posts the resolved parent and keeps the position optional", async () => {
+  const calls: Call[] = [];
+  const run = (options: Record<string, string | boolean>) =>
+    runTasksCommand({
+      client: resolvingClient(calls, { data: { id: TASK_UUID } }),
+      stdout: { write() {} },
+      json: true,
+      subcommand: "move",
+      positionalId: TASK_UUID,
+      options,
+    });
+  await run({ parent: "SOK4-79" });
+  assert.deepEqual(calls.at(-1), {
+    method: "POST",
+    path: `/v1/tasks/${TASK_UUID}/move`,
+    body: { parentTaskId: PEER_UUID },
+  });
+  await run({ parent: "SOK4-79", first: true });
+  assert.deepEqual(calls.at(-1)?.body, {
+    parentTaskId: PEER_UUID,
+    afterTaskId: null,
+  });
+});
+
+test("tasks move --detach posts a null parentTaskId and takes no position", async () => {
+  const calls: Call[] = [];
+  const run = (options: Record<string, string | boolean>) =>
+    runTasksCommand({
+      client: resolvingClient(calls, { data: { id: TASK_UUID } }),
+      stdout: { write() {} },
+      json: true,
+      subcommand: "move",
+      positionalId: TASK_UUID,
+      options,
+    });
+  await run({ detach: true });
+  assert.deepEqual(calls.at(-1), {
+    method: "POST",
+    path: `/v1/tasks/${TASK_UUID}/move`,
+    body: { parentTaskId: null },
+  });
+  const before = calls.length;
+  await assert.rejects(
+    run({ detach: true, after: "SOK4-79" }),
+    /--detach takes no --after or --first/,
+  );
+  assert.equal(calls.length, before);
+});
+
+test("tasks move refuses --parent with --detach before any request", async () => {
+  const calls: Call[] = [];
+  await assert.rejects(
+    runTasksCommand({
+      client: recordingClient(calls),
+      stdout: { write() {} },
+      subcommand: "move",
+      positionalId: "SOK4-71",
+      options: { parent: "SOK4-79", detach: true },
+    }),
+    /Pass either --parent TASK_ID or --detach, not both/,
+  );
+  assert.deepEqual(calls, []);
 });
 
 test("tasks subtasks lists one Task's sub-tasks by its id", async () => {

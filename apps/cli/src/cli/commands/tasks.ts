@@ -14,7 +14,7 @@ import {
   fetchTaskJobs,
   fetchTaskLinks,
   fetchTasks,
-  moveSubtask,
+  moveTask,
   resolveTaskId,
   type TaskFields,
   updateTask,
@@ -40,10 +40,25 @@ const LINK_RELATIONS = [
   "related",
   "blocks",
   "blocked_by",
-  "parent",
-  "child",
   "duplicate",
 ] as const;
+
+/** Core refuses these link writes: a parent is now a sub-task's parent. */
+const SUBTASK_RELATIONS = ["parent", "child"];
+
+/** The link relation from --relation; parent and child point to `tasks move`. */
+function linkRelation(options: CommandOptions | undefined): string | undefined {
+  const raw = optionString(options, "relation")?.trim().toLowerCase();
+  if (raw !== undefined && SUBTASK_RELATIONS.includes(raw))
+    throw new Error(
+      "Parent links are now sub-tasks. Use `tasks move TASK_ID --parent PARENT_ID` to set a parent, or `tasks move TASK_ID --detach` to remove it.",
+    );
+  return validateChoice(
+    option(options, "relation"),
+    LINK_RELATIONS,
+    "--relation",
+  );
+}
 
 const SORTS = ["createdAt", "updatedAt", "priority"];
 
@@ -383,6 +398,7 @@ export async function runTasksCommand({
       client,
       {
         ...fields,
+        dueOn: optionString(options, "due"),
         parentTaskId: parent && (await resolveTaskId(client, parent, signal)),
         afterTaskId: after && (await resolveTaskId(client, after, signal)),
         status: validateChoice(
@@ -508,14 +524,32 @@ export async function runTasksCommand({
     return;
   }
   if (command === "move") {
+    const parent = optionString(options, "parent");
+    const detach = optionBoolean(options, "detach");
     const after = optionString(options, "after");
     const first = optionBoolean(options, "first");
-    if ((after === undefined) === !first)
-      throw new Error("Pass either --after SIBLING_ID or --first");
-    const { task } = await moveSubtask(
+    if (parent !== undefined && detach)
+      throw new Error("Pass either --parent TASK_ID or --detach, not both");
+    if (after !== undefined && first)
+      throw new Error("Pass either --after SIBLING_ID or --first, not both");
+    if (detach && (after !== undefined || first))
+      throw new Error("--detach takes no --after or --first");
+    // Without a new parent, the move only reorders, so it needs a position.
+    if (parent === undefined && !detach && after === undefined && !first)
+      throw new Error(
+        "Pass --parent TASK_ID, --detach, or a position: --after SIBLING_ID or --first",
+      );
+    const { task } = await moveTask(
       client,
       await resolveTaskId(client, ref, signal),
-      after === undefined ? null : await resolveTaskId(client, after, signal),
+      {
+        parentTaskId: detach
+          ? null
+          : parent && (await resolveTaskId(client, parent, signal)),
+        afterTaskId: first
+          ? null
+          : after && (await resolveTaskId(client, after, signal)),
+      },
       signal,
     );
     if (json) writeJson(stdout, { task });
@@ -532,11 +566,7 @@ export async function runTasksCommand({
   if (command === "link") {
     const to = optionString(options, "to");
     if (!to) throw new Error("--to is required for `tasks link`");
-    const relation = validateChoice(
-      option(options, "relation"),
-      LINK_RELATIONS,
-      "--relation",
-    );
+    const relation = linkRelation(options);
     if (!relation)
       throw new Error(
         `--relation must be one of: ${LINK_RELATIONS.join(", ")}`,
@@ -568,11 +598,7 @@ export async function runTasksCommand({
   // unlink and relink act on the one existing link between TASK_ID and --to.
   const to = optionString(options, "to");
   if (!to) throw new Error(`--to is required for \`tasks ${command}\``);
-  const relation = validateChoice(
-    option(options, "relation"),
-    LINK_RELATIONS,
-    "--relation",
-  );
+  const relation = linkRelation(options);
   if (command === "relink" && !relation)
     throw new Error(`--relation must be one of: ${LINK_RELATIONS.join(", ")}`);
   const id = await resolveTaskId(client, ref, signal);

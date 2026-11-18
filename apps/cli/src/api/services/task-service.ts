@@ -39,6 +39,8 @@ interface CreateTaskData extends TaskFields {
   /** Creates a sub-task of this Task, last unless `afterTaskId` is set. */
   parentTaskId?: string;
   afterTaskId?: string;
+  /** The day the Task should be done by, YYYY-MM-DD. */
+  dueOn?: string;
 }
 
 interface CreateTaskLinkData {
@@ -123,18 +125,27 @@ export async function createTask(
   return { response, task: parseTask(response.data) };
 }
 
-/** Puts a sub-task right after `afterTaskId`, or first when it is null. */
-export async function moveSubtask(
+interface MoveTaskData {
+  /** A Task attaches or re-parents; null detaches; omitted keeps the parent. */
+  parentTaskId?: string | null;
+  /** The sibling to go after; null puts it first; omitted keeps the order, or puts it last under a new parent. */
+  afterTaskId?: string | null;
+}
+
+/** Moves a Task in the sub-task tree: reorder, attach, re-parent, or detach. */
+export async function moveTask(
   client: CoreHttpClient,
   taskId: string,
-  afterTaskId: string | null,
+  data: MoveTaskData,
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown>; task: Task }> {
   requireId(taskId, "taskId");
   const response = parseApiResponse(
     await client.post<unknown>(
       `${TASKS_PATH}/${encodeURIComponent(taskId)}/move`,
-      { afterTaskId },
+      Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined),
+      ),
       signal,
     ),
   );
