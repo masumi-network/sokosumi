@@ -11,6 +11,9 @@ export type TableCopyPlan = {
   batches: z.infer<typeof tableBatchSchema>[];
 };
 
+const rowCount = (plan: TableCopyPlan) =>
+  plan.batches.reduce((sum, b) => sum + b.insert.length, 0);
+
 /**
  * Copies rows into a new Files Table. The plan is built on the first press only: a failed copy finishes on the
  * next press with the same Table and the batches not yet saved, under the same keys. `copy` throws when a request
@@ -18,8 +21,14 @@ export type TableCopyPlan = {
  */
 export function useTableCopy() {
   const [pending, setPending] = useState(false);
-  /** A copy failed part way: the next press finishes it, even if nothing is left to plan. */
-  const [unfinished, setUnfinished] = useState(false);
+  /**
+   * A copy failed part way: the next press finishes this one, the rows planned then into the Table titled then,
+   * whatever the page shows now.
+   */
+  const [unfinished, setUnfinished] = useState<{
+    rows: number;
+    title: string;
+  } | null>(null);
   const attempt = useRef<{
     plan: TableCopyPlan;
     tableId?: string;
@@ -41,13 +50,12 @@ export function useTableCopy() {
           current.plan.batches[current.done],
         );
       attempt.current = null;
-      setUnfinished(false);
-      return {
-        id: current.tableId,
-        rows: current.plan.batches.reduce((sum, b) => sum + b.insert.length, 0),
-      };
+      setUnfinished(null);
+      return { id: current.tableId, rows: rowCount(current.plan) };
     } catch (error) {
-      setUnfinished(true);
+      const { plan } = attempt.current ?? {};
+      if (plan)
+        setUnfinished({ rows: rowCount(plan), title: plan.table.title });
       throw error;
     } finally {
       setPending(false);

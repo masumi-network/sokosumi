@@ -2567,7 +2567,7 @@
       "TableCopy": {
         "button": "Copiar a tabla",
         "title": "Copiar tareas a una tabla",
-        "description": "{count, plural, =0 {No hay tareas en el tablero, así que no hay nada que copiar.} one {# tarea del tablero va a una tabla nueva en Archivos. La tabla es una copia: no cambia cuando cambia la tarea.} other {# tareas del tablero van a una tabla nueva en Archivos. La tabla es una copia: no cambia cuando cambian las tareas.}}",
+        "description": "{count, plural, =0 {No se puede copiar ninguna tarea del tablero.} one {# tarea del tablero va a una tabla nueva en Archivos. La tabla es una copia: no cambia cuando cambia la tarea.} other {# tareas del tablero van a una tabla nueva en Archivos. La tabla es una copia: no cambia cuando cambian las tareas.}}",
         "notLoaded": "{count, plural, one {# tarea más coincide con tus filtros pero no está cargada, así que queda fuera. Pulsa Cargar más antes para incluirla.} other {# tareas más coinciden con tus filtros pero no están cargadas, así que quedan fuera. Pulsa Cargar más antes para incluirlas.}}",
         "notLoadedUnknown": "Hay más tareas que coinciden con tus filtros de las que están cargadas, y esas quedan fuera. Pulsa Cargar más antes para incluirlas.",
         "copy": "{count, plural, one {Copiar # tarea} other {Copiar # tareas}}",
@@ -2576,7 +2576,7 @@
         "tableDescription": "Copiado de Tareas el {date}. Una instantánea: no cambia cuando cambian las tareas.",
         "copied": "{count, plural, one {# tarea copiada a una tabla nueva.} other {# tareas copiadas a una tabla nueva.}}",
         "openTable": "Abrir tabla",
-        "failed": "La tabla aún no está completa. Pulsa Copiar otra vez para terminarla.",
+        "failed": "La tabla aún no está completa. Abre Copiar a tabla otra vez para terminarla.",
         "columns": {
           "name": "Tarea",
           "status": "Estado",
@@ -2585,7 +2585,10 @@
           "due": "Vence",
           "tags": "Etiquetas",
           "link": "Enlace"
-        }
+        },
+        "private": "{count, plural, one {# tarea privada queda fuera, porque solo tú puedes verla.} other {# tareas privadas quedan fuera, porque solo tú puedes verlas.}}",
+        "resume": "{count, plural, one {La última copia no terminó. Copia la # tarea que confirmaste entonces en «{title}» en Archivos, no las tareas que hay ahora en el tablero.} other {La última copia no terminó. Copia las # tareas que confirmaste entonces en «{title}» en Archivos, no las tareas que hay ahora en el tablero.}}",
+        "finish": "Terminar copia"
       }
     },
     "Projects": {

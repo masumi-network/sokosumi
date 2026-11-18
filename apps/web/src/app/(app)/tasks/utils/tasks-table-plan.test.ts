@@ -95,6 +95,23 @@ describe("tasksTablePlan", () => {
     expect(batches.flatMap((b) => b.insert)).toHaveLength(1);
   });
 
+  it("leaves out private Tasks: teammates who can open the table cannot open them", () => {
+    const shared = (tasks: TaskWithCoworker[]) =>
+      tasksTablePlan(
+        tasks,
+        { labels, source, origin: "https://app.example.com" },
+        "copy-p",
+      ).batches.flatMap((b) => b.insert);
+    const secret = task({
+      id: "secret",
+      name: "Salary review",
+      visibility: "PRIVATE",
+    });
+    expect(shared([task({}), secret])).toHaveLength(1);
+    expect(JSON.stringify(shared([task({}), secret]))).not.toContain("Salary");
+    expect(shared([secret])).toHaveLength(0);
+  });
+
   it("splits more than 100 Tasks into batches under one key", () => {
     const many = Array.from({ length: 150 }, (_, i) =>
       task({ id: `id-${i}`, name: `Task ${i}` }),

@@ -31,11 +31,11 @@ const tasks = Array.from(
     }) as TaskWithCoworker,
 );
 
-function show(props: {
+function view(props: {
   notLoaded: number | "unknown" | 0;
   shown?: TaskWithCoworker[];
 }) {
-  render(
+  return (
     <NextIntlClientProvider
       locale="en"
       messages={messages}
@@ -48,9 +48,17 @@ function show(props: {
         projectId={null}
         statusLabels={{ READY: "To do" } as never}
       />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
 }
+
+function show(props: Parameters<typeof view>[0]) {
+  const { rerender } = render(view(props));
+  return (next: Parameters<typeof view>[0]) => rerender(view(next));
+}
+
+const openDialog = () =>
+  userEvent.click(screen.getByRole("button", { name: "Copy to table" }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -68,9 +76,9 @@ describe("TasksTableCopy", () => {
     expect(
       screen.getByText(/3 Tasks on the board go into a new table in Files/),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/4 more Tasks match your filters but aren't loaded/),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription(
+      /3 Tasks on the board go into a new table.*4 more Tasks match your filters but aren't loaded/,
+    );
     expect(m.create).not.toHaveBeenCalled();
   });
 
@@ -79,9 +87,9 @@ describe("TasksTableCopy", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Copy to table" }),
     );
-    expect(
-      screen.getByText(/More Tasks match your filters than are loaded/),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription(
+      /3 Tasks on the board go into a new table.*More Tasks match your filters than are loaded/,
+    );
   });
 
   it("copies the Tasks into a new Table and offers to open it", async () => {
@@ -113,7 +121,7 @@ describe("TasksTableCopy", () => {
     await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
     await waitFor(() => expect(m.error).toHaveBeenCalled());
 
-    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await userEvent.click(screen.getByRole("button", { name: "Finish copy" }));
     await waitFor(() => expect(m.success).toHaveBeenCalled());
     expect(m.create).toHaveBeenCalledTimes(1);
     expect(m.batch.mock.calls[1][1].key).toBe(m.batch.mock.calls[0][1].key);
@@ -124,6 +132,55 @@ describe("TasksTableCopy", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Copy to table" }),
     );
+    expect(screen.getByRole("button", { name: "Copy 0 Tasks" })).toBeDisabled();
+  });
+  it("leaves private Tasks out of the shared table and says so", async () => {
+    show({
+      notLoaded: 0,
+      shown: [...tasks, { ...tasks[0], id: "p1", visibility: "PRIVATE" }],
+    });
+    await openDialog();
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription(
+      /3 Tasks on the board go into a new table.*1 private Task stays out/,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await waitFor(() => expect(m.success).toHaveBeenCalled());
+    expect(m.batch.mock.calls[0][1].insert).toHaveLength(3);
+  });
+
+  it("copies nothing when every Task on the board is private", async () => {
+    show({
+      notLoaded: 0,
+      shown: [{ ...tasks[0], visibility: "PRIVATE" }],
+    });
+    await openDialog();
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription(
+      /1 private Task stays out/,
+    );
+    expect(screen.getByRole("button", { name: "Copy 0 Tasks" })).toBeDisabled();
+  });
+
+  it("after a failure, offers to finish the saved copy even when the board has changed", async () => {
+    m.batch.mockRejectedValueOnce(new Error("offline"));
+    const update = show({ notLoaded: 0 });
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Copy 3 Tasks" }));
+    await waitFor(() => expect(m.error).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // The filters changed: nothing matches now.
+    update({ notLoaded: 0, shown: [] });
+    await openDialog();
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription(
+      /The last copy stopped before it finished\. It copies the 3 Tasks you confirmed then into .Tasks · .*, not the Tasks on the board now\./,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Finish copy" }));
+    await waitFor(() => expect(m.success).toHaveBeenCalled());
+    expect(m.create).toHaveBeenCalledTimes(1);
+    expect(m.batch.mock.calls[1][1].insert).toHaveLength(3);
+
+    // Done: the next copy is a new one, of the board as it is.
+    await openDialog();
     expect(screen.getByRole("button", { name: "Copy 0 Tasks" })).toBeDisabled();
   });
 });

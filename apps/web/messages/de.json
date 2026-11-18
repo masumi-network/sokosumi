@@ -2567,7 +2567,7 @@
       "TableCopy": {
         "button": "In Tabelle kopieren",
         "title": "Tasks in eine Tabelle kopieren",
-        "description": "{count, plural, =0 {Auf dem Board sind keine Tasks, es gibt nichts zu kopieren.} one {# Task vom Board kommt in eine neue Tabelle in Dateien. Die Tabelle ist eine Kopie: Sie ändert sich nicht, wenn sich der Task ändert.} other {# Tasks vom Board kommen in eine neue Tabelle in Dateien. Die Tabelle ist eine Kopie: Sie ändert sich nicht, wenn sich die Tasks ändern.}}",
+        "description": "{count, plural, =0 {Keine Tasks auf dem Board können kopiert werden.} one {# Task vom Board kommt in eine neue Tabelle in Dateien. Die Tabelle ist eine Kopie: Sie ändert sich nicht, wenn sich der Task ändert.} other {# Tasks vom Board kommen in eine neue Tabelle in Dateien. Die Tabelle ist eine Kopie: Sie ändert sich nicht, wenn sich die Tasks ändern.}}",
         "notLoaded": "{count, plural, one {# weiterer Task passt zu deinen Filtern, ist aber nicht geladen und bleibt außen vor. Drücke zuerst Mehr laden, um ihn aufzunehmen.} other {# weitere Tasks passen zu deinen Filtern, sind aber nicht geladen und bleiben außen vor. Drücke zuerst Mehr laden, um sie aufzunehmen.}}",
         "notLoadedUnknown": "Mehr Tasks passen zu deinen Filtern, als geladen sind, und diese bleiben außen vor. Drücke zuerst Mehr laden, um sie aufzunehmen.",
         "copy": "{count, plural, one {# Task kopieren} other {# Tasks kopieren}}",
@@ -2576,7 +2576,7 @@
         "tableDescription": "Am {date} aus Tasks kopiert. Eine Momentaufnahme: Sie ändert sich nicht, wenn sich die Tasks ändern.",
         "copied": "{count, plural, one {# Task in eine neue Tabelle kopiert.} other {# Tasks in eine neue Tabelle kopiert.}}",
         "openTable": "Tabelle öffnen",
-        "failed": "Die Tabelle ist noch nicht vollständig. Drücke noch einmal Kopieren, um sie fertigzustellen.",
+        "failed": "Die Tabelle ist noch nicht vollständig. Öffne In Tabelle kopieren noch einmal, um sie fertigzustellen.",
         "columns": {
           "name": "Task",
           "status": "Status",
@@ -2585,7 +2585,10 @@
           "due": "Fällig",
           "tags": "Tags",
           "link": "Link"
-        }
+        },
+        "private": "{count, plural, one {# privater Task bleibt außen vor, weil nur du ihn sehen kannst.} other {# private Tasks bleiben außen vor, weil nur du sie sehen kannst.}}",
+        "resume": "{count, plural, one {Das letzte Kopieren wurde nicht fertig. Es kopiert den # Task, den du damals bestätigt hast, in „{title}“ in Dateien, nicht die Tasks, die jetzt auf dem Board sind.} other {Das letzte Kopieren wurde nicht fertig. Es kopiert die # Tasks, die du damals bestätigt hast, in „{title}“ in Dateien, nicht die Tasks, die jetzt auf dem Board sind.}}",
+        "finish": "Kopieren abschließen"
       }
     },
     "Projects": {

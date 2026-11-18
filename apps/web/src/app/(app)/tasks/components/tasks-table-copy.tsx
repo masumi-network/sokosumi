@@ -8,7 +8,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useTableCopy } from "@/app/drive/tables/use-table-copy";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { tasksTablePlan } from "@/app/tasks/utils/tasks-table-plan";
+import {
+  sharedTasks,
+  tasksTablePlan,
+} from "@/app/tasks/utils/tasks-table-plan";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +30,8 @@ const STAY = { duration: Infinity, closeButton: true };
 
 /**
  * Copies the Tasks the board shows into a new Files Table, a snapshot that does not follow the Tasks. Before it
- * copies, it says how many Tasks go in and that Tasks matching the filters but not loaded stay out.
+ * copies, it says how many Tasks go in and which stay out: private ones, and ones matching the filters but not
+ * loaded. After a failure it offers only to finish that copy, the Tasks confirmed then, until it is done.
  */
 export function TasksTableCopy({
   tasks,
@@ -46,9 +50,26 @@ export function TasksTableCopy({
   const t = useTranslations("App.Tasks.TableCopy");
   const format = useFormatter();
   const router = useRouter();
-  const { pending, copy } = useTableCopy();
+  const { pending, unfinished, copy } = useTableCopy();
   const [open, setOpen] = useState(false);
-  const count = tasks.filter((task) => !task.isPending).length;
+  const count = sharedTasks(tasks).length;
+  const privateCount = tasks.filter(
+    (task) => !task.isPending && task.visibility === "PRIVATE",
+  ).length;
+  // One description, so a screen reader hears every Task that stays out along with the count.
+  const description = unfinished
+    ? t("resume", { count: unfinished.rows, title: unfinished.title })
+    : [
+        t("description", { count }),
+        privateCount ? t("private", { count: privateCount }) : null,
+        notLoaded === "unknown"
+          ? t("notLoadedUnknown")
+          : notLoaded > 0
+            ? t("notLoaded", { count: notLoaded })
+            : null,
+      ]
+        .filter(Boolean)
+        .join(" ");
 
   async function handleCopy() {
     try {
@@ -112,25 +133,14 @@ export function TasksTableCopy({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("title")}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t("description", { count })}
-          </AlertDialogDescription>
-          {notLoaded === "unknown" ? (
-            <p className="text-muted-foreground text-sm">
-              {t("notLoadedUnknown")}
-            </p>
-          ) : notLoaded > 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {t("notLoaded", { count: notLoaded })}
-            </p>
-          ) : null}
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>
             {t("cancel")}
           </AlertDialogCancel>
           <AlertDialogAction
-            disabled={!count}
+            disabled={!unfinished && !count}
             loading={pending}
             onClick={(event) => {
               // Stays open until the copy is done, so a failure can be retried here.
@@ -138,7 +148,7 @@ export function TasksTableCopy({
               void handleCopy();
             }}
           >
-            {t("copy", { count })}
+            {unfinished ? t("finish") : t("copy", { count })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

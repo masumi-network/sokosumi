@@ -16,9 +16,19 @@ type Column =
 const MAX_OPTIONS = 100;
 
 /**
+ * The Tasks a workspace Table may hold. Everyone in the workspace can read its Tables, but only the owner can read
+ * a private Task, so private Tasks stay out. A Task still being created has no page to link and stays out too.
+ */
+export function sharedTasks(tasks: TaskWithCoworker[]) {
+  return tasks.filter(
+    (task) => !task.isPending && task.visibility !== "PRIVATE",
+  );
+}
+
+/**
  * The Tasks on the board as a new Files Table: the create request and every row in batches of at most 100, keyed
  * by `key`, so a retry with the same plan creates and inserts nothing twice. A snapshot: the Table does not follow
- * the Tasks. A Task still being created has no page to link and stays out. An empty cell stays empty.
+ * the Tasks. Only {@link sharedTasks} go in. An empty cell stays empty.
  */
 export function tasksTablePlan(
   tasks: TaskWithCoworker[],
@@ -37,7 +47,7 @@ export function tasksTablePlan(
   },
   key: string,
 ) {
-  const copied = tasks.filter((task) => !task.isPending);
+  const copied = sharedTasks(tasks);
   const status = (task: TaskWithCoworker) =>
     labels.statuses[task.status] ?? task.status;
   const tags = (task: TaskWithCoworker) =>
