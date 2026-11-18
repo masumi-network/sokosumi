@@ -56,9 +56,9 @@ describe("checkTalkingVideoRequest", () => {
     const { credits, model } = await request();
 
     expect(model.id).toBe("avatar-6-turbo");
-    // 112 characters is about 9 s: $1.629 of video, plus the voice and
+    // 112 characters is about 9 s: 45 cents of video, plus the voice and
     // timing its words.
-    expect(credits).toBe(164);
+    expect(credits).toBe(47);
   });
 
   it("refuses an unknown presenter and passes the owner's photo on", async () => {
@@ -80,10 +80,10 @@ describe("checkTalkingVideoRequest", () => {
   });
 
   it("refuses a price above maxCredits", async () => {
-    await expect(request({ maxCredits: 100 })).rejects.toThrow(
-      "more than the 100 allowed",
+    await expect(request({ maxCredits: 20 })).rejects.toThrow(
+      "more than the 20 allowed",
     );
-    await expect(request({ maxCredits: 150 })).rejects.toThrow(
+    await expect(request({ maxCredits: 40 })).rejects.toThrow(
       /A script of at most \d+ characters fits/,
     );
   });

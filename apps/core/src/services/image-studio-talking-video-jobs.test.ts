@@ -212,8 +212,8 @@ describe("starting a talking video", () => {
           words: [],
           hookLine: null,
         },
-        // 10 s at $0.181, plus the voice and timing its words.
-        chargedCents: convertCreditsToCents(183),
+        // 10 s at $0.05, plus the voice and timing its words.
+        chargedCents: convertCreditsToCents(52),
       }),
     });
     expect(speakVoiceoverMock).toHaveBeenCalledWith({

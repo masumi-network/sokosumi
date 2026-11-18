@@ -4,10 +4,11 @@
  * Shared for the same reason as `creditsPerVideoCents`: the studio's estimate,
  * the quote written at submit and the debit taken on delivery must be one number.
  *
- * A talking video is billed by the second, and its length is the length of the
- * spoken script, which is known only once the voice exists. The quote therefore
- * comes from the script alone, at a pace slower than the voices speak, so the
- * person is never charged more than they were shown.
+ * A talking video is billed by the started second, and its length is the
+ * length of the spoken script, which is known only once the voice exists. The
+ * quote therefore comes from the script alone, in whole seconds at a pace
+ * slower than the voices speak, so the person is never charged more than they
+ * were shown.
  *
  * 1 credit = 1 cent, and there is no markup on fal's list prices.
  */
@@ -39,10 +40,8 @@ export function talkingVideoQuotedSeconds(script: string): number {
 }
 
 export interface TalkingVideoPriceFigures {
-  /** USD per second of video, from what fal billed for the resolution sent. */
+  /** USD per started second of video, as fal bills the resolution sent. */
   perSecondUsd: number;
-  /** The least one video costs, however short. */
-  minimumVideoUsd: number;
   /** USD per 1,000 characters of script, for the voice. */
   voicePer1000CharactersUsd: number;
   /** USD per minute of video, for the captions. */
@@ -56,7 +55,7 @@ export function creditsPerTalkingVideoCents(
 ): number {
   const seconds = talkingVideoQuotedSeconds(script);
   const usd =
-    Math.max(seconds * price.perSecondUsd, price.minimumVideoUsd) +
+    seconds * price.perSecondUsd +
     (script.length / 1000) * price.voicePer1000CharactersUsd +
     (seconds / 60) * price.captionsPerMinuteUsd;
   return Math.ceil(usd * 100);
