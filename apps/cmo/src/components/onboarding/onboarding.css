@@ -141,16 +141,6 @@ body:has(.ob) .site-header {
   box-shadow: var(--shadow-hard);
 }
 
-.who .ob-who {
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.who .ob-who-menu {
-  top: auto;
-  bottom: 100%;
-}
-
 .ob-who-item {
   display: flex;
   align-items: center;
