@@ -188,7 +188,7 @@ export function QuestionCard({
   };
 
   return (
-    <section className="ob-question card card-focus" aria-label="Quick read">
+    <section className="ob-question card" aria-label="Quick read">
       <div className="ob-question-head">
         <span className="ob-question-title">Quick read</span>
         <span className="ob-question-count num">

@@ -10,6 +10,7 @@ import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
+import type { View } from "../../lib/views";
 import {
   type AdActions,
   AdsPanel,
@@ -17,6 +18,7 @@ import {
   ConnectAdsButton,
 } from "../ads";
 import { ChannelIcon } from "../channel-icon";
+import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
@@ -50,7 +52,9 @@ export function ResultsPage({
   connectMeasurement,
   ads,
   onChange,
+  openView,
 }: PageProps & {
+  openView: (view: View) => void;
   openUpdate: (id: string) => void;
   connectMeasurement: ConnectMeasurement;
   ads: Pick<AdActions, "loadAdCampaigns" | "setAdCampaignStatus">;
@@ -69,10 +73,7 @@ export function ResultsPage({
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
-  // A source the plan reads that is not connected is waiting on the owner.
-  const measurementNeeded = overview.measurement.some(
-    (source) => source.status !== "connected",
-  );
+  const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
       <div className="grid4">
@@ -81,7 +82,7 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
-      <section className={measurementNeeded ? "card card-focus" : "card"}>
+      <section className="card">
         <h3>Your numbers</h3>
         <p className="muted">
           {AGENT_NAME} reads real visits, searches and orders from these. Where
@@ -92,7 +93,12 @@ export function ResultsPage({
           onConnect={connectMeasurement}
         />
       </section>
-      <AdsPanel overview={overview} actions={ads} onChange={onChange} />
+      <AdsPanel
+        overview={overview}
+        actions={ads}
+        onChange={onChange}
+        openView={openView}
+      />
       <section className="card">
         <h3>Reach and clicks</h3>
         <p className="muted">
@@ -105,14 +111,20 @@ export function ResultsPage({
         <h3>Weekly reports</h3>
         {weekly.length === 0 ? (
           <p className="muted">
-            The first weekly report arrives on Monday after the strategy is
-            approved.
+            {review ? (
+              <>
+                The first weekly report arrives on{" "}
+                <LocalDay at={review.at} serverZone={review.zone} />.
+              </>
+            ) : (
+              "The first weekly report arrives in the week after you approve the strategy."
+            )}
           </p>
         ) : (
           <ul className="list">
             {weekly.map((update) => (
               <li key={update.id} className="li">
-                <span className="tag">
+                <span className="note num">
                   {new Date(update.at).toLocaleDateString("en-GB", {
                     day: "numeric",
                     month: "short",
@@ -132,6 +144,34 @@ export function ResultsPage({
         )}
       </section>
     </div>
+  );
+}
+
+/** When the next weekly review runs, once the strategy is approved. */
+function nextWeeklyReview(
+  overview: CmoOverview,
+): { at: Date | string; zone: string | null } | null {
+  const review = overview.routines.find(
+    (routine) => routine.key === "cmo-weekly-review",
+  );
+  return review?.nextRunAt && strategyApproved(overview)
+    ? { at: review.nextRunAt, zone: review.timezone }
+    : null;
+}
+
+/** The line under the Results title: how often, and the real next day. */
+export function ResultsLead({ overview }: { overview: CmoOverview }) {
+  const review = nextWeeklyReview(overview);
+  return (
+    <>
+      Real numbers from your accounts, checked every week.
+      {review ? (
+        <>
+          {" "}
+          Next check: <LocalDay at={review.at} serverZone={review.zone} />.
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -230,10 +270,6 @@ export function ChannelsPage({
     });
   }
 
-  // No connected network means Cuso cannot publish: the owner's move.
-  const noNetwork = !overview.channels.some(
-    (channel) => channel.status.toUpperCase() === "ACTIVE",
-  );
   return (
     <div className="page-body">
       {error ? (
@@ -241,7 +277,7 @@ export function ChannelsPage({
           {error}
         </p>
       ) : null}
-      <section className={noNetwork ? "card card-focus" : "card"}>
+      <section className="card">
         <h3>Social accounts</h3>
         <ul className="list">
           {SOCIAL_PROVIDERS.map((provider) => {
@@ -348,7 +384,7 @@ interface MailingListProps {
   onChange: (overview: CmoOverview) => void;
 }
 
-/** The addresses Cuso writes the newsletter for; sending is not built yet. */
+/** The addresses Cuso writes the newsletter for; the owner sends each issue. */
 function MailingList({ size, add, onChange }: MailingListProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -357,8 +393,8 @@ function MailingList({ size, add, onChange }: MailingListProps) {
   return (
     <>
       <p className="muted">
-        {AGENT_NAME} writes each issue for the people on your list. Sending is
-        not built yet.
+        {AGENT_NAME} writes each issue for the people on your list. You find it
+        in your Calendar and send it yourself. Sending from here is coming soon.
       </p>
       <div className="li">
         <span className="grow">
@@ -495,8 +531,8 @@ export function SettingsPage({
       <section className="card">
         <h3>What {AGENT_NAME} does when</h3>
         <p className="muted">
-          Every routine works from your strategy and starts once you approve it.
-          Dreaming runs every night from the start.
+          Everything here works from your strategy and starts once you approve
+          it. The nightly learning runs from day one.
         </p>
         <ul className="list">
           {overview.routines.map((routine) => (
