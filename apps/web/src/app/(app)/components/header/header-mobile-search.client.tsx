@@ -10,6 +10,7 @@ import {
   APP_HEADER_SAFE_AREA_PADDING_CLASS,
   APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
 } from "@/app/components/app-shell-safe-area";
+import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import {
   HISTORY_FILTER_PARAM_KEYS,
   HISTORY_SEARCH_MAX_LENGTH,
@@ -50,6 +51,8 @@ export function HeaderMobileSearchControl() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const pathname = usePathname();
+  // Soft read: the Instant Nav shell mounts before HistorySearchDialogProvider.
+  const historySearch = useOptionalHistorySearch();
   const previousPathnameRef = useRef(pathname);
   const navigatedToHistoryRef = useRef(false);
   /** Dismissed before `router.push(/history)` committed — bounce on arrival. */
@@ -133,6 +136,12 @@ export function HeaderMobileSearchControl() {
   }, [debouncedReplaceHistoryQuery]);
 
   function openSearch() {
+    // Same search as the sidebar and ⌘K (Tasks, tags, files). On Credit
+    // history itself, Search keeps filtering that page in place.
+    if (historySearch && !isHistoryPath(pathname)) {
+      historySearch.openHistorySearch();
+      return;
+    }
     setExpanded(true);
     abortPendingHistoryNavigationRef.current = false;
     if (!isHistoryPath(pathname)) {

@@ -130,6 +130,21 @@ describe("HistorySearchDialog", () => {
     vi.useRealTimers();
   });
 
+  it("sits at the top on phones so the on-screen keyboard leaves results visible", () => {
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.className).toMatch(/max-sm:top-/);
+    expect(dialog.className).toMatch(/max-sm:translate-y-0/);
+  });
+
   it("requests owned scope for organization users", async () => {
     renderWithQuery(
       <HistorySearchDialog

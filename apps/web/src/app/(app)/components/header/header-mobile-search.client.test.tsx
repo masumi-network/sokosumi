@@ -9,6 +9,11 @@ const { pushMock, replaceMock, backMock } = vi.hoisted(() => ({
 }));
 
 let mockPathname = "/chat";
+let mockHistorySearch: { openHistorySearch: () => void } | null = null;
+
+vi.mock("@/app/components/history-search-dialog-provider", () => ({
+  useOptionalHistorySearch: () => mockHistorySearch,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -72,6 +77,7 @@ describe("HeaderMobileSearchControl", () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockPathname = "/chat";
+    mockHistorySearch = null;
     window.history.replaceState({}, "", "/chat");
   });
 
@@ -98,6 +104,43 @@ describe("HeaderMobileSearchControl", () => {
     expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/history");
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("opens the shared search dialog on tap instead of Credit history", async () => {
+    const openHistorySearch = vi.fn();
+    mockHistorySearch = { openHistorySearch };
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(openHistorySearch).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("header-mobile-search-expanded"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps filtering Credit history in place on /history", async () => {
+    const openHistorySearch = vi.fn();
+    mockHistorySearch = { openHistorySearch };
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(openHistorySearch).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId("header-mobile-search-expanded"),
+    ).toBeInTheDocument();
   });
 
   it("does not re-push /history when already on the history page", async () => {

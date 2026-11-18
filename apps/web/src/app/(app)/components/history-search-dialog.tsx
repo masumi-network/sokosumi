@@ -137,6 +137,9 @@ export function HistorySearchDialog({
       title={labels.dialogTitle}
       description={labels.dialogDescription}
       commandProps={{ shouldFilter: false }}
+      // Phones: pin under the safe area, not centered, so the on-screen
+      // keyboard does not cover the results.
+      className="max-sm:top-[calc(env(safe-area-inset-top)+1rem)] max-sm:translate-y-0"
     >
       <CommandInput
         placeholder={labels.searchPlaceholder}

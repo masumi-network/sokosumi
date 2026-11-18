@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium, type Locator, type Page } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
@@ -14,9 +14,8 @@ import { createMailbox } from "./mailbox.ts";
 // inbox; everything it does is free.
 //
 // Tablet and desktop open search with the visible sidebar Search button.
-// A phone has no way in by touch: its header Search opens Credit history,
-// which does not search tags. The phone run presses Ctrl+K, so it covers the
-// dialog at phone width for keyboard users only, not phone touch support.
+// The phone taps its header Search, types and taps results, so it covers
+// phone touch entry.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const TASK_DETAILS = "Draw the launch logo for the spring campaign";
@@ -41,15 +40,35 @@ async function noSidewaysScroll(page: Page) {
 }
 
 async function openSearch(page: Page, size: string, query: string) {
-  if (size === "phone") await page.keyboard.press("Control+k");
-  else {
+  if (size === "phone") {
+    await page.getByTestId("header-mobile-search-trigger").tap();
+  } else {
     const showSidebar = page.getByRole("button", { name: "Show sidebar" });
     if (await showSidebar.isVisible()) await showSidebar.click();
     await page.getByRole("button", { name: "Search", exact: true }).click();
   }
   const dialog = page.getByRole("dialog", { name: "Search" });
-  await dialog.getByRole("combobox").fill(query);
+  const input = dialog.getByRole("combobox");
+  if (size === "phone") {
+    // Opening by tap must focus the input so the on-screen keyboard shows.
+    await assertFocused(input);
+    await page.keyboard.type(query);
+  } else await input.fill(query);
   return dialog;
+}
+
+async function assertFocused(locator: Locator) {
+  await locator.waitFor();
+  assert.ok(
+    await locator.evaluate((el) => el === document.activeElement),
+    "search input is not focused after opening",
+  );
+}
+
+// Phone results are tapped, the rest clicked.
+async function press(locator: Locator, size: string) {
+  if (size === "phone") await locator.tap();
+  else await locator.click();
 }
 
 let browser: Browser;
@@ -135,7 +154,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await noSidewaysScroll(page);
       await shot(page, size, "1-search");
 
-      await tag.click();
+      await press(tag, size);
       await page.waitForURL(/\/tasks\?tag=/);
       await page.getByText("Tags: Design").first().waitFor();
       await page.getByRole("link", { name: taskName }).first().waitFor();
@@ -143,7 +162,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       search = await openSearch(page, size, "desi");
       tagged = search.getByRole("group", { name: "Tasks tagged Design" });
-      await tagged.getByRole("option", taskOption).click();
+      await press(tagged.getByRole("option", taskOption), size);
       await page.waitForURL(taskUrl);
       await page.getByRole("heading", { level: 1, name: taskName }).waitFor();
       await page.getByText(TASK_DETAILS).waitFor();
