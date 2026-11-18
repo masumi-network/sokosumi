@@ -33,8 +33,10 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { DisclosureContent, DisclosureTrigger } from "@/components/disclosure";
 import LiveBotAvatar from "@/components/soko-bot/live-bot-avatar.client";
 import { Button } from "@/components/ui/button";
+import { Collapsible } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -170,9 +172,12 @@ function withAnimal(look: AvatarLook, animal: AvatarAnimal): AvatarLook {
 export function AvatarStudio({
   initialCode,
   onChange,
+  compact = false,
 }: {
   initialCode: string | null;
   onChange: (code: string) => void;
+  /** Setup: the preview, Shuffle and animals first, the rest under "More details", no preview states. */
+  compact?: boolean;
 }) {
   const t = useTranslations("App.SokoBot.AvatarStudio");
   const [look, setLook] = useState<AvatarLook>(
@@ -194,12 +199,88 @@ export function AvatarStudio({
     [look],
   );
 
+  const details = (
+    <>
+      <Swatches
+        label={t("background")}
+        options={AVATAR_BACKGROUNDS}
+        value={look.bg}
+        onChange={(bg) => set({ bg: bg as AvatarLook["bg"] })}
+        isDisabled={(c) => !isReadable(c, look.body, look.mark)}
+      />
+      <Swatches
+        label={t("body")}
+        options={AVATAR_COLOURS}
+        value={look.body}
+        onChange={(body) => set({ body })}
+        isDisabled={(c) => !isReadable(look.bg, c, look.mark)}
+      />
+      <Swatches
+        label={t("mark")}
+        options={AVATAR_COLOURS}
+        value={look.mark}
+        onChange={(mark) => set({ mark })}
+        isDisabled={(c) => !isReadable(look.bg, look.body, c)}
+      />
+      <Options
+        label={t("corner")}
+        options={AVATAR_CORNERS}
+        value={look.corner}
+        onChange={(corner) => set({ corner })}
+        labelOf={(c) => t(c === "l" ? "cornerLeft" : "cornerRight")}
+      />
+      <Options
+        label={t("size")}
+        options={Object.keys(AVATAR_SIZES) as (keyof typeof AVATAR_SIZES)[]}
+        value={look.size}
+        onChange={(size) => set({ size })}
+        labelOf={(s) => t(`sizes.${s}`)}
+      />
+      <Options
+        label={t("eyes")}
+        options={AVATAR_EYES}
+        value={look.eyes}
+        onChange={(eyes) => set({ eyes })}
+        labelOf={(o) => t(`eyesOptions.${o}`)}
+      />
+      <Options
+        label={t("mouth")}
+        options={AVATAR_MOUTHS}
+        value={look.mouth}
+        onChange={(mouth) => set({ mouth })}
+        labelOf={(o) => t(`mouths.${o}`)}
+        isDisabled={(o) => !(features.mouth as readonly string[]).includes(o)}
+      />
+      <Options
+        label={t("cheeks")}
+        options={AVATAR_CHEEKS}
+        value={look.cheeks}
+        onChange={(cheeks) => set({ cheeks })}
+        labelOf={(o) => t(`cheekOptions.${o}`)}
+        isDisabled={(o) => !(features.cheeks as readonly string[]).includes(o)}
+      />
+      <Options
+        label={t("hat")}
+        options={AVATAR_HATS}
+        value={look.hat}
+        onChange={(hat) => set({ hat })}
+        labelOf={(o) => t(`hats.${o}`)}
+      />
+    </>
+  );
+
   return (
     // Laid out by its own width: setup draws it in a narrow frame on wide screens, the
     // Change-look dialog wide. Viewport breakpoints squeezed setup's animals to 8 px.
     <div className="@container min-w-0">
       <div className="grid min-w-0 gap-6 @2xl:grid-cols-[14rem_minmax(0,1fr)] @2xl:gap-8">
-        <div className="flex flex-col items-center gap-4 @2xl:sticky @2xl:top-0 @2xl:self-start">
+        <div
+          className={cn(
+            "flex items-center gap-4 @2xl:sticky @2xl:top-0 @2xl:self-start",
+            // Setup: Shuffle beside the preview, so the animals come up sooner.
+            compact ? "justify-between" : "flex-col",
+          )}
+        >
           <LiveBotAvatar
             code={code}
             state={state}
@@ -208,26 +289,29 @@ export function AvatarStudio({
             alt={t("previewAlt")}
             className="ring-border size-40 ring-1 @2xl:size-56"
           />
-          <ToggleGroup
-            type="single"
-            value={state}
-            aria-label={t("stateLabel")}
-            onValueChange={(next) => next && setState(next as AvatarState)}
-            className="flex-wrap justify-center"
-          >
-            {[...AVATAR_STATES].reverse().map((s) => (
-              <ToggleGroupItem
-                key={s}
-                value={s}
-                className="h-7 flex-none px-2 text-xs"
-              >
-                {t(`states.${s}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          {/* Preview states test a look; a first-time visitor read "Error" as a fault. */}
+          {compact ? null : (
+            <ToggleGroup
+              type="single"
+              value={state}
+              aria-label={t("stateLabel")}
+              onValueChange={(next) => next && setState(next as AvatarState)}
+              className="flex-wrap justify-center"
+            >
+              {[...AVATAR_STATES].reverse().map((s) => (
+                <ToggleGroupItem
+                  key={s}
+                  value={s}
+                  className="h-7 flex-none px-2 text-xs"
+                >
+                  {t(`states.${s}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
           <Button
             type="button"
-            variant="ghost"
+            variant={compact ? "default" : "ghost"}
             onClick={() => setLook(randomAvatarLook())}
           >
             <Shuffle aria-hidden />
@@ -256,75 +340,28 @@ export function AvatarStudio({
               ))}
             </div>
           </Group>
-          <Swatches
-            label={t("background")}
-            options={AVATAR_BACKGROUNDS}
-            value={look.bg}
-            onChange={(bg) => set({ bg: bg as AvatarLook["bg"] })}
-            isDisabled={(c) => !isReadable(c, look.body, look.mark)}
-          />
-          <Swatches
-            label={t("body")}
-            options={AVATAR_COLOURS}
-            value={look.body}
-            onChange={(body) => set({ body })}
-            isDisabled={(c) => !isReadable(look.bg, c, look.mark)}
-          />
-          <Swatches
-            label={t("mark")}
-            options={AVATAR_COLOURS}
-            value={look.mark}
-            onChange={(mark) => set({ mark })}
-            isDisabled={(c) => !isReadable(look.bg, look.body, c)}
-          />
-          <Options
-            label={t("corner")}
-            options={AVATAR_CORNERS}
-            value={look.corner}
-            onChange={(corner) => set({ corner })}
-            labelOf={(c) => t(c === "l" ? "cornerLeft" : "cornerRight")}
-          />
-          <Options
-            label={t("size")}
-            options={Object.keys(AVATAR_SIZES) as (keyof typeof AVATAR_SIZES)[]}
-            value={look.size}
-            onChange={(size) => set({ size })}
-            labelOf={(s) => t(`sizes.${s}`)}
-          />
-          <Options
-            label={t("eyes")}
-            options={AVATAR_EYES}
-            value={look.eyes}
-            onChange={(eyes) => set({ eyes })}
-            labelOf={(o) => t(`eyesOptions.${o}`)}
-          />
-          <Options
-            label={t("mouth")}
-            options={AVATAR_MOUTHS}
-            value={look.mouth}
-            onChange={(mouth) => set({ mouth })}
-            labelOf={(o) => t(`mouths.${o}`)}
-            isDisabled={(o) =>
-              !(features.mouth as readonly string[]).includes(o)
-            }
-          />
-          <Options
-            label={t("cheeks")}
-            options={AVATAR_CHEEKS}
-            value={look.cheeks}
-            onChange={(cheeks) => set({ cheeks })}
-            labelOf={(o) => t(`cheekOptions.${o}`)}
-            isDisabled={(o) =>
-              !(features.cheeks as readonly string[]).includes(o)
-            }
-          />
-          <Options
-            label={t("hat")}
-            options={AVATAR_HATS}
-            value={look.hat}
-            onChange={(hat) => set({ hat })}
-            labelOf={(o) => t(`hats.${o}`)}
-          />
+          {compact ? (
+            <Collapsible>
+              <DisclosureTrigger className="w-full">
+                <span className="flex flex-col">
+                  <span className="text-sm font-medium">
+                    {t("moreDetails")}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {t("moreDetailsHint")}
+                  </span>
+                </span>
+              </DisclosureTrigger>
+              <DisclosureContent>
+                {/* Room around the content for the focus ring that the fold clips. */}
+                <div className="-mx-1 flex flex-col gap-5 px-1 pt-4 pb-1">
+                  {details}
+                </div>
+              </DisclosureContent>
+            </Collapsible>
+          ) : (
+            details
+          )}
         </div>
       </div>
     </div>

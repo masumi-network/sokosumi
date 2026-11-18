@@ -142,6 +142,32 @@ describe("AvatarStudio", () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
+  it("in setup shows the preview, Shuffle and animals first, the rest under More details", async () => {
+    const user = userEvent.setup();
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          initialCode={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    expect(screen.getByTestId("preview")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Shuffle" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Owl" })).toBeTruthy();
+    // Preview states belong to the Change-look dialog, not setup.
+    expect(screen.queryByRole("group", { name: "Preview state" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Background" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /More details/ }));
+    expect(
+      screen.getByRole("radiogroup", { name: "Background" }),
+    ).toBeVisible();
+    expect(screen.getByRole("group", { name: "Headwear" })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Preview state" })).toBeNull();
+  });
+
   it("changes the preview state without touching the look", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

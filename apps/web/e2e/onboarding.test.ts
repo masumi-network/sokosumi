@@ -112,21 +112,17 @@ for (const { name, ...viewport } of PROJECTS) {
       await page
         .getByRole("heading", { name: `Choose a look for ${BOT}` })
         .waitFor();
-      // A look is free; the credit notice is shown with Create, which makes the
-      // bot. On phones both are pinned, so check before any scroll.
+      // Create is pinned to the foot at every size, so it is on screen before
+      // any scroll, with the options still to pick above it.
       const create = page.getByRole("button", { name: `Create ${BOT}` });
       await create.and(page.locator(":enabled")).waitFor();
-      if (name !== "phone") await create.scrollIntoViewIfNeeded();
-      const notice = page.getByText("Uses your credits.");
-      for (const [what, box] of [
-        ["Create", await create.boundingBox()],
-        ["the credit notice", await notice.boundingBox()],
-      ] as const) {
-        assert.ok(
-          box && box.y >= 0 && box.y + box.height <= viewport.height,
-          `${what} is on screen when Create can be pressed`,
-        );
-      }
+      const createBox = await create.boundingBox();
+      assert.ok(
+        createBox &&
+          createBox.y >= 0 &&
+          createBox.y + createBox.height <= viewport.height,
+        "Create is on screen when Create can be pressed",
+      );
 
       // Every animal is a real target at every size; viewport breakpoints once
       // drew them 8px wide in setup's narrow frame. DESIGN.md touch targets:

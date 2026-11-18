@@ -57,10 +57,8 @@ export function CreateState({
 }) {
   const t = useTranslations("App.SokoBot.Create");
   const tChat = useTranslations("App.SokoBot.Chat");
-  const tStudio = useTranslations("App.SokoBot.AvatarStudio");
   const router = useRouter();
   const nameId = useId();
-  const spendNoticeId = useId();
   const [name, setName] = useState("");
   // Spaces pass the native `required` check, so say what is missing here.
   const [blank, setBlank] = useState(false);
@@ -226,8 +224,9 @@ export function CreateState({
         <SokoBotSetupHeader
           faceless
           title={t("pictureTitle", { name: name.trim() })}
-          // A look costs nothing; the credit notice sits under Create, which makes the bot.
-          hint={tStudio("description")}
+          hint={t(
+            paidByOrganization ? "spendNoticeOrganization" : "spendNotice",
+          )}
           headingRef={pictureHeadingRef}
         />
         {/* Locked while creating: the bot gets the picture picked on submit.
@@ -237,17 +236,15 @@ export function CreateState({
           className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarStudio initialCode={null} onChange={setAvatarCode} />
+            <AvatarStudio compact initialCode={null} onChange={setAvatarCode} />
           </div>
         </fieldset>
-        {/* Pinned to the foot on phones, so Create stays in reach above the pictures.
-            Only the create button and its short credit notice, seen whenever Create is:
-            a taller bar hid the pictures it sits over. */}
+        {/* Pinned to the foot at every size, so Create stays in reach above the pictures.
+            Only the create button: a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
-            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3 md:static md:pt-0",
+            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3",
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
-            "md:pb-0",
           )}
         >
           <Button
@@ -257,19 +254,12 @@ export function CreateState({
             // Locked while it creates, so a second submit cannot race the first.
             disabled={isPending || !avatarCode}
             loading={isPending}
-            aria-describedby={spendNoticeId}
           >
             {/* Buttons do not wrap: a long name would push the phone page sideways. */}
             <span className="truncate">
               {t("submit", { name: name.trim() })}
             </span>
           </Button>
-          <p
-            id={spendNoticeId}
-            className="text-muted-foreground text-center text-xs"
-          >
-            {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
-          </p>
         </div>
         {/* Right under the pinned button once scrolled to the end. */}
         <div className="-mt-6 flex flex-col gap-2">
