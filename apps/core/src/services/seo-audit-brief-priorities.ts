@@ -9,6 +9,8 @@ import type {
 } from "@/schemas/seo-audit-brief.schema";
 import { seoOwnerWhere } from "./project-seo-store";
 
+import type { SalesSignal } from "./seo-brief-landing-outcomes";
+
 type Page = SeoBriefContent["pages"][number];
 type ObservedLanding = {
   sessions: number;
@@ -103,7 +105,13 @@ export function briefPriorities(
   content: SeoBriefContent,
   followUps: SeoBriefFollowUp[],
   evidence: ReadonlyMap<string, ObservedLanding>,
+  sales: ReadonlyMap<string, SalesSignal> = new Map(),
 ): SeoAuditBrief["priorities"] {
+  const salePages = content.pages.filter((p) => fitsObjective(p, "sales"));
+  const comparableSales =
+    salePages.length > 1 &&
+    salePages.every((p) => sales.has(p.pageId)) &&
+    new Set([...sales.values()].map((s) => s.selection)).size === 1;
   const rows = content.pages.map((p) => {
     const follow = followUps.find((item) => item.pageId === p.pageId);
     const landing = evidence.get(p.pageId);
@@ -153,13 +161,21 @@ export function briefPriorities(
       why.push(
         `Organic search landings recorded ${landing.sessions} sessions and ${landing.keyEvents} GA4 key events from ${landing.from} to ${landing.to}.`,
       );
+    for (const outcome of follow?.outcomes ?? []) {
+      const { from, to, count } = outcome.latest;
+      why.push(
+        `GA4 recorded ${count} ${outcome.event} events for organic sessions landing on this page from ${from} to ${to}.`,
+      );
+    }
     if (!why.length)
       why.push(
         "This page is in the owner's brief. Its priority has limited evidence.",
       );
     const metric =
       content.objective === "sales"
-        ? landing?.keyEvents
+        ? comparableSales
+          ? sales.get(p.pageId)?.count
+          : undefined
         : content.objective === "traffic"
           ? landing?.sessions
           : undefined;

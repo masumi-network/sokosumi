@@ -221,6 +221,7 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
       {
         pageId: page.id,
         changedAt,
+        outcomes: [],
         lastCrawlAt: "2026-06-02T00:00:00.000Z",
         status: "awaiting_recrawl",
         indexReview: "unknown",
@@ -231,10 +232,53 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
       {
         pageId: page.id,
         changedAt,
+        outcomes: [],
         lastCrawlAt: "2026-06-05T00:00:00.000Z",
         status: "recrawled",
         indexReview: "matches_intent",
       },
     ]);
+    const makeOutcome = (
+      from: string,
+      to: string,
+      count: number,
+      visibility = "PRIVATE",
+    ) =>
+      prisma.projectSeoObservation.create({
+        data: {
+          projectId,
+          ownerId: userId,
+          kind: "landing_outcomes",
+          source: "ga4",
+          visibility,
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "fixture",
+          observedAt: new Date("2026-06-20T00:00:00Z"),
+          payload: {
+            version: 1,
+            channel: "organic",
+            accountKey: "a".repeat(64),
+            propertyId: "properties/one",
+            verifiedHost: "example.test",
+            timeZone: "UTC",
+            from,
+            to,
+            rows: [{ pageUrl: page.url, event: "purchase", count }],
+          },
+        },
+      });
+    const before = { from: "2026-05-27", to: "2026-06-02", count: 2 },
+      after = { from: "2026-06-04", to: "2026-06-10", count: 3 };
+    await makeOutcome(before.from, before.to, before.count);
+    await makeOutcome(after.from, after.to, after.count);
+    await makeOutcome("2026-06-11", "2026-06-17", 999, "SHARED");
+    const privateBrief = await getSeoBrief(actor);
+    expect(privateBrief.followUps[0].outcomes).toEqual([
+      { event: "purchase", latest: after, comparison: { before, after } },
+    ]);
+    expect(JSON.stringify(await getProjectSeoWorkspace(actor))).not.toContain(
+      '"purchase"',
+    );
   });
 });

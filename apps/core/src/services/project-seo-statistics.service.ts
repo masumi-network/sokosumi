@@ -19,8 +19,10 @@ import prisma from "@/lib/db/prisma";
 import {
   assertGa4LandingHost,
   ga4LandingHostArguments,
+  ga4LandingOutcomeArguments,
   ga4LandingPageArguments,
   ga4LandingPlan,
+  normalizeGa4LandingOutcomes,
   normalizeGa4LandingPages,
 } from "@/lib/seo/native-ga4-landing";
 import {
@@ -87,7 +89,11 @@ import {
   recordNativeSeoMetrics,
 } from "./project-seo.service";
 import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
-import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
+import {
+  requireSeoOwner,
+  type SeoMutationHooks,
+  sha256,
+} from "./project-seo-store";
 
 const MAX_PROPERTY_PAGES = 5;
 const PROPERTY_PAGE_SIZE = 100;
@@ -289,6 +295,9 @@ export async function syncProjectSeoStatistics(
   const retain = async (
     snapshot: Parameters<typeof recordNativeSeoMetrics>[1],
     mutationHooks: SeoMutationHooks,
+    outcomes?: NonNullable<
+      Parameters<typeof recordNativeSeoMetrics>[2]
+    >["outcomes"],
   ) => {
     const current = await integrationFor(actor, input.provider);
     if (
@@ -302,6 +311,7 @@ export async function syncProjectSeoStatistics(
       );
     await recordNativeSeoMetrics(actor, snapshot, {
       ...mutationHooks,
+      outcomes,
       scope: {
         id: input.scopeId ?? null,
         version: workspace.scope.version,
@@ -447,7 +457,7 @@ export async function syncProjectSeoStatistics(
           ["metricHeaders"],
         );
         assertGa4LandingHost(query, hosts);
-        return {
+        const landingPages = {
           ...normalizeGa4LandingPages(
             landingPlan.query,
             unwrapNativeStatistics(
@@ -461,6 +471,41 @@ export async function syncProjectSeoStatistics(
             landingPlan.skippedUrls,
           ),
           verifiedHost: new URL(query.pageUrls[0]!).hostname,
+        };
+        // A property without these events (or a failed event read) still has measured sessions and generic key events.
+        if (actor.sokoBotId || landingPages.channel !== "organic")
+          return { landingPages };
+        const named = await read(
+          integration,
+          tool,
+          ga4LandingOutcomeArguments(landingPlan.query),
+        )
+          .then((raw) =>
+            normalizeGa4LandingOutcomes(
+              landingPlan.query,
+              unwrapNativeStatistics(raw, ["metricHeaders"]),
+            ),
+          )
+          .catch(() => null);
+        if (!named?.rows.length) return { landingPages };
+        return {
+          landingPages,
+          outcomes: {
+            version: 1 as const,
+            channel: "organic" as const,
+            accountKey: sha256(
+              JSON.stringify([
+                integration.entityId,
+                integration.composioAccountId,
+                integration.connectionRevision,
+              ]),
+            ),
+            propertyId: query.propertyId,
+            verifiedHost: landingPages.verifiedHost,
+            from: query.from,
+            to: query.to,
+            ...named,
+          },
         };
       };
       // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
@@ -581,7 +626,7 @@ export async function syncProjectSeoStatistics(
         if (landingPlan.skippedUrls.length)
           metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
         if (landing.status === "fulfilled" && landing.value)
-          metrics.landingPages = landing.value;
+          metrics.landingPages = landing.value.landingPages;
         else if (landingPlan.query.pageUrls.length)
           metrics.notes.push(
             SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
@@ -634,7 +679,11 @@ export async function syncProjectSeoStatistics(
       }
       metrics.collectionFingerprint = fingerprint;
       metrics.collectedAt = metrics.observedAt;
-      return retain(metrics, collectionHooks);
+      return retain(
+        metrics,
+        collectionHooks,
+        landing.status === "fulfilled" ? landing.value?.outcomes : undefined,
+      );
     },
   });
 }

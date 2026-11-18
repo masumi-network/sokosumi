@@ -121,6 +121,33 @@ export const seoStrategyOpportunity = z.object({
   reach: z.enum(["ranks", "in reach"]),
 });
 
+const maxForumQuestions = 5;
+const maxForumTitle = 300;
+const forumSource = z
+  .url({ protocol: /^https?$/ })
+  .max(4096)
+  .refine((value) => {
+    const url = URL.parse(value);
+    return url && !url.username && !url.password;
+  });
+const forumQuestion = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(maxForumTitle)
+    .regex(/[?？؟]/u),
+  url: forumSource.optional(),
+});
+const seoForumQuestions = z.array(forumQuestion).max(maxForumQuestions);
+export const importedSeoForumQuestions = z
+  .array(
+    forumQuestion.extend({
+      url: forumSource.optional().catch(undefined),
+    }),
+  )
+  .max(maxForumQuestions);
+
 const seoStrategyGroup = z.object({
   lead: text,
   keywords: z.array(text).max(100),
@@ -131,6 +158,7 @@ const seoStrategyGroup = z.object({
   reach: label,
   position: count,
   forums: z.boolean().optional(),
+  forumQuestions: seoForumQuestions.optional(),
 });
 const strategyGroupsMax = 1000;
 
@@ -200,6 +228,7 @@ export const seoStrategyPayloadSchema = seoStrategyFields.extend({
     .array(
       seoStrategyGroup.extend({
         forums: seoStrategyGroup.shape.forums.catch(undefined),
+        forumQuestions: seoStrategyGroup.shape.forumQuestions.catch(undefined),
       }),
     )
     .max(strategyGroupsMax),

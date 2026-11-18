@@ -11483,6 +11483,10 @@ export type ProjectSeoStrategy = {
         reach: string;
         position: number | null;
         forums?: boolean;
+        forumQuestions?: Array<{
+            title: string;
+            url?: string;
+        }>;
     }>;
     actions: Array<{
         kind: string;
@@ -11825,6 +11829,26 @@ export type SeoAuditBrief = {
         pageId: string;
         changedAt: Date | null;
         lastCrawlAt: Date | null;
+        outcomes?: Array<{
+            event: 'purchase' | 'sign_up';
+            latest: {
+                from: string;
+                to: string;
+                count: number;
+            };
+            comparison?: {
+                before: {
+                    from: string;
+                    to: string;
+                    count: number;
+                };
+                after: {
+                    from: string;
+                    to: string;
+                    count: number;
+                };
+            };
+        }>;
         status: 'awaiting_recrawl' | 'recrawled' | 'unknown';
         indexReview: 'expected_exclusion' | 'review_exclusion' | 'review_indexing' | 'unknown' | 'matches_intent';
     }>;

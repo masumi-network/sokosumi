@@ -1,6 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import { SEO_MAX_PAGES, seoIdSchema } from "./project-seo.schema";
 
+import {
+  seoBriefOutcome,
+  seoLandingEvents,
+} from "./seo-landing-outcomes.schema";
+
 export const seoBriefObjective = z.enum(["sales", "traffic", "support"]);
 export const seoBriefPageRole = z.enum([
   "guide",
@@ -59,6 +64,7 @@ const followUp = z.strictObject({
   pageId: seoIdSchema,
   changedAt: z.iso.datetime().nullable(),
   lastCrawlAt: z.iso.datetime().nullable(),
+  outcomes: z.array(seoBriefOutcome).max(seoLandingEvents.length).optional(),
   status: z.enum(["awaiting_recrawl", "recrawled", "unknown"]),
   indexReview: z.enum([
     "expected_exclusion",
