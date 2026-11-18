@@ -817,6 +817,7 @@ function normalizeSocialPostMedia(
       size: ref.size,
       mimeType,
       kind: ref.kind,
+      ...(ref.aiGenerated && { aiGenerated: true }),
       ...(ref.transformation ? { transformation: ref.transformation } : {}),
     };
   });

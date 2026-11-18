@@ -161,6 +161,7 @@ export {
   CMO_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
@@ -486,6 +487,12 @@ export {
   type GoogleEvent,
   type GoogleEventKind,
 } from "./seo-google-events.js";
+export {
+  newerSeoAuditVerdict,
+  seoIndexReviewState,
+  seoInspectionCrawlTime,
+  seoInspectionEvidence,
+} from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
   readSeoStatisticsNote,
@@ -511,7 +518,11 @@ export {
   seoStatisticsLostData,
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
-export { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic.js";
+export {
+  SEO_SEARCH_TYPES,
+  SEO_TRAFFIC_CHANNELS,
+  seoSearchUrlPrefixCovers,
+} from "./seo-traffic.js";
 export {
   buildSocialAccountAvatarPathname,
   isOwnedSocialAccountAvatarUrl,
@@ -580,6 +591,7 @@ export {
   creditsPerTalkingVideoCents,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoExtras,
   type TalkingVideoPriceFigures,
   talkingVideoQuotedSeconds,
 } from "./talking-video-credits.js";
@@ -631,6 +643,7 @@ export {
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
+export { TASK_TAG_PRESETS } from "./task-tag-presets.js";
 export { isValidTimezone } from "./timezone.js";
 export {
   selectUnfurlCandidateUrls,

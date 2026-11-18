@@ -37,7 +37,8 @@ export function AssistantAvatar({
       expression={expression}
       alt={t("avatarAlt")}
       className={cn(
-        "ring-border ring-1",
+        // Only the orb gets a ring, as in room chat; a picture stands alone.
+        !imageUrl && "ring-border ring-1",
         size === "lg" ? "size-20" : "size-8",
         className,
       )}

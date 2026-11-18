@@ -321,6 +321,26 @@ describe("SokoBotSchedulesSyncService", () => {
     });
   });
 
+  it("links a scheduled duplicate without enqueueing a drain", async () => {
+    const enqueueReconciliation = vi.fn();
+    startTurnMock.mockResolvedValue({
+      turnId: "turn_1",
+      status: "RUNNING",
+      duplicate: true,
+    });
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+      enqueueReconciliation,
+    });
+
+    expect(result).toMatchObject({ deferred: 1, failed: 0 });
+    expect(runUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "RUNNING" } }),
+    );
+    expect(enqueueReconciliation).not.toHaveBeenCalled();
+  });
+
   it("runs a follow-up the bot wrote with its writing turn's tools", async () => {
     dueScheduleFindFirstMock.mockResolvedValue({
       ...dueSchedule,

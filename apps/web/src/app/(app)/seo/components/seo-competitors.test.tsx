@@ -11,6 +11,11 @@ import { SeoCompetitors } from "./seo-competitors";
 import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
+// The Table export opens its Table from a toast.
+vi.mock("next/navigation", async (actual) => ({
+  ...(await actual<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: { session: { activeOrganizationId: "org" }, user: { id: "owner" } },
@@ -410,6 +415,58 @@ describe("SEO competitor baselines", () => {
     // The path may wrap after "." or "/".
     expect(link.innerHTML).toContain("guides/<wbr>");
     expect(link.innerHTML).toContain("keep-it.<wbr>plugged");
+  });
+
+  it("exports one row per rival site, without the video sites and forums", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const found = (url: string, rank: number) => ({
+      id: url,
+      url,
+      role: "competitor" as const,
+      confirmed: false,
+      source: "search",
+      rank,
+      backlinks: null,
+      referringDomains: 12,
+      observedAt: new Date("2026-11-11T01:26:00Z"),
+      observationId: "check",
+      version: 0,
+      canConfirm: true,
+      exclusionReason: null,
+    });
+    workspace.competitors = [
+      found("https://rival.example/a", 2),
+      found("https://www.youtube.com/watch?v=1", 1),
+      found("https://rival.example/b", 5),
+    ];
+    const files: Blob[] = [];
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation((file) => (files.push(file as Blob), "blob:x"));
+    const revoke = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      renderWorkspace(workspace);
+      await user.click(
+        screen.getByRole("button", { name: "Export: Competitors" }),
+      );
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Download CSV" }),
+      );
+      const lines = (await files[0].text()).trim().split(/\r?\n/);
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain("rival.example");
+      expect(lines[1]).toContain("https://rival.example/a");
+    } finally {
+      click.mockRestore();
+      createObjectURL.mockRestore();
+      revoke.mockRestore();
+    }
   });
 
   it("shows one row per site, and video sites and forums apart", async () => {

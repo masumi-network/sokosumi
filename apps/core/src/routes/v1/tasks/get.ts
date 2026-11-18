@@ -26,6 +26,7 @@ import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
+import { taskTagIdSchema } from "@/helpers/task-tags";
 import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -48,7 +49,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
-import { taskListInclude } from "@/types/task";
+import { taskListInclude, taskTagSuggestionsForViewer } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -144,6 +145,16 @@ const statusBeforeQuerySchema = z.iso
     example: "2026-11-11T09:00:00.000Z",
   });
 
+const unansweredMentionQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .openapi({
+    param: { name: "unansweredMention", in: "query" },
+    description:
+      "true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.",
+    example: "true",
+  });
+
 const archivedQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -154,9 +165,40 @@ const archivedQuerySchema = z
     example: "true",
   });
 
+const parentTaskIdQuerySchema = z
+  .string()
+  .optional()
+  .openapi({
+    param: { name: "parentTaskId", in: "query" },
+    description:
+      "Only the direct sub-tasks of this Task, ordered by position unless sort is given.",
+    example: "01960001-0001-7001-8001-000000000001",
+  });
+
+const includeSubtasksQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .openapi({
+    param: { name: "includeSubtasks", in: "query" },
+    description:
+      "true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.",
+    example: "true",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
+    workspaceTagId: z
+      .uuid()
+      .optional()
+      .openapi({
+        param: { name: "workspaceTagId", in: "query" },
+        description: "Only Tasks with this workspace tag.",
+      }),
+    topicTagId: taskTagIdSchema.optional().openapi({
+      param: { name: "topicTagId", in: "query" },
+      description: "Only Tasks with this visible topic tag.",
+    }),
     status: taskStatusQuerySchema,
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
@@ -166,6 +208,9 @@ const query = z
     dueOnTo: dueOnToQuerySchema,
     statusBefore: statusBeforeQuerySchema,
     archived: archivedQuerySchema,
+    parentTaskId: parentTaskIdQuerySchema,
+    includeSubtasks: includeSubtasksQuerySchema,
+    unansweredMention: unansweredMentionQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -241,6 +286,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeSokoBotId,
       assigneeUserId,
       dueOnTo,
+      includeSubtasks,
+      parentTaskId,
       projectId,
       q,
       scheduleId,
@@ -248,9 +295,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       sort,
       status: statuses,
       statusBefore,
+      unansweredMention: unansweredMentionParam,
       visibility,
     } = queryParams;
     const archived = archivedParam === "true";
+    const unansweredMention = unansweredMentionParam === "true";
     const requestedVisibility = visibility === undefined ? {} : { visibility };
     const statusWhere = buildTaskListStatusWhere({
       statuses,
@@ -269,6 +318,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
     const scheduleFilter = scheduleId ? { scheduleId } : {};
+    // Agents work on sub-tasks assigned to them, so they always see them.
+    const agentSubtaskFilter = parentTaskId ? { parentTaskId } : {};
+    // A mention on a sub-task still needs an answer, so the mention list
+    // keeps sub-tasks.
+    const humanSubtaskFilter = parentTaskId
+      ? { parentTaskId }
+      : includeSubtasks === "true" || unansweredMention
+        ? {}
+        : { parentTaskId: null };
     const dueFilter = dueOnTo
       ? { dueOn: { lte: new Date(`${dueOnTo}T00:00:00.000Z`) } }
       : {};
@@ -301,6 +359,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ) {
       throw badRequest("Only people can list archived Tasks.");
     }
+    if (
+      unansweredMention &&
+      (isCoworkerAuthContext(authContext) ||
+        isPersonalSokoBotAuthContext(authContext))
+    ) {
+      throw badRequest("Only people can list Tasks by their mentions.");
+    }
+    // The person the mention state is read for. Mentions name people, so a
+    // coworker or a Soko Bot has none.
+    let mentionViewerId: string | null = null;
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -342,6 +410,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
             ...scheduleFilter,
+            ...agentSubtaskFilter,
             ...dueFilter,
             ...statusAgeFilter,
             ...searchFilter,
@@ -356,6 +425,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             AND: [listAccessFilter],
             ...projectFilter,
             ...scheduleFilter,
+            ...agentSubtaskFilter,
             ...dueFilter,
             ...statusAgeFilter,
             ...searchFilter,
@@ -380,6 +450,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...scheduleFilter,
+          ...agentSubtaskFilter,
           ...dueFilter,
           ...statusAgeFilter,
           ...searchFilter,
@@ -389,24 +460,41 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } else {
       const userContext = requireUserContext(authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      mentionViewerId = userContext.userId;
       where = applyTaskListStatusWhere(
         {
           archivedAt: archived ? { not: null } : null,
           workspaceId: workspaceContext.workspaceId,
           ...requestedVisibility,
           AND: [buildHumanTaskVisibilityWhere(userContext.userId)],
-          ...scopeFilter(userContext.userId),
+          // A Task's checklist shows every sub-task the caller can see,
+          // whoever owns it.
+          ...(parentTaskId ? {} : scopeFilter(userContext.userId)),
           ...(assigneeId ? { assigneeId } : {}),
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
           ...scheduleFilter,
+          ...humanSubtaskFilter,
           ...dueFilter,
           ...statusAgeFilter,
           ...searchFilter,
         },
         statusWhere,
       );
+    }
+
+    if (queryParams.workspaceTagId) {
+      where.workspaceTags = { some: { labelId: queryParams.workspaceTagId } };
+    }
+    if (queryParams.topicTagId) {
+      where.visibleTopics = { some: { topicId: queryParams.topicTagId } };
+    }
+
+    if (unansweredMention && mentionViewerId) {
+      where.mentions = {
+        some: { userId: mentionViewerId, answeredAt: null },
+      };
     }
 
     const takePlusOne = take + 1;
@@ -416,22 +504,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // and it makes cursor pagination unstable: a row updated mid-paging moves
     // between pages, so "Load more" can duplicate or skip rows.
     const orderBy =
-      archived && sort === undefined
-        ? ([{ archivedAt: "desc" as const }, { id: "desc" as const }] as const)
-        : sort === "updatedAt"
-          ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
-          : sort === "dueOn"
-            ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
-            : sort === "priority"
-              ? ([
-                  { priority: "asc" as const },
-                  { updatedAt: "desc" as const },
-                  { id: "desc" as const },
-                ] as const)
-              : ([
-                  { createdAt: "desc" as const },
-                  { id: "desc" as const },
-                ] as const);
+      parentTaskId && sort === undefined
+        ? ([{ position: "asc" as const }, { id: "asc" as const }] as const)
+        : archived && sort === undefined
+          ? ([
+              { archivedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const)
+          : sort === "updatedAt"
+            ? ([
+                { updatedAt: "desc" as const },
+                { id: "desc" as const },
+              ] as const)
+            : sort === "dueOn"
+              ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
+              : sort === "priority"
+                ? ([
+                    { priority: "asc" as const },
+                    { updatedAt: "desc" as const },
+                    { id: "desc" as const },
+                  ] as const)
+                : ([
+                    { createdAt: "desc" as const },
+                    { id: "desc" as const },
+                  ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.
@@ -442,15 +538,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [...orderBy],
-        include: taskListInclude,
+        include: {
+          ...taskListInclude,
+          ...taskTagSuggestionsForViewer(
+            authContext,
+            c.var.workspaceContext?.workspaceId,
+          ),
+        },
       }),
       prisma.task.count({ where }),
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const mappedTasks = tasks
-      .slice(0, take)
-      .map((task) => mapTaskListItem(task));
+    const pageTasks = tasks.slice(0, take);
+    // One indexed read for the page, so the list include stays the same for
+    // every kind of caller.
+    const unansweredTaskIds =
+      mentionViewerId && pageTasks.length > 0
+        ? new Set(
+            (
+              await prisma.taskEventMention.findMany({
+                where: {
+                  userId: mentionViewerId,
+                  answeredAt: null,
+                  taskId: { in: pageTasks.map((task) => task.id) },
+                },
+                select: { taskId: true },
+                distinct: ["taskId"],
+              })
+            ).map((mention) => mention.taskId),
+          )
+        : null;
+    const mappedTasks = pageTasks.map((task) => ({
+      ...mapTaskListItem(task),
+      ...(unansweredTaskIds
+        ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
+        : {}),
+    }));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,

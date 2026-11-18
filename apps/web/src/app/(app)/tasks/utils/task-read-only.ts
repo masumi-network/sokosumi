@@ -28,6 +28,15 @@ function isGrantPendingStatus(status: string): boolean {
   return status === TaskStatus.GRANT_PENDING;
 }
 
+/** A finished Task takes no new sub-task or link. */
+export function isFinalizedTaskStatus(status: string): boolean {
+  return (
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED ||
+    status === TaskStatus.CANCELED
+  );
+}
+
 /**
  * Whether the task detail view is read-only for this viewer. Every member may
  * act on an organization-workspace task, not just its owner; a

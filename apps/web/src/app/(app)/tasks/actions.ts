@@ -10,6 +10,7 @@ import {
   sanitizeTasksStatusInput,
   sanitizeTasksStuckInput,
   sanitizeTasksVisibilityInput,
+  sanitizeTaskTagFilter,
   TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
@@ -41,7 +42,10 @@ interface TasksLoadMoreFilters {
   status: Task["status"] | null;
   projectId: string | null;
   visibility: Task["visibility"] | null;
+  tag?: string;
   stuck?: boolean;
+  needsMe?: boolean;
+  mentions?: boolean;
 }
 
 interface LoadMoreTasksColumnParams extends TasksLoadMoreFilters {
@@ -73,7 +77,10 @@ async function loadSanitizedTasksPageFilters({
   status,
   projectId,
   visibility,
+  tag,
   stuck,
+  needsMe,
+  mentions,
 }: TasksLoadMoreFilters) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -109,7 +116,10 @@ async function loadSanitizedTasksPageFilters({
     status: sanitizeTasksStatusInput(status),
     projectId: sanitizeProjectIdFilterInput(projectId),
     visibility: sanitizeTasksVisibilityInput(visibility, activeOrganizationId),
+    tag: sanitizeTaskTagFilter(tag),
     stuck: sanitizeTasksStuckInput(stuck),
+    needsMe: sanitizeTasksStuckInput(needsMe),
+    mentions: sanitizeTasksStuckInput(mentions),
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };

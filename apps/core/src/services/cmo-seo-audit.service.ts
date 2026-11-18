@@ -23,6 +23,7 @@ import {
   type Cuso,
   cmoPayer,
   cmoRunnerUserId,
+  LIVE_CUSO_WHERE,
 } from "@/services/cmo-cuso.service";
 import { addProjectSeoPage } from "@/services/project-seo.service";
 import { createProjectSeoMonitor } from "@/services/project-seo-monitor.service";
@@ -48,6 +49,8 @@ const WEEKLY_AUDIT_RULE = {
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** A new Cuso gets his first audit at once unless the weekly Run is this close. */
 const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
+/** Monitors `cmoSeoMonitors` reads per Project, so the generations a Project can have. */
+const MONITORS_READ = 20;
 const ISSUE_SEVERITIES = ["critical", "major", "minor"] as const;
 const TOP_ISSUES = 6;
 const TOP_FIXES = 5;
@@ -64,7 +67,7 @@ async function cmoSeoMonitors(projectId: string) {
       description: { startsWith: "seo_monitor: " },
     },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: MONITORS_READ,
   });
   return schedules.filter(
     (schedule) =>
@@ -202,6 +205,53 @@ function operationIdFor(projectId: string, generation: number): string {
     .update(`cmo-seo-weekly:${projectId}:${generation}`)
     .digest("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * A Cuso that was let go (archived or deleted) leaves the production sync, so
+ * `keepCmoSeoAudit` never pauses his weekly audit and it would go on charging
+ * the organization 750 credits a week. This pauses the monitors CMO made
+ * (known by their operation id) in Projects without a live Cuso; a monitor a
+ * person made in the same Project stays theirs. A Cuso hired again for the
+ * Project resumes it.
+ */
+export async function pauseCmoSeoAuditsWithoutCuso(): Promise<number> {
+  const { executor } = getSeoAnalysisExecution();
+  if (!executor) return 0;
+  const orphans = await prisma.taskSchedule.findMany({
+    where: {
+      state: "ACTIVE",
+      assigneeId: executor.coworkerId,
+      description: { startsWith: "seo_monitor: " },
+      ownerId: { not: null },
+      organizationId: { not: null },
+      project: { sokoBots: { none: LIVE_CUSO_WHERE } },
+    },
+    select: {
+      id: true,
+      projectId: true,
+      workspaceId: true,
+      ownerId: true,
+      organizationId: true,
+      createOperation: { select: { operationId: true } },
+    },
+  });
+  let paused = 0;
+  for (const schedule of orphans) {
+    const { projectId, ownerId, organizationId, createOperation } = schedule;
+    if (!projectId || !ownerId || !organizationId || !createOperation) continue;
+    const madeByCmo = Array.from({ length: MONITORS_READ }, (_, generation) =>
+      operationIdFor(projectId, generation),
+    ).includes(createOperation.operationId);
+    if (!madeByCmo) continue;
+    await changeTaskScheduleState(
+      runnerVars(schedule.workspaceId, ownerId, organizationId),
+      schedule.id,
+      "pause",
+    );
+    paused += 1;
+  }
+  return paused;
 }
 
 async function skipUnaffordableWeek(
@@ -407,8 +457,9 @@ export async function pageShowsText(
 
 /**
  * After each weekly audit, the page changes the owner marked done are
- * checked: an audit's own finding counts as fixed once the audit no longer
- * finds it; a change Cuso wrote counts once its new text is on the page.
+ * checked: an audit's own finding counts as fixed once the audit ran its
+ * check on the page and it passed (a check it could not run confirms
+ * nothing); a change Cuso wrote counts once its new text is on the page.
  */
 export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
   const latest = await latestCmoSeoAudit(cuso.projectId);
@@ -427,6 +478,12 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
       (finding) => `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`,
     ),
   );
+  const passed = new Set<string>();
+  for (const check of latest.payload.checks) {
+    const key = `${check.rowId}|${normalizeSeoUrl(check.pageUrl)}`;
+    if (check.result === "pass") passed.add(key);
+    else if (check.result === "fired") firing.add(key);
+  }
   for (const suggestion of done) {
     let fixed = false;
     try {
@@ -435,10 +492,10 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
         fixed =
           !!suggestion.pageUrl &&
           rowIds.length > 0 &&
-          rowIds.every(
-            (rowId) =>
-              !firing.has(`${rowId}|${normalizeSeoUrl(suggestion.pageUrl!)}`),
-          );
+          rowIds.every((rowId) => {
+            const key = `${rowId}|${normalizeSeoUrl(suggestion.pageUrl!)}`;
+            return passed.has(key) && !firing.has(key);
+          });
       } else if (suggestion.pageUrl && suggestion.newText) {
         fixed = await pageShowsText(suggestion.pageUrl, suggestion.newText);
       }
@@ -452,7 +509,6 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
         },
         { failure: messageSafeErrorFields(error) },
       );
-      continue;
     }
     await prisma.projectSeoSuggestion.update({
       where: { id: suggestion.id },

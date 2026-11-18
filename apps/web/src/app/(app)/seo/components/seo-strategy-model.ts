@@ -154,8 +154,12 @@ export function seoKeywordDemand(
 /** How many keyword groups each reach holds, most first. */
 export function seoStrategyCounts(groups: SeoStrategyGroup[]) {
   const reaches = new Map<string, number>();
-  for (const group of groups)
+  for (const group of groups) {
     reaches.set(group.reach, (reaches.get(group.reach) ?? 0) + 1);
+    // Older reports encoded a forum as "open". Newer reports record it independently of reach.
+    if (group.forums && group.reach !== REACH_OPEN)
+      reaches.set(REACH_OPEN, (reaches.get(REACH_OPEN) ?? 0) + 1);
+  }
   return {
     reaches: [...reaches]
       .map(([reach, count]) => ({ reach, count }))

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CONCURRENCY_CONFLICT_KIND,
+  retriedTransaction,
   serializableTransaction,
 } from "./transaction";
 
@@ -73,6 +74,26 @@ describe("serializableTransaction", () => {
       serializableTransaction(vi.fn(), "Conflict message"),
     ).resolves.toBe("result");
     expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a raw-query SQLSTATE 40P01 deadlock at the default isolation level", async () => {
+    const callback = vi.fn();
+    prismaTransactionMock
+      .mockRejectedValueOnce(
+        Object.assign(
+          new Error(
+            "Invalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `40P01`. Message: `deadlock detected`",
+          ),
+          { name: "PrismaClientKnownRequestError", code: "P2010" },
+        ),
+      )
+      .mockResolvedValueOnce("result");
+
+    await expect(
+      retriedTransaction(callback, "Conflict message"),
+    ).resolves.toBe("result");
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+    expect(prismaTransactionMock).toHaveBeenLastCalledWith(callback, undefined);
   });
 
   it("maps P2034 serialization failures to a 409 conflict", async () => {

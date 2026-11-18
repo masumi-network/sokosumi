@@ -17,17 +17,25 @@ const m = vi.hoisted(() => ({
   addTrackedCompetitor: vi.fn(),
   updateTrackedCompetitor: vi.fn(),
   removeTrackedCompetitor: vi.fn(),
+  addCompetitorMoveToStrategy: vi.fn(),
+  requireCuso: vi.fn(),
 }));
 
-vi.mock("@/services/cmo-competitors-overview.service", () => ({
-  getCmoCompetitors: m.getCmoCompetitors,
-}));
 vi.mock("@/services/cmo-competitors.service", () => ({
+  getCmoCompetitors: m.getCmoCompetitors,
+  addCompetitorMoveToStrategy: m.addCompetitorMoveToStrategy,
+}));
+vi.mock("@/services/competitors.service", () => ({
   addTrackedCompetitor: m.addTrackedCompetitor,
   updateTrackedCompetitor: m.updateTrackedCompetitor,
   removeTrackedCompetitor: m.removeTrackedCompetitor,
 }));
+vi.mock("@/services/cmo-cuso.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-cuso.service")>()),
+  requireCuso: m.requireCuso,
+}));
 
+import { conflict, notFound } from "@/helpers/error";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -38,6 +46,7 @@ import cmoRouter from "../../../index";
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const COMPETITOR_ID = "22222222-2222-4222-8222-222222222222";
 const SIGNAL_ID = "33333333-3333-4333-8333-333333333333";
+const ITEM_ID = "44444444-4444-4444-8444-444444444444";
 const AT = new Date("2026-11-16T09:00:00Z");
 const BASE = `/projects/${PROJECT_ID}/competitors`;
 
@@ -83,7 +92,30 @@ const COMPETITORS = {
       source: "RESEARCH",
     },
   ],
+  feed: {
+    checkDay: "2026-11-16",
+    savedAt: AT,
+    items: [
+      {
+        id: ITEM_ID,
+        competitorId: COMPETITOR_ID,
+        facts: [
+          {
+            text: "Calendly raised Standard from $10 to $12.",
+            signalIds: [SIGNAL_ID],
+            support: "strong",
+          },
+        ],
+        meaning: "Our Teams plan is now the cheaper one.",
+        move: "Lead with the price per seat on LinkedIn next week.",
+        big: true,
+        addedToStrategyAt: null,
+      },
+    ],
+    openQuestions: [],
+  },
   limit: 5,
+  mapPlayers: ["Calendly"],
   signals: [
     {
       id: SIGNAL_ID,
@@ -117,6 +149,7 @@ const COMPETITORS = {
   ],
   topPosts: [],
   check: {
+    on: true,
     lastCheckedAt: AT,
     nextCheckAt: new Date("2026-11-23T09:00:00Z"),
     creditsPerCompetitor: 3,
@@ -132,9 +165,11 @@ const COMPETITORS = {
 beforeEach(() => {
   vi.clearAllMocks();
   m.getCmoCompetitors.mockResolvedValue(COMPETITORS);
+  m.requireCuso.mockResolvedValue({ projectId: PROJECT_ID });
   m.addTrackedCompetitor.mockResolvedValue(undefined);
   m.updateTrackedCompetitor.mockResolvedValue(undefined);
   m.removeTrackedCompetitor.mockResolvedValue(undefined);
+  m.addCompetitorMoveToStrategy.mockResolvedValue({ turnId: "turn-1" });
 });
 
 describe("GET /cmo/projects/{projectId}/competitors", () => {
@@ -157,6 +192,12 @@ describe("GET /cmo/projects/{projectId}/competitors", () => {
       source: "RESEARCH",
     });
     expect(data.signals[0].quote).toBe("$12");
+    expect(data.feed.items[0]).toMatchObject({
+      id: ITEM_ID,
+      big: true,
+      facts: [{ signalIds: [SIGNAL_ID], support: "strong" }],
+      addedToStrategyAt: null,
+    });
     expect(data.scoreboard[1].followers).toEqual({
       value: 40_000,
       sourceUrl: "https://www.instagram.com/calendly/",
@@ -191,22 +232,40 @@ describe("competitor writes", () => {
       websiteUrl: "zcal.co",
     });
     expect(response.status).toBe(200);
-    expect(m.addTrackedCompetitor).toHaveBeenCalledWith(
-      { userId: "user-1", projectId: PROJECT_ID },
-      { name: "Zcal", websiteUrl: "zcal.co" },
-    );
+    expect(m.requireCuso).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+    });
+    expect(m.addTrackedCompetitor).toHaveBeenCalledWith(PROJECT_ID, {
+      name: "Zcal",
+      websiteUrl: "zcal.co",
+    });
     expect((await response.json()).data.limit).toBe(5);
   });
 
   it("answers 409 when the service refuses", async () => {
     m.addTrackedCompetitor.mockRejectedValue(
-      new CmoConflictError("You can track 5 competitors. Remove one first."),
+      conflict("You can track 5 competitors. Remove one first."),
     );
     const response = await send("POST", BASE, { name: "Zcal" });
     expect(response.status).toBe(409);
     expect((await response.json()).message).toBe(
       "You can track 5 competitors. Remove one first.",
     );
+  });
+
+  it("writes nothing for a Project without a Cuso the person can use", async () => {
+    m.requireCuso.mockRejectedValue(
+      new CmoNotFoundError("Cuso is not hired yet"),
+    );
+    expect((await send("POST", BASE, { name: "Zcal" })).status).toBe(404);
+    expect(
+      (await send("PATCH", `${BASE}/${COMPETITOR_ID}`, { name: "Z" })).status,
+    ).toBe(404);
+    expect((await send("DELETE", `${BASE}/${COMPETITOR_ID}`)).status).toBe(404);
+    expect(m.addTrackedCompetitor).not.toHaveBeenCalled();
+    expect(m.updateTrackedCompetitor).not.toHaveBeenCalled();
+    expect(m.removeTrackedCompetitor).not.toHaveBeenCalled();
   });
 
   it("refuses a write from another client than CMO", async () => {
@@ -234,7 +293,7 @@ describe("competitor writes", () => {
     });
     expect(response.status).toBe(200);
     expect(m.updateTrackedCompetitor).toHaveBeenCalledWith(
-      { userId: "user-1", projectId: PROJECT_ID },
+      PROJECT_ID,
       COMPETITOR_ID,
       { pricingUrl: null, instagramHandle: "@calendly" },
     );
@@ -244,14 +303,31 @@ describe("competitor writes", () => {
     const response = await send("DELETE", `${BASE}/${COMPETITOR_ID}`);
     expect(response.status).toBe(200);
     expect(m.removeTrackedCompetitor).toHaveBeenCalledWith(
-      { userId: "user-1", projectId: PROJECT_ID },
+      PROJECT_ID,
       COMPETITOR_ID,
     );
   });
 
+  it("sends a move to the strategy and answers with the tab", async () => {
+    const response = await send("POST", `${BASE}/feed/${ITEM_ID}/strategy`);
+    expect(response.status).toBe(200);
+    expect(m.addCompetitorMoveToStrategy).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: PROJECT_ID },
+      ITEM_ID,
+    );
+  });
+
+  it("answers 409 for a move already in the strategy", async () => {
+    m.addCompetitorMoveToStrategy.mockRejectedValue(
+      new CmoConflictError("This move is already in the strategy"),
+    );
+    const response = await send("POST", `${BASE}/feed/${ITEM_ID}/strategy`);
+    expect(response.status).toBe(409);
+  });
+
   it("answers 404 for a competitor of another Project", async () => {
     m.removeTrackedCompetitor.mockRejectedValue(
-      new CmoNotFoundError("Competitor not found"),
+      notFound("Competitor not found"),
     );
     expect((await send("DELETE", `${BASE}/${COMPETITOR_ID}`)).status).toBe(404);
   });

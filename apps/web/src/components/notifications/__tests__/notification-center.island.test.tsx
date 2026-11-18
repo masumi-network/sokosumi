@@ -1610,6 +1610,8 @@ describe("Notification Center Needs you view", () => {
         ],
         sort: "updatedAt",
         limit: 50,
+        // The summary counts sub-tasks, so the list asks for them too.
+        includeSubtasks: "true",
       });
       const tasks = screen.getByRole("region", { name: "heading" });
       const links = within(tasks).getAllByRole("link");

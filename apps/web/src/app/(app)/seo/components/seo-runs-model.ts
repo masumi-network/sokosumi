@@ -118,22 +118,6 @@ export function seoRunsRow(days: SeoRunDay[], running: boolean) {
   return days.length > 0 || running;
 }
 
-/**
- * The rule checks that the runs row opens, one per day it shows; none where the row shows no choice.
- * A pick of the day shows that check in the tiles, with its day, its tests and the link to its results.
- */
-export function seoRunChecks(workspace: Pick<ProjectSeoWorkspace, "runs">) {
-  const { days } = seoRunDays(workspace, { from: null, to: null });
-  // A check of some of the pages has no count in the row: only its own History row says what it covered.
-  return new Set(
-    days.length < 2
-      ? []
-      : days.flatMap((entry) =>
-          entry.check && entry.issues !== null ? [entry.check] : [],
-        ),
-  );
-}
-
 /** The runs row names the day of this rule check: it is the run in view, so a line with its date says it twice. */
 export function seoRunsDateCheck(
   workspace: Pick<ProjectSeoWorkspace, "runs">,

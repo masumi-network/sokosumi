@@ -18,6 +18,8 @@ interface TaskDueBadgeProps {
   status: TaskStatus;
   /** `row` matches the Task page's Properties rows: text-sm, icon in a 20px slot. */
   variant?: "inline" | "row";
+  /** Renders nothing until the day has passed. */
+  overdueOnly?: boolean;
   className?: string;
 }
 
@@ -26,6 +28,7 @@ export function TaskDueBadge({
   dueOn,
   status,
   variant = "inline",
+  overdueOnly = false,
   className,
 }: TaskDueBadgeProps) {
   const t = useTranslations("App.Tasks.Due");
@@ -37,6 +40,7 @@ export function TaskDueBadge({
   );
   const date = formatter.dateTime(dueDayDate(dueOn), DUE_DAY_FORMAT);
   const overdue = isTaskOverdue(dueOn, status, today);
+  if (overdueOnly && !overdue) return null;
   const Icon = overdue ? CalendarX : CalendarCheck;
 
   return (

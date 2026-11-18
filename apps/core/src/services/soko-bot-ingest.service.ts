@@ -14,6 +14,7 @@ import {
   triagedMailLines,
   triageMail,
 } from "@/lib/soko-bot/mail-triage";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
@@ -469,7 +470,7 @@ export class SokoBotIngestSyncService {
     // A personal bot runs for its owner; a shared bot runs for nobody.
     const starter = sokoBotSelfStarter(bot);
     const kind = briefing ? "briefing" : "delta";
-    const gate = await proactiveGate(bot.id, now);
+    const gate = await proactiveGate(bot.id);
     if (!gate.ok) {
       // Logged like the events sync's withheld wake: a capped bot and a quiet
       // inbox look the same from the outside.
@@ -563,6 +564,8 @@ export class SokoBotIngestSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
+          if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+            return;
           logIngestFailure(
             error,
             {

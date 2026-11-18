@@ -476,7 +476,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
     expect(resumed).toMatchObject({
       duplicate: true,
-      acknowledgedByCaller: true,
+      reconciliationLeaseToken: expect.any(String),
       status: "RUNNING",
     });
     const [turn] = await eventTurns();

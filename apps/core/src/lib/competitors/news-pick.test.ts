@@ -34,13 +34,24 @@ describe("pickNews", () => {
         isNews: true,
         story: "ai notetaker launch",
         summary: "Calendly launched an AI notetaker",
+        event: "launch",
       },
-      { n: 1, isNews: false, story: "api question", summary: "" },
+      {
+        n: 1,
+        isNews: false,
+        story: "api question",
+        summary: "",
+        event: "other",
+      },
     ]);
     const { news, costUsd } = await pickNews(calendly, [item(0), item(1)], ask);
     expect(costUsd).toBe(0.0006);
     expect(news).toEqual([
-      { ...item(0), summary: "Calendly launched an AI notetaker" },
+      {
+        ...item(0),
+        summary: "Calendly launched an AI notetaker",
+        event: "launch",
+      },
     ]);
     expect(JSON.parse(calls[0] ?? "{}").results[1]).toEqual({
       n: 1,
@@ -58,14 +69,22 @@ describe("pickNews", () => {
         isNews: true,
         story: "la cafe opening",
         summary: "Stumptown opened an LA cafe",
+        event: "launch",
       },
       {
         n: 1,
         isNews: true,
         story: "LA cafe opening ",
         summary: "A new LA cafe opened",
+        event: "launch",
       },
-      { n: 2, isNews: true, story: "series b", summary: "Raised a Series B" },
+      {
+        n: 2,
+        isNews: true,
+        story: "series b",
+        summary: "Raised a Series B",
+        event: "other",
+      },
     ]);
     const { news } = await pickNews(calendly, [item(0), item(1), item(2)], ask);
     expect(news.map((kept) => kept.url)).toEqual([
@@ -76,14 +95,27 @@ describe("pickNews", () => {
 
   it("ignores a number it never sent, a repeat and an empty line", async () => {
     const { ask } = model([
-      { n: 7, isNews: true, story: "ghost", summary: "Not a candidate" },
-      { n: 0, isNews: true, story: "launch", summary: "  " },
-      { n: 1, isNews: true, story: "funding", summary: "Raised money" },
+      {
+        n: 7,
+        isNews: true,
+        story: "ghost",
+        summary: "Not a candidate",
+        event: "other",
+      },
+      { n: 0, isNews: true, story: "launch", summary: "  ", event: "other" },
+      {
+        n: 1,
+        isNews: true,
+        story: "funding",
+        summary: "Raised money",
+        event: "other",
+      },
       {
         n: 1,
         isNews: true,
         story: "funding again",
         summary: "Raised money twice",
+        event: "funding",
       },
     ]);
     const { news } = await pickNews(calendly, [item(0), item(1)], ask);
@@ -98,6 +130,7 @@ describe("pickNews", () => {
         isNews: true,
         story: `story ${n}`,
         summary: "y".repeat(200),
+        event: "other",
       })),
     );
     const { news } = await pickNews(calendly, candidates, ask);

@@ -1,7 +1,6 @@
 import { LIMITS } from "@/config/constants";
 import { tooManyRequests } from "@/helpers/error";
-import { tryUseLogger } from "@/lib/evlog";
-import { getRedisClient } from "@/lib/redis";
+import { evalRedisRateLimit } from "@/lib/redis-rate-limit";
 
 /** Idle budget keys expire; full refill takes BURST / REFILL seconds. */
 const BUDGET_TTL_SECONDS = 300;
@@ -51,32 +50,16 @@ export async function assertChatMessageReadBudget(
   userId: string,
   now: Date = new Date(),
 ): Promise<void> {
-  const redis = getRedisClient();
-  if (!redis) {
-    return;
-  }
-
-  let result: unknown;
-  try {
-    result = await redis.eval(
-      CONSUME_BUDGET_SCRIPT,
-      1,
-      chatMessageReadBudgetRedisKey(userId),
-      LIMITS.CHAT_MESSAGE_READ_BURST,
-      LIMITS.CHAT_MESSAGE_READ_REFILL_PER_SECOND,
-      now.getTime(),
-      BUDGET_TTL_SECONDS,
-    );
-  } catch (error) {
-    // Keep the read; tag the wide event so a Redis outage is not "no 429s".
-    tryUseLogger()?.set({
-      rateLimit: {
-        failOpen: true,
-        cause: error instanceof Error ? error.name : "unknown",
-      },
-    });
-    return;
-  }
+  const result = await evalRedisRateLimit(
+    CONSUME_BUDGET_SCRIPT,
+    chatMessageReadBudgetRedisKey(userId),
+    LIMITS.CHAT_MESSAGE_READ_BURST,
+    LIMITS.CHAT_MESSAGE_READ_REFILL_PER_SECOND,
+    now.getTime(),
+    BUDGET_TTL_SECONDS,
+  );
+  // Keep the read; tag the wide event so a Redis outage is not "no 429s".
+  if (result === undefined) return;
 
   const [allowed, retryAfterSeconds] = result as [number, number];
   if (allowed === 1) {

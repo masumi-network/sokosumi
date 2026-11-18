@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ interface HeaderCenterProps {
  * beside the room slot.
  */
 export function HeaderCenter({ children }: HeaderCenterProps) {
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const isMobileRoom = isChatRoomPathname(pathname);
 
   return (

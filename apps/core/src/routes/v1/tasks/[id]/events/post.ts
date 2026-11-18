@@ -36,11 +36,15 @@ import {
 } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
+import { recordTaskCommentMentions } from "@/helpers/task-event-mentions";
 import {
   notifyTaskParticipantsAdded,
   notifyTaskStatusEvent,
 } from "@/helpers/task-notifications";
-import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
+import {
+  addTaskParticipantsFromComment,
+  resolveTaskCommentMentionedUserIds,
+} from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import {
   requireNativeSeoWorkerAccess,
@@ -72,6 +76,10 @@ import {
 } from "@/services/task-payment-claim.service";
 import { taskEventApiInclude } from "@/types/task";
 
+import {
+  failedAdmissionSchema,
+  requireFailedSeoAdmission,
+} from "./failed-admission";
 import { createTaskEventRequestSchema } from "./schema";
 import { settleTaskEventCharge } from "./settle-charge";
 
@@ -97,31 +105,53 @@ async function mapCreatedTaskEventForResponse(
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  mountTaskEventRoute(app, false);
-  mountTaskEventRoute(app, true);
+  mountTaskEventRoute(app, "standard");
+  mountTaskEventRoute(app, "context");
+  mountTaskEventRoute(app, "failed-admission");
 }
 
-function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
+function mountTaskEventRoute(
+  app: OpenAPIHonoWithAuth,
+  mode: "standard" | "context" | "failed-admission",
+) {
   const baseSchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
   });
-  const taskEventRequestBodySchema = contextBound
-    ? baseSchema.and(z.object({ expectedContext: taskWorkerContextSchema }))
-    : baseSchema;
+  const endpoint = {
+    standard: {
+      path: "/{id}/events",
+      description: "Create task event",
+      schema: baseSchema,
+    },
+    context: {
+      path: "/{id}/events/context-v1",
+      description:
+        "Create an assigned Coworker event only for the asserted owner, billing organization and Workspace",
+      schema: baseSchema.and(
+        z.object({ expectedContext: taskWorkerContextSchema }),
+      ),
+    },
+    "failed-admission": {
+      path: "/{id}/events/failed-admission-v1",
+      description:
+        "Fail a waiting SEO Task when its assigned worker, workspace, input, and latest status event still match. This operation does not charge credits.",
+      schema: failedAdmissionSchema,
+    },
+  } as const;
+  const { path, description, schema } = endpoint[mode];
 
   const route = createRoute({
     method: "post",
-    path: contextBound ? "/{id}/events/context-v1" : "/{id}/events",
-    description: contextBound
-      ? "Create an assigned Coworker event only for the asserted owner, billing organization and Workspace"
-      : "Create task event",
+    path,
+    description,
     tags: ["Tasks"],
     request: {
       params: paramsSchema,
       body: {
+        required: mode === "failed-admission" || undefined,
         content: {
           "application/json": {
-            schema: taskEventRequestBodySchema,
+            schema,
           },
         },
       },
@@ -133,19 +163,27 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("Conflict"),
-      422: {
-        description:
-          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).",
-        content: {
-          "application/json": {
-            schema: errorResponseWithExtensionsSchema({
-              data: taskEventSchema.optional(),
-              attemptedCredits: z.number().optional().openapi({ example: 2 }),
-              requestedStatus: z.union([taskStatusSchema, z.null()]).optional(),
-            }),
-          },
-        },
-      },
+      422:
+        mode === "failed-admission"
+          ? jsonErrorResponse("Invalid failed admission request")
+          : {
+              description:
+                "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).",
+              content: {
+                "application/json": {
+                  schema: errorResponseWithExtensionsSchema({
+                    data: taskEventSchema.optional(),
+                    attemptedCredits: z
+                      .number()
+                      .optional()
+                      .openapi({ example: 2 }),
+                    requestedStatus: z
+                      .union([taskStatusSchema, z.null()])
+                      .optional(),
+                  }),
+                },
+              },
+            },
       500: jsonErrorResponse("Internal Server Error"),
     },
   });
@@ -153,15 +191,26 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: taskId } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const expectedContext = contextBound
-      ? taskWorkerContextSchema.parse(
-          "expectedContext" in body ? body.expectedContext : undefined,
-        )
-      : null;
+    const payload = c.req.valid("json");
+    const admission = "expectedLastStatusEventId" in payload ? payload : null;
+    const body =
+      "expectedLastStatusEventId" in payload
+        ? baseSchema.parse({
+            status: TaskStatus.FAILED,
+            comment: payload.comment,
+          })
+        : payload;
+    const expectedContext =
+      mode === "standard"
+        ? null
+        : taskWorkerContextSchema.parse(
+            "expectedContext" in payload ? payload.expectedContext : undefined,
+          );
 
     const transactionResult = await serializableTransaction(async (tx) => {
-      if (expectedContext)
+      if (admission)
+        await requireFailedSeoAdmission(authContext, taskId, admission, tx);
+      else if (expectedContext)
         await requireTaskWorkerContext(
           authContext,
           taskId,
@@ -260,12 +309,13 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           userTaskStatusTransitionRequiresComment(
             task.status as Exclude<TaskStatus, "CREATED">,
             status,
+            task.assigneeId !== null || task.assigneeSokoBotId !== null,
           )
         ) {
           const trimmedComment = comment?.trim();
           if (!trimmedComment) {
             throw unprocessableEntity(
-              "A comment is required when reopening a canceled or completed task to ready",
+              "Tell the assignee what to do: a comment is required when sending a Task back to ready",
             );
           }
           comment = trimmedComment;
@@ -384,6 +434,14 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           comment,
           tx,
         );
+        const mentionedUserIds = await resolveTaskCommentMentionedUserIds(tx, {
+          workspaceId: task.workspaceId,
+          comment,
+          visibility: task.visibility,
+          ownerId: task.ownerId,
+          excludeUserId: actorData.userId,
+          mentionedUserIds: body.mentionedUserIds,
+        });
         addedParticipantUserIds = await addTaskParticipantsFromComment(tx, {
           taskId,
           workspaceId: task.workspaceId,
@@ -391,7 +449,14 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           visibility: task.visibility,
           ownerId: task.ownerId,
           excludeUserId: actorData.userId,
-          mentionedUserIds: body.mentionedUserIds,
+          resolvedMentionedUserIds: mentionedUserIds,
+        });
+        await recordTaskCommentMentions(tx, {
+          taskId,
+          taskEventId: createdEvent.id,
+          authorUserId: actorData.userId ?? null,
+          mentionedUserIds,
+          now: new Date(),
         });
       }
 

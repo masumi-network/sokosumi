@@ -135,6 +135,7 @@ describe("private SEO indexing projection", () => {
           reason: "The related page should be reachable",
           suggestedFix: "Fix the broken internal link or its target",
           evidence: ["Related URL returned HTTP 404"],
+          checkedAt: "2026-11-16T09:00:00.000Z",
         },
       ],
     };
@@ -150,6 +151,7 @@ describe("private SEO indexing projection", () => {
       observationId: audit.id,
       pageUrl: PAGE,
       relatedPageUrl: OTHER,
+      observedAt: "2026-11-16T09:00:00.000Z",
       visibility: "PRIVATE",
       suggestedFix: "Fix the broken internal link or its target",
     });
@@ -158,7 +160,11 @@ describe("private SEO indexing projection", () => {
       result.triage?.assessments.find(
         (assessment) => assessment.pageUrl === OTHER,
       ),
-    ).toMatchObject({ auditPageUrl: PAGE, taskId: "task_1" });
+    ).toMatchObject({
+      auditPageUrl: PAGE,
+      taskId: "task_1",
+      checkedAt: "2026-11-16T09:00:00.000Z",
+    });
     expect(JSON.stringify(audit.payload)).toBe(before);
     expect(publicPayload.pageUrls).toEqual([PAGE]);
     expect(

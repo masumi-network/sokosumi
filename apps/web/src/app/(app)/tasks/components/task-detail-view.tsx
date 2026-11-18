@@ -1,10 +1,13 @@
 import type { Task } from "@sokosumi/core-client";
 import {
+  isTaskEditableStatus,
   removeTaskContextAttachmentLinks,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
+import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -12,11 +15,11 @@ import { TaskActivitySectionContent } from "@/app/tasks/components/task-detail-a
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadataSection } from "@/app/tasks/components/task-detail-metadata-section";
-import { TaskParentLine } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { TaskSubtaskSection } from "@/app/tasks/components/task-subtask-section";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import {
@@ -36,6 +39,7 @@ import {
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -87,6 +91,14 @@ export async function TaskDetailView({
   const assigneeOptionsPromise = forceReadOnly
     ? Promise.resolve([])
     : listTaskAssigneeOptions(task.workspace.organizationId ?? null);
+  // Started with the other reads so the Project picker adds no waterfall.
+  const projectOptionsPromise =
+    forceReadOnly || !isTaskEditableStatus(task.status)
+      ? Promise.resolve([])
+      : getProjectFilterOptions().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return null;
+        });
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const workspaceAccessPromise = userService.getWorkspaceAccess();
@@ -100,7 +112,6 @@ export async function TaskDetailView({
   } = startPrivateTaskDetailReads(task, forceReadOnly);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
-  const parentTask = linkedTasks.find((link) => link.relation === "child");
 
   const [t, tStatus] = await Promise.all([
     translationsPromise,
@@ -138,16 +149,25 @@ export async function TaskDetailView({
               loadBoardOnMount={!forceReadOnly}
               calendarBackLabel={t("backToCalendar")}
               parentLink={
-                <>
-                  {parentTask ? (
-                    <TaskParentLine
-                      parent={parentTask}
-                      href={taskLinkHref(parentTask, relatedTaskHrefBasePath)}
-                    >
-                      {t("clonedFrom", { name: parentTask.name })}
-                    </TaskParentLine>
-                  ) : null}
-                </>
+                task.ancestors?.length ? (
+                  <nav
+                    aria-label={t("subtaskOf")}
+                    className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm"
+                  >
+                    <span>{t("subtaskOf")}</span>
+                    {task.ancestors.map((ancestor, index) => (
+                      <Fragment key={ancestor.id}>
+                        {index > 0 ? <span aria-hidden>/</span> : null}
+                        <Link
+                          href={taskLinkHref(ancestor, relatedTaskHrefBasePath)}
+                          className="text-foreground underline underline-offset-4"
+                        >
+                          {ancestor.name}
+                        </Link>
+                      </Fragment>
+                    ))}
+                  </nav>
+                ) : null
               }
               actions={
                 <Suspense fallback={<TaskDetailActionsFallback />}>
@@ -195,6 +215,21 @@ export async function TaskDetailView({
                 task={task}
               />
             </Suspense>
+
+            {/* A Task with no sub-tasks has no section; the "⋯" menu adds the first. */}
+            {forceReadOnly || task.subtaskProgress.total === 0 ? null : (
+              <Suspense
+                fallback={
+                  <TaskSectionFallback title={t("subtasks")} rows={2} />
+                }
+              >
+                <TaskSubtaskSection
+                  task={task}
+                  hasAssignedSeatPromise={hasAssignedSeatPromise}
+                  assigneeOptionsPromise={assigneeOptionsPromise}
+                />
+              </Suspense>
+            )}
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
@@ -210,6 +245,8 @@ export async function TaskDetailView({
                   hasAssignedSeatPromise={hasAssignedSeatPromise}
                   projectPromise={projectPromise}
                   sessionPromise={sessionPromise}
+                  assigneeOptionsPromise={assigneeOptionsPromise}
+                  projectOptionsPromise={projectOptionsPromise}
                 />
               </Suspense>
               <TaskRelatedTasks
@@ -218,8 +255,6 @@ export async function TaskDetailView({
                   related: t("actions.relations.related"),
                   blocks: t("actions.relations.blocks"),
                   blocked_by: t("actions.relations.blockedBy"),
-                  parent: t("actions.relations.subtask"),
-                  child: t("actions.relations.parent"),
                   duplicate: t("actions.relations.duplicate"),
                 }}
                 statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
@@ -519,10 +554,16 @@ async function TaskDetailActionsSlot({
       taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
+      parentTaskId={task.parentTaskId}
+      ancestorIds={task.ancestors?.map((ancestor) => ancestor.id)}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}
       assigneeKind={taskAssigneeKindFromTask(task.assignee)}
+      assigneeName={taskAssigneeDisplayName(
+        task.assignee,
+        tTasks("personalAssistant"),
+      )}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -538,6 +579,8 @@ async function TaskDetailActionsSlot({
         !forceReadOnly && hasAssignedSeat
           ? {
               name: task.name,
+              tags: task.tags,
+              workspaceTags: task.workspaceTags,
               description: task.description
                 ? removeTaskContextAttachmentLinks(task.description)
                 : null,
@@ -563,14 +606,7 @@ async function TaskDetailActionsSlot({
         archive: t("actions.archive"),
         archiveError: t("actions.archiveError"),
         reopenToReady: t("actions.reopenToReady"),
-        reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-        reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-        reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-        reopenToReadyCommentPlaceholder: t(
-          "actions.reopenToReadyCommentPlaceholder",
-        ),
         reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
-        reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
         startWorking: t("actions.startWorking"),

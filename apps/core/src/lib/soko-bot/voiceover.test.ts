@@ -73,6 +73,56 @@ describe("speakVoiceover", () => {
     ]);
   });
 
+  it("reads fal's chunks of characters, as eleven-v4 answered on 2026-11-18", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        audio,
+        timestamps: [
+          {
+            characters: ["H", "i", " ", "t", "h", "e", "r", "e", ".", " "],
+            character_start_times_seconds: [
+              0.0, 0.18, 0.24, 0.4, 0.432, 0.464, 0.496, 0.528, 0.56, 0.76,
+            ],
+            character_end_times_seconds: [
+              0.18, 0.24, 0.4, 0.432, 0.464, 0.496, 0.528, 0.56, 0.76, 0.96,
+            ],
+          },
+          {
+            characters: ["S", "e", "c", "o", "n", "d"],
+            character_start_times_seconds: [
+              0.96, 1.013, 1.067, 1.1199999999999999, 1.173, 1.2269999999999999,
+            ],
+            character_end_times_seconds: [
+              1.013, 1.067, 1.1199999999999999, 1.173, 1.2269999999999999, 1.28,
+            ],
+          },
+          {
+            characters: ["!", " ", "I", "s", " ", "i", "t", "?"],
+            character_start_times_seconds: [
+              2.0, 2.2, 2.4, 2.48, 2.56, 2.64, 2.68, 3.12,
+            ],
+            character_end_times_seconds: [
+              2.2, 2.4, 2.48, 2.56, 2.64, 2.68, 2.7199999999999998,
+              3.3600000000000003,
+            ],
+          },
+          {
+            characters: [],
+            character_start_times_seconds: [],
+            character_end_times_seconds: [],
+          },
+        ],
+      }),
+    );
+    const spoken = await speakVoiceover({ text: "Hi there. Second! Is it?" });
+    expect(spoken.durationSeconds).toBe(3.36);
+    expect(spoken.sentences).toEqual([
+      { start: 0, text: "Hi there." },
+      { start: 0.96, text: "Second!" },
+      { start: 2.4, text: "Is it?" },
+    ]);
+  });
+
   it("says what the voice service refused, and that nothing was billed", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response('{"detail":"busy"}', { status: 503 }),

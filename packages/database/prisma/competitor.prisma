@@ -144,8 +144,39 @@ model CompetitorCheck {
   costUsd         Float     @default(0)
   /// Credits charged to the Project's payer, in cents (base 10^10).
   chargedCents    BigInt    @default(0)
+  /// The debit, for a Project that turned the check on itself: it marks the
+  /// check as charged, so a check that is run again is charged once. Null
+  /// for a Cuso's check, which is charged as his Soko Bot usage.
+  transactionId   String?   @unique
+  transaction     Transaction? @relation("TransactionCompetitorCheck", fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@unique([projectId, day])
   @@index([projectId, createdAt])
   @@map("competitor_check")
+}
+
+/// Cuso's "This week" for a Project: the competitor moves he wrote from one
+/// check's signals, each fact citing the signals it rests on (Core checks it
+/// on save), and what the sources could not settle. One per check; a later
+/// save in the same week replaces it.
+model CompetitorFeed {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The UTC day of the check it was written from ("2026-11-17").
+  checkDay        String
+  /// The moves, validated by `competitorFeedItemSchema` in
+  /// `@sokosumi/soko-bot`.
+  items         Json
+  openQuestions String[] @default([])
+  /// The turn that wrote it.
+  authorTurnId  String?  @db.Uuid
+
+  @@unique([projectId, checkDay])
+  @@index([projectId, createdAt])
+  @@map("competitor_feed")
 }

@@ -22,6 +22,8 @@ import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
 import {
+  addCompetitor,
+  addCompetitorMoveToStrategy,
   addMailingList,
   answerBrandQuestion,
   answerPlanQuestion,
@@ -30,6 +32,7 @@ import {
   approveStrategy,
   askCusoForArticles,
   changePlan,
+  clearPresenter,
   connectAds,
   connectChannel,
   connectMeasurement,
@@ -38,6 +41,7 @@ import {
   fixBrandSection,
   launchAd,
   loadAdCampaigns,
+  loadCompetitors,
   loadCusos,
   loadMessages,
   loadOverview,
@@ -48,6 +52,7 @@ import {
   onboard,
   openPortal,
   pauseEntry,
+  removeCompetitor,
   requestStrategy,
   retryLearning,
   revertUpdate,
@@ -56,6 +61,7 @@ import {
   sendMessage,
   setAdBudget,
   setAdCampaignStatus,
+  setPresenter,
   setSeoSuggestionStatus,
   skipBrandQuestions,
   skippedSteps,
@@ -63,6 +69,7 @@ import {
   startOver,
   startPlanCheckout,
   startTopUp,
+  updateCompetitor,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -295,13 +302,12 @@ export async function Home({ searchParams, view }: HomeProps) {
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
-        // Approving the plan opens Subscribe in place, so the plans load
-        // while the strategy waits for approval too.
+        // The steps up to Subscribe open in place, without this page
+        // rendering again, so the plans load from the first of them.
         plans={
-          overview.onboardingStep === "checkout" ||
-          overview.onboardingStep === "strategy"
-            ? await loadPlans().catch(() => [])
-            : []
+          overview.onboardingStep === "accounts"
+            ? []
+            : await loadPlans().catch(() => [])
         }
         returnedFromCheckout={step === "subscribed"}
         actions={{
@@ -322,6 +328,8 @@ export async function Home({ searchParams, view }: HomeProps) {
           connectChannel: connectSetupChannel.bind(null, projectId),
           connectMeasurement: connectMeasurement.bind(null, projectId),
           connectAds: connectAds.bind(null, projectId),
+          setPresenter: setPresenter.bind(null, projectId),
+          clearPresenter: clearPresenter.bind(null, projectId),
           startPlanCheckout: startPlanCheckout.bind(null, projectId),
           startOver: startOver.bind(null, projectId),
           startTopUp: startTopUp.bind(null, projectId),
@@ -366,6 +374,13 @@ export async function Home({ searchParams, view }: HomeProps) {
         retryLearning: retryLearning.bind(null, projectId),
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
+        competitors: {
+          loadCompetitors: loadCompetitors.bind(null, projectId),
+          addCompetitor: addCompetitor.bind(null, projectId),
+          updateCompetitor: updateCompetitor.bind(null, projectId),
+          removeCompetitor: removeCompetitor.bind(null, projectId),
+          addMoveToStrategy: addCompetitorMoveToStrategy.bind(null, projectId),
+        },
         connectChannel: connectChannel.bind(null, projectId),
         addMailingList: addMailingList.bind(null, projectId),
         connectMeasurement: connectMeasurement.bind(null, projectId),

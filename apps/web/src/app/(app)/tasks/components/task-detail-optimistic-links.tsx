@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   createContext,
   type ReactNode,
@@ -30,8 +29,8 @@ const TaskDetailLinksContext = createContext<OptimisticTaskLinks | null>(null);
 
 /**
  * Link changes the task page shows before Core answers. The header menu
- * writes them; the related tasks list and the parent line sit in other
- * subtrees and read them here.
+ * writes them; the related tasks list sits in another subtree and reads
+ * them here.
  */
 export function TaskDetailLinksProvider({ children }: { children: ReactNode }) {
   const value = useOptimistic(NO_CHANGES, (changes, change: TaskLinkChange) => [
@@ -55,16 +54,6 @@ export function useOptimisticTaskLinks(): OptimisticTaskLinks {
   return useContext(TaskDetailLinksContext) ?? NOT_SHOWN;
 }
 
-function isPeerTaskHidden(
-  changes: readonly TaskLinkChange[],
-  peerTaskId: string,
-) {
-  return changes.some(
-    (change) =>
-      "hidePeerTaskId" in change && change.hidePeerTaskId === peerTaskId,
-  );
-}
-
 export function applyTaskLinkChanges(
   links: VisibleTaskLink[],
   changes: readonly TaskLinkChange[],
@@ -79,28 +68,4 @@ export function applyTaskLinkChanges(
     }
   }
   return shown;
-}
-
-/** The "cloned from" line under the title. It goes when its link is removed. */
-export function TaskParentLine({
-  parent,
-  href,
-  children,
-}: {
-  parent: { id: string };
-  href: string;
-  children: ReactNode;
-}) {
-  const [changes] = useOptimisticTaskLinks();
-  if (isPeerTaskHidden(changes, parent.id)) return null;
-  return (
-    <p className="text-muted-foreground text-sm">
-      <Link
-        href={href}
-        className="text-foreground underline underline-offset-4"
-      >
-        {children}
-      </Link>
-    </p>
-  );
 }

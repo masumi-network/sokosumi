@@ -1,5 +1,6 @@
 import { Check, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { Collapsible } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 /** active carries the view's one Iris mark; busy is work in flight; todo is not started. */
@@ -30,18 +31,21 @@ export function SeoStep({
   body,
   mark,
   doneLabel,
+  expandable = false,
   last = false,
   heading: Heading = "h3",
   stagger = false,
   children,
 }: {
   index: number;
-  title: string;
+  title: ReactNode;
   /** Left out where the controls say all there is to say. */
   body?: ReactNode;
   mark: SeoStepMark;
   /** Read out for a finished step, where the number is replaced by a check. */
   doneLabel?: string;
+  /** The heading can expand the details while the step remains a native list item. */
+  expandable?: boolean;
   last?: boolean;
   /** The level under the card title that holds the list. */
   heading?: "h3" | "h4";
@@ -50,7 +54,7 @@ export function SeoStep({
   children?: ReactNode;
 }) {
   const quiet = mark === "todo";
-  return (
+  const item = (
     <li
       className={cn("content-rise relative flex gap-4", !last && "pb-6")}
       style={
@@ -110,4 +114,5 @@ export function SeoStep({
       </div>
     </li>
   );
+  return expandable ? <Collapsible asChild>{item}</Collapsible> : item;
 }

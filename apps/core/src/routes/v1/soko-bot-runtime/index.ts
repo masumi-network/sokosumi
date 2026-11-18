@@ -3,6 +3,7 @@ import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { badRequest, unauthorized, unprocessableEntity } from "@/helpers/error";
+import { databaseNow } from "@/lib/db/database-now";
 import { tryUseLogger } from "@/lib/evlog";
 import { runnerDiagnostic } from "@/lib/soko-bot/runner-log-events";
 import {
@@ -63,9 +64,10 @@ const failSchema = z.object({
 });
 
 app.use("/turns/:turnId/*", async (c, next) => {
-  const claims = verifyTurnToken(
+  const claims = await verifyTurnToken(
     c.req.header(SOKO_BOT_TURN_TOKEN_HEADER),
     c.req.param("turnId"),
+    async () => (await databaseNow()).getTime(),
   );
   if (!claims) throw unauthorized();
   c.set("turn", claims);

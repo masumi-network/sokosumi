@@ -436,6 +436,17 @@ export const cmoCalendarEntrySchema = z.object({
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
   /**
+   * A talking video's spoken words, hook first, in the brand's own voice.
+   * Never a customer's account. The post's draft is its caption.
+   */
+  script: z.string().trim().min(20).max(600).optional(),
+  /** Who speaks it: a stock presenter id, or "owner" for the owner's photo. */
+  presenter: z.string().trim().min(1).max(40).optional(),
+  /** The stock voice that speaks it. */
+  voice: z.string().trim().min(1).max(40).optional(),
+  /** ISO 639-1 language of the script, e.g. "de". */
+  languageCode: z.string().trim().length(2).optional(),
+  /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
    */
@@ -488,6 +499,10 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   styleReferenceId: true,
   headline: true,
   slides: true,
+  script: true,
+  presenter: true,
+  voice: true,
+  languageCode: true,
   story: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;

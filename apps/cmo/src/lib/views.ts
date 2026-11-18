@@ -5,6 +5,7 @@ export const VIEW_PATHS = {
   calendar: "/calendar",
   seo: "/seo",
   results: "/results",
+  competitors: "/competitors",
   brain: "/brand-brain",
   channels: "/channels",
   settings: "/settings",

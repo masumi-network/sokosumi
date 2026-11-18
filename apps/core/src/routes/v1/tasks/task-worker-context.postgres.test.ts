@@ -733,6 +733,136 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
     await expectNoWrites();
   });
 
+  describe("failed SEO admission", () => {
+    const comment = "This SEO audit could not start.";
+    // Known-answer hash from the worker for name "Guarded Task delivery" and this input.
+    const description = "Audit “café”\nSecond line";
+    const fingerprint =
+      "2161bb5b64a4801f2bd4b0490f807fd3332af53267982449304b175b253a48b1";
+    let readyEventId: string;
+
+    beforeEach(async () => {
+      fixtureEnv.globalCoworkerId = coworkerId;
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "READY", description },
+      });
+      readyEventId = (
+        await prisma.taskEvent.create({ data: { taskId, status: "READY" } })
+      ).id;
+    });
+
+    const failAdmission = async (over: Record<string, unknown> = {}) =>
+      app.request(`/v1/tasks/${taskId}/events/failed-admission-v1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedContext: expectedContext(),
+          expectedInputFingerprint: fingerprint,
+          expectedStatus: "READY",
+          expectedLastStatusEventId: readyEventId,
+          comment,
+          ...over,
+        }),
+      });
+
+    it("writes one uncharged failure after intervening comments and rejects its replay", async () => {
+      await prisma.taskEvent.create({ data: { taskId, comment: "Progress" } });
+      const response = await failAdmission();
+      expect(response.status).toBe(201);
+      expect((await response.json()).data).toMatchObject({
+        taskId,
+        status: "FAILED",
+        comment,
+        credits: null,
+      });
+      expect((await failAdmission()).status).toBe(409);
+      const events = await prisma.taskEvent.findMany({
+        where: { taskId, status: "FAILED" },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        coworkerId,
+        cents: null,
+        transactionId: null,
+      });
+    });
+
+    it("closes an input request only from its current status event", async () => {
+      const inputRequest = await event({
+        status: "INPUT_REQUIRED",
+        comment: "Add the page URL.",
+      });
+      expect(inputRequest.status).toBe(201);
+      const inputRequired = {
+        expectedStatus: "INPUT_REQUIRED",
+        expectedLastStatusEventId: (await inputRequest.json()).data.id,
+      };
+      expect((await failAdmission()).status).toBe(409);
+      expect((await failAdmission(inputRequired)).status).toBe(201);
+    });
+
+    it.each(["input", "reopen"] as const)(
+      "refuses a concurrent %s change before writing a failure",
+      async (change) => {
+        let pending: Promise<Response> | undefined;
+        try {
+          await prisma.$transaction(async (tx) => {
+            await lockTaskRows(tx, [taskId]);
+            const [holder] = await tx.$queryRaw<
+              Array<{ pid: number }>
+            >`SELECT pg_backend_pid() AS pid`;
+            pending = failAdmission();
+            await waitForBlockedTaskWrite(holder.pid);
+            if (change === "input")
+              await tx.task.update({
+                where: { id: taskId },
+                data: { description: "A different audit" },
+              });
+            else {
+              await tx.taskEvent.create({ data: { taskId, status: "DRAFT" } });
+              await tx.taskEvent.create({ data: { taskId, status: "READY" } });
+              await tx.task.update({
+                where: { id: taskId },
+                data: { status: "READY" },
+              });
+            }
+          });
+          expect((await pending)?.status).toBe(409);
+          expect(
+            (await prisma.task.findUniqueOrThrow({ where: { id: taskId } }))
+              .status,
+          ).toBe("READY");
+          expect(
+            await prisma.taskEvent.count({
+              where: { taskId, status: "FAILED" },
+            }),
+          ).toBe(0);
+        } finally {
+          await pending?.catch(() => undefined);
+        }
+      },
+    );
+
+    it("only accepts the configured SEO worker, the exact workspace and an unpriced failure", async () => {
+      expect(
+        (
+          await failAdmission({
+            expectedContext: {
+              ...expectedContext(),
+              workspaceId: personalWorkspaceId,
+            },
+          })
+        ).status,
+      ).toBe(403);
+      expect((await failAdmission({ credits: 9 })).status).toBe(422);
+      expect((await failAdmission({ status: "COMPLETED" })).status).toBe(422);
+      fixtureEnv.globalCoworkerId = siblingId;
+      expect((await failAdmission()).status).toBe(403);
+      expect(await prisma.taskEvent.count({ where: { taskId } })).toBe(1);
+    });
+  });
+
   it("keeps ordinary intake/help comments and the existing status rules", async () => {
     await prisma.task.update({
       where: { id: taskId },

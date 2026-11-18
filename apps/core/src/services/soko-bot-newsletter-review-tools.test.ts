@@ -44,7 +44,13 @@ vi.mock("@/config/env", () => ({
 vi.mock("@sokosumi/email", () => ({ renderNewsletterEmail: m.render }));
 vi.mock("@/services/task-domain.service", () => ({
   createTaskForActor: m.createTask,
+}));
+vi.mock("@/services/task-domain-archive", () => ({
   archiveTaskRecord: vi.fn(),
+}));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {

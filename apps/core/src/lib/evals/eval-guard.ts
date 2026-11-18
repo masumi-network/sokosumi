@@ -84,6 +84,12 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   edit_ad_campaign: () => ({ updated: true }),
   delete_ad_campaign: () => ({ deleted: true }),
   handle_social_comment: () => ({ handled: true }),
+  // A real one costs more than a dollar of provider time per run.
+  generate_talking_video: () => ({
+    jobId: "eval-simulated-talking-video",
+    status: "QUEUED",
+    note: "Started. A talking video takes a few minutes; it lands in the owner's Files when it is ready.",
+  }),
   // A paid check by the global SEO service; the case checks that Cuso asked.
   check_search_rankings: () => ({
     status: "started",

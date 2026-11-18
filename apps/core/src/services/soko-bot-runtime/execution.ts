@@ -440,7 +440,8 @@ export async function executeTool(
 
   if (
     input.capability === "generate_image" ||
-    input.capability === "generate_video"
+    input.capability === "generate_video" ||
+    input.capability === "generate_talking_video"
   ) {
     try {
       if (input.capability === "generate_image")
@@ -449,8 +450,14 @@ export async function executeTool(
           input.input,
           input.toolCallId,
         );
-      else
+      else if (input.capability === "generate_video")
         await runtime.checkVideoRequest(
+          authorized,
+          input.input,
+          input.toolCallId,
+        );
+      else
+        await runtime.checkTalkingVideoRequest(
           authorized,
           input.input,
           input.toolCallId,
