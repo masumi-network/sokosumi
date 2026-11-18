@@ -92,11 +92,13 @@ export function FullPageMarkdownEditor({
         The app's main column grows with its content, so h-full bounds
         nothing: the editor grew to the whole file, its toolbar scrolled away
         and text ran under the footer. This is the main column's height (the
-        header's 4rem, or the phone's 5rem top padding, plus p-4).
+        header's 4rem, or the phone's 5rem top padding, plus p-4). The floor
+        keeps the toolbar and a few lines of text in a short window (a phone
+        held sideways), where the page scrolls instead.
       */}
       <div
         className={cn(
-          "flex h-[calc(100dvh-6rem-env(safe-area-inset-top))] min-h-0 flex-col",
+          "flex h-[calc(100dvh-6rem-env(safe-area-inset-top))] min-h-[26rem] flex-col",
           className,
         )}
       >

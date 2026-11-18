@@ -8,7 +8,8 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user's first Project, end to end: create it, upload a long DESIGN.md,
-// edit it with the toolbar and Save in view and the editor named, then open
+// edit it with the toolbar and Save in view and the editor named (and, on a
+// phone held sideways, still reachable and editable), then open
 // Close from the project menu and keep the project open, with no menu left
 // behind. Each size signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
@@ -107,8 +108,35 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       assert.ok(saveBox.y + saveBox.height <= viewport.height);
       await shot(page, size, "design-md-edit");
 
-      await page.getByRole("button", { name: "Cancel" }).click();
-      await page.waitForURL(/\/design-md$/);
+      if (size === "phone") {
+        // A phone held sideways: too short for the editor to fit, so the page
+        // scrolls to it, and it still takes text.
+        await page.setViewportSize({ width: 568, height: 320 });
+        await editor.scrollIntoViewIfNeeded();
+        const short = await editor.boundingBox();
+        assert.ok(short, "editor is on screen sideways");
+        assert.ok(
+          short.height >= 96,
+          `editor is ${short.height}px tall sideways`,
+        );
+        assert.ok(short.y >= 0 && short.y < 320, `editor starts at ${short.y}`);
+        await editor.click();
+        await page.keyboard.type("Sideways note.");
+        await page.getByRole("button", { name: "Save" }).waitFor();
+        assert.equal(
+          await page.getByRole("button", { name: "Save" }).isEnabled(),
+          true,
+          "typing sideways makes Save available",
+        );
+        await shot(page, size, "design-md-edit-landscape");
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await page.getByRole("button", { name: "Discard changes" }).click();
+        await page.waitForURL(/\/design-md$/);
+        await page.setViewportSize(viewport);
+      } else {
+        await page.getByRole("button", { name: "Cancel" }).click();
+        await page.waitForURL(/\/design-md$/);
+      }
 
       await page.getByRole("button", { name: "More actions" }).click();
       await page.getByRole("menuitem", { name: "Close" }).click();
