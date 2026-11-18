@@ -298,9 +298,13 @@ describe("ProjectsPage", () => {
       await ProjectsPageContent({ searchParams: Promise.resolve({ q: "x" }) }),
     );
 
-    expect(projectServiceMock.listProjects).toHaveBeenCalledOnce();
+    // Only the filter's own reads: this view, then the other views it may
+    // match in. No unfiltered Closed probe.
+    for (const [input] of projectServiceMock.listProjects.mock.calls) {
+      expect(input).toEqual(expect.objectContaining({ query: "x" }));
+    }
     expect(projectsViewMock).toHaveBeenCalledWith(
-      expect.objectContaining({ hasClosedProjects: false }),
+      expect.objectContaining({ hasClosedProjects: false, otherMatches: [] }),
     );
   });
 

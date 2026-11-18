@@ -2535,7 +2535,18 @@
         "filter": {
           "placeholder": "Filter projects",
           "clear": "Clear filter",
-          "noMatches": "No projects match \"{query}\"."
+          "noMatches": "No projects match \"{query}\".",
+          "noMatchesIn": {
+            "open": "No open projects match \"{query}\".",
+            "hidden": "No hidden projects match \"{query}\".",
+            "closed": "No closed projects match \"{query}\"."
+          },
+          "elsewhere": "Matching projects are in another view.",
+          "showIn": {
+            "open": "Show open projects",
+            "hidden": "Show hidden projects",
+            "closed": "Show closed projects"
+          }
         },
         "lastActivity": "Last activity",
         "created": "Created",
@@ -2605,6 +2616,12 @@
           "undo": "Undo",
           "hideError": "Could not hide the project. Try again.",
           "showError": "Could not show the project. Try again."
+        },
+        "closing": {
+          "badge": "Closing",
+          "failedBadge": "Close failed",
+          "remaining": "{count, plural, =0 {Finishing up, then moves to Closed} one {# scheduled run left, then moves to Closed} other {# scheduled runs left, then moves to Closed}}",
+          "failed": "Open the project to retry the close."
         }
       },
       "column": {

@@ -11,7 +11,9 @@ import { createMailbox } from "./mailbox.ts";
 // edit it with the toolbar and Save in view and the editor named (and, on a
 // phone held sideways, still reachable and editable), then open
 // Close from the project menu and keep the project open, with no menu left
-// behind. Each size signs up its own disposable mail.tm inbox.
+// behind. Then hide it, follow a filter from Open to its Hidden match, show
+// it and close it: its card says Closing and what is left. Each size signs
+// up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const PROJECT = "E2E bakery launch";
@@ -161,6 +163,45 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await confirm.waitFor({ state: "detached" });
       assert.equal(await page.getByRole("menu").count(), 0);
       await shot(page, size, "kept-open");
+
+      // Hidden, the project leaves Open; a filter in Open points to Hidden and
+      // opens it with the filter kept.
+      await page.goto(`${BASE_URL}/projects`);
+      const card = page.getByRole("article").filter({ hasText: PROJECT });
+      await card.getByRole("button", { name: "More actions" }).click();
+      await page.getByRole("menuitem", { name: "Hide" }).click();
+      await card.waitFor({ state: "detached" });
+      await page.getByLabel("Filter projects").fill("bakery");
+      await page
+        .getByRole("heading", { name: 'No open projects match "bakery".' })
+        .waitFor();
+      await shot(page, size, "filter-elsewhere");
+      await page.getByRole("link", { name: "Show hidden projects" }).click();
+      await page.waitForURL(/\/projects\?state=hidden&q=bakery$/);
+      await card.waitFor();
+      assert.equal(
+        await page.getByLabel("Filter projects").inputValue(),
+        "bakery",
+      );
+      await shot(page, size, "filter-hidden");
+
+      // Shown again and closed, the card stays in Open marked Closing until
+      // the close finishes, saying what is left.
+      await card.getByRole("button", { name: "More actions" }).click();
+      await page.getByRole("menuitem", { name: "Show" }).click();
+      await card.waitFor({ state: "detached" });
+      // In the app, not a reload: a reload would cancel the Show in flight.
+      await page.getByRole("radio", { name: "Open" }).click();
+      await page.getByRole("button", { name: "Clear filter" }).click();
+      await card.getByRole("button", { name: "More actions" }).click();
+      await page.getByRole("menuitem", { name: "Close" }).click();
+      await page
+        .getByRole("alertdialog", { name: "Close project?" })
+        .getByRole("button", { name: "Close project" })
+        .click();
+      await card.getByText("Closing", { exact: true }).waitFor();
+      await card.getByText("Finishing up, then moves to Closed").waitFor();
+      await shot(page, size, "closing-card");
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth + 1,

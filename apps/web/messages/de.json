@@ -2535,7 +2535,18 @@
         "filter": {
           "placeholder": "Projekte filtern",
           "clear": "Filter zurücksetzen",
-          "noMatches": "Keine Projekte passen zu „{query}“."
+          "noMatches": "Keine Projekte passen zu „{query}“.",
+          "noMatchesIn": {
+            "open": "Keine offenen Projekte passen zu „{query}“.",
+            "hidden": "Keine ausgeblendeten Projekte passen zu „{query}“.",
+            "closed": "Keine geschlossenen Projekte passen zu „{query}“."
+          },
+          "elsewhere": "Passende Projekte sind in einer anderen Ansicht.",
+          "showIn": {
+            "open": "Offene Projekte anzeigen",
+            "hidden": "Ausgeblendete Projekte anzeigen",
+            "closed": "Geschlossene Projekte anzeigen"
+          }
         },
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
@@ -2605,6 +2616,12 @@
           "undo": "Rückgängig",
           "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
           "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        },
+        "closing": {
+          "badge": "Wird geschlossen",
+          "failedBadge": "Schließen fehlgeschlagen",
+          "remaining": "{count, plural, =0 {Wird abgeschlossen, dann unter „Geschlossen“} one {# geplante Ausführung offen, dann unter „Geschlossen“} other {# geplante Ausführungen offen, dann unter „Geschlossen“}}",
+          "failed": "Öffne das Projekt, um das Schließen erneut zu versuchen."
         }
       },
       "column": {

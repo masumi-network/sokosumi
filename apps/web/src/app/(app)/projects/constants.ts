@@ -1,4 +1,8 @@
-import type { GetProjectsData } from "@sokosumi/core-client";
+import type {
+  GetProjectsData,
+  ProjectCloseStatus,
+  ProjectListItem,
+} from "@sokosumi/core-client";
 
 export const PROJECTS_PAGE_LIMIT = 20;
 
@@ -16,6 +20,17 @@ export const PROJECTS_LIST_STATES = [
   NonNullable<NonNullable<GetProjectsData["query"]>["state"]>
 >;
 export type ProjectsListState = (typeof PROJECTS_LIST_STATES)[number];
+
+/**
+ * A list card's project. A closing project (`closingAt`, no `closedAt`) also
+ * carries what its close still owes; null when that read failed.
+ */
+export type ProjectsListProject = ProjectListItem & {
+  closeStatus?: Pick<
+    ProjectCloseStatus,
+    "state" | "owedOccurrenceCount"
+  > | null;
+};
 
 /**
  * Pinned projects lead the Open view. A Closed card has no Pin to sort by,

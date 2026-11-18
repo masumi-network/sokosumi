@@ -127,6 +127,17 @@ const labels = {
   },
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   noMatches: "No projects match",
+  noMatchesIn: {
+    open: "No open projects match",
+    hidden: "No hidden projects match",
+    closed: "No closed projects match",
+  },
+  elsewhere: "Matching projects are in another view.",
+  showIn: {
+    open: "Show open projects",
+    hidden: "Show hidden projects",
+    closed: "Show closed projects",
+  },
 };
 
 const project = {
@@ -376,6 +387,48 @@ describe("ProjectsView empty states", () => {
       expect(panel.firstElementChild).toHaveClass("flex-1");
       unmount();
     }
+  });
+});
+
+describe("ProjectsView filter with no matches", () => {
+  it("says which view holds the matches and links there with the filter kept", () => {
+    renderView({ projects: [], query: "SPR", otherMatches: ["hidden"] });
+
+    expect(screen.getByText("No open projects match")).toBeInTheDocument();
+    expect(screen.queryByText("No projects match")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Matching projects are in another view."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden&q=SPR");
+    expect(
+      screen.queryByRole("link", { name: "Show closed projects" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links to Open without a state, its default view", () => {
+    renderView({
+      projects: [],
+      query: "a b",
+      state: "closed",
+      otherMatches: ["open", "hidden"],
+    });
+
+    expect(screen.getByText("No closed projects match")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show open projects" }),
+    ).toHaveAttribute("href", "/projects?q=a+b");
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden&q=a+b");
+  });
+
+  it("keeps the plain no-match message when nothing matches anywhere", () => {
+    renderView({ projects: [], query: "zzz", otherMatches: [] });
+
+    expect(screen.getByText("No projects match")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });
 

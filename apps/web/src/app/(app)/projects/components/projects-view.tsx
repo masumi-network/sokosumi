@@ -1,6 +1,5 @@
 "use client";
 
-import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
@@ -14,6 +13,7 @@ import {
   PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_OPEN_LAYOUT_CLASS,
+  type ProjectsListProject,
   type ProjectsListState,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
@@ -73,15 +73,27 @@ export interface ProjectsViewLabels {
   state: ProjectsStateToggleLabels;
   filter: ProjectsFilterLabels;
   noMatches: string;
+  /** A filter with no matches in this view, while another view has some. */
+  noMatchesIn: Record<ProjectsListState, string>;
+  elsewhere: string;
+  showIn: Record<ProjectsListState, string>;
+}
+
+interface ListMessage {
+  title: string;
+  description?: string;
+  actions?: { label: string; href: string }[];
 }
 
 interface ProjectsViewProps {
-  projects: ProjectListItemType[];
+  projects: ProjectsListProject[];
   nextCursor: string | null;
   query: string;
   state: ProjectsListState;
   /** Open view only: an empty Open list says so when Closed has projects. */
   hasClosedProjects?: boolean;
+  /** Other views the filter matches when this one has none. */
+  otherMatches?: ProjectsListState[];
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -104,7 +116,7 @@ function ProjectsMobileCreateFabSlot() {
 function browseListKey(
   query: string,
   state: ProjectsListState,
-  projects: ProjectListItemType[],
+  projects: ProjectsListProject[],
 ) {
   return `${query}|${state}|${projects
     .map(
@@ -120,6 +132,7 @@ export function ProjectsView({
   query,
   state,
   hasClosedProjects = false,
+  otherMatches = [],
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
@@ -147,16 +160,33 @@ export function ProjectsView({
   );
   const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
-  const emptyMessage = !showEmptyState
+  const emptyMessage: ListMessage | null = !showEmptyState
     ? null
     : isFiltering
-      ? { title: labels.noMatches }
+      ? otherMatches.length > 0
+        ? {
+            title: labels.noMatchesIn[state],
+            description: labels.elsewhere,
+            actions: otherMatches.map((other) => ({
+              label: labels.showIn[other],
+              href: projectsHref(other, query),
+            })),
+          }
+        : { title: labels.noMatches }
       : state === "closed"
         ? labels.emptyClosed
         : state === "hidden"
           ? labels.emptyHidden
           : hasClosedProjects
-            ? labels.onlyClosed
+            ? {
+                ...labels.onlyClosed,
+                actions: [
+                  {
+                    label: labels.onlyClosed.action,
+                    href: projectsHref("closed", ""),
+                  },
+                ],
+              }
             : labels.empty;
 
   function handleLoadMore() {
@@ -281,7 +311,7 @@ function ProjectsListMessage({
   className,
 }: {
   testId: string;
-  message: { title: string; description?: string; action?: string };
+  message: ListMessage;
   className?: string;
 }) {
   return (
@@ -302,18 +332,31 @@ function ProjectsListMessage({
           </p>
         ) : null}
       </div>
-      {message.action ? (
-        <Button asChild variant="outline">
-          <Link href="/projects?state=closed">{message.action}</Link>
-        </Button>
+      {message.actions?.length ? (
+        <div className="flex flex-wrap justify-center gap-2">
+          {message.actions.map((action) => (
+            <Button key={action.href} asChild variant="outline">
+              <Link href={action.href}>{action.label}</Link>
+            </Button>
+          ))}
+        </div>
       ) : null}
     </div>
   );
 }
 
+/** A view of the list, with the filter kept. Open is the default view. */
+function projectsHref(state: ProjectsListState, query: string) {
+  const params = new URLSearchParams();
+  if (state !== "open") params.set("state", state);
+  if (query) params.set("q", query);
+  const search = params.toString();
+  return search ? `/projects?${search}` : "/projects";
+}
+
 function appendUniqueProjects(
-  prev: ProjectListItemType[],
-  next: ProjectListItemType[],
+  prev: ProjectsListProject[],
+  next: ProjectsListProject[],
 ) {
   const existingIds = new Set(prev.map((project) => project.id));
   const uniqueProjects = next.filter((project) => !existingIds.has(project.id));

@@ -2535,7 +2535,18 @@
         "filter": {
           "placeholder": "Filtrar proyectos",
           "clear": "Borrar filtro",
-          "noMatches": "Ningún proyecto coincide con «{query}»."
+          "noMatches": "Ningún proyecto coincide con «{query}».",
+          "noMatchesIn": {
+            "open": "Ningún proyecto abierto coincide con «{query}».",
+            "hidden": "Ningún proyecto oculto coincide con «{query}».",
+            "closed": "Ningún proyecto cerrado coincide con «{query}»."
+          },
+          "elsewhere": "Hay proyectos que coinciden en otra vista.",
+          "showIn": {
+            "open": "Ver proyectos abiertos",
+            "hidden": "Ver proyectos ocultos",
+            "closed": "Ver proyectos cerrados"
+          }
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
@@ -2605,6 +2616,12 @@
           "undo": "Deshacer",
           "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
           "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        },
+        "closing": {
+          "badge": "Cerrándose",
+          "failedBadge": "Cierre fallido",
+          "remaining": "{count, plural, =0 {Terminando; luego pasa a Cerrados} one {Queda # ejecución programada; luego pasa a Cerrados} other {Quedan # ejecuciones programadas; luego pasa a Cerrados}}",
+          "failed": "Abre el proyecto para reintentar el cierre."
         }
       },
       "column": {
