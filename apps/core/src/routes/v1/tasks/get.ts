@@ -145,6 +145,16 @@ const statusBeforeQuerySchema = z.iso
     example: "2026-11-11T09:00:00.000Z",
   });
 
+const unansweredMentionQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .openapi({
+    param: { name: "unansweredMention", in: "query" },
+    description:
+      "true lists only Tasks where a comment mentions the caller and the caller has not commented since. People only; coworkers and Soko Bots get 400.",
+    example: "true",
+  });
+
 const archivedQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -200,6 +210,7 @@ const query = z
     archived: archivedQuerySchema,
     parentTaskId: parentTaskIdQuerySchema,
     includeSubtasks: includeSubtasksQuerySchema,
+    unansweredMention: unansweredMentionQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -284,9 +295,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       sort,
       status: statuses,
       statusBefore,
+      unansweredMention: unansweredMentionParam,
       visibility,
     } = queryParams;
     const archived = archivedParam === "true";
+    const unansweredMention = unansweredMentionParam === "true";
     const requestedVisibility = visibility === undefined ? {} : { visibility };
     const statusWhere = buildTaskListStatusWhere({
       statuses,
@@ -344,6 +357,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ) {
       throw badRequest("Only people can list archived Tasks.");
     }
+    if (
+      unansweredMention &&
+      (isCoworkerAuthContext(authContext) ||
+        isPersonalSokoBotAuthContext(authContext))
+    ) {
+      throw badRequest("Only people can list Tasks by their mentions.");
+    }
+    // The person the mention state is read for. Mentions name people, so a
+    // coworker or a Soko Bot has none.
+    let mentionViewerId: string | null = null;
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -435,6 +458,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } else {
       const userContext = requireUserContext(authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      mentionViewerId = userContext.userId;
       where = applyTaskListStatusWhere(
         {
           archivedAt: archived ? { not: null } : null,
@@ -463,6 +487,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
     if (queryParams.topicTagId) {
       where.visibleTopics = { some: { topicId: queryParams.topicTagId } };
+    }
+
+    if (unansweredMention && mentionViewerId) {
+      where.mentions = {
+        some: { userId: mentionViewerId, answeredAt: null },
+      };
     }
 
     const takePlusOne = take + 1;
@@ -518,9 +548,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const mappedTasks = tasks
-      .slice(0, take)
-      .map((task) => mapTaskListItem(task));
+    const pageTasks = tasks.slice(0, take);
+    // One indexed read for the page, so the list include stays the same for
+    // every kind of caller.
+    const unansweredTaskIds =
+      mentionViewerId && pageTasks.length > 0
+        ? new Set(
+            (
+              await prisma.taskEventMention.findMany({
+                where: {
+                  userId: mentionViewerId,
+                  answeredAt: null,
+                  taskId: { in: pageTasks.map((task) => task.id) },
+                },
+                select: { taskId: true },
+                distinct: ["taskId"],
+              })
+            ).map((mention) => mention.taskId),
+          )
+        : null;
+    const mappedTasks = pageTasks.map((task) => ({
+      ...mapTaskListItem(task),
+      ...(unansweredTaskIds
+        ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
+        : {}),
+    }));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,

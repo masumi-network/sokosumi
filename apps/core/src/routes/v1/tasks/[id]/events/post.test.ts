@@ -290,6 +290,10 @@ interface TransactionMock {
     findMany: ReturnType<typeof vi.fn>;
     createMany: ReturnType<typeof vi.fn>;
   };
+  taskEventMention?: {
+    updateMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createTask(
@@ -411,6 +415,10 @@ function mockTransaction(tx: TransactionMock) {
   };
   tx.taskParticipant ??= {
     findMany: vi.fn().mockResolvedValue([]),
+    createMany: vi.fn().mockResolvedValue({ count: 0 }),
+  };
+  tx.taskEventMention ??= {
+    updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     createMany: vi.fn().mockResolvedValue({ count: 0 }),
   };
 

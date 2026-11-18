@@ -42,6 +42,10 @@ vi.mock("@/lib/db/prisma", () => ({
     vendorGrant: {
       findUnique: vendorGrantFindUniqueMock,
     },
+    // No unanswered mentions: these tests are about the Task rows.
+    taskEventMention: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 
