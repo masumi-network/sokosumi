@@ -52,6 +52,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             )}
           >
             {overview.unplanned.map((finding) => {
+              const affectedUrl = finding.relatedPageUrl ?? finding.pageUrl;
               // A test name alone reads like a pass, so the row says it did not pass.
               return (
                 <li key={finding.id}>
@@ -83,9 +84,9 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         {/* The open row has the link to the page. */}
                         <span className="group-open:hidden">
                           {finding.devices.length === 1 ? " · " : null}
-                          {seoPageLabel(data, finding.pageUrl) ??
+                          {seoPageLabel(data, affectedUrl) ??
                             seoPageName(
-                              finding.pageUrl,
+                              affectedUrl,
                               seoSiteUrl(data),
                               t("pages.home"),
                             )}

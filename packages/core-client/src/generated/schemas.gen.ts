@@ -44539,6 +44539,13 @@ export const ProjectSeoIndexedPageSchema = {
                 'null'
             ],
             maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
         }
     },
     required: [

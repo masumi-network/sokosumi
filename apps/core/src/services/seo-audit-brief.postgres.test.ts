@@ -13,6 +13,7 @@ import {
   saveSeoBrief,
 } from "./seo-audit-brief.service";
 import { pinSeoAuditBrief } from "./seo-audit-brief-dispatch";
+import { loadBriefFollowUps } from "./seo-audit-brief-follow-up";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -308,5 +309,161 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
     expect(JSON.stringify(await getProjectSeoWorkspace(actor))).not.toContain(
       '"purchase"',
     );
+  });
+
+  it("uses the newest page inspection across tasks when another page recovers later", async () => {
+    const page = await addProjectSeoPage(actor, {
+      url: "https://example.test/newest-inspection",
+      relationship: "primary",
+    });
+    const first = "2026-06-02T10:00:00.000Z";
+    const second = "2026-06-02T11:00:00.000Z";
+    const retry = "2026-06-02T12:00:00.000Z";
+    const otherUrl = "https://example.test/related-page";
+    const row = {
+      projectId,
+      kind: "index_inspection",
+      source: "search_console",
+      visibility: "PRIVATE" as const,
+      ownerId: userId,
+      pageIds: [page.id],
+      artifactHash: "fixture",
+    };
+    const indexed = {
+      pageUrl: page.url,
+      verdict: "PASS",
+      indexingState: "INDEXING_ALLOWED",
+      lastCrawlTime: second,
+    };
+    await prisma.projectSeoObservation.createMany({
+      data: [
+        {
+          ...row,
+          sourceKey: randomUUID(),
+          observedAt: new Date(second),
+          payload: {
+            receipt: {
+              taskId: randomUUID(),
+              checkedAt: second,
+              pages: [indexed],
+            },
+          },
+        },
+        {
+          ...row,
+          sourceKey: randomUUID(),
+          observedAt: new Date(retry),
+          payload: {
+            reusedCheckedAt: { [page.url]: first },
+            receipt: {
+              taskId: randomUUID(),
+              checkedAt: retry,
+              pages: [
+                { ...indexed, verdict: "FAIL", lastCrawlTime: first },
+                { ...indexed, pageUrl: otherUrl, lastCrawlTime: retry },
+              ],
+            },
+          },
+        },
+      ],
+    });
+    const [followUp] = await loadBriefFollowUps(
+      actor,
+      {
+        objective: "support",
+        audience: null,
+        constraints: null,
+        outcome: null,
+        pages: [
+          {
+            pageId: page.id,
+            role: "support",
+            action: "read",
+            job: null,
+            indexIntent: "index",
+          },
+        ],
+      },
+      [page],
+      prisma,
+    );
+    expect(followUp).toMatchObject({
+      indexReview: "matches_intent",
+      lastCrawlAt: second,
+    });
+  });
+
+  it("keeps the private exclusion evidence for the same Google crawl after a legacy statistics sync", async () => {
+    const page = await addProjectSeoPage(actor, {
+      url: "https://example.test/retired-guide",
+      relationship: "primary",
+    });
+    const pageUrl = page.url;
+    const lastCrawlTime = "2026-06-01T00:00:00Z";
+    const state = { pageUrl, lastCrawlTime, verdict: "NEUTRAL" };
+    const row = {
+      projectId,
+      source: "search_console",
+      visibility: "PRIVATE" as const,
+      ownerId: userId,
+      artifactHash: "fixture",
+      pageIds: [page.id],
+    };
+    await prisma.projectSeoObservation.create({
+      data: {
+        ...row,
+        kind: "index_inspection",
+        sourceKey: randomUUID(),
+        observedAt: new Date("2026-06-02T00:00:00Z"),
+        payload: {
+          receipt: {
+            checkedAt: "2026-06-02T00:00:00Z",
+            pages: [{ ...state, indexingState: "BLOCKED_BY_META_TAG" }],
+          },
+        },
+      },
+    });
+    const metric = await prisma.projectSeoObservation.create({
+      data: {
+        ...row,
+        kind: "metrics",
+        sourceKey: randomUUID(),
+        observedAt: new Date("2026-06-03T00:00:00Z"),
+        payload: { indexedPages: [state] },
+      },
+    });
+    const followUp = () =>
+      loadBriefFollowUps(
+        actor,
+        {
+          objective: "support",
+          outcome: null,
+          audience: null,
+          constraints: null,
+          pages: [
+            {
+              pageId: page.id,
+              role: "support",
+              action: "read",
+              job: null,
+              indexIntent: "exclude",
+            },
+          ],
+        },
+        [page],
+        prisma,
+      );
+    expect((await followUp())[0]?.indexReview).toBe("expected_exclusion");
+    for (const different of [
+      { ...state, lastCrawlTime: "2026-06-02T12:00:00Z" },
+      { ...state, verdict: "FAIL" },
+      { ...state, indexingState: null },
+    ]) {
+      await prisma.projectSeoObservation.update({
+        where: { id: metric.id },
+        data: { payload: { indexedPages: [different] } },
+      });
+      expect((await followUp())[0]?.indexReview).toBe("unknown");
+    }
   });
 });

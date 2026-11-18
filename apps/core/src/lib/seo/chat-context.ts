@@ -112,6 +112,17 @@ export function seoChatContext(
   const { findings, actions } = chatEvidence(workspace, sharing);
   const selectedIds = new Set(workspace.scope.pageIds);
   const pages = workspace.pages.filter((page) => selectedIds.has(page.id));
+  const selectedUrls = new Set(pages.map((page) => page.url));
+  const indexingNotes =
+    sharing === "personal"
+      ? (workspace.indexTriage?.assessments ?? []).filter(
+          (row) =>
+            (row.status === "review" ||
+              row.status === "expected_exclusion" ||
+              row.status === "unavailable") &&
+            selectedUrls.has(row.auditPageUrl ?? row.pageUrl),
+        )
+      : [];
   const context = {
     audit: workspace.auditName,
     scope: {
@@ -133,6 +144,18 @@ export function seoChatContext(
       metrics: workspace.metrics.length,
     },
     pages: pages.slice(0, SEO_CHAT_PAGE_LIMIT),
+    ...(indexingNotes.length > 0 && {
+      indexingNotes: indexingNotes
+        .slice(0, SEO_CHAT_COLLECTION_LIMIT)
+        .map((row) => ({
+          pageUrl: row.pageUrl,
+          ...(row.auditPageUrl && { auditPageUrl: row.auditPageUrl }),
+          status: row.status,
+          reason: row.reason,
+          checkedAt: row.checkedAt,
+          ...(row.suggestedFix && { suggestedFix: row.suggestedFix }),
+        })),
+    }),
     observations: workspace.observations
       .slice(0, SEO_CHAT_COLLECTION_LIMIT)
       .map((row) => ({
@@ -297,6 +320,7 @@ export function seoChatContext(
     context.searchQueries?.rows ?? [],
     context.strategy?.actions ?? [],
     context.strategy?.placesNotes ?? [],
+    context.indexingNotes ?? [],
     context.observations,
     context.keywords,
     context.competitors,
@@ -311,6 +335,7 @@ export function seoChatContext(
     [context.totals.keywords, context.keywords.length],
     [workspace.competitors.length, context.competitors.length],
     [context.totals.findings, context.findings.length],
+    [indexingNotes.length, context.indexingNotes?.length ?? 0],
     [context.totals.actions, context.actions.length],
     [context.totals.metrics, context.metrics.length],
     [

@@ -16,6 +16,7 @@ import {
 } from "@/services/seo-task-indexing.service";
 
 const params = z.object({ id: z.string().min(1).max(128) });
+const RETRYABLE_HEADER = "X-SEO-Indexing-Retryable";
 const errors = {
   400: jsonErrorResponse("Bad Request"),
   401: jsonErrorResponse("Unauthorized"),
@@ -39,11 +40,21 @@ const readRoute = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(
-      seoTaskIndexingReceiptSchema,
-      "Private URL Inspection receipt",
-    ),
+    200: {
+      ...jsonSuccessResponse(
+        seoTaskIndexingReceiptSchema,
+        "Private URL Inspection receipt",
+      ),
+      headers: {
+        [RETRYABLE_HEADER]: {
+          description:
+            "Whether a provider read failed and the worker should retry this receipt.",
+          schema: { type: "boolean" },
+        },
+      },
+    },
     ...errors,
+    503: jsonErrorResponse("Google access could not be verified"),
   },
 });
 
@@ -81,7 +92,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.req.valid("json").expectedContext,
       c.req.valid("json").auditPageUrl,
     );
-    return ok(c, result);
+    c.header(RETRYABLE_HEADER, String(result.retryable));
+    return ok(c, result.receipt);
   });
   app.openapi(resultRoute, async (c) => {
     const auth = requireCoworkerAuthContext(c.var.authContext);

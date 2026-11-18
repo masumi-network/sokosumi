@@ -12932,6 +12932,7 @@
         }
       },
       "indexReview": {
+        "auditPage": "Geprüfte Seite",
         "checked": "Geprüft",
         "state": {
           "review": "Prüfung erforderlich",

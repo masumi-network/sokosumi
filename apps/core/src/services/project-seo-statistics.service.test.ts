@@ -1008,7 +1008,19 @@ describe("Search Console query rows", () => {
   });
 
   it("stores Google's index verdict for each page and hands it to the workspace", async () => {
-    state.answer = gsc({ rows: [] });
+    const answer = gsc({ rows: [] });
+    state.answer = (slug, args) =>
+      slug.endsWith("INSPECT_URL")
+        ? {
+            inspectionResult: {
+              indexStatusResult: {
+                verdict: "NEUTRAL",
+                coverageState: "Excluded by 'noindex' tag",
+                indexingState: "BLOCKED_BY_META_TAG",
+              },
+            },
+          }
+        : answer(slug, args);
     const workspace = await syncProjectSeoStatistics(actor, gscInput);
     const inspection = state.reads.find((read) =>
       read.slug.endsWith("INSPECT_URL"),
@@ -1021,8 +1033,9 @@ describe("Search Console query rows", () => {
       {
         checkedAt: expect.any(String),
         pageUrl: state.pageUrl,
-        verdict: "PASS",
-        coverageState: "Submitted and indexed",
+        verdict: "NEUTRAL",
+        coverageState: "Excluded by 'noindex' tag",
+        indexingState: "BLOCKED_BY_META_TAG",
         robotsTxtState: null,
         lastCrawlTime: null,
         googleCanonical: null,
