@@ -24,6 +24,7 @@ const {
   getBalanceMock,
   speakVoiceoverMock,
   writeHookLineMock,
+  writeBrollPromptMock,
   timeSpokenWordsMock,
   editTalkingVideoMock,
   projectFindUniqueMock,
@@ -47,6 +48,7 @@ const {
   getBalanceMock: vi.fn(),
   speakVoiceoverMock: vi.fn(),
   writeHookLineMock: vi.fn(),
+  writeBrollPromptMock: vi.fn(),
   timeSpokenWordsMock: vi.fn(),
   projectFindUniqueMock: vi.fn(),
   captureSitePageMock: vi.fn(),
@@ -118,6 +120,7 @@ vi.mock("@/lib/soko-bot/voiceover", () => ({
 }));
 vi.mock("@/services/talking-video-scripts.service", () => ({
   writeTalkingVideoHookLine: writeHookLineMock,
+  writeTalkingVideoBrollPrompt: writeBrollPromptMock,
 }));
 vi.mock("@/lib/image-studio/talking-video-words", () => ({
   timeSpokenWords: timeSpokenWordsMock,
@@ -281,6 +284,72 @@ describe("starting a talking video that shows the site", () => {
   });
 });
 
+describe("starting a talking video with extras", () => {
+  it("quotes them and starts the clip and the music beside the presenter", async () => {
+    writeBrollPromptMock.mockResolvedValue("Hands on a laptop at a desk.");
+    submitToQueueMock.mockImplementation(
+      async ({ model }: { model: string }) => ({
+        kind: "queued",
+        requestId: model.includes("wan")
+          ? "fal-broll"
+          : model.includes("lyria")
+            ? "fal-music"
+            : "fal-1",
+      }),
+    );
+
+    await createTalkingVideoJob({ ...BASE_INPUT, broll: true, music: true });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        // 52 for the video, 50 for the clip, 10 for the music.
+        chargedCents: convertCreditsToCents(112),
+      }),
+    });
+    expect(submitToQueueMock).toHaveBeenCalledWith({
+      model: "fal-ai/wan-25-preview/text-to-video",
+      input: expect.objectContaining({
+        prompt: "Hands on a laptop at a desk.",
+        aspect_ratio: "9:16",
+        resolution: "720p",
+        duration: "5",
+      }),
+      webhookUrl: null,
+    });
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "fal-ai/lyria2", webhookUrl: null }),
+    );
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({
+            brollRequestId: "fal-broll",
+            musicRequestId: "fal-music",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("takes an extra that could not be started off the charge", async () => {
+    writeBrollPromptMock.mockResolvedValue(null);
+    submitToQueueMock
+      .mockResolvedValueOnce({ kind: "rejected", status: 422 })
+      .mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await createTalkingVideoJob({ ...BASE_INPUT, broll: true, music: true });
+
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({ broll: false, music: false }),
+          chargedCents: convertCreditsToCents(52),
+        }),
+      }),
+    );
+  });
+});
+
 describe("starting a talking video", () => {
   it("quotes the script, keeps the voice and sends the photo with it", async () => {
     await createTalkingVideoJob(BASE_INPUT);
@@ -301,6 +370,10 @@ describe("starting a talking video", () => {
           hookLine: null,
           siteShots: false,
           sitePagePathname: null,
+          broll: false,
+          brollRequestId: null,
+          music: false,
+          musicRequestId: null,
         },
         // 10 s at $0.05, plus the voice and timing its words.
         chargedCents: convertCreditsToCents(52),
@@ -627,6 +700,93 @@ describe("the presenter model's video arriving with word timings", () => {
       endCard,
     });
     expect(readAssetBytesMock).toHaveBeenCalledWith(SITE);
+  });
+
+  it("lays the clip and the music in once they are made", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      model: "heygen/avatar-6/turbo/image-to-video",
+      prompt: SCRIPT,
+      chargedCents: convertCreditsToCents(112),
+      settings: {
+        ...row.settings,
+        broll: true,
+        brollRequestId: "fal-broll",
+        music: true,
+        musicRequestId: "fal-music",
+      },
+    });
+    fetchQueueResultMock.mockImplementation(
+      async ({ requestId }: { requestId: string }) => ({
+        kind: "media",
+        media: [{ url: `https://v3b.fal.media/files/${requestId}` }],
+      }),
+    );
+    downloadMediaMock.mockImplementation(async (url: string) => ({
+      bytes: new Uint8Array([
+        url.endsWith("broll") ? 5 : url.endsWith("music") ? 6 : 9,
+      ]),
+      contentType: "video/mp4",
+    }));
+    editTalkingVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([7]),
+      durationSeconds: 7.2,
+    });
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(editTalkingVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        broll: new Uint8Array([5]),
+        music: new Uint8Array([6]),
+      }),
+    );
+    expect(jobUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ chargedCents: expect.anything() }),
+      }),
+    );
+  });
+
+  it("edits without an extra that failed and takes it off the charge", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...row,
+      model: "heygen/avatar-6/turbo/image-to-video",
+      prompt: SCRIPT,
+      chargedCents: convertCreditsToCents(112),
+      settings: {
+        ...row.settings,
+        broll: true,
+        brollRequestId: "fal-broll",
+        music: true,
+        musicRequestId: "fal-music",
+      },
+    });
+    fetchQueueResultMock.mockImplementation(
+      async ({ requestId }: { requestId: string }) =>
+        requestId === "fal-broll"
+          ? { kind: "error", message: "runner crashed" }
+          : {
+              kind: "media",
+              media: [{ url: "https://v3b.fal.media/files/music" }],
+            },
+    );
+    editTalkingVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([7]),
+      durationSeconds: 7.2,
+    });
+
+    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+
+    expect(editTalkingVideoMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ broll: expect.anything() }),
+    );
+    // 52 for the video and 10 for the music; the clip's 50 are gone.
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { chargedCents: convertCreditsToCents(62) },
+      }),
+    );
   });
 
   it("stores the clip as it came when the edit fails", async () => {

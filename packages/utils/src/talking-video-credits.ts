@@ -48,11 +48,19 @@ export interface TalkingVideoPriceFigures {
   captionsPerMinuteUsd: number;
   /** USD per second of video, for cutting the presenter out over the site. */
   cutoutPerSecondUsd: number;
+  /** USD for the B-roll clip in the hook. */
+  brollUsd: number;
+  /** USD for the music bed. */
+  musicUsd: number;
 }
 
 export interface TalkingVideoExtras {
   /** The brand's site is shown behind the presenter. */
   siteShots?: boolean;
+  /** A generated clip plays in the hook. */
+  broll?: boolean;
+  /** Generated music plays under the voice. */
+  music?: boolean;
 }
 
 /** Credits (= cents) for one talking video of this script. */
@@ -66,6 +74,8 @@ export function creditsPerTalkingVideoCents(
     seconds * price.perSecondUsd +
     (script.length / 1000) * price.voicePer1000CharactersUsd +
     (seconds / 60) * price.captionsPerMinuteUsd +
-    (extras.siteShots ? seconds * price.cutoutPerSecondUsd : 0);
+    (extras.siteShots ? seconds * price.cutoutPerSecondUsd : 0) +
+    (extras.broll ? price.brollUsd : 0) +
+    (extras.music ? price.musicUsd : 0);
   return Math.ceil(usd * 100);
 }

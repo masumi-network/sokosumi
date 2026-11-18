@@ -235,6 +235,66 @@ describe("talkingVideoEditArgs", () => {
   });
 });
 
+describe("the B-roll clip and the music", () => {
+  /** One 4 s sentence, then a second one after a pause. */
+  const LONG = [
+    { text: "Your", start: 0.1, end: 0.5 },
+    { text: "inbox", start: 0.6, end: 1.2 },
+    { text: "is", start: 1.3, end: 1.6 },
+    { text: "not", start: 1.7, end: 2.2 },
+    { text: "a", start: 2.3, end: 2.5 },
+    { text: "to-do", start: 2.6, end: 3.3 },
+    { text: "list.", start: 3.4, end: 4 },
+    { text: "Stop.", start: 4.6, end: 5 },
+  ];
+
+  it("cuts the clip into the hook after a second, for the rest of the sentence", () => {
+    const plan = planTalkingVideoEdit(LONG, 5.5, { broll: true })!;
+
+    expect(plan.cuts.map((cut) => [cut.shot, cut.start, cut.end])).toEqual([
+      ["camera", expect.closeTo(0.04), expect.closeTo(1.04)],
+      // 3.06 s are left, too little to come back to the presenter for.
+      ["broll", expect.closeTo(1.04), expect.closeTo(4.1)],
+      ["camera", expect.closeTo(4.54), expect.closeTo(5.25)],
+    ]);
+    // The cut changes nothing about what is said when.
+    expect(plan.durationSeconds).toBeCloseTo(
+      planTalkingVideoEdit(LONG, 5.5)!.durationSeconds,
+    );
+    expect(
+      plan.captions.map((caption) => caption.words[caption.active]),
+    ).toEqual(LONG.map((word) => word.text));
+  });
+
+  it("leaves a short hook to the presenter", () => {
+    const plan = planTalkingVideoEdit(WORDS, 3.5, { broll: true })!;
+
+    expect(plan.cuts.map((cut) => cut.shot)).toEqual(["camera", "camera"]);
+  });
+
+  it("plays the clip in its cut and loops the music under everything", () => {
+    const plan = planTalkingVideoEdit(LONG, 5.5, { broll: true })!;
+    const args = talkingVideoEditArgs(plan, {
+      clip: "clip.mp4",
+      subtitles: "captions.ass",
+      fontsDir: "/tmp/fonts",
+      output: "edited.mp4",
+      broll: "broll.mp4",
+      music: "music.wav",
+    });
+
+    expect(args.join(" ")).toContain("-t 3.060 -i broll.mp4");
+    expect(args.join(" ")).toContain("-stream_loop -1 -i music.wav");
+    const graph = args[args.indexOf("-filter_complex") + 1]!;
+    expect(graph).toContain(
+      "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+    );
+    expect(graph).toContain(
+      "[voice][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[audio]",
+    );
+  });
+});
+
 describe("site shots and the end card in the plan", () => {
   const sentence = (text: string, at: number) => ({
     text,

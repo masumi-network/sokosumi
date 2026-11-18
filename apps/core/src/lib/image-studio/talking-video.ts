@@ -42,6 +42,12 @@ export const TALKING_VIDEO_WORDS_ENDPOINT =
 export const TALKING_VIDEO_CUTOUT_ENDPOINT =
   "veed/video-background-removal/fast";
 
+/** Makes the optional B-roll clip for the hook from a written prompt. */
+export const TALKING_VIDEO_BROLL_ENDPOINT =
+  "fal-ai/wan-25-preview/text-to-video";
+/** Makes the optional instrumental bed. */
+export const TALKING_VIDEO_MUSIC_ENDPOINT = "fal-ai/lyria2";
+
 /**
  * Transcribes a video and burns the words in. Used only when the voice's
  * words could not be timed, so Core's own edit has nothing to plan from.
@@ -60,6 +66,14 @@ const PRICES_VERIFIED_AT = "2026-11-18";
 const VOICE_PER_1000_CHARACTERS_USD = 0.08;
 /** Timing the spoken words for the captions, on `TALKING_VIDEO_WORDS_ENDPOINT`. */
 const CAPTIONS_PER_MINUTE_USD = 0.008;
+/**
+ * One five-second 720p clip on `TALKING_VIDEO_BROLL_ENDPOINT`. fal lists
+ * $0.05 a second and bills 720p as two units a second: 10 units for a 5 s
+ * clip on 2026-11-18.
+ */
+const BROLL_USD = 0.5;
+/** One clip on `TALKING_VIDEO_MUSIC_ENDPOINT`: fal billed one $0.10 unit. */
+const MUSIC_USD = 0.1;
 /** fal's price for `TALKING_VIDEO_CUTOUT_ENDPOINT`, per 30 frames. */
 const CUTOUT_PER_30_FRAMES_USD = 0.008;
 
@@ -93,8 +107,10 @@ const MODELS: TalkingVideoModel[] = [
       // fal billed 18 units for a 14.16 s clip of this model (354 frames at
       // 25 a second), on 2026-11-18: one and a half units per 30 frames.
       cutoutPerSecondUsd: (CUTOUT_PER_30_FRAMES_USD * 18) / 14.16,
+      brollUsd: BROLL_USD,
+      musicUsd: MUSIC_USD,
       basis:
-        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). The edit itself is made by Core and costs nothing.",
+        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
       verifiedAt: PRICES_VERIFIED_AT,
     },
@@ -237,6 +253,12 @@ export interface TalkingVideoSettings extends VideoSettings {
   siteShots: boolean;
   /** The site's screenshot in the studio's store, once it is taken. */
   sitePagePathname: string | null;
+  /** A generated clip plays in the hook; its provider request, once sent. */
+  broll: boolean;
+  brollRequestId: string | null;
+  /** Generated music plays under the voice; its provider request, once sent. */
+  music: boolean;
+  musicRequestId: string | null;
 }
 
 function readSpokenWords(value: unknown): SpokenWord[] {
@@ -274,6 +296,12 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     siteShots: raw.siteShots === true,
     sitePagePathname:
       typeof raw.sitePagePathname === "string" ? raw.sitePagePathname : null,
+    broll: raw.broll === true,
+    brollRequestId:
+      typeof raw.brollRequestId === "string" ? raw.brollRequestId : null,
+    music: raw.music === true,
+    musicRequestId:
+      typeof raw.musicRequestId === "string" ? raw.musicRequestId : null,
   };
 }
 
@@ -309,6 +337,30 @@ export function buildTalkingVideoInput(input: {
  * quarters of the frame's height, which is still below TikTok's safe area.
  * Core's own edit places them inside it; this is the fallback's best.
  */
+/** A five-second vertical clip with nothing written in it. */
+export function buildTalkingVideoBrollInput(input: {
+  prompt: string;
+}): Record<string, unknown> {
+  return {
+    prompt: input.prompt,
+    aspect_ratio: TALKING_VIDEO_ASPECT_RATIO,
+    resolution: "720p",
+    duration: "5",
+    enable_prompt_expansion: false,
+    negative_prompt:
+      "captions, subtitles, text, logos, watermark, cartoon, low quality",
+  };
+}
+
+/** One bed for every video: light, instrumental, out of the voice's way. */
+export function buildTalkingVideoMusicInput(): Record<string, unknown> {
+  return {
+    prompt:
+      "Light, upbeat lo-fi pop instrumental for a short social video, 110 bpm, plucky synth, soft claps, warm bass, friendly and modern, no vocals",
+    negative_prompt: "vocals, singing, speech, low quality",
+  };
+}
+
 export function buildTalkingVideoCutoutInput(input: {
   videoUrl: string;
 }): Record<string, unknown> {
