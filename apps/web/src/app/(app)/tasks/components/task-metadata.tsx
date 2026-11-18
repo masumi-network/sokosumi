@@ -116,6 +116,8 @@ interface TaskMetadataProps {
   schedule?: ReactNode;
   /** A row of its own (see {@link PropertyRow}): what the Task has cost. */
   credits?: ReactNode;
+  /** A row of its own: the Task's participants, after the assignee. */
+  participants?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   priorityLabels: TaskPriorityLabels;
@@ -133,6 +135,7 @@ export function TaskMetadata({
   project,
   schedule,
   credits,
+  participants,
   labels,
   statusFieldLabels,
   priorityLabels,
@@ -259,6 +262,8 @@ export function TaskMetadata({
             </span>
           )}
         </PropertyRow>
+
+        {participants}
 
         <PropertyRow
           label={labels.organization}

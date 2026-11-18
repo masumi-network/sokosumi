@@ -128,7 +128,7 @@ const CUSO_STATE_LABEL: Record<CusoState, string> = {
   planning: "Planning",
   "waiting-approval": "Waiting for approval",
   "waiting-channel": "Waiting for a channel",
-  running: "Running",
+  running: "On schedule",
 };
 
 /**

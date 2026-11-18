@@ -53,6 +53,8 @@ const YOU_HUB_CHILD_PATHS = [
   "/seo",
 ] as const;
 
+const DEVELOPER_PATH = /^\/developer(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/;
+
 const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
 
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
@@ -97,6 +99,8 @@ export function getAgentJobsPathAgentId(
  * Tab list roots → null; Agents root → home; non-tab hub roots → Chats
  * (Soko Bot setup opened from Home → home); nested → list root.
  * You page rows outside `/you/` (Account, Billing, Connections) → You.
+ * Developer sections → the You → Developer menu; their detail pages → the
+ * section list.
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
@@ -111,6 +115,16 @@ export function resolveMobileAppBackTarget(
     )
   ) {
     return { href: "/you", labelKey: "back" };
+  }
+  // Developer sections open from the You → Developer menu; a detail page
+  // (coworker, task, vendor) goes back to its list.
+  const developerPath = DEVELOPER_PATH.exec(pathname);
+  if (developerPath) {
+    const [, section, detail] = developerPath;
+    return {
+      href: detail ? `/developer/${section}` : "/you/developer",
+      labelKey: "back",
+    };
   }
   const root = findMainAppListRoot(pathname);
   if (!root) {

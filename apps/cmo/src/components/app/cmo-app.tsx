@@ -368,7 +368,7 @@ export function CmoApp({
 
         {view === "chat" ? (
           <>
-            <div className="scroll">
+            <div className="scroll chat">
               <div className="thread">
                 {thread.map((item) => (
                   <ThreadEntry
@@ -395,8 +395,9 @@ export function CmoApp({
                     </span>
                   </CusoSays>
                 ) : null}
-                <div ref={end} />
               </div>
+              {/* Outside the thread, so it adds no gap under the last message. */}
+              <div ref={end} />
             </div>
             <div className="composer-wrap">
               <div className="suggest">

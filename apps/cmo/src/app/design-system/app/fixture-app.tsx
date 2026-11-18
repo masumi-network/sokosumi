@@ -3,7 +3,7 @@
 import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
 import { cmoPlans } from "../../../test-fixtures/cmo";
-import { messages, overview } from "./fixtures";
+import { chat, messages, overview } from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
 const actions: CmoAppActions = {
@@ -66,15 +66,16 @@ interface FixtureAppProps {
 }
 
 export function FixtureApp({ view }: FixtureAppProps) {
+  const data = view === "chat" ? chat : { overview, messages };
   return (
     <CmoApp
-      overview={overview}
-      messages={messages}
+      overview={data.overview}
+      messages={data.messages}
       name="Francis Luz"
       email="francis@acme.io"
       initialView={view}
       plans={cmoPlans}
-      actions={actions}
+      actions={{ ...actions, loadState: async () => data }}
     />
   );
 }
