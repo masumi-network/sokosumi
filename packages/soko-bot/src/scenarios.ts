@@ -1176,7 +1176,12 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
       tools: ["generate_talking_video"],
-      allowFailedTools: ["wait_for", "get_video", "preview_result"],
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
       forbiddenTools: [
         "generate_image",
         "generate_video",

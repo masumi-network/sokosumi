@@ -159,6 +159,27 @@ describe("publishTikTokVideo", () => {
     ).toEqual([{ publish_id: "pub_1" }]);
   });
 
+  it("labels an AI-generated video for TikTok", async () => {
+    const fetchMock = stubSession((call) => {
+      if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
+        return toolResponse({ privacy_level_options: ["SELF_ONLY"] });
+      }
+      if (call.tool_slug === "TIKTOK_PUBLISH_VIDEO") {
+        return toolResponse({ publish_id: "pub_ai" });
+      }
+      return toolResponse({
+        status: "PUBLISH_COMPLETE",
+        publicaly_available_post_id: ["751234567891"],
+      });
+    });
+
+    await publishTikTokVideo({ ...context, aiGenerated: true });
+
+    expect(executeCalls(fetchMock)[1]?.arguments).toMatchObject({
+      is_aigc: true,
+    });
+  });
+
   it("stores the publish id when completion has no queryable video id", async () => {
     stubSession((call) => {
       if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
