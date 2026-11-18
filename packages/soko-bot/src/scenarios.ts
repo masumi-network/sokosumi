@@ -1101,13 +1101,13 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "cmo-change-request",
-    title: "Changes the plan the way the founder asked",
+    title: "Changes the strategy the way the founder asked",
     intent:
-      "A founder's change to the month updates the saved plan, only where asked, and says what changed.",
+      "A founder's change to the month updates the saved strategy, only where asked, and says what changed.",
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole plan, or saying it changed without a successful save_strategy, fails. If no plan exists yet, saying so is correct.",
+      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.",
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],

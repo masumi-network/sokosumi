@@ -554,7 +554,7 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   },
   channels: {
     title: "Where I post",
-    line: "Connect a network and I post there on your plan's schedule.",
+    line: "Connect a network and I post there on your strategy's schedule.",
   },
   settings: {
     title: "Settings",
@@ -633,9 +633,9 @@ function ThreadEntry({
     return (
       <CusoSays at={item.at}>
         <p className="txt">
-          Your plan is ready. I'm making this month's posts now and publish each
-          one on its day; the Calendar shows every piece. Ask me anything here,
-          or tell me what to change.
+          Your strategy is ready. I'm making this month's pieces now and publish
+          each one on its day; the Calendar shows every piece. Ask me anything
+          here, or tell me what to change.
         </p>
       </CusoSays>
     );

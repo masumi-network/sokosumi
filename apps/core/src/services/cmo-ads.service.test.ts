@@ -212,7 +212,7 @@ describe("launching a search ad", () => {
         userId: "user-1",
         entryId: "ad-1",
       }),
-    ).rejects.toThrow(/plan allows EUR 10.00/);
+    ).rejects.toThrow(/strategy allows EUR 10.00/);
     expect(createCampaign).not.toHaveBeenCalled();
   });
 
