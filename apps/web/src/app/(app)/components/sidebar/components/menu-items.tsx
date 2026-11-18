@@ -2,6 +2,7 @@
 
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
+  Binoculars,
   Bot,
   CalendarDays,
   Clapperboard,
@@ -261,6 +262,14 @@ function ScopedMenuItems({
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",
       prefetchContent: true,
+    },
+    // A project's competitors and its weekly check, scoped like Ads.
+    {
+      key: "competitors",
+      href: "/competitors",
+      label: t("competitors"),
+      Icon: Binoculars,
+      group: "marketing",
     },
     ...(newsletterEnabled
       ? [

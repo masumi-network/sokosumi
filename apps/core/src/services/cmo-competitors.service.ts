@@ -1,6 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import {
-  type CmoCompetitorFeedItem,
+  type CompetitorFeedItem,
   cmoCompetitorWatchBrief,
 } from "@sokosumi/soko-bot";
 
@@ -302,7 +302,7 @@ function sourceLine(signal: CitedSignal) {
  * words) and how far they back it, what it means for them and the move.
  */
 export function bigMoveMessage(
-  item: CmoCompetitorFeedItem,
+  item: CompetitorFeedItem,
   competitor: string,
   signals: ReadonlyMap<string, CitedSignal>,
 ): string {
@@ -347,7 +347,7 @@ export async function saveCusoCompetitorFeed(
  */
 async function postBigMoves(
   sokoBotId: string,
-  items: readonly CmoCompetitorFeedItem[],
+  items: readonly CompetitorFeedItem[],
   names: ReadonlyMap<string, string>,
   signals: ReadonlyMap<string, CitedSignal>,
   turnId: string | null,
@@ -468,7 +468,7 @@ async function setStrategyMark(
   projectId: string,
   itemId: string,
   added: boolean,
-): Promise<CmoCompetitorFeedItem> {
+): Promise<CompetitorFeedItem> {
   return prisma.$transaction(async (tx) => {
     await lockCompetitorFeed(tx, projectId);
     const feed = await tx.competitorFeed.findFirst({

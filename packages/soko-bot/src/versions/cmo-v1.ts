@@ -1,5 +1,6 @@
 import {
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
 } from "../policy.js";
 import type { SokoBotVersion } from "./types.js";
@@ -131,6 +132,7 @@ export const cmoV1: SokoBotVersion = {
     "stop_background_run",
     "wait_for",
     ...SOKO_BOT_CMO_CAPABILITIES,
+    ...SOKO_BOT_COMPETITOR_CAPABILITIES,
   ],
   systemPrompt: `${v29.systemPrompt}
 

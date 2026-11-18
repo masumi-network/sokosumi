@@ -33,6 +33,7 @@ import {
 import { bareHost } from "@/lib/competitors/text";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 import { createCoreLogger, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { searchExa } from "@/lib/soko-bot/exa";
@@ -736,9 +737,11 @@ export async function runProjectCompetitorCheck(
 ): Promise<CompetitorCheckOutcome> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { competitorChecksSince: true },
+    select: { competitorChecksSince: true, workspaceId: true },
   });
   if (!project?.competitorChecksSince) return "paused";
+  // An eval Project reads the signals its case seeds; nothing real is fetched.
+  if (await isEvalWorkspace(project.workspaceId)) return "paused";
   return runCompetitorCheck(
     projectId,
     chargeProjectCompetitorCheck(projectId),

@@ -78,6 +78,7 @@ import {
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
+  signsInToCmo,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import {
@@ -569,6 +570,7 @@ export const auth = betterAuth({
           const { renderEmailCodeEmail } = await import("@sokosumi/email");
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
+            brand: (await signsInToCmo()) ? "cmo" : undefined,
             code: otp,
             expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
           });

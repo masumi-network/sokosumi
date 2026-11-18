@@ -17,9 +17,14 @@ export interface ResetPasswordEmailProps extends LocalizedEmailProps {
   resetLink: string;
 }
 
+/** A product that signs people in through Sokosumi and mails under its own name. */
+export type EmailBrand = "cmo";
+
 export interface EmailCodeEmailProps extends LocalizedEmailProps {
   code: string;
   expiresInMinutes: number;
+  /** The product the code was asked for from, when it is not Sokosumi. */
+  brand?: EmailBrand | undefined;
 }
 
 export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {
