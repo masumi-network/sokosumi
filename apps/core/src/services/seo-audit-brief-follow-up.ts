@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
-import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
+import { googleReturnedUnknown } from "@/lib/seo/inspection-provenance";
 import { unavailableGscTaskInspection } from "@/lib/seo/native-gsc-task-inspection";
 import {
   type SeoActor,
@@ -79,17 +79,11 @@ function taskPageInspection({ payload }: InspectionObservation, url: string) {
   if (!task.success) return null;
   const page = task.data.receipt.pages.find((item) => item.pageUrl === url);
   if (!page) return null;
-  if (page.verdict === "VERDICT_UNSPECIFIED") {
-    const { pageUrl: _url, verdict: _verdict, ...details } = page;
-    const answered =
-      task.data.answeredUnknownPageUrls?.includes(url) ||
-      (task.data.providerAnsweredAll &&
-        task.data.propertyId &&
-        gscPropertyCovers(task.data.propertyId, [url]));
-    // Older mixed batches contain no per-page provenance. A bare unknown cannot supersede an observed verdict.
-    if (!answered && !Object.values(details).some((value) => value != null))
-      return null;
-  }
+  if (
+    page.verdict === "VERDICT_UNSPECIFIED" &&
+    !googleReturnedUnknown(task.data, page)
+  )
+    return null;
   return {
     page,
     checkedAt: Date.parse(

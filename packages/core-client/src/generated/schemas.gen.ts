@@ -44626,6 +44626,12 @@ export const ProjectSeoIndexAssessedPageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        googleReturnedUnknown: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
         auditPageUrl: {
             type: 'string',
             maxLength: 4096,

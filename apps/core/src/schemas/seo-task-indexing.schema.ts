@@ -82,6 +82,7 @@ export const seoTaskIndexingResultSchema = z
       .array(
         seoIndexAssessmentSchema.safeExtend({
           checkedAt: z.iso.datetime().optional(),
+          googleReturnedUnknown: z.literal(true).optional(),
         }),
       )
       .min(1)

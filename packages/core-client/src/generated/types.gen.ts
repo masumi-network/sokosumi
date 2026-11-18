@@ -11621,6 +11621,7 @@ export type ProjectSeoIndexAssessedPage = {
     evidence: Array<string>;
     taskId: string;
     checkedAt: Date;
+    googleReturnedUnknown?: true;
     auditPageUrl?: string;
 };
 
