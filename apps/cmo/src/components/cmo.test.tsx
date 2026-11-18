@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -293,7 +295,7 @@ describe("cards", () => {
     const update = {
       id: "u0",
       at: new Date("2026-10-05T09:00:00Z"),
-      kind: "request" as const,
+      kind: "daily" as const,
       headline: "Plan updated",
       done: [],
       upNext: ["Draft the first LinkedIn post"],
@@ -314,6 +316,39 @@ describe("cards", () => {
       <UpdateCard update={update} actions={noop} approved={false} superseded />,
     );
     expect(history).not.toContain("Draft the first LinkedIn post");
+  });
+
+  it("shows what Cuso did on a request as his own words, flat", () => {
+    const html = renderToStaticMarkup(
+      <UpdateCard
+        update={{
+          id: "u0",
+          at: new Date("2026-11-17T09:00:00Z"),
+          kind: "request",
+          headline: "X-Post mit Bild zur Freigabe bereit",
+          done: ["Bild erstellt", "X-Post entworfen"],
+          upNext: ["Post nach deiner Freigabe planen"],
+          changes: [],
+          revertible: false,
+          revertedAt: null,
+        }}
+        actions={noop}
+        approved
+      />,
+    );
+    expect(
+      html
+        .replace(/<[^>]+>/g, "|")
+        .split("|")
+        .filter(Boolean),
+    ).toEqual([
+      "X-Post mit Bild zur Freigabe bereit",
+      "Bild erstellt",
+      "X-Post entworfen",
+      "Post nach deiner Freigabe planen",
+    ]);
+    expect(html).not.toContain("card");
+    expect(html).not.toContain("<button");
   });
 
   it("offers to revert a monthly strategy, not a Brand Brain refresh", () => {
@@ -656,18 +691,32 @@ describe("renderInline", () => {
     );
   });
 
-  it("opens Core's relative links in Sokosumi", () => {
+  it("never opens Sokosumi, whatever Core or Cuso linked", () => {
     const html = renderToStaticMarkup(
       <p>
         {renderInline(
-          "Updated social post ([Open post](/social?postId=p1)).",
+          [
+            "Started image ([Open in Content Studio](/studio?projectId=p1)).",
+            "Updated social post ([Open post](/social?projectId=p1&postId=s1)).",
+            "Created task [Launch](/tasks/t1) → Elena.",
+            "Uploaded file [hero.png](/drive/files/f1).",
+            "Die Grafik: [Fee Clarity](https://sokosumi.com/drive/files/f2).",
+            `It is [here](${web}/projects/p1) and live on [x.com](https://x.com/acme).`,
+          ].join("\n"),
           web,
         )}
       </p>,
     );
-    expect(html).toContain('href="https://app.sokosumi.com/social?postId=p1"');
-    expect(html).toContain(">Open post</a>");
-    expect(html).not.toContain("](");
+    expect(html).toBe(
+      [
+        "<p>Started image.",
+        "Updated social post.",
+        "Created task Launch → Elena.",
+        "Uploaded file hero.png.",
+        "Die Grafik: Fee Clarity.",
+        'It is here and live on <a href="https://x.com/acme" target="_blank" rel="noreferrer">x.com</a>.</p>',
+      ].join("\n"),
+    );
   });
 
   it("drops links that are not web links", () => {
@@ -704,5 +753,25 @@ describe("calendar", () => {
     expect(html).toContain("Week 1");
     expect(html).toContain(`${live.length} pieces this month`);
     expect(html).toContain('aria-pressed="true"');
+  });
+});
+
+describe("CMO's own words", () => {
+  /**
+   * The owner works with Cuso in CMO.xyz, so no screen names Sokosumi. Every
+   * `.tsx` file is a screen or a part of one; comments carry no copy.
+   */
+  it("never name Sokosumi on a screen", () => {
+    const src = join(import.meta.dirname, "..");
+    const named = readdirSync(src, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".tsx") && !file.includes(".test."))
+      .filter((file) =>
+        /sokosumi(?![\w/-])/i.test(
+          readFileSync(join(src, file), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/^\s*\/\/.*$/gm, ""),
+        ),
+      );
+    expect(named).toEqual([]);
   });
 });

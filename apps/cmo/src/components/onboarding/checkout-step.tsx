@@ -169,7 +169,7 @@ export function CheckoutStep({
           <li>
             <Check size={16} aria-hidden="true" />
             <span>
-              <b>{month.pieces} pieces</b> from your plan
+              <b>{month.pieces} pieces</b> from your strategy
               {month.channels.length > 0
                 ? ` for ${joinNames(month.channels)}`
                 : ""}
@@ -237,7 +237,7 @@ export function CheckoutStep({
                 onClick={() => setPicked(plan.tier)}
               >
                 {plan.tier === fits && paceName ? (
-                  <span className="ob-plan-fit">Fits your {paceName} plan</span>
+                  <span className="ob-plan-fit">Fits your {paceName} pace</span>
                 ) : null}
                 <span className="ob-plan-name">{tierName(plan.tier)}</span>
                 <span className="ob-value">

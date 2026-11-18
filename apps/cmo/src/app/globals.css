@@ -17,13 +17,13 @@
   --line: light-dark(#0c0c0c, #fafafa);
   --border: light-dark(#e5e5e5, #262626);
   /*
-   * Line widths above the 1px hairline: pill for tags, badges,
-   * small buttons and marks; thick for cards, inputs and full-size buttons;
-   * hero for Cuso's stage and the bands that cross the page.
+   * One scale, shared with the landing page. Every outlined thing (cards,
+   * frames, Cuso's picture, inputs, buttons) takes the line; chips, tags,
+   * small buttons and avatar circles the small one. A 1px hairline is only
+   * for structure inside a card.
    */
-  --line-pill: 2px;
-  --line-thick: 3px;
-  --line-hero: 4px;
+  --line-width: 3px;
+  --line-width-small: 2px;
   /* Iris is a fill, never text or a thin mark. */
   --primary: light-dark(#ff51ff, #d141d1);
   --primary-hover: #ff51ff;
@@ -33,23 +33,22 @@
   --ok: #00d43b;
   --warn: #ffd300;
   /*
-   * Hard shadows: an offset, no blur. Pill under tags, badges and small
-   * buttons; hard under full-size buttons; hero under the card in focus.
-   * A pressed element moves by its own offset and drops the shadow.
+   * Hard shadows: an offset, no blur, nothing above 6px. The shadow sits
+   * under anything you can click or type in; the big one only under the one
+   * card that needs the owner now and the hire screen's button. What you
+   * cannot click has a line and no shadow. A pressed element moves by its own
+   * offset and drops the shadow.
    */
-  --offset-pill: 3px;
-  --offset-hard: 6px;
-  --offset-hero: 10px;
-  --shadow-pill: var(--offset-pill) var(--offset-pill) 0 var(--line);
-  --shadow-hard: var(--offset-hard) var(--offset-hard) 0 var(--line);
-  --shadow-hero: var(--offset-hero) var(--offset-hero) 0 var(--line);
-  /* The picked tile in a grid takes Iris in place of the ink shadow. */
-  --shadow-iris: var(--offset-hard) var(--offset-hard) 0 var(--primary);
+  --offset: 4px;
+  --offset-big: 6px;
+  --shadow: var(--offset) var(--offset) 0 var(--line);
+  --shadow-big: var(--offset-big) var(--offset-big) 0 var(--line);
+  /* The same shadow in Iris: the picked tile, and a second button on a strip. */
+  --shadow-iris: var(--offset) var(--offset) 0 var(--primary);
   /* A strip: the black band that crosses a page. It inverts in dark. */
   --strip: light-dark(#0c0c0c, #fafafa);
   --strip-foreground: light-dark(#ffffff, #0c0c0c);
-  --shadow-on-strip: var(--offset-hard) var(--offset-hard) 0
-    var(--strip-foreground);
+  --shadow-on-strip: var(--offset) var(--offset) 0 var(--strip-foreground);
   /* Cuso's avatar circle stays light in both themes so his outline reads. */
   --stage: #f5f5f5;
   /* Headings: PP Mori SemiBold, pulled tight. */
@@ -57,7 +56,6 @@
   --radius-mark: 8px;
   --radius-control: 12px;
   --radius-card: 20px;
-  --radius-panel: 28px;
   /* Tags, badges, step markers, tabs and filters. */
   --radius-pill: 999px;
   --space-1: 4px;
@@ -216,10 +214,10 @@ p {
   justify-content: center;
   min-height: 44px;
   padding: 0 18px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--primary);
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow);
   color: var(--primary-foreground);
   font: inherit;
   font-size: 0.875rem;
@@ -239,7 +237,7 @@ p {
 /* Pressed: pushed flat, the shadow gone. */
 .button:active:not(:disabled),
 .button-down {
-  transform: translate(var(--offset-hard), var(--offset-hard));
+  transform: translate(var(--offset), var(--offset));
   box-shadow: none;
 }
 
@@ -316,7 +314,7 @@ button[aria-busy="true"] {
   min-height: 44px;
   padding: 0 16px;
   /* The ink line keeps a control's edge above 3:1 (WCAG 1.4.11). */
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -342,7 +340,7 @@ button[aria-busy="true"] {
 [role="alert"] {
   width: 100%;
   padding: 12px 16px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
   font-weight: 500;
@@ -371,7 +369,7 @@ button[aria-busy="true"] {
   gap: 4px;
   width: 100%;
   padding: 20px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
 }
@@ -388,7 +386,7 @@ button[aria-busy="true"] {
   place-items: center;
   margin-bottom: 48px;
   aspect-ratio: 1;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: 50%;
   background: var(--stage);
 }
@@ -448,9 +446,9 @@ body:has(.app) .site-header {
   gap: 6px;
   min-height: 32px;
   padding: 0 12px;
-  border-width: var(--line-pill);
+  border-width: var(--line-width-small);
   background: var(--card);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font-size: 0.75rem;
   font-weight: 600;
@@ -461,7 +459,7 @@ body:has(.app) .site-header {
 }
 
 .button-small:active:not(:disabled) {
-  transform: translate(var(--offset-pill), var(--offset-pill));
+  transform: translate(var(--offset), var(--offset));
 }
 
 /* The picked one of a set is filled with Iris. */
@@ -546,7 +544,7 @@ a.button {
   gap: 4px;
   padding: 2px 10px;
   border-radius: var(--radius-pill);
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   background: var(--card);
   color: var(--foreground);
   font-size: 0.75rem;
@@ -606,10 +604,10 @@ a.button {
 
 .chip {
   padding: 4px 14px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--card);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font: inherit;
   font-size: 0.875rem;
@@ -625,7 +623,7 @@ a.button {
 }
 
 .chip:active {
-  transform: translate(var(--offset-pill), var(--offset-pill));
+  transform: translate(var(--offset), var(--offset));
   box-shadow: none;
 }
 
@@ -654,7 +652,7 @@ a.button {
   flex: none;
   place-items: center;
   padding: 4px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
   background: var(--stage);
 }
@@ -672,7 +670,7 @@ a.button {
   place-items: center;
   width: 20px;
   height: 20px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
   color: var(--primary-foreground);
   font-size: 0.75rem;
@@ -727,10 +725,16 @@ input,
 textarea {
   font: inherit;
   padding: 10px 12px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
+}
+
+/* A field you type in casts the shadow; a radio, checkbox or slider does not. */
+input:not([type="radio"], [type="checkbox"], [type="range"]),
+textarea {
+  box-shadow: var(--shadow);
 }
 
 /* ── Shell ── */
@@ -784,7 +788,7 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: var(--line-thick) solid var(--line);
+  border-right: var(--line-width) solid var(--line);
   background: var(--surface);
 }
 
@@ -832,7 +836,7 @@ textarea {
   gap: 8px;
   height: 40px;
   padding: 0 10px;
-  border: var(--line-pill) solid var(--clear);
+  border: var(--line-width-small) solid var(--clear);
   border-radius: var(--radius-control);
   background: var(--clear);
   color: var(--foreground);
@@ -856,7 +860,7 @@ textarea {
 .nav a.active {
   border-color: var(--line);
   background: var(--primary);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--primary-foreground);
   font-weight: 600;
 }
@@ -886,8 +890,7 @@ button.cuso-status {
 
 /* He needs the owner and the card opens the chat: now it is an action. */
 button.cuso-status .ob-stage-art {
-  border-width: var(--line-thick);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
 }
 
 /* The person, at the foot of the sidebar: the whole row opens the account menu. */
@@ -903,10 +906,10 @@ button.cuso-status .ob-stage-art {
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font: inherit;
   text-align: left;
@@ -984,7 +987,7 @@ button.cuso-status .ob-stage-art {
   gap: 12px;
   height: 64px;
   padding: 0 24px;
-  border-bottom: var(--line-thick) solid var(--line);
+  border-bottom: var(--line-width) solid var(--line);
 }
 
 .vhead h2 {
@@ -1131,14 +1134,14 @@ button.cuso-status .ob-stage-art {
 /* Every card: the thick ink line. Hairlines are for structure inside it. */
 .card {
   overflow: hidden;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
 
 /* Look here: the card in focus, or one that needs the owner now. */
 .card-focus {
-  box-shadow: var(--shadow-hero);
+  box-shadow: var(--shadow-big);
 }
 
 .card .ch,
@@ -1324,11 +1327,11 @@ button.cuso-status .ob-stage-art {
 }
 
 .k.article {
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
 }
 
 .k.news {
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
 }
 
@@ -1430,10 +1433,11 @@ button.cuso-status .ob-stage-art {
   flex-direction: column;
   max-width: 720px;
   margin: 0 auto;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
   transition: border-color 150ms;
+  box-shadow: var(--shadow);
 }
 
 /* Focus thickens the one line: a ring set apart would read as a second box. */
@@ -1451,6 +1455,7 @@ button.cuso-status .ob-stage-art {
   min-width: 0;
   padding: 14px 16px 4px;
   border: 0;
+  box-shadow: none;
   resize: none;
   background: transparent;
   line-height: 1.5;
@@ -1512,8 +1517,8 @@ button.cuso-status .ob-stage-art {
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -1532,7 +1537,7 @@ button.cuso-status .ob-stage-art {
 }
 
 .page-body > .alert {
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   background: var(--card);
 }
 
@@ -1575,7 +1580,7 @@ button.cuso-status .ob-stage-art {
 .page .page-body > .card:not(.card-focus),
 .page .cal-head,
 .page .kpi {
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
 }
 
 .page .page-body > .card {
@@ -1610,7 +1615,7 @@ button.cuso-status .ob-stage-art {
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
@@ -1637,7 +1642,7 @@ button.cuso-status .ob-stage-art {
 
 .quote {
   padding-left: 12px;
-  border-left: var(--line-thick) solid var(--line);
+  border-left: var(--line-width) solid var(--line);
   color: var(--muted);
 }
 
@@ -1652,7 +1657,7 @@ button.cuso-status .ob-stage-art {
     align-items: center;
     overflow-x: auto;
     border-right: 0;
-    border-bottom: var(--line-thick) solid var(--line);
+    border-bottom: var(--line-width) solid var(--line);
   }
 
   .side .grow,
@@ -1735,7 +1740,7 @@ button.cuso-status .ob-stage-art {
   width: min(480px, calc(100vw - 16px));
   padding: 20px;
   overflow-y: auto;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
@@ -2373,8 +2378,8 @@ button.cuso-status .ob-stage-art {
   bottom: 0;
   width: 25%;
   overflow: hidden;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--background);
 }
 
@@ -2524,7 +2529,7 @@ button.cuso-status .ob-stage-art {
 .bb-quote {
   margin: 0;
   padding-left: 16px;
-  border-left: var(--line-thick) solid var(--line);
+  border-left: var(--line-width) solid var(--line);
   font-size: 1rem;
   line-height: 1.45;
 }
@@ -2876,7 +2881,7 @@ button.cuso-status .ob-stage-art {
   min-width: 0;
   height: 36px;
   padding: 0 12px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
@@ -2922,7 +2927,7 @@ button.cuso-status .ob-stage-art {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--foreground);
@@ -2941,7 +2946,7 @@ button.cuso-status .ob-stage-art {
 /* The picked filter: Iris and the pill shadow. */
 .cal-filter[aria-pressed="true"] {
   background: var(--primary);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--primary-foreground);
   font-weight: 600;
 }
@@ -2979,7 +2984,7 @@ button.cuso-status .ob-stage-art {
   height: 100%;
   overflow: hidden;
   padding: 8px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
   color: inherit;
@@ -2991,7 +2996,7 @@ button.cuso-status .ob-stage-art {
 
 /* A piece you can open takes the hard shadow. */
 button.cal-card:hover {
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow);
 }
 
 .cal-thumb {
@@ -3143,7 +3148,7 @@ button.cal-card:hover {
   gap: 8px;
   max-width: 520px;
   padding: 16px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
 }
@@ -3240,7 +3245,7 @@ button.cal-card:hover {
   display: grid;
   place-items: center;
   min-height: 360px;
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 

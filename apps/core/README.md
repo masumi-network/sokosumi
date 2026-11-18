@@ -121,8 +121,7 @@ Account types and setup requirements:
 
 - [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
   Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
-  Publishing picks the most permissive privacy level the account offers and records
-  it on the attempt; until the Content Posting audit is approved that is `SELF_ONLY`.
+  The preview composer requires a creator-selected private audience and records it on the attempt.
 - [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
   Creator accounts, not Personal accounts.
 - [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
@@ -164,7 +163,7 @@ the connect menu, and choosing it returns "This integration is not configured
 yet" without starting OAuth. Social scheduling is public.
 `socialProvidersForWorkspace` in `packages/utils/src/social-post.ts`
 (`@sokosumi/utils`) returns `SOCIAL_PUBLIC_PROVIDERS` (X, YouTube, LinkedIn,
-Instagram, and Facebook) for every workspace, including `utxo`. Only those enabled
+Instagram, and Facebook) for every workspace, including `utxo`. The mainnet `utxo` workspace also receives TikTok. Only those enabled
 providers can connect, create, edit, schedule, approve, publish, duplicate, or
 recycle posts; other providers show Coming soon. Existing disabled-provider posts
 fail when due with that reason without contacting the platform, preserving their
@@ -187,13 +186,13 @@ TikTok developer app.
 1. In the [TikTok for Developers](https://developers.tiktok.com/) portal, create
    an app under your organization and add the **Login Kit** and **Content
    Posting API** products. Turn on **Direct Post** in Content Posting API.
-2. Request the scopes `user.info.basic`, `video.upload`, and `video.publish`.
+2. Request the scopes `user.info.basic` and `video.publish`.
 3. In [Composio](https://docs.composio.dev/toolkits/tiktok), create an auth
    config for the `tiktok` toolkit that uses your own developer app. Enter the
    app's client key and client secret and the same scopes. Copy the redirect
    URI Composio shows into the TikTok app's Login Kit redirect URIs.
 4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
-   Core Vercel project for that environment, then redeploy Core.
+   Core Vercel project for the chosen network, then redeploy Core. TikTok is enabled only for projects owned by the mainnet `utxo` workspace. Personal workspaces and preprod are excluded.
 5. While the app is in sandbox, only TikTok accounts added as target users can
    authorize it. Add the accounts you test with.
 6. Connect the account: open **Social**, choose a project, then **Connect
@@ -202,18 +201,23 @@ TikTok developer app.
    at most 2,200 characters. Photos, GIFs, and a second video are rejected
    before scheduling.
 
-Until TikTok approves the app's Content Posting audit, TikTok only offers the
-`SELF_ONLY` privacy level, so posts publish as private to the creator. Core
-always picks the most permissive level the account offers and records it on the
-attempt, so approved audits take effect without a code change. Submit the app
-for review (Login Kit) and the Content Posting audit before inviting accounts
-outside the sandbox.
+Use a private sandbox target account for the recording. In **New post** select
+only that account, attach one MP4, review the preview and editable caption, pick
+**Only me**, review the interaction settings, confirm music usage, then choose
+**Post now**. Show TikTok's confirmation and the private video in the creator's
+profile. TikTok must audit the app before public posting.
 
-TikTok pulls the video from its URL. TikTok's Content Posting API only pulls
-from URL prefixes verified in the app's **URL properties**. Check that a test
-post publishes before relying on it. If TikTok rejects the Blob host
-(`*.public.blob.vercel-storage.com`, which cannot be verified), serve Drive
-media from a domain you control and verify that prefix.
+For a first review, record the actual sandbox OAuth consent screen and return
+to Sokosumi on the same Web domain registered in the portal. Keep Login Kit
+(`user.info.basic`) and Content Posting API Direct Post (`video.publish`).
+Remove Share Kit and the upload-to-inbox scope `video.upload` for this flow.
+Submit an MP4 or MOV under 50 MB.
+
+TikTok pulls the video from the public URL of the selected Drive attachment.
+Verify the exact media domain or URL prefix in TikTok's **URL properties**.
+For a prefix, place TikTok's signature file at the requested path on the
+media host and complete verification. The Web URL in the review form and
+the media URL used by Direct Post are separate properties.
 
 ### Turnstile protection for authentication email
 

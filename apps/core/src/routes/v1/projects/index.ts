@@ -98,6 +98,7 @@ import mountDeleteProjectSocialConnection from "./[id]/social-connections/[conne
 import mountRefreshSocialAccountStatistics from "./[id]/social-connections/[connectionId]/statistics/refresh/post.js";
 import mountGetSocialConnectionSubscription from "./[id]/social-connections/[connectionId]/subscription/get.js";
 import mountListSocialConnectionSuggestedTimes from "./[id]/social-connections/[connectionId]/suggested-times/get.js";
+import mountGetTikTokCreator from "./[id]/social-connections/[connectionId]/tiktok-creator/get.js";
 import mountFinalizeProjectSocialConnection from "./[id]/social-connections/finalize/post.js";
 import mountListProjectSocialConnections from "./[id]/social-connections/get.js";
 import mountInitiateProjectSocialConnection from "./[id]/social-connections/initiate/post.js";
@@ -200,6 +201,7 @@ mountPostProjectHide(app);
 mountDeleteProjectHide(app);
 mountListProjectSocialConnections(app);
 mountGetSocialConnectionSubscription(app);
+mountGetTikTokCreator(app);
 mountListSocialAccountStatistics(app);
 mountExportSocialAccountStatistics(app);
 mountRefreshSocialAccountStatistics(app);

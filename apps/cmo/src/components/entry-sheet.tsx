@@ -91,7 +91,7 @@ export function EntrySheet({
         exit={{ opacity: 0 }}
       />
       <motion.aside
-        className="sheet card-focus"
+        className="sheet"
         role="dialog"
         aria-label={entry.title}
         initial={{ x: 40, opacity: 0 }}

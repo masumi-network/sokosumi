@@ -37173,6 +37173,43 @@ export const ProjectSocialConnectionSubscriptionSchema = {
     ]
 } as const;
 
+export const TikTokCreatorInfoSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string',
+            minLength: 1
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
+    ]
+} as const;
+
 export const SocialAccountStatisticsPageSchema = {
     type: 'object',
     properties: {
@@ -40856,10 +40893,51 @@ export const PublishSocialPostRequestSchema = {
             minimum: 0,
             description: 'Revision the client last observed; mismatches return 409',
             example: 2
+        },
+        tikTokSettings: {
+            $ref: '#/components/schemas/TikTokPostSettings'
         }
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const TikTokPostSettingsSchema = {
+    type: 'object',
+    properties: {
+        privacyLevel: {
+            type: 'string',
+            enum: [
+                'SELF_ONLY'
+            ]
+        },
+        allowComment: {
+            type: 'boolean'
+        },
+        allowDuet: {
+            type: 'boolean'
+        },
+        allowStitch: {
+            type: 'boolean'
+        },
+        promotesOwnBrand: {
+            type: 'boolean'
+        },
+        acceptedMusicUsage: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'privacyLevel',
+        'allowComment',
+        'allowDuet',
+        'allowStitch',
+        'promotesOwnBrand',
+        'acceptedMusicUsage'
     ]
 } as const;
 

@@ -23,7 +23,7 @@ const ERROR_MESSAGES = new Map([
   ["state_not_found", STATE_EXPIRED],
   [
     CMO_SIGN_IN_ERROR.unavailable,
-    "Sokosumi is not reachable right now. Try again in a minute.",
+    "Sign in is not reachable right now. Try again in a minute.",
   ],
   [
     CMO_SIGN_IN_ERROR.signedOut,
