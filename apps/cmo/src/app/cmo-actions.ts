@@ -20,6 +20,7 @@ import {
   type CmoSubscriptionPlan,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
+  clearCmoPresenterForProject,
   completeSokoBotIntegrationAuth,
   confirmCmoBrandBrainForProject,
   connectCmoAdsForProject,
@@ -55,6 +56,7 @@ import {
   searchCmoKeywordsForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
+  setCmoPresenterForProject,
   setCmoSeoSuggestionStatusForProject,
   skipCmoSubscriptionForProject,
   startCmoOnboarding,
@@ -1047,6 +1049,37 @@ export async function finalizeMeasurement(
     path: { projectId, provider },
   });
   return !error;
+}
+
+/**
+ * The owner's photo for Cuso's talking videos, sent with their consent. The
+ * browser scales it down first; a refusal comes back as text.
+ */
+export async function setPresenter(
+  projectId: string,
+  photo: string,
+): Promise<{ error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await setCmoPresenterForProject({
+    ...core,
+    path: { projectId },
+    body: { photo, consent: true },
+  });
+  return { error: data ? null : errorText(error, "Could not save the photo") };
+}
+
+/** Stop using the owner's photo in talking videos. */
+export async function clearPresenter(
+  projectId: string,
+): Promise<{ error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await clearCmoPresenterForProject({
+    ...core,
+    path: { projectId },
+  });
+  return {
+    error: data ? null : errorText(error, "Could not remove the photo"),
+  };
 }
 
 /** The SEO tab: the weekly audit, Search Console, suggestions and keyword searches. */

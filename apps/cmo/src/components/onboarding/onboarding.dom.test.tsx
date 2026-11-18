@@ -1120,6 +1120,8 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
         })}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
         onGoToday={goToday}
       />,
     ),
