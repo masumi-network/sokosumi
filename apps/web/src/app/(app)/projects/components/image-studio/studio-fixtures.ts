@@ -105,7 +105,6 @@ export const TEST_CATALOG: StudioCatalog = {
         endpoint: "vendor/talk-a",
         price: {
           perSecondUsd: 0.05,
-          minimumVideoUsd: 1.1,
           voicePer1000CharactersUsd: 0.08,
           captionsPerMinuteUsd: 0.03,
           basis: "",
