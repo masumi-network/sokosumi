@@ -95,6 +95,7 @@ export function StageJob({
   image,
   posting,
   onPost,
+  postLabel,
   onReuse,
 }: {
   job: ProjectImageJob;
@@ -102,7 +103,8 @@ export function StageJob({
   /** The presenter's picture, shown while the video is made. */
   image?: string;
   posting: boolean;
-  onPost: (asset: TalkingVideoAsset) => void;
+  postLabel: string;
+  onPost?: (asset: TalkingVideoAsset) => void;
   onReuse: () => void;
 }) {
   const t = useTranslations("App.TikTokStudio");
@@ -128,14 +130,16 @@ export function StageJob({
               {t("download")}
             </a>
           </Button>
-          <Button
-            className="flex-1"
-            loading={posting}
-            onClick={() => onPost(asset)}
-          >
-            <Send aria-hidden />
-            {t("post")}
-          </Button>
+          {onPost ? (
+            <Button
+              className="flex-1"
+              loading={posting}
+              onClick={() => onPost(asset)}
+            >
+              <Send aria-hidden />
+              {postLabel}
+            </Button>
+          ) : null}
         </div>
         <Badge
           className="self-start"

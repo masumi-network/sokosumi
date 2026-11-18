@@ -143,12 +143,12 @@ describe("schedule this image", () => {
     );
   });
 
-  it("schedules against the image's project from the workspace gallery", async () => {
+  it("opens the composer directly from the workspace gallery with the image attached", async () => {
     prepareMock.mockResolvedValue({ ok: true, value: MEDIA });
     render(
       <ImageStudio
         catalog={TEST_CATALOG}
-        initialSelectedAssetId="asset-1"
+        initialSelectedAssetId={null}
         initialState={{ assets: [ASSET], jobs: [], nextCursor: null } as never}
         labels={TEST_LABELS}
         projectId={null}

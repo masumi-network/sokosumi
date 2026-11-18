@@ -4346,6 +4346,7 @@
       }
     },
     "TikTokStudio": {
+      "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
       "intro": "A presenter speaks your script, with captions, ready for TikTok, Reels and Shorts.",
       "pickTitle": "Choose a project",

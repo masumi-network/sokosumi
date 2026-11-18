@@ -3,7 +3,9 @@
 import type {
   ProjectImageJob,
   ProjectImageStudioTalkingVideoCatalog,
+  ProjectSocialConnection,
   ProjectTalkingVideos,
+  SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
@@ -13,6 +15,7 @@ import {
 } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Upload } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RadioGroup } from "radix-ui";
@@ -34,12 +37,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import {
   prepareStudioAssetSocialMedia,
   startTalkingVideo,
   writeTalkingVideoScripts,
 } from "@/lib/actions/image-studio/action";
 import { authClient } from "@/lib/auth/auth.client";
+import { coreClient } from "@/lib/clients/core.browser.client";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -55,6 +60,12 @@ import {
   StagePreview,
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
+
+const TikTokComposer = dynamic(() =>
+  import(
+    "@/app/projects/components/social-posts/social-post-composer-dialog"
+  ).then((module) => module.SocialPostComposerDialog),
+);
 
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_MIB = 12;
@@ -126,6 +137,12 @@ export function TikTokStudio({
   const [uploading, setUploading] = useState(false);
   const [writing, startWriting] = useTransition();
   const [starting, startStarting] = useTransition();
+  const { isProviderEnabled } = useSocialProviderAvailability();
+  const tikTokEnabled = isProviderEnabled("tiktok");
+  const [composeVideo, setComposeVideo] = useState<{
+    media: SocialPostMediaRef;
+    accounts: ProjectSocialConnection[];
+  } | null>(null);
   const [posting, startPosting] = useTransition();
   /** The video on the stage; none shows the preview of the one being set up. */
   const [stageJobId, setStageJobId] = useState<string | null>(
@@ -297,7 +314,21 @@ export function TikTokStudio({
         toast.error(t("postFailed"));
         return;
       }
-      writeSocialComposePrefill(projectId, { media: [result.value] });
+      const media = { ...result.value, aiGenerated: true };
+      if (tikTokEnabled) {
+        try {
+          const { data } =
+            await coreClient.getProjectsByIdSocialConnections(projectId);
+          setComposeVideo({
+            media,
+            accounts: data.filter((account) => account.provider === "tiktok"),
+          });
+        } catch {
+          toast.error(t("postFailed"));
+        }
+        return;
+      }
+      writeSocialComposePrefill(projectId, { media: [media] });
       router.push(
         `/social?projectId=${encodeURIComponent(projectId)}&compose=new`,
       );
@@ -609,7 +640,8 @@ export function TikTokStudio({
               asset={assetFor(stageJob)}
               image={presenterImage(stageJob.talkingVideo?.presenterId)}
               job={stageJob}
-              onPost={handlePost}
+              onPost={readOnly ? undefined : handlePost}
+              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
               onReuse={() => reuse(stageJob)}
               posting={posting}
             />
@@ -643,6 +675,28 @@ export function TikTokStudio({
         </div>
       </section>
 
+      {composeVideo ? (
+        <TikTokComposer
+          open
+          projectId={projectId}
+          connections={composeVideo.accounts}
+          mode={{
+            kind: "create",
+            source: "tiktok-studio",
+            media: [composeVideo.media],
+          }}
+          onConnectAccount={() =>
+            router.push(
+              `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`,
+            )
+          }
+          onOpenChange={(open) => {
+            if (!open) setComposeVideo(null);
+          }}
+          onError={(error) => toast.error(error.message || t("postFailed"))}
+          onSaved={() => router.refresh()}
+        />
+      ) : null}
       {videos.jobs.length > 0 ? (
         <TikTokStudioLibrary
           assetFor={assetFor}

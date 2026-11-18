@@ -300,6 +300,7 @@ export interface SocialPostMediaRef {
   size: number;
   mimeType: string;
   kind: SocialPostMediaKind;
+  aiGenerated?: boolean;
   /** Required publishing adaptation; the source stays available for another network. */
   transformation?: {
     provider: SocialPostProvider;
