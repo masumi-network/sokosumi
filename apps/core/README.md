@@ -213,11 +213,11 @@ to Sokosumi on the same Web domain registered in the portal. Keep Login Kit
 Remove Share Kit and the upload-to-inbox scope `video.upload` for this flow.
 Submit an MP4 or MOV under 50 MB.
 
-TikTok pulls the video from its URL. TikTok's Content Posting API only pulls
-from URL prefixes verified in the app's **URL properties**. Check that a test
-post publishes before relying on it. If TikTok rejects the Blob host
-(`*.public.blob.vercel-storage.com`, which cannot be verified), serve Drive
-media from a domain you control and verify that prefix.
+TikTok pulls the video from the public URL of the selected Drive attachment.
+Verify the exact media domain or URL prefix in TikTok's **URL properties**.
+For a prefix, place TikTok's signature file at the requested path on the
+media host and complete verification. The Web URL in the review form and
+the media URL used by Direct Post are separate properties.
 
 ### Turnstile protection for authentication email
 
