@@ -56127,17 +56127,22 @@ export const CmoChatWorkItemSchema = {
             enum: [
                 'image',
                 'video',
-                'audio'
-            ]
+                'audio',
+                'file',
+                'task',
+                'agent'
+            ],
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).'
         },
         state: {
             type: 'string',
             enum: [
                 'making',
+                'waiting',
                 'ready',
                 'failed'
             ],
-            description: 'making until the file exists; failed when it never will.'
+            description: 'making until it is done; waiting when handed work needs the owner; failed when it never will be done.'
         },
         at: {
             type: 'string',
@@ -56147,7 +56152,7 @@ export const CmoChatWorkItemSchema = {
         },
         title: {
             type: 'string',
-            description: 'What was asked for: the prompt, or the words spoken.'
+            description: 'What it is: the prompt, the words spoken, the file\'s or the work\'s name.'
         },
         url: {
             anyOf: [
@@ -56158,7 +56163,52 @@ export const CmoChatWorkItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Where the finished file plays from; null until it is ready.'
+            description: 'Where the finished file plays or downloads from.'
+        },
+        by: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who does handed work: the Coworker or the Agent.'
+        },
+        text: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Handed work: what is asked while it waits, the start of the result once done.'
+        },
+        readable: {
+            type: 'boolean',
+            description: 'Its full words are at /chat-work/{id}/text.'
+        },
+        files: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    url: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'url'
+                ]
+            },
+            description: 'Files handed work came back with.'
         }
     },
     required: [
@@ -56167,7 +56217,11 @@ export const CmoChatWorkItemSchema = {
         'state',
         'at',
         'title',
-        'url'
+        'url',
+        'by',
+        'text',
+        'readable',
+        'files'
     ]
 } as const;
 

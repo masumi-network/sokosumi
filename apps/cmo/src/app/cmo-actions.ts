@@ -31,6 +31,7 @@ import {
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoChatWorkForProject,
+  getCmoChatWorkTextForProject,
   getCmoCompetitorsForProject,
   getCmoOverviewForProject,
   getCmoSeoForProject,
@@ -483,6 +484,19 @@ export async function loadChatWork(projectId: string): Promise<ChatWork[]> {
     path: { projectId },
   });
   return data?.data.items ?? [];
+}
+
+/** The full words of a file Cuso wrote, or of work he handed on. */
+export async function loadChatWorkText(
+  projectId: string,
+  id: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkTextForProject({
+    ...core,
+    path: { projectId, id },
+  });
+  return data?.data.text ?? null;
 }
 
 /** Overview and messages in one go, for the app's polling. */

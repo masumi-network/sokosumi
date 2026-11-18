@@ -64,6 +64,8 @@ export interface CmoAppActions
   }>;
   /** What Cuso made, or is making, in the chat, as it stands now. */
   loadChatWork: () => Promise<ChatWork[]>;
+  /** The full words of a file Cuso wrote or of work he handed on. */
+  loadChatWorkText: (id: string) => Promise<string | null>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
@@ -411,6 +413,7 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
+                    loadText={actions.loadChatWorkText}
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -659,12 +662,14 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
+  loadText,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
+  loadText: (id: string) => Promise<string | null>;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
@@ -692,7 +697,11 @@ function ThreadEntry({
   if (item.kind === "work") {
     return (
       <CusoSays at={item.at}>
-        <MadeInChat work={item.work} retry={actions.compose} />
+        <MadeInChat
+          work={item.work}
+          compose={actions.compose}
+          loadText={loadText}
+        />
       </CusoSays>
     );
   }

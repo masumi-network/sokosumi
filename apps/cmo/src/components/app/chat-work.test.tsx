@@ -14,12 +14,18 @@ function work(overrides: Partial<ChatWork> = {}): ChatWork {
     at: new Date("2026-11-18T12:00:30Z"),
     title: "A square picture of NMKR Pay",
     url: null,
+    by: null,
+    text: null,
+    readable: false,
+    files: [],
     ...overrides,
   };
 }
 
 const card = (item: ChatWork) =>
-  renderToStaticMarkup(<MadeInChat work={item} retry={() => {}} />);
+  renderToStaticMarkup(
+    <MadeInChat work={item} compose={() => {}} loadText={async () => null} />,
+  );
 
 describe("MadeInChat", () => {
   it("says a picture is being made, and where it will show", () => {
@@ -52,6 +58,73 @@ describe("MadeInChat", () => {
   it("offers another try when it did not work out", () => {
     const html = card(work({ kind: "video", state: "failed" }));
     expect(html).toContain("This video didn&#x27;t work out.");
+    expect(html).toContain("Ask Cuso to try again");
+  });
+
+  it("says who has handed work, and that Cuso reports back here", () => {
+    const html = card(
+      work({ kind: "task", title: "Research three trends", by: "Hannah" }),
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Hannah is working on this");
+    expect(html).toContain("Research three trends");
+    expect(html).toContain("I tell you here when it is done.");
+    expect(html).not.toContain("Read it");
+  });
+
+  it("shows what handed work asks, with a way to answer", () => {
+    const html = card(
+      work({
+        kind: "task",
+        state: "waiting",
+        title: "Write the press note",
+        by: "Alex",
+        text: "Which date goes in the headline?",
+      }),
+    );
+    expect(html).toContain("Alex needs an answer from you");
+    expect(html).toContain("Which date goes in the headline?");
+    expect(html).toContain(">Answer<");
+  });
+
+  it("shows a result's start, its files, and opens the rest in place", () => {
+    const html = card(
+      work({
+        kind: "agent",
+        state: "ready",
+        title: "Market scan",
+        by: "Market Scout",
+        text: "Three trends stand out.",
+        readable: true,
+        files: [{ name: "scan.pdf", url: "https://blob/scan.pdf" }],
+      }),
+    );
+    expect(html).toContain("Market Scout is done");
+    expect(html).toContain("Three trends stand out.");
+    expect(html).toContain('<a href="https://blob/scan.pdf"');
+    expect(html).toContain("Read it");
+  });
+
+  it("offers a file Cuso wrote to read here or download", () => {
+    const html = card(
+      work({
+        kind: "file",
+        state: "ready",
+        title: "Launch brief.md",
+        url: "https://blob/brief.md",
+        readable: true,
+      }),
+    );
+    expect(html).toContain("Launch brief.md");
+    expect(html).toContain("Read it");
+    expect(html).toContain('href="https://blob/brief.md"');
+  });
+
+  it("says when handed work could not be finished", () => {
+    const html = card(
+      work({ kind: "task", state: "failed", title: "Research", by: "Hannah" }),
+    );
+    expect(html).toContain("Hannah could not finish this");
     expect(html).toContain("Ask Cuso to try again");
   });
 

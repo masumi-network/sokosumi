@@ -42,6 +42,7 @@ import {
   launchAd,
   loadAdCampaigns,
   loadChatWork,
+  loadChatWorkText,
   loadCompetitors,
   loadCusos,
   loadMessages,
@@ -366,6 +367,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       actions={{
         loadState: loadState.bind(null, projectId),
         loadChatWork: loadChatWork.bind(null, projectId),
+        loadChatWorkText: loadChatWorkText.bind(null, projectId),
         sendMessage: sendMessage.bind(null, projectId),
         loadPieceText: loadPieceText.bind(null, projectId),
         loadSeo: loadSeo.bind(null, projectId),

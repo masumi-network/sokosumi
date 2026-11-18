@@ -18,6 +18,7 @@ import mountConfirmCmoBrandBrainForProject from "./projects/[projectId]/brand-br
 import mountUpdateCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/put.js";
 import mountPauseCmoCalendarEntryForProject from "./projects/[projectId]/calendar/[id]/pause/post.js";
 import mountGetCmoCalendarEntryTextForProject from "./projects/[projectId]/calendar/[id]/text/get.js";
+import mountGetCmoChatWorkTextForProject from "./projects/[projectId]/chat-work/[id]/text/get.js";
 import mountGetCmoChatWorkForProject from "./projects/[projectId]/chat-work/get.js";
 import mountStartCmoPlanCheckoutForProject from "./projects/[projectId]/checkout/post.js";
 import mountRemoveCmoCompetitorForProject from "./projects/[projectId]/competitors/[competitorId]/delete.js";
@@ -75,6 +76,7 @@ mountPauseCmoCalendarEntryForProject(app);
 mountGetCmoCalendarEntryTextForProject(app);
 mountGetCmoOverviewForProject(app);
 mountGetCmoChatWorkForProject(app);
+mountGetCmoChatWorkTextForProject(app);
 mountGetCmoCompetitorsForProject(app);
 mountAddCmoCompetitorForProject(app);
 mountUpdateCmoCompetitorForProject(app);

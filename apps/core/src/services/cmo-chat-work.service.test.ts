@@ -1,19 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, liveResources, ensureFile, publicUrl, cuso } = vi.hoisted(() => ({
-  db: {
-    sokoBotToolCall: { findMany: vi.fn() },
-    sokoBot: { findUniqueOrThrow: vi.fn() },
-    projectImageJob: { findMany: vi.fn() },
-  },
-  liveResources: vi.fn(),
-  ensureFile: vi.fn(),
-  publicUrl: vi.fn(),
-  cuso: vi.fn(),
-}));
+const { db, liveResources, ensureFile, publicUrl, cuso, driveText } =
+  vi.hoisted(() => ({
+    db: {
+      sokoBotToolCall: { findMany: vi.fn(), findFirst: vi.fn() },
+      sokoBot: { findUniqueOrThrow: vi.fn() },
+      projectImageJob: { findMany: vi.fn() },
+      task: { findMany: vi.fn(), findFirst: vi.fn() },
+      job: { findMany: vi.fn() },
+    },
+    liveResources: vi.fn(),
+    ensureFile: vi.fn(),
+    publicUrl: vi.fn(),
+    cuso: vi.fn(),
+    driveText: vi.fn(),
+  }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 vi.mock("@/lib/drive-blob", () => ({ publicDriveUrl: publicUrl }));
-vi.mock("@/services/cmo-cuso.service", () => ({ requireCuso: cuso }));
+vi.mock("@/services/cmo-cuso.service", () => ({
+  requireCuso: cuso,
+  CmoNotFoundError: class CmoNotFoundError extends Error {},
+}));
+vi.mock("@/services/soko-bot-runtime/drive-reading", () => ({
+  isTextMimeType: (mime: string | null) => mime?.startsWith("text/") ?? false,
+  readDriveText: driveText,
+}));
+vi.mock("@sokosumi/database", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database")>()),
+  jobInclude: {},
+}));
+// A status-mapped Job is the row itself here: the fixtures carry its fields.
+vi.mock("@sokosumi/database/helpers", () => ({
+  mapJobWithStatus: (row: unknown) => row,
+}));
 vi.mock("@/services/cmo-media-maker.service", () => ({
   CMO_STYLE_PASSED: "Style passed",
   CMO_STYLE_REJECTED: "Style check: ",
@@ -25,16 +44,19 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   ensureStudioAssetDriveFile: ensureFile,
 }));
 
-import { listCmoChatWork } from "./cmo-chat-work.service";
+import { listCmoChatWork, readCmoChatWorkText } from "./cmo-chat-work.service";
 
 const TURN = "01a1f0eb-1488-76ff-835f-5d99fc1b0792";
 const target = { userId: "user-1", projectId: "project-1" };
 const now = new Date("2026-11-18T12:00:00Z");
 
+/** What only handed work has; a picture, video, voice-over or file has none. */
+const alone = { by: null, text: null, readable: false, files: [] };
+
 function call(
   id: string,
   capability: string,
-  extra: { input?: unknown; result?: unknown } = {},
+  extra: { input?: unknown; result?: unknown; targetId?: string } = {},
 ) {
   return {
     id,
@@ -44,6 +66,60 @@ function call(
     createdAt: now,
     input: extra.input ?? null,
     result: extra.result ?? null,
+    targetId: extra.targetId ?? null,
+  };
+}
+
+function task(
+  id: string,
+  status: string,
+  extra: Partial<{
+    assignee: { name: string } | null;
+    events: {
+      status: string | null;
+      comment: string;
+      coworkerId: string | null;
+    }[];
+    files: { name: string; fileUrl: string | null }[];
+  }> = {},
+) {
+  return {
+    id,
+    name: "Research three trends",
+    status,
+    assignee:
+      extra.assignee === undefined ? { name: "Hannah" } : extra.assignee,
+    events: extra.events ?? [],
+    files: extra.files ?? [],
+  };
+}
+
+function agentJob(id: string, status: string, result: string | null) {
+  return {
+    id,
+    name: null,
+    status,
+    input: null,
+    inputSchema: null,
+    result,
+    agent: { name: "Market Scout" },
+    events: [
+      {
+        id: "e1",
+        status: "COMPLETED",
+        result,
+        inputSchema: null,
+        blobs: [
+          {
+            status: "READY",
+            fileUrl: "https://blob/scan.pdf",
+            name: "scan.pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+        links: [],
+      },
+    ],
   };
 }
 
@@ -82,6 +158,8 @@ beforeEach(() => {
     workspace: { organizationId: "org-1" },
   });
   db.projectImageJob.findMany.mockResolvedValue([]);
+  db.task.findMany.mockResolvedValue([]);
+  db.job.findMany.mockResolvedValue([]);
   liveResources.mockResolvedValue([]);
   ensureFile.mockImplementation(async ({ jobId }: { jobId: string }) => ({
     pathname: `drive/${jobId}.jpg`,
@@ -125,6 +203,7 @@ describe("listCmoChatWork", () => {
         at: now,
         title: "A square picture of NMKR Pay",
         url: null,
+        ...alone,
       },
       {
         id: "b",
@@ -133,6 +212,7 @@ describe("listCmoChatWork", () => {
         at: now,
         title: "A square picture of NMKR Pay",
         url: "https://blob/drive/job-b.jpg",
+        ...alone,
       },
     ]);
     expect(ensureFile).toHaveBeenCalledTimes(1);
@@ -227,6 +307,7 @@ describe("listCmoChatWork", () => {
         at: now,
         title: "NMKR Studio makes minting simple.",
         url: "https://blob/drive/intro.mp3",
+        ...alone,
       },
     ]);
     expect(liveResources).toHaveBeenCalledWith(
@@ -249,5 +330,226 @@ describe("listCmoChatWork", () => {
 
     const [item] = await listCmoChatWork(target);
     expect(item).toMatchObject({ state: "failed", url: null });
+  });
+
+  it("shows work handed to a Coworker once, with where it stands", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      call("assign", "assign_task", { targetId: "task-1" }),
+      call("create", "create_task", { targetId: "task-1" }),
+      call("note", "create_task", { targetId: "task-2" }),
+    ]);
+    db.task.findMany.mockResolvedValue([
+      task("task-1", "RUNNING"),
+      task("task-2", "DRAFT", { assignee: null }),
+    ]);
+
+    await expect(listCmoChatWork(target)).resolves.toEqual([
+      {
+        id: "create",
+        kind: "task",
+        state: "making",
+        at: now,
+        title: "Research three trends",
+        url: null,
+        by: "Hannah",
+        text: null,
+        readable: false,
+        files: [],
+      },
+    ]);
+    expect(db.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: "ws-1",
+          archivedAt: null,
+        }),
+      }),
+    );
+  });
+
+  it("says what a Coworker asks, then what it came back with", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      call("a", "create_task", { targetId: "asks" }),
+      call("b", "create_task", { targetId: "done" }),
+      call("c", "create_task", { targetId: "failed" }),
+    ]);
+    db.task.findMany.mockResolvedValue([
+      task("asks", "INPUT_REQUIRED", {
+        events: [
+          {
+            status: "INPUT_REQUIRED",
+            comment: "Brands in general, or only Cardano projects?",
+            coworkerId: "hannah",
+          },
+        ],
+      }),
+      task("done", "COMPLETED", {
+        events: [
+          { status: null, comment: "Thanks!", coworkerId: null },
+          {
+            status: "COMPLETED",
+            comment: "## Three trends\n\nLoyalty passes replace drops.",
+            coworkerId: "hannah",
+          },
+        ],
+        files: [{ name: "trends.pdf", fileUrl: "https://blob/trends.pdf" }],
+      }),
+      task("failed", "FAILED"),
+    ]);
+
+    const items = await listCmoChatWork(target);
+    expect(
+      items.map(({ state, text, readable, files }) => ({
+        state,
+        text,
+        readable,
+        files,
+      })),
+    ).toEqual([
+      {
+        state: "waiting",
+        text: "Brands in general, or only Cardano projects?",
+        readable: false,
+        files: [],
+      },
+      {
+        state: "ready",
+        text: expect.stringContaining("Loyalty passes replace drops."),
+        readable: true,
+        files: [{ name: "trends.pdf", url: "https://blob/trends.pdf" }],
+      },
+      { state: "failed", text: null, readable: false, files: [] },
+    ]);
+  });
+
+  it("shows a hired Agent's Job with its result and files", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      call("h", "hire_agent", {
+        result: { executed: true, resultingEntityId: "job-1" },
+      }),
+      call("h2", "hire_agent", {
+        result: { executed: true, resultingEntityId: "job-2" },
+      }),
+    ]);
+    db.job.findMany.mockResolvedValue([
+      agentJob("job-1", "completed", "Three trends stand out."),
+      agentJob("job-2", "processing", null),
+    ]);
+
+    const items = await listCmoChatWork(target);
+    expect(items).toMatchObject([
+      {
+        id: "h",
+        kind: "agent",
+        state: "ready",
+        title: "Market Scout",
+        by: "Market Scout",
+        text: "Three trends stand out.",
+        readable: true,
+        files: [{ name: "scan.pdf", url: "https://blob/scan.pdf" }],
+      },
+      { id: "h2", kind: "agent", state: "making", text: null },
+    ]);
+    expect(db.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["job-1", "job-2"] }, workspaceId: "ws-1" },
+      }),
+    );
+  });
+
+  it("shows a file Cuso wrote, to read when it is text", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      call("f", "upload_file", { targetId: "file-1" }),
+      call("again", "upload_file", { targetId: "file-1" }),
+      call("gone", "upload_file", { targetId: "file-deleted" }),
+    ]);
+    liveResources.mockResolvedValue([
+      {
+        id: "file-1",
+        displayName: "Launch brief.md",
+        mimeType: "text/markdown",
+        sourceId: "drive/brief.md",
+      },
+    ]);
+
+    await expect(listCmoChatWork(target)).resolves.toEqual([
+      {
+        id: "again",
+        kind: "file",
+        state: "ready",
+        at: now,
+        title: "Launch brief.md",
+        url: "https://blob/drive/brief.md",
+        ...alone,
+        readable: true,
+      },
+    ]);
+  });
+});
+
+describe("readCmoChatWorkText", () => {
+  const read = { ...target, id: "call-row" };
+
+  it("reads only a call of this Cuso", async () => {
+    db.sokoBotToolCall.findFirst.mockResolvedValue(null);
+
+    await expect(readCmoChatWorkText(read)).rejects.toThrow(
+      "There is nothing to read here yet",
+    );
+    expect(db.sokoBotToolCall.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "call-row",
+          turn: { sokoBotId: "bot-1" },
+        }),
+      }),
+    );
+  });
+
+  it("gives a finished Task's whole result", async () => {
+    db.sokoBotToolCall.findFirst.mockResolvedValue(
+      call("a", "create_task", { targetId: "task-1" }),
+    );
+    db.task.findFirst.mockResolvedValue(
+      task("task-1", "COMPLETED", {
+        events: [
+          {
+            status: "COMPLETED",
+            comment: "## Three trends\n\nAll of it.",
+            coworkerId: "hannah",
+          },
+        ],
+      }),
+    );
+
+    await expect(readCmoChatWorkText(read)).resolves.toBe(
+      "## Three trends\n\nAll of it.",
+    );
+    expect(db.task.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "task-1",
+          workspaceId: "ws-1",
+          status: "COMPLETED",
+        }),
+      }),
+    );
+  });
+
+  it("gives a hired Agent's whole result and a file's words", async () => {
+    db.sokoBotToolCall.findFirst.mockResolvedValueOnce(
+      call("h", "hire_agent", { result: { resultingEntityId: "job-1" } }),
+    );
+    db.job.findMany.mockResolvedValue([
+      agentJob("job-1", "completed", "The whole report."),
+    ]);
+    await expect(readCmoChatWorkText(read)).resolves.toBe("The whole report.");
+
+    db.sokoBotToolCall.findFirst.mockResolvedValueOnce(
+      call("f", "upload_file", { targetId: "file-1" }),
+    );
+    liveResources.mockResolvedValue([{ id: "file-1" }]);
+    driveText.mockResolvedValue("# Launch brief");
+    await expect(readCmoChatWorkText(read)).resolves.toBe("# Launch brief");
   });
 });
