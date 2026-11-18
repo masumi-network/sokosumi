@@ -2,6 +2,10 @@ import sharp from "sharp";
 
 import { unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import {
+  findTalkingVideoPresenter,
+  TALKING_VIDEO_PRESENTERS,
+} from "@/lib/image-studio/talking-video";
 import { requireCuso } from "@/services/cmo-cuso.service";
 import {
   cusoDrive,
@@ -61,4 +65,41 @@ export async function clearCmoPresenter(input: {
     data: { presenterFileId: null, presenterConsentAt: null },
     select: { id: true },
   });
+}
+
+/**
+ * Who fronts a talking video: "owner" is the Project's photo while it has
+ * one with consent, anything else a stock presenter (the first when the id
+ * is unknown). Null for "owner" without a consented photo.
+ */
+export async function talkingVideoPresenter(input: {
+  projectId: string;
+  presenter: string;
+  userId: string;
+}) {
+  if (input.presenter !== "owner") {
+    const stock =
+      findTalkingVideoPresenter(input.presenter) ??
+      TALKING_VIDEO_PRESENTERS[0]!;
+    return { kind: "stock" as const, id: stock.id };
+  }
+  const project = await prisma.project.findUnique({
+    where: { id: input.projectId },
+    select: {
+      presenterFileId: true,
+      presenterConsentAt: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (!project?.presenterFileId || !project.presenterConsentAt) return null;
+  return {
+    kind: "file" as const,
+    fileId: project.presenterFileId,
+    consentAt: project.presenterConsentAt,
+    actor: {
+      kind: "soko_bot" as const,
+      userId: input.userId,
+      organizationId: project.workspace.organizationId,
+    },
+  };
 }

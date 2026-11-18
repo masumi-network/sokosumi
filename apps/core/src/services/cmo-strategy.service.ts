@@ -1002,6 +1002,19 @@ export async function saveCmoStrategy(
     throw unprocessableEntity(
       `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
     );
+  // A month is planned without scripts and production writes them; a change
+  // in chat makes the piece now, so it needs its words.
+  const unscripted =
+    options.turnId && options.part === "patch"
+      ? (strategy.calendar ?? []).find(
+          (entry) =>
+            isCmoTalkingFormat(entry.channel, entry.format) && !entry.script,
+        )
+      : undefined;
+  if (unscripted)
+    throw unprocessableEntity(
+      `The talking video ${unscripted.id} has no script. Give it script (the spoken words: a hook first, one point, one next step, 150 to 400 characters, never as a customer), presenter and voice, then save again.`,
+    );
   if (options.rules) {
     // A plan part saved before its calendar is checked with the calendar.
     const sendsCalendar =

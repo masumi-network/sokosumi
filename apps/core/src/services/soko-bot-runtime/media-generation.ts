@@ -17,6 +17,7 @@ import {
   loadStyleBrand,
   REFERENCE_STYLE_MODELS,
 } from "@/services/cmo-media-maker.service";
+import { talkingVideoPresenter } from "@/services/cmo-presenter.service";
 import { cusoDrive } from "@/services/cuso-project-files.service";
 import { loadLiveResources } from "@/services/file-search.service";
 import { getJob } from "@/services/image-studio-assets.service";
@@ -335,17 +336,27 @@ export async function generateTalkingVideo(
         error instanceof Error ? error.message : "Talking video refused",
       );
     });
+  const userId = actingMemberOf(authorized);
+  const presenter = await talkingVideoPresenter({
+    projectId: input.projectId,
+    presenter: input.presenter,
+    userId,
+  });
+  if (!presenter)
+    throw new SokoBotImageRefusedError(
+      "This Project has no owner photo with consent. Pick a stock presenter.",
+    );
   let job: Awaited<ReturnType<typeof createTalkingVideoJob>>;
   try {
     job = await createTalkingVideoJob({
       projectId: input.projectId,
       workspaceId: authorized.turn.workspaceId,
-      userId: actingMemberOf(authorized),
+      userId,
       modelId: model.id,
       script: input.script,
       voice: input.voice ?? DEFAULT_TALKING_VIDEO_VOICE,
       languageCode: input.languageCode ?? "en",
-      presenter: { kind: "stock", id: input.presenter },
+      presenter,
       idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
     });
   } catch (error) {

@@ -342,7 +342,7 @@ export async function checkVideoRequest(
 
 /**
  * Everything that can refuse a talking video before anything is sent: an
- * owner chat turn, a Project the owner can open, a stock presenter, a script
+ * owner chat turn, a Project the owner can open, a known presenter, a script
  * in the brand's voice and a price within maxCredits. It counts against the
  * same per-turn allowance as other videos.
  */
@@ -385,9 +385,12 @@ export async function checkTalkingVideoRequest(
       );
     throw error;
   }
-  if (!findTalkingVideoPresenter(input.presenter))
+  if (
+    input.presenter !== "owner" &&
+    !findTalkingVideoPresenter(input.presenter)
+  )
     throw new SokoBotRuntimeValidationError(
-      "presenter must be one of maya, jonas, aisha, leo, elena, david, mei or omar.",
+      "presenter must be owner (when the owner gave a photo) or one of maya, jonas, aisha, leo, elena, david, mei or omar.",
     );
   if (posesAsCustomerTestimonial(input.script))
     throw new SokoBotRuntimeValidationError(TALKING_VIDEO_TESTIMONIAL_MESSAGE);

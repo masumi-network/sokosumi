@@ -60,10 +60,14 @@ describe("checkTalkingVideoRequest", () => {
     expect(credits).toBe(165);
   });
 
-  it("refuses an unknown presenter", async () => {
+  it("refuses an unknown presenter and passes the owner's photo on", async () => {
     await expect(request({ presenter: "patrick" })).rejects.toThrow(
-      "presenter must be one of",
+      "presenter must be owner",
     );
+    // Whether the owner gave a photo with consent is settled when it starts.
+    await expect(request({ presenter: "owner" })).resolves.toMatchObject({
+      input: { presenter: "owner" },
+    });
   });
 
   it("refuses a script that speaks as a customer", async () => {

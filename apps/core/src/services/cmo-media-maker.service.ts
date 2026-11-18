@@ -23,7 +23,6 @@ import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import {
   DEFAULT_TALKING_VIDEO_VOICE,
-  findTalkingVideoPresenter,
   TALKING_VIDEO_PRESENTERS,
 } from "@/lib/image-studio/talking-video";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
@@ -32,6 +31,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
+import { talkingVideoPresenter } from "@/services/cmo-presenter.service";
 import {
   type CusoDrive,
   cusoDrive,
@@ -631,34 +631,13 @@ async function talkingVoiceAndPresenter(
   )
     ? (piece.voice as (typeof SOKO_BOT_VOICEOVER_VOICES)[number])
     : DEFAULT_TALKING_VIDEO_VOICE;
-  if (piece.presenter === "owner") {
-    const project = await prisma.project.findUnique({
-      where: { id: context.cuso.projectId },
-      select: {
-        presenterFileId: true,
-        presenterConsentAt: true,
-        workspace: { select: { organizationId: true } },
-      },
-    });
-    if (project?.presenterFileId && project.presenterConsentAt)
-      return {
-        voice,
-        presenter: {
-          kind: "file" as const,
-          fileId: project.presenterFileId,
-          consentAt: project.presenterConsentAt,
-          actor: {
-            kind: "soko_bot" as const,
-            userId: drive.userId,
-            organizationId: project.workspace.organizationId,
-          },
-        },
-      };
-  }
-  const stock =
-    findTalkingVideoPresenter(piece.presenter ?? "") ??
-    TALKING_VIDEO_PRESENTERS[0]!;
-  return { voice, presenter: { kind: "stock" as const, id: stock.id } };
+  // Without a consented photo, "owner" falls back to the first stock presenter.
+  const presenter = (await talkingVideoPresenter({
+    projectId: context.cuso.projectId,
+    userId: drive.userId,
+    presenter: piece.presenter ?? "",
+  })) ?? { kind: "stock" as const, id: TALKING_VIDEO_PRESENTERS[0]!.id };
+  return { voice, presenter };
 }
 
 /** Starts one job; false when the studio refused (credits, the limit). */
