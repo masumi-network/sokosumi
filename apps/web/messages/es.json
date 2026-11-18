@@ -4385,6 +4385,8 @@
       }
     },
     "TikTokStudio": {
+      "addMusic": "Añadir música de fondo (+{credits} créditos)",
+      "addBroll": "Empezar con un clip generado (+{credits} créditos)",
       "showSite": "Mostrar tu sitio web en el vídeo",
       "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",

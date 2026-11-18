@@ -599,6 +599,8 @@ export interface JobView {
     presenterId: string | null;
     languageCode: string;
     siteShots: boolean;
+    broll: boolean;
+    music: boolean;
   };
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
@@ -737,9 +739,9 @@ export async function listJobs(
 }
 
 function talkingVideoView(settings: unknown): JobView["talkingVideo"] {
-  const { voice, presenterId, languageCode, siteShots } =
+  const { voice, presenterId, languageCode, siteShots, broll, music } =
     readTalkingVideoSettings(settings);
-  return { voice, presenterId, languageCode, siteShots };
+  return { voice, presenterId, languageCode, siteShots, broll, music };
 }
 
 export function toJobView(job: {
