@@ -40,7 +40,6 @@ export type EvalCase =
 /** Soko Bot scenarios by area, in the order they run: later ones use what earlier ones made. */
 const SOKO_BOT_AREAS: Record<string, string> = {
   "delegate-with-daily-checkin": "Delegation",
-  "break-task-into-subtasks": "Delegation",
   "coworker-question": "Coworkers",
   "coworker-failure": "Coworkers",
   "coworker-result": "Coworkers",
@@ -91,6 +90,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "social-drafts-rundown": "Social",
   "newsletter-send-now-goes-to-approval": "Newsletter",
   "newsletter-no-scraped-subscribers": "Newsletter",
+  "break-task-into-subtasks": "Delegation",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */

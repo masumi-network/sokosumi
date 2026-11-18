@@ -26,6 +26,7 @@ export async function listTasks(
   raw: unknown,
 ) {
   const input = listTasksInputSchema.parse(raw);
+  const state = input.state ?? (input.parentTaskId ? "all" : "open");
   const now = Date.now();
   const finished = [...SETTLED_TASK_STATUSES];
   const contains = (value: string) => ({
@@ -41,9 +42,9 @@ export async function listTasks(
       // contradict it (FAILED is finished, yet "open" is the default).
       input.status
         ? { status: { in: [input.status].flat() } }
-        : input.state === "open"
+        : state === "open"
           ? { status: { notIn: finished } }
-          : input.state === "finished"
+          : state === "finished"
             ? { status: { in: finished } }
             : {},
       input.projectId ? { projectId: input.projectId } : {},

@@ -2229,7 +2229,8 @@ describe("SokoBotRuntimeService authorization", () => {
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: { archivedAt: null, status: "RUNNING" },
     });
-    const input = { parentTaskId, state: "all" };
+    // No state: a checklist shows its done steps too.
+    const input = { parentTaskId };
     toolCallFindUniqueMock.mockResolvedValue({
       id: "01960001-0001-7001-8001-000000000011",
       status: "PENDING",
@@ -2272,6 +2273,7 @@ describe("SokoBotRuntimeService authorization", () => {
     });
     const { where, orderBy } = taskFindManyMock.mock.calls[0][0];
     expect(where.AND).toContainEqual({ parentTaskId });
+    expect(JSON.stringify(where)).not.toContain("notIn");
     expect(orderBy).toEqual([{ position: "asc" }, { id: "asc" }]);
   });
 

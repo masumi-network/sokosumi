@@ -10,7 +10,7 @@ export const SUBTASK_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Make me a Task to plan the team offsite in March, and give it three steps in this order: book the venue, send the invites, plan the agenda. Leave everything as a draft.",
     rubric:
-      "The bot creates one offsite Task, then three create_task calls whose parentTaskId is that Task's id, named for the venue, the invites and the agenda, in that order (each after the one before, or appended last). Nothing is READY or assigned. Three separate Tasks without parentTaskId, or linking them with link_tasks instead, is weak. The answer names the Task and its three steps.",
+      "The bot creates one offsite Task, then three create_task calls whose parentTaskId is that Task's id, named for the venue, the invites and the agenda, in that order (each after the one before, or appended last). Nothing is READY. Three separate Tasks without parentTaskId, or linking them with link_tasks instead, is weak. The answer names the Task and its three steps.",
     expect: {
       routes: ["DELEGATE_TASK", "MANAGE_WORK", "MIXED"],
       tools: ["create_task"],
