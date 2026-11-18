@@ -7,7 +7,6 @@ import {
 import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import type { TaskStatus } from "@/lib/types/core-dto";
-
 import { DragScrollContainer } from "./drag-scroll-container";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";

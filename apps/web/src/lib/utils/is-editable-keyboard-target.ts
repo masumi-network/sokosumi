@@ -1,3 +1,7 @@
+/** An open dialog or menu: a key pressed inside one belongs to it. */
+export const OPEN_SURFACE_SELECTOR =
+  '[role="dialog"], [role="alertdialog"], [role="menu"]';
+
 export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
