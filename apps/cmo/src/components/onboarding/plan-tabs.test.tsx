@@ -37,7 +37,7 @@ it("says the month is topics made after approval, with its pictures, videos and 
     <MonthPanel strategy={withMedia} onOpen={() => {}} pending />,
   );
   expect(html).toContain("These are the topics.");
-  expect(html).toContain("5 pieces · 1 with pictures · 1 video");
+  expect(html).toContain("5 posts · 1 with pictures · 1 video");
   expect(html).toContain('aria-label="Image"');
   expect(html).toContain('aria-label="Video"');
   expect(html).toContain("Behind the build");

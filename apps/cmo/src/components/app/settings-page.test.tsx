@@ -87,7 +87,7 @@ describe("Settings: the CMO subscription", () => {
     const text = settings({ hasTesterCredits: true });
 
     expect(text).toContain("Subscribe");
-    expect(text).toContain("Your Tester credits stay");
+    expect(text).toContain("You keep the credits you have");
   });
 });
 

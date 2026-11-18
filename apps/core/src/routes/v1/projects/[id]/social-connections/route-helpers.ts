@@ -5,6 +5,7 @@ import {
   ComposioConfigError,
   ComposioIdentityError,
 } from "@/clients/composio.client";
+import { ZernioApiError } from "@/clients/zernio.client";
 import {
   badRequest,
   integrationNotConfigured,
@@ -20,13 +21,10 @@ export function mapProjectSocialConnectionServiceError(error: unknown): never {
   if (error instanceof ComposioIdentityError) {
     throw badRequest(error.message, error.kind ? { kind: error.kind } : {});
   }
-  if (error instanceof ComposioApiError) {
-    if (
-      error.httpStatus >= 500 ||
-      error.httpStatus === 401 ||
-      error.httpStatus === 403 ||
-      error.httpStatus === 429
-    ) {
+  if (error instanceof ComposioApiError || error instanceof ZernioApiError) {
+    const status =
+      error instanceof ZernioApiError ? error.status : error.httpStatus;
+    if (status >= 500 || status === 401 || status === 403 || status === 429) {
       throw serviceUnavailable("Integrations are temporarily unavailable.");
     }
     throw badRequest("Unable to complete the social account action.");

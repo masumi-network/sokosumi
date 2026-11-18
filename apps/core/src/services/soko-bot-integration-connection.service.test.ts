@@ -286,6 +286,13 @@ describe("a personal Soko Bot", () => {
 describe("choosing the Composio auth config", () => {
   const linkedAuthConfigId = () => mocks.link.mock.calls[0][1];
 
+  it("keeps TikTok OAuth in workspace-gated Project Social", async () => {
+    await expect(connect("connector", "TikTok")).rejects.toThrow(
+      "Connect TikTok in Project Social",
+    );
+    expect(mocks.link).not.toHaveBeenCalled();
+  });
+
   it("reuses the managed config for other toolkits", async () => {
     await connect("connector");
     expect(linkedAuthConfigId()).toBe("auth-gmail");

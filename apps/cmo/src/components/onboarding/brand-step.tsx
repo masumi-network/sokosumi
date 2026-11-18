@@ -30,6 +30,7 @@ import {
   RivalFacts,
   SectionEditor,
   Voice,
+  voiceDetail,
 } from "../brand-profile";
 import { BusinessMark } from "../business-mark";
 import { MarketingToday } from "../marketing-today";
@@ -120,7 +121,7 @@ export function brandTiles(
       id: "voice",
       label: "Your voice",
       value: short(firstSentence(brain.voice.tone)),
-      detail: brain.voice.do[0] ? short(brain.voice.do[0]) : undefined,
+      detail: short(voiceDetail(brain.voice)),
       section: "positioning",
       body: <Voice brain={brain} />,
     });
@@ -310,7 +311,7 @@ export function BrandStep({
       setRefusal(
         await onFix(
           section,
-          `I edited the ${BRAND_SECTIONS[section].title} section myself. Keep my words, and bring the summary and the plan in line with it.`,
+          `I edited the ${BRAND_SECTIONS[section].title} section myself. Keep my words, and bring the summary and the strategy in line with it.`,
         ),
       );
     }
@@ -388,7 +389,7 @@ export function BrandStep({
           </div>
 
           {left.length > 0 ? (
-            <div className="card card-focus ob-left">
+            <div className="card ob-left">
               <p>
                 {left.length} {left.length === 1 ? "question" : "questions"}{" "}
                 left
@@ -490,7 +491,7 @@ export function BrandStep({
               <p className="note" aria-live="polite">
                 {fixing
                   ? `${AGENT_NAME} is fixing this now.`
-                  : `${AGENT_NAME} will fix this and update your plan.`}
+                  : `${AGENT_NAME} will fix this and update your strategy.`}
               </p>
             ) : null}
             {sent && answered && lastWord ? (

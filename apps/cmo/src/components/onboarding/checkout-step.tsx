@@ -20,6 +20,17 @@ type Pace = NonNullable<Strategy["pace"]>["level"];
 /** The plan each pace fits, by its place among the plans from cheapest up. */
 const PACE_PLAN: Record<Pace, number> = { steady: 0, active: 1, all_in: 2 };
 
+/** What each plan posts, as the landing page says it, from the cheapest up. */
+const PLAN_LINES = [
+  "One post a day on each account you connect.",
+  "Two posts a day on each account you connect.",
+  "Up to three posts a day on each account you connect.",
+];
+
+/** The top plan's extra, as the landing page says it. */
+const TEAM_CHECK =
+  "Plus: our team checks every post for you before it goes out.";
+
 /** A plan's price in its currency's main unit. */
 function price(plan: CmoSubscriptionPlan, months = 1): string {
   return money(plan.priceAmount / 100 / months, plan.currency.toUpperCase());
@@ -160,7 +171,7 @@ export function CheckoutStep({
     <section className="ob-checkout">
       <div className="ob-lead">
         <CusoScene scene="subscribe" />
-        <h1 className="ob-h1">Your month is ready to make.</h1>
+        <h1 className="ob-h1">Your strategy is ready.</h1>
         <p className="muted">Pick a plan and I start right away.</p>
       </div>
 
@@ -169,7 +180,7 @@ export function CheckoutStep({
           <li>
             <Check size={16} aria-hidden="true" />
             <span>
-              <b>{month.pieces} pieces</b> from your plan
+              <b>{month.pieces} posts</b> from your strategy
               {month.channels.length > 0
                 ? ` for ${joinNames(month.channels)}`
                 : ""}
@@ -228,7 +239,7 @@ export function CheckoutStep({
           </div>
 
           <div className="ob-plan-options" role="group" aria-label="Plan">
-            {offered.map((plan) => (
+            {offered.map((plan, place) => (
               <button
                 key={plan.tier}
                 type="button"
@@ -237,14 +248,20 @@ export function CheckoutStep({
                 onClick={() => setPicked(plan.tier)}
               >
                 {plan.tier === fits && paceName ? (
-                  <span className="ob-plan-fit">Fits your {paceName} plan</span>
+                  <span className="ob-plan-fit">Fits your {paceName} pace</span>
                 ) : null}
                 <span className="ob-plan-name">{tierName(plan.tier)}</span>
                 <span className="ob-value">
                   {price(plan, interval === "year" ? 12 : 1)}{" "}
                   <span className="ob-small muted">a month</span>
                 </span>
-                <span className="ob-small">
+                {PLAN_LINES[place] ? (
+                  <span className="ob-small">{PLAN_LINES[place]}</span>
+                ) : null}
+                {place === PLAN_LINES.length - 1 ? (
+                  <span className="ob-small">{TEAM_CHECK}</span>
+                ) : null}
+                <span className="ob-small muted">
                   {plan.credits.toLocaleString("en")} credits a month
                 </span>
                 {interval === "year" ? (

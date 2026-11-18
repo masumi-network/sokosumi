@@ -15,6 +15,7 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
@@ -56,10 +57,7 @@ import {
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
 } from "@/helpers/social-post-quote";
-import {
-  SOCIAL_POST_THREAD_MAX_PARTS,
-  summarizeSocialPostThread,
-} from "@/helpers/social-post-thread";
+import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { EmbedTexts } from "@/lib/embeddings";

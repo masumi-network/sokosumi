@@ -1,5 +1,5 @@
-import { CROSS_ORIGIN_OPENER_POLICY } from "@/config/document-security-headers";
 import { buildComposioCallbackInlineScript } from "@/lib/composio/oauth-popup-protocol";
+import { popupResponse } from "@/lib/composio/popup-response";
 
 /**
  * Composio OAuth popup callback. Returns minimal HTML with a synchronous
@@ -9,15 +9,5 @@ import { buildComposioCallbackInlineScript } from "@/lib/composio/oauth-popup-pr
  * Route handlers are not wrapped by `layout.tsx`, which is intentional here.
  */
 export function GET() {
-  const script = buildComposioCallbackInlineScript();
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title></title></head><body><script>${script}</script></body></html>`;
-
-  return new Response(html, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cross-Origin-Opener-Policy": CROSS_ORIGIN_OPENER_POLICY,
-      "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
-    },
-  });
+  return popupResponse(buildComposioCallbackInlineScript());
 }

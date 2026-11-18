@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
-import {
-  coworkerCanChat,
-  coworkerHasCapability,
-  mapDbCoworkerToChatCoworker,
-} from "./coworker-utils";
-import type { Coworker } from "./types";
+import { coworkerCanChat, coworkerHasCapability } from "./coworker-utils";
 
-function baseCoworker(
-  overrides: Partial<Coworker> & Pick<Coworker, "id" | "slug" | "name">,
-): Coworker {
+function baseCoworker(overrides: {
+  id: string;
+  slug: string;
+  name: string;
+  capabilities?: Array<"chat" | "tasks">;
+  canChat?: boolean;
+}) {
   const capabilities = overrides.capabilities ?? [];
   return {
     description: "",
@@ -20,52 +19,6 @@ function baseCoworker(
     ...overrides,
   };
 }
-
-describe("mapDbCoworkerToChatCoworker", () => {
-  it("keeps the coworker slug on the chat shape", () => {
-    expect(
-      mapDbCoworkerToChatCoworker({
-        id: "cow_123",
-        slug: "elena",
-        name: "Elena",
-        description: "Ops helper",
-        archivedAt: null,
-        isWhitelisted: false,
-        priority: 7,
-        image: null,
-        caption: null,
-        vendor: {
-          id: "01960001-0001-7001-8001-000000000001",
-          createdAt: new Date("2026-03-06T00:00:00.000Z"),
-          updatedAt: new Date("2026-03-06T00:00:00.000Z"),
-          name: "Serviceplan",
-          slug: "serviceplan",
-          logos: {
-            light: null,
-            dark: null,
-          },
-        },
-        url: null,
-        baseURL: null,
-        capabilities: [],
-        metadata: null,
-        createdAt: new Date("2026-03-06T00:00:00.000Z"),
-        updatedAt: new Date("2026-03-06T00:00:00.000Z"),
-      }),
-    ).toMatchObject({
-      id: "cow_123",
-      slug: "elena",
-      name: "Elena",
-      priority: 7,
-      description: "Ops helper",
-      useCase: "",
-      archivedAt: null,
-      isWhitelisted: false,
-      canChat: false,
-      metadata: null,
-    });
-  });
-});
 
 describe("coworkerCanChat", () => {
   it("treats missing capabilities as not chat", () => {

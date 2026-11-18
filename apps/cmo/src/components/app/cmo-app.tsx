@@ -1,10 +1,19 @@
 "use client";
 
+import { SeoActions, SeoPage } from "./seo-page";
 import "../onboarding/onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
+import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -14,6 +23,7 @@ import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
+import { HowIGotHere, Working } from "../cuso-trace";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
@@ -30,6 +40,7 @@ import {
   BrandBrainPage,
   ChannelsPage,
   type ConnectChannel,
+  ResultsLead,
   ResultsPage,
   SettingsPage,
 } from "./pages";
@@ -40,7 +51,9 @@ import { type ChangePlan, type OpenPortal } from "./subscription-card";
 
 const POLL_MS = 4_000;
 
-export interface CmoAppActions extends AdActions {
+export interface CmoAppActions
+  extends AdActions,
+    Omit<SeoActions, "connectSearchConsole"> {
   loadState: () => Promise<{
     overview: CmoOverview | null;
     messages: CusoMessage[];
@@ -67,7 +80,7 @@ export interface CmoAppActions extends AdActions {
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
+    from: "onboarding" | "app" | "seo",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -124,21 +137,22 @@ const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
 
 /**
  * Cuso and Core write Markdown: `**bold**` and `[label](url)` read badly raw.
- * Core links point into Sokosumi (e.g. `/social?postId=…`), so a relative
- * link resolves against Sokosumi's web origin and opens there.
+ * CMO never opens Sokosumi: a link into it (a relative route such as
+ * `/social?postId=…`, or its web address) shows as its words alone.
  */
 export function renderInline(
   text: string,
   webOrigin: string,
 ): React.ReactNode[] {
-  return text.split(INLINE).map((part, index) => {
+  const parts = withoutSokosumiLinks(text, webOrigin).split(INLINE);
+  return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
     }
     const link = LINK.exec(part);
     if (link?.[1] && link[2]) {
-      const href = new URL(link[2], webOrigin);
-      if (href.protocol !== "https:" && href.protocol !== "http:") {
+      const href = URL.parse(link[2]);
+      if (href?.protocol !== "https:" && href?.protocol !== "http:") {
         return link[1];
       }
       return (
@@ -200,7 +214,6 @@ export function CmoApp({
   }, []);
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
-  const [highlight, setHighlight] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -232,11 +245,16 @@ export function CmoApp({
 
   const thread = buildThread(overview, messages);
   const threadLength = thread.length;
+  // What Cuso is doing sits under the thread, so it scrolls into view too.
+  const working =
+    overview.botStatus === "RUNNING"
+      ? `${overview.activity?.step}\n${overview.activity?.reasoning}`
+      : null;
   useEffect(() => {
     if (view === "chat" && threadLength > 0) {
       end.current?.scrollIntoView({ block: "end" });
     }
-  }, [threadLength, view]);
+  }, [threadLength, view, working]);
 
   const compose = useCallback(
     (text: string) => {
@@ -295,7 +313,6 @@ export function CmoApp({
 
   function openUpdate(id: string) {
     go("chat");
-    setHighlight(id);
     window.setTimeout(
       () =>
         document
@@ -378,21 +395,11 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
-                    highlighted={
-                      item.kind === "update" && item.update.id === highlight
-                    }
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
                   <CusoSays pose="thinking">
-                    <span
-                      className="typing"
-                      aria-label={`${AGENT_NAME} is working`}
-                    >
-                      <i />
-                      <i />
-                      <i />
-                    </span>
+                    <Working activity={overview.activity} />
                   </CusoSays>
                 ) : null}
               </div>
@@ -447,7 +454,13 @@ export function CmoApp({
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
-                  line={PAGE_LEADS[view].line}
+                  line={
+                    view === "results" ? (
+                      <ResultsLead overview={overview} />
+                    ) : (
+                      PAGE_LEADS[view].line
+                    )
+                  }
                 />
               ) : null}
               {view === "calendar" ? (
@@ -487,6 +500,17 @@ export function CmoApp({
                     setOverview(await actions.approveStrategy(versionId))
                   }
                 />
+              ) : view === "seo" ? (
+                <SeoPage
+                  actions={{
+                    ...actions,
+                    connectSearchConsole: () =>
+                      actions.connectMeasurement(
+                        "google_search_console",
+                        "seo",
+                      ),
+                  }}
+                />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}
@@ -497,6 +521,7 @@ export function CmoApp({
                   }
                   ads={actions}
                   onChange={setOverview}
+                  openView={go}
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage
@@ -519,6 +544,10 @@ export function CmoApp({
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
                   connectFailed={connectFailed}
+                  openSeo={() => go("seo")}
+                  connectSearchConsole={() =>
+                    actions.connectMeasurement("google_search_console", "seo")
+                  }
                 />
               ) : (
                 <SettingsPage
@@ -547,15 +576,19 @@ export function CmoApp({
 const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   calendar: {
     title: "Your month",
-    line: `Every piece ${AGENT_NAME} makes. Each one opens once it is made.`,
+    line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
+  },
+  seo: {
+    title: "Found on Google",
+    line: "A full audit of your site every week, what to change, and what to write next.",
   },
   results: {
     title: "How it's going",
-    line: "Real numbers from your accounts, checked every Monday.",
+    line: "Real numbers from your accounts, checked every week.",
   },
   channels: {
     title: "Where I post",
-    line: "Connect a network and I post there on your plan's schedule.",
+    line: "Connect a network and I post there on your strategy's schedule.",
   },
   settings: {
     title: "Settings",
@@ -563,7 +596,7 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   },
 };
 
-function PageLead({ title, line }: { title: string; line: string }) {
+function PageLead({ title, line }: { title: string; line: ReactNode }) {
   return (
     <header className="page-lead">
       <h1 className="ob-h1">{title}</h1>
@@ -582,7 +615,7 @@ function PauseButton({ pause }: { pause: () => Promise<void> }) {
       disabled={pending}
       onClick={() => startTransition(pause)}
     >
-      {pending ? "Pausing…" : "Pause this piece"}
+      {pending ? "Pausing…" : "Pause this post"}
     </button>
   );
 }
@@ -599,14 +632,12 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
-  highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
-  highlighted: boolean;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
@@ -627,6 +658,7 @@ function ThreadEntry({
         <p className="txt">
           {renderInline(item.message.content, webOriginOf(overview))}
         </p>
+        {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
       </CusoSays>
     );
   }
@@ -634,9 +666,9 @@ function ThreadEntry({
     return (
       <CusoSays at={item.at}>
         <p className="txt">
-          Your plan is ready. I'm making this month's posts now and publish each
-          one on its day; the Calendar shows every piece. Ask me anything here,
-          or tell me what to change.
+          Your strategy is ready. I'm making this month's posts now and publish
+          each one on its day; the Calendar shows every post. Ask me anything
+          here, or tell me what to change.
         </p>
       </CusoSays>
     );
@@ -671,7 +703,6 @@ function ThreadEntry({
           <div id={`update-${item.update.id}`}>
             <UpdateCard
               update={item.update}
-              focused={highlighted}
               actions={actions}
               approved={
                 overview.strategyVersion?.approvedAt != null &&
@@ -770,9 +801,9 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? `A few pieces didn't finish. ${AGENT_NAME} tries them again on his next round.`
+            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
             : notStarted
-              ? "He starts shortly: first every piece's words, then the pictures."
+              ? "He starts shortly: first every post's words, then the pictures."
               : production.state === "starting"
                 ? `${productionSteps(production)}. He makes the rest shortly.`
                 : `${productionSteps(production)}. First the words, then the pictures.`}

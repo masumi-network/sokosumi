@@ -32,7 +32,6 @@ export const SEO_MAX_INDEX_ASSESSMENTS = SEO_MAX_PAGES * SEO_MAX_PAGES;
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_COMPETITORS = 10;
 export const SEO_MAX_PROVIDER_CALLS = 100;
-export { SEO_MAX_MONITOR_RUNS } from "./project-seo-monitor.schema";
 export const SEO_PAGE_CHANGE_CLOCK_SKEW_MS = 5 * 60_000;
 const SEO_SERP_LANGUAGES = new Set(
   "af ak am ar az be bg bn bs ca cs cy da de ee el en es et eu fa fi fo fr fy ga gl gu ha he hi hr ht hu hy id ig is it iw ja ka kg kk km kn ko ky lg ln lo lt lv mg mi mk ml mn mr ms mt my ne nl no ny om pa pl ps pt qu rm rn ro ru rw sd si sk sl sn so sq sr st sv sw ta te tg th ti tk tl tn to tr uk ur uz vi wo xh yo zu".split(
