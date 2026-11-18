@@ -402,6 +402,87 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     expect(snapshot.text).toContain("$ 17 /user/mo");
   });
 
+  it("keeps a homepage change when the pricing page cannot be read", async () => {
+    const cuso = await cusoTracking("SavvyCal");
+    const first = new Date("2026-11-09T09:00:00Z");
+    readers.readCompetitorPage.mockImplementation(async (url: string) =>
+      page(url),
+    );
+    await runCompetitorCheck(cuso, first);
+
+    readers.readCompetitorPage.mockImplementation(async (url: string) => {
+      if (url.endsWith("/pricing")) throw new Error("socket hang up");
+      return page(url, ["Now with team scheduling"]);
+    });
+    readers.ask.mockResolvedValue({
+      output: {
+        real: true,
+        summary: "Homepage now offers team scheduling",
+        quote: "Now with team scheduling",
+        about: "product",
+      },
+      costUsd: 0.0004,
+    });
+    await runCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
+    expectCoreLog("warn", "A competitor check source failed");
+
+    const signals = await prisma.competitorSignal.findMany({
+      where: { projectId: cuso.projectId },
+    });
+    expect(signals).toEqual([
+      expect.objectContaining({
+        kind: "WEBSITE_CHANGE",
+        summary: "Homepage now offers team scheduling",
+      }),
+    ]);
+    const check = await prisma.competitorCheck.findFirstOrThrow({
+      where: { projectId: cuso.projectId },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(check.sources).toMatchObject({ pages: { status: "failed" } });
+  });
+
+  it("sees a change again when the check died before storing it", async () => {
+    const cuso = await cusoTracking("SavvyCal");
+    const first = new Date("2026-11-09T09:00:00Z");
+    readers.readCompetitorPage.mockImplementation(async (url: string) =>
+      page(url, url.endsWith("/pricing") ? ["Premium", "$ 15 /user/mo"] : []),
+    );
+    await runCompetitorCheck(cuso, first);
+
+    readers.readCompetitorPage.mockImplementation(async (url: string) =>
+      page(url, url.endsWith("/pricing") ? ["Premium", "$ 17 /user/mo"] : []),
+    );
+    readers.ask.mockResolvedValue({
+      output: {
+        real: true,
+        summary: "Premium $15 -> $17 per user a month",
+        quote: "$ 17 /user/mo",
+        about: "pricing",
+      },
+      costUsd: 0.0004,
+    });
+    const second = new Date(first.getTime() + 7 * DAY);
+    const store = vi
+      .spyOn(prisma.competitorSignal, "createMany")
+      .mockRejectedValueOnce(new Error("connection closed"));
+    await expect(runCompetitorCheck(cuso, second)).rejects.toThrow(
+      "connection closed",
+    );
+    store.mockRestore();
+
+    // The check that died is redone after an hour.
+    await runCompetitorCheck(cuso, new Date(second.getTime() + 2 * 3_600_000));
+    expect(
+      await prisma.competitorSignal.findMany({
+        where: { projectId: cuso.projectId },
+        select: { kind: true, summary: true },
+      }),
+    ).toEqual([
+      { kind: "PRICE_CHANGE", summary: "Premium $15 -> $17 per user a month" },
+    ]);
+  });
+
   it("stores each article once across checks", async () => {
     const cuso = await cusoTracking("Calendly");
     const article = {

@@ -231,10 +231,12 @@ function failed(
 }
 
 /**
- * Compares one page with last week's reading and replaces that reading.
- * The first reading, and the first after its address changed, is only kept.
- * When the summary model fails on a change without a price move the old
- * reading stays, so next week's check still sees the change.
+ * Compares one page with last week's reading. `keep` replaces that reading;
+ * the caller runs it once the change is stored as a signal, so a check that
+ * dies in between sees the change again instead of losing it. The first
+ * reading, and the first after its address changed, is only kept. When the
+ * summary model fails on a change without a price move this throws and the
+ * old reading stays, so next week's check still sees the change.
  */
 async function checkPage(
   competitor: TrackedCompetitorRow,
@@ -242,7 +244,7 @@ async function checkPage(
   url: string,
   lines: string[],
   now: Date,
-): Promise<{ drafts: SignalDraft[]; costUsd: number }> {
+): Promise<PageResult> {
   const where = { competitorId_kind: { competitorId: competitor.id, kind } };
   const before = await prisma.competitorPageSnapshot.findUnique({
     where,
@@ -255,10 +257,7 @@ async function checkPage(
       create: { competitorId: competitor.id, kind, ...reading },
       update: reading,
     });
-  if (!before || before.url !== url) {
-    await keep();
-    return { drafts: [], costUsd: 0 };
-  }
+  if (!before || before.url !== url) return { drafts: [], costUsd: 0, keep };
   const old = before.text.split("\n");
   const diff = diffLines(old, lines);
   // Only a pricing page's prices count: a homepage rotates offers and deals.
@@ -270,7 +269,6 @@ async function checkPage(
     lines,
     prices,
   });
-  await keep();
   return {
     drafts: change
       ? [
@@ -283,79 +281,89 @@ async function checkPage(
         ]
       : [],
     costUsd,
+    keep,
   };
+}
+
+interface PageResult {
+  drafts: SignalDraft[];
+  costUsd: number;
+  /** Replaces last week's reading of the page with this one. */
+  keep: () => Promise<unknown>;
+}
+
+interface PagesResult extends SourceResult {
+  competitor: TrackedCompetitorRow;
+  /** One per page read: run after the drafts are stored. */
+  keeps: PageResult["keep"][];
 }
 
 /**
  * A competitor's homepage and pricing page. The homepage also names what
  * nobody entered yet: its pricing page and its Instagram and Facebook
- * accounts, which are stored for the next sources and the next check.
+ * accounts, which are stored for the next sources and the next check. Each
+ * page is read on its own: one that fails leaves what the other found.
  */
 async function checkPages(
   competitor: TrackedCompetitorRow,
   now: Date,
-): Promise<SourceResult & { competitor: TrackedCompetitorRow }> {
+): Promise<PagesResult> {
   let current = competitor;
-  if (!current.websiteUrl && !current.pricingUrl)
-    return { ...skipped("ok"), competitor };
-  try {
-    const drafts: SignalDraft[] = [];
-    let costUsd = 0;
-    const { websiteUrl } = current;
-    const home = websiteUrl ? await readCompetitorPage(websiteUrl) : null;
-    // A competitor a member touched keeps the fields as they left them.
-    if (home && websiteUrl && !current.memberEditedAt) {
-      const found = {
-        ...(current.pricingUrl
-          ? {}
-          : { pricingUrl: pricingLink(home.html, home.url) }),
-        ...(current.instagramHandle
-          ? {}
-          : { instagramHandle: profileHandle(home.html, "instagram.com") }),
-        ...(current.facebookHandle
-          ? {}
-          : { facebookHandle: profileHandle(home.html, "facebook.com") }),
-      };
-      const filled = Object.fromEntries(
-        Object.entries(found).filter(([, value]) => value),
-      );
-      if (Object.keys(filled).length > 0) {
-        const updated = await prisma.trackedCompetitor.updateMany({
-          where: { id: current.id, memberEditedAt: null },
-          data: filled,
-        });
-        if (updated.count > 0) current = { ...current, ...filled };
-      }
+  const result: PagesResult = { ...skipped("ok"), competitor, keeps: [] };
+  const check = async (kind: CompetitorPageKind, url: string) => {
+    try {
+      const page = await readCompetitorPage(url);
+      if (!page) return null;
+      const found = await checkPage(current, kind, url, page.lines, now);
+      result.drafts.push(...found.drafts);
+      result.costUsd += found.costUsd;
+      result.keeps.push(found.keep);
+      return page;
+    } catch (error) {
+      result.status = failed("pages", competitor, error).status;
+      return null;
     }
-    if (home && websiteUrl) {
-      const result = await checkPage(
-        current,
-        "WEBSITE",
-        websiteUrl,
-        home.lines,
-        now,
-      );
-      drafts.push(...result.drafts);
-      costUsd += result.costUsd;
+  };
+  const { websiteUrl } = current;
+  const home = websiteUrl ? await check("WEBSITE", websiteUrl) : null;
+  // A competitor a member touched keeps the fields as they left them.
+  if (home && !current.memberEditedAt) {
+    try {
+      current = await fillFromHomepage(current, home);
+    } catch (error) {
+      result.status = failed("pages", competitor, error).status;
     }
-    if (current.pricingUrl && current.pricingUrl !== current.websiteUrl) {
-      const pricing = await readCompetitorPage(current.pricingUrl);
-      if (pricing) {
-        const result = await checkPage(
-          current,
-          "PRICING",
-          current.pricingUrl,
-          pricing.lines,
-          now,
-        );
-        drafts.push(...result.drafts);
-        costUsd += result.costUsd;
-      }
-    }
-    return { drafts, costUsd, status: "ok", competitor: current };
-  } catch (error) {
-    return { ...failed("pages", competitor, error), competitor: current };
   }
+  if (current.pricingUrl && current.pricingUrl !== current.websiteUrl)
+    await check("PRICING", current.pricingUrl);
+  return { ...result, competitor: current };
+}
+
+/** Stores the pricing page and accounts a homepage links to, where empty. */
+async function fillFromHomepage(
+  competitor: TrackedCompetitorRow,
+  home: { html: string; url: string },
+): Promise<TrackedCompetitorRow> {
+  const found = {
+    ...(competitor.pricingUrl
+      ? {}
+      : { pricingUrl: pricingLink(home.html, home.url) }),
+    ...(competitor.instagramHandle
+      ? {}
+      : { instagramHandle: profileHandle(home.html, "instagram.com") }),
+    ...(competitor.facebookHandle
+      ? {}
+      : { facebookHandle: profileHandle(home.html, "facebook.com") }),
+  };
+  const filled = Object.fromEntries(
+    Object.entries(found).filter(([, value]) => value),
+  );
+  if (Object.keys(filled).length === 0) return competitor;
+  const updated = await prisma.trackedCompetitor.updateMany({
+    where: { id: competitor.id, memberEditedAt: null },
+    data: filled,
+  });
+  return updated.count > 0 ? { ...competitor, ...filled } : competitor;
 }
 
 async function checkNews(
@@ -601,6 +609,9 @@ export async function runCompetitorCheck(
               skipDuplicates: true,
             })
           : { count: 0 };
+      // After the signals: a reading replaced first would hide its change
+      // from every later check if this one died before storing it.
+      await Promise.all(pages.keeps.map((keep) => keep()));
       return { results, signals: created.count };
     }),
   );
