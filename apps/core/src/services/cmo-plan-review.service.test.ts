@@ -728,8 +728,8 @@ describe("pillarProblems", () => {
 
   it("names the pillar that is off and the count to aim for", () => {
     expect(pillarProblems(pillars, pieces(15, 5))).toEqual([
-      'the pillar "Lead routing" is 50% of the plan but 15 of 20 pieces (75%); make it about 10.',
-      'the pillar "Setup in minutes" is 50% of the plan but 5 of 20 pieces (25%); make it about 10.',
+      'the pillar "Lead routing" is 50% of the strategy but 15 of 20 pieces (75%); make it about 10.',
+      'the pillar "Setup in minutes" is 50% of the strategy but 5 of 20 pieces (25%); make it about 10.',
     ]);
   });
 
@@ -737,7 +737,7 @@ describe("pillarProblems", () => {
     const calendar = pieces(10, 10);
     calendar[0] = { ...calendar[0]!, pillar: "Pricing" };
     expect(pillarProblems(pillars, calendar)).toEqual([
-      "1 calendar entries name no pillar of the plan; give every entry one of: Lead routing, Setup in minutes.",
+      "1 calendar entries name no pillar of the strategy; give every entry one of: Lead routing, Setup in minutes.",
     ]);
   });
 

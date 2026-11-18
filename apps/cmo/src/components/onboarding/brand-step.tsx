@@ -310,7 +310,7 @@ export function BrandStep({
       setRefusal(
         await onFix(
           section,
-          `I edited the ${BRAND_SECTIONS[section].title} section myself. Keep my words, and bring the summary and the plan in line with it.`,
+          `I edited the ${BRAND_SECTIONS[section].title} section myself. Keep my words, and bring the summary and the strategy in line with it.`,
         ),
       );
     }
@@ -490,7 +490,7 @@ export function BrandStep({
               <p className="note" aria-live="polite">
                 {fixing
                   ? `${AGENT_NAME} is fixing this now.`
-                  : `${AGENT_NAME} will fix this and update your plan.`}
+                  : `${AGENT_NAME} will fix this and update your strategy.`}
               </p>
             ) : null}
             {sent && answered && lastWord ? (

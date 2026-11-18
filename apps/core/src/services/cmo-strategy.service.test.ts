@@ -516,7 +516,7 @@ describe("the plan starts when the research ends", () => {
         { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
         now,
       ),
-    ).rejects.toThrow("still writing the plan");
+    ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
 
@@ -532,7 +532,7 @@ describe("the plan starts when the research ends", () => {
         monthly: 500,
         currency: "eur",
       }),
-    ).rejects.toThrow("still writing the plan");
+    ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
 });
@@ -1562,7 +1562,7 @@ describe("changes after the plan", () => {
         },
         now,
       ),
-    ).rejects.toThrow("still writing the plan");
+    ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
 

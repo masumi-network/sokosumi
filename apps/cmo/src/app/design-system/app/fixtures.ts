@@ -177,7 +177,7 @@ export const overview: CmoOverview = cmoOverview({
       key: "cmo-weekly-review",
       name: "Weekly review",
       when: "Mondays at 09:00",
-      description: "Reads the week's results and adjusts the plan.",
+      description: "Reads the week's results and adjusts the strategy.",
       nextRunAt: at("09T09:00:00"),
       timezone: "Europe/Berlin",
     },

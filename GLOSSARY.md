@@ -140,7 +140,7 @@ _Avoid_: Customer (alone), payer
 
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
-_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
+_Avoid_: Plan (in anything a person or Cuso reads; that is a CMO plan), CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
 
 **Brand Brain**:
 What a Project knows about the business it works for (summary, voice, audience, products, competitors, channels). Every bot in the Project reads it and any member of its Workspace edits it; Cuso drafts it while Hiring Cuso. Its look (logo, colours, fonts) is the Project's logo and DESIGN.md, not part of it.
