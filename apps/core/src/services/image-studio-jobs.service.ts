@@ -1751,6 +1751,9 @@ export async function reconcileJob(jobId: string): Promise<void> {
       // it to stop, "gone" means the cancellation took, and calling that a
       // failure misreports what happened.
       if (job.cancelRequestedAt) {
+        // A cancelled caption step leaves the presenter's video, which fal
+        // has already made and billed: keep it, as a finished image is kept.
+        if (await deliverUncaptionedTalkingVideo(job.id)) return;
         await prisma.projectImageJob.updateMany({
           where: {
             id: job.id,
@@ -3046,6 +3049,7 @@ async function finaliseCancellations(limit: number): Promise<number> {
     // Unreachable says nothing; leave it for the next pass.
     if (status.kind === "unreachable") continue;
     if (status.kind === "not_found") {
+      if (await deliverUncaptionedTalkingVideo(job.id)) continue;
       const settled = await prisma.projectImageJob.updateMany({
         where: {
           id: job.id,
