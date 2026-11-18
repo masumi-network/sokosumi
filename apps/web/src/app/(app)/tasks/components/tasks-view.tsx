@@ -277,6 +277,17 @@ export function TasksView(props: TasksViewProps) {
             onDensityChange: handleDensityChange,
             labels: labels.display,
           }}
+          tableCopy={{
+            tasks: shownItems,
+            notLoaded:
+              viewMode === "board"
+                ? Object.values(columnHiddenById).reduce((a, b) => a + b, 0)
+                : listCursor === null
+                  ? 0
+                  : "unknown",
+            projectId: routeFilters.projectId,
+            statusLabels: labels.filters.statusOptions,
+          }}
         />
       </div>
 

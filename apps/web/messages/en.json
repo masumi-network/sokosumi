@@ -2563,6 +2563,29 @@
         "label": "Time in this status:",
         "stuck": "Stuck",
         "since": "In this status since"
+      },
+      "TableCopy": {
+        "button": "Copy to table",
+        "title": "Copy Tasks to a table",
+        "description": "{count, plural, =0 {No Tasks are on the board, so there is nothing to copy.} one {# Task on the board goes into a new table in Files. The table is a copy: it won't change when the Task does.} other {# Tasks on the board go into a new table in Files. The table is a copy: it won't change when the Tasks do.}}",
+        "notLoaded": "{count, plural, one {# more Task matches your filters but isn't loaded, so it stays out. Press Load more first to include it.} other {# more Tasks match your filters but aren't loaded, so they stay out. Press Load more first to include them.}}",
+        "notLoadedUnknown": "More Tasks match your filters than are loaded, and those stay out. Press Load more first to include them.",
+        "copy": "{count, plural, one {Copy # Task} other {Copy # Tasks}}",
+        "cancel": "Cancel",
+        "tableTitle": "Tasks · {date}",
+        "tableDescription": "Copied from the Task board on {date}. A snapshot: it doesn't change when the Tasks do.",
+        "copied": "{count, plural, one {# Task copied to a new table.} other {# Tasks copied to a new table.}}",
+        "openTable": "Open table",
+        "failed": "The table isn't complete yet. Press Copy again to finish it.",
+        "columns": {
+          "name": "Task",
+          "status": "Status",
+          "assignee": "Assignee",
+          "project": "Project",
+          "due": "Due",
+          "tags": "Tags",
+          "link": "Link"
+        }
       }
     },
     "Projects": {

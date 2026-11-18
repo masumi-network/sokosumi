@@ -6,28 +6,32 @@ import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 
+import { TasksTableCopy } from "./tasks-table-copy";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch, type ViewModeSwitchProps } from "./view-mode-switch";
 
 interface TasksViewToolbarActionsProps {
   filters: ComponentProps<typeof TasksViewFilters>;
   display: ViewModeSwitchProps;
+  tableCopy: ComponentProps<typeof TasksTableCopy>;
 }
 
 /**
- * Right side of the Tasks tab toolbar: filters, display and the way to
- * archived Tasks. New task is the
+ * Right side of the Tasks tab toolbar: filters, display, a copy of the shown
+ * Tasks into a Files Table and the way to archived Tasks. New task is the
  * sidebar header's action; below md the create FAB covers creation.
  */
 export function TasksViewToolbarActions({
   filters,
   display,
+  tableCopy,
 }: TasksViewToolbarActionsProps) {
   const t = useTranslations("App.Tasks.Archived");
   return (
     <>
       <TasksViewFilters {...filters} />
       <ViewModeSwitch {...display} />
+      <TasksTableCopy {...tableCopy} />
       <Button variant="outline" size="sm" className="gap-2" asChild>
         <Link href="/tasks/archived" aria-label={t("title")}>
           <Archive className="size-4" aria-hidden />

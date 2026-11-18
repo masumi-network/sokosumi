@@ -5,8 +5,8 @@ import { createDataTableSchema } from "@sokosumi/utils";
 import { Download, Ellipsis, Loader2, Table2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTableCopy } from "@/app/drive/tables/use-table-copy";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,7 +14,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { dataTableService } from "@/lib/services/data-table.client";
 import { seoAuditName } from "./seo-audit-name";
 import { seoCsv } from "./seo-csv";
 import { type SeoExport, seoTablePlan } from "./seo-export-model";
@@ -24,12 +23,6 @@ const UTF8_BOM = "﻿";
 /** The toasts carry the way to the new Table or how to finish it: they stay until dismissed. */
 const STAY = { duration: Infinity, closeButton: true };
 const TITLE_MAX = createDataTableSchema.shape.title.maxLength ?? 160;
-
-type Attempt = {
-  plan: ReturnType<typeof seoTablePlan>;
-  tableId?: string;
-  done: number;
-};
 
 /**
  * The exports of one list behind one button beside its title or filters: a CSV file named "<name>-<today>.csv", or a copy
@@ -41,7 +34,7 @@ export function SeoExportMenu({
   title,
   workspace,
   table,
-  tableCopy = table,
+  tableCopy: tableRows = table,
   empty = false,
 }: {
   name: string;
@@ -65,8 +58,8 @@ export function SeoExportMenu({
   const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const attempt = useRef<Attempt | null>(null);
+  const tableCopy = useTableCopy();
+  const pending = tableCopy.pending;
   const site = seoAuditName(
     workspace.auditName ?? "",
     workspace.websiteUrl ?? "",
@@ -103,52 +96,30 @@ export function SeoExportMenu({
   }
 
   async function copy() {
-    setPending(true);
     try {
-      if (!attempt.current) {
+      const { id, rows } = await tableCopy.copy(() => {
         const now = new Date();
-        attempt.current = {
-          done: 0,
-          plan: seoTablePlan(
-            tableCopy(),
-            {
-              title: tableTitle(now),
-              description: t("tableDescription", {
-                date: format.dateTime(now, "dateTimeMedium"),
-              }),
-              projectId: workspace.projectId,
-            },
-            crypto.randomUUID(),
-          ),
-        };
-      }
-      const current = attempt.current;
-      const { plan } = current;
-      current.tableId ??= (await dataTableService.create(plan.table)).id;
-      // One batch at a time, in order: a retry resumes at the first batch not saved.
-      for (; current.done < plan.batches.length; current.done++)
-        await dataTableService.batch(
-          current.tableId,
-          plan.batches[current.done],
-        );
-      attempt.current = null;
-      const id = current.tableId;
-      toast.success(
-        t("tableCopied", {
-          count: plan.batches.reduce((sum, b) => sum + b.insert.length, 0),
-        }),
-        {
-          ...STAY,
-          action: {
-            label: t("openTable"),
-            onClick: () => router.push(`/drive/tables/${id}`),
+        return seoTablePlan(
+          tableRows(),
+          {
+            title: tableTitle(now),
+            description: t("tableDescription", {
+              date: format.dateTime(now, "dateTimeMedium"),
+            }),
+            projectId: workspace.projectId,
           },
+          crypto.randomUUID(),
+        );
+      });
+      toast.success(t("tableCopied", { count: rows }), {
+        ...STAY,
+        action: {
+          label: t("openTable"),
+          onClick: () => router.push(`/drive/tables/${id}`),
         },
-      );
+      });
     } catch {
       toast.error(t("tableFailed"), STAY);
-    } finally {
-      setPending(false);
     }
   }
 
@@ -177,7 +148,7 @@ export function SeoExportMenu({
           {t("csv")}
         </DropdownMenuItem>
         <DropdownMenuItem
-          disabled={pending || (empty && !attempt.current)}
+          disabled={pending || (empty && !tableCopy.unfinished)}
           onSelect={() => void copy()}
         >
           <Table2 aria-hidden />

@@ -2563,6 +2563,29 @@
         "label": "Tiempo en este estado:",
         "stuck": "Atascada",
         "since": "En este estado desde"
+      },
+      "TableCopy": {
+        "button": "Copiar a tabla",
+        "title": "Copiar tareas a una tabla",
+        "description": "{count, plural, =0 {No hay tareas en el tablero, así que no hay nada que copiar.} one {# tarea del tablero va a una tabla nueva en Archivos. La tabla es una copia: no cambia cuando cambia la tarea.} other {# tareas del tablero van a una tabla nueva en Archivos. La tabla es una copia: no cambia cuando cambian las tareas.}}",
+        "notLoaded": "{count, plural, one {# tarea más coincide con tus filtros pero no está cargada, así que queda fuera. Pulsa Cargar más antes para incluirla.} other {# tareas más coinciden con tus filtros pero no están cargadas, así que quedan fuera. Pulsa Cargar más antes para incluirlas.}}",
+        "notLoadedUnknown": "Hay más tareas que coinciden con tus filtros de las que están cargadas, y esas quedan fuera. Pulsa Cargar más antes para incluirlas.",
+        "copy": "{count, plural, one {Copiar # tarea} other {Copiar # tareas}}",
+        "cancel": "Cancelar",
+        "tableTitle": "Tareas · {date}",
+        "tableDescription": "Copiado de Tareas el {date}. Una instantánea: no cambia cuando cambian las tareas.",
+        "copied": "{count, plural, one {# tarea copiada a una tabla nueva.} other {# tareas copiadas a una tabla nueva.}}",
+        "openTable": "Abrir tabla",
+        "failed": "La tabla aún no está completa. Pulsa Copiar otra vez para terminarla.",
+        "columns": {
+          "name": "Tarea",
+          "status": "Estado",
+          "assignee": "Responsable",
+          "project": "Proyecto",
+          "due": "Vence",
+          "tags": "Etiquetas",
+          "link": "Enlace"
+        }
       }
     },
     "Projects": {
