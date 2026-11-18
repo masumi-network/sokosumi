@@ -777,6 +777,61 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
+  it("shortens the position measure to its result and keeps every line in a fold", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const lines = [
+      '"macbook charge limit", Market US, en (location_code 2840), mobile, DataForSEO SERP of 2026-11-16 23:50:46 +00:00: 16 organic results read',
+      "the page is not in the top 16 organic results",
+      "an AI Overview shows and does not cite the page",
+      "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
+      '"mac battery health checker" (goal): the page is not in the top 18 organic results',
+      '"macbook battery health" (goal): the page is not in the top 15 organic results',
+    ];
+    workspace.findings.push({
+      id: "organic-position",
+      observationId: "check-position",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "query.serp.position",
+      title: "Organic position per device",
+      severity: "measure",
+      evidence: lines,
+      sourceRef: "serp:mobile",
+      observedAt: new Date("2026-11-16T23:51:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    const row = screen.getByText("Organic position per device").closest("li");
+    if (!row) throw new Error("no position row");
+    // The result leads; the other keywords are one line; the rule and the raw head wait in the fold.
+    expect(row).toHaveTextContent(
+      "Not in the top 16 for “macbook charge limit”",
+    );
+    expect(row).toHaveTextContent(
+      "An AI Overview shows and does not cite the page",
+    );
+    expect(row).toHaveTextContent("2 other keywords: none in the top 15");
+    const rule = within(row).getByText(/^position rule:/);
+    expect(rule).not.toBeVisible();
+    await user.click(within(row).getByText("All details"));
+    expect(rule).toBeVisible();
+    // The keywords themselves are on the Rankings tab.
+    await user.click(within(row).getByRole("button", { name: "See Rankings" }));
+    expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("splits page details into measurements and notes and folds their references", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

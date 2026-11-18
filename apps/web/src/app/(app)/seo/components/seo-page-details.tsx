@@ -24,6 +24,8 @@ import {
   toolRangesList,
   withoutRuleCodes,
 } from "./seo-overview-model";
+import { SeoRankDetailRow } from "./seo-rank-detail";
+import { seoRankDetail } from "./seo-rank-detail-model";
 import {
   SeoDate,
   SeoFoldSummary,
@@ -55,6 +57,7 @@ function PageDetail({
   suggested,
   offersFix,
   onAsk,
+  onShowRankings,
   noteHeading: NoteHeading,
 }: {
   finding: Diagnostic;
@@ -69,6 +72,8 @@ function PageDetail({
   offersFix: boolean;
   /** Opens the agent chat with this row's question or fix request as a draft; absent without a chat. */
   onAsk?: (question: string) => void;
+  /** Opens the Rankings tab, where the keywords of a position row are. */
+  onShowRankings: () => void;
   /** The heading tag of a note, one level under its section's heading. */
   noteHeading: "h4" | "h5";
 }) {
@@ -83,7 +88,10 @@ function PageDetail({
   const name = checkName(finding.title);
   const first = finding.evidence[0];
   const measure = finding.severity === "measure";
-  const guidance = showGuidance ? pageDetailGuidance(finding.evidence) : [];
+  // The position measure is a short row of its own; its lines stay in a fold there.
+  const rank = measure ? seoRankDetail(finding.evidence) : null;
+  const guidance =
+    showGuidance && !rank ? pageDetailGuidance(finding.evidence) : [];
   const value = measure && first ? measureValue(name, first) : undefined;
   // Each page's value gets its own fit, though only the first row shows the ranges.
   const fit = value
@@ -125,7 +133,15 @@ function PageDetail({
   const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
   return (
     <li className="space-y-1 py-3 first:pt-0 last:pb-0">
-      {measure ? (
+      {rank ? (
+        <SeoRankDetailRow
+          name={name}
+          headingId={headingId}
+          detail={rank}
+          evidence={finding.evidence}
+          onShowRankings={onShowRankings}
+        />
+      ) : measure ? (
         // A measurement is one line; its value drops the words its name already says.
         <p className="text-sm break-words">
           <span id={headingId} className="font-medium">
@@ -332,12 +348,15 @@ export function SeoPageDetails({
       evidence: finding.evidence,
     })),
   );
+  // A position row shows its lines in its own fold, so its rule IDs stay out of the section's.
   const guidanceRows = pageDetailGuidanceRows(
-    overview.diagnostics.map((finding) => ({
-      id: finding.id,
-      name: checkName(finding.title),
-      evidence: finding.evidence,
-    })),
+    overview.diagnostics
+      .filter((finding) => !seoRankDetail(finding.evidence))
+      .map((finding) => ({
+        id: finding.id,
+        name: checkName(finding.title),
+        evidence: finding.evidence,
+      })),
   );
   // Rule IDs leave the shown guidance and fold with the sources.
   const ruleCodes = pageDetailRuleCodes(
@@ -346,6 +365,7 @@ export function SeoPageDetails({
       .flatMap((finding) => pageDetailGuidance(finding.evidence)),
   );
   // A question or fix request goes to the agent's chat as a draft; the owner sends it.
+  const showRankings = () => void model.setFilters({ tab: "rankings" });
   const askAgent = data.auditId
     ? (question: string) => model.openChat(question)
     : undefined;
@@ -462,6 +482,7 @@ export function SeoPageDetails({
                   suggested={suggestedRows.has(finding.id)}
                   offersFix={fixRows.has(finding.id)}
                   onAsk={askAgent}
+                  onShowRankings={showRankings}
                   noteHeading={noteHeading}
                 />
               ))}
@@ -488,6 +509,7 @@ export function SeoPageDetails({
                   suggested={false}
                   offersFix={false}
                   onAsk={askAgent}
+                  onShowRankings={showRankings}
                   noteHeading={noteHeading}
                 />
               ))}
