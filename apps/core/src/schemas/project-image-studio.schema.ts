@@ -119,6 +119,10 @@ export const imageStudioTalkingVideoSchema = z
     languageCode: z.string(),
     /** The middle of the video shows the Project's website. */
     siteShots: z.boolean(),
+    /** A generated clip plays in the hook. */
+    broll: z.boolean(),
+    /** Generated music plays under the voice. */
+    music: z.boolean(),
   })
   .openapi("ProjectTalkingVideo");
 
@@ -446,6 +450,10 @@ export const createTalkingVideoJobRequestSchema = z
      * when the Project has none.
      */
     siteShots: z.boolean().optional(),
+    /** Open on a generated B-roll clip under the first sentence. Off by default. */
+    broll: z.boolean().default(false),
+    /** Lay generated instrumental music under the voice. Off by default. */
+    music: z.boolean().default(false),
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectTalkingVideoJobRequest");
@@ -601,6 +609,10 @@ const talkingVideoPriceSchema = z.object({
   captionsPerMinuteUsd: z.number(),
   /** USD per second of video, for cutting the presenter out over the site. */
   cutoutPerSecondUsd: z.number(),
+  /** USD for the optional B-roll clip in the hook. */
+  brollUsd: z.number(),
+  /** USD for the optional music bed. */
+  musicUsd: z.number(),
   basis: z.string(),
   sourceUrl: z.string(),
   verifiedAt: z.string(),

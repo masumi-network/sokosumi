@@ -84,17 +84,21 @@ import {
   studioBrandPromptBlock,
 } from "@/lib/image-studio/studio-brand";
 import {
+  buildTalkingVideoBrollInput,
   buildTalkingVideoCaptionInput,
   buildTalkingVideoCutoutInput,
   buildTalkingVideoInput,
+  buildTalkingVideoMusicInput,
   creditsPerTalkingVideo,
   findTalkingVideoPresenter,
   frameTalkingVideoPresenter,
   posesAsCustomerTestimonial,
   readTalkingVideoSettings,
   TALKING_VIDEO_ASPECT_RATIO,
+  TALKING_VIDEO_BROLL_ENDPOINT,
   TALKING_VIDEO_CAPTION_ENDPOINT,
   TALKING_VIDEO_CUTOUT_ENDPOINT,
+  TALKING_VIDEO_MUSIC_ENDPOINT,
   TALKING_VIDEO_RESOLUTION,
   TALKING_VIDEO_TESTIMONIAL_MESSAGE,
   type TalkingVideoModel,
@@ -128,7 +132,10 @@ import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 import { readReferenceImage } from "@/services/reference-library.service";
-import { writeTalkingVideoHookLine } from "@/services/talking-video-scripts.service";
+import {
+  writeTalkingVideoBrollPrompt,
+  writeTalkingVideoHookLine,
+} from "@/services/talking-video-scripts.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -1143,6 +1150,10 @@ export interface CreateTalkingVideoJobInput {
     | { kind: "file"; fileId: string; actor: FileActor; consentAt: Date };
   /** Show the Project's website; omitted, it is shown when there is one. */
   siteShots?: boolean;
+  /** Open on a generated B-roll clip. */
+  broll?: boolean;
+  /** Lay generated music under the voice. */
+  music?: boolean;
   idempotencyKey: string;
 }
 
@@ -1210,6 +1221,10 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     hookLine: null,
     siteShots: await talkingVideoShowsSite(input.projectId, input.siteShots),
     sitePagePathname: null,
+    broll: input.broll === true,
+    brollRequestId: null,
+    music: input.music === true,
+    musicRequestId: null,
   };
   const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
   return await reserveAndSend({
@@ -1381,7 +1396,26 @@ async function prepareTalkingVideo(
       languageCode: settings.languageCode,
     }),
   ]);
-  const sitePagePathname = await sitePage;
+  // The paid extras last, once nothing before them can fail.
+  const [sitePagePathname, brollRequestId, musicRequestId] = await Promise.all([
+    sitePage,
+    settings.broll
+      ? writeTalkingVideoBrollPrompt(job.prompt).then((prompt) =>
+          prompt
+            ? startTalkingVideoExtra(
+                TALKING_VIDEO_BROLL_ENDPOINT,
+                buildTalkingVideoBrollInput({ prompt }),
+              )
+            : null,
+        )
+      : null,
+    settings.music
+      ? startTalkingVideoExtra(
+          TALKING_VIDEO_MUSIC_ENDPOINT,
+          buildTalkingVideoMusicInput(),
+        )
+      : null,
+  ]);
   const made: TalkingVideoSettings = {
     ...settings,
     durationSeconds: spokenSeconds,
@@ -1389,14 +1423,20 @@ async function prepareTalkingVideo(
     hookLine,
     siteShots: sitePagePathname !== null,
     sitePagePathname,
+    broll: brollRequestId !== null,
+    brollRequestId,
+    music: musicRequestId !== null,
+    musicRequestId,
   };
   await prisma.projectImageJob.update({
     where: { id: job.id },
     data: {
       voiceBlobPathname: stored.pathname,
       settings: { ...made },
-      // A site that could not be shown is not charged for.
-      ...(settings.siteShots && !made.siteShots
+      // What could not be started is not charged for.
+      ...((settings.siteShots && !made.siteShots) ||
+      (settings.broll && !made.broll) ||
+      (settings.music && !made.music)
         ? {
             chargedCents: convertCreditsToCents(
               creditsPerTalkingVideo(
@@ -1412,6 +1452,53 @@ async function prepareTalkingVideo(
   });
   step("request_not_supported");
   return buildTalkingVideoInput({ imageUrl, audioUrl });
+}
+
+/**
+ * Start one of a talking video's extras (its B-roll clip, its music) beside
+ * the presenter. No webhook: the edit reads the result when it needs it. Null
+ * when fal did not take the request, and the video is made without it.
+ */
+async function startTalkingVideoExtra(
+  model: string,
+  input: Record<string, unknown>,
+): Promise<string | null> {
+  const outcome = await submitToQueue({ model, input, webhookUrl: null });
+  return outcome.kind === "queued" ? outcome.requestId : null;
+}
+
+/** How long the edit waits for an extra that is still being made. */
+const EXTRA_WAIT_MS = 30_000;
+const EXTRA_POLL_MS = 5_000;
+
+/**
+ * An extra's file, once fal has made it. Null when it failed or is not ready
+ * within the wait: the video is edited without it.
+ */
+async function readTalkingVideoExtra(
+  model: string,
+  requestId: string | null,
+  fallbackContentType: string,
+): Promise<Uint8Array | null> {
+  if (!requestId) return null;
+  try {
+    const deadline = Date.now() + EXTRA_WAIT_MS;
+    for (;;) {
+      const result = await fetchQueueResult({ model, requestId });
+      if (result.kind === "media") {
+        const { bytes } = await downloadMedia(
+          result.media[0]!.url,
+          LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES,
+          fallbackContentType,
+        );
+        return bytes;
+      }
+      if (result.kind === "error" || Date.now() >= deadline) return null;
+      await new Promise((resolve) => setTimeout(resolve, EXTRA_POLL_MS));
+    }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -2528,9 +2615,10 @@ async function storeMedia(
   }
 
   let editedSeconds: number | null = null;
+  let chargedCents = job.chargedCents;
   if (talking && edits) {
     try {
-      const [site, endCard] = await Promise.all([
+      const [site, endCard, broll, music] = await Promise.all([
         cutOut ? readTalkingVideoSite(job, talking) : null,
         prisma.project
           .findUnique({
@@ -2538,7 +2626,36 @@ async function storeMedia(
             select: { id: true, name: true, logo: true, websiteUrl: true },
           })
           .then((brand) => (brand ? loadTalkingVideoEndCard(brand) : null)),
+        readTalkingVideoExtra(
+          TALKING_VIDEO_BROLL_ENDPOINT,
+          talking.brollRequestId,
+          "video/mp4",
+        ),
+        readTalkingVideoExtra(
+          TALKING_VIDEO_MUSIC_ENDPOINT,
+          talking.musicRequestId,
+          "audio/wav",
+        ),
       ]);
+      if ((talking.broll && !broll) || (talking.music && !music)) {
+        // An extra that did not come is taken off the charge before delivery.
+        chargedCents = convertCreditsToCents(
+          creditsPerTalkingVideo(
+            talkingVideoModelForEndpoint(job.model),
+            job.prompt,
+            {
+              siteShots: talking.siteShots,
+              broll: broll !== null,
+              music: music !== null,
+            },
+          ),
+        );
+        await prisma.projectImageJob.update({
+          where: { id: job.id },
+          data: { chargedCents },
+          select: { id: true },
+        });
+      }
       const edited = await editTalkingVideo({
         clip: downloaded.bytes,
         words: talking.words,
@@ -2546,6 +2663,8 @@ async function storeMedia(
         hookLine: talking.hookLine,
         ...(site ? { site } : {}),
         ...(endCard ? { endCard } : {}),
+        ...(broll ? { broll } : {}),
+        ...(music ? { music } : {}),
       });
       if (edited) {
         downloaded = { bytes: edited.bytes, contentType: "video/mp4" };
@@ -2729,7 +2848,7 @@ async function storeMedia(
         parentAssetId: job.parentAssetId,
         requestedByUserId: job.requestedByUserId,
         organizationId: project.organizationId,
-        chargedCents: job.chargedCents,
+        chargedCents,
       },
       aiGenerated: job.kind === ProjectImageJobKind.TALKING_VIDEO,
       blobPathname: blob.pathname,

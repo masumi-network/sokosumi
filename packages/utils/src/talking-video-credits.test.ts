@@ -10,6 +10,8 @@ const price = {
   voicePer1000CharactersUsd: 0.08,
   captionsPerMinuteUsd: 0.03,
   cutoutPerSecondUsd: 0.0067,
+  brollUsd: 0.5,
+  musicUsd: 0.1,
 };
 
 describe("talkingVideoQuotedSeconds", () => {
@@ -43,6 +45,16 @@ describe("creditsPerTalkingVideoCents", () => {
     expect(
       creditsPerTalkingVideoCents(price, "a".repeat(130), { siteShots: true }),
     ).toBe(59);
+  });
+
+  it("adds the B-roll clip and the music when they are asked for", () => {
+    const script = "a".repeat(130);
+    expect(creditsPerTalkingVideoCents(price, script, { broll: true })).toBe(
+      102,
+    );
+    expect(creditsPerTalkingVideoCents(price, script, { music: true })).toBe(
+      62,
+    );
   });
 
   it("doubles the video part on a model at twice the price", () => {
