@@ -127,6 +127,10 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       // Keyboard only, as a person would: Escape returns focus to Compare N,
       // Shift+Tab reaches Clear.
       await page.keyboard.press("Escape");
+      // Radix hands focus back after the dialog's exit animation.
+      await page.waitForFunction(
+        () => document.activeElement?.textContent?.trim() === "Compare 2",
+      );
       await page.keyboard.press("Shift+Tab");
       assert.equal(
         await clear.evaluate((el) => el === document.activeElement),
