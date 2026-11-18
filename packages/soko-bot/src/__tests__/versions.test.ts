@@ -366,6 +366,12 @@ describe("versions", () => {
     ).toContain("A lab prompt.");
   });
 
+  it("make a follow-up step a sub-task, not a parent link", () => {
+    const content = getSokoBotSkill("coworker-coordination").content;
+    expect(content).not.toMatch(/`parent`|`child`/);
+    expect(content).toContain("set_task_parent");
+  });
+
   it("fall back to the default for unknown ids", () => {
     expect(getSokoBotVersion(null).id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(getSokoBotVersion("nope").id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);

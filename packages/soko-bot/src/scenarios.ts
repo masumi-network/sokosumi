@@ -10,6 +10,7 @@
  * the scenarios before it happened to leave behind.
  */
 import { cmoCompetitorWatchBrief } from "./cmo-competitors.js";
+import { MUTATING_TOOLS } from "./scenario-mutating-tools.js";
 import { SUBTASK_SCENARIOS } from "./scenario-subtasks.js";
 
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
@@ -1469,34 +1470,6 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 const EMPTY_PROMISE =
   /\b(I(?:'ll| will) (?:check|follow up|remind|monitor|keep an eye)|will check back|check back later)\b/i;
-
-/** Anything that changes state the owner would notice. */
-const MUTATING_TOOLS = new Set([
-  "create_task",
-  "update_task",
-  "assign_task",
-  "reply_to_task",
-  "update_assigned_task",
-  "link_tasks",
-  "hire_agent",
-  "post_chat",
-  "ask_coworker",
-  "upsert_contact",
-  "update_contact",
-  "log_contact_interaction",
-  "merge_contacts",
-  "manage_contact_lists",
-  "find_people",
-  "enrich_contact",
-  "create_project",
-  "update_project",
-  "upload_file",
-  "run_integration_tool",
-  "create_schedule",
-  "update_schedule",
-  "delete_schedule",
-  "update_memory",
-]);
 
 export function evaluateScenario(
   scenario: SokoBotScenario,

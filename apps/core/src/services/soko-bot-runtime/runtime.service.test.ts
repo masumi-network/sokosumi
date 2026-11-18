@@ -316,6 +316,12 @@ const social = vi.hoisted(() => ({
   owner: vi.fn(),
   postingInstructions: vi.fn(),
 }));
+/** What moveTask reads and writes beyond the shared transaction mock. */
+const subtaskMove = vi.hoisted(() => ({
+  executeRaw: vi.fn(),
+  taskFindUnique: vi.fn(),
+  taskFindMany: vi.fn(),
+}));
 const ads = vi.hoisted(() => ({
   accounts: vi.fn(),
   campaigns: vi.fn(),
@@ -584,6 +590,7 @@ vi.mock("@/lib/db/transaction", () => ({
       operation({
         projectSeoAnalysis: { findUnique: async () => null },
         $queryRaw: transactionTurnLockMock,
+        $executeRaw: subtaskMove.executeRaw,
         sokoBot: {
           findFirst: transactionBotFindFirstMock,
           findUnique: transactionBotFindUniqueMock,
@@ -622,6 +629,8 @@ vi.mock("@/lib/db/transaction", () => ({
           count: transactionTaskCountMock,
           create: transactionTaskCreateMock,
           findFirst: transactionTaskFindFirstMock,
+          findUnique: subtaskMove.taskFindUnique,
+          findMany: subtaskMove.taskFindMany,
           update: transactionTaskUpdateMock,
         },
         job: { count: transactionJobCountMock },
@@ -3263,6 +3272,153 @@ describe("SokoBotRuntimeService authorization", () => {
           createSubtask({ afterTaskId: PARENT_ID, projectId: PROJECT_ID }),
         ).rejects.toThrow("afterTaskId needs parentTaskId");
       });
+
+      describe("set_task_parent", () => {
+        const TASK_ID = "01960001-0001-7001-8001-0000000000b2";
+        const PERSONAL_BOT = {
+          ...PROJECT_BOT,
+          userId: SCOPE.userId,
+          projectId: null,
+        };
+        const row = (id: string, parentTaskId: string | null) => ({
+          id,
+          name: id === TASK_ID ? "Book the venue" : "Plan the offsite",
+          ownerId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+          projectId: PROJECT_ID,
+          visibility: "PUBLIC",
+          parentTaskId,
+          position: parentTaskId ? 1 : null,
+        });
+        /** The stored tree: each Task id and its parent. */
+        const tree = (parents: Record<string, string | null>) => {
+          transactionTaskCountMock.mockResolvedValue(
+            Object.keys(parents).length,
+          );
+          transactionTaskFindFirstMock.mockImplementation(
+            async (args: { where: { id?: string } }) => {
+              const id = args.where.id;
+              return id && id in parents ? row(id, parents[id] ?? null) : null;
+            },
+          );
+          subtaskMove.taskFindUnique.mockImplementation(
+            async (args: { where: { id: string } }) =>
+              args.where.id in parents
+                ? row(args.where.id, parents[args.where.id] ?? null)
+                : null,
+          );
+          subtaskMove.taskFindMany.mockResolvedValue([]);
+          // resolveTaskIds finds each id as given.
+          taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
+          // Every row lock finds its row.
+          transactionTurnLockMock.mockResolvedValue([{ id: "locked" }]);
+          transactionTaskUpdateMock.mockImplementation(
+            async (args: { where: { id: string }; data: object }) => ({
+              ...row(args.where.id, null),
+              ...args.data,
+            }),
+          );
+        };
+        const setParent = (input: object) =>
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "set_task_parent",
+            toolCallId: "call_set_parent",
+            input: { taskId: TASK_ID, ...input },
+          });
+
+        afterEach(() => {
+          // clearAllMocks keeps implementations; later tests expect none.
+          for (const mock of [
+            transactionTaskFindFirstMock,
+            transactionTurnLockMock,
+            subtaskMove.taskFindUnique,
+            subtaskMove.taskFindMany,
+            taskFindFirstMock,
+          ])
+            mock.mockReset();
+        });
+
+        it("puts an existing Task under a parent, last in its checklist", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null });
+          await expect(
+            setParent({ parentTaskId: PARENT_ID }),
+          ).resolves.toMatchObject({
+            id: TASK_ID,
+            parentTaskId: PARENT_ID,
+            projectChanged: false,
+          });
+          expect(transactionTaskUpdateMock).toHaveBeenCalledWith({
+            where: { id: TASK_ID },
+            data: { parentTaskId: PARENT_ID, position: 1 },
+          });
+        });
+
+        it("detaches a sub-task into a Task of its own", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: PARENT_ID });
+          await expect(
+            setParent({ parentTaskId: null }),
+          ).resolves.toMatchObject({ id: TASK_ID, parentTaskId: null });
+          expect(transactionTaskUpdateMock).toHaveBeenCalledWith({
+            where: { id: TASK_ID },
+            data: { parentTaskId: null, position: null },
+          });
+        });
+
+        it("refuses to put a Task under one of its own sub-tasks", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: TASK_ID });
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "A Task cannot go under one of its own sub-tasks",
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("refuses a parent its turn cannot read, as if missing", async () => {
+          // A personal bot's writes are unscoped; its reader still applies.
+          sharedTurn("set_task_parent", PERSONAL_BOT);
+          tree({ [TASK_ID]: null, [PARENT_ID]: null });
+          transactionTaskCountMock.mockResolvedValue(1);
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "Task not found",
+          );
+          expect(transactionTaskCountMock).toHaveBeenCalledWith({
+            where: expect.objectContaining({
+              id: { in: [TASK_ID, PARENT_ID] },
+              archivedAt: null,
+            }),
+          });
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+        });
+
+        it("refuses a shared bot's turn for nobody, before it reads anything", async () => {
+          sharedTurn("set_task_parent", PROJECT_BOT, null);
+          taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "needs a person on this turn",
+          );
+          expect(transactionTaskCountMock).not.toHaveBeenCalled();
+        });
+      });
+
+      it.each(["parent", "child"])(
+        "refuses a %s link and names set_task_parent",
+        async (relation) => {
+          sharedTurn("link_tasks", PROJECT_BOT);
+          taskFindFirstMock.mockResolvedValue({ id: "task_1" });
+          await expect(
+            new SokoBotRuntimeService().executeTool({
+              ...SCOPE,
+              capability: "link_tasks",
+              toolCallId: `call_link_${relation}`,
+              input: { taskId: "task_1", peerTaskId: PARENT_ID, relation },
+            }),
+          ).rejects.toThrow("Use set_task_parent");
+          expect(transactionTaskCountMock).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it("refuses to propose a Task in another Project", async () => {

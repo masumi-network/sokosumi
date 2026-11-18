@@ -15,6 +15,9 @@ import { readSokoBotTaskOutcome } from "@/services/soko-bot-task-outcome.service
 import { type AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
 
+/** Sub-tasks get_task_status shows, as many as one list_tasks page. */
+const SUBTASKS_READ_LIMIT = 25;
+
 /** A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day. */
 export const calendarDay = (date: Date | null) =>
   date ? date.toISOString().slice(0, 10) : null;
@@ -195,6 +198,7 @@ export async function readTask(
       updatedAt: true,
       dueOn: true,
       number: true,
+      parentTaskId: true,
       owner: { select: { name: true } },
       assignee: { select: { id: true, name: true } },
       assigneeSokoBot: { select: { id: true, name: true } },
@@ -223,6 +227,12 @@ export async function readTask(
           sourceUrl: true,
           mimeType: true,
         },
+      },
+      subtasks: {
+        where: visiblePeerTask,
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        take: SUBTASKS_READ_LIMIT,
+        select: { id: true, name: true, status: true },
       },
       linksFrom: {
         where: {
@@ -286,6 +296,9 @@ export async function readTask(
     project: task.project
       ? { id: task.project.id, name: task.project.name }
       : null,
+    parentTaskId: task.parentTaskId,
+    // Its own checklist, in order.
+    subtasks: task.subtasks,
     updatedAt: task.updatedAt,
     dueOn: calendarDay(task.dueOn),
     creditsCharged: roundCredits(

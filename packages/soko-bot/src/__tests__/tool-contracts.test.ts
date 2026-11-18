@@ -9,8 +9,10 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
   sokoBotReplyToTaskInputSchema,
+  sokoBotSetTaskParentInputSchema,
   sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateTaskInputSchema,
 } from "../index.js";
@@ -91,6 +93,36 @@ describe("Soko Bot tool contracts", () => {
         .success,
     ).toBe(false);
     expect(isSokoBotDecisionTarget("archive_task")).toBe(true);
+  });
+
+  it("links no parent or child: a parent is a sub-task now", () => {
+    for (const relation of ["parent", "child"])
+      expect(
+        sokoBotLinkTasksInputSchema.safeParse({
+          taskId: "a",
+          peerTaskId: "b",
+          relation,
+        }).success,
+      ).toBe(false);
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.link_tasks).toContain("set_task_parent");
+  });
+
+  it("sets or clears a parent, and never leaves it out", () => {
+    // Core's move reads an absent parentTaskId as "keep the parent", so a
+    // call without one would answer success and change nothing.
+    const taskId = "01960001-0001-7001-8001-000000000001";
+    const parentTaskId = "01960001-0001-7001-8001-000000000002";
+    expect(
+      sokoBotSetTaskParentInputSchema.safeParse({ taskId, parentTaskId })
+        .success,
+    ).toBe(true);
+    expect(
+      sokoBotSetTaskParentInputSchema.safeParse({ taskId, parentTaskId: null })
+        .success,
+    ).toBe(true);
+    expect(sokoBotSetTaskParentInputSchema.safeParse({ taskId }).success).toBe(
+      false,
+    );
   });
 
   it("restricts decision requests to supported mutation targets", () => {
