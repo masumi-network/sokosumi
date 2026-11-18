@@ -3191,6 +3191,41 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(transactionTaskCreateMock).not.toHaveBeenCalled();
     });
 
+    describe("a sub-task", () => {
+      const PARENT_ID = "01960001-0001-7001-8001-0000000000b1";
+      const createSubtask = (input: object) =>
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "create_task",
+          toolCallId: "call_create_subtask",
+          input: { name: "Step", status: "DRAFT", ...input },
+        });
+
+      it("refuses a parent its turn cannot read, as if missing", async () => {
+        // A personal bot's writes are unscoped; its reader still applies.
+        sharedTurn("create_task", {
+          ...PROJECT_BOT,
+          userId: SCOPE.userId,
+          projectId: null,
+        });
+        transactionTaskCountMock.mockResolvedValue(0);
+        await expect(
+          createSubtask({ parentTaskId: PARENT_ID }),
+        ).rejects.toThrow("Parent Task not found");
+        expect(transactionTaskCountMock).toHaveBeenCalledWith({
+          where: expect.objectContaining({ id: PARENT_ID, archivedAt: null }),
+        });
+        expect(transactionTaskCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a place in the checklist without a parent", async () => {
+        sharedTurn("create_task", PROJECT_BOT);
+        await expect(
+          createSubtask({ afterTaskId: PARENT_ID, projectId: PROJECT_ID }),
+        ).rejects.toThrow("afterTaskId needs parentTaskId");
+      });
+    });
+
     it("refuses to propose a Task in another Project", async () => {
       sharedTurn("create_task", PROJECT_BOT);
       await expect(

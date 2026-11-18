@@ -251,7 +251,8 @@ export async function createTask(
         ownerId: authorized.turn.actingUserId,
         organizationId: workspace.organizationId,
         workspaceId: authorized.turn.workspaceId,
-        projectId: input.projectId,
+        // A sub-task takes its parent's Project, so a stray null is not a move.
+        projectId: input.parentTaskId ? undefined : input.projectId,
         ...(input.parentTaskId
           ? {
               parent: {
