@@ -427,6 +427,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
+    workspaceTags: task.workspaceTags?.map(({ label }) => label),
     status: task.status,
     priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.

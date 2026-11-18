@@ -223,6 +223,11 @@ const taskAssigneeSchema = z
   ])
   .openapi("TaskAssignee");
 
+export const taskWorkspaceTagIdsSchema = z.array(z.uuid()).optional().openapi({
+  description:
+    "Workspace tag IDs to assign. An empty array clears all workspace tags.",
+});
+
 const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
@@ -300,6 +305,9 @@ const taskBaseSchema = z.object({
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   tags: taskTagsSchema.optional(),
+  workspaceTags: z
+    .array(z.object({ id: z.uuid(), displayName: z.string() }))
+    .optional(),
   number: z.number().int().positive().nullable().openapi({
     example: 123,
     description:
