@@ -98,6 +98,25 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         });
         assert.equal(covered, false, "a compare bar button is covered");
       }
+      // Keyboard focus moving down the catalog never lands under the bar
+      // (WCAG 2.4.11). Chrome scrolls each control just into view at the
+      // bottom edge, which is where the bar sits.
+      for (let step = 0; step < 12; step++) {
+        await page.keyboard.press("Tab");
+        const obscured = await page.evaluate(() => {
+          const focused = document.activeElement;
+          const bar = document
+            .querySelector('button[aria-label^="Remove "]')
+            ?.closest(".sticky");
+          if (!focused || !bar || bar.contains(focused)) return null;
+          const f = focused.getBoundingClientRect();
+          const b = bar.getBoundingClientRect();
+          return f.bottom > b.top && f.top < b.bottom
+            ? (focused.getAttribute("aria-label") ?? focused.textContent)
+            : null;
+        });
+        assert.equal(obscured, null, `the compare bar covers "${obscured}"`);
+      }
       await shot(page, size, "1-picked");
 
       await open.click();

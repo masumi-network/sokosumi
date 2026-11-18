@@ -6,6 +6,7 @@ import FilterSection from "@/app/agents/components/filter-section";
 import {
   AgentCompareBar,
   AgentCompareProvider,
+  AgentCompareScrollClearance,
 } from "@/components/agents/agent-compare";
 import {
   Agents,
@@ -72,19 +73,21 @@ function FilteredAgentsInner({
         {!filteredAgents.length ? (
           <AgentsNotFound />
         ) : (
-          groupedAgents.map((group) => (
-            <Agents
-              key={group.categorySlug}
-              agents={group.agents}
-              icon={group.categoryIcon}
-              ratingStatsMap={ratingStatsMap}
-              title={
-                group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
-                  ? t("othersCategory")
-                  : group.categoryName
-              }
-            />
-          ))
+          <AgentCompareScrollClearance>
+            {groupedAgents.map((group) => (
+              <Agents
+                key={group.categorySlug}
+                agents={group.agents}
+                icon={group.categoryIcon}
+                ratingStatsMap={ratingStatsMap}
+                title={
+                  group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
+                    ? t("othersCategory")
+                    : group.categoryName
+                }
+              />
+            ))}
+          </AgentCompareScrollClearance>
         )}
         {/* All agents, so a pick survives a filter that hides it. */}
         <AgentCompareBar agents={agents} returnFocusTo={searchRef} />

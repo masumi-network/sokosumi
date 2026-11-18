@@ -39,9 +39,11 @@ const CATALOG_GROUP_SLUGS = new Set<string>([
 ]);
 
 // Static strings so Tailwind keeps them; only 2 or 3 agents reach the table.
+// Phone columns keep 8rem so summaries wrap between words; three of them
+// scroll sideways inside the dialog instead of breaking words mid-word.
 const GRID_COLUMNS: Record<number, string> = {
-  2: "grid-cols-2 md:grid-cols-[9rem_repeat(2,minmax(0,1fr))]",
-  3: "grid-cols-3 md:grid-cols-[9rem_repeat(3,minmax(0,1fr))]",
+  2: "grid-cols-[repeat(2,minmax(8rem,1fr))] md:grid-cols-[9rem_repeat(2,minmax(0,1fr))]",
+  3: "grid-cols-[repeat(3,minmax(8rem,1fr))] md:grid-cols-[9rem_repeat(3,minmax(0,1fr))]",
 };
 
 interface AgentCompareState {
@@ -96,6 +98,26 @@ function AgentCompareToggle({ agent }: { agent: CatalogBrowseAgent }) {
       <Icon className="size-4" aria-hidden />
       {t("toggleLabel")}
     </Button>
+  );
+}
+
+/**
+ * While the bar is up it covers the bottom of the catalog, so focused cards
+ * and toggles scroll clear of it (WCAG 2.4.11). Phones also clear the tab
+ * bar: up to three stacked chips plus the tab bar is about 21rem.
+ */
+function AgentCompareScrollClearance({ children }: { children: ReactNode }) {
+  const compare = use(AgentCompareContext);
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-12",
+        compare?.selected.length &&
+          "[&_:is(a,button)]:scroll-mb-[22rem] md:[&_:is(a,button)]:scroll-mb-44",
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -247,53 +269,60 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
   ];
 
   // A real table laid out as a grid: on phones each row's label spans the
-  // full width above its values, so two or three columns still fit 375px.
+  // full width above its values.
   return (
-    <table
-      className={`grid ${GRID_COLUMNS[agents.length] ?? GRID_COLUMNS[3]} gap-x-4 text-start text-sm`}
-    >
-      <caption className="sr-only">{t("title")}</caption>
-      <thead className="contents">
-        <tr className="contents">
-          <td className="hidden md:block" />
-          {agents.map((agent) => (
-            <th
-              key={agent.id}
-              scope="col"
-              className="border-border border-b pb-3 text-start font-medium break-words hyphens-auto"
-            >
-              <Link
-                href={`/agents/${agent.id}`}
-                className="underline-offset-4 hover:underline"
-              >
-                {getAgentName(agent)}
-              </Link>
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="contents">
-        {rows.map((row) => (
-          <tr key={row.label} className="contents">
-            <th
-              scope="row"
-              className="text-muted-foreground col-span-full pt-3 text-start text-xs font-medium md:col-span-1 md:py-3 md:text-sm"
-            >
-              {row.label}
-            </th>
+    <div className="overflow-x-auto overscroll-x-contain">
+      <table
+        className={`grid ${GRID_COLUMNS[agents.length] ?? GRID_COLUMNS[3]} gap-x-4 text-start text-sm`}
+      >
+        <caption className="sr-only">{t("title")}</caption>
+        <thead className="contents">
+          <tr className="contents">
+            <td className="hidden md:block" />
             {agents.map((agent) => (
-              <td
+              <th
                 key={agent.id}
-                className="border-border border-b py-2 break-words hyphens-auto md:py-3"
+                scope="col"
+                className="border-border border-b pb-3 text-start font-medium break-words"
               >
-                {row.cell(agent)}
-              </td>
+                <Link
+                  href={`/agents/${agent.id}`}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {getAgentName(agent)}
+                </Link>
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="contents">
+          {rows.map((row) => (
+            <tr key={row.label} className="contents">
+              <th
+                scope="row"
+                className="text-muted-foreground col-span-full pt-3 text-start text-xs font-medium md:col-span-1 md:py-3 md:text-sm"
+              >
+                {row.label}
+              </th>
+              {agents.map((agent) => (
+                <td
+                  key={agent.id}
+                  className="border-border border-b py-2 break-words md:py-3"
+                >
+                  {row.cell(agent)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-export { AgentCompareBar, AgentCompareProvider, AgentCompareToggle };
+export {
+  AgentCompareBar,
+  AgentCompareProvider,
+  AgentCompareScrollClearance,
+  AgentCompareToggle,
+};
