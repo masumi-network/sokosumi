@@ -26,6 +26,125 @@ function renderNotes(workspace: ReturnType<typeof seoTestWorkspace>) {
 }
 
 describe("indexing review notes", () => {
+  it("counts selected pages using completed audit inspections even when no statistics snapshot exists", () => {
+    const workspace = seoTestWorkspace();
+    const primary = workspace.pages[0];
+    const related = `${primary.url}retired`;
+    const missing = {
+      ...primary,
+      id: "unanswered",
+      url: `${primary.url}unanswered`,
+    };
+    const broken = { ...primary, id: "broken", url: `${primary.url}broken` };
+    workspace.pages.push(missing, broken);
+    workspace.scope.pageIds.push(missing.id, broken.id);
+    const note = {
+      taskId: "task",
+      checkedAt: new Date("2026-11-16T08:00:00Z"),
+      pageUrl: primary.url,
+      report: false,
+      reason: "Google reports this page as indexed.",
+      suggestedFix: null,
+      evidence: [],
+    };
+    workspace.indexTriage = {
+      assessments: [
+        { ...note, status: "indexed" },
+        {
+          ...note,
+          pageUrl: broken.url,
+          status: "issue",
+          report: true,
+          reason: "Google left the broken page out.",
+        },
+        {
+          ...note,
+          pageUrl: related,
+          auditPageUrl: primary.url,
+          status: "expected_exclusion",
+          reason: "The redirect is intended.",
+        },
+        {
+          ...note,
+          pageUrl: missing.url,
+          status: "unavailable",
+          reason: "Google did not return a verdict.",
+        },
+      ],
+    };
+    renderNotes(workspace);
+    expect(
+      screen.getByText("No index status yet for 1 page in view."),
+    ).toBeVisible();
+    expect(screen.getByText("The redirect is intended.")).toBeVisible();
+    expect(screen.getByText("Indexed")).toBeVisible();
+    expect(screen.queryByText(note.reason)).toBeNull();
+  });
+  it("shows one Google verdict from the newest confirmed source without reusing older metadata", () => {
+    const workspace = seoTestWorkspace();
+    const pageUrl = workspace.pages[0].url;
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+          pageUrl,
+          status: "indexed",
+          report: false,
+          reason: "The page is indexed.",
+          suggestedFix: null,
+          evidence: [],
+        },
+      ],
+    };
+    const sync = {
+      checkedAt: new Date("2026-11-15T08:00:00Z"),
+      pageUrl,
+      verdict: "FAIL" as const,
+      coverageState: "Historical noindex",
+      lastCrawlTime: null,
+      robotsTxtState: null,
+      googleCanonical: null,
+      userCanonical: null,
+    };
+    workspace.indexStatus = { pages: [sync] };
+    const first = renderNotes(workspace);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Indexed")).toBeVisible();
+    expect(screen.queryByText(/Historical noindex/)).toBeNull();
+    first.unmount();
+    const assessment = workspace.indexTriage.assessments[0];
+    workspace.indexTriage = {
+      assessments: [
+        {
+          ...assessment,
+          status: "expected_exclusion",
+          reason: "This is an intended redirect.",
+          evidence: ["Google URL Inspection: NEUTRAL; Page with redirect."],
+        },
+      ],
+    };
+    workspace.indexStatus = { pages: [{ ...sync, verdict: "PASS" }] };
+    const inverse = renderNotes(workspace);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Not indexed")).toBeVisible();
+    expect(screen.getByText("Google: Page with redirect")).toBeVisible();
+    inverse.unmount();
+    workspace.indexStatus = {
+      pages: [
+        {
+          ...sync,
+          checkedAt: new Date("2026-11-17T08:00:00Z"),
+          verdict: "VERDICT_UNSPECIFIED",
+          coverageState: null,
+        },
+      ],
+    };
+    renderNotes(workspace);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Index status unknown")).toBeVisible();
+    expect(screen.queryByText("Indexed")).toBeNull();
+  });
   it("shows review states, page identity and suggested next steps with folded source evidence", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

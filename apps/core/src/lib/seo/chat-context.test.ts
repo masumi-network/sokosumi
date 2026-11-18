@@ -75,6 +75,94 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("gives only personal chat the selected page's Google verdict and read date, including an explicit unknown", () => {
+    const workspace = workspaceFixture();
+    const page = workspace.pages[0];
+    const checkedAt = "2026-11-16T08:00:00.000Z";
+    const inspection = {
+      pageUrl: page.url,
+      coverageState: "Blocked by noindex",
+      indexingState: "BLOCKED_BY_META_TAG",
+      robotsTxtState: null,
+      lastCrawlTime: null,
+      googleCanonical: null,
+      userCanonical: null,
+      checkedAt,
+    };
+    const shared = seoChatContext(workspace, "organization");
+    const selected = () =>
+      JSON.parse(seoChatContext(workspace, "personal")).pages[0];
+    expect(selected().googleIndex).toBeUndefined();
+    for (const verdict of ["FAIL", "PASS", "VERDICT_UNSPECIFIED"] as const) {
+      workspace.indexStatus = {
+        pages: [
+          {
+            ...inspection,
+            verdict,
+            coverageState: verdict === "FAIL" ? inspection.coverageState : null,
+          },
+          { ...inspection, verdict, pageUrl: "https://other.test/out-of-view" },
+        ],
+      };
+      const read = selected().googleIndex;
+      expect(read).toMatchObject({ verdict, checkedAt, lastCrawlTime: null });
+      if (verdict === "FAIL")
+        expect(read.coverageState).toBe(inspection.coverageState);
+      expect(seoChatContext(workspace, "organization")).toBe(shared);
+      expect(seoChatContext(workspace, "personal")).not.toContain(
+        "out-of-view",
+      );
+    }
+    workspace.indexStatus = null;
+    workspace.indexTriage = {
+      assessments: [
+        {
+          pageUrl: page.url,
+          taskId: randomUUID(),
+          checkedAt,
+          status: "indexed",
+          report: false,
+          reason: "Google reports this page as indexed.",
+          suggestedFix: null,
+          evidence: [],
+        },
+      ],
+    };
+    expect(selected().googleIndex).toMatchObject({
+      verdict: "PASS",
+      checkedAt,
+      source: "seo_worker",
+    });
+    for (const [readAt, expected] of [
+      ["2026-11-15T08:00:00.000Z", "PASS"],
+      ["2026-11-17T08:00:00.000Z", "FAIL"],
+    ] as const) {
+      workspace.indexStatus = {
+        pages: [{ ...inspection, verdict: "FAIL", checkedAt: readAt }],
+      };
+      expect(selected().googleIndex.verdict).toBe(expected);
+    }
+    workspace.indexStatus = {
+      pages: [
+        {
+          ...inspection,
+          verdict: "PASS",
+          checkedAt: "2026-11-15T08:00:00.000Z",
+        },
+      ],
+    };
+    workspace.indexTriage.assessments[0] = {
+      ...workspace.indexTriage.assessments[0]!,
+      status: "expected_exclusion",
+      evidence: ["Google URL Inspection: NEUTRAL; Page with redirect."],
+    };
+    expect(selected().googleIndex).toMatchObject({
+      verdict: "NEUTRAL",
+      coverageState: "Page with redirect",
+      checkedAt,
+    });
+    expect(seoChatContext(workspace, "organization")).toBe(shared);
+  });
   it("gives personal chat the selected page's private indexing notes, without leaking them to shared chat", () => {
     const workspace = workspaceFixture();
     const auditPageUrl = workspace.pages[0].url;

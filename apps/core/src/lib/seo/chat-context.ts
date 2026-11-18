@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { newerSeoAuditVerdict } from "@sokosumi/utils";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import {
   type SeoChatAction,
@@ -55,6 +56,7 @@ const SEO_CHAT_DIAGNOSTIC_PRIORITY = Object.keys(
 
 export const SEO_CHAT_SYSTEM = `You are the SEO assistant inside an audit. You are a native part of the SEO workspace, not the user's personal project manager.
 Explain the selected pages, saved keywords, competitors, findings, traffic statistics and actions using only the supplied audit evidence. Say when data is missing or old. A zero, missing value and unmeasured value are different.
+A page's googleIndex gives the verdict and when it was read. VERDICT_UNSPECIFIED means Google gave no definite answer. If googleIndex is missing, use any dated findings or indexing notes for that page before answering.
 A keyword's observedPageUrl is the page associated with its observed result. Only ranked status with a measured position proves a ranking. targetPageUrl is the saved target; a saved target alone does not prove a ranking.
 Comparison rows with role page describe the audited page. Role competitor identifies a competing page. Use these roles when explaining backlink comparisons.
 Only critical, major and minor findings indicate a reported issue. Treat measure, note and test findings as observations. They alone do not justify a fix.
@@ -113,16 +115,18 @@ export function seoChatContext(
   const selectedIds = new Set(workspace.scope.pageIds);
   const pages = workspace.pages.filter((page) => selectedIds.has(page.id));
   const selectedUrls = new Set(pages.map((page) => page.url));
-  const indexingNotes =
+  const assessments =
     sharing === "personal"
-      ? (workspace.indexTriage?.assessments ?? []).filter(
-          (row) =>
-            (row.status === "review" ||
-              row.status === "expected_exclusion" ||
-              row.status === "unavailable") &&
-            selectedUrls.has(row.auditPageUrl ?? row.pageUrl),
+      ? (workspace.indexTriage?.assessments ?? []).filter((row) =>
+          selectedUrls.has(row.auditPageUrl ?? row.pageUrl),
         )
       : [];
+  const indexingNotes = assessments.filter(
+    (row) =>
+      row.status === "review" ||
+      row.status === "expected_exclusion" ||
+      row.status === "unavailable",
+  );
   const context = {
     audit: workspace.auditName,
     scope: {
@@ -143,7 +147,39 @@ export function seoChatContext(
       actions: actions.length,
       metrics: workspace.metrics.length,
     },
-    pages: pages.slice(0, SEO_CHAT_PAGE_LIMIT),
+    pages: pages.slice(0, SEO_CHAT_PAGE_LIMIT).map((page) => {
+      if (sharing !== "personal") return page;
+      const synced = workspace.indexStatus?.pages.find(
+        (read) => read.pageUrl === page.url,
+      );
+      const audit = newerSeoAuditVerdict(
+        page.url,
+        synced?.checkedAt,
+        assessments,
+      );
+      if (audit)
+        return {
+          ...page,
+          googleIndex: {
+            source: "seo_worker",
+            verdict: audit.verdict,
+            coverageState: audit.coverageState,
+            checkedAt: audit.assessment.checkedAt,
+          },
+        };
+      if (!synced) return page;
+      const { verdict, coverageState, lastCrawlTime, checkedAt } = synced;
+      return {
+        ...page,
+        googleIndex: {
+          source: "search_console",
+          verdict,
+          coverageState,
+          lastCrawlTime,
+          checkedAt,
+        },
+      };
+    }),
     ...(indexingNotes.length > 0 && {
       indexingNotes: indexingNotes
         .slice(0, SEO_CHAT_COLLECTION_LIMIT)
