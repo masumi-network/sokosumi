@@ -256,7 +256,12 @@ Core:
   `services/task-domain-archive.ts` and `services/task-domain-event-actor.ts`.
   The archive locks each level before it reads the sub-tasks, and archives
   them only in the status it checked. Archive read-marking also clears the
-  sub-tasks archived with the Task.
+  sub-tasks archived with the Task. A Soko Bot archive refuses a Task whose
+  sub-task has a future Run at. A sub-task restore locks its parent first.
+- Adding a sub-task locks the Workspace and Project, then writes the parent
+  row (`requireSubtaskParent`). The lock order matches a Task PATCH. The write
+  makes a SERIALIZABLE archive that read earlier fail and retry, where a lock
+  alone would let it miss the new sub-task.
 - The migration adds the foreign key and CHECK `NOT VALID`, builds the index
   `CONCURRENTLY` in its own migration, and validates in a third. The old Core
   instance keeps writing Tasks during the deploy.
@@ -275,9 +280,9 @@ Reopen rule:
   READY with a comment. The comment is required because the Task has an agent
   assignee. No new answer path was added.
 - Core parks a silently reopened Task only in the person `PATCH
-  /v1/tasks/{id}` path. That includes a PATCH that queues it with a Run at:
-  the Run at is dropped. A restore or a project move is not counted as
-  instructions. Not parked, follow-up: a Soko Bot `assign_task` call, and
+  /v1/tasks/{id}` path. That includes a PATCH that queues it with a Run at,
+  also when its agent was already assigned: the Run at is dropped. A restore
+  or a project move is not counted as instructions. Not parked, follow-up: a Soko Bot `assign_task` call, and
   "Reopen as Draft", then assign an agent, then move DRAFT to READY.
 - Dialog body: "Reopening moves it to Ready, and {assignee} starts a new run.
   Tell {assignee} what to do." The text no longer says "{assignee} finished
@@ -301,6 +306,8 @@ Web:
 - The checklist covers toggle, add, and reorder. Rename, delete, and
   assignment happen on the sub-task's own page.
 - The admin Task view does not render the checklist.
+- The checklist shows the first 100 sub-tasks. Past that, its header shows
+  Core's count and the add field is hidden.
 - Not built: the "Sub-task of {identifier}" label in lists that include
   sub-tasks. The detail page shows the ancestor trail instead.
 
