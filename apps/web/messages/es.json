@@ -12399,8 +12399,6 @@
         "home": "Página de inicio"
       },
       "timeline": {
-        "title": "Historial",
-        "runNewCheck": "Ejecutar una nueva comprobación",
         "statuses": {
           "requested": "Solicitada",
           "running": "En curso",
@@ -12408,10 +12406,6 @@
           "partial": "Parcial",
           "unavailable": "No disponible"
         },
-        "empty": "Aún no hay comprobaciones ni cambios para estas páginas",
-        "emptyBody": "Aquí aparecerán las comprobaciones, selecciones de páginas, tareas y sincronizaciones fallidas.",
-        "emptyOff": "No hay nada registrado para estas páginas",
-        "emptyBodyOff": "Aquí aparecen las selecciones de páginas, las tareas y las sincronizaciones fallidas.",
         "details": "Detalles del trabajo",
         "graphLabel": "Actividad SEO, lo más reciente primero",
         "auditRun": "Resultados de la auditoría",
@@ -12426,7 +12420,6 @@
         "sourceDetails": "Detalles",
         "resultsSaved": "Resultados guardados",
         "incomplete": "No se pudo completar parte del trabajo solicitado.",
-        "showAll": "Mostrar los {count} eventos",
         "metricsSyncedTimes": "{count, plural, one {Estadísticas sincronizadas} other {Estadísticas sincronizadas # veces}}",
         "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
         "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
@@ -12880,6 +12873,17 @@
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "runs": {
+        "details": "Detalles",
+        "detailsOf": "Detalles del {day}",
+        "since": "Lo que pasó después del {day}.",
+        "sinceStart": "Lo que pasó hasta este día.",
+        "sinceAll": "Todo lo registrado hasta ahora.",
+        "checks": "{count, plural, one {# comprobación} other {# comprobaciones}}",
+        "pageChanges": "{count, plural, one {# cambio de página} other {# cambios de página}}",
+        "tasks": "{count, plural, one {# tarea vinculada} other {# tareas vinculadas}}",
+        "failedSyncs": "{count, plural, one {# sincronización fallida} other {# sincronizaciones fallidas}}",
+        "failedChecks": "{count, plural, one {# comprobación fallida} other {# comprobaciones fallidas}}",
+        "scopeChanges": "{count, plural, one {# cambio de la selección de páginas} other {# cambios de la selección de páginas}}",
         "label": "Comprobaciones",
         "running": "En curso",
         "left": "quedan unos {minutes} min",
