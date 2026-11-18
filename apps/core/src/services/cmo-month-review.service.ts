@@ -526,14 +526,14 @@ export function cmoRewriteMessage(input: {
     : [];
   return [
     `Background run: rewrite pieces in ${input.businessName}'s month`,
-    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below. Change only what a piece's line names: keep its other sentences, its facts from the Brand Brain and the plan's offer, and its labelled lines as they are.",
+    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below. Change only what a piece's line names: keep its other sentences, its facts from the Brand Brain and the strategy's offer, and its labelled lines as they are.",
     ...(off.length > 0
       ? [
           "",
-          "These pillars are off the plan:",
+          "These pillars are off the strategy:",
           ...off.map(
             (share) =>
-              `- ${share.name}: plan ${share.planned}%, made ${share.made}% (${share.pieces} pieces)`,
+              `- ${share.name}: planned ${share.planned}%, made ${share.made}% (${share.pieces} pieces)`,
           ),
           "A piece off its pillar must be plainly about its pillar from the first line.",
         ]

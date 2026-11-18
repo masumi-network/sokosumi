@@ -28,6 +28,7 @@ describe("getNotificationIcon", () => {
     ["TASK", "Notifications.Task.inputRequired", CircleAlert],
     ["TASK", "Notifications.Task.approvalRequired", CircleAlert],
     ["TASK", "Notifications.Task.authenticationRequired", CircleAlert],
+    ["TASK", "Notifications.Task.overdue", CircleAlert],
     ["JOB", "Notifications.Job.disputeResolved", Bell],
     ["JOB", "Notifications.Job.refundResolved", Bell],
     ["TASK", "Notifications.Task.assigned", Bell],

@@ -23,7 +23,7 @@ type Scheme = "light" | "dark";
 
 const RULES = [
   "Thick lines do the work.",
-  "Hard shadows, three sizes.",
+  "A hard shadow means you can act.",
   "Iris means now, and picked.",
   "Bold speaks, Regular works.",
   "Black strips for contrast.",
@@ -75,7 +75,7 @@ const TYPE_CLASS: Record<string, string> = {
 
 const TYPE: TypeStep[] = [
   { step: "display", sample: "Marketing, handled" },
-  { step: "h1", sample: "Your plan for May" },
+  { step: "h1", sample: "Your strategy for May" },
   { step: "statement", sample: "Reach 500 new readers this month" },
   { step: "value", sample: "Does this sound like you?" },
   { step: "h2", sample: "This week" },
@@ -88,11 +88,13 @@ const RADII: Radius[] = [
   { name: "Mark", token: "--radius-mark" },
   { name: "Control", token: "--radius-control" },
   { name: "Card", token: "--radius-card" },
-  { name: "Panel", token: "--radius-panel" },
   { name: "Pill", token: "--radius-pill" },
 ];
 
-const SHADOWS = ["Pill", "Hard", "Hero"];
+const SHADOWS = [
+  { name: "Shadow", className: "ds-shadow" },
+  { name: "Big shadow", className: "ds-shadow-big" },
+];
 
 const ART: CusoArt[] = [
   "walking",
@@ -193,11 +195,9 @@ function Board({ scheme }: BoardProps) {
             </li>
           ))}
           {SHADOWS.map((shadow) => (
-            <li key={shadow}>
-              <span
-                className={`ds-radius-box ds-shadow-${shadow.toLowerCase()}`}
-              />
-              <span className="ds-t-small">{shadow} shadow</span>
+            <li key={shadow.name}>
+              <span className={`ds-radius-box ${shadow.className}`} />
+              <span className="ds-t-small">{shadow.name}</span>
             </li>
           ))}
         </ul>

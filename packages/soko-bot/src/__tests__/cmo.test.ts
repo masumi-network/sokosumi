@@ -617,3 +617,22 @@ describe("picture styles", () => {
     expect(scenario?.expect.tools).toEqual(["find_style_references"]);
   });
 });
+
+describe("pictures in chat", () => {
+  it("tells Cuso to make a chat post's picture in a library style", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content).toContain(
+      "In chat, a picture for a post or an ad goes the same way",
+    );
+    expect(skill?.content).toContain("the reference's id as styleReferenceId");
+    expect(skill?.content).toContain("maxCredits 30");
+    const scenario = CMO_SCENARIOS.find(
+      (entry) => entry.id === "cmo-post-with-picture",
+    );
+    expect(scenario?.expect.tools).toEqual([
+      "find_style_references",
+      "generate_image",
+    ]);
+  });
+});

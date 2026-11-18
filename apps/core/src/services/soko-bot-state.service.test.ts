@@ -237,13 +237,21 @@ describe("getSokoBotActivity", () => {
     );
   });
 
-  it("says when the bot was last active, and nothing about its face", async () => {
+  it("says when the bot was last active, and what its face is", async () => {
     const lastActivityAt = new Date("2026-11-01T10:00:00Z");
+    const face = {
+      id: BOT_ID,
+      userId: VIEWER,
+      avatarSeed: null,
+      avatarImageUrl: "https://blob.example/avatar.png",
+      avatarCode: "code-1",
+    };
     botFindFirstMock.mockResolvedValue({
       status: "IDLE",
       lastTurnAt: null,
       lastActivityAt,
       turns: [],
+      ...face,
     });
 
     expect(await getSokoBotActivity(VIEWER, WORKSPACE_ID)).toEqual({
@@ -251,6 +259,7 @@ describe("getSokoBotActivity", () => {
       activeTurnId: null,
       lastTurnAt: null,
       lastActivityAt,
+      ...face,
     });
   });
 });

@@ -262,6 +262,7 @@ const archivedTask = {
   runAt: null,
   dueOn: null,
   scheduleId: null,
+  followers: [],
   selectableStatuses: [],
   participants: [],
   linksFrom: [],

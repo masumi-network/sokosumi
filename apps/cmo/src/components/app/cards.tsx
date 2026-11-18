@@ -287,7 +287,7 @@ export function StrategyCard({
           <>
             <StatusText>Approved</StatusText>
             <span className="note">
-              {AGENT_NAME} runs this plan and keeps it current.
+              {AGENT_NAME} runs this strategy and keeps it current.
             </span>
           </>
         ) : (

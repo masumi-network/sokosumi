@@ -14,6 +14,7 @@ import { userService } from "@/lib/services/user.service";
 import {
   isWorkspaceReady,
   setupAssistantConnectPath,
+  withoutTaskFollowMarker,
 } from "@/lib/workspace-gate";
 
 import { loadWorkspaceGateSearchParams } from "../search-params";
@@ -53,7 +54,7 @@ export default async function SetupAssistantPage({
 
   const step = await resolveAssistantStep(organizationId);
   if (step === "skip") {
-    redirect(returnUrl);
+    redirect(withoutTaskFollowMarker(returnUrl));
   }
   // Creating the bot refreshes this page, so a bot here means the create
   // step just finished: carry on to the optional connect step.
@@ -65,7 +66,7 @@ export default async function SetupAssistantPage({
     <ClientMessageBoundary paths={SETUP_ASSISTANT_MESSAGE_PATHS}>
       <AssistantCreateStep
         paidByOrganization={organizationId !== null}
-        laterUrl={returnUrl}
+        laterUrl={withoutTaskFollowMarker(returnUrl)}
         connectUrl={setupAssistantConnectPath(returnUrl)}
       />
     </ClientMessageBoundary>

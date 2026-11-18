@@ -188,7 +188,7 @@ export function cmoChatMessage(
     id: "m1",
     roomId: "room-1",
     parentMessageId: null,
-    content: "Plan is ready.",
+    content: "Strategy is ready.",
     createdAt: new Date("2026-10-01T09:03:00Z"),
     deletedAt: null,
     editedAt: null,

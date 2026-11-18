@@ -126,7 +126,7 @@ describe("CheckoutStep", () => {
   it("picks and marks the plan that fits the pace", async () => {
     const onCheckout = vi.fn(async () => ({ url: null, error: null }));
     await render({ plan: planAt("all_in"), onCheckout });
-    expect(cards()[2]).toContain("Fits your All-in plan");
+    expect(cards()[2]).toContain("Fits your All-in pace");
     expect(button("Start Scale for $1,000 a month")).toBeTruthy();
     await press("Start Scale");
     expect(onCheckout).toHaveBeenCalledWith("month", "scale");

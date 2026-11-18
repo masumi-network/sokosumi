@@ -124,7 +124,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
         <div className="ob-alts">
           <p>
             I also looked at {alternatives.length} other{" "}
-            {alternatives.length === 1 ? "plan" : "plans"}.{" "}
+            {alternatives.length === 1 ? "strategy" : "strategies"}.{" "}
             <button
               type="button"
               className="button button-ghost button-small"
@@ -170,9 +170,9 @@ function Everything({ overview, strategy }: PlanPanelProps) {
   }
   return (
     <details className="ob-more">
-      <summary>Everything in the plan</summary>
+      <summary>Everything in the strategy</summary>
       {strategy.why ? (
-        <Section title="Why this plan">
+        <Section title="Why this strategy">
           <p>{strategy.why}</p>
         </Section>
       ) : null}

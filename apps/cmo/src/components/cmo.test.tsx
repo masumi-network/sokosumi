@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -751,5 +753,25 @@ describe("calendar", () => {
     expect(html).toContain("Week 1");
     expect(html).toContain(`${live.length} pieces this month`);
     expect(html).toContain('aria-pressed="true"');
+  });
+});
+
+describe("CMO's own words", () => {
+  /**
+   * The owner works with Cuso in CMO.xyz, so no screen names Sokosumi. Every
+   * `.tsx` file is a screen or a part of one; comments carry no copy.
+   */
+  it("never name Sokosumi on a screen", () => {
+    const src = join(import.meta.dirname, "..");
+    const named = readdirSync(src, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".tsx") && !file.includes(".test."))
+      .filter((file) =>
+        /sokosumi(?![\w/-])/i.test(
+          readFileSync(join(src, file), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/^\s*\/\/.*$/gm, ""),
+        ),
+      );
+    expect(named).toEqual([]);
   });
 });

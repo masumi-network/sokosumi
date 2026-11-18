@@ -188,6 +188,7 @@ function buildMapTaskResponse(task: {
     runAt: null,
     dueOn: null,
     scheduleId: null,
+    followers: [],
     selectableStatuses: [],
     participants: [],
   };

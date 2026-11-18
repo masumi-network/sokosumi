@@ -10,10 +10,10 @@ import type { SokoBotVersion } from "./types.js";
 export const cmoV2: SokoBotVersion = {
   ...cmoV1,
   id: "cmo-v2",
-  name: "cmo-v2 · Cuso, parallel research and plan in pieces",
+  name: "cmo-v2 · Cuso, parallel research and strategy in pieces",
   createdAt: "2026-11-10",
   summary:
-    "Cuso on cmo-v1, whose first read researches the six Brand Brain groups side by side, and whose first plan is short with edits saved as patches.",
+    "Cuso on cmo-v1, whose first read researches the six Brand Brain groups side by side, and whose first strategy is short with edits saved as patches.",
   skills: cmoV1.skills.map((skill) =>
     skill === "cmo-brand-brain"
       ? "cmo-brand-brain-groups"

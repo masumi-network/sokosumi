@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 
+import { taskFollowersInclude } from "@/helpers/task-follower-rows";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   buildVisibleTaskLinksInclude,
@@ -76,6 +77,7 @@ const taskBaseInclude = {
   ...workspaceRelationInclude,
   ...taskOwnerAssigneeCreatorInclude,
   ...taskFilesInclude,
+  ...taskFollowersInclude,
   events: {
     include: taskEventApiInclude,
     orderBy: {

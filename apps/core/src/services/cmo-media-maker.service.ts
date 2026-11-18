@@ -26,7 +26,10 @@ import {
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
+import {
+  ensureStudioAssetDriveFile,
+  writeOwnerDriveFile,
+} from "@/services/image-studio-drive.service";
 import {
   createImageJob,
   createVideoJob,
@@ -74,6 +77,8 @@ export const REFERENCE_STYLE_MODELS = [
  * was paid for) and says so in the job's error, which this starts.
  */
 const REJECTED = "Style check: ";
+/** A chat picture that passed keeps that on its job, so it is judged once. */
+const PASSED = "Style passed";
 
 const LIVE = new Set<ProjectImageJobStatus>([
   ProjectImageJobStatus.PENDING,
@@ -390,7 +395,7 @@ export function cmoImagePrompt(input: {
  * places the real logo afterwards, so the model leaves its corner plain.
  */
 export function cmoStylePrompt(input: {
-  piece: CmoMediaPiece;
+  piece: Pick<CmoMediaPiece, "visual" | "title" | "headline" | "slides">;
   slot: number;
   businessName: string;
   colours: readonly string[];
@@ -446,7 +451,7 @@ interface StyleBrand {
 }
 
 /** The brand's colours (DESIGN.md) and logo bytes, read once per run. */
-async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
+export async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { logo: true, designMdUrl: true },
@@ -753,9 +758,9 @@ async function attach(
  * logo on one that passes. A refusal marks the job, so the next model tries.
  */
 async function checkAndBrand(
-  context: MediaContext,
-  piece: CmoMediaPiece & { styleReferenceId?: string },
-  job: CmoMediaJob,
+  context: { cuso: Pick<Cuso, "sokoBotId"> },
+  piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline">,
+  job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
 ): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
   const asset = await prisma.projectImageAsset.findUnique({
@@ -800,6 +805,78 @@ async function checkAndBrand(
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
       };
+}
+
+/**
+ * A styled picture Cuso started in chat (generate_image with a
+ * styleReferenceId), once its job has finished: the same check and logo as a
+ * month's picture, with the finished file in Files. A picture the check
+ * turned down says why, so the next model can try. Judged once: asking
+ * again returns the same answer.
+ */
+export async function finishCmoChatPicture(input: {
+  cuso: Pick<Cuso, "sokoBotId" | "projectId">;
+  drive: { workspaceId: string; organizationId: string | null; userId: string };
+  job: { id: string; assetId: string; prompt: string; error: string | null };
+  styleReferenceId: string;
+  headline: string | null;
+}): Promise<
+  | { passed: true; file: { id: string; name: string } }
+  | { passed: false; problems: string }
+> {
+  const { job, drive } = input;
+  if (job.error?.startsWith(REJECTED))
+    return { passed: false, problems: job.error.slice(REJECTED.length) };
+  const finished =
+    job.error === PASSED
+      ? null
+      : await checkAndBrand(
+          input,
+          {
+            styleReferenceId: input.styleReferenceId,
+            headline: input.headline ?? undefined,
+          },
+          job,
+          await loadStyleBrand(input.cuso.projectId),
+        );
+  if (finished === "rejected") {
+    const row = await prisma.projectImageJob.findUnique({
+      where: { id: job.id },
+      select: { error: true },
+    });
+    return {
+      passed: false,
+      problems: row?.error?.startsWith(REJECTED)
+        ? row.error.slice(REJECTED.length)
+        : "the picture or its reference could not be read",
+    };
+  }
+  const file = await ensureStudioAssetDriveFile({
+    projectId: input.cuso.projectId,
+    assetId: job.assetId,
+    ...drive,
+    prompt: job.prompt,
+    jobId: job.id,
+  });
+  if (!file) return { passed: false, problems: "its file could not be saved" };
+  if (finished) {
+    // The logo goes onto the Files copy; the pass is kept only once it is there.
+    const saved = await writeOwnerDriveFile({
+      ...drive,
+      pathname: file.pathname,
+      name: file.name,
+      bytes: finished.bytes,
+      contentType: finished.contentType,
+    });
+    if (!saved)
+      return { passed: false, problems: "its file could not be saved" };
+    await prisma.projectImageJob.update({
+      where: { id: job.id },
+      data: { error: PASSED },
+      select: { id: true },
+    });
+  }
+  return { passed: true, file: { id: file.id, name: file.name } };
 }
 
 /** Schedules a draft post that has all its pictures, on a connected network. */

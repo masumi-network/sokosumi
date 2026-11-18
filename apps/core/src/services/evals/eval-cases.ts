@@ -47,6 +47,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "launch-plan-weekly-nudge": "Delegation",
   "status-rundown": "Board",
   "board-question": "Board",
+  "followed-tasks": "Board",
   "ambiguous-request": "Judgment",
   "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
