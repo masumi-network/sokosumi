@@ -121,23 +121,37 @@ body {
   padding: 24px 16px;
 }
 
-/* The CMO.XYZ lockup (design-system.md, Logo): the cursor-head mark, then the wordmark in the text colour. */
+/* The CMO.XYZ lockup (design-system.md, Logo): the black file on a light page, the white one on a dark page. 46px tall is 121px wide, above the brand guide's 120px minimum. */
 .logo {
   display: inline-flex;
-  align-items: center;
-  gap: 0.2em;
-  color: var(--foreground);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: var(--tracking-heading);
-  white-space: nowrap;
 }
 
 .logo img {
   display: block;
   width: auto;
-  height: 1.4em;
+  height: 46px;
+}
+
+.logo .logo-on-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo .logo-on-light {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .logo .logo-on-dark {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .logo .logo-on-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo .logo-on-dark {
+  display: block;
 }
 
 .hero {
