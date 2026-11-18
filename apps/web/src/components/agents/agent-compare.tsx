@@ -86,6 +86,8 @@ function AgentCompareToggle({ agent }: { agent: CatalogBrowseAgent }) {
     <Button
       variant="default"
       size="sm"
+      // The carousel clips past each card, so draw the shared ring inside.
+      className="focus-visible:ring-inset focus-visible:ring-offset-0"
       aria-pressed={isSelected}
       aria-label={t("toggle", { name: getAgentName(agent) })}
       disabled={!isSelected && compare.selected.length >= MAX_COMPARED}
@@ -258,7 +260,7 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
             <th
               key={agent.id}
               scope="col"
-              className="border-border border-b pb-3 text-start font-medium break-words"
+              className="border-border border-b pb-3 text-start font-medium break-words hyphens-auto"
             >
               <Link
                 href={`/agents/${agent.id}`}
@@ -282,7 +284,7 @@ function AgentCompareTable({ agents }: { agents: CatalogBrowseAgent[] }) {
             {agents.map((agent) => (
               <td
                 key={agent.id}
-                className="border-border border-b py-2 break-words md:py-3"
+                className="border-border border-b py-2 break-words hyphens-auto md:py-3"
               >
                 {row.cell(agent)}
               </td>
