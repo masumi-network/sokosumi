@@ -378,4 +378,43 @@ describe("TaskDetailPage", () => {
     expect(getTaskByIdMock).toHaveBeenCalledWith("SOK-99-gone");
     expect(getTaskWorkspaceMock).not.toHaveBeenCalled();
   });
+
+  // The tab title is what a screen reader announces when the task opens.
+  describe("generateMetadata", () => {
+    it("titles the page with the task's name", async () => {
+      getTaskByIdMock.mockResolvedValue({
+        id: "task_1",
+        name: "Quarterly report",
+      });
+      const { generateMetadata } = await import("./page");
+
+      await expect(
+        generateMetadata({ params: Promise.resolve({ taskId: TASK_UUID }) }),
+      ).resolves.toEqual({ title: "Quarterly report" });
+      expect(getTaskByIdMock).toHaveBeenCalledWith(TASK_UUID);
+    });
+
+    // Same text as the page heading, so the tab never shows Markdown marks.
+    it("strips inline Markdown from the title like the heading does", async () => {
+      getTaskByIdMock.mockResolvedValue({
+        id: "task_1",
+        name: "**Weekly** `brief` for [Spring](https://example.com)",
+      });
+      const { generateMetadata } = await import("./page");
+
+      await expect(
+        generateMetadata({ params: Promise.resolve({ taskId: TASK_UUID }) }),
+      ).resolves.toEqual({ title: "Weekly brief for Spring" });
+    });
+
+    it("keeps the default title when the task cannot be read", async () => {
+      getTaskByIdMock.mockResolvedValueOnce(null);
+      getTaskByIdMock.mockRejectedValueOnce(new Error("Core down"));
+      const { generateMetadata } = await import("./page");
+      const params = Promise.resolve({ taskId: TASK_UUID });
+
+      await expect(generateMetadata({ params })).resolves.toEqual({});
+      await expect(generateMetadata({ params })).resolves.toEqual({});
+    });
+  });
 });

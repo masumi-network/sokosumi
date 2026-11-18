@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
@@ -13,7 +14,22 @@ import { MarkNotificationsRead } from "@/components/notifications/mark-notificat
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { getPrivateCachedSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import { isUuidString } from "@/lib/utils/uuid";
+
+/**
+ * The task's name as the tab title, as plain text like the page heading.
+ * Same private-cached read as the page.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ taskId: string }>;
+}): Promise<Metadata> {
+  const { taskId } = await params;
+  const task = await getPrivateCachedTask(taskId).catch(() => null);
+  return task ? { title: stripInlineMarkdown(task.name) } : {};
+}
 
 export default async function TaskDetailPage({
   params,
