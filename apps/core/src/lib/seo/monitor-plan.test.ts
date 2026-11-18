@@ -98,6 +98,10 @@ describe("SEO monitor owner protocol", () => {
     ).toBe("audit_full");
     for (const analysis of [
       { ...plan.analysis, scopeId: AUDIT_ID },
+      {
+        ...plan.analysis,
+        setupGoal: { pageId: AUDIT_ID, expectedRevision: 0, action: "buy" },
+      },
       { ...plan.analysis, pageIds: [] },
       { ...plan.analysis, coworkerId: undefined },
     ])

@@ -44,10 +44,61 @@ const input = requestSeoAnalysisSchema.parse({
   idempotencyKey: "test-audit-brief",
 });
 
+it("accepts edits for a first brief and binds sharing consent to the same base revision", () => {
+  const setupGoal = { pageId: priceId, expectedRevision: 0, action: "buy" };
+  const sharedBrief = { revision: 0, pageIds: [priceId] };
+  expect(
+    requestSeoAnalysisSchema.safeParse({ ...input, setupGoal, sharedBrief })
+      .success,
+  ).toBe(true);
+  expect(
+    requestSeoAnalysisSchema.safeParse({ ...input, sharedBrief }).success,
+  ).toBe(false);
+  expect(
+    requestSeoAnalysisSchema.safeParse({
+      ...input,
+      setupGoal,
+      sharedBrief: { ...sharedBrief, revision: 1 },
+    }).success,
+  ).toBe(false);
+  expect(
+    requestSeoAnalysisSchema.safeParse({
+      ...input,
+      kind: "page_check",
+      setupGoal,
+    }).success,
+  ).toBe(true);
+  expect(
+    requestSeoAnalysisSchema.safeParse({
+      ...input,
+      kind: "page_check",
+      setupGoal,
+      sharedBrief,
+    }).success,
+  ).toBe(false);
+  expect(
+    requestSeoAnalysisSchema.safeParse({
+      ...input,
+      kind: "rankings",
+      setupGoal,
+    }).success,
+  ).toBe(false);
+});
+
 it("shares only the explicitly selected public enum values, leaves a legacy packet identical, and refuses unbound consent", () => {
   const context = publicPageGoals(brief, scope, [supportId]);
   const urls = scope.map((p) => p.url);
   const v1 = seoTaskPacket(input, urls, "one");
+  expect(
+    seoTaskPacket(
+      {
+        ...input,
+        setupGoal: { pageId: priceId, expectedRevision: 0, action: "buy" },
+      },
+      urls,
+      "one",
+    ),
+  ).toEqual(v1);
   expect(v1).toEqual({
     version: 1,
     requestId: "one",
