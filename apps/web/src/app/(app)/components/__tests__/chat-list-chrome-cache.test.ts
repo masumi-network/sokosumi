@@ -20,7 +20,7 @@ vi.mock("@/lib/clients/core.client", () => ({
 
 const EMPTY_PAGE = { rooms: [], nextCursor: null };
 
-describe("loadChatListChromeData", () => {
+describe("chat list chrome loaders", () => {
   beforeEach(() => {
     listRoomsMock.mockReset();
     listArchivedRoomsMock.mockReset();
@@ -38,38 +38,42 @@ describe("loadChatListChromeData", () => {
     });
   });
 
-  it("issues one rooms + archived + members fetch per loadChatListChromeData call", async () => {
-    // Proves the shared body is a single fan-out, not N service calls per field.
-    // In-request SSR dedupe of sidebar+page is Next private-cache runtime (not
-    // exercisable here); dual call-site wiring is locked by the contract tests.
-    const { loadChatListChromeData } = await import(
-      "@/app/components/private-sidebar-cache"
-    );
+  it("loads membership rooms and archived members as separate reads", async () => {
+    const { loadChatListArchivedAndMembers, loadMembershipVisibleRooms } =
+      await import("@/app/components/private-sidebar-cache");
 
-    const result = await loadChatListChromeData("org-1");
+    const [rooms, archivedAndMembers] = await Promise.all([
+      loadMembershipVisibleRooms(),
+      loadChatListArchivedAndMembers("org-1"),
+    ]);
 
     expect(listRoomsMock).toHaveBeenCalledTimes(1);
     expect(listRoomsMock).toHaveBeenCalledWith();
     expect(listArchivedRoomsMock).toHaveBeenCalledTimes(1);
     expect(getMyMembersWithOrganizationsMock).toHaveBeenCalledTimes(1);
-    expect(result.chatRoomsPage.rooms).toEqual([{ id: "room-1" }]);
-    expect(result.archivedChatRoomsPage.rooms).toEqual([{ id: "archived-1" }]);
-    expect(result.members).toEqual([
+    expect(rooms.rooms).toEqual([{ id: "room-1" }]);
+    expect(archivedAndMembers.archivedChatRoomsPage.rooms).toEqual([
+      { id: "archived-1" },
+    ]);
+    expect(archivedAndMembers.members).toEqual([
       { organizationId: "org-1", role: "owner" },
     ]);
   });
 
   it("skips archived rooms Core fetch when no active organization", async () => {
-    const { loadChatListChromeData } = await import(
-      "@/app/components/private-sidebar-cache"
-    );
+    const { loadChatListArchivedAndMembers, loadMembershipVisibleRooms } =
+      await import("@/app/components/private-sidebar-cache");
 
-    const result = await loadChatListChromeData(null);
+    const [rooms, archivedAndMembers] = await Promise.all([
+      loadMembershipVisibleRooms(),
+      loadChatListArchivedAndMembers(null),
+    ]);
 
     expect(listRoomsMock).toHaveBeenCalledTimes(1);
     expect(listArchivedRoomsMock).not.toHaveBeenCalled();
     expect(getMyMembersWithOrganizationsMock).toHaveBeenCalledTimes(1);
-    expect(result.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
+    expect(rooms.rooms).toEqual([{ id: "room-1" }]);
+    expect(archivedAndMembers.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
   });
 
   it("returns empty pages when room fetches fail", async () => {
@@ -78,15 +82,17 @@ describe("loadChatListChromeData", () => {
     getMyMembersWithOrganizationsMock.mockRejectedValueOnce(
       new Error("members down"),
     );
-    const { loadChatListChromeData } = await import(
-      "@/app/components/private-sidebar-cache"
-    );
+    const { loadChatListArchivedAndMembers, loadMembershipVisibleRooms } =
+      await import("@/app/components/private-sidebar-cache");
 
-    const result = await loadChatListChromeData("org-1");
+    const [rooms, archivedAndMembers] = await Promise.all([
+      loadMembershipVisibleRooms(),
+      loadChatListArchivedAndMembers("org-1"),
+    ]);
 
-    expect(result.chatRoomsPage).toEqual(EMPTY_PAGE);
-    expect(result.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
-    expect(result.members).toEqual([]);
+    expect(rooms).toEqual(EMPTY_PAGE);
+    expect(archivedAndMembers.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
+    expect(archivedAndMembers.members).toEqual([]);
   });
 });
 
