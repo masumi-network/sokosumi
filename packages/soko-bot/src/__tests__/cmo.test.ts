@@ -148,7 +148,13 @@ describe("CMO version", () => {
     expect(prompt).toContain("When the owner forbids or defers an action");
     expect(prompt).toContain("# You are Cuso");
     expect(prompt).toContain(
-      "Answer in the language of the owner's latest message",
+      "Write to the owner in the language of their latest message in the chat",
+    );
+    expect(prompt).toContain(
+      "Every piece is in it from its title to its last word",
+    );
+    expect(prompt).not.toContain(
+      "is in the language the owner wrote their goal",
     );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
