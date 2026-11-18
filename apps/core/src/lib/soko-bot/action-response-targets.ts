@@ -68,6 +68,7 @@ export const TASK_TARGET_CAPABILITIES = new Set([
   "assign_task",
   "reply_to_task",
   "update_assigned_task",
+  "set_task_parent",
 ]);
 
 interface TaskLabel {
@@ -247,7 +248,8 @@ export function actionTarget(
   }
   if (
     call.capability === "generate_image" ||
-    call.capability === "generate_video"
+    call.capability === "generate_video" ||
+    call.capability === "generate_talking_video"
   ) {
     const studio = z
       .object({ studioUrl: z.string().startsWith("/studio?") })

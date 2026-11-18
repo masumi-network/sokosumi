@@ -59,6 +59,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+import { isTalkingVideoMedia } from "@/services/image-studio-drive.service";
 import {
   projectExecutorUserId,
   requireLockedOpenProject,
@@ -928,6 +929,9 @@ async function attemptPublish(
       text: post.text,
       tikTokSettings: options.tikTokSettings,
       ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
+      ...((await isTalkingVideoMedia(post.projectId, media))
+        ? { aiGenerated: true }
+        : {}),
       media,
       signal,
     };

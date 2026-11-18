@@ -299,6 +299,8 @@ Before adding, changing, or removing a `/v1` route (new route files, OpenAPI def
 - `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
 - `@sokosumi/soko-bot` - Soko Bot contracts (capabilities, persona, memory, tools). Core owns the control plane (`src/lib/soko-bot/`); the loop runs in a per-bot Vercel Sandbox (`src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`src/routes/v1/soko-bot-runtime`). In-process is the evaluation adapter. There is no `apps/soko-bot` deployable.
 
+**Soko Bot turn lifecycle.** Read [the lifecycle reference](docs/soko-bot-turn-lifecycle.md) before reviewing, debugging, or changing turn startup, cancellation, reconciliation, runtime fences, or watchdog recovery.
+
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 
 - `@/helpers/*` → `src/helpers/*`
@@ -484,5 +486,7 @@ Every warning or error Core logs answers three questions, built on evlog's struc
 - `fix`: what to do, only when someone can act on it. `link`: a runbook, only when one exists.
 - Raw detail (ids, stack, provider response) goes in event fields, in `cause`, or in `internal`; never in `message` or `why`.
 - Mail and message content: for an error that can quote a mail, message or prompt (Composio mail tools, chat dispatch, unfurls, AI calls on user text), log only provider, operation and status code, never the error text or a response body: no `cause`, and `failure: messageSafeErrorFields(error)` from `@/lib/safe-error-fields` as a field. It keeps only names, codes, statuses and operations from Core's own allowlists, and never throws.
+
+On `/auth/*`, a Better Auth warning or error moves to info only when the 3xx `Location` has a single `error` query parameter from the client error allowlist and the log call has no `Error` argument.
 
 An error is `log.error(createError({ message, why, fix, link, cause, internal }), fields?)`, or on a standalone event `emitCoreError(context, { message, why, fix, cause }, fields?)`. A warning is `logCoreWarning(log, { message, why, fix, link, cause, details }, fields?)` from `@/lib/evlog`, or `emitCoreWarning(context, warning, fields?)`, which keeps each warning's `why`, `fix`, `cause` and `details` under the event's `warnings`. `fields` merge at the event's root, so when one event can hold several warnings of the same kind (a lookup per account), put each one's ids and failure fields in its `details`. Pass the caught error as `cause` as it is; a rejected string is kept as an `Error`. Tests read it with `causeMessage(entry.cause)` from `@/test/core-log`. Library messages (Better Auth, Composio) pass through as they are: `betterAuthLogger` and `composioLogger` in `src/lib/evlog-library-logs.ts` put them on the request's wide event while it can still take writes (`tryUseLiveLogger`), otherwise on a standalone event, tagged with their `source`, with URL queries and fragments removed. A test that builds its own Better Auth or Composio instance passes the same logger; a file that configures Composio's process-wide SDK logger calls `restoreComposioSdkLoggerAfterFile()` from `@/test/composio-sdk-logger`, which puts back the level and sink the file found.

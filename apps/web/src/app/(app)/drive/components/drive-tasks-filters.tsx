@@ -6,7 +6,7 @@ import {
   getProjectsById,
   getTasksById,
 } from "@sokosumi/core-client";
-import { FolderKanban, ListCheck, Sparkles } from "lucide-react";
+import { Bot, FolderKanban, ListCheck } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -443,7 +443,7 @@ export function DriveTasksFilters({
     nextSections.push({
       id: "coworker",
       label: labels.coworkerLabel,
-      icon: Sparkles,
+      icon: Bot,
       value: assigneeId,
       allLabel: labels.all,
       onChange: (value) => handleFilterChange("assigneeId", value),

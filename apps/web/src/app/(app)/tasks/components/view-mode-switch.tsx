@@ -32,6 +32,8 @@ export interface ViewModeSwitchProps {
     normal: string;
     compact: string;
   };
+  /** Rows under the display options, for where else the Tasks can be seen. */
+  children?: React.ReactNode;
 }
 
 export function ViewModeSwitch({
@@ -40,6 +42,7 @@ export function ViewModeSwitch({
   density,
   onDensityChange,
   labels,
+  children,
 }: ViewModeSwitchProps) {
   const isClient = useIsClient();
   const handleChange = useCallback(
@@ -66,11 +69,11 @@ export function ViewModeSwitch({
         <Button
           variant="outline"
           size="sm"
-          className="gap-2"
+          className="shrink-0 hit-area"
           aria-label={labels.button}
+          title={labels.button}
         >
           <SlidersHorizontal className="size-4" aria-hidden />
-          <span className="hidden sm:inline">{labels.button}</span>
         </Button>
       </PopoverTrigger>
       {isClient ? (
@@ -144,6 +147,7 @@ export function ViewModeSwitch({
               </PopoverClose>
             </ToggleGroup>
           </div>
+          {children ? <div className="border-t pt-3">{children}</div> : null}
         </PopoverContent>
       ) : null}
     </Popover>

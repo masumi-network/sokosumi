@@ -15,8 +15,12 @@ import {
 } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
-import type { SeoTaskIndexingReceipt } from "@/schemas/seo-task-indexing.schema";
+import {
+  seoTaskIndexingReceiptSchema,
+  seoTaskIndexingResultSchema,
+} from "@/schemas/seo-task-indexing.schema";
 import { getProjectSeoWorkspace } from "@/services/project-seo.service";
+import { sha256 } from "@/services/project-seo-store";
 import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import {
   createTaskScheduleTestApp,
@@ -159,11 +163,66 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
       }),
     );
   }
-  async function receipt(extra: Record<string, unknown> = {}) {
+  async function receipt(
+    extra: Record<string, unknown> = {},
+    retryable?: boolean,
+  ) {
     const response = await request(undefined, extra);
     expect(response.status, await response.clone().text()).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    return (await response.json()).data as SeoTaskIndexingReceipt;
+    if (retryable !== undefined)
+      expect(response.headers.get("X-SEO-Indexing-Retryable")).toBe(
+        String(retryable),
+      );
+    return seoTaskIndexingReceiptSchema.parse((await response.json()).data);
+  }
+
+  async function createPublicAudit() {
+    const owner = {
+      owner: { kind: "audit" as const, id: auditId },
+      workspaceId,
+      organizationId,
+      userId: ownerId,
+    };
+    const query = {
+      pageIds: (
+        await prisma.projectSeoPage.findMany({
+          where: { auditId },
+          select: { id: true },
+        })
+      ).map((page) => page.id),
+    };
+    const publicAudit = await prisma.projectSeoObservation.create({
+      data: {
+        auditId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        sourceKey: randomUUID(),
+        sourceTaskId: taskId,
+        pageIds: query.pageIds,
+        scopeVersion: 0,
+        artifactHash: "public-audit-fixture",
+        observedAt: new Date(),
+        payload: {
+          version: 1,
+          kind: "audit_full",
+          requestId: null,
+          pageUrls: PAGE_URLS,
+          observedAt: new Date().toISOString(),
+          countryCode: "US",
+          languageCode: "en",
+          rulebookVersion: "fixture",
+          checks: [],
+          keywords: [],
+          competitors: [],
+          findings: [],
+          actions: [],
+          coverage: { checked: 0, skipped: 0, failed: 0 },
+          notes: [],
+        },
+      },
+    });
+    return { owner, query, publicAudit };
   }
 
   beforeAll(async () => {
@@ -653,7 +712,7 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
             },
           })
         : null;
-    const inspected = await receipt();
+    const inspected = await receipt({}, false);
     expect(inspected.status).toBe("available");
     expect(
       inspected.pages.find(
@@ -957,8 +1016,11 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
             { status: 500 },
           )
         : null;
-    const first = await receipt();
+    const first = await receipt({}, true);
     expect(first.status).toBe("available");
+    expect(
+      (await request()).headers.get("X-SEO-Indexing-Public-Evidence"),
+    ).toBe("1");
     expect(first.pages[1]?.verdict).toBe("VERDICT_UNSPECIFIED");
     expect(JSON.stringify(first)).not.toContain("private upstream detail");
     expect(
@@ -982,7 +1044,465 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     ).toBe(200);
   });
 
-  it("requires a property choice when multiple properties cover the pages", async () => {
+  it("carries the retry signal through a saved partial assessment until Google recovers", async () => {
+    providerHook = async (slug, args) =>
+      slug === INSPECT_TOOL && args.inspection_url === PAGE_URLS[1]
+        ? Response.json({ successful: false }, { status: 503 })
+        : null;
+    const first = await receipt({}, true);
+    const firstPageIssue = {
+      ...assessment(PAGE_URLS[0]!),
+      status: "issue",
+      report: true,
+    };
+    expect(
+      (
+        await request({
+          receiptHash: first.receiptHash,
+          assessments: [
+            firstPageIssue,
+            { ...assessment(PAGE_URLS[1]!), status: "unavailable" },
+          ],
+        })
+      ).status,
+    ).toBe(200);
+    expect(await receipt({}, true)).toMatchObject({
+      receiptHash: first.receiptHash,
+      assessmentSaved: true,
+    });
+    expect(reads.filter((read) => read.slug === INSPECT_TOOL)).toHaveLength(
+      PAGE_URLS.length,
+    );
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 60 * 60 * 1000 + 1);
+    providerHook = async (slug, args) => {
+      if (slug !== INSPECT_TOOL) return null;
+      return args.inspection_url === PAGE_URLS[0]
+        ? Response.json({ successful: false }, { status: 503 })
+        : Response.json({
+            successful: true,
+            data: {
+              inspectionResult: { indexStatusResult: { verdict: "PASS" } },
+            },
+          });
+    };
+    const recovered = await receipt({}, false);
+    expect(recovered.receiptHash).not.toBe(first.receiptHash);
+    expect(recovered.pages.map((page) => page.verdict)).toEqual([
+      "NEUTRAL",
+      "PASS",
+    ]);
+    expect(recovered.assessmentSaved).toBeUndefined();
+    expect(
+      reads
+        .filter((read) => read.slug === INSPECT_TOOL)
+        .map((read) => read.input.arguments.inspection_url),
+    ).toEqual([...PAGE_URLS, PAGE_URLS[1]]);
+    const reported = [
+      firstPageIssue,
+      { ...assessment(PAGE_URLS[1]!), status: "indexed" },
+    ];
+    expect(
+      (
+        await request({
+          receiptHash: recovered.receiptHash,
+          assessments: reported,
+        })
+      ).status,
+    ).toBe(200);
+    const recoveredAssessment =
+      await prisma.projectSeoObservation.findFirstOrThrow({
+        where: {
+          auditId,
+          sourceKey: `task-index-triage:${taskId}:${recovered.receiptHash}`,
+        },
+      });
+    expect(recoveredAssessment.payload).toMatchObject({
+      checkedAt: recovered.checkedAt,
+      assessments: [
+        { pageUrl: PAGE_URLS[0], checkedAt: first.checkedAt },
+        { pageUrl: PAGE_URLS[1] },
+      ],
+    });
+    expect(await receipt({}, false)).toMatchObject({
+      receiptHash: recovered.receiptHash,
+      assessmentSaved: true,
+    });
+    vi.setSystemTime(Date.parse(first.checkedAt) + 24 * 60 * 60 * 1000 + 1);
+    expect(
+      (
+        await request({
+          receiptHash: recovered.receiptHash,
+          assessments: reported,
+        })
+      ).status,
+    ).toBe(409);
+    const expired = await receipt({}, true);
+    expect(expired.pages.map((page) => page.verdict)).toEqual([
+      "VERDICT_UNSPECIFIED",
+      "PASS",
+    ]);
+    expect(
+      reads
+        .filter((read) => read.slug === INSPECT_TOOL)
+        .map((read) => read.input.arguments.inspection_url),
+    ).toEqual([...PAGE_URLS, PAGE_URLS[1], PAGE_URLS[0]]);
+  });
+
+  it.each([
+    { previous: "issue", next: "review", available: false, expected: "issue" },
+    {
+      previous: "issue",
+      next: "review",
+      available: undefined,
+      expected: "issue",
+    },
+    {
+      previous: "issue",
+      next: "indexed",
+      available: undefined,
+      expected: "indexed",
+    },
+    { previous: "indexed", next: "issue", available: true, expected: "issue" },
+    { previous: "issue", next: "review", available: true, expected: "review" },
+  ])(
+    "reconciles related-page retry evidence ($previous to $next, public evidence $available)",
+    async ({ previous, next, available, expected }) => {
+      const seed = PAGE_URLS[0]!;
+      const related = "https://example.test/missing-guide";
+      await approveDiscovery([seed]);
+      expect(
+        (await selectPages([related], { seedPageUrls: [seed] })).status,
+      ).toBe(200);
+      providerHook = async (slug, args) =>
+        slug !== INSPECT_TOOL
+          ? null
+          : args.inspection_url === seed
+            ? Response.json({ successful: false }, { status: 503 })
+            : Response.json({
+                successful: true,
+                data: {
+                  inspectionResult: { indexStatusResult: { verdict: "PASS" } },
+                },
+              });
+      const first = await receipt({}, true);
+      const missing = {
+        pageUrl: related,
+        status: "issue",
+        report: true,
+        reason:
+          "The audit received HTTP 404. Google reports Submitted and indexed.",
+        suggestedFix: "Restore the missing page if it should remain in search.",
+        evidence: [
+          "Google left this URL out",
+          "The related page returned HTTP 404.",
+        ],
+      };
+      const indexed = {
+        ...assessment(related),
+        status: "indexed",
+        reason: "Google reports this page as indexed.",
+        evidence: ["The related page returned HTTP 200."],
+      };
+      const prior = previous === "issue" ? missing : indexed;
+      const current =
+        next === "issue"
+          ? missing
+          : next === "indexed"
+            ? indexed
+            : {
+                ...assessment(related),
+                reason: available
+                  ? "The page currently has a noindex directive."
+                  : "The current page could not be verified.",
+              };
+      const saved = await request({
+        receiptHash: first.receiptHash,
+        assessments: [{ ...assessment(seed), status: "unavailable" }, prior],
+      });
+      expect(saved.status).toBe(200);
+
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.parse(first.checkedAt) + 60 * 60 * 1000 + 1);
+      providerHook = undefined;
+      const recovered = await receipt({}, false);
+      expect(
+        reads
+          .filter((read) => read.slug === INSPECT_TOOL)
+          .map((read) => read.input.arguments.inspection_url),
+      ).toEqual([seed, related, seed]);
+      const replacement = await request({
+        receiptHash: recovered.receiptHash,
+        assessments: [
+          assessment(seed),
+          {
+            ...current,
+            ...(available !== undefined && {
+              publicEvidenceAvailable: available,
+            }),
+          },
+        ],
+      });
+      expect(replacement.status).toBe(200);
+      const stored = await prisma.projectSeoObservation.findFirstOrThrow({
+        where: {
+          auditId,
+          sourceKey: `task-index-triage:${taskId}:${recovered.receiptHash}`,
+        },
+      });
+      expect(
+        (stored.payload as { assessments: unknown[] }).assessments,
+      ).toEqual([
+        assessment(seed),
+        {
+          ...(expected === next ? current : prior),
+          checkedAt: first.checkedAt,
+        },
+      ]);
+    },
+  );
+
+  it("keeps the latest verified review through a third attempt with no public evidence", async () => {
+    const seed = PAGE_URLS[0]!;
+    const url = "https://example.test/retired-guide";
+    await approveDiscovery([seed]);
+    expect((await selectPages([url], { seedPageUrls: [seed] })).status).toBe(
+      200,
+    );
+    providerHook = async (slug, args) =>
+      slug === INSPECT_TOOL && args.inspection_url === seed
+        ? Response.json({ successful: false }, { status: 503 })
+        : null;
+    const original = {
+      ...assessment(url),
+      reason: "Verify the current robots.txt restriction.",
+    };
+    const updated = {
+      ...assessment(url),
+      reason: "Confirm whether the newly observed noindex is intended.",
+    };
+    const finish = async (
+      receiptHash: string,
+      note: ReturnType<typeof assessment>,
+      available: boolean,
+      seedRecovered = false,
+    ) => {
+      const response = await request({
+        receiptHash,
+        assessments: [
+          {
+            ...assessment(seed),
+            status: seedRecovered ? "review" : "unavailable",
+          },
+          { ...note, publicEvidenceAvailable: available },
+        ],
+      });
+      expect(response.status).toBe(200);
+    };
+    const first = await receipt({}, true);
+    await finish(first.receiptHash, original, true);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const retryDelay = 60 * 60 * 1000 + 1;
+    vi.setSystemTime(Date.parse(first.checkedAt) + retryDelay);
+    const second = await receipt({}, true);
+    await finish(second.receiptHash, updated, true);
+    vi.setSystemTime(Date.parse(second.checkedAt) + retryDelay);
+    providerHook = undefined;
+    const last = await receipt({}, false);
+    await finish(
+      last.receiptHash,
+      { ...assessment(url), reason: "Could not reach the page." },
+      false,
+      true,
+    );
+
+    const stored = await prisma.projectSeoObservation.findFirstOrThrow({
+      where: {
+        auditId,
+        sourceKey: `task-index-triage:${taskId}:${last.receiptHash}`,
+      },
+    });
+    expect((stored.payload as { assessments: unknown[] }).assessments).toEqual([
+      assessment(seed),
+      { ...updated, checkedAt: first.checkedAt },
+    ]);
+  });
+
+  it("preserves Google's explicit unknown result without retrying a successful provider read", async () => {
+    providerHook = async (slug) =>
+      slug === INSPECT_TOOL
+        ? Response.json({
+            successful: true,
+            data: {
+              inspectionResult: {
+                indexStatusResult: { verdict: "VERDICT_UNSPECIFIED" },
+              },
+            },
+          })
+        : null;
+    const first = await receipt({}, false);
+    expect(first.status).toBe("unavailable");
+    expect(await receipt({}, false)).toEqual(first);
+    expect(reads.filter((read) => read.slug === INSPECT_TOOL)).toHaveLength(
+      PAGE_URLS.length,
+    );
+  });
+
+  it("records which URL Google answered when an explicit unknown and an outage occur together", async () => {
+    providerHook = async (slug, args) => {
+      if (slug !== INSPECT_TOOL) return null;
+      return args.inspection_url === PAGE_URLS[0]
+        ? Response.json({
+            successful: true,
+            data: {
+              inspectionResult: {
+                indexStatusResult: { verdict: "VERDICT_UNSPECIFIED" },
+              },
+            },
+          })
+        : Response.json({ successful: false }, { status: 503 });
+    };
+    const result = await receipt({}, true);
+    const saved = await prisma.projectSeoObservation.findFirstOrThrow({
+      where: {
+        auditId,
+        sourceTaskId: taskId,
+        kind: "index_inspection",
+        artifactHash: result.receiptHash,
+      },
+    });
+    expect(saved.payload).toMatchObject({
+      answeredUnknownPageUrls: [PAGE_URLS[0]],
+    });
+    expect(result).not.toHaveProperty("answeredUnknownPageUrls");
+  });
+
+  it.each(["new", "legacy"])(
+    "projects only Core-verified unknowns for a %s assessment",
+    async (format) => {
+      providerHook = async (slug, args) => {
+        if (slug !== INSPECT_TOOL) return null;
+        return args.inspection_url === PAGE_URLS[0]
+          ? Response.json({
+              successful: true,
+              data: {
+                inspectionResult: {
+                  indexStatusResult: { verdict: "VERDICT_UNSPECIFIED" },
+                },
+              },
+            })
+          : Response.json({ successful: false }, { status: 503 });
+      };
+      const first = await receipt({}, true);
+      const input = {
+        receiptHash: first.receiptHash,
+        assessments: PAGE_URLS.map((pageUrl) => ({
+          ...assessment(pageUrl),
+          status: "unavailable",
+          evidence: [
+            "Google URL Inspection: VERDICT_UNSPECIFIED; no coverage reason returned.",
+          ],
+        })),
+      };
+      expect(
+        (
+          await request({
+            ...input,
+            assessments: input.assessments.map((page) => ({
+              ...page,
+              googleReturnedUnknown: true,
+            })),
+          })
+        ).status,
+      ).toBe(422);
+      expect((await request(input)).status).toBe(200);
+      const saved = await prisma.projectSeoObservation.findFirstOrThrow({
+        where: { auditId, sourceTaskId: taskId, kind: "index_triage" },
+      });
+      if (format === "legacy") {
+        const legacy = seoTaskIndexingResultSchema.parse(saved.payload);
+        legacy.assessments = legacy.assessments.map(
+          ({ googleReturnedUnknown: _proof, ...page }) => page,
+        );
+        const artifactHash = sha256(JSON.stringify(legacy));
+        await prisma.projectSeoObservation.update({
+          where: { id: saved.id },
+          data: { payload: legacy, artifactHash },
+        });
+        expect((await request(input)).status).toBe(200);
+        expect(
+          (
+            await prisma.projectSeoObservation.findUniqueOrThrow({
+              where: { id: saved.id },
+            })
+          ).artifactHash,
+        ).toBe(artifactHash);
+        expect((await receipt({}, true)).assessmentSaved).toBe(true);
+      }
+      const { owner, query } = await createPublicAudit();
+      const view = async () =>
+        (
+          await getProjectSeoWorkspace(owner, query)
+        ).indexTriage?.assessments.map((page) =>
+          Object.hasOwn(page, "googleReturnedUnknown"),
+        );
+      expect(await view()).toEqual([true, false]);
+      if (format === "legacy") {
+        const originalReceipt =
+          await prisma.projectSeoObservation.findFirstOrThrow({
+            where: { auditId, sourceTaskId: taskId, kind: "index_inspection" },
+          });
+        await prisma.projectSeoObservation.update({
+          where: { id: originalReceipt.id },
+          data: { scopeVersion: originalReceipt.scopeVersion + 1 },
+        });
+        expect(await view()).toEqual([false, false]);
+        await prisma.projectSeoObservation.update({
+          where: { id: originalReceipt.id },
+          data: { scopeVersion: originalReceipt.scopeVersion },
+        });
+      }
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.parse(first.checkedAt) + 60 * 60 * 1000 + 1);
+      providerHook = undefined;
+      const replacement = await receipt({}, false);
+      expect(replacement.receiptHash).not.toBe(first.receiptHash);
+      // A new receipt is not proof of an earlier assessment. New immutable results keep their original proof.
+      expect(await view()).toEqual([format === "new", false]);
+    },
+  );
+
+  it("preserves previously verified pages through a permission lookup outage and rereads them for another property", async () => {
+    const first = await receipt({}, false);
+    providerHook = async (slug) =>
+      slug === LIST_TOOL
+        ? Response.json({ successful: false }, { status: 503 })
+        : null;
+    expect((await request()).status).toBe(503);
+    providerHook = undefined;
+    expect((await receipt({}, false)).receiptHash).toBe(first.receiptHash);
+    const changedProperty = "https://example.test/";
+    providerHook = async (slug) =>
+      slug === LIST_TOOL
+        ? Response.json({
+            successful: true,
+            data: {
+              siteEntry: [
+                { siteUrl: changedProperty, permissionLevel: "siteOwner" },
+              ],
+            },
+          })
+        : null;
+    const changed = await receipt({}, false);
+    expect(changed.receiptHash).not.toBe(first.receiptHash);
+    expect(
+      reads
+        .filter((read) => read.slug === INSPECT_TOOL)
+        .map((read) => read.input.arguments.site_url),
+    ).toEqual([PROPERTY, PROPERTY, changedProperty, changedProperty]);
+  });
+
+  it("requires a choice and keeps the selected property after a different page syncs", async () => {
     providerHook = async (slug) =>
       slug === LIST_TOOL
         ? Response.json({
@@ -997,18 +1517,32 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         : null;
     expect((await receipt()).status).toBe("needs_property");
     expect(reads.filter((read) => read.slug === INSPECT_TOOL)).toHaveLength(0);
-    await prisma.projectSeoObservation.create({
-      data: {
+    const { pageIds } = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+      select: { pageIds: true },
+    });
+    const other = await prisma.projectSeoPage.create({
+      data: { auditId, url: "https://example.test/blog/" },
+    });
+    await prisma.projectSeoObservation.createMany({
+      data: [
+        { propertyId: PROPERTY, pageIds, observedAt: new Date("2026-09-01") },
+        {
+          propertyId: other.url,
+          pageIds: [other.id],
+          observedAt: new Date("2026-09-02"),
+        },
+      ].map(({ propertyId, pageIds, observedAt }) => ({
         auditId,
         sourceKey: randomUUID(),
         kind: "metrics",
         source: "search_console",
         ownerId,
-        pageIds: [],
+        pageIds,
         artifactHash: "fixture-selection",
-        payload: { propertyId: PROPERTY },
-        observedAt: new Date(),
-      },
+        payload: { propertyId },
+        observedAt,
+      })),
     });
     expect((await receipt()).status).toBe("available");
     expect(reads.filter((read) => read.slug === INSPECT_TOOL)).toHaveLength(
@@ -1055,7 +1589,7 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
             },
           })
         : null;
-    const denied = await receipt();
+    const denied = await receipt({}, false);
     expect(denied.status).toBe("needs_property");
     expect(
       denied.pages.every((page) => page.verdict === "VERDICT_UNSPECIFIED"),
@@ -1091,6 +1625,10 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
   });
 
   it("uses the unique covering property after an older selection is no longer accessible", async () => {
+    const { pageIds } = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+      select: { pageIds: true },
+    });
     await prisma.projectSeoObservation.create({
       data: {
         auditId,
@@ -1098,7 +1636,7 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         kind: "metrics",
         source: "search_console",
         ownerId,
-        pageIds: [],
+        pageIds,
         artifactHash: "fixture-old-selection",
         payload: { propertyId: "https://example.test/old/" },
         observedAt: new Date(),
@@ -1128,50 +1666,7 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         })
       ).status,
     ).toBe(200);
-    const owner = {
-      owner: { kind: "audit" as const, id: auditId },
-      workspaceId,
-      organizationId,
-      userId: ownerId,
-    };
-    const query = {
-      pageIds: (
-        await prisma.projectSeoPage.findMany({
-          where: { auditId },
-          select: { id: true },
-        })
-      ).map((page) => page.id),
-    };
-    const publicAudit = await prisma.projectSeoObservation.create({
-      data: {
-        auditId,
-        kind: "audit_full",
-        source: "seo_coworker",
-        sourceKey: randomUUID(),
-        sourceTaskId: taskId,
-        pageIds: query.pageIds,
-        scopeVersion: 0,
-        artifactHash: "public-audit-fixture",
-        observedAt: new Date(),
-        payload: {
-          version: 1,
-          kind: "audit_full",
-          requestId: null,
-          pageUrls: PAGE_URLS,
-          observedAt: new Date().toISOString(),
-          countryCode: "US",
-          languageCode: "en",
-          rulebookVersion: "fixture",
-          checks: [],
-          keywords: [],
-          competitors: [],
-          findings: [],
-          actions: [],
-          coverage: { checked: 0, skipped: 0, failed: 0 },
-          notes: [],
-        },
-      },
-    });
+    const { owner, query, publicAudit } = await createPublicAudit();
     // More than the former ten-row cap must not evict this audit's Console assessment.
     const held = await prisma.projectSeoObservation.findFirstOrThrow({
       where: { auditId, kind: "index_triage", sourceTaskId: taskId },

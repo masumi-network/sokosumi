@@ -1,3 +1,5 @@
+import { seoSearchUrlPrefixCovers } from "@sokosumi/utils";
+
 /** A URL-prefix or domain property must cover every exact page being inspected. */
 export function gscPropertyCovers(property: string, urls: string[]): boolean {
   if (property.startsWith("sc-domain:")) {
@@ -10,15 +12,5 @@ export function gscPropertyCovers(property: string, urls: string[]): boolean {
       })
     );
   }
-  if (!URL.canParse(property)) return false;
-  const prefix = new URL(property);
-  return (
-    ["https:", "http:"].includes(prefix.protocol) &&
-    !prefix.username &&
-    !prefix.password &&
-    urls.every(
-      (url) =>
-        new URL(url).origin === prefix.origin && url.startsWith(prefix.href),
-    )
-  );
+  return seoSearchUrlPrefixCovers(property, urls);
 }

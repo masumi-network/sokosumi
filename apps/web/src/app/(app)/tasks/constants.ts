@@ -36,3 +36,12 @@ export const TASK_DETAIL_SIDEBAR_CLASS =
 /** Admin / developer owner strip above TaskDetailView — same max width. */
 export const TASK_DETAIL_CONTEXT_STRIP_CLASS =
   "mx-auto w-full max-w-[80rem] px-4 pt-2";
+
+/**
+ * `TaskCard` frame per density. The tasks loading skeleton uses the same
+ * classes, so a padding change cannot make the skeleton jump on load.
+ */
+export const TASK_CARD_DENSITY_CLASS = {
+  normal: "flex flex-col gap-2 p-3",
+  compact: "flex flex-col gap-1 px-3 py-2",
+} as const;

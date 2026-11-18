@@ -16,6 +16,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { dispatchCompetitorTools } from "./competitors";
 import { EXA_SEARCHES_PER_TURN } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
 
@@ -110,6 +111,10 @@ export async function dispatchOtherTools(
       });
       return evaluation.result;
     }
+
+    case "check_competitors":
+    case "save_competitor_feed":
+      return dispatchCompetitorTools(input, authorized);
 
     case "search_exa": {
       const parsed = sokoBotSearchExaInputSchema.parse(input.input);

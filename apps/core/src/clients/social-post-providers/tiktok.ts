@@ -56,7 +56,7 @@ export async function publishTikTokVideo(
   }
   const zernioAccountId = getZernioAccountId(context.connectedAccountId);
   if (zernioAccountId)
-    return publishZernioTikTokVideo(context, zernioAccountId, video.fileUrl);
+    return publishZernioTikTokVideo(context, zernioAccountId, video);
   const sessionId = await createComposioToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,
@@ -105,6 +105,10 @@ export async function publishTikTokVideo(
           disable_stitch:
             creator?.stitch_disabled !== false || !settings.allowStitch,
           brand_organic_toggle: settings.promotesOwnBrand,
+          // TikTok's own label: "Creator labeled as AI-generated".
+          ...(context.aiGenerated || video.aiGenerated
+            ? { is_aigc: true }
+            : {}),
         },
         context: "publish TikTok video",
         refused: "TikTok refused the video",

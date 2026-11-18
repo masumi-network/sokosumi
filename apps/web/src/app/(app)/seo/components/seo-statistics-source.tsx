@@ -1,7 +1,7 @@
 "use client";
 
 import { RotateCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SeoField, SeoSelect } from "./seo-form-fields";
@@ -9,13 +9,6 @@ import { SEO_DEFAULT_STATISTICS_DAYS } from "./seo-statistics-model";
 import type { useSeoStatistics } from "./use-seo-statistics";
 
 export type SeoStatisticsForm = ReturnType<typeof useSeoStatistics>;
-
-/** The property a source reads: one listed property that does not cover the pages is not read. */
-function seoReadProperty(form: SeoStatisticsForm) {
-  return form.properties.data?.properties.find(
-    (item) => item.id === form.propertyId,
-  );
-}
 
 /**
  * The property settings of one connected Google source in the statistics
@@ -30,10 +23,10 @@ export function SeoStatisticsSource({
   focused: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const { provider } = form;
+  const format = useFormatter();
+  const { provider, eligibleProperties } = form;
   const properties = form.properties.data;
   const id = `seo-statistics-property-${provider}`;
-  const property = seoReadProperty(form);
   // After an approval the saved answer still says "not connected" until the new read ends.
   const reading =
     form.properties.isPending ||
@@ -74,21 +67,21 @@ export function SeoStatisticsSource({
               {t("retry")}
             </Button>
           </div>
-        ) : properties?.properties.length === 1 ? (
+        ) : form.sitesWithoutProperty.length > 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {t("statistics.propertyNotMatching", {
+              sites: format.list(form.sitesWithoutProperty),
+            })}
+          </p>
+        ) : eligibleProperties.length === 1 ? (
           // One property: nothing to choose, so it is a line and not a field.
           <p className="text-sm break-words">
             <span className="text-muted-foreground">
               {t("statistics.property")}:{" "}
             </span>
-            {properties.properties[0].name}
-            {property ? null : (
-              // It does not cover the selected pages, so nothing is read from it.
-              <span className="text-muted-foreground block">
-                {t("statistics.propertyNotMatching")}
-              </span>
-            )}
+            {eligibleProperties[0].name}
           </p>
-        ) : properties?.properties.length ? (
+        ) : eligibleProperties.length > 1 ? (
           <SeoField id={id} label={t("statistics.property")}>
             <SeoSelect
               id={id}
@@ -96,7 +89,7 @@ export function SeoStatisticsSource({
               onValueChange={form.setPropertyId}
               placeholder={t("statistics.chooseProperty")}
               required
-              options={properties.properties.map((property) => ({
+              options={eligibleProperties.map((property) => ({
                 value: property.id,
                 label: property.name,
               }))}
@@ -110,7 +103,7 @@ export function SeoStatisticsSource({
         {properties?.reason ? (
           <p className="text-muted-foreground text-sm">{properties.reason}</p>
         ) : null}
-        {property ? (
+        {form.propertyId ? (
           // The period and the traffic are set: the reader has no range or channel to choose.
           <p
             className="text-muted-foreground text-sm"

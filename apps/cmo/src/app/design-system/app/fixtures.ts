@@ -1,4 +1,4 @@
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSeo } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
 import { VIEW_PATHS, type View } from "../../../lib/views";
@@ -89,6 +89,7 @@ export const overview: CmoOverview = cmoOverview({
   businessName: "Acme",
   websiteUrl: "https://acme.io",
   projectLogo: PICTURE,
+  presenterSet: false,
   brandBrain: {
     ...richBrain,
     questions: [],
@@ -353,4 +354,221 @@ export const chat = {
       "04T10:05:00",
     ),
   ],
+};
+
+const seoAt = (iso: string) => new Date(iso);
+
+/** The SEO tab over a week's real-shaped data: an audit, Search Console, ideas. */
+export const seo: CmoSeo = {
+  websiteUrl: "https://acme.io",
+  countryCode: "US",
+  languageCode: "en",
+  audit: {
+    creditsPerAudit: 750,
+    status: "active",
+    nextRunAt: seoAt("2026-11-23T06:00:00Z"),
+    running: false,
+    skipped: [],
+    lastFailedAt: null,
+    latest: {
+      observedAt: seoAt("2026-11-16T06:12:00Z"),
+      checked: 110,
+      passed: 86,
+      issues: [
+        {
+          title: "Structured data",
+          pageUrl: "https://acme.io/",
+          severity: "major",
+          detail:
+            "The offer price in the markup (6.99) is not the price the page shows (9.99).",
+        },
+        {
+          title: "Permanent redirects",
+          pageUrl: "https://acme.io/",
+          severity: "minor",
+          detail:
+            "acme.io sends visitors to www.acme.io with a temporary redirect.",
+        },
+        {
+          title:
+            "Script and style files for rendering load and are not blocked",
+          pageUrl: "https://acme.io/",
+          severity: "minor",
+          detail:
+            "1 of 17 script and style files rendering asks for failed to load",
+        },
+      ],
+      fixes: [],
+    },
+  },
+  searchConsole: {
+    status: "connected",
+    property: "sc-domain:acme.io",
+    from: "2026-10-17",
+    to: "2026-11-13",
+    observedAt: seoAt("2026-11-17T08:00:00Z"),
+    totals: { clicks: 412, impressions: 18_940, ctr: 0.0218, position: 14.6 },
+    nearFirstPage: [
+      {
+        query: "team booking software",
+        pageUrl: "https://acme.io/teams",
+        clicks: 9,
+        impressions: 1_820,
+        ctr: 0.0049,
+        position: 11.4,
+      },
+    ],
+    lowClickRate: [
+      {
+        query: "acme pricing",
+        pageUrl: "https://acme.io/pricing",
+        clicks: 4,
+        impressions: 640,
+        ctr: 0.0063,
+        position: 2.1,
+      },
+    ],
+  },
+  pageChanges: [
+    {
+      id: "0198c0de-0000-7000-8000-000000000001",
+      kind: "page_change",
+      source: "cuso",
+      title: "Name team booking in the Teams page title",
+      keyword: "team booking software",
+      pageUrl: "https://acme.io/teams",
+      why: "The page ranks 11 for the search that sells Teams; its title never says team booking.",
+      body: "Replace the page title.",
+      newText: "Team Booking Software for Sales and Support | Acme",
+      draft: null,
+      evidence: [
+        {
+          metric: "position",
+          keyword: "team booking software",
+          pageUrl: "https://acme.io/teams",
+          value: "11.4",
+          source: "search_console",
+          observedAt: seoAt("2026-11-17T08:00:00Z"),
+        },
+        {
+          metric: "impressions",
+          keyword: "team booking software",
+          pageUrl: "https://acme.io/teams",
+          value: "1,820",
+          source: "search_console",
+          observedAt: seoAt("2026-11-17T08:00:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-17T09:00:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
+    {
+      id: "0198c0de-0000-7000-8000-000000000003",
+      kind: "page_change",
+      source: "audit",
+      title: "Fix the HubSpot script that fails to load during rendering",
+      keyword: null,
+      pageUrl: "https://acme.io/",
+      why: "The Finding RN-01 shows that 1 of the 17 script and style files the page's main frame requested during rendering failed: https://js-eu1.hs-scripts.com/27172445.js returned net::ERR_BLOCKED_BY_ORB. This is the HubSpot tracking/chat script. Since the page cannot rely on this file loading, check why the response is blocked: an ORB block usually means the file is served with a wrong Content-Type, is redirected to a non-script response (for example an HTML error page, a consent/cookie-walled response, or a bot-block), or is served from a region/CDN path that returns an unexpected body. Verify the URL returns the JavaScript directly (correct Content-Type: application/javascript, HTTP 200, no redirect to HTML), and if the HubSpot snippet is outdated, update it to the current embed code from the HubSpot account for portal ID 27172445. If the script is not intended to load for non-browser or non-EU contexts, make sure the page degrades gracefully without it. Note: the loading check for the 20 file URLs on hosts whose robots.txt the run did not read was limited to loading only, so robots.txt on those hosts was not checked.",
+      body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
+      newText: null,
+      draft: null,
+      evidence: [
+        {
+          metric: "auditIssue",
+          keyword: null,
+          pageUrl: "https://acme.io/",
+          value:
+            "Script and style files for rendering load and are not blocked",
+          source: "weekly_audit",
+          observedAt: seoAt("2026-11-16T06:12:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-16T06:20:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
+  ],
+  articles: [
+    {
+      id: "0198c0de-0000-7000-8000-000000000002",
+      kind: "article",
+      source: "cuso",
+      title: "The best Calendly alternative for teams",
+      keyword: "calendly alternative",
+      pageUrl: null,
+      why: "Buyers comparing tools search this every month, and no page of yours answers it.",
+      body: "## Who needs an alternative\n## Acme and Calendly side by side\n## How to switch in a day",
+      newText: null,
+      draft: null,
+      evidence: [
+        {
+          metric: "searchVolume",
+          keyword: "calendly alternative",
+          pageUrl: null,
+          value: "880",
+          source: "keyword_research",
+          observedAt: seoAt("2026-11-17T09:00:00Z"),
+        },
+        {
+          metric: "difficulty",
+          keyword: "calendly alternative",
+          pageUrl: null,
+          value: "21",
+          source: "keyword_research",
+          observedAt: seoAt("2026-11-17T09:00:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-17T09:00:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
+  ],
+  keywordSearches: [
+    {
+      topic: "team booking software",
+      countryCode: "US",
+      languageCode: "en",
+      observedAt: seoAt("2026-11-17T09:00:00Z"),
+      ideas: [
+        {
+          keyword: "team booking software",
+          searchVolume: 1_300,
+          difficulty: 38,
+          intent: "commercial",
+          position: 11.4,
+          positionSource: "search_console",
+        },
+        {
+          keyword: "free team booking software",
+          searchVolume: 140,
+          difficulty: 24,
+          intent: "commercial",
+          position: null,
+          positionSource: null,
+        },
+        {
+          keyword: "team booking app free",
+          searchVolume: 10,
+          difficulty: null,
+          intent: "commercial",
+          position: null,
+          positionSource: null,
+        },
+        {
+          keyword: "booking software for sales teams",
+          searchVolume: null,
+          difficulty: null,
+          intent: null,
+          position: null,
+          positionSource: null,
+        },
+      ],
+    },
+  ],
+  keywordSearchesLeft: 24,
 };

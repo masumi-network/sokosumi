@@ -75,6 +75,238 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("gives only personal chat a confirmed unknown when Google answered after its last known verdict", () => {
+    const workspace = workspaceFixture();
+    const pageUrl = workspace.pages[0].url;
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl,
+          verdict: "PASS",
+          coverageState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+          robotsTxtState: null,
+          checkedAt: "2026-11-15T08:00:00Z",
+        },
+      ],
+    };
+    const shared = seoChatContext(workspace, "organization");
+    const bare = {
+      pageUrl,
+      taskId: randomUUID(),
+      checkedAt: "2026-11-16T08:00:00Z",
+      status: "unavailable" as const,
+      report: false,
+      reason: "Google did not provide an indexing result for this page.",
+      suggestedFix: "Check the Search Console connection",
+      evidence: [],
+    };
+    workspace.indexTriage = { assessments: [bare] };
+    const personal = () => JSON.parse(seoChatContext(workspace, "personal"));
+    expect(personal().pages[0].googleIndex.verdict).toBe("PASS");
+    const confirmed = { ...bare, googleReturnedUnknown: true as const };
+    workspace.indexTriage = { assessments: [confirmed] };
+    expect(personal().pages[0].googleIndex).toMatchObject({
+      verdict: "VERDICT_UNSPECIFIED",
+      checkedAt: bare.checkedAt,
+      coverageState: null,
+      lastCrawlTime: null,
+    });
+    expect(personal().indexingNotes[0].status).toBe("unknown");
+    expect(personal().indexingNotes[0].suggestedFix).toBeUndefined();
+    const crawledAt = "2026-11-13T07:30:00.000Z";
+    workspace.indexTriage = {
+      assessments: [
+        {
+          ...confirmed,
+          evidence: [
+            "Google URL Inspection: VERDICT_UNSPECIFIED; Coverage pending.",
+            `Google last crawled this URL at ${crawledAt}.`,
+          ],
+        },
+      ],
+    };
+    expect(personal().pages[0].googleIndex).toMatchObject({
+      coverageState: "Coverage pending",
+      lastCrawlTime: crawledAt,
+    });
+    expect(seoChatContext(workspace, "organization")).toBe(shared);
+  });
+  it("gives only personal chat the selected page's Google verdict and read date, including an explicit unknown", () => {
+    const workspace = workspaceFixture();
+    const page = workspace.pages[0];
+    const checkedAt = "2026-11-16T08:00:00.000Z";
+    const inspection = {
+      pageUrl: page.url,
+      coverageState: "Blocked by noindex",
+      indexingState: "BLOCKED_BY_META_TAG",
+      robotsTxtState: null,
+      lastCrawlTime: null,
+      googleCanonical: null,
+      userCanonical: null,
+      checkedAt,
+    };
+    const shared = seoChatContext(workspace, "organization");
+    const selected = () =>
+      JSON.parse(seoChatContext(workspace, "personal")).pages[0];
+    expect(selected().googleIndex).toBeUndefined();
+    for (const verdict of ["FAIL", "PASS", "VERDICT_UNSPECIFIED"] as const) {
+      workspace.indexStatus = {
+        pages: [
+          {
+            ...inspection,
+            verdict,
+            coverageState: verdict === "FAIL" ? inspection.coverageState : null,
+          },
+          { ...inspection, verdict, pageUrl: "https://other.test/out-of-view" },
+        ],
+      };
+      const read = selected().googleIndex;
+      expect(read).toMatchObject({ verdict, checkedAt, lastCrawlTime: null });
+      if (verdict === "FAIL")
+        expect(read.coverageState).toBe(inspection.coverageState);
+      expect(seoChatContext(workspace, "organization")).toBe(shared);
+      expect(seoChatContext(workspace, "personal")).not.toContain(
+        "out-of-view",
+      );
+    }
+    workspace.indexStatus = null;
+    workspace.indexTriage = {
+      assessments: [
+        {
+          pageUrl: page.url,
+          taskId: randomUUID(),
+          checkedAt,
+          status: "indexed",
+          report: false,
+          reason: "Google reports this page as indexed.",
+          suggestedFix: null,
+          evidence: [],
+        },
+      ],
+    };
+    expect(selected().googleIndex).toMatchObject({
+      verdict: "PASS",
+      checkedAt,
+      source: "seo_worker",
+    });
+    for (const [readAt, expected] of [
+      ["2026-11-15T08:00:00.000Z", "PASS"],
+      ["2026-11-17T08:00:00.000Z", "FAIL"],
+    ] as const) {
+      workspace.indexStatus = {
+        pages: [{ ...inspection, verdict: "FAIL", checkedAt: readAt }],
+      };
+      expect(selected().googleIndex.verdict).toBe(expected);
+    }
+    workspace.indexStatus = {
+      pages: [
+        {
+          ...inspection,
+          verdict: "PASS",
+          checkedAt: "2026-11-15T08:00:00.000Z",
+        },
+      ],
+    };
+    workspace.indexTriage.assessments[0] = {
+      ...workspace.indexTriage.assessments[0]!,
+      status: "expected_exclusion",
+      evidence: ["Google URL Inspection: NEUTRAL; Page with redirect."],
+    };
+    expect(selected().googleIndex).toMatchObject({
+      verdict: "NEUTRAL",
+      coverageState: "Page with redirect",
+      checkedAt,
+    });
+    expect(seoChatContext(workspace, "organization")).toBe(shared);
+  });
+  it("gives personal chat the selected page's private indexing notes, without leaking them to shared chat", () => {
+    const workspace = workspaceFixture();
+    const auditPageUrl = workspace.pages[0].url;
+    const note = {
+      auditPageUrl,
+      pageUrl: `${auditPageUrl}retired`,
+      status: "expected_exclusion" as const,
+      report: false,
+      reason: "The retired page redirects to its replacement.",
+      checkedAt: "2026-11-16T08:00:00Z",
+      suggestedFix: null,
+      evidence: [],
+      taskId: randomUUID(),
+    };
+    const shared = seoChatContext(workspace, "organization");
+    workspace.indexTriage = {
+      assessments: [
+        note,
+        {
+          ...note,
+          auditPageUrl: "https://another.test/",
+          reason: "Another audit's note",
+        },
+        {
+          ...note,
+          pageUrl: `${auditPageUrl}broken`,
+          status: "issue",
+          report: true,
+        },
+      ],
+    };
+    expect(seoChatContext(workspace, "organization")).toBe(shared);
+    const personal = JSON.parse(seoChatContext(workspace, "personal"));
+    expect(personal.indexingNotes).toEqual([
+      {
+        auditPageUrl,
+        pageUrl: note.pageUrl,
+        status: note.status,
+        reason: note.reason,
+        checkedAt: note.checkedAt,
+      },
+    ]);
+    expect(personal.limited).toBe(false);
+  });
+
+  it("keeps the owner's indexing review notes when earlier healthy pages exceed the chat sample", () => {
+    const workspace = workspaceFixture();
+    const [primary] = workspace.pages;
+    workspace.pages = Array.from({ length: 3 }, (_, index) => ({
+      ...primary,
+      id: randomUUID(),
+      url: `${primary.url}group-${index}/`,
+    }));
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const healthy = workspace.pages.flatMap((page) => {
+      const taskId = randomUUID();
+      return Array.from({ length: 7 }, (_, index) => ({
+        taskId,
+        auditPageUrl: page.url,
+        pageUrl: `${page.url}indexed-${index}`,
+        status: "indexed" as const,
+        checkedAt: "2026-11-16T08:00:00Z",
+        reason: "Google indexed this page.",
+        report: false,
+        suggestedFix: null,
+        evidence: [],
+      }));
+    });
+    const parent = workspace.pages[2].url;
+    const notes = (
+      ["review", "expected_exclusion", "unavailable"] as const
+    ).map((status) => ({
+      ...healthy.at(-1)!,
+      pageUrl: `${parent}${status}`,
+      status,
+      reason: `Indexing note for ${status}`,
+    }));
+    workspace.indexTriage = { assessments: [...healthy, ...notes] };
+    const personal = JSON.parse(seoChatContext(workspace, "personal"));
+    expect(
+      personal.indexingNotes.map((row: { pageUrl: string }) => row.pageUrl),
+    ).toEqual(notes.map((row) => row.pageUrl));
+    expect(personal.limited).toBe(false);
+  });
+
   it("excludes private findings and linked advice from shared replies and task suggestions", () => {
     const workspace = workspaceFixture();
     const privateFinding = {

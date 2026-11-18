@@ -82,6 +82,26 @@ describe("email renderers", () => {
     expect(rendered.html).not.toContain("href=");
   });
 
+  it.each([
+    ["en", "Your CMO.XYZ code: 042917", "Enter this code in CMO.XYZ"],
+    ["de", "Dein CMO.XYZ-Code: 042917", "Gib diesen Code in CMO.XYZ ein"],
+    ["es", "Tu código de CMO.XYZ: 042917", "Introduce este código en CMO.XYZ"],
+  ] as const)(
+    "names CMO.XYZ, never Sokosumi, in a code asked for from CMO (%s)",
+    async (locale, subject, message) => {
+      const rendered = await renderEmailCodeEmail({
+        brand: "cmo",
+        locale,
+        code: "042917",
+        expiresInMinutes: 10,
+      });
+
+      expect(rendered.subject).toBe(subject);
+      expect(rendered.html).toContain(message);
+      expect(rendered.html.toLowerCase()).not.toContain("sokosumi");
+    },
+  );
+
   it("writes the email code email in the reader's language", async () => {
     const rendered = await renderEmailCodeEmail({
       locale: "de",

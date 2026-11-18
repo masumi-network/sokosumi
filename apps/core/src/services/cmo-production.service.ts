@@ -8,7 +8,7 @@ import {
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreWarning,
@@ -16,6 +16,8 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
@@ -456,6 +458,8 @@ async function startProductionRun(
             started.reconciliationLeaseToken,
           )
           .catch((error: unknown) => {
+            if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+              return;
             // A turn's error can quote its prompt, so only its name and code.
             emitCoreWarning(
               {
@@ -640,7 +644,9 @@ export async function readCmoProduction(
     working,
   });
   if (!context.subscribed) return read("waiting");
-  const all = await productionRuns(cuso.sokoBotId, approvedAt, now);
+  // Runs' createdAt is PostgreSQL time, so their day is measured on it.
+  const runsNow = await databaseNow();
+  const all = await productionRuns(cuso.sokoBotId, approvedAt, runsNow);
   const prefix = approvalRunPrefix(cuso.sokoBotId, approvedAt);
   const runs = all.filter((run) => run.clientTurnId.startsWith(prefix));
   // A follow-up a run left behind (wait_for) works on the same pieces.
@@ -658,7 +664,7 @@ export async function readCmoProduction(
   // Every piece has its words and visual: Core is making the pictures.
   if (pending.length === 0) return read("running", runs);
   const today = all.filter(
-    (run) => now.getTime() - run.createdAt.getTime() < DAY_MS,
+    (run) => runsNow.getTime() - run.createdAt.getTime() < DAY_MS,
   );
   // The last run finished without making a single piece ready (images
   // refused, a tool down): another run today would only fail the same way.
@@ -667,7 +673,7 @@ export async function readCmoProduction(
   const lastReady = last ? readyAtStart(last) : null;
   const stalled =
     last?.status === "COMPLETED" &&
-    now.getTime() - last.createdAt.getTime() < DAY_MS &&
+    runsNow.getTime() - last.createdAt.getTime() < DAY_MS &&
     lastReady !== null &&
     ready.size <= lastReady;
   if (today.length >= CMO_PRODUCTION_RUNS_PER_DAY || stalled)
@@ -810,6 +816,49 @@ async function keepCmoRhythmsWithRunner(cuso: Cuso): Promise<void> {
   });
 }
 
+/** The weekly SEO audit rides on this sync; its failure never holds back the month. */
+async function keepCmoSeo(cuso: Cuso, now: Date): Promise<void> {
+  if (!getSeoAnalysisExecution().enabled) return;
+  try {
+    const { keepCmoSeoAudit, verifyCmoSeoChanges } = await import(
+      "@/services/cmo-seo-audit.service"
+    );
+    await keepCmoSeoAudit(cuso, now);
+    await verifyCmoSeoChanges(cuso);
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "cmo_seo_sync", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message: "CMO SEO sync skipped a Cuso",
+        why: "Keeping the weekly SEO audit or checking done page changes threw",
+        fix: "The next sync tries again. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
+/** A Cuso that was let go is not in the sync below; his weekly SEO audit is paused here. */
+async function pauseSeoAuditsOfEndedCusos(): Promise<void> {
+  if (!getSeoAnalysisExecution().enabled) return;
+  try {
+    const { pauseCmoSeoAuditsWithoutCuso } = await import(
+      "@/services/cmo-seo-audit.service"
+    );
+    await pauseCmoSeoAuditsWithoutCuso();
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "cmo_seo_sync" },
+      {
+        message: "CMO SEO sync could not pause the audits of ended Cusos",
+        why: "Pausing a weekly SEO audit whose Cuso was archived or deleted threw",
+        fix: "The next sync tries again. Until then the audit can still run and charge 750 credits; pause its Task Schedule by hand if this repeats.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
@@ -827,6 +876,7 @@ export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
   now: Date = new Date(),
 ): Promise<{ checked: number }> {
+  await pauseSeoAuditsOfEndedCusos();
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   let checked = 0;
   for (const cuso of hires) {
@@ -834,6 +884,7 @@ export async function syncCmoProduction(
     try {
       await keepCmoRhythmsWithRunner(cuso);
       await advanceCmoProduction(cuso);
+      await keepCmoSeo(cuso, now);
       checked += 1;
     } catch (error) {
       // One event per Cuso skipped; the error can quote the plan or a prompt.

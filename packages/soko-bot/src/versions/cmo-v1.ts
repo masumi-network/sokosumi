@@ -1,5 +1,6 @@
 import {
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
 } from "../policy.js";
 import type { SokoBotVersion } from "./types.js";
@@ -34,6 +35,7 @@ export const cmoV1: SokoBotVersion = {
     "cmo-production",
     "cmo-daily-watch",
     "cmo-measurement",
+    "cmo-seo",
     "cmo-launch-video",
     "social-posting-instructions",
     "long-and-chained-work-follow-ups",
@@ -54,6 +56,7 @@ export const cmoV1: SokoBotVersion = {
     "list_tasks",
     "reply_to_task",
     "link_tasks",
+    "set_task_parent",
     "find_agents",
     "get_agent_input_schema",
     "hire_agent",
@@ -75,6 +78,7 @@ export const cmoV1: SokoBotVersion = {
     "get_image",
     "generate_video",
     "get_video",
+    "generate_talking_video",
     "generate_voiceover",
     "list_tables",
     "read_table",
@@ -128,6 +132,7 @@ export const cmoV1: SokoBotVersion = {
     "stop_background_run",
     "wait_for",
     ...SOKO_BOT_CMO_CAPABILITIES,
+    ...SOKO_BOT_COMPETITOR_CAPABILITIES,
   ],
   systemPrompt: `${v29.systemPrompt}
 

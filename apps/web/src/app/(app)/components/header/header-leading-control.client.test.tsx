@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   TASKS_RETURN_PATH_SESSION_KEY,
@@ -8,13 +8,16 @@ import {
 
 let mockPathname = "/";
 let mockSearchParams = new URLSearchParams();
-const routerPushMock = vi.fn();
+const routerReplaceMock = vi.fn();
+const routerBackMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
   useSearchParams: () => mockSearchParams,
   useRouter: () => ({
-    push: routerPushMock,
+    push: vi.fn(),
+    replace: routerReplaceMock,
+    back: routerBackMock,
     prefetch: vi.fn(),
   }),
 }));
@@ -52,7 +55,12 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/";
     mockSearchParams = new URLSearchParams();
     window.sessionStorage.clear();
-    routerPushMock.mockClear();
+    routerReplaceMock.mockClear();
+    routerBackMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("keeps the newsletter project when returning from an issue", () => {
@@ -91,6 +99,43 @@ describe("HeaderLeadingControl", () => {
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
     expect(back).toHaveAttribute("href", "/chat");
+  });
+
+  describe("room back, against the tab's history", () => {
+    function stubHistory(...paths: string[]) {
+      const entries = paths.map((path, index) => ({
+        key: `k${index}`,
+        url: `${window.location.origin}${path}`,
+        sameDocument: true,
+      }));
+      vi.stubGlobal("navigation", {
+        currentEntry: entries.at(-1),
+        entries: () => entries,
+      });
+    }
+
+    // A pushed list would leave the room behind it: swipe back reopened it.
+    it("pops back to the chat list the room was opened from", () => {
+      mockPathname = "/chat/rooms/r1";
+      stubHistory("/", "/chat", "/chat/rooms/r1");
+      render(<HeaderLeadingControl />);
+
+      fireEvent.click(screen.getByRole("link", { name: "backToChats" }));
+
+      expect(routerBackMock).toHaveBeenCalledOnce();
+      expect(routerReplaceMock).not.toHaveBeenCalled();
+    });
+
+    it("swaps a room opened from a notification for the chat list", () => {
+      mockPathname = "/chat/rooms/r1";
+      stubHistory("/chat/rooms/r1");
+      render(<HeaderLeadingControl />);
+
+      fireEvent.click(screen.getByRole("link", { name: "backToChats" }));
+
+      expect(routerReplaceMock).toHaveBeenCalledWith("/chat");
+      expect(routerBackMock).not.toHaveBeenCalled();
+    });
   });
 
   it("treats leftover compose queries as home chrome", () => {
@@ -266,7 +311,9 @@ describe("HeaderLeadingControl", () => {
     });
 
     fireEvent.click(screen.getByRole("link", { name: "back" }));
-    expect(routerPushMock).toHaveBeenCalledWith("/tasks?view=list&status=todo");
+    expect(routerReplaceMock).toHaveBeenCalledWith(
+      "/tasks?view=list&status=todo",
+    );
   });
 
   it.each([
@@ -295,7 +342,7 @@ describe("HeaderLeadingControl", () => {
         );
       });
       fireEvent.click(screen.getByRole("link", { name: "back" }));
-      expect(routerPushMock).toHaveBeenCalledWith(href);
+      expect(routerReplaceMock).toHaveBeenCalledWith(href);
     },
   );
 });

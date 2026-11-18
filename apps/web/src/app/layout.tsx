@@ -15,6 +15,7 @@ import { GoogleTags } from "@/components/analytics/google-tags";
 import { TelemetryBoundary } from "@/components/analytics/telemetry-boundary";
 import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
 import { DynamicTypeRootCap } from "@/components/dynamic-type-root-cap";
+import { NavigationProgress } from "@/components/navigation-progress.client";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -83,7 +84,7 @@ export default function RootLayout({
           <ThemeProvider>
             <Suspense fallback={<div className="bg-background min-h-dvh" />}>
               <RootIntlTree>
-                {children}
+                <NavigationProgress>{children}</NavigationProgress>
                 {analyticsEnabled && <CookieBanner />}
               </RootIntlTree>
             </Suspense>

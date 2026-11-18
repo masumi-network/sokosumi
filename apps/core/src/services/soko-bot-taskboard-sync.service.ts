@@ -10,6 +10,7 @@ import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
@@ -495,7 +496,7 @@ export class SokoBotTaskboardSyncService {
     // meant anyone who could put a Task on the bot could drive unlimited
     // billed turns, and a bot that assigned work to itself could loop on the
     // one-minute cron forever. The owner's limit is the number they set.
-    const gate = await proactiveGate(bot.id, now);
+    const gate = await proactiveGate(bot.id);
     if (!gate.ok) return false;
     const batch = updates.slice(0, MAX_TASKS_PER_TURN);
     // A personal bot runs for its owner; a shared bot runs for nobody.
@@ -567,6 +568,8 @@ export class SokoBotTaskboardSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
+          if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+            return;
           const log = createCoreLogger({
             operation: "soko_bot_taskboard_sync",
             sokoBot: { id: bot.id },

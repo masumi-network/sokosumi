@@ -3,15 +3,15 @@
 The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the same look as the CMO.XYZ landing page. Masumi brings the palette (neutrals, PP Mori, one pink); Cuso brings the outline (thick ink lines and hard shadows). It should read like a serious tool with a loud, friendly face.
 
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
-- **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Since 2026-11-17 the app follows the landing page's look (thick lines, larger hard shadows, pills, the cursor-head logo), which the canvas does not show. Where a board and this file disagree, this file wins.
+- **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Since 2026-11-17 the app follows the landing page's look (thick lines, larger hard shadows, pills), which the canvas does not show. Where a board and this file disagree, this file wins.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, seo, results, competitors, brain, channels, settings; competitors also takes `?state=empty` and `?state=loading`) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
 1. **One line does the work.** A 3px ink line on every outlined thing: cards, panels, frames (Cuso's picture too), inputs and full-size buttons. 2px on chips, tags, badges, small buttons and avatar circles. A 1px hairline only for structure inside a card: dividers, list rows, inner items. The landing page uses the same two widths.
-2. **A hard shadow means you can act.** An offset with no blur, in two sizes and nothing above 6px. 4px under anything you can click, type in or pick: buttons, chips, inputs, the account card, the picked tab, filter or page. 6px only under the one card that needs the owner now and the hire screen's button. When the action is done the card goes flat. What you cannot click has its line and no shadow: Cuso's scene, info cards, report and message cards, tags, badges, labels, images (`design-guards.test.ts` holds this).
+2. **A hard shadow means you can act.** An offset with no blur, in two sizes and nothing above 6px. 4px under anything you can click, type in or pick: buttons, chips, inputs, the account card, the picked tab, filter or page. 6px only under the hire screen's button and the post that is open on the Calendar. What you cannot click has its line and no shadow, even when it needs the owner: every card and panel, stat boxes, Cuso's scene, report and message cards, tags, badges, labels, images (`design-guards.test.ts` holds this). The buttons inside a card carry the shadow.
 3. **Iris means now, and picked.** The primary button, the current step, and the picked one of a set (the page in the sidebar, a tab, a filter, a pace). Never text, never a thin mark. Text on Iris is always Neutral 950.
 4. **Bold speaks, Regular works.** One PP Mori SemiBold H1 per screen, tracked at -0.03em. Regular for statements, big numbers and UI, SemiBold for buttons, pills, labels that lead and section heads. Mori ships two cuts: weights 300 to 500 draw Regular, 600 to 800 draw SemiBold.
 5. **Black strips for contrast.** White page, outlined panels and cards, and a black strip where the page needs weight: the action bar at the bottom of an onboarding step, a banner that needs the owner, the goal block. A strip inverts in dark.
@@ -34,7 +34,7 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 | `--ok`                 | done                                  | `#00D43B`        | `#00D43B`        |
 | `--warn`               | needs an answer                       | `#FFD300`        | `#FFD300`        |
 | `--shadow`             | anything you can click or type in     | `4px 4px 0` ink  | `4px 4px 0` ink  |
-| `--shadow-big`         | the card in focus, the hire button    | `6px 6px 0` ink  | `6px 6px 0` ink  |
+| `--shadow-big`         | the open Calendar post, hire button   | `6px 6px 0` ink  | `6px 6px 0` ink  |
 | `--shadow-iris`        | picked tile, second button on a strip | `4px 4px 0 Iris` | `4px 4px 0 Iris` |
 | `--strip`              | the black strip                       | `#0C0C0C`        | `#FAFAFA`        |
 | `--strip-foreground`   | text and lines on a strip             | `#FFFFFF`        | `#0C0C0C`        |
@@ -74,14 +74,14 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Elevation and motion
 
-- Hard shadows are the only elevation, in two sizes, and only on what you can act on. Every button, chip and input casts the 4px shadow, and so do the account card, a step you can go back to and the picked tab, filter or page. The 6px shadow marks the card in focus (the question card, the Launch accounts list) or a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks), and the hire screen's button; that card goes flat once the action is done, and a card with only optional buttons stays flat. A piece card on the Calendar takes the 4px shadow on hover. Tags, badges, labels, pictures, Cuso's stage, sheets, report cards and info cards are flat.
+- Hard shadows are the only elevation, in two sizes, and only on what you can act on. Every button, chip and input casts the 4px shadow, and so do the account card, a step you can go back to and the picked tab, filter or page. The 6px shadow marks the hire screen's button and the post that is open on the Calendar, which is a button. A post card on the Calendar takes the 4px shadow on hover. Every card that is not itself a button is flat, whatever it holds: the question card, the Launch accounts list, an approval waiting, a source or network not connected. Tags, badges, labels, pictures, Cuso's stage, sheets, report cards and info cards are flat too.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves right and down by its own offset (4px, or 6px for the hire button) and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`. Onboarding adds three entrances, transform and opacity only: each piece of a step settles in after the one above it (450ms), a sheet rises from the bottom (400ms), and Cuso pops in.
 
 ## Components
 
-**Logo.** The lockup from the landing page (`src/components/logo.tsx`): the cursor-head mark (`public/logo.svg`), then "CMO.XYZ" in PP Mori SemiBold at -0.03em, 24px in a header, in the text colour: ink on a light page, white on a dark one. The mark carries its own white edge, so it is never recoloured. The same mark is the favicon and app icon.
+**Logo.** The approved stacked-text lockup from the Masumi Family Brand Guide (`src/components/logo.tsx`, files in `public/logo/`): the mascot beside "CMO .XYZ" on two lines. The black file on a light page, the white one on a dark page; never recoloured, stretched or given effects. 46px tall in a header, which is 121px wide; a lockup with the mascot is never narrower than 120px. The favicon and app icon are the guide's Iris monogram.
 
 **Header (onboarding).** Logo left, step markers centre, the site chip right (a pill: green 8px dot with a line edge, then the domain). A 3px ink line below, 14px 32px padding.
 
@@ -96,7 +96,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 - Disabled: flat, hairline colour, no shadow.
 - On a strip: the line and shadow take the strip's text colour; a secondary button stands on an Iris shadow.
 
-**Pill.** Tags, badges, chips, tabs and filters: fully round, 2px ink line, card fill, 12px 600 text. Only the ones you can click cast the 4px shadow (chips, the picked tab or filter); a tag or badge is flat. A count is an ink pill with inverted text.
+**Pill.** Tags, badges, chips, tabs and filters: fully round, 2px ink line, card fill, 12px 600 text. Only the ones you can click cast the 4px shadow (chips, the picked tab or filter); a tag or badge is flat. A count is an ink pill with inverted text. Where a post or campaign stands (Written, Scheduled, Running) is not a pill: small muted words beside a mark (`.state`), so it never reads as a button.
 
 **Input.** 44px, 12px radius, 3px ink line, 4px hard shadow, 16px text, card fill. Label above (body 500), help below (small, muted). The chat's composer is one input: one line and one shadow around its textarea.
 
@@ -104,7 +104,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Plan card (Subscribe).** Under Cuso's scene and a card of what the approved month holds (checks: pieces and channels, pictures and videos, the daily and weekly work), the CMO plans of one interval as cards: a flat Iris "Fits your {pace} plan" mark on the one that fits, the tier's name, the price a month (value step; a yearly plan shows its month and "billed once a year"), credits a month (small). A Monthly / Yearly switch above them is a pair of pills, the picked one on Iris, and names the yearly saving; the picked plan is the selected tile and takes the Iris shadow. One primary button below names the plan and its price ("Start Growth for $500 a month") and leads to Polar's hosted checkout; a quiet row under it says only what is true (change or cancel in Settings, discount codes, Polar).
 
-**Card.** Card fill, 3px ink line, 20px radius, flat. The focused card, or one that needs the owner now, adds the 6px shadow (`.card-focus`); a picked tile in a grid gets the Iris shadow instead. A panel (a section of an app page, a fold, a tab panel, a group of tiles) is the same line and radius.
+**Card.** Card fill, 3px ink line, 20px radius, flat. Only a card that is a button casts a shadow: the open Calendar post takes the 6px one (`button.card-focus`), and a picked tile in a grid gets the Iris shadow. A panel (a section of an app page, a fold, a tab panel, a group of tiles) is the same line and radius.
 
 **Tile.** A row in one outlined gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
 
@@ -141,7 +141,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 ## Accessibility
 
 - Text meets AA (Neutral 600 on white 7.8:1; Neutral 400 on Neutral 950 7.7:1; Neutral 950 on dark Iris 5:1).
-- Focus: 2px solid `--foreground` outline, 2px offset. Iris is too light for a focus ring.
+- Focus: 2px solid `--foreground` outline, 2px offset. Iris is too light for a focus ring. A source chip inside a sentence draws it 4px inside its 32px tap area, so the ring hugs the words and not the lines around them.
 - Tap targets 44px; dense rows may use 32px with 8px between.
 - Status is never colour alone: each disc carries its glyph and an accessible name.
 - Every image has `alt`; decorative Cuso avatars use `alt=""`.

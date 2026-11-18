@@ -509,16 +509,43 @@ export async function markTaskArchivedRead(task: {
   ownerId: string | null;
   assigneeUserId: string | null;
 }): Promise<void> {
-  for (const readerId of taskReaderIds(task)) {
-    await markAttentionRead(
-      readerId,
-      NotificationKind.TASK,
-      task.id,
-      TASK_ATTENTION_MESSAGE_KEYS,
-      "task-archived-read",
-    );
+  // Its sub-tasks were archived with it and can no longer be opened either.
+  for (const archived of [task, ...(await subtasksArchivedWith(task.id))]) {
+    for (const readerId of taskReaderIds(archived)) {
+      await markAttentionRead(
+        readerId,
+        NotificationKind.TASK,
+        archived.id,
+        TASK_ATTENTION_MESSAGE_KEYS,
+        "task-archived-read",
+      );
+    }
+    await markParticipantAddedRead(archived.id);
   }
-  await markParticipantAddedRead(task.id);
+}
+
+/** Descendants archived in the same write as `taskId`: they share its time. */
+async function subtasksArchivedWith(taskId: string) {
+  const parent = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { archivedAt: true },
+  });
+  if (!parent?.archivedAt) return [];
+  const found: {
+    id: string;
+    ownerId: string | null;
+    assigneeUserId: string | null;
+  }[] = [];
+  let level = [taskId];
+  while (level.length > 0) {
+    const subtasks = await prisma.task.findMany({
+      where: { parentTaskId: { in: level }, archivedAt: parent.archivedAt },
+      select: { id: true, ownerId: true, assigneeUserId: true },
+    });
+    found.push(...subtasks);
+    level = subtasks.map((subtask) => subtask.id);
+  }
+  return found;
 }
 
 async function markParticipantAddedRead(taskId: string): Promise<void> {

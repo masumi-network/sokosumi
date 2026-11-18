@@ -232,6 +232,12 @@ const baseEnvSchema = z.object({
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
   /**
+   * A Meta user access token with Ad Library API access (an identity-verified
+   * Meta account on an app with the Ad Library API). Without it the
+   * competitor check reads no ads and says so.
+   */
+  META_AD_LIBRARY_ACCESS_TOKEN: z.string().min(1).optional(),
+  /**
    * Soko Bot ids that may write the announcements every user sees (the
    * sidebar card and popup). Comma-separated; empty, no bot has the tools.
    */
@@ -252,6 +258,11 @@ const baseEnvSchema = z.object({
     .default(
       "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
     ),
+  /**
+   * A local ffmpeg built with libass and libx264, for the talking video edit.
+   * Unset, Core downloads its pinned linux-x64 build (Vercel).
+   */
+  FFMPEG_PATH: z.string().min(1).optional(),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**

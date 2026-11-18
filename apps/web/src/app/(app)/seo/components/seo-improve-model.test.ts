@@ -13,14 +13,12 @@ import {
   seoStatisticsKeywordsLeftOutNote,
   seoStatisticsQueryRowsCutNote,
 } from "@sokosumi/utils";
-import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import de from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import es from "../../../../../messages/es.json";
 import {
   seoAuditGaps,
-  seoAuditGapValues,
   seoCapabilityGroups,
   seoCustomerAuditGaps,
   seoCustomerLimitations,
@@ -375,7 +373,7 @@ describe("seoAuditGaps", () => {
 });
 
 describe("Item 38", () => {
-  it("names each section table that has no CSV download", () => {
+  it("names each section table that has no export", () => {
     // A Table inside a section is a data table; a folded <table> beside a chart is its text alternative.
     const dir = new URL(".", import.meta.url);
     const withoutCsv = readdirSync(dir)
@@ -385,14 +383,12 @@ describe("Item 38", () => {
         return (
           /<Table[\s>]/.test(source) &&
           source.includes("<SeoSection") &&
-          !source.includes("<SeoCsvButton")
+          !source.includes("<SeoExportMenu")
         );
       });
     const names: Record<string, string> = {
       "seo-ai-assistants.tsx": "AI assistants",
-      "seo-breakdown.tsx": "countries and devices",
-      "seo-competitors.tsx": "competitors",
-      "seo-keyword-ideas.tsx": "keyword ideas",
+      "seo-breakdown.tsx": "Countries and devices",
     };
     expect(withoutCsv.sort()).toEqual(Object.keys(names).sort());
     const missing = SEO_CAPABILITIES.find((item) => item.id === 38)?.missing;
@@ -403,46 +399,10 @@ describe("Item 38", () => {
 });
 
 describe("Improve messages", () => {
-  it("say how many left-out keywords a cut note did not name, and drop an empty list", () => {
-    const say = (
-      locale: string,
-      source: typeof messages,
-      names: string[],
-      count: number,
-    ) =>
-      createTranslator({
-        locale,
-        messages: source,
-        namespace: "App.Seo.improve.gaps",
-      })(
-        "keywordsLeftOut",
-        seoAuditGapValues(
-          { message: "keywordsLeftOut", names, count, fix: null },
-          (list) => list.join(", "),
-        ),
-      );
-    const cases = [
-      [
-        "en",
-        messages,
-        "for 5 tracked keywords: a, b and 3 more.",
-        "for 1 tracked keyword.",
-      ],
-      ["de", de, "Keywords: a, b und 3 weitere.", "Keyword."],
-      ["es", es, "seguidas: a, b y 3 más.", "seguida."],
-    ] as const;
-    for (const [locale, source, cut, empty] of cases) {
-      expect(say(locale, source, ["a", "b"], 5)).toContain(cut);
-      expect(say(locale, source, [], 1).endsWith(empty)).toBe(true);
-      expect(say(locale, source, ["a", "b"], 2)).toMatch(/: a, b\.$/);
-    }
-  });
-
   it("start each button's accessible name with its visible text (WCAG 2.5.3)", () => {
     for (const { App } of [messages, de, es]) {
       const seo = App.Seo;
       for (const [visible, label] of [
-        [seo.export.csv, seo.export.csvLabel],
         [seo.improve.request, seo.improve.requestLabel],
       ])
         expect(label.startsWith(visible), label).toBe(true);

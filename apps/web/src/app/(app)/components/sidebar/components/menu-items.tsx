@@ -2,8 +2,10 @@
 
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
+  Binoculars,
   Bot,
   CalendarDays,
+  Clapperboard,
   FolderKanban,
   HardDrive,
   House,
@@ -25,6 +27,7 @@ import {
   type SVGProps,
   useState,
 } from "react";
+import { projectPageSection } from "@/app/components/project-scope/project-scope-href";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import {
   useIsUnknownScopeProject,
@@ -32,6 +35,7 @@ import {
 } from "@/app/components/project-scope/use-scope-projects";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
+import { useNavPathname } from "@/components/navigation-progress.client";
 import { RestingIntentLink } from "@/components/resting-intent-link";
 import { Collapsible } from "@/components/ui/collapsible";
 import { SheetClose } from "@/components/ui/sheet";
@@ -121,6 +125,7 @@ function ScopedMenuItems({
   const hasProjectPage = projectId !== null && !isUnknownProject;
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
+  const navPathname = useNavPathname();
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
 
@@ -222,6 +227,15 @@ function ScopedMenuItems({
       group: "marketing",
       prefetchContent: true,
     },
+    // Talking videos, scoped by `?projectId=` like the studio beside it.
+    {
+      key: "tiktok-studio",
+      href: "/tiktok-studio",
+      label: t("tiktokStudio"),
+      Icon: Clapperboard,
+      group: "marketing",
+      prefetchContent: true,
+    },
     // Social scheduling is public and follows the studio's project scope.
     {
       key: "social",
@@ -248,6 +262,14 @@ function ScopedMenuItems({
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",
       prefetchContent: true,
+    },
+    // A project's competitors and its weekly check, scoped like Ads.
+    {
+      key: "competitors",
+      href: "/competitors",
+      label: t("competitors"),
+      Icon: Binoculars,
+      group: "marketing",
     },
     ...(newsletterEnabled
       ? [
@@ -285,7 +307,13 @@ function ScopedMenuItems({
     exact,
     prefetchContent,
   }: MenuItemConfig) {
-    const isActive = exact ? pathname === href : isPathActive(pathname, href);
+    // A click that heads for another project's page keeps the mark on
+    // Overview: on arrival this row is that project's.
+    const headsForProject =
+      key === "overview" && projectPageSection(navPathname) !== null;
+    const isActive = exact
+      ? navPathname === href
+      : headsForProject || isPathActive(navPathname, href);
 
     return (
       <SidebarMenuItem key={key}>

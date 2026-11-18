@@ -26,6 +26,7 @@ import {
 } from "../soko-bot-runtime.service";
 import { findHireableAgents } from "./agents";
 import { type RuntimeOperations } from "./operations";
+import { setTaskParent } from "./task-parent";
 
 export async function dispatchTasksTools(
   runtime: RuntimeOperations,
@@ -118,6 +119,9 @@ export async function dispatchTasksTools(
 
     case "link_tasks":
       return runtime.linkTasks(authorized, input.input, input.toolCallId);
+
+    case "set_task_parent":
+      return setTaskParent(runtime, authorized, input.input, input.toolCallId);
 
     case "find_agents": {
       const { query } = searchInputSchema.parse(input.input);

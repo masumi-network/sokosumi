@@ -37,11 +37,30 @@ export async function serializableTransaction<T>(
   callback: (tx: Prisma.TransactionClient) => Promise<T>,
   conflictMessage: string,
 ): Promise<T> {
+  return retriedTransaction(
+    callback,
+    conflictMessage,
+    Prisma.TransactionIsolationLevel.Serializable,
+  );
+}
+
+/**
+ * As serializableTransaction, at the given isolation level. Without one it
+ * runs at the database default, Read Committed, and retries a deadlock
+ * (40P01). Use it for a path that keeps Read Committed but can meet another
+ * lock order.
+ */
+export async function retriedTransaction<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+  conflictMessage: string,
+  isolationLevel?: Prisma.TransactionIsolationLevel,
+): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await prisma.$transaction(callback, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      });
+      return await prisma.$transaction(
+        callback,
+        isolationLevel ? { isolationLevel } : undefined,
+      );
     } catch (error) {
       if (!isPrismaTransactionConflict(error)) throw error;
       // Serialization failures are transient: a concurrent writer (for

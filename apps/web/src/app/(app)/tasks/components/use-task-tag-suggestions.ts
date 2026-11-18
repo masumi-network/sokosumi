@@ -1,7 +1,9 @@
 "use client";
 
-import type { TaskTagId } from "@sokosumi/core-client";
+import type { TaskTagSuggestion } from "@sokosumi/core-client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import { useTaskTagCatalog } from "./task-tag-catalog";
 
 interface DraftInput {
   name: string;
@@ -10,11 +12,9 @@ interface DraftInput {
   enabled: boolean;
 }
 
-interface Suggestion {
+interface Suggestion extends TaskTagSuggestion {
   inputKey: string;
   wordKey: string;
-  tags: TaskTagId[];
-  receipt: string;
 }
 
 /**
@@ -40,21 +40,28 @@ export function useTaskTagSuggestions({
   workspaceKey,
   enabled,
 }: DraftInput) {
+  const catalog = useTaskTagCatalog();
   const normalizedName = name.trim().replace(/\s+/g, " ");
   const normalizedDescription = description.trim().replace(/\s+/g, " ");
   const input = { name: normalizedName, description: normalizedDescription };
-  const inputKey = JSON.stringify([workspaceKey, input]);
+  const inputKey = JSON.stringify([
+    workspaceKey,
+    catalog?.vocabularyKey,
+    input,
+  ]);
   const words =
     `${input.name}\n${input.description}`
       .toLowerCase()
       .match(/[\p{L}\p{N}]+/gu) ?? [];
   const wordKey = JSON.stringify([
     workspaceKey,
+    catalog?.vocabularyKey,
     normalizedName.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
     normalizedDescription.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [],
   ]);
   const eligible =
     enabled &&
+    !catalog?.isPending &&
     words.join("").length >= MIN_CHARACTERS &&
     name.length <= 300 &&
     description.length <= 8000;
@@ -62,7 +69,7 @@ export function useTaskTagSuggestions({
   useLayoutEffect(() => {
     generation.current += 1;
   }, [wordKey, eligible]);
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [request, setRequest] = useState<{
     key: string;
     status: "loading" | "unavailable";
@@ -78,15 +85,20 @@ export function useTaskTagSuggestions({
       controller.current?.abort();
     };
   }, []);
-  const attempted = useRef(new Set<string>());
   const nextRequestAt = useRef(0);
   const failures = useRef(0);
-  const current =
-    eligible && suggestion?.wordKey === wordKey ? suggestion : null;
+  const current = eligible
+    ? suggestions.find((suggestion) => suggestion.wordKey === wordKey)
+    : undefined;
+  const lastShown = useRef<Suggestion | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (current) lastShown.current = current;
+  }, [current]);
+  const shouldRequest = eligible && !current && request?.key !== wordKey;
   const tags = [...new Set(current?.tags ?? [])].slice(0, 5);
 
   useEffect(() => {
-    if (!eligible || inFlight.current || attempted.current.has(wordKey)) return;
+    if (!shouldRequest || inFlight.current) return;
     const requestGeneration = generation.current;
     const isCurrent = () =>
       mounted.current && requestGeneration === generation.current;
@@ -94,7 +106,6 @@ export function useTaskTagSuggestions({
       async () => {
         if (inFlight.current) return;
         inFlight.current = true;
-        attempted.current.add(wordKey);
         nextRequestAt.current = Date.now() + REQUEST_INTERVAL_MS;
         setRequest({ key: wordKey, status: "loading" });
         controller.current = new AbortController();
@@ -113,11 +124,12 @@ export function useTaskTagSuggestions({
             signal: controller.current.signal,
           });
           if (response.ok) {
-            const value: Pick<Suggestion, "tags" | "receipt"> =
-              await response.json();
+            const value: TaskTagSuggestion = await response.json();
             failures.current = 0;
             if (isCurrent()) {
-              setSuggestion({ inputKey, wordKey, ...value });
+              const next = { inputKey, wordKey, ...value };
+              const previous = lastShown.current;
+              setSuggestions(previous ? [next, previous] : [next]);
               setRequest(null);
             }
           } else {
@@ -156,7 +168,7 @@ export function useTaskTagSuggestions({
       window.clearTimeout(timer);
     };
   }, [
-    eligible,
+    shouldRequest,
     inputKey,
     wordKey,
     normalizedName,
@@ -166,6 +178,7 @@ export function useTaskTagSuggestions({
 
   return {
     tags,
+    workspaceSuggestions: current?.workspaceSuggestions,
     /**
      * Tags are a quiet convenience, so the composer only ever shows that a
      * suggestion is on its way. An outage, a policy rejection, a timeout or a rate

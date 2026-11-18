@@ -91,7 +91,7 @@ describe("workspaceRepository", () => {
       workspaceLabel: {
         createMany: async (args: unknown) => {
           labelCreateManyCall = args;
-          return { count: 37 };
+          return { count: 42 };
         },
       },
       vendorGrant: {
@@ -140,7 +140,7 @@ describe("workspaceRepository", () => {
       data: { workspaceId: string; createdByUserId: null }[];
       skipDuplicates: boolean;
     };
-    assert.equal(seeded.data.length, 37);
+    assert.equal(seeded.data.length, 42);
     assert.equal(seeded.skipDuplicates, true);
     assert.equal(seeded.data[0].workspaceId, "workspace-org-1");
     // Null is the provenance marker: the only thing telling a label the

@@ -228,7 +228,7 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     });
     expect(second.audits[0].id).not.toBe(first.audits[0].id);
     expect(first.pagination.total).toBe(
-      await prisma.seoAudit.count({ where: { workspaceId } }),
+      await prisma.seoAudit.count({ where: { workspaceId, deletedAt: null } }),
     );
     await expect(
       listSeoAudits(actor, { cursor: foreign.auditId ?? "", limit: 1 }),
@@ -255,6 +255,42 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     await expect(
       listSeoAudits(actor, { projectId: foreignProject.id }),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("removes a saved Audit from links and counts while preserving the Project and a previously issued cursor", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Audit list cursor" },
+    });
+    for (const name of ["One", "Two", "Three"]) {
+      await createSeoAudit(actor, { name, projectId: project.id, firstPage });
+    }
+    const scope = { projectId: project.id, limit: 1 };
+    const first = await listSeoAudits(actor, scope);
+    const removed = first.audits[0];
+    expect(removed.canDelete).toBe(true);
+    const cursor = first.pagination.nextCursor!;
+    const expected = await listSeoAudits(actor, { ...scope, cursor });
+    const url = `http://localhost/seo/audits/${removed.id}`;
+    for (let attempt = 0; attempt < 2; attempt++)
+      expect((await routeApp().request(url, { method: "DELETE" })).status).toBe(
+        204,
+      );
+    for (const path of ["", "/workspace", "/brief"])
+      expect((await routeApp().request(url + path)).status).toBe(404);
+    const next = await listSeoAudits(actor, { ...scope, cursor });
+    expect(next.audits.map((item) => item.id)).toEqual(
+      expected.audits.map((item) => item.id),
+    );
+    expect(next.pagination.total).toBe(2);
+    expect((await listSeoAudits(actor, scope)).audits[0].id).not.toBe(
+      removed.id,
+    );
+    expect(
+      await prisma.projectSeoPage.count({ where: { auditId: removed.id } }),
+    ).toBe(1);
+    expect(
+      await prisma.project.findUnique({ where: { id: project.id } }),
+    ).not.toBeNull();
   });
 
   it("rejects a foreign optional Project link without retaining an Audit or its first page", async () => {

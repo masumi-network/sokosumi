@@ -10,7 +10,10 @@ import {
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
-import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
+import {
+  SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
+} from "../policy.js";
 import { marketingStrategyPlanSchema } from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
@@ -104,10 +107,25 @@ describe("CMO version", () => {
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
-    expect(applyVersionCapabilities(cmo, ["read_memory"])).toEqual([
-      "read_memory",
-      ...SOKO_BOT_CMO_CAPABILITIES,
-    ]);
+    // Cuso also always carries the competitor tools, routed or not, once.
+    for (const routed of [
+      ["read_memory"] as const,
+      ["read_memory", "check_competitors", "save_competitor_feed"] as const,
+    ])
+      expect(applyVersionCapabilities(cmo, routed)).toEqual([
+        "read_memory",
+        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_COMPETITOR_CAPABILITIES,
+      ]);
+    // Another bot gets them only from its route; Core then asks whether a
+    // Project it works in has the weekly check on.
+    expect(
+      applyVersionCapabilities(assistant, [
+        "read_memory",
+        "check_competitors",
+        "save_competitor_feed",
+      ]),
+    ).toEqual(["read_memory", "check_competitors", "save_competitor_feed"]);
     expect(
       applyVersionCapabilities(assistant, [
         "read_memory",
@@ -339,12 +357,18 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    const saved = cmoSaveStrategyInputSchema.parse(plan("website", "article"));
-    expect(saved.strategy.channels[0]?.channel).toBe("seo");
+    const saved = cmoSaveStrategyInputSchema.parse(plan("twitter", "thread"));
+    expect(saved.strategy.channels[0]?.channel).toBe("x");
     expect(saved.strategy.calendar[0]).toMatchObject({
-      channel: "seo",
-      format: "article",
+      channel: "x",
+      format: "reply",
     });
+    // SEO has its own tab: a strategy never plans an article or a page fix.
+    const seo = cmoSaveStrategyInputSchema.safeParse(
+      plan("website", "article"),
+    );
+    expect(seo.success).toBe(false);
+    expect(seo.error?.issues[0]?.message).toContain("Use a channel Cuso runs");
     expect(
       cmoSaveStrategyInputSchema.parse(plan("linkedin", "carousel")).strategy
         .calendar[0]?.format,

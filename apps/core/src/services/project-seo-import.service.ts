@@ -250,7 +250,7 @@ export async function reconcileProjectSeoTaskFile(
         kind: "audit" as const,
         id: analysis.auditId,
         root: await prisma.seoAudit.findUnique({
-          where: { id: analysis.auditId },
+          where: { id: analysis.auditId, deletedAt: null },
           select: { workspaceId: true },
         }),
       }
@@ -301,7 +301,11 @@ export async function reconcileProjectSeoTaskFile(
       throw error;
     // A concurrent valid report may have completed this analysis while this file was read.
     await prisma.projectSeoAnalysis.updateMany({
-      where: { id: analysis.id, status: { not: "completed" } },
+      where: {
+        id: analysis.id,
+        status: { not: "completed" },
+        ...(analysis.auditId && { audit: { deletedAt: null } }),
+      },
       data: {
         status: "failed",
         failureReason:

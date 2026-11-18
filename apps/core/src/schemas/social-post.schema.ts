@@ -6,12 +6,12 @@ import {
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   type SocialPostProvider,
   socialPostTextLength,
   X_PREMIUM_TEXT_LIMIT,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { SOCIAL_POST_THREAD_MAX_PARTS } from "@/helpers/social-post-thread";
 import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -85,6 +85,7 @@ const socialPostFirstCommentSchema = z
 
 const socialPostMediaFileSchema = z.object({
   ...driveFileRefShape,
+  aiGenerated: z.boolean().optional(),
   size: z.number().int().min(0).openapi({ example: 240000 }),
   mimeType: z.string().min(1).openapi({ example: "image/png" }),
   kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),

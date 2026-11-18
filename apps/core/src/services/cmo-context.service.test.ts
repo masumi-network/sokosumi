@@ -13,6 +13,12 @@ import {
 } from "@/test-fixtures/cmo-service";
 
 const readDesignMd = vi.hoisted(() => vi.fn());
+const recentCompetitorMoves = vi.hoisted(() =>
+  vi.fn(async () => [] as unknown[]),
+);
+vi.mock("@/services/competitor-feed.service", () => ({
+  recentCompetitorMoves,
+}));
 vi.mock("@/lib/design-md-blob", () => ({
   readDesignMdContent: readDesignMd,
   uploadDesignMdContent: vi.fn(),
@@ -241,6 +247,30 @@ describe("loadCmoMarketingContext", () => {
       expect.objectContaining({ id: "message-1", headline: "Week 1" }),
     ]);
     expect(JSON.stringify(context)).not.toContain("previousVersionId");
+  });
+
+  it("gives Cuso the competitor moves of the last weeks, and none when quiet", async () => {
+    cusoFind.mockResolvedValue({ workspaceId: "ws-1", projectId: "project-1" });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    messageFindMany.mockResolvedValue([]);
+    expect(await loadCmoMarketingContext("bot-1")).not.toHaveProperty(
+      "competitorMoves",
+    );
+    const move = {
+      week: "2026-11-16",
+      competitor: "Calendly",
+      happened: "Calendly raised Standard from $10 to $12 per seat.",
+      meaning: "Our Teams plan is now cheaper for small teams.",
+      move: "Lead with the price per seat.",
+    };
+    recentCompetitorMoves.mockResolvedValueOnce([move]);
+    const context = await loadCmoMarketingContext("bot-1");
+    expect(recentCompetitorMoves).toHaveBeenCalledWith(
+      "project-1",
+      expect.any(Date),
+    );
+    expect(context?.competitorMoves).toEqual([move]);
   });
 });
 

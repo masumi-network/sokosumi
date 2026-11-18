@@ -125,7 +125,6 @@ import {
   type PendingReactionKey,
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
-import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
@@ -219,7 +218,6 @@ import {
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
   shouldAllowRoomSkills,
-  shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -1289,7 +1287,6 @@ function RoomView({
     isStreaming: isCoworkerStreaming,
     activeStreamParentMessageId,
     sendStreamMessage,
-    consumePendingStreamMessage,
     retryFailedStreamMessage,
   } = useCoworkerDirectRoomStream({
     room: selectedRoom,
@@ -1656,28 +1653,6 @@ function RoomView({
         : null,
     [pendingReactions, reactionViewer, threadParentMessage],
   );
-
-  // Draft coworker DM stashes text then navigates — auto-stream once room opens.
-  // Keep sessionStorage until stream actually starts so Strict Mode remount
-  // cannot lose the draft before send begins.
-  useEffect(() => {
-    if (!selectedRoomId) {
-      return;
-    }
-    const pending = peekPendingRoomMessage(selectedRoomId);
-    if (pending == null) {
-      return;
-    }
-    if (
-      !shouldConsumePendingCoworkerStream({
-        isCoworkerStreamRoom,
-        hasPendingMessage: true,
-      })
-    ) {
-      return;
-    }
-    consumePendingStreamMessage(pending);
-  }, [consumePendingStreamMessage, isCoworkerStreamRoom, selectedRoomId]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.

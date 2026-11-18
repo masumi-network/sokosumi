@@ -15,11 +15,11 @@ import {
   CloudUpload,
   Copy,
   ExternalLink,
+  ImageOff,
   Info,
   Link2,
   Loader2,
   RotateCw,
-  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -951,7 +951,7 @@ export function CreateOrganizationWizard({
                     </div>
                   ) : brand.status === "failed" ? (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Sparkles className="text-muted-foreground size-6" />
+                      <ImageOff className="text-muted-foreground size-6" />
                     </div>
                   ) : (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">

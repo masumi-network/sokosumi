@@ -1,3 +1,5 @@
+import { readCookieValue } from "@/lib/ui-preferences/cookie-header";
+
 export type TasksViewMode = "board" | "list";
 
 export const TASKS_VIEW_MODE_COOKIE_NAME = "tasks_view_mode";
@@ -69,11 +71,9 @@ export function preferTasksListFromUserAgent(
 export function parseTasksViewModeCookieHeader(
   documentCookie: string,
 ): TasksViewMode | null {
-  const match = documentCookie.match(
-    new RegExp(`(?:^|;\\s*)${TASKS_VIEW_MODE_COOKIE_NAME}=([^;]*)`),
+  return parseTasksViewMode(
+    readCookieValue(documentCookie, TASKS_VIEW_MODE_COOKIE_NAME),
   );
-
-  return parseTasksViewMode(match?.[1]);
 }
 
 /**

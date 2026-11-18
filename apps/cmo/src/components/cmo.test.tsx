@@ -22,7 +22,7 @@ import {
   cmoOverview as overview,
   cmoStrategy as strategy,
 } from "../test-fixtures/cmo";
-import { SearchAdControl } from "./ads";
+import { AdsPanel, SearchAdControl } from "./ads";
 import { CalendarPage } from "./app/calendar-page";
 import {
   LearningCard,
@@ -31,8 +31,9 @@ import {
   UpdateCard,
 } from "./app/cards";
 import { renderInline } from "./app/cmo-app";
-import { ChannelsPage, ResultsPage } from "./app/pages";
+import { ChannelsPage, ResultsLead, ResultsPage } from "./app/pages";
 import { StrategyPage, StrategyVersions } from "./app/strategy-page";
+import { voiceDetail } from "./brand-profile";
 import { Onboarding } from "./onboarding";
 import { StartOver } from "./start-over";
 
@@ -488,6 +489,7 @@ describe("pages", () => {
         overview={overview()}
         compose={() => {}}
         openUpdate={() => {}}
+        openView={() => {}}
         connectMeasurement={async () => ({ url: null, error: null })}
         ads={{
           loadAdCampaigns: async () => [],
@@ -500,6 +502,127 @@ describe("pages", () => {
     expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
+  });
+
+  it("says every week and names the next check's real day, never Monday", () => {
+    const approved = overview({
+      ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+      updates: [],
+      routines: [
+        {
+          key: "cmo-weekly-review",
+          name: "Weekly review",
+          when: "Mondays at 09:00",
+          description: "",
+          // Monday 03:00 in Berlin is still Sunday in New York.
+          nextRunAt: new Date("2026-11-23T02:00:00Z"),
+          timezone: "America/New_York",
+        },
+      ],
+    });
+    const results = (data: typeof approved) =>
+      renderToStaticMarkup(
+        <>
+          <ResultsLead overview={data} />
+          <ResultsPage
+            overview={data}
+            compose={() => {}}
+            openUpdate={() => {}}
+            openView={() => {}}
+            connectMeasurement={async () => ({ url: null, error: null })}
+            ads={{
+              loadAdCampaigns: async () => [],
+              setAdCampaignStatus: async () => ({
+                overview: null,
+                error: null,
+              }),
+            }}
+            onChange={() => {}}
+          />
+        </>,
+      );
+    const html = results(approved);
+    expect(html).toContain("checked every week");
+    expect(html).toContain("Next check: <time");
+    expect(html).toContain("Sunday 22 November");
+    expect(html).toContain("The first weekly report arrives on");
+    expect(html).not.toContain("Monday");
+    // Before approval no review is due, so no day is promised.
+    const waiting = results(
+      overview({ ...approved, ...cmoStrategyVersion(null) }),
+    );
+    expect(waiting).not.toContain("Next check");
+    expect(waiting).toContain("in the week after you approve the strategy");
+  });
+
+  it("links the Ads card to Channels while no ad account is connected", () => {
+    const html = renderToStaticMarkup(
+      <AdsPanel
+        overview={overview({ adProviders: [] })}
+        actions={{
+          loadAdCampaigns: async () => [],
+          setAdCampaignStatus: async () => ({ overview: null, error: null }),
+        }}
+        onChange={() => {}}
+        openView={() => {}}
+      />,
+    );
+    expect(html).toContain('<a href="/channels">Channels</a>');
+  });
+
+  it("lists only answered questions as approved", () => {
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={overview({
+          ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+          strategy: {
+            ...strategy,
+            questions: [
+              {
+                id: "q1",
+                question: "Sell to teams?",
+                statement: "",
+                answer: "yes",
+              },
+              {
+                id: "q2",
+                question: "Ship weekly?",
+                statement: "",
+                answer: "unsure",
+              },
+              { id: "q3", question: "Buyers on X?", statement: "" },
+            ],
+          },
+        })}
+        onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("What you approved");
+    expect(html).toContain("Sell to teams?");
+    expect(html).not.toContain("Ship weekly?");
+    expect(html).not.toContain("Buyers on X?");
+    expect(html).not.toContain("Not sure");
+    expect(html).not.toContain("Not answered");
+  });
+
+  it("describes the brand's voice, never a bare rule for Cuso", () => {
+    expect(
+      voiceDetail({
+        tone: "Direct. Plain words.",
+        do: ["Name the product or feature"],
+        dont: [],
+        examples: [],
+      }),
+    ).toBe("How you write: Plain words.");
+    expect(
+      voiceDetail({
+        tone: "Direct.",
+        do: ["Name the product or feature"],
+        dont: [],
+        examples: [],
+      }),
+    ).toBe("How you write: Name the product or feature");
   });
 
   it("marks connected accounts and offers to connect the rest", () => {
@@ -520,6 +643,8 @@ describe("pages", () => {
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
+        openSeo={() => {}}
+        connectSearchConsole={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -535,6 +660,8 @@ describe("pages", () => {
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
+        openSeo={() => {}}
+        connectSearchConsole={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -552,6 +679,8 @@ describe("pages", () => {
           connect={async () => ({ url: null, error: null })}
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -753,6 +882,11 @@ describe("calendar", () => {
     expect(html).toContain("Week 1");
     expect(html).toContain(`${live.length} posts this month`);
     expect(html).toContain('aria-pressed="true"');
+    // Where a post stands is words, not a pill that looks like a button.
+    expect(html).toContain('class="state"');
+    expect(html).not.toContain('class="tag');
+    // Every card leads with the same box, so each row is even.
+    expect(html.split('class="cal-thumb').length - 1).toBe(live.length);
   });
 });
 

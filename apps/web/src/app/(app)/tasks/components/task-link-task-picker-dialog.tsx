@@ -25,30 +25,79 @@ import {
 
 const TASK_PICKER_PAGE_SIZE = 20;
 
-export interface TaskLinkActionOption {
+/** What a picked Task is for: a link relation, or a sub-task move. */
+export interface TaskPickerOption {
   id: string;
   label: string;
-  relation: UserWritableTaskLinkRelation;
   icon: LucideIcon;
+  /** Replaces the "{label}..." dialog title. */
+  title?: string;
+  /** Replaces the link description under the title. */
+  description?: string;
+  /** Also lists sub-tasks, which the plain Task list leaves out. */
+  includeSubtasks?: boolean;
 }
 
-interface TaskLinkTaskPickerDialogProps {
+export interface TaskLinkActionOption extends TaskPickerOption {
+  relation: UserWritableTaskLinkRelation;
+}
+
+interface TaskLinkTaskPickerDialogProps<TOption extends TaskPickerOption> {
   taskId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedOption: TaskLinkActionOption | null;
+  selectedOption: TOption | null;
   isLinkPending: boolean;
-  onSelectTask: (option: TaskLinkActionOption, task: TaskPickerTask) => void;
+  onSelectTask: (option: TOption, task: TaskPickerTask) => void;
+  /** Tasks the pick may not be, besides `taskId`. */
+  excludeTaskIds?: readonly string[];
+  /** Where focus goes on close; Radix's default is the opening element. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
-export function TaskLinkTaskPickerDialog({
-  taskId,
+type TaskPickerBodyProps<TOption extends TaskPickerOption> = Omit<
+  TaskLinkTaskPickerDialogProps<TOption>,
+  "open" | "onOpenChange" | "onCloseAutoFocus"
+>;
+
+export function TaskLinkTaskPickerDialog<TOption extends TaskPickerOption>({
   open,
   onOpenChange,
+  onCloseAutoFocus,
+  ...bodyProps
+}: TaskLinkTaskPickerDialogProps<TOption>) {
+  const tDetailActions = useTranslations("App.Tasks.Detail.actions");
+  const { selectedOption } = bodyProps;
+
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onCloseAutoFocus={onCloseAutoFocus}
+      title={
+        selectedOption?.title ??
+        tDetailActions("taskPickerTitle", {
+          relation: selectedOption?.label ?? "",
+        })
+      }
+      description={
+        selectedOption?.description ?? tDetailActions("taskPickerDescription")
+      }
+      commandProps={{ shouldFilter: false }}
+    >
+      {/* Mounted only while open, so every opening starts with an empty search. */}
+      <TaskPickerBody {...bodyProps} />
+    </CommandDialog>
+  );
+}
+
+function TaskPickerBody<TOption extends TaskPickerOption>({
+  taskId,
   selectedOption,
   isLinkPending,
   onSelectTask,
-}: TaskLinkTaskPickerDialogProps) {
+  excludeTaskIds = [],
+}: TaskPickerBodyProps<TOption>) {
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
   const [debouncedTaskPickerQuery, setDebouncedTaskPickerQuery] = useState("");
@@ -88,6 +137,9 @@ export function TaskLinkTaskPickerDialog({
           q: query || undefined,
           cursor: cursor ?? undefined,
           limit: TASK_PICKER_PAGE_SIZE,
+          ...(selectedOption?.includeSubtasks
+            ? { includeSubtasks: "true" as const }
+            : {}),
         })) as GetTasksResponse;
 
         if (requestId !== taskPickerRequestIdRef.current) {
@@ -96,7 +148,11 @@ export function TaskLinkTaskPickerDialog({
 
         const nextTasks = response.data
           .map(mapTaskListItemToTaskPickerTask)
-          .filter((taskOption) => taskOption.id !== taskId);
+          .filter(
+            (taskOption) =>
+              taskOption.id !== taskId &&
+              !excludeTaskIds.includes(taskOption.id),
+          );
 
         setTaskPickerResults((currentResults) =>
           append ? [...currentResults, ...nextTasks] : nextTasks,
@@ -140,29 +196,11 @@ export function TaskLinkTaskPickerDialog({
   }, [taskPickerQuery]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
     void loadTaskPickerTasks({
       query: debouncedTaskPickerQuery,
       append: false,
     });
-  }, [debouncedTaskPickerQuery, open]);
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) {
-      setTaskPickerQuery("");
-      setDebouncedTaskPickerQuery("");
-      setTaskPickerResults([]);
-      setTaskPickerNextCursor(null);
-      setTaskPickerError(null);
-      setIsTaskPickerLoading(false);
-      setIsTaskPickerLoadingMore(false);
-      taskPickerRequestIdRef.current += 1;
-    }
-    onOpenChange(nextOpen);
-  }
+  }, [debouncedTaskPickerQuery]);
 
   function handleLoadMoreTaskOptions() {
     if (
@@ -181,15 +219,7 @@ export function TaskLinkTaskPickerDialog({
   }
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={tDetailActions("taskPickerTitle", {
-        relation: selectedOption?.label ?? "",
-      })}
-      description={tDetailActions("taskPickerDescription")}
-      commandProps={{ shouldFilter: false }}
-    >
+    <>
       <CommandInput
         placeholder={tDetailActions("taskPickerSearchPlaceholder")}
         value={taskPickerQuery}
@@ -217,7 +247,9 @@ export function TaskLinkTaskPickerDialog({
         ) : null}
 
         {taskPickerResults.length > 0 ? (
-          <CommandGroup heading={selectedOption?.label}>
+          <CommandGroup
+            heading={selectedOption?.title ?? selectedOption?.label}
+          >
             {taskPickerResults.map((taskOption) => {
               const PickerIcon = selectedOption?.icon ?? Link2;
 
@@ -263,6 +295,6 @@ export function TaskLinkTaskPickerDialog({
           </CommandItem>
         ) : null}
       </CommandList>
-    </CommandDialog>
+    </>
   );
 }

@@ -41,6 +41,10 @@ export const FOCUS_DWELL_MS = 100;
  */
 const APPROACH_REPEAT_MS = 60_000;
 
+/** Marks the card a link covers, so the card is what the cursor heads for. */
+export const INTENT_AREA_ATTRIBUTE = "data-intent-area";
+const INTENT_AREA_SELECTOR = `[${INTENT_AREA_ATTRIBUTE}]`;
+
 type DwellTimer = ReturnType<typeof setTimeout> | null;
 
 /**
@@ -180,8 +184,10 @@ export function RestingIntentLink({
   // by, or a touch that may only start a scroll, loads only the App Shell:
   // focus and a resting hover still load the content. The link's box is its
   // text: a card that stretches the link over itself with a pseudo-element
-  // still relies on the hover handler.
-  const approachRef = useIntentPrefetch<HTMLAnchorElement>(
+  // still relies on the hover handler, unless the card marks itself as the
+  // link's area. Such a card is not a Tab stop, so its link gets no App Shell
+  // load from a Tab stop close by: focus still loads the content.
+  const approachRef = useIntentPrefetch<HTMLElement>(
     (source) => {
       if (source === "pointer") {
         prefetchContentOrShell();
@@ -196,7 +202,11 @@ export function RestingIntentLink({
   const linkRef = useCallback(
     (element: HTMLAnchorElement | null) => {
       if (!element) return;
-      const stopApproach = approachRef(element);
+      // A card that marks itself as the link's area is the target the
+      // cursor's path is measured against, so the whole card predicts.
+      const stopApproach = approachRef(
+        element.closest<HTMLElement>(INTENT_AREA_SELECTOR) ?? element,
+      );
       const detachRef = attachRef(ref, element);
       return () => {
         stopApproach?.();

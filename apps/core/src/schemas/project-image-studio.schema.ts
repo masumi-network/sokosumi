@@ -117,6 +117,12 @@ export const imageStudioTalkingVideoSchema = z
     voice: z.string(),
     presenterId: z.string().nullable(),
     languageCode: z.string(),
+    /** The middle of the video shows the Project's website. */
+    siteShots: z.boolean(),
+    /** A generated clip plays in the hook. */
+    broll: z.boolean(),
+    /** Generated music plays under the voice. */
+    music: z.boolean(),
   })
   .openapi("ProjectTalkingVideo");
 
@@ -438,6 +444,16 @@ export const createTalkingVideoJobRequestSchema = z
         consent: z.literal(true),
       }),
     ]),
+    /**
+     * Show the Project's website behind the presenter in the middle of the
+     * video. Omitted, it is shown when the Project has a website; it never is
+     * when the Project has none.
+     */
+    siteShots: z.boolean().optional(),
+    /** Open on a generated B-roll clip under the first sentence. Off by default. */
+    broll: z.boolean().default(false),
+    /** Lay generated instrumental music under the voice. Off by default. */
+    music: z.boolean().default(false),
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectTalkingVideoJobRequest");
@@ -457,6 +473,40 @@ export const imageStudioStateQuerySchema = z.object({
    */
   beforeId: z.string().uuid().optional(),
 });
+
+/** A Project's talking videos: its jobs, newest first, and their videos. */
+export const imageStudioTalkingVideosSchema = z
+  .object({
+    jobs: z.array(imageStudioJobSchema),
+    assets: z.array(imageStudioAssetSchema),
+  })
+  .openapi("ProjectTalkingVideos");
+
+export const writeTalkingVideoScriptsRequestSchema = z
+  .object({
+    /** What the videos should be about. Omitted, the brand picks. */
+    topic: z.string().trim().min(1).max(500).optional(),
+    /** ISO 639-1 language to write in. */
+    languageCode: z
+      .string()
+      .trim()
+      .regex(/^[a-z]{2}$/)
+      .default("en"),
+  })
+  .openapi("WriteProjectTalkingVideoScriptsRequest");
+
+export const talkingVideoScriptsSchema = z
+  .object({
+    scripts: z.array(
+      z.object({
+        /** The first sentence, which has to stop the scroll. */
+        hook: z.string(),
+        /** The whole script, hook included, as it is spoken. */
+        script: z.string(),
+      }),
+    ),
+  })
+  .openapi("ProjectTalkingVideoScripts");
 
 /**
  * One catalog row, and the whole contract a client has about a model.
@@ -551,14 +601,18 @@ export const imageStudioVideoCatalogModelSchema = z
   .openapi("ProjectImageStudioVideoCatalogModel");
 
 const talkingVideoPriceSchema = z.object({
-  /** USD per second of video. */
+  /** USD per started second of video. */
   perSecondUsd: z.number(),
-  /** The least one video costs, however short. */
-  minimumVideoUsd: z.number(),
   /** USD per 1,000 characters of script, for the voice. */
   voicePer1000CharactersUsd: z.number(),
   /** USD per minute of video, for the captions. */
   captionsPerMinuteUsd: z.number(),
+  /** USD per second of video, for cutting the presenter out over the site. */
+  cutoutPerSecondUsd: z.number(),
+  /** USD for the optional B-roll clip in the hook. */
+  brollUsd: z.number(),
+  /** USD for the optional music bed. */
+  musicUsd: z.number(),
   basis: z.string(),
   sourceUrl: z.string(),
   verifiedAt: z.string(),

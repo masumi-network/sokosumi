@@ -8,6 +8,7 @@ import {
 
 const { getEnvMock } = vi.hoisted(() => ({ getEnvMock: vi.fn() }));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 const fetchMock = vi.fn<typeof fetch>();
 const signal = new AbortController().signal;
 function evaluation() {
@@ -87,6 +88,7 @@ describe("task tag evaluation", () => {
     ).toEqual({
       ok: true,
       tags: ["research"],
+      workspaceSuggestions: [],
       usage: { inputTokens: 12, outputTokens: 8 },
       costUsd: "0.00012",
       generationId: "gen-test",

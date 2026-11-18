@@ -26,6 +26,7 @@ import { unstable_rethrow } from "next/navigation";
 
 import { type CmoAuthConfig, readCmoAuthConfig } from "./auth-config";
 import { CMO_SIGN_IN_ERROR } from "./sign-in-errors";
+import { SIGNED_OUT_COOKIE } from "./signed-out";
 
 /**
  * The Better Auth generic OAuth provider id for Core. It names the callback
@@ -44,27 +45,30 @@ export interface SokosumiSignInOptions {
  * OpenID Connect `prompt=create`, which makes Core open Sokosumi's sign-up
  * page instead of its sign-in page, and any sign-up context as one JSON
  * `signup_context` parameter. Sign in sends neither, so a person still signed
- * in to Sokosumi goes straight back to CMO.
+ * in to Sokosumi goes straight back to CMO; after a sign out it sends
+ * `prompt=login`, and Sokosumi shows its sign-in page even to a person it
+ * still knows. Create account already asks which account to continue as.
  */
-function sokosumiSignInBody({
-  createAccount,
-  signUpContext = {},
-}: SokosumiSignInOptions) {
+function sokosumiSignInBody(
+  { createAccount, signUpContext = {} }: SokosumiSignInOptions,
+  signedOut: boolean,
+) {
   const hasContext = Object.keys(signUpContext).length > 0;
+  const additionalParams = createAccount
+    ? {
+        prompt: "create",
+        ...(hasContext
+          ? { signup_context: JSON.stringify(signUpContext) }
+          : {}),
+      }
+    : signedOut
+      ? { prompt: "login" }
+      : undefined;
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
     errorCallbackURL: "/",
-    ...(createAccount
-      ? {
-          additionalParams: {
-            prompt: "create",
-            ...(hasContext
-              ? { signup_context: JSON.stringify(signUpContext) }
-              : {}),
-          },
-        }
-      : {}),
+    ...(additionalParams ? { additionalParams } : {}),
   };
 }
 
@@ -419,8 +423,11 @@ export async function startSokosumiSignIn(
   options: SokosumiSignInOptions,
 ): Promise<{ url: string; setCookies: string[] }> {
   try {
+    const signedOut = parseCookies(headers.get("cookie") ?? "").has(
+      SIGNED_OUT_COOKIE,
+    );
     const { headers: responseHeaders, response } = await auth.api.signInSocial({
-      body: sokosumiSignInBody(options),
+      body: sokosumiSignInBody(options, signedOut),
       headers,
       returnHeaders: true,
     });

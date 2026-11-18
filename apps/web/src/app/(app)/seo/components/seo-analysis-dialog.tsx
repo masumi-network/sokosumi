@@ -2,6 +2,7 @@
 
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +24,8 @@ import {
   type SeoAnalysisLimits,
   SeoAnalysisSummary,
 } from "./seo-analysis-summary";
+import { SeoBriefDialog } from "./seo-brief-dialog";
+import { SeoBriefSummary } from "./seo-brief-summary";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_ANALYSIS_MODULES,
@@ -56,6 +59,8 @@ export function SeoAnalysisDialog({
 }) {
   const t = useTranslations("App.Seo");
   const form = useSeoAnalysisForm(model, monitor);
+  const [editingBrief, setEditingBrief] = useState(false);
+  const [keepSetupSelection, setKeepSetupSelection] = useState(true);
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
@@ -120,6 +125,38 @@ export function SeoAnalysisDialog({
               devices={form.devices}
               keywords={form.wantsKeywords ? market.keywords : null}
             />
+            {full && !monitor && model.brief ? (
+              <SeoBriefSummary
+                brief={form.reviewBrief}
+                setupGoal={
+                  keepSetupSelection && form.reviewGoal?.share
+                    ? form.reviewGoal
+                    : null
+                }
+                onShareChange={() => setKeepSetupSelection(false)}
+                model={model}
+                edit={() => setEditingBrief(true)}
+              />
+            ) : null}
+            {form.reviewGoal?.changed && (!full || !form.reviewGoal.action) ? (
+              <p className="text-muted-foreground text-sm">
+                {t("setup.goal.private", {
+                  goal: form.reviewGoal.action
+                    ? t(
+                        `brief.actions.${form.reviewGoal.action.replaceAll(" ", "_")}`,
+                      )
+                    : t("setup.goal.autoOption"),
+                })}
+              </p>
+            ) : null}
+            {!monitor &&
+            model.reviewGoal?.changed &&
+            !full &&
+            form.kind !== "page_check" ? (
+              <p className="text-muted-foreground text-sm" role="status">
+                {t("setup.goal.unsupportedCheck")}
+              </p>
+            ) : null}
             {full ? (
               <p className="text-muted-foreground text-sm">
                 {t("analysis.relatedPages", { count: SEO_MAX_PAGES })}
@@ -161,7 +198,10 @@ export function SeoAnalysisDialog({
                 id="seo-analysis-kind"
                 name="kind"
                 value={form.kind}
-                onValueChange={form.setKind}
+                onValueChange={(value) => {
+                  setKeepSetupSelection(false);
+                  form.setKind(value);
+                }}
                 options={form.kinds.map((value) => ({
                   value,
                   label: t(`analysis.${value}`),
@@ -315,9 +355,14 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
+          {form.staleGoal ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t("setup.goal.reviewChanged")}
+            </p>
+          ) : null}
           <DialogFooter className="sm:items-center">
             {/* The close button and Escape leave the form; a Cancel beside the submit said it twice. */}
-            {noService ? (
+            {noService || form.staleGoal ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -334,6 +379,7 @@ export function SeoAnalysisDialog({
               loading={model.pending}
               disabled={
                 noService ||
+                form.staleGoal ||
                 model.pending ||
                 (monitor && !form.rule) ||
                 !form.workspace.scope.pageIds.length ||
@@ -365,6 +411,13 @@ export function SeoAnalysisDialog({
             </p>
           </DialogFooter>
         </form>
+        {editingBrief ? (
+          <SeoBriefDialog
+            key={model.viewerKey}
+            model={model}
+            onClose={() => setEditingBrief(false)}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

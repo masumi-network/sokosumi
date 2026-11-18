@@ -547,6 +547,14 @@ export function oauthRequestBrand(
 }
 
 /**
+ * The product a sign-in page names in its tab title and cookie notice: the
+ * one the person is signing in to.
+ */
+export function authProductName(brand: OAuthRequestBrand | undefined): string {
+  return brand === "cmo" ? "CMO.XYZ" : "Sokosumi";
+}
+
+/**
  * Where a finished sign-in or sign-up goes: the page's returnUrl, or else back
  * into the OAuth request the page carries.
  */

@@ -63,7 +63,7 @@ export function socialProviderUnavailableMessage(
 
 export const X_PREMIUM_TEXT_LIMIT = 25_000;
 // Every Premium tier includes longer posts: https://help.x.com/en/using-x/x-premium
-export const X_LONG_POST_SUBSCRIPTION_TYPES = [
+const X_LONG_POST_SUBSCRIPTION_TYPES = [
   "Basic",
   "Premium",
   "PremiumPlus",
@@ -300,6 +300,7 @@ export interface SocialPostMediaRef {
   size: number;
   mimeType: string;
   kind: SocialPostMediaKind;
+  aiGenerated?: boolean;
   /** Required publishing adaptation; the source stays available for another network. */
   transformation?: {
     provider: SocialPostProvider;

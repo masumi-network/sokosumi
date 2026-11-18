@@ -7,7 +7,6 @@ import {
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailReferences,
-  pageDetailRuleCodes,
   seoActionBucket,
   seoActionWorklist,
   seoOverviewModel,
@@ -560,17 +559,10 @@ describe("tool ranges", () => {
     expect(toolRangeFit("163 characters", ["Google sets no limit"])).toBeNull();
   });
 
-  it("folds rule IDs out of the shown line, once each", () => {
+  it("takes rule IDs out of the shown line", () => {
     expect(withoutRuleCodes(description[1])).toBe(
       "vendor tools: Ahrefs under 160; Screaming Frog 70 to 155; Moz 55 to 300; Yoast 120 to 156",
     );
-    expect(pageDetailRuleCodes([...description, description[0]])).toEqual([
-      "N1-065",
-      "N1-247",
-      "N1-267",
-      "N1-279",
-      "N1-286",
-    ]);
   });
 });
 

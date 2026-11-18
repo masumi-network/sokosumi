@@ -1,11 +1,19 @@
 "use client";
 
+import { SeoActions, SeoPage } from "./seo-page";
 import "../onboarding/onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -16,6 +24,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
 import { HowIGotHere, Working } from "../cuso-trace";
+import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
@@ -27,11 +36,13 @@ import {
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import {
   type AddMailingList,
   BrandBrainPage,
   ChannelsPage,
   type ConnectChannel,
+  ResultsLead,
   ResultsPage,
   SettingsPage,
 } from "./pages";
@@ -42,7 +53,9 @@ import { type ChangePlan, type OpenPortal } from "./subscription-card";
 
 const POLL_MS = 4_000;
 
-export interface CmoAppActions extends AdActions {
+export interface CmoAppActions
+  extends AdActions,
+    Omit<SeoActions, "connectSearchConsole"> {
   loadState: () => Promise<{
     overview: CmoOverview | null;
     messages: CusoMessage[];
@@ -65,11 +78,12 @@ export interface CmoAppActions extends AdActions {
     error: string | null;
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
+  competitors: CompetitorActions;
   connectChannel: ConnectChannel;
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
+    from: "onboarding" | "app" | "seo",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -203,7 +217,6 @@ export function CmoApp({
   }, []);
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
-  const [highlight, setHighlight] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -303,7 +316,6 @@ export function CmoApp({
 
   function openUpdate(id: string) {
     go("chat");
-    setHighlight(id);
     window.setTimeout(
       () =>
         document
@@ -386,9 +398,6 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
-                    highlighted={
-                      item.kind === "update" && item.update.id === highlight
-                    }
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -448,7 +457,13 @@ export function CmoApp({
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
-                  line={PAGE_LEADS[view].line}
+                  line={
+                    view === "results" ? (
+                      <ResultsLead overview={overview} />
+                    ) : (
+                      PAGE_LEADS[view].line
+                    )
+                  }
                 />
               ) : null}
               {view === "calendar" ? (
@@ -488,6 +503,17 @@ export function CmoApp({
                     setOverview(await actions.approveStrategy(versionId))
                   }
                 />
+              ) : view === "seo" ? (
+                <SeoPage
+                  actions={{
+                    ...actions,
+                    connectSearchConsole: () =>
+                      actions.connectMeasurement(
+                        "google_search_console",
+                        "seo",
+                      ),
+                  }}
+                />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}
@@ -498,6 +524,13 @@ export function CmoApp({
                   }
                   ads={actions}
                   onChange={setOverview}
+                  openView={go}
+                />
+              ) : view === "competitors" ? (
+                <CompetitorsPage
+                  overview={overview}
+                  actions={actions.competitors}
+                  compose={compose}
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage
@@ -520,6 +553,10 @@ export function CmoApp({
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
                   connectFailed={connectFailed}
+                  openSeo={() => go("seo")}
+                  connectSearchConsole={() =>
+                    actions.connectMeasurement("google_search_console", "seo")
+                  }
                 />
               ) : (
                 <SettingsPage
@@ -550,9 +587,17 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
     title: "Your month",
     line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
   },
+  seo: {
+    title: "Found on Google",
+    line: "A full audit of your site every week, what to change, and what to write next.",
+  },
   results: {
     title: "How it's going",
-    line: "Real numbers from your accounts, checked every Monday.",
+    line: "Real numbers from your accounts, checked every week.",
+  },
+  competitors: {
+    title: "Your competitors",
+    line: "I check each one every week and tell you what moved, with the source.",
   },
   channels: {
     title: "Where I post",
@@ -564,7 +609,7 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   },
 };
 
-function PageLead({ title, line }: { title: string; line: string }) {
+function PageLead({ title, line }: { title: string; line: ReactNode }) {
   return (
     <header className="page-lead">
       <h1 className="ob-h1">{title}</h1>
@@ -600,14 +645,12 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
-  highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
-  highlighted: boolean;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
@@ -673,7 +716,6 @@ function ThreadEntry({
           <div id={`update-${item.update.id}`}>
             <UpdateCard
               update={item.update}
-              focused={highlighted}
               actions={actions}
               approved={
                 overview.strategyVersion?.approvedAt != null &&
@@ -814,27 +856,7 @@ function MessageMeta({ author, at }: { author: string; at?: string }) {
   return (
     <span className="meta">
       <b>{author}</b>
-      {at ? (
-        <time dateTime={at} suppressHydrationWarning>
-          {stamp(at)}
-        </time>
-      ) : null}
+      {at ? <LocalStamp at={at} /> : null}
     </span>
   );
-}
-
-/** "14:02" today, "Mon 5 Oct, 14:02" before. */
-function stamp(at: string): string {
-  const date = new Date(at);
-  const time = date.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (date.toDateString() === new Date().toDateString()) return time;
-  const day = date.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  return `${day}, ${time}`;
 }
