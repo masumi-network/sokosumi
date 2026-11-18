@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ interface HeaderTrailingProps {
  * Hidden on mobile room routes so portaled room actions can use the space.
  */
 export function HeaderTrailing({ children }: HeaderTrailingProps) {
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const hideOnMobileRoom = isChatRoomPathname(pathname);
 
   return (

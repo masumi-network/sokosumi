@@ -15,6 +15,8 @@ interface TaskStatusAgeProps {
   statusSince: string;
   /** `row` matches the Task page's property rows; `card` fits boards and lists. */
   variant?: "card" | "row";
+  /** Renders nothing until the Task is stuck, so a board card stays quiet. */
+  stuckOnly?: boolean;
   className?: string;
 }
 
@@ -23,6 +25,7 @@ export function TaskStatusAge({
   status,
   statusSince,
   variant = "card",
+  stuckOnly = false,
   className,
 }: TaskStatusAgeProps) {
   const t = useTranslations("App.Tasks.StatusAge");
@@ -30,6 +33,7 @@ export function TaskStatusAge({
   const now = useNow({ updateInterval: 60_000 });
   if (!WAITING_COLUMN_IDS.includes(getColumnId(status))) return null;
   const stuck = new Date(statusSince) < stuckCutoff(now);
+  if (stuckOnly && !stuck) return null;
 
   return (
     <span

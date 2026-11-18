@@ -203,6 +203,8 @@ export function mapTaskToTaskWithCoworker(
     dueOn: task.dueOn,
     statusSince: statusSince.toISOString(),
     subtaskProgress: task.subtaskProgress,
+    hasUnansweredMention:
+      "hasUnansweredMention" in task && task.hasUnansweredMention === true,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({
@@ -220,7 +222,9 @@ export function mapTaskToTaskWithCoworker(
     columnId: getColumnId(task.status),
     tags: task.tags,
     workspaceTags: task.workspaceTags,
-    description: task.description ?? null,
+    // A board or list row shows no description. The Task page maps
+    // a full Task, which has events, and keeps the text.
+    description: "events" in task ? (task.description ?? null) : null,
     descriptionPlain,
     events: "events" in task ? task.events : [],
   };

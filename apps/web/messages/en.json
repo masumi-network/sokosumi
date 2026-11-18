@@ -1846,6 +1846,8 @@
         "loading": "Loading...",
         "loadMore": "Load more"
       },
+      "noTitle": "(No title)",
+      "unansweredMention": "You have an unanswered mention",
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
       "sokoBot": "Soko Bot",
@@ -1911,7 +1913,11 @@
         "workspaceTags": "Workspace tags",
         "archivedTags": "Archived tags",
         "topicTags": "Default topics",
-        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more"
+        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more",
+        "needsMe": "Needs me",
+        "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
+        "mentions": "Mentions",
+        "mentionsHint": "Tasks where a comment mentions you and you have not commented since"
       },
       "Detail": {
         "back": "Back to tasks",

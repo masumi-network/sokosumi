@@ -428,6 +428,13 @@ const taskListItemSchema = taskBaseSchema
       description:
         "When the Task last changed status, or its creation time if it never did.",
     }),
+    // Optional on the wire: only a person has mentions, and a Web build
+    // that reaches a Core without the field (deploy order) reads none.
+    hasUnansweredMention: z.boolean().optional().openapi({
+      example: false,
+      description:
+        "True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.",
+    }),
   })
   .openapi("TaskListItem");
 

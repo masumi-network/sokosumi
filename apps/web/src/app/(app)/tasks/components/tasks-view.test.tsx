@@ -153,7 +153,15 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   focusToolbarControl: (
     await importOriginal<typeof import("./tasks-view-filters")>()
   ).focusToolbarControl,
-  TasksViewFilters: () => <button type="button">Filters</button>,
+  // The filter row places the Display control, so the stub does too.
+  TasksViewFilters: ({ display }: { display?: React.ReactNode }) => (
+    <>
+      {display}
+      <span data-filters-menu>
+        <button type="button">Filters</button>
+      </span>
+    </>
+  ),
 }));
 vi.mock("./task-list-view", () => ({
   TaskListView: ({ compact }: { compact: boolean }) => (
@@ -345,6 +353,20 @@ it("applies Display density to board and list and restores the saved preference"
   );
   expect(document.cookie).toContain("tasks_density=normal");
   document.cookie = "tasks_density=; max-age=0; path=/";
+});
+
+// The toolbar has no Archived button, so the Display popover is the way there.
+it("reaches archived Tasks from the Display popover", async () => {
+  const user = userEvent.setup();
+  render(boardView([TASK]));
+  expect(screen.queryByRole("link", { name: "link" })).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Display" }));
+
+  expect(await screen.findByRole("link", { name: "link" })).toHaveAttribute(
+    "href",
+    "/tasks/archived",
+  );
 });
 
 // New task lives in the sidebar header, so the Tasks page shows it once; the

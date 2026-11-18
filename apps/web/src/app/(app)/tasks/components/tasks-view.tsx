@@ -12,6 +12,7 @@ import {
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
+import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import {
   buildTasksFiltersSearchParams,
   clearTasksFilters,
@@ -40,6 +41,7 @@ import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
+import { TasksKeyboard } from "./use-board-keyboard";
 import { useTasksViewModel } from "./use-tasks-view-model";
 
 interface TasksRealtimeListenerProps {
@@ -253,10 +255,7 @@ export function TasksView(props: TasksViewProps) {
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div
-        ref={toolbarRef}
-        className="flex flex-row flex-wrap items-center justify-end gap-2 sm:gap-3"
-      >
+      <div ref={toolbarRef} className="flex items-start gap-2">
         <TasksViewToolbarActions
           filters={{
             activeOrganizationId,
@@ -345,6 +344,9 @@ export function TasksView(props: TasksViewProps) {
                       {viewMode === "board" ? (
                         <TaskCard
                           task={activeDragTask}
+                          quietStatus={
+                            COLUMN_MAIN_STATUS[activeDragTask.columnId]
+                          }
                           compact={density === "compact"}
                           statusLabels={labels.filters.statusOptions}
                         />
@@ -417,6 +419,7 @@ export function TasksView(props: TasksViewProps) {
         ) : null}
         {/* The page's seat check is fresher than the layout's after a soft navigation. */}
         <OrganizationSeatContext value={canCreateTask}>
+          <TasksKeyboard />
           {content}
         </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}

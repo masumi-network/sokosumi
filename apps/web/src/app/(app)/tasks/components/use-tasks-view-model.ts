@@ -196,7 +196,12 @@ export function useTasksViewModel({
     ),
   );
   // A pending row has no confirmed tags. Core supplies the matching row on save.
-  const shownItems = routeFilters.tag ? items : itemsWithPending;
+  // Needs me shows only Tasks that wait for a person, and a new Task does not.
+  // Mentions shows only Tasks with a mention, and a new Task has none.
+  const shownItems =
+    routeFilters.tag || routeFilters.needsMe || routeFilters.mentions
+      ? items
+      : itemsWithPending;
   const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
   // Every setListCursor / setIsLoadingListMore call writes these refs directly.
@@ -294,8 +299,14 @@ export function useTasksViewModel({
       pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
       // List is a single updatedAt stream: keep load-more rows across
       // router.refresh() and listCursor goes stale vs the new first page.
-      // A missing Task on a tagged board may have lost its tag.
-      keepLocalOnlyTasks: !isListView && !initialFilters.tag,
+      // A missing Task on a tagged board may have lost its tag, and under
+      // Needs me it may no longer wait for a person. Under Mentions the
+      // reader may have answered.
+      keepLocalOnlyTasks:
+        !isListView &&
+        !initialFilters.tag &&
+        !initialFilters.needsMe &&
+        !initialFilters.mentions,
     });
 
     setItems(next);

@@ -59752,6 +59752,11 @@ export const TaskListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
             description: 'When the Task last changed status, or its creation time if it never did.'
+        },
+        hasUnansweredMention: {
+            type: 'boolean',
+            example: false,
+            description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
         }
     },
     required: [
