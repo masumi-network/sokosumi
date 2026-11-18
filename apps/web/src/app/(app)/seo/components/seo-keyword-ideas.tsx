@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoExportMenu } from "./seo-export-menu";
+import { seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
   SEO_DIFFICULTY_COLUMN_CLASS,
@@ -81,6 +83,15 @@ export function SeoKeywordIdeas({
       title={t("keywords.ideas.title", { count: ideas.length })}
       // The three lists of the switch start with a title of one size.
       strong
+      actions={
+        // Every idea the search matches, not only the rows in view, with the difficulty of each.
+        <SeoExportMenu
+          name="keyword-ideas"
+          title={t("keywords.ideas.name")}
+          workspace={model.data}
+          table={() => seoKeywordsTableExport(ideas, t)}
+        />
+      }
       // The one Track sentence: it names the next position check, so it has no place where none can run.
       // The Keywords list has none, because a check tracks its keywords from the start.
       description={
