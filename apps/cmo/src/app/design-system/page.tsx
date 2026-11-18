@@ -75,7 +75,7 @@ const TYPE_CLASS: Record<string, string> = {
 
 const TYPE: TypeStep[] = [
   { step: "display", sample: "Marketing, handled" },
-  { step: "h1", sample: "Your plan for May" },
+  { step: "h1", sample: "Your strategy for May" },
   { step: "statement", sample: "Reach 500 new readers this month" },
   { step: "value", sample: "Does this sound like you?" },
   { step: "h2", sample: "This week" },

@@ -105,6 +105,20 @@ export const taskParticipantSchema = z
   })
   .openapi("TaskParticipant");
 
+export const taskFollowerSchema = z
+  .object({
+    user: userSummarySchema,
+    followedAt: dateTimeSchema.openapi({
+      description: "When this person started following the Task.",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+  })
+  .openapi("TaskFollower");
+
+export const taskFollowersResponseSchema = z
+  .object({ followers: z.array(taskFollowerSchema) })
+  .openapi("TaskFollowers");
+
 const taskEventActorSchema = z
   .discriminatedUnion("type", [
     taskEventActorUserSchema,
@@ -370,6 +384,13 @@ export const taskSchema = taskBaseSchema
     // Mirrors `jobSchema.share`.
     share: z.union([taskShareSchema, z.null()]).openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
+    // Optional on the wire: a Web build that reaches a Core without it
+    // (deploy order) reads no followers instead of failing the page.
+    followers: z.array(taskFollowerSchema).optional().openapi({
+      example: [],
+      description:
+        "People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.",
+    }),
     files: z.array(taskFileSchema).openapi({
       example: [],
       description: "Files uploaded to this task (newest first).",

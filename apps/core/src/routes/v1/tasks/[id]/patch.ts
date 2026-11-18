@@ -43,6 +43,7 @@ import {
   healProjectBriefingUrl,
   resolveTaskDescriptionWithContext,
 } from "@/helpers/task-create-context";
+import { recordTaskDueDateMovedLater } from "@/helpers/task-due-date-change";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   markTaskAssignedRead,
@@ -364,6 +365,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId,
         ...(assigneeWrite ?? {}),
       });
+      const dueOnWrite =
+        dueOn === undefined
+          ? undefined
+          : dueOn === null
+            ? null
+            : new Date(`${dueOn}T00:00:00.000Z`);
       let updatedTask = await tx.task.update({
         where: {
           id,
@@ -383,16 +390,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           priority,
           ...(assigneeWrite ?? {}),
           runAt: runAtWrite,
-          dueOn:
-            dueOn === undefined
-              ? undefined
-              : dueOn === null
-                ? null
-                : new Date(`${dueOn}T00:00:00.000Z`),
+          dueOn: dueOnWrite,
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
+      if (dueOnWrite !== undefined) {
+        await recordTaskDueDateMovedLater(tx, {
+          taskId: id,
+          from: task.dueOn,
+          to: dueOnWrite,
+          actorUserId: userContext.userId,
+        });
+      }
       if (nextStatus !== task.status) {
         const statusEvent = await tx.taskEvent.create({
           data: {

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isTaskFollowReturn,
   isWorkspaceReady,
   SETUP_ASSISTANT_PATH,
   setupAssistantConnectPath,
   setupAssistantPath,
   WORKSPACE_GATE_PATH,
+  withoutTaskFollowMarker,
   workspaceAccessFrom,
   workspaceGatePath,
 } from "./workspace-gate";
@@ -24,6 +26,23 @@ describe("workspace-gate", () => {
     expect(isWorkspaceReady("identity-onboarding")).toBe(false);
     expect(isWorkspaceReady(null)).toBe(false);
     expect(isWorkspaceReady(undefined)).toBe(false);
+  });
+
+  it("ends setup on a Task only when it was started to follow that Task", () => {
+    expect(isTaskFollowReturn("/tasks/task-1?follow=1")).toBe(true);
+    expect(isTaskFollowReturn("/tasks/task-1")).toBe(false);
+    expect(isTaskFollowReturn("/chat/join/abc?follow=1")).toBe(false);
+    expect(isTaskFollowReturn("/")).toBe(false);
+    expect(isTaskFollowReturn("/tasks/task-1/edit?follow=1")).toBe(false);
+  });
+
+  it("drops only the follow marker when setup ends without a bot", () => {
+    expect(withoutTaskFollowMarker("/tasks/task-1?follow=1&tab=files")).toBe(
+      "/tasks/task-1?tab=files",
+    );
+    expect(withoutTaskFollowMarker("/chat/join/abc?follow=1")).toBe(
+      "/chat/join/abc?follow=1",
+    );
   });
 
   it("carries a requested page and its query to the gate", () => {
