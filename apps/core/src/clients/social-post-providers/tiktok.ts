@@ -26,26 +26,8 @@ const TIKTOK_TOOL_SLUGS = [
   TIKTOK_STATUS_TOOL_SLUG,
 ];
 
-/** Most permissive first; unaudited apps only offer `SELF_ONLY`. */
-const TIKTOK_PRIVACY_ORDER = [
-  "PUBLIC_TO_EVERYONE",
-  "MUTUAL_FOLLOW_FRIENDS",
-  "FOLLOWER_OF_CREATOR",
-  "SELF_ONLY",
-] as const;
-
 const POLL_START_MS = 5_000;
 const POLL_CAP_MS = 30_000;
-
-/** Picks the most permissive privacy level the account currently offers. */
-export function pickTikTokPrivacyLevel(
-  available: readonly string[],
-): (typeof TIKTOK_PRIVACY_ORDER)[number] {
-  return (
-    TIKTOK_PRIVACY_ORDER.find((level) => available.includes(level)) ??
-    "SELF_ONLY"
-  );
-}
 
 function stringOf(value: unknown): string | null {
   return typeof value === "string" && value ? value : null;
@@ -57,7 +39,7 @@ function statusOf(data: Record<string, unknown> | null): string | null {
 
 /**
  * Publishes a video to TikTok: reads the creator's live privacy options, posts
- * with the most permissive one, then polls until the provider finishes. Once
+ * with the creator’s explicit selection, then polls until the provider finishes. Once
  * the publish call is initiated, a timeout is an unknown outcome — TikTok may
  * still complete it, so a blind retry could publish twice.
  */
@@ -91,7 +73,16 @@ export async function publishTikTokVideo(
           (value): value is string => typeof value === "string",
         )
       : [];
-    const privacyLevel = pickTikTokPrivacyLevel(options);
+    const settings = context.tikTokSettings;
+    if (
+      !settings?.acceptedMusicUsage ||
+      !options.includes(settings.privacyLevel)
+    ) {
+      throw new ComposioToolError({
+        message: "Choose an available TikTok audience before publishing",
+      });
+    }
+    const privacyLevel = settings.privacyLevel;
 
     const published = await guardSocialCreateOutcome(label, () =>
       executeComposioTool({
@@ -101,6 +92,12 @@ export async function publishTikTokVideo(
           video_url: video.fileUrl,
           caption: context.text,
           privacy_level: privacyLevel,
+          disable_comment:
+            creator?.comment_disabled !== false || !settings.allowComment,
+          disable_duet: creator?.duet_disabled !== false || !settings.allowDuet,
+          disable_stitch:
+            creator?.stitch_disabled !== false || !settings.allowStitch,
+          brand_organic_toggle: settings.promotesOwnBrand,
         },
         context: "publish TikTok video",
         refused: "TikTok refused the video",

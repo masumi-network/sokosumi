@@ -63,6 +63,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         userId: userContext.userId,
         postId,
         revision: input.revision,
+        tikTokSettings: input.tikTokSettings,
       });
       return ok(c, socialPostSchema.parse(post));
     } catch (error) {

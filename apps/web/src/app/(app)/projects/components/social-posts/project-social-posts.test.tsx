@@ -63,6 +63,16 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes: (
       ...args: unknown[]
     ) => getSuggestedTimesMock(...args),
+    getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator: async () => ({
+      data: {
+        creator_nickname: "Sandbox creator",
+        privacy_level_options: ["SELF_ONLY"],
+        comment_disabled: true,
+        duet_disabled: false,
+        stitch_disabled: true,
+        max_video_post_duration_sec: 10,
+      },
+    }),
     getProjectsByIdSocialConnectionsByConnectionIdSubscription: (
       ...args: unknown[]
     ) => getSubscriptionMock(...args),
@@ -362,26 +372,48 @@ vi.mock("next-intl", async () => {
     useFormatter: () => createTestFormatter(),
     useLocale: () => "en",
     useTimeZone: () => "UTC",
-    useTranslations:
-      (namespace: string) =>
-      (key: string, values?: Record<string, string | number>) => {
-        if (namespace === "App.Projects.SocialPosts.toasts") {
-          const messages: Record<string, string> =
-            enMessages.App.Projects.SocialPosts.toasts;
-          return createTranslator({ locale: "en", messages })(key, values);
-        }
-        const message =
-          MESSAGES[
-            namespace === "App.Projects.SocialPosts.quote"
-              ? `quote.${key}`
-              : key
-          ] ?? key;
-        if (!values) return message;
-        return Object.entries(values).reduce(
-          (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
-          message,
-        );
-      },
+    useTranslations: (namespace: string) =>
+      Object.assign(
+        (key: string, values?: Record<string, string | number>) => {
+          if (key.startsWith("composer.tt")) {
+            const messages = Object.fromEntries(
+              Object.entries(
+                enMessages.App.Projects.SocialPosts.composer,
+              ).filter(
+                (entry): entry is [string, string] =>
+                  typeof entry[1] === "string",
+              ),
+            );
+            return createTranslator({ locale: "en", messages })(
+              key.slice("composer.".length),
+              values,
+            );
+          }
+          if (namespace === "App.Projects.SocialPosts.toasts") {
+            const messages: Record<string, string> =
+              enMessages.App.Projects.SocialPosts.toasts;
+            return createTranslator({ locale: "en", messages })(key, values);
+          }
+          const message =
+            MESSAGES[
+              namespace === "App.Projects.SocialPosts.quote"
+                ? `quote.${key}`
+                : key
+            ] ?? key;
+          if (!values) return message;
+          return Object.entries(values).reduce(
+            (text, [name, value]) =>
+              text.replaceAll(`{${name}}`, String(value)),
+            message,
+          );
+        },
+        {
+          rich: createTranslator({
+            locale: "en",
+            messages: enMessages.App.Projects.SocialPosts,
+          }).rich,
+        },
+      ),
   };
 });
 
@@ -4811,6 +4843,61 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
+  });
+
+  it("requires the creator’s private audience, music consent and a video within TikTok’s duration limit", async () => {
+    const user = userEvent.setup();
+    const connection = buildConnection({ provider: "tiktok" });
+    render(
+      <SocialProviderAvailabilityProvider enabledProviders={["tiktok"]}>
+        <ProjectSocialPosts
+          connections={[connection]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />
+      </SocialProviderAvailabilityProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await dialog.findByText("Posting to Sandbox creator");
+    const audience = dialog.getByLabelText("Who can see this video?");
+    expect(audience).toHaveValue("");
+    expect(dialog.getByLabelText("Allow comments")).toBeDisabled();
+    expect(
+      dialog.getByLabelText("Allow Duet with this video"),
+    ).not.toBeChecked();
+    await user.click(dialog.getByRole("button", { name: "Add from Drive" }));
+    await user.click(screen.getByRole("button", { name: "pick clip.mp4" }));
+    const submit = dialog.getByRole("button", { name: "Post now" });
+    expect(submit).toBeDisabled();
+    await user.selectOptions(audience, connection.id);
+    const music = dialog.getByRole("checkbox", { name: /By posting/ });
+    expect(music).not.toBeChecked();
+    await user.click(music);
+    const video = dialog
+      .getByRole("group", { name: "TikTok" })
+      .querySelector("video")!;
+    Object.defineProperty(video, "duration", { value: 11, configurable: true });
+    fireEvent.loadedMetadata(video);
+    expect(submit).toBeDisabled();
+    Object.defineProperty(video, "duration", { value: 5 });
+    fireEvent.loadedMetadata(video);
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    await waitFor(() =>
+      expect(publishProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tikTokSettings: {
+            acceptedMusicUsage: true,
+            privacyLevel: "SELF_ONLY",
+            allowComment: false,
+            allowDuet: false,
+            allowStitch: false,
+            promotesOwnBrand: false,
+          },
+        }),
+      ),
+    );
   });
 
   it("never selects a disabled TikTok account for a new draft", async () => {

@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  pickTikTokPrivacyLevel,
-  publishTikTokVideo,
-} from "@/clients/social-post-providers/tiktok";
+import { publishTikTokVideo } from "@/clients/social-post-providers/tiktok";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
 const { getEnvMock, logSetMock } = vi.hoisted(() => ({
@@ -28,6 +25,14 @@ const context = {
   externalAccountId: "open_id_1",
   externalHandle: "alice",
   text: "Hello TikTok",
+  tikTokSettings: {
+    privacyLevel: "SELF_ONLY" as const,
+    acceptedMusicUsage: true as const,
+    allowComment: false,
+    allowDuet: false,
+    allowStitch: false,
+    promotesOwnBrand: false,
+  },
   media: [
     {
       pathname: "drive/users/user_1/clip.mp4",
@@ -64,7 +69,11 @@ function stubSession(execute: (call: ExecuteCall) => Response) {
 }
 
 function toolResponse(data: unknown): Response {
-  return Response.json({ data: { data }, error: null, successful: true });
+  return Response.json({
+    data: { data: { data, error: { code: "ok", message: "" } } },
+    error: null,
+    successful: true,
+  });
 }
 
 function executeCalls(
@@ -75,26 +84,6 @@ function executeCalls(
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
-describe("pickTikTokPrivacyLevel", () => {
-  it.each([
-    [["SELF_ONLY"], "SELF_ONLY"],
-    [
-      [
-        "PUBLIC_TO_EVERYONE",
-        "MUTUAL_FOLLOW_FRIENDS",
-        "FOLLOWER_OF_CREATOR",
-        "SELF_ONLY",
-      ],
-      "PUBLIC_TO_EVERYONE",
-    ],
-    [["MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR"], "MUTUAL_FOLLOW_FRIENDS"],
-    [["FOLLOWER_OF_CREATOR", "SELF_ONLY"], "FOLLOWER_OF_CREATOR"],
-    [[], "SELF_ONLY"],
-  ] as const)("picks %s as %s", (available, expected) => {
-    expect(pickTikTokPrivacyLevel(available)).toBe(expected);
-  });
-});
-
 describe("publishTikTokVideo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -104,7 +93,18 @@ describe("publishTikTokVideo", () => {
     });
   });
 
-  it("publishes with the most permissive level and waits for completion", async () => {
+  it("refuses an unavailable choice and never sends a publish request", async () => {
+    const calls = stubSession(() =>
+      toolResponse({ privacy_level_options: ["PUBLIC_TO_EVERYONE"] }),
+    );
+    await expect(publishTikTokVideo(context)).rejects.toThrow(
+      "Choose an available TikTok audience",
+    );
+    expect(executeCalls(calls).map((call) => call.tool_slug)).toEqual([
+      "TIKTOK_QUERY_CREATOR_INFO",
+    ]);
+  });
+  it("publishes with the selected private audience and waits for completion", async () => {
     const fetchMock = stubSession((call) => {
       if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
         return toolResponse({
@@ -126,7 +126,7 @@ describe("publishTikTokVideo", () => {
     await expect(publishTikTokVideo(context)).resolves.toEqual({
       externalId: "751234567890",
       publishedUrl: null,
-      providerOutcome: "published (FOLLOWER_OF_CREATOR)",
+      providerOutcome: "published (SELF_ONLY)",
       toolSlug: "TIKTOK_PUBLISH_VIDEO",
     });
     expect(executeCalls(fetchMock)[1]).toEqual({
@@ -134,7 +134,11 @@ describe("publishTikTokVideo", () => {
       arguments: {
         video_url: context.media[0].fileUrl,
         caption: "Hello TikTok",
-        privacy_level: "FOLLOWER_OF_CREATOR",
+        privacy_level: "SELF_ONLY",
+        disable_comment: true,
+        disable_duet: true,
+        disable_stitch: true,
+        brand_organic_toggle: false,
       },
     });
     expect(
