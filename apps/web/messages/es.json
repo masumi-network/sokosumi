@@ -1847,6 +1847,7 @@
         "loadMore": "Cargar más"
       },
       "noTitle": "(Sin título)",
+      "unansweredMention": "Tienes una mención sin responder",
       "createTaskFab": "Crear tarea",
       "personalAssistant": "Asistente personal",
       "sokoBot": "Soko Bot",
@@ -1914,7 +1915,9 @@
         "topicTags": "Temas predeterminados",
         "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
         "needsMe": "Me necesita",
-        "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable"
+        "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
+        "mentions": "Menciones",
+        "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces"
       },
       "Detail": {
         "back": "Volver a Tasks",

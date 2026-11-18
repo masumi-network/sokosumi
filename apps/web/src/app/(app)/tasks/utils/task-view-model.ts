@@ -203,6 +203,8 @@ export function mapTaskToTaskWithCoworker(
     dueOn: task.dueOn,
     statusSince: statusSince.toISOString(),
     subtaskProgress: task.subtaskProgress,
+    hasUnansweredMention:
+      "hasUnansweredMention" in task && task.hasUnansweredMention === true,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({

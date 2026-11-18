@@ -63,6 +63,8 @@ export interface TaskWithCoworker {
   statusSince?: string;
   /** Direct sub-tasks done of all. Absent on saved chat result snapshots. */
   subtaskProgress?: TaskSubtaskProgress;
+  /** A comment mentions the reader and the reader has not commented since. */
+  hasUnansweredMention?: boolean;
 }
 
 export type KanbanColumnId =

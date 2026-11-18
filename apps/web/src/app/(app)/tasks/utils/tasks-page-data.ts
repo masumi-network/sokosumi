@@ -15,10 +15,10 @@ import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   getTaskTagQuery,
-  NEEDS_ME_SCOPE,
   type ProjectFilterOption,
   parseTasksFilters,
   type TasksFiltersSearchParams,
+  tasksQueryScope,
 } from "@/app/tasks/utils/tasks-filters";
 import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
@@ -166,6 +166,7 @@ async function readTasksPageData(
     tag: activeFilters.tag,
     stuck: activeFilters.stuck,
     needsMe: activeFilters.needsMe,
+    mentions: activeFilters.mentions,
     coworkersById,
     personalAssistantFallback,
   };
@@ -193,7 +194,8 @@ async function readTasksPageData(
       ? taskService.listTasks({
           status: TaskStatus.GRANT_PENDING,
           ...getTaskTagQuery(activeFilters.tag),
-          scope: activeFilters.needsMe ? NEEDS_ME_SCOPE : activeFilters.scope,
+          scope: tasksQueryScope(activeFilters.scope, activeFilters),
+          ...(activeFilters.mentions ? { unansweredMention: true } : {}),
           assigneeId: activeFilters.assigneeId ?? undefined,
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,

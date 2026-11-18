@@ -517,3 +517,14 @@ describe("Compact board card wiring", () => {
     },
   );
 });
+
+describe("TaskCard mention mark", () => {
+  it("marks only a Task with an unanswered mention of the reader", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(<TaskCard task={task} />);
+    expect(screen.queryByLabelText(/mention/i)).not.toBeInTheDocument();
+
+    rerender(<TaskCard task={{ ...task, hasUnansweredMention: true }} />);
+    expect(screen.getByLabelText(/mention/i)).toBeInTheDocument();
+  });
+});

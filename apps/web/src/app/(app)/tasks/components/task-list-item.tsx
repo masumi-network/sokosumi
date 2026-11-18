@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
+import { TaskMentionMark } from "./task-mention-mark";
 import { TaskActorCluster } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
@@ -94,6 +95,7 @@ export function TaskListItem({
       <span className="flex shrink-0 items-center gap-3">
         {/* The small marks share one column. */}
         <span className="flex w-9 items-center justify-end gap-1">
+          <TaskMentionMark show={task.hasUnansweredMention} />
           <TaskPrivateIndicator visibility={task.visibility} />
         </span>
         {/* From lg up: a narrow row gives this room to the title. */}

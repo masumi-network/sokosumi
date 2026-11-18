@@ -2,6 +2,7 @@
 
 import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 import {
+  AtSign,
   Building2,
   CircleDashed,
   Eye,
@@ -174,7 +175,8 @@ export function TasksViewFilters({
 
     if (activeOrganizationId !== null) {
       // Needs me reads the reader's own Tasks, so a scope has no effect.
-      if (!filters.needsMe) {
+      // Mentions reads the whole workspace, so it has none there either.
+      if (!filters.needsMe && !filters.mentions) {
         nextSections.push({
           id: "scope",
           label: labels.scopeLabel,
@@ -322,8 +324,10 @@ export function TasksViewFilters({
     filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId;
   const chips = [
     // Needs me reads the reader's own Tasks whatever the scope says, so the
-    // scope chip would name a scope that is not the one shown.
+    // scope chip would name a scope that is not the one shown. Mentions
+    // reads the whole workspace, with the same result.
     !filters.needsMe &&
+      !filters.mentions &&
       filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
         id: "scope",
         label: labels.scopeLabel,
@@ -423,6 +427,24 @@ export function TasksViewFilters({
           {/* Icon only below lg, so the toolbar stays one row beside an
               open sidebar. */}
           <span className="max-lg:sr-only">{t("needsMe")}</span>
+        </Button>
+      ) : null}
+      {userId ? (
+        <Button
+          variant={filters.mentions ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={!!filters.mentions}
+          title={t("mentionsHint")}
+          className={cn(
+            "hit-area",
+            filters.mentions && "border-control-border",
+          )}
+          onClick={() => handleFilterChange({ mentions: !filters.mentions })}
+        >
+          <AtSign aria-hidden />
+          {/* Icon only below lg, so the toolbar stays one row beside an
+              open sidebar. */}
+          <span className="max-lg:sr-only">{t("mentions")}</span>
         </Button>
       ) : null}
       {display}

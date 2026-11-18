@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
+import { TaskMentionMark } from "./task-mention-mark";
 import { TaskMetaDetails } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
@@ -41,6 +42,7 @@ export interface TaskCardData
     | "dueOn"
     | "statusSince"
     | "subtaskProgress"
+    | "hasUnansweredMention"
   > {}
 interface TaskCardProps {
   task: TaskCardData;
@@ -129,6 +131,7 @@ export function TaskCard({
                 stuckOnly
               />
             ) : null}
+            <TaskMentionMark show={task.hasUnansweredMention} />
             <TaskPrivateIndicator visibility={task.visibility} />
           </span>
         </div>
