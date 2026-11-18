@@ -112,7 +112,9 @@ export async function publishZernioTikTokVideo(
         mediaItems: [{ type: "video", url: video.fileUrl }],
         platforms: [{ platform: "tiktok", accountId }],
         tiktokSettings: {
-          ...(video.aiGenerated && { videoMadeWithAi: true }),
+          ...((context.aiGenerated || video.aiGenerated) && {
+            videoMadeWithAi: true,
+          }),
           privacy_level: settings.privacyLevel,
           allow_comment: settings.allowComment && !creator.comment_disabled,
           allow_duet: settings.allowDuet && !creator.duet_disabled,
