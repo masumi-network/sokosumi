@@ -35,6 +35,7 @@ import {
   getDefaultTaskContextSelection,
   getTaskContextSelectionFromDescription,
   type TaskContextAttachmentsSelection,
+  withProjectBrandSource,
 } from "./task-context-attachments";
 import type { TaskFormLabels, TaskFormProps } from "./task-form-types";
 import { useTaskFormAttachments } from "./use-task-form-attachments";
@@ -385,17 +386,9 @@ export function useTaskFormModel({
         (nextProjectId
           ? localProjectOptions.find((item) => item.id === nextProjectId)
           : undefined);
-      setContextSelection((current) => ({
-        ...current,
-        brand: {
-          ...current.brand,
-          source: project?.designMd
-            ? "project"
-            : current.brand.source === "project"
-              ? "default"
-              : current.brand.source,
-        },
-      }));
+      setContextSelection((current) =>
+        withProjectBrandSource(current, project),
+      );
     },
     [localProjectOptions],
   );

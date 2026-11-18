@@ -14,10 +14,15 @@ import {
   marketingStrategyPlanSchema,
   networkAudiences,
 } from "@sokosumi/soko-bot";
+import { isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import {
+  posesAsCustomerTestimonial,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
+} from "@/lib/image-studio/talking-video";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
   answerBrandBrainQuestion,
@@ -136,7 +141,7 @@ export async function setCmoAdBudget(
     note:
       input.monthly > 0
         ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
-        : "I don't want to spend on ads this month. Leave paid ads out and make the plan work without them.",
+        : "I don't want to spend on ads this month. Leave paid ads out and make the strategy work without them.",
   });
   // The owner's budget is the version Cuso's patch completes: his turn's
   // saves update it, so a budget writes one version.
@@ -154,7 +159,7 @@ export async function setCmoAdBudget(
         patched: [],
         ads: {
           expect: "Cuso is updating what this brings.",
-          without: "The plan runs on posts, search and email alone.",
+          without: "The strategy runs on posts, search and email alone.",
           ...strategy.ads,
           monthly: input.monthly,
           currency,
@@ -245,7 +250,7 @@ async function requestStrategyForCuso(
       throw new CmoConflictError("Cuso is finishing a change");
     }
     if (input.note) {
-      throw new CmoConflictError("Cuso is still writing the plan");
+      throw new CmoConflictError("Cuso is still writing the strategy");
     }
     return { turnId: writing.id };
   }
@@ -466,8 +471,8 @@ async function startCmoStrategy(
  * with the rules still kept.
  */
 const PATCH_LINES = [
-  "Change only the calendar entries and plan fields this touches, and nothing else. Save them with save_strategy part patch: each entry you change goes whole under its id (a new id adds one, status skipped drops one); a plan field you change goes whole; leave out every entry and field you keep, and they stay exactly as they are. The calendar must still hold at least 16 pieces whose approach and pillar shares are within 7 points of the mix and the pillars. List each difference in changes, in plain words.",
-  "Do not write a new plan, research again or touch the Brand Brain.",
+  "Change only the calendar entries and strategy fields this touches, and nothing else. Save them with save_strategy part patch: each entry you change goes whole under its id (a new id adds one, status skipped drops one); a strategy field you change goes whole; leave out every entry and field you keep, and they stay exactly as they are. The calendar must still hold at least 16 pieces whose approach and pillar shares are within 7 points of the mix and the pillars. List each difference in changes, in plain words.",
+  "Do not write a new strategy, research again or touch the Brand Brain.",
 ];
 
 type StrategyTurn =
@@ -486,7 +491,7 @@ function changeMessage(
   const lines =
     input.kind === "patch"
       ? [
-          `Patch ${cuso.businessName}'s marketing plan. The owner asked: ${input.note}`,
+          `Patch ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
           ...PATCH_LINES,
           "Then tell the owner in one sentence what changed.",
         ]
@@ -495,20 +500,20 @@ function changeMessage(
           ...(planned
             ? [
                 "",
-                "Then patch the plan for this correction, as a change note, not a new plan.",
+                "Then patch the strategy for this correction, as a change note, not a new strategy.",
                 ...PATCH_LINES,
               ]
-            : ["Do not write a plan."]),
+            : ["Do not write a strategy."]),
           "Then tell the owner in one sentence what you fixed.",
         ];
   return lines.join("\n");
 }
 
 const PLAN_SAVE_TWO_CALLS =
-  "This is the plan, not the posts. Save it in two calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
+  "This is the strategy, not the posts. Save it in two calls of save_strategy, so the owner reads the strategy while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
 
 const PLAN_SAVE_WEEKLY =
-  "This is the plan, not the posts. Save it in short calls of save_strategy, so the owner reads the plan while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then the day-by-day calendar, one week a call: part calendar with week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece), then part patch with week two, then week three, then week four, each as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why) under new ids. Every week holds about the pace's perWeek pieces in the mix and pillar shares. Each part leaves the rest as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
+  "This is the strategy, not the posts. Save it in short calls of save_strategy, so the owner reads the strategy while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then the day-by-day calendar, one week a call: part calendar with week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece), then part patch with week two, then week three, then week four, each as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why) under new ids. Every week holds about the pace's perWeek pieces in the mix and pillar shares. Each part leaves the rest as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
 
 async function startStrategyTurn(
   cuso: Cuso,
@@ -561,16 +566,16 @@ async function startStrategyTurn(
               `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
               "",
               "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
-              "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
+              "Save with save_strategy: part plan for changes to the strategy (send the whole strategy with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
             ]
           : [
               `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,
               ...seasonLines(span),
-              `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
-              "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
+              `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The strategy sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole strategy.`,
+              "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the plan itself (summary, goals, why, briefs) stays in the owner's language.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this strategy is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the strategy itself (summary, goals, why, briefs) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),
@@ -592,7 +597,7 @@ async function startStrategyTurn(
       )
       .concat([
         "Do not create Social posts or images yet; that starts after the owner approves.",
-        "Then tell the owner in one or two sentences what the plan does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
+        "Then tell the owner in one or two sentences what the strategy does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
       ])
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
@@ -919,7 +924,8 @@ export async function saveCmoStrategy(
       : plan;
   let stored: MarketingStrategyPlan;
   if (options.part === "patch") {
-    if (!before) throw new CmoConflictError("There is no plan to patch yet");
+    if (!before)
+      throw new CmoConflictError("There is no strategy to patch yet");
     // Cuso once sent his changes as `patched` with an empty calendar, ten
     // times in a row: each patch saved nothing and the review said so again.
     if (patched?.length && !strategy.calendar?.length)
@@ -982,6 +988,33 @@ export async function saveCmoStrategy(
       : parsed;
     stored = options.turnId ? withoutDashes(withLineBreaks(merged)) : merged;
   }
+  // A talking video shows a generated presenter: its script speaks for the
+  // brand, never as a customer of it.
+  const testimonial = options.turnId
+    ? (strategy.calendar ?? []).find(
+        (entry) =>
+          isCmoTalkingFormat(entry.channel, entry.format) &&
+          entry.script &&
+          posesAsCustomerTestimonial(entry.script),
+      )
+    : undefined;
+  if (testimonial)
+    throw unprocessableEntity(
+      `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
+    );
+  // A month is planned without scripts and production writes them; a change
+  // in chat makes the piece now, so it needs its words.
+  const unscripted =
+    options.turnId && options.part === "patch"
+      ? (strategy.calendar ?? []).find(
+          (entry) =>
+            isCmoTalkingFormat(entry.channel, entry.format) && !entry.script,
+        )
+      : undefined;
+  if (unscripted)
+    throw unprocessableEntity(
+      `The talking video ${unscripted.id} has no script. Give it script (the spoken words: a hook first, one point, one next step, 150 to 400 characters, never as a customer), presenter and voice, then save again.`,
+    );
   if (options.rules) {
     // A plan part saved before its calendar is checked with the calendar.
     const sendsCalendar =
@@ -1013,7 +1046,7 @@ export async function saveCmoStrategy(
     if (broken.length > 0) {
       throw unprocessableEntity(
         [
-          "save_strategy saved nothing: the plan breaks a hard rule. Fix each one and save again.",
+          "save_strategy saved nothing: the strategy breaks a hard rule. Fix each one and save again.",
           ...broken.map((problem) => `- ${problem}`),
         ].join("\n"),
       );
@@ -1118,7 +1151,7 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
     );
   return changes.length > 0
     ? [
-        "The owner answered your questions about the plan. Change the plan where an answer says your assumption was wrong; keep everything else.",
+        "The owner answered your questions about the strategy. Change the strategy where an answer says your assumption was wrong; keep everything else.",
         ...changes,
       ].join("\n")
     : null;
@@ -1133,7 +1166,7 @@ export async function applyCmoPlanAnswers(
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
-  if (!note) throw new CmoConflictError("Your answers confirm the plan");
+  if (!note) throw new CmoConflictError("Your answers confirm the strategy");
   return requestStrategyForCuso(cuso, {
     userId: target.userId,
     note,

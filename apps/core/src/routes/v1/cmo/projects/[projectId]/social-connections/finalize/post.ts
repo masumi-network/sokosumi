@@ -51,7 +51,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireFirstPartyUserAuthContext(c.var.authContext);
-    const { connectionId } = c.req.valid("json");
+    const input = c.req.valid("json");
     const { projectId, workspaceId } = await requireCuso({
       userId,
       projectId: c.req.valid("param").projectId,
@@ -62,7 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId,
         workspaceId,
         userId,
-        connectionId,
+        ...input,
       });
       await scheduleSocialAccountRefresh({
         projectId,

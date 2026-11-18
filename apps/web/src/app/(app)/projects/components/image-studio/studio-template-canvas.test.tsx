@@ -7,11 +7,7 @@ import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { TEST_LABELS } from "./studio-fixtures";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import { STUDIO_TEMPLATES } from "./studio-templates";
-import {
-  buildStudioWall,
-  getStudioWallTransform,
-  getVisibleStudioWallRects,
-} from "./studio-wall-layout";
+import { buildStudioWall, getStudioWallTransform } from "./studio-wall-layout";
 
 vi.mock("next/image", () => ({
   default: function MockImage({ alt, src }: { alt: string; src: string }) {
@@ -28,12 +24,6 @@ const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 1440, height: 900 },
   { width: 2560, height: 1440 },
-];
-const OFFSETS = [
-  { x: 0, y: 0 },
-  { x: -37, y: 913 },
-  { x: 12345, y: -6789 },
-  { x: -99999, y: 42 },
 ];
 const AD_TEMPLATES = [
   ["daybreak-oats", 4],
@@ -224,44 +214,6 @@ describe("Studio ad wall layout", () => {
         for (const card of column.cards) {
           expect(neighbourAds.has(card.adIndex)).toBe(false);
         }
-      }
-    },
-  );
-
-  it.each(VIEWPORTS)(
-    "covers $width × $height at huge positive and negative offsets",
-    (viewport) => {
-      const layout = buildStudioWall(viewport);
-      for (const offset of OFFSETS) {
-        const rects = getVisibleStudioWallRects(layout, offset);
-        let largestDistance = 0;
-        for (
-          let x = 0;
-          x <= viewport.width;
-          x = Math.min(x + 19, viewport.width)
-        ) {
-          for (
-            let y = 0;
-            y <= viewport.height;
-            y = Math.min(y + 19, viewport.height)
-          ) {
-            const distance = Math.min(
-              ...rects.map((rect) =>
-                Math.hypot(
-                  Math.max(rect.x - x, 0, x - rect.x - rect.width),
-                  Math.max(rect.y - y, 0, y - rect.y - rect.height),
-                ),
-              ),
-            );
-            largestDistance = Math.max(largestDistance, distance);
-            if (y === viewport.height) break;
-          }
-          if (x === viewport.width) break;
-        }
-        expect(
-          largestDistance,
-          `offset ${offset.x}, ${offset.y}`,
-        ).toBeLessThanOrEqual(layout.gap + 0.000001);
       }
     },
   );

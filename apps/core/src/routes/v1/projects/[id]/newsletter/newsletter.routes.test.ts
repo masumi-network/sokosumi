@@ -358,7 +358,9 @@ describe("Project newsletter access", () => {
         id: true,
         closingAt: true,
         closedAt: true,
-        workspace: { select: { organization: { select: { slug: true } } } },
+        workspace: {
+          select: { id: true, organization: { select: { slug: true } } },
+        },
       },
     });
     expect(m.newsletterFindUnique).not.toHaveBeenCalled();

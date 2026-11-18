@@ -13,7 +13,7 @@ function isProvider(value: string | null): value is CmoMeasurement["provider"] {
   return PROVIDERS.includes(value as CmoMeasurement["provider"]);
 }
 
-/** Composio sends the founder back here; finish the connection, then return to Results. */
+/** Composio sends the founder back here; finish the connection, then return to where it started. */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const provider = params.get("provider");
@@ -27,11 +27,14 @@ export async function GET(request: NextRequest) {
           () => false,
         )
       : false;
+  const from = params.get("from");
   const back =
-    params.get("from") === "app"
+    from === "app"
       ? new URL("/results", request.nextUrl)
-      : new URL("/", request.nextUrl);
-  if (params.get("from") !== "app") {
+      : from === "seo"
+        ? new URL("/seo", request.nextUrl)
+        : new URL("/", request.nextUrl);
+  if (from !== "app" && from !== "seo") {
     back.searchParams.set("step", "results");
     back.searchParams.set("from", "onboarding");
   }

@@ -93,6 +93,7 @@ const baseLabels = {
   status: "Status",
   statusLabels: baseStatusLabels,
   organization: "Organization",
+  organizationReadOnly: "read-only",
   personalWorkspace: "Personal",
   project: "Project",
   noProject: "No project",
@@ -217,7 +218,7 @@ describe("TaskMetadata", () => {
       screen.getByRole("group", { name: "Assignee: Hepha" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("group", { name: "Organization: Personal" }),
+      screen.getByRole("group", { name: "Organization: Personal (read-only)" }),
     ).toBeVisible();
     expect(
       screen.getByRole("group", { name: "Project: No project" }),
@@ -286,8 +287,56 @@ describe("TaskMetadata", () => {
     });
 
     expect(
-      screen.getByRole("group", { name: "Organization: Masumi" }),
+      screen.getByRole("group", { name: "Organization: Masumi (read-only)" }),
     ).toBeInTheDocument();
+  });
+
+  it("puts the read-only Organization row last, with no control", () => {
+    renderTaskMetadata({
+      task: createTask({
+        visibility: "PRIVATE",
+        organization: { id: "org_1", name: "Masumi", slug: "masumi" },
+      }),
+      editable: true,
+      assigneeField: <button type="button">Assignee picker</button>,
+      projectField: <button type="button">Project picker</button>,
+    });
+
+    const rows = screen.getAllByRole("group");
+    const organizationRow = screen.getByRole("group", {
+      name: "Organization: Masumi (read-only)",
+    });
+    expect(rows.at(-1)).toBe(organizationRow);
+    expect(within(organizationRow).queryByRole("button")).toBeNull();
+    expect(within(organizationRow).queryByRole("combobox")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Assignee picker" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Project picker" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("group", { name: /^Assignee:/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /^Project:/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("puts the workspace credits directly under the Organization row", () => {
+    renderTaskMetadata({
+      task: createTask({
+        organization: { id: "org_1", name: "Masumi", slug: "masumi" },
+      }),
+      credits: <p>3 credits used in this workspace</p>,
+    });
+
+    const organizationRow = screen.getByRole("group", {
+      name: "Organization: Masumi (read-only)",
+    });
+    expect(organizationRow.nextElementSibling).toBe(
+      screen.getByText("3 credits used in this workspace"),
+    );
   });
 
   it("links the project name, or shows a muted No project", () => {

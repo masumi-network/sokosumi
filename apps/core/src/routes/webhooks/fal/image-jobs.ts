@@ -102,10 +102,12 @@ export function mountFalImageJobsWebhook(app: Hono): void {
     // The provider's dimensions go with the URL. They used to be dropped here,
     // which is half of why stored assets read 0x0.
     const produced = media[0]!;
-    await settleWithMedia(job.id, produced.url, {
-      width: produced.width,
-      height: produced.height,
-    });
+    await settleWithMedia(
+      job.id,
+      produced.url,
+      { width: produced.width, height: produced.height },
+      requestId,
+    );
     return c.json({ ok: true }, 200);
   });
 }

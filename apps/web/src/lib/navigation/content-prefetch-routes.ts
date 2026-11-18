@@ -13,6 +13,7 @@ const CONTENT_PREFETCH_PATHS = new Set<string>([
   TASK_SCHEDULES_PATH,
   "/calendar",
   "/studio",
+  "/tiktok-studio",
   "/social",
   "/seo",
   "/ads",

@@ -75,7 +75,7 @@ const TYPE_CLASS: Record<string, string> = {
 
 const TYPE: TypeStep[] = [
   { step: "display", sample: "Marketing, handled" },
-  { step: "h1", sample: "Your plan for May" },
+  { step: "h1", sample: "Your strategy for May" },
   { step: "statement", sample: "Reach 500 new readers this month" },
   { step: "value", sample: "Does this sound like you?" },
   { step: "h2", sample: "This week" },
@@ -88,11 +88,13 @@ const RADII: Radius[] = [
   { name: "Mark", token: "--radius-mark" },
   { name: "Control", token: "--radius-control" },
   { name: "Card", token: "--radius-card" },
-  { name: "Panel", token: "--radius-panel" },
   { name: "Pill", token: "--radius-pill" },
 ];
 
-const SHADOWS = ["Pill", "Hard", "Hero"];
+const SHADOWS = [
+  { name: "Shadow", className: "ds-shadow" },
+  { name: "Big shadow", className: "ds-shadow-big" },
+];
 
 const ART: CusoArt[] = [
   "walking",
@@ -148,7 +150,8 @@ function Board({ scheme }: BoardProps) {
           <Logo />
         </p>
         <p className="ds-t-small ds-muted">
-          The cursor-head mark, then the wordmark in the text colour.
+          The approved stacked-text lockup: black on a light page, white on a
+          dark one.
         </p>
       </Section>
 
@@ -193,11 +196,9 @@ function Board({ scheme }: BoardProps) {
             </li>
           ))}
           {SHADOWS.map((shadow) => (
-            <li key={shadow}>
-              <span
-                className={`ds-radius-box ds-shadow-${shadow.toLowerCase()}`}
-              />
-              <span className="ds-t-small">{shadow} shadow</span>
+            <li key={shadow.name}>
+              <span className={`ds-radius-box ${shadow.className}`} />
+              <span className="ds-t-small">{shadow.name}</span>
             </li>
           ))}
         </ul>

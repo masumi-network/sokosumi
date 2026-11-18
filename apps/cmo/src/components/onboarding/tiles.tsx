@@ -131,7 +131,7 @@ export function SidePanel({
   return (
     <aside
       ref={sheet}
-      className="ob-side card card-focus"
+      className="ob-side card"
       aria-label={title}
       tabIndex={-1}
     >
