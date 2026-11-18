@@ -37,7 +37,7 @@ export interface SocialProviderWorkspace {
 export function socialProvidersForWorkspace(
   workspace: SocialProviderWorkspace,
 ): readonly SocialPostProvider[] {
-  return workspace.tiktokSandbox && workspace.organizationSlug === null
+  return workspace.tiktokSandbox
     ? [...SOCIAL_PUBLIC_PROVIDERS, "tiktok"]
     : SOCIAL_PUBLIC_PROVIDERS;
 }

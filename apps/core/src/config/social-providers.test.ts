@@ -28,6 +28,7 @@ afterEach(() => vi.unstubAllEnvs());
 
 it("enables only the verified recording account's personal workspace in preview", () => {
   vi.stubEnv("VERCEL_ENV", "preview");
+  vi.stubEnv("NETWORK", "Preprod");
   const owner = { email: "Albina.Nikiforova@nmkr.io", emailVerified: true };
   expect(socialProviderWorkspace(null, owner).tiktokSandbox).toBe(true);
   expect(
@@ -42,4 +43,19 @@ it("enables only the verified recording account's personal workspace in preview"
   expect(socialProviderWorkspace("utxo", owner).tiktokSandbox).toBe(false);
   vi.stubEnv("VERCEL_ENV", "production");
   expect(socialProviderWorkspace(null, owner).tiktokSandbox).toBe(false);
+});
+
+it("allows only the utxo organization in a Mainnet preview", () => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  vi.stubEnv("NETWORK", "Mainnet");
+  expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(true);
+  expect(socialProviderWorkspace("other").tiktokSandbox).toBe(false);
+  expect(
+    socialProviderWorkspace(null, {
+      email: "albina.nikiforova@nmkr.io",
+      emailVerified: true,
+    }).tiktokSandbox,
+  ).toBe(false);
+  vi.stubEnv("VERCEL_ENV", "production");
+  expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(false);
 });

@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import {
+  SOCIAL_BETA_ORGANIZATION_SLUG,
   type SocialProviderWorkspace,
   socialProviderUnavailableMessage,
 } from "@sokosumi/utils";
@@ -58,12 +59,17 @@ export function socialProviderWorkspace(
   organizationSlug: string | null,
   owner?: { email: string; emailVerified: boolean } | null,
 ): SocialProviderWorkspace {
+  const eligible =
+    process.env.NETWORK === "Mainnet"
+      ? organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG
+      : process.env.NETWORK === "Preprod" &&
+        organizationSlug === null &&
+        owner?.emailVerified === true &&
+        owner.email.toLowerCase() === "albina.nikiforova@nmkr.io";
   return {
     organizationSlug,
     tiktokSandbox:
-      organizationSlug === null &&
-      owner?.emailVerified === true &&
-      owner.email.toLowerCase() === "albina.nikiforova@nmkr.io" &&
+      eligible &&
       process.env.VERCEL_ENV === "preview" &&
       Boolean(getEnv().COMPOSIO_TIKTOK_AUTH_CONFIG_ID),
   };
