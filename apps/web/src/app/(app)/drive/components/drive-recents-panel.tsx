@@ -447,13 +447,15 @@ export function DriveRecentsPanel({
                           <Edit3 className="size-4" aria-hidden />
                           {t("renameAction")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={copying.has(item.pathname)}
-                          onSelect={() => void handleMakeCopy(item)}
-                        >
-                          <CopyPlus className="size-4" aria-hidden />
-                          {t("makeCopyAction")}
-                        </DropdownMenuItem>
+                        {driveStore.scope === "me" && !item.dataRoom ? (
+                          <DropdownMenuItem
+                            disabled={copying.has(item.pathname)}
+                            onSelect={() => void handleMakeCopy(item)}
+                          >
+                            <CopyPlus className="size-4" aria-hidden />
+                            {t("makeCopyAction")}
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem
                           onSelect={(event) => {
                             event.preventDefault();

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { FileIndexJobPipeline, FileLabelKind } from "@sokosumi/database";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -12,20 +12,40 @@ import {
 } from "@/lib/files/index-jobs";
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import {
-  activateDriveUploadResource,
+  activateDriveCopyResource,
   adoptDriveUploadResource,
-  driveCopyHolder,
+  releaseDriveCopyResource,
   reserveDriveCopyResource,
+  reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { runSuggestionJob } from "@/services/file-suggestions.service";
+
+/** Set to make the next enqueue throw, as a dropped connection would. */
+const enqueueFault = vi.hoisted(() => ({ failNext: false }));
+vi.mock("@/lib/files/index-jobs", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/files/index-jobs")>();
+  return {
+    ...actual,
+    enqueueFileIndexJob: (
+      ...args: Parameters<typeof actual.enqueueFileIndexJob>
+    ) => {
+      if (enqueueFault.failNext) {
+        enqueueFault.failNext = false;
+        return Promise.reject(new Error("connection dropped"));
+      }
+      return actual.enqueueFileIndexJob(...args);
+    },
+  };
+});
 
 /**
  * A Drive copy against the real catalog and job queue.
  *
- * The route test models these with mocks. This one follows a copy through
- * what happens after the request: the backfill adopting its bytes, the
- * SUGGEST job extraction enqueues, and the missing-suggestion sweep, and
- * checks no step ever asks the paid label model.
+ * The route test models these with mocks. This one checks the catalog's
+ * side of the contract: a reservation is never shared, release and
+ * activation touch only the copy's own row at revision 1, activation and its
+ * job land together, and no later step asks the paid label model.
  */
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -101,60 +121,135 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
     await prisma.user.deleteMany({ where: { id: ownerId } });
   });
 
-  it("owns the name before the bytes, and refuses a second reservation", async () => {
-    const copy = key("weekly (copy).md");
-    expect(await driveCopyHolder(copy)).toBe("free");
-
-    await reserveDriveCopyResource({
-      key: copy,
-      displayName: "weekly (copy).md",
+  function reserve(name: string) {
+    return reserveDriveCopyResource({
+      key: key(name),
+      displayName: name,
       mimeType: "text/markdown",
       sizeBytes: 42,
       decidedByUserId: ownerId,
     });
+  }
 
-    expect(await driveCopyHolder(copy)).toBe("unfinished-copy");
-    await expect(
-      reserveDriveCopyResource({
-        key: copy,
-        displayName: "weekly (copy).md",
-        mimeType: "text/markdown",
-        sizeBytes: 42,
-        decidedByUserId: ownerId,
-      }),
-    ).rejects.toMatchObject({ code: "P2002" });
+  function extractJobs(resourceId: string) {
+    return prisma.fileIndexJob.count({
+      where: { resourceId, pipeline: FileIndexJobPipeline.EXTRACT },
+    });
+  }
+
+  it("refuses a second reservation of a held name", async () => {
+    await reserve("weekly (copy).md");
+
+    await expect(reserve("weekly (copy).md")).rejects.toMatchObject({
+      code: "P2002",
+    });
   });
 
-  it("keeps one identity when the backfill adopts the bytes first", async () => {
-    const copy = key("plan (copy).md");
-    const reserved = await reserveDriveCopyResource({
-      key: copy,
-      displayName: "plan (copy).md",
-      mimeType: "text/markdown",
-      sizeBytes: 7,
-      decidedByUserId: ownerId,
+  it("activates with the written metadata and queues extraction once", async () => {
+    const id = await reserve("plan (copy).md");
+
+    expect(
+      await activateDriveCopyResource({
+        resourceId: id,
+        sizeBytes: 7,
+        mimeType: "text/plain",
+      }),
+    ).toBe(true);
+
+    const row = await prisma.fileResource.findUniqueOrThrow({
+      where: { id },
+      select: { lifecycle: true, sizeBytes: true, mimeType: true },
     });
+    expect(row).toEqual({
+      lifecycle: "ACTIVE",
+      sizeBytes: 7,
+      mimeType: "text/plain",
+    });
+    expect(await extractJobs(id)).toBe(1);
+  });
+
+  it("keeps one identity and one job when the backfill adopts first", async () => {
+    const id = await reserve("brief (copy).md");
+    const name = "brief (copy).md";
 
     const adopted = await adoptDriveUploadResource({
-      key: copy,
-      displayName: "plan (copy).md",
-      mimeType: "text/markdown",
-      sizeBytes: 7,
+      key: key(name),
+      displayName: name,
+      mimeType: null,
+      sizeBytes: 42,
       uploadedAt: new Date(),
     });
-    const activated = await activateDriveUploadResource({
-      key: copy,
-      sizeBytes: 7,
+
+    expect(adopted).toBe(id);
+    expect(
+      await activateDriveCopyResource({
+        resourceId: id,
+        sizeBytes: 42,
+        mimeType: "text/markdown",
+      }),
+    ).toBe(true);
+    expect(await extractJobs(id)).toBe(1);
+  });
+
+  it("leaves a backfill adoption pending when its job cannot be queued", async () => {
+    const name = "agenda (copy).md";
+    const id = await reserve(name);
+
+    enqueueFault.failNext = true;
+    await expect(
+      adoptDriveUploadResource({
+        key: key(name),
+        displayName: name,
+        mimeType: null,
+        sizeBytes: 42,
+        uploadedAt: new Date(),
+      }),
+    ).rejects.toThrow("connection dropped");
+
+    const row = await prisma.fileResource.findUniqueOrThrow({
+      where: { id },
+      select: { lifecycle: true },
+    });
+    expect(row.lifecycle).toBe("PENDING");
+    expect(await extractJobs(id)).toBe(0);
+  });
+
+  it("neither activates nor releases a row an upload versioned meanwhile", async () => {
+    const name = "deck (copy).md";
+    const id = await reserve(name);
+    await reserveDriveUploadResource({
+      key: key(name),
+      displayName: name,
       mimeType: "text/markdown",
+      sizeBytes: 9,
     });
 
-    expect(adopted).toBe(reserved);
-    expect(activated?.resourceId).toBe(reserved);
-    expect(await driveCopyHolder(copy)).toBe("taken");
-    const extractJobs = await prisma.fileIndexJob.count({
-      where: { resourceId: reserved, pipeline: FileIndexJobPipeline.EXTRACT },
+    expect(
+      await activateDriveCopyResource({
+        resourceId: id,
+        sizeBytes: 42,
+        mimeType: "text/markdown",
+      }),
+    ).toBe(false);
+    await releaseDriveCopyResource(id);
+
+    const row = await prisma.fileResource.findUniqueOrThrow({
+      where: { id },
+      select: { lifecycle: true, contentRevision: true },
     });
-    expect(extractJobs).toBe(1);
+    expect(row).toEqual({ lifecycle: "PENDING", contentRevision: 2 });
+    expect(await extractJobs(id)).toBe(0);
+  });
+
+  it("releases its own pending reservation, so the name is free again", async () => {
+    const id = await reserve("memo (copy).md");
+
+    await releaseDriveCopyResource(id);
+
+    expect(await prisma.fileResource.count({ where: { id } })).toBe(0);
+    await expect(reserve("memo (copy).md")).resolves.toEqual(
+      expect.any(String),
+    );
   });
 
   it("never asks the label model, through enqueue and the sweep", async () => {
@@ -166,8 +261,8 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
       sizeBytes: 5,
       decidedByUserId: ownerId,
     });
-    await activateDriveUploadResource({
-      key: copy,
+    await activateDriveCopyResource({
+      resourceId,
       sizeBytes: 5,
       mimeType: "text/plain",
     });

@@ -13,7 +13,12 @@ import {
 import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
+import {
+  conflict,
+  forbidden,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -21,6 +26,7 @@ import {
   driveExists,
   driveHasAny,
   driveHead,
+  isInDataRoom,
 } from "@/lib/drive-blob";
 import { nudgeFileExtraction } from "@/lib/files/in-process-indexer";
 import {
@@ -32,8 +38,8 @@ import {
   copyDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
 import {
-  activateDriveUploadResource,
-  driveCopyHolder,
+  activateDriveCopyResource,
+  releaseDriveCopyResource,
   reserveDriveCopyResource,
 } from "@/services/file-catalog.service";
 
@@ -45,12 +51,13 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/copy",
     description: [
-      "Make a copy of a Drive file in the same folder.",
+      "Make a copy of one of your own Drive files in the same folder.",
       "The source stays. The copy is a new document with its own catalog id;",
       "tags, links and shares are not copied, and its category and tags are",
       "pinned empty so no paid model labels it. It is named",
       "`<name> (<label>).<ext>`, numbered when taken.",
-      "Personal: owner only. Organization: any member.",
+      "Personal files only, by their owner. Organization and data-room",
+      "files are refused with 403.",
     ].join("\n"),
     tags: ["Drive"],
     request: {
@@ -114,6 +121,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname,
       userContext.userId,
     );
+    if (scope !== "user" || ownerId !== userContext.userId) {
+      throw forbidden("Only your own files can be copied");
+    }
     const folderPrefix = pathname.slice(0, pathname.lastIndexOf("/") + 1);
     const folder = drivePathOf(folderPrefix).replace(/\/$/, "");
 
@@ -124,11 +134,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const source = await driveHead(pathname);
     if (!source) throw notFound("Source file not found");
+    if (source.access !== "public" || (await isInDataRoom(pathname))) {
+      throw forbidden("Files in a data room cannot be copied");
+    }
 
     const workspace = await resolveDriveTasksWorkspace({
       userContext,
-      scope: scope === "user" ? "me" : "org",
-      organizationId: scope === "organization" ? ownerId : undefined,
+      scope: "me",
     });
     const key = (target: string) => ({
       workspaceId: workspace.workspaceId,
@@ -137,68 +149,67 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname: target,
     });
 
-    // The catalog owns the name before the bytes exist, so a backfill that
-    // sees the object adopts this identity instead of minting another, and
-    // a failure leaves an unfinished copy that the next try finishes rather
-    // than bytes nobody owns.
+    // The catalog owns a fresh name before the bytes exist. A plain create:
+    // a name any row holds fails with P2002 and the next name is tried, so
+    // a copy never joins another request's row.
     const sourceName = pathname.slice(folderPrefix.length);
     let target: string | null = null;
+    let resourceId = "";
     for (let attempt = 1; attempt <= MAX_NAME_TRIES && !target; attempt++) {
       const candidate = `${folderPrefix}${copyName(sourceName, label, attempt)}`;
-      const holder = await driveCopyHolder(key(candidate));
-      if (holder === "unfinished-copy") {
-        target = candidate;
-      } else if (
-        holder === "free" &&
-        !(await driveExists(candidate)) &&
-        !(await driveHasAny(`${candidate}/`))
+      if (
+        (await driveExists(candidate)) ||
+        (await driveHasAny(`${candidate}/`))
       ) {
-        try {
-          await reserveDriveCopyResource({
-            key: key(candidate),
-            displayName: candidate.slice(folderPrefix.length),
-            mimeType: source.contentType,
-            sizeBytes: source.size,
-            decidedByUserId: userContext.userId,
-          });
-          target = candidate;
-        } catch (error) {
-          // Another request reserved this name first.
-          if (!isUniqueViolation(error)) throw error;
-        }
+        continue;
+      }
+      try {
+        resourceId = await reserveDriveCopyResource({
+          key: key(candidate),
+          displayName: candidate.slice(folderPrefix.length),
+          mimeType: source.contentType,
+          sizeBytes: source.size,
+          decidedByUserId: userContext.userId,
+        });
+        target = candidate;
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
       }
     }
     if (!target) throw conflict("No free name for the copy");
     const name = target.slice(folderPrefix.length);
 
-    let copied: { url: string; access: "public" | "private" };
-    const existing = await driveHead(target);
-    if (existing) {
-      // A previous try copied the bytes and stopped before activating.
-      copied = existing;
-    } else {
-      try {
-        const result = await driveCopy(source, target, {
-          cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
-        });
-        copied = { url: result.url, access: result.store.access };
-      } catch (error) {
-        if (error instanceof BlobNotFoundError) {
-          throw notFound("Source file not found");
-        }
-        // A concurrent try of the same unfinished copy wrote it first.
-        const raced = await driveHead(target);
-        if (!raced) throw error;
-        copied = raced;
+    let copied: { url: string; etag: string };
+    try {
+      copied = await driveCopy(pathname, target, {
+        contentType: source.contentType,
+        cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
+      });
+    } catch (error) {
+      // Bytes there now are not provably this copy's: leave the row pending
+      // and pinned, so nothing activates or labels them. No bytes: drop it.
+      if (!(await driveExists(target))) {
+        await releaseDriveCopyResource(resourceId);
       }
+      if (error instanceof BlobNotFoundError) {
+        throw notFound("Source file not found");
+      }
+      throw error;
     }
 
-    const activated = await activateDriveUploadResource({
-      key: key(target),
-      sizeBytes: source.size,
-      mimeType: source.contentType,
-    });
-    if (!activated) throw conflict("The copy was deleted; try again");
+    // Activate with what was written, and only if it is still this copy's
+    // write: another writer at the target changes the ETag.
+    const written = await driveHead(target);
+    if (
+      written?.etag !== copied.etag ||
+      !(await activateDriveCopyResource({
+        resourceId,
+        sizeBytes: written.size,
+        mimeType: written.contentType,
+      }))
+    ) {
+      throw conflict("The copy changed before it was finished; try again");
+    }
 
     // Extraction only, which is free. Labelling is paid, and the copy's
     // pinned category and tags leave every later suggestion run nothing to
@@ -211,10 +222,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         name,
         fileUrl: copied.url,
         pathname: target,
-        size: source.size,
-        uploadedAt: new Date().toISOString(),
-        dataRoom: copied.access === "private",
-        resourceId: activated.resourceId,
+        size: written.size,
+        uploadedAt: written.uploadedAt.toISOString(),
+        dataRoom: false,
+        resourceId,
       }),
     );
   });

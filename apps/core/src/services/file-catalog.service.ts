@@ -133,11 +133,12 @@ export async function reserveDriveUploadResource(input: {
 const COPY_PINNED_FIELDS = ["category", "tags"] as const;
 
 /**
- * Reserve identity for a Drive copy before its bytes exist, so whoever sees
- * the object first (this request, a retry, or the backfill) finds its owner.
+ * Reserve identity for one Drive copy request before its bytes exist, so a
+ * backfill that sees the object adopts this row instead of minting another.
  *
- * A plain create, never the replace-a-version path: a name another document
- * holds fails with P2002 and the caller tries the next name.
+ * A plain create, never the replace-a-version path: a name any row holds,
+ * including another request's unfinished copy, fails with P2002 and the
+ * caller tries the next name. Nothing ever joins another request's row.
  *
  * Category and tags are pinned empty. Labelling is a paid model call, and
  * a copy must stay free through extraction, the SUGGEST job it enqueues and
@@ -205,35 +206,63 @@ export async function reserveDriveCopyResource(input: {
 }
 
 /**
- * What holds a pathname in the catalog: nothing, an unfinished copy that a
- * retry may finish, or anything else, which takes the name.
+ * Drop a copy's reservation when its bytes never landed. Only the row this
+ * request made, still pending at revision 1: an upload that versioned it in
+ * the meantime owns it now and keeps it.
  */
-export async function driveCopyHolder(
-  key: DriveResourceKey,
-): Promise<"free" | "unfinished-copy" | "taken"> {
-  const resource = await prisma.fileResource.findUnique({
+export async function releaseDriveCopyResource(resourceId: string) {
+  await prisma.fileResource.deleteMany({
     where: {
-      workspaceId_sourceKind_sourceScope_sourceId: {
-        workspaceId: key.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope: toSourceScope(key.scope),
-        sourceId: key.pathname,
-      },
-    },
-    select: {
-      lifecycle: true,
-      overrides: {
-        where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
-        select: { id: true },
-        take: 1,
-      },
+      id: resourceId,
+      lifecycle: FileResourceLifecycle.PENDING,
+      contentRevision: 1,
     },
   });
-  if (!resource) return "free";
-  return resource.lifecycle === FileResourceLifecycle.PENDING &&
-    resource.overrides.length > 0
-    ? "unfinished-copy"
-    : "taken";
+}
+
+/**
+ * Make a reserved copy live with the metadata of the bytes it wrote, and
+ * queue its extraction in the same transaction. Bound to the reservation's
+ * id and revision 1, so an upload that versioned the row in the meantime is
+ * never activated with the copy's metadata. A backfill that adopted the row
+ * first is fine: it is the same document, and the job dedupes.
+ */
+export async function activateDriveCopyResource(input: {
+  resourceId: string;
+  sizeBytes: number;
+  mimeType: string;
+}): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.fileResource.updateMany({
+      where: {
+        id: input.resourceId,
+        contentRevision: 1,
+        tombstonedAt: null,
+        lifecycle: {
+          in: [FileResourceLifecycle.PENDING, FileResourceLifecycle.ACTIVE],
+        },
+      },
+      data: {
+        lifecycle: FileResourceLifecycle.ACTIVE,
+        sizeBytes: input.sizeBytes,
+        mimeType: input.mimeType,
+      },
+    });
+    if (count === 0) return false;
+    await tx.fileVersion.updateMany({
+      where: { resourceId: input.resourceId, revision: 1 },
+      data: { sizeBytes: input.sizeBytes, mimeType: input.mimeType },
+    });
+    await enqueueFileIndexJob(
+      {
+        resourceId: input.resourceId,
+        pipeline: FileIndexJobPipeline.EXTRACT,
+        contentRevision: 1,
+      },
+      tx,
+    );
+    return true;
+  });
 }
 
 /**
@@ -414,23 +443,31 @@ export async function adoptDriveUploadResource(input: {
         sourceId: input.key.pathname,
       },
     },
-    select: { id: true, lifecycle: true },
+    select: { id: true, lifecycle: true, contentRevision: true },
   });
 
   if (existing) {
     if (existing.lifecycle === FileResourceLifecycle.PENDING) {
-      await client.fileResource.update({
-        where: { id: existing.id },
-        data: { lifecycle: FileResourceLifecycle.ACTIVE },
-      });
-      await enqueueFileIndexJob(
-        {
-          resourceId: existing.id,
-          pipeline: FileIndexJobPipeline.EXTRACT,
-          contentRevision: 1,
-        },
-        client,
-      );
+      // Activation and its job land together, and only from PENDING, so a
+      // failed enqueue never leaves a live document nobody extracts.
+      const activate = async (tx: Prisma.TransactionClient) => {
+        const { count } = await tx.fileResource.updateMany({
+          where: { id: existing.id, lifecycle: FileResourceLifecycle.PENDING },
+          data: { lifecycle: FileResourceLifecycle.ACTIVE },
+        });
+        if (count === 0) return;
+        await enqueueFileIndexJob(
+          {
+            resourceId: existing.id,
+            pipeline: FileIndexJobPipeline.EXTRACT,
+            contentRevision: existing.contentRevision,
+          },
+          tx,
+        );
+      };
+      await (input.client
+        ? activate(input.client)
+        : prisma.$transaction(activate));
     }
     return existing.id;
   }

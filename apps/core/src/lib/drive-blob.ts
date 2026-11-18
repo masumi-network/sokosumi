@@ -350,37 +350,23 @@ export async function driveRename(
 }
 
 /**
- * Copies one object to a new pathname and keeps the source. Reads from the
- * store that actually holds the source and writes where the target belongs,
- * so a copy works while a data room moves between stores. Never overwrites.
- * Returns the target's store, which removing a half-made copy needs.
+ * Copies one public-store object to a new pathname and keeps the source.
+ * Never overwrites: a pathname that is already taken fails, so the bytes at
+ * the target are this call's or the call threw. Data rooms are not copied.
  */
 export async function driveCopy(
-  source: DriveHeadResult,
+  fromPathname: string,
   toPathname: string,
-  options: { cacheControlMaxAge?: number } = {},
-): Promise<{ url: string; pathname: string; store: DriveBlobStore }> {
-  const target = await driveWriteStore(toPathname);
-  const write = {
-    token: target.token,
-    access: target.access,
+  options: { contentType: string; cacheControlMaxAge?: number },
+): Promise<{ url: string; etag: string }> {
+  const { url, etag } = await copy(fromPathname, toPathname, {
+    token: publicDriveStore().token,
+    access: "public",
     addRandomSuffix: false,
     allowOverwrite: false,
-    contentType: source.contentType,
-    cacheControlMaxAge: options.cacheControlMaxAge,
-  };
-  if (source.access === target.access) {
-    const result = await copy(source.pathname, toPathname, write);
-    return { url: result.url, pathname: result.pathname, store: target };
-  }
-  const from = storeFor(source.access);
-  const bytes = await get(source.pathname, {
-    access: from.access,
-    token: from.token,
+    ...options,
   });
-  if (!bytes || bytes.statusCode !== 200) throw new BlobNotFoundError();
-  const result = await put(toPathname, bytes.stream, write);
-  return { url: result.url, pathname: result.pathname, store: target };
+  return { url, etag };
 }
 
 function storeFor(access: BlobAccessType): DriveBlobStore {

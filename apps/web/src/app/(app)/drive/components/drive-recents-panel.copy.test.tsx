@@ -55,11 +55,16 @@ const FILE = {
   dataRoom: false,
 };
 
-function renderPanel(onItemsChanged = vi.fn()) {
+function renderPanel(
+  onItemsChanged = vi.fn(),
+  store: { scope: "me" } | { scope: "org"; organizationId: string } = {
+    scope: "me",
+  },
+) {
   render(
     <DriveRecentsPanel
-      driveStore={{ scope: "me" }}
-      activeOrganizationId={null}
+      driveStore={store}
+      activeOrganizationId={store.scope === "org" ? "org_1" : null}
       searchQuery=""
       tagLabelIds={[]}
       onOpenMoveDialog={vi.fn()}
@@ -158,5 +163,29 @@ describe("Make a copy", () => {
 
     finish({ data: { data: { name: "weekly (copy).md" } } });
     await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+  });
+
+  it.each([
+    [
+      "an organization file",
+      { scope: "org" as const, organizationId: "org_1" },
+      FILE,
+    ],
+    ["a data-room file", { scope: "me" as const }, { ...FILE, dataRoom: true }],
+  ])("is not offered for %s", async (_case, store, item) => {
+    fetchRecentsMock.mockResolvedValue({ items: [item], nextCursor: null });
+    const user = userEvent.setup();
+    renderPanel(vi.fn(), store);
+
+    await user.click(
+      await screen.findByRole("button", { name: "moreActions" }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: "renameAction" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("menuitem", { name: "makeCopyAction" }),
+    ).not.toBeInTheDocument();
   });
 });
