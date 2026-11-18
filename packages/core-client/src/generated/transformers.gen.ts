@@ -2160,13 +2160,8 @@ const driveFileSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
-const copiedDriveFileSchemaResponseTransformer = (data: any) => {
-    data = driveFileSchemaResponseTransformer(data);
-    return data;
-};
-
 export const postDriveFilesCopyResponseTransformer = async (data: any): Promise<PostDriveFilesCopyResponse> => {
-    data.data = copiedDriveFileSchemaResponseTransformer(data.data);
+    data.data = driveFileSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

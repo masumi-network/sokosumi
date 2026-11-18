@@ -87,6 +87,15 @@ beforeEach(() => {
 });
 
 describe("Make a copy", () => {
+  it("lets a Recents name wrap to two lines on a phone, so its end stays visible", async () => {
+    renderPanel();
+
+    expect(await screen.findByText("weekly.md")).toHaveClass(
+      "line-clamp-2",
+      "md:line-clamp-1",
+    );
+  });
+
   it("copies the file beside itself and reloads the list", async () => {
     copyMock.mockResolvedValue({
       data: { data: { name: "weekly (copy).md" } },

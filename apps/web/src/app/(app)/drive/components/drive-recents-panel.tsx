@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import {
   DriveFilePreview,
   DriveItemCard,
+  DriveItemName,
   driveFileUrl,
   driveItemActivation,
   forcedDownloadUrl,
@@ -508,7 +509,7 @@ export function DriveRecentsPanel({
                             : null
                         }
                       >
-                        {({ activate, nameEl, viewers }) => (
+                        {({ activate, viewers }) => (
                           <DriveItemCard
                             viewMode={viewMode}
                             {...driveItemActivation(
@@ -546,7 +547,11 @@ export function DriveRecentsPanel({
                             ) : (
                               <>
                                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                  {nameEl}
+                                  {/* Two lines on a phone, so a copy's "(copy).md" stays visible. */}
+                                  <DriveItemName
+                                    name={item.name}
+                                    className="line-clamp-2 break-words md:line-clamp-1"
+                                  />
                                   <DriveRecentsLabels
                                     category={item.category}
                                     tags={item.tags}

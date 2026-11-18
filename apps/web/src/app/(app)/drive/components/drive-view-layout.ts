@@ -125,6 +125,5 @@ export function driveItemActionsClass(viewMode: FilesViewMode): string {
 }
 
 export function driveItemNameClass(): string {
-  // Two lines on a phone, so a name's end ("(copy).md") stays readable.
-  return "text-foreground line-clamp-2 text-sm font-medium break-words md:line-clamp-1";
+  return "text-foreground line-clamp-1 text-sm font-medium";
 }

@@ -5255,13 +5255,6 @@ export type MoveDriveItemRequest = {
     organizationId?: string;
 };
 
-export type CopiedDriveFile = DriveFile & {
-    /**
-     * The copy's own catalog id
-     */
-    resourceId: string;
-};
-
 export type CopyDriveFileRequest = {
     /**
      * Blob pathname of the file to copy
@@ -44231,7 +44224,7 @@ export type PostDriveFilesCopyResponses = {
      * Drive file copied
      */
     200: {
-        data: CopiedDriveFile;
+        data: DriveFile;
         meta: {
             timestamp: Date;
             requestId: string;

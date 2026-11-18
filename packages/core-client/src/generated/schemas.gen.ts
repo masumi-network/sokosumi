@@ -18690,26 +18690,6 @@ export const MoveDriveItemRequestSchema = {
     ]
 } as const;
 
-export const CopiedDriveFileSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/DriveFile'
-        },
-        {
-            type: 'object',
-            properties: {
-                resourceId: {
-                    type: 'string',
-                    description: 'The copy\'s own catalog id'
-                }
-            },
-            required: [
-                'resourceId'
-            ]
-        }
-    ]
-} as const;
-
 export const CopyDriveFileRequestSchema = {
     type: 'object',
     properties: {

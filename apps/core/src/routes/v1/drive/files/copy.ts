@@ -26,16 +26,18 @@ import {
   driveExists,
   driveHasAny,
   driveHead,
+  driveUncopy,
   isInDataRoom,
 } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import { nudgeFileExtraction } from "@/lib/files/in-process-indexer";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
-  copiedDriveFileSchema,
   copyDriveFileRequestSchema,
+  driveFileSchema,
 } from "@/schemas/drive-file.schema";
 import {
   activateDriveCopyResource,
@@ -69,7 +71,7 @@ const route = withCoworkerContextHeaderParameters(
       },
     },
     responses: {
-      200: jsonSuccessResponse(copiedDriveFileSchema, "Drive file copied"),
+      200: jsonSuccessResponse(driveFileSchema, "Drive file copied"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -102,6 +104,35 @@ export function copyName(source: string, label: string, attempt: number) {
     kept += character;
   }
   return `${kept}${tail}${extension}`;
+}
+
+/**
+ * Delete this request's bytes, then its claim. When the copy call itself
+ * failed there is no ETag, so the one at the target is used: the pending
+ * claim keeps every catalog writer off this name, so those bytes are this
+ * request's. If they cannot be removed the claim stays, pending and
+ * unlabelled, and is never adopted.
+ */
+async function giveBack(resourceId: string, target: string, etag?: string) {
+  try {
+    await releaseDriveCopyResource(
+      { resourceId, pathname: target },
+      async () => {
+        const there = etag ?? (await driveHead(target))?.etag;
+        if (there) await driveUncopy(target, there);
+      },
+    );
+  } catch (error) {
+    recordCoreWarning(
+      { route: "drive.files.copy" },
+      {
+        message: "Kept a failed Drive copy's claim",
+        why: "Its bytes could not be removed, so its name stays held.",
+        cause: error,
+      },
+      { target },
+    );
+  }
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -179,36 +210,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!target) throw conflict("No free name for the copy");
     const name = target.slice(folderPrefix.length);
 
-    let copied: { url: string; etag: string };
+    // From here on this request owns the claim and anything it writes, so
+    // every failure gives both back before it surfaces.
+    let copied: { url: string; etag: string } | undefined;
+    let written: Awaited<ReturnType<typeof driveHead>> = null;
     try {
       copied = await driveCopy(pathname, target, {
         contentType: source.contentType,
         cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
       });
-    } catch (error) {
-      // Bytes there now are not provably this copy's: leave the row pending
-      // and pinned, so nothing activates or labels them. No bytes: drop it.
-      if (!(await driveExists(target))) {
-        await releaseDriveCopyResource(resourceId);
+      // The target must still be this write, and the source unchanged since
+      // its head, so the bytes copied are the ones its type describes.
+      const [targetNow, sourceNow] = await Promise.all([
+        driveHead(target),
+        driveHead(pathname),
+      ]);
+      written = targetNow;
+      if (written?.etag !== copied.etag || sourceNow?.etag !== source.etag) {
+        throw conflict("The file changed while it was copied; try again");
       }
+      const activated = await activateDriveCopyResource({
+        resourceId,
+        pathname: target,
+        sizeBytes: written.size,
+        mimeType: written.contentType,
+      });
+      if (!activated) throw conflict("The copy was moved; try again");
+    } catch (error) {
+      await giveBack(resourceId, target, copied?.etag);
       if (error instanceof BlobNotFoundError) {
         throw notFound("Source file not found");
       }
       throw error;
-    }
-
-    // Activate with what was written, and only if it is still this copy's
-    // write: another writer at the target changes the ETag.
-    const written = await driveHead(target);
-    if (
-      written?.etag !== copied.etag ||
-      !(await activateDriveCopyResource({
-        resourceId,
-        sizeBytes: written.size,
-        mimeType: written.contentType,
-      }))
-    ) {
-      throw conflict("The copy changed before it was finished; try again");
     }
 
     // Extraction only, which is free. Labelling is paid, and the copy's
@@ -218,14 +251,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      copiedDriveFileSchema.parse({
+      driveFileSchema.parse({
         name,
         fileUrl: copied.url,
         pathname: target,
         size: written.size,
         uploadedAt: written.uploadedAt.toISOString(),
         dataRoom: false,
-        resourceId,
       }),
     );
   });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { expectCoreLog } from "@/test/core-log";
 
 /**
  * Make a copy: a second, independent file beside one of your own.
@@ -23,8 +24,9 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { BlobNotFoundError } = vi.hoisted(() => ({
+const { BlobNotFoundError, BlobPreconditionFailedError } = vi.hoisted(() => ({
   BlobNotFoundError: class BlobNotFoundError extends Error {},
+  BlobPreconditionFailedError: class BlobPreconditionFailedError extends Error {},
 }));
 
 const blob = vi.hoisted(() => ({
@@ -37,7 +39,11 @@ const blob = vi.hoisted(() => ({
   put: vi.fn(),
 }));
 
-vi.mock("@vercel/blob", () => ({ ...blob, BlobNotFoundError }));
+vi.mock("@vercel/blob", () => ({
+  ...blob,
+  BlobNotFoundError,
+  BlobPreconditionFailedError,
+}));
 
 const rooms = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/db/prisma", () => ({
@@ -133,13 +139,11 @@ interface StoredObject {
 let stored: Map<string, StoredObject>;
 /** Catalog rows by pathname. A copy's row starts pending at revision 1. */
 let rows: Map<string, { id: string; active: boolean; revision: number }>;
+/** What each failure cleanup removed. */
+let removed: string[];
 /** Order of side effects, to check identity comes before bytes. */
 let events: string[];
 let etags: number;
-
-function rowById(id: string) {
-  return [...rows.values()].find((row) => row.id === id);
-}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -148,6 +152,7 @@ beforeEach(() => {
   stored = new Map([[SOURCE, { token: "public-token", etag: "e0", size: 42 }]]);
   rows = new Map();
   events = [];
+  removed = [];
   rooms.mockResolvedValue([]);
   requireAccessMock.mockResolvedValue({ hiddenRoomFolders: [] });
   blob.list.mockResolvedValue({ blobs: [], hasMore: false });
@@ -186,14 +191,33 @@ beforeEach(() => {
     events.push(`reserve:${key.pathname}`);
     return id;
   });
-  catalog.release.mockImplementation(async (id: string) => {
-    for (const [pathname, row] of rows)
-      if (row.id === id && !row.active && row.revision === 1)
-        rows.delete(pathname);
-  });
-  catalog.activate.mockImplementation(async ({ resourceId }) => {
-    const row = rowById(resourceId);
-    if (!row || row.revision !== 1) return false;
+  blob.del.mockImplementation(
+    async (pathname: string, { ifMatch }: { ifMatch: string }) => {
+      if (stored.get(pathname)?.etag !== ifMatch)
+        throw new BlobPreconditionFailedError("changed");
+      stored.delete(pathname);
+      removed.push(`bytes:${pathname}`);
+    },
+  );
+  // The real one deletes the row in a transaction that commits only if the
+  // bytes went; a throw from removeBytes keeps the row.
+  catalog.release.mockImplementation(
+    async (
+      { resourceId, pathname }: { resourceId: string; pathname: string },
+      removeBytes: () => Promise<void>,
+    ) => {
+      const row = rows.get(pathname);
+      if (!row || row.id !== resourceId || row.active || row.revision !== 1)
+        return;
+      await removeBytes();
+      rows.delete(pathname);
+      removed.push(`row:${pathname}`);
+    },
+  );
+  catalog.activate.mockImplementation(async ({ resourceId, pathname }) => {
+    const row = rows.get(pathname);
+    if (!row || row.id !== resourceId || row.active || row.revision !== 1)
+      return false;
     row.active = true;
     events.push(`activate:${resourceId}`);
     return true;
@@ -244,7 +268,6 @@ describe("copy a personal file", () => {
     expect(json.data).toMatchObject({
       name: "weekly (copy).md",
       pathname: TARGET,
-      resourceId: "res-1",
       dataRoom: false,
     });
   });
@@ -274,7 +297,9 @@ describe("copy a personal file", () => {
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(response.status).toBe(200);
-    expect((await response.json()).data.resourceId).toBe("res-2");
+    expect(catalog.activate).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: "res-2" }),
+    );
     expect(rows.get(TARGET)).toEqual({
       id: "someone-else",
       active: false,
@@ -338,25 +363,34 @@ describe("only your own personal files", () => {
 });
 
 describe("races and failures never activate the wrong bytes", () => {
-  it("activates with the bytes written, not the source as first seen", async () => {
+  it("activates its own claim at its own pathname with the written metadata", async () => {
+    await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(catalog.activate).toHaveBeenCalledWith({
+      resourceId: "res-1",
+      pathname: TARGET,
+      sizeBytes: 42,
+      mimeType: "text/markdown",
+    });
+  });
+
+  it("gives back its bytes and claim when the source changed during the copy", async () => {
     blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
-      // The source was replaced between its head and the copy.
-      stored.set(to, { token: "public-token", etag: "new", size: 7 });
-      return { url: `https://blob.example/${to}`, pathname: to, etag: "new" };
+      stored.set(to, { token: "public-token", etag: "c1", size: 42 });
+      // Another writer replaces the source after the copy read it.
+      stored.set(SOURCE, { token: "public-token", etag: "e-new", size: 7 });
+      return { url: `https://blob.example/${to}`, pathname: to, etag: "c1" };
     });
 
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
-    expect(response.status).toBe(200);
-    expect(catalog.activate).toHaveBeenCalledWith({
-      resourceId: "res-1",
-      sizeBytes: 7,
-      mimeType: "text/markdown",
-    });
-    expect((await response.json()).data.size).toBe(7);
+    expect(response.status).toBe(409);
+    expect(catalog.activate).not.toHaveBeenCalled();
+    expect(removed).toEqual([`bytes:${TARGET}`, `row:${TARGET}`]);
   });
 
-  it("refuses to activate when another writer replaced the bytes", async () => {
+  it("refuses to activate and leaves foreign bytes when another writer replaced the target", async () => {
+    expectCoreLog("warn", "Kept a failed Drive copy's claim");
     blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
       stored.set(to, { token: "public-token", etag: "upload", size: 9 });
       return { url: `https://blob.example/${to}`, pathname: to, etag: "mine" };
@@ -366,56 +400,92 @@ describe("races and failures never activate the wrong bytes", () => {
 
     expect(response.status).toBe(409);
     expect(catalog.activate).not.toHaveBeenCalled();
+    expect(stored.get(TARGET)?.etag).toBe("upload");
     expect(rows.get(TARGET)?.active).toBe(false);
   });
 
-  it("refuses to activate a row an upload versioned in the meantime", async () => {
+  it("gives back its bytes and claim when activation fails after the write", async () => {
+    catalog.activate.mockRejectedValueOnce(new Error("database down"));
+
+    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(failed.status).toBe(500);
+    expect(removed).toEqual([`bytes:${TARGET}`, `row:${TARGET}`]);
+    expect(stored.has(TARGET)).toBe(false);
+
+    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect((await retried.json()).data.pathname).toBe(TARGET);
+  });
+
+  it("gives back its bytes and claim when the target head fails after the write", async () => {
+    const head = blob.head.getMockImplementation();
+    blob.head.mockImplementation(async (pathname: string, options) => {
+      if (pathname === TARGET && stored.has(TARGET) && !removed.length)
+        throw new Error("Blob service unavailable");
+      return head?.(pathname, options);
+    });
+
+    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(failed.status).toBe(500);
+    expect(removed).toEqual([`bytes:${TARGET}`, `row:${TARGET}`]);
+  });
+
+  it("returns 409 and gives back its bytes when the copy was renamed first", async () => {
     blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
+      stored.set(to, { token: "public-token", etag: "c1", size: 42 });
       const row = rows.get(to);
-      if (row) row.revision = 2;
-      stored.set(to, { token: "public-token", etag: "c", size: 42 });
-      return { url: `https://blob.example/${to}`, pathname: to, etag: "c" };
+      if (row) {
+        rows.delete(to);
+        rows.set(`${FOLDER}elsewhere.md`, row);
+      }
+      return { url: `https://blob.example/${to}`, pathname: to, etag: "c1" };
     });
 
     const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(response.status).toBe(409);
-    expect(rows.get(TARGET)).toMatchObject({ active: false, revision: 2 });
+    expect(rows.get(`${FOLDER}elsewhere.md`)?.active).toBe(false);
+    // The claim moved, so the cleanup fenced to this pathname touches nothing.
+    expect(removed).toEqual([]);
   });
 
-  it("releases the reservation when no bytes landed, and a retry starts fresh", async () => {
+  it("releases the claim when no bytes landed, and a retry starts fresh", async () => {
     blob.copy.mockRejectedValueOnce(new Error("Blob service unavailable"));
 
     const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(failed.status).toBe(500);
-    expect(catalog.release).toHaveBeenCalledWith("res-1");
-    expect(rows.has(TARGET)).toBe(false);
+    expect(removed).toEqual([`row:${TARGET}`]);
 
     const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
 
-    expect(retried.status).toBe(200);
     expect((await retried.json()).data.pathname).toBe(TARGET);
   });
 
-  it("keeps a failed copy's row pending over bytes it cannot prove are its own", async () => {
+  it("removes bytes a failed copy call still wrote, then its claim", async () => {
     blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
-      stored.set(to, { token: "public-token", etag: "?", size: 1 });
+      stored.set(to, { token: "public-token", etag: "late", size: 42 });
       throw new Error("Blob service unavailable");
     });
 
     const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(failed.status).toBe(500);
-    expect(catalog.release).not.toHaveBeenCalled();
-    expect(catalog.activate).not.toHaveBeenCalled();
+    expect(removed).toEqual([`bytes:${TARGET}`, `row:${TARGET}`]);
+  });
+
+  it("keeps the claim pending, never activated, when its bytes cannot be removed", async () => {
+    expectCoreLog("warn", "Kept a failed Drive copy's claim");
+    catalog.activate.mockRejectedValueOnce(new Error("database down"));
+    blob.del.mockRejectedValueOnce(new Error("Blob service unavailable"));
+
+    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(failed.status).toBe(500);
     expect(rows.get(TARGET)?.active).toBe(false);
-
-    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
-
-    expect((await retried.json()).data.pathname).toBe(
-      `${FOLDER}weekly (copy) 2.md`,
-    );
+    expect(stored.has(TARGET)).toBe(true);
   });
 
   it("returns 404 and releases when the source vanished before the copy", async () => {

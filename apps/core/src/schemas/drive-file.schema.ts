@@ -197,14 +197,6 @@ export const copyDriveFileRequestSchema = z
   })
   .openapi("CopyDriveFileRequest");
 
-export const copiedDriveFileSchema = driveFileSchema
-  .extend({
-    resourceId: z.string().openapi({
-      description: "The copy's own catalog id",
-    }),
-  })
-  .openapi("CopiedDriveFile");
-
 /**
  * Delete drive file request.
  */

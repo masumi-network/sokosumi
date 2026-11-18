@@ -369,6 +369,11 @@ export async function driveCopy(
   return { url, etag };
 }
 
+/** Deletes a copy's bytes only while they are still the write with `etag`. */
+export async function driveUncopy(pathname: string, etag: string) {
+  await del(pathname, { token: publicDriveStore().token, ifMatch: etag });
+}
+
 function storeFor(access: BlobAccessType): DriveBlobStore {
   return access === "private" ? requirePrivateStore() : publicDriveStore();
 }
