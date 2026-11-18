@@ -12103,6 +12103,20 @@
         "failedCheck": "<prefix>Not passed:</prefix> {name}",
         "checkedOn": "Checked",
         "diagnostics": "Title, description and other page details",
+        "rank": {
+          "absent": "Not in the top {top}",
+          "position": "Position {position}",
+          "featuredSnippet": "Featured snippet, position {position}",
+          "forKeyword": "for “{keyword}”",
+          "source": "Market {country}, {language} · DataForSEO",
+          "aiNotCited": "An AI Overview shows and does not cite the page",
+          "aiCited": "The AI Overview cites the page",
+          "othersAbsent": "{count, plural, one {# other keyword} other {# other keywords}}: none in the top {top}",
+          "searchConsole": "Search Console average position {position}",
+          "serpRead": "Search result read:",
+          "allDetails": "All details",
+          "showRankings": "See rankings"
+        },
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
@@ -12122,7 +12136,6 @@
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
         "noteRule": "Rule not met: “{name}”",
-        "notesNotCounted": "not counted as issues",
         "askAgent": "Ask the agent",
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
         "showAll": "Show all",
@@ -12130,9 +12143,6 @@
         "askAboutNoteOnPage": "A check flagged “{name}” on {url}. What does it mean, and should I change anything?",
         "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
-        "referencesAndRules": "Sources and rule IDs",
-        "ruleIds": "Rule IDs: {ids}",
-        "rulesOnly": "Rule IDs",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
         "noteFound": "Found: {found}",
@@ -12417,8 +12427,6 @@
         "home": "Home page"
       },
       "timeline": {
-        "title": "History",
-        "runNewCheck": "Run a new check",
         "statuses": {
           "requested": "Requested",
           "running": "Running",
@@ -12426,10 +12434,6 @@
           "partial": "Partial",
           "unavailable": "Unavailable"
         },
-        "empty": "No checks or changes for these pages yet",
-        "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
-        "emptyOff": "Nothing recorded for these pages",
-        "emptyBodyOff": "Page selections, tasks and failed syncs appear here.",
         "details": "Work details",
         "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
@@ -12444,7 +12448,6 @@
         "sourceDetails": "Details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
-        "showAll": "Show all {count} events",
         "metricsSyncedTimes": "{count, plural, one {Statistics synced} other {Statistics synced # times}}",
         "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
@@ -12898,6 +12901,17 @@
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "runs": {
+        "details": "Details",
+        "detailsOf": "Details of {day}",
+        "since": "What happened after {day}.",
+        "sinceStart": "What happened up to this day.",
+        "sinceAll": "Everything recorded so far.",
+        "checks": "{count, plural, one {# check} other {# checks}}",
+        "pageChanges": "{count, plural, one {# page change} other {# page changes}}",
+        "tasks": "{count, plural, one {# Task linked} other {# Tasks linked}}",
+        "failedSyncs": "{count, plural, one {# failed sync} other {# failed syncs}}",
+        "failedChecks": "{count, plural, one {# failed check} other {# failed checks}}",
+        "scopeChanges": "{count, plural, one {# page selection change} other {# page selection changes}}",
         "label": "Checks",
         "running": "Running",
         "left": "about {minutes} min left",
@@ -12935,30 +12949,24 @@
         }
       },
       "indexReview": {
-        "title": "Indexing review notes",
-        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
         "checked": "Reviewed",
         "state": {
           "review": "Review needed",
           "expected_exclusion": "Expected exclusion",
           "unavailable": "Not checked"
         },
-        "suggestedFix": "Suggested next step",
         "evidence": "View evidence",
-        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
-        "sources": "Sources: Google Search Console and this audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Last crawled by Google"
       },
       "index": {
         "title": "Google index",
-        "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
-        "checked": "status read",
         "state": {
           "indexed": "Indexed",
           "warnings": "Indexed, with warnings",
           "notIndexed": "Not indexed",
           "unknown": "Index status unknown"
         },
-        "google": "Google says: “{words}”",
         "lastCrawl": "Last crawl:",
         "otherCanonical": "Google chose another canonical page:",
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"

@@ -61,7 +61,6 @@ import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImproveDialog } from "./seo-improve";
 import { SeoIndexStatus } from "./seo-index-status";
-import { SeoIndexTriage } from "./seo-index-triage";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
@@ -627,8 +626,7 @@ export function SeoWorkspace({
             <TabsContent value="actions" className="stagger space-y-6">
               <SeoSummaryTiles workspace={model.data} filters={model.filters} />
               <SeoActions model={model} />
-              <SeoIndexTriage workspace={model.data} />
-              <SeoIndexStatus model={model} />
+              <SeoIndexStatus workspace={model.data} />
               <SeoHealth model={model} />
             </TabsContent>
           </div>

@@ -12103,6 +12103,20 @@
         "failedCheck": "<prefix>Nicht bestanden:</prefix> {name}",
         "checkedOn": "Geprüft am",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
+        "rank": {
+          "absent": "Nicht in den Top {top}",
+          "position": "Position {position}",
+          "featuredSnippet": "Featured Snippet, Position {position}",
+          "forKeyword": "für „{keyword}“",
+          "source": "Markt {country}, {language} · DataForSEO",
+          "aiNotCited": "Eine KI-Übersicht erscheint und zitiert die Seite nicht",
+          "aiCited": "Die KI-Übersicht zitiert die Seite",
+          "othersAbsent": "{count, plural, one {# weiteres Keyword} other {# weitere Keywords}}: keines in den Top {top}",
+          "searchConsole": "Durchschnittliche Position in der Search Console: {position}",
+          "serpRead": "Gelesenes Suchergebnis:",
+          "allDetails": "Alle Details",
+          "showRankings": "Zu den Rankings"
+        },
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
@@ -12122,7 +12136,6 @@
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
         "noteRule": "Regel nicht erfüllt: „{name}“",
-        "notesNotCounted": "zählen nicht als Probleme",
         "askAgent": "Agent fragen",
         "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
         "showAll": "Alles zeigen",
@@ -12130,9 +12143,6 @@
         "askAboutNoteOnPage": "Eine Prüfung hat „{name}“ auf {url} markiert. Was bedeutet das, und sollte ich etwas ändern?",
         "insideToolRanges": "{total, plural, one {im Tool-Bereich} other {in allen # Tool-Bereichen}}",
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
-        "referencesAndRules": "Quellen und Regel-IDs",
-        "ruleIds": "Regel-IDs: {ids}",
-        "rulesOnly": "Regel-IDs",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
         "noteFound": "Gefunden: {found}",
@@ -12417,8 +12427,6 @@
         "home": "Startseite"
       },
       "timeline": {
-        "title": "Verlauf",
-        "runNewCheck": "Neue Prüfung starten",
         "statuses": {
           "requested": "Angefordert",
           "running": "Läuft",
@@ -12426,10 +12434,6 @@
           "partial": "Teilweise",
           "unavailable": "Nicht verfügbar"
         },
-        "empty": "Noch keine Prüfungen oder Änderungen für diese Seiten",
-        "emptyBody": "Prüfungen, Seitenauswahl, Aufgaben und fehlgeschlagene Synchronisierungen erscheinen hier.",
-        "emptyOff": "Für diese Seiten ist nichts aufgezeichnet",
-        "emptyBodyOff": "Seitenauswahl, Aufgaben und fehlgeschlagene Synchronisierungen erscheinen hier.",
         "details": "Arbeitsdetails",
         "graphLabel": "SEO-Aktivität, neueste zuerst",
         "auditRun": "Audit-Ergebnisse",
@@ -12444,7 +12448,6 @@
         "sourceDetails": "Details",
         "resultsSaved": "Ergebnisse gespeichert",
         "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden.",
-        "showAll": "Alle {count} Ereignisse anzeigen",
         "metricsSyncedTimes": "{count, plural, one {Statistiken synchronisiert} other {Statistiken # Mal synchronisiert}}",
         "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}",
         "result": "{count, plural, =0 {Keine Probleme gefunden} one {# Problem gefunden} other {# Probleme gefunden}}",
@@ -12898,6 +12901,17 @@
       "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
       "runs": {
+        "details": "Details",
+        "detailsOf": "Details vom {day}",
+        "since": "Was nach dem {day} passiert ist.",
+        "sinceStart": "Was bis zu diesem Tag passiert ist.",
+        "sinceAll": "Alles, was bisher erfasst wurde.",
+        "checks": "{count, plural, one {# Prüfung} other {# Prüfungen}}",
+        "pageChanges": "{count, plural, one {# Seitenänderung} other {# Seitenänderungen}}",
+        "tasks": "{count, plural, one {# Aufgabe verknüpft} other {# Aufgaben verknüpft}}",
+        "failedSyncs": "{count, plural, one {# fehlgeschlagene Synchronisierung} other {# fehlgeschlagene Synchronisierungen}}",
+        "failedChecks": "{count, plural, one {# fehlgeschlagene Prüfung} other {# fehlgeschlagene Prüfungen}}",
+        "scopeChanges": "{count, plural, one {# Änderung der Seitenauswahl} other {# Änderungen der Seitenauswahl}}",
         "label": "Prüfungen",
         "running": "Läuft",
         "left": "noch etwa {minutes} Min.",
@@ -12935,30 +12949,24 @@
         }
       },
       "indexReview": {
-        "title": "Hinweise zur Indexierung",
-        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
         "checked": "Geprüft",
         "state": {
           "review": "Prüfung erforderlich",
           "expected_exclusion": "Erwarteter Ausschluss",
           "unavailable": "Nicht geprüft"
         },
-        "suggestedFix": "Vorgeschlagener nächster Schritt",
         "evidence": "Nachweise ansehen",
-        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
-        "sources": "Quellen: Google Search Console und dieses Audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Zuletzt von Google gecrawlt"
       },
       "index": {
         "title": "Google-Index",
-        "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
-        "checked": "Status gelesen",
         "state": {
           "indexed": "Indexiert",
           "warnings": "Indexiert, mit Warnungen",
           "notIndexed": "Nicht indexiert",
           "unknown": "Indexstatus unbekannt"
         },
-        "google": "Google meldet: „{words}“",
         "lastCrawl": "Letzter Crawl:",
         "otherCanonical": "Google hat eine andere kanonische Seite gewählt:",
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"
