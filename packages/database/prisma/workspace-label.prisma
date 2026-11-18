@@ -7,8 +7,10 @@ model WorkspaceLabel {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  kind  FileLabelKind
-  color TagColor?
+  kind         FileLabelKind
+  color        TagColor?
+  /// Work-type presets are candidates for automatic Task classification only.
+  isTaskPreset Boolean       @default(false)
 
   displayName    String
   /// NFC, trimmed, case-folded. Uniqueness is on this, capitalization is kept.

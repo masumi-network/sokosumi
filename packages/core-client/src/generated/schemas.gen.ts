@@ -7499,6 +7499,9 @@ export const TaskSchema = {
                             'manual',
                             'jev'
                         ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
                     }
                 },
                 required: [
@@ -56886,6 +56889,9 @@ export const TaskListItemSchema = {
                             'manual',
                             'jev'
                         ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
                     }
                 },
                 required: [

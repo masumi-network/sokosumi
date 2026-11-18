@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/database";
 import { calendarDateSchema, isDesignMdBlobUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import { taskTagsSchema } from "@/helpers/task-tags";
+import { taskTagIdSchema, taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -230,6 +230,14 @@ const workspaceTaskTag = z.object({
   color: tagColorSchema.nullish(),
 });
 
+export const dismissedTopicIdsSchema = z
+  .array(taskTagIdSchema)
+  .optional()
+  .openapi({
+    description:
+      "Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.",
+  });
+
 export const dismissedWorkspaceTagIdsSchema = z
   .array(z.uuid())
   .optional()
@@ -322,7 +330,10 @@ const taskBaseSchema = z.object({
   tags: taskTagsSchema.optional(),
   workspaceTags: z
     .array(
-      workspaceTaskTag.extend({ source: z.enum(["manual", "jev"]).optional() }),
+      workspaceTaskTag.extend({
+        source: z.enum(["manual", "jev"]).optional(),
+        taskTopicId: taskTagIdSchema.optional(),
+      }),
     )
     .optional(),
   workspaceTagSuggestions: z.array(workspaceTaskTag).optional(),

@@ -60,7 +60,18 @@ const taskOwnerAssigneeCreatorInclude = {
   ...workCreatorInclude,
   ...taskParticipantsInclude,
   workspaceTags: {
-    select: { state: true, label: workspaceTagLabel },
+    select: {
+      state: true,
+      label: {
+        select: {
+          ...workspaceTagLabel.select,
+          kind: true,
+          archivedAt: true,
+          createdByUserId: true,
+          description: true,
+        },
+      },
+    },
     orderBy: { label: { normalizedName: "asc" } },
   },
 } as const;

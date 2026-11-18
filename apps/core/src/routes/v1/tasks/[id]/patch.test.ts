@@ -1432,6 +1432,39 @@ describe("PATCH /tasks/{id} Run at and workspace tags", () => {
     mockTask();
   });
 
+  it("dismisses automatic and legacy manual topics on a completed Task", async () => {
+    mockTask({
+      status: TaskStatus.COMPLETED,
+      automaticTags: ["research", "social"],
+      manualTags: ["design", "writing", "legacy-future"],
+      rejectedTags: ["monitoring", "legacy-future"],
+    });
+    const response = await patch({
+      dismissedTopicIds: ["research", "design", "design", "monitoring"],
+    });
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          manualTags: ["writing", "legacy-future"],
+          rejectedTags: ["monitoring", "legacy-future", "research", "design"],
+        }),
+      }),
+    );
+    expect(clearTags).not.toHaveBeenCalled();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses unknown topic dismissals with other valid changes", async () => {
+    const response = await patch({
+      name: "New title",
+      dismissedTopicIds: ["whatever"],
+    });
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("clears workspace tags on a completed Task without a status change", async () => {
     mockTask({ status: TaskStatus.COMPLETED });
     const response = await patch({ workspaceTagIds: [] });

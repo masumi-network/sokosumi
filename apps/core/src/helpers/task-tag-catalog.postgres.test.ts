@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { workspaceRepository } from "@sokosumi/database/repositories";
-import { CURATED_FILE_VOCABULARY } from "@sokosumi/utils";
+import { CURATED_FILE_VOCABULARY, TASK_TAG_PRESETS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { loadTaskTagCatalog } from "./task-tag-catalog";
@@ -69,6 +69,7 @@ describe.skipIf(!enabled)("Task vocabulary in PostgreSQL", () => {
             ...CURATED_FILE_VOCABULARY.filter(
               (label) => label.kind === "TAG",
             ).map((label) => label.displayName),
+            ...TASK_TAG_PRESETS.map((tag) => tag.displayName),
             custom.displayName,
           ].sort(),
         );

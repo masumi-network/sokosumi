@@ -1905,6 +1905,7 @@ export type Task = {
         displayName: string;
         color?: TagColor;
         source?: 'manual' | 'jev';
+        taskTopicId?: TaskTagId;
     }>;
     workspaceTagSuggestions?: Array<{
         id: string;
@@ -14277,6 +14278,7 @@ export type TaskListItem = {
         displayName: string;
         color?: TagColor;
         source?: 'manual' | 'jev';
+        taskTopicId?: TaskTagId;
     }>;
     workspaceTagSuggestions?: Array<{
         id: string;
@@ -94802,6 +94804,10 @@ export type PostTasksData = {
          * Workspace tags that Jev should stop suggesting or adding to this Task.
          */
         dismissedWorkspaceTagIds?: Array<string>;
+        /**
+         * Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.
+         */
+        dismissedTopicIds?: Array<TaskTagId>;
         tagSuggestionReceipt?: string;
         /**
          * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
@@ -97669,6 +97675,10 @@ export type PatchTasksByIdData = {
          * Workspace tags that Jev should stop suggesting or adding to this Task.
          */
         dismissedWorkspaceTagIds?: Array<string>;
+        /**
+         * Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.
+         */
+        dismissedTopicIds?: Array<TaskTagId>;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */

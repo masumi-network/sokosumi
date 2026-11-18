@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, WorkspaceLabel } from "@sokosumi/database";
 import { isUnmodifiedCuratedTag } from "@/helpers/task-tag-catalog";
 import { TASK_TAG_IDS } from "@/helpers/task-tags";
 import { workspaceLabelSchema } from "@/schemas/file-resource.schema";
@@ -14,20 +14,28 @@ export const workspaceLabelSelect = {
   createdByUserId: true,
 } satisfies Prisma.WorkspaceLabelSelect;
 
-export function toWorkspaceLabel({
-  createdByUserId,
-  archivedAt,
-  ...label
-}: Prisma.WorkspaceLabelGetPayload<{ select: typeof workspaceLabelSelect }>) {
-  const isTopicAlias =
+export function workspaceLabelTopicId(
+  label: Pick<
+    WorkspaceLabel,
+    "kind" | "archivedAt" | "createdByUserId" | "displayName" | "description"
+  >,
+) {
+  if (
     label.kind === "TAG" &&
-    archivedAt === null &&
-    isUnmodifiedCuratedTag({ createdByUserId, ...label });
+    label.archivedAt === null &&
+    isUnmodifiedCuratedTag(label)
+  ) {
+    return TASK_TAG_IDS.find((id) => id === label.displayName.toLowerCase());
+  }
+}
+
+export function toWorkspaceLabel(
+  row: Prisma.WorkspaceLabelGetPayload<{ select: typeof workspaceLabelSelect }>,
+) {
+  const { createdByUserId: _, archivedAt, ...label } = row;
   return workspaceLabelSchema.parse({
     ...label,
     archived: archivedAt !== null,
-    taskTopicId: isTopicAlias
-      ? TASK_TAG_IDS.find((id) => id === label.displayName.toLowerCase())
-      : undefined,
+    taskTopicId: workspaceLabelTopicId(row),
   });
 }
