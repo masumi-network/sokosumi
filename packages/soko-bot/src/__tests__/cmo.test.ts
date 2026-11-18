@@ -14,16 +14,34 @@ import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
 import { marketingStrategyPlanSchema } from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { CMO_SKILLS } from "../versions/cmo-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
   SOKO_BOT_VERSIONS,
 } from "../versions/index.js";
+import { v29 } from "../versions/v29.js";
 
 describe("CMO version", () => {
+  it("names no Sokosumi feature in Cuso's own persona, skills and rhythms", () => {
+    // He works in CMO.xyz: what he is told is what he tells the owner.
+    const own = [
+      ...CMO_SOKO_BOT_VERSION_IDS.map((id) =>
+        getSokoBotVersion(id).systemPrompt.replace(v29.systemPrompt, ""),
+      ),
+      JSON.stringify(CMO_SKILLS),
+      JSON.stringify(SOKO_BOT_CMO_SCHEDULES),
+    ]
+      .join("\n")
+      .replaceAll("Speak the founder's language, not Sokosumi's", "");
+    expect(own).toContain("You are Cuso");
+    expect(own.match(/Sokosumi|Content Studio|Soko Bot|\]\(\//g)).toBeNull();
+  });
+
   it("is resolvable but never part of the personal-assistant fleet", () => {
     expect(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID).profile).toBe("cmo");
     expect(SOKO_BOT_VERSIONS.map((version) => version.id)).not.toContain(
