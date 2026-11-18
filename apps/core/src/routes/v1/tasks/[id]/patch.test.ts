@@ -881,6 +881,35 @@ describe("PATCH /tasks/{id}", () => {
       });
     });
 
+    it("parks its own Coworker's Draft that a Run at queues again", async () => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: "cow_123",
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      taskEventCountMock.mockResolvedValue(0);
+
+      const response = await createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          runAt: new Date(Date.now() + 86_400_000).toISOString(),
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data).toMatchObject({
+        status: TaskStatus.INPUT_REQUIRED,
+        runAt: null,
+      });
+    });
+
     it("keeps it Ready when a person commented after the reopen", async () => {
       taskEventCountMock.mockResolvedValue(1);
 
@@ -1518,7 +1547,11 @@ describe("PATCH /tasks/{id} Run at", () => {
         projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
-        taskEvent: { create: taskEventCreateMock },
+        // Never finished, so never reopened.
+        taskEvent: {
+          create: taskEventCreateMock,
+          findFirst: async () => null,
+        },
       });
     });
     mockTask();

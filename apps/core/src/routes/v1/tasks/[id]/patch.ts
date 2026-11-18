@@ -338,7 +338,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const parksForInstructions =
         (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&
         (nextAssigneeId ?? nextAssigneeSokoBotId) !== null &&
-        (nextAssigneeId !== task.assigneeId ||
+        // A new agent, or its own agent's Task queued again.
+        (nextStatus !== task.status ||
+          nextAssigneeId !== task.assigneeId ||
           nextAssigneeSokoBotId !== task.assigneeSokoBotId) &&
         (await taskReopenedWithoutInstructions(tx, id));
       if (parksForInstructions) {
