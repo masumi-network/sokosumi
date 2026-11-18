@@ -1,7 +1,9 @@
 import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
 import {
   isSokoBotCmoCapability,
+  isSokoBotCompetitorCapability,
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   type SokoBotCapability,
 } from "../policy.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
@@ -159,21 +161,29 @@ export function versionShowsResultCards(
 /**
  * Route ceiling ∩ version allowlist; a version narrows, it never widens. The
  * one exception is a product's own tools: a CMO bot always carries its Brand
- * Brain and strategy tools, and no other bot ever does.
+ * Brain and strategy tools, and no other bot ever does. It always carries
+ * the competitor tools too, which other bots get from their route.
  */
 export function applyVersionCapabilities(
   version: SokoBotVersion,
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
+  const cmo = version.profile === "cmo";
   const routed = capabilities.filter(
-    (capability) => !isSokoBotCmoCapability(capability),
+    (capability) =>
+      !isSokoBotCmoCapability(capability) &&
+      !(cmo && isSokoBotCompetitorCapability(capability)),
   );
   const allowed = version.capabilities
     ? routed.filter((capability) =>
         (version.capabilities as readonly string[]).includes(capability),
       )
     : routed;
-  return version.profile === "cmo"
-    ? [...allowed, ...SOKO_BOT_CMO_CAPABILITIES]
+  return cmo
+    ? [
+        ...allowed,
+        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_COMPETITOR_CAPABILITIES,
+      ]
     : allowed;
 }

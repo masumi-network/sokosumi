@@ -41,6 +41,7 @@ import {
 import { syncCompetitorChecks } from "@/services/competitor-check-sync.service";
 import {
   addTrackedCompetitor,
+  competitorChecksOnFor,
   setCompetitorChecks,
 } from "@/services/competitors.service";
 import {
@@ -171,6 +172,29 @@ describe.skipIf(!enabled)("a Project's own weekly check (PostgreSQL)", () => {
     expect(await poolCredits(project)).toBe(5n);
     expect(await checks(project)).toEqual([]);
     expect(readers.readCompetitorPage).not.toHaveBeenCalled();
+  });
+
+  it("offers a bot the competitor tools only while a Project it works in has the check on", async () => {
+    const project = await seedProject(0n);
+    const other = await seedProject(0n);
+    const personal = { projectId: null, workspaceId: project.workspaceId };
+    const projectBot = {
+      projectId: project.projectId,
+      workspaceId: project.workspaceId,
+    };
+    expect(await competitorChecksOnFor(personal)).toBe(false);
+    await setCompetitorChecks(other.projectId, true);
+    // Another workspace's Project does not count.
+    expect(await competitorChecksOnFor(personal)).toBe(false);
+    await setCompetitorChecks(project.projectId, true);
+    expect(await competitorChecksOnFor(personal)).toBe(true);
+    expect(await competitorChecksOnFor(projectBot)).toBe(true);
+    expect(
+      await competitorChecksOnFor({
+        projectId: other.projectId,
+        workspaceId: project.workspaceId,
+      }),
+    ).toBe(false);
   });
 
   it("stops when it is turned off and keeps the day it was first turned on", async () => {
