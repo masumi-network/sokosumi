@@ -105,7 +105,7 @@ const ShownRoomContext = createContext<ShownRoom>(undefined);
 const ReportShownRoomContext = createContext<
   ((room: ShownRoom) => void) | null
 >(null);
-export function useReportShownRoom() {
+export function useReportShownRoom(): ((room: ShownRoom) => void) | null {
   return useContext(ReportShownRoomContext);
 }
 

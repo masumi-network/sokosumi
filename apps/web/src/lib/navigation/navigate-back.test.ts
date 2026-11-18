@@ -40,17 +40,32 @@ describe("navigateBack", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("pops back to the parent's own view, whatever its query", () => {
+  it("pops back to the parent whatever its query, when the href names none", () => {
     const { router, back, replace } = fakeRouter();
 
-    navigateBack(
-      router,
-      "/tasks?view=list",
-      history("/tasks?view=board&status=open", "/tasks/t1"),
-    );
+    navigateBack(router, "/chat", history("/chat?dm=new", "/chat/rooms/r1"));
 
     expect(back).toHaveBeenCalledOnce();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("pops back only to the view the href names", () => {
+    const pop = fakeRouter();
+    navigateBack(
+      pop.router,
+      "/newsletter/issues?projectId=a",
+      history("/newsletter/issues?projectId=a", "/newsletter/issues/i1"),
+    );
+    expect(pop.back).toHaveBeenCalledOnce();
+
+    const swap = fakeRouter();
+    navigateBack(
+      swap.router,
+      "/newsletter/issues?projectId=b",
+      history("/newsletter/issues?projectId=a", "/newsletter/issues/i1"),
+    );
+    expect(swap.replace).toHaveBeenCalledWith("/newsletter/issues?projectId=b");
+    expect(swap.back).not.toHaveBeenCalled();
   });
 
   it("swaps the page for its parent when the reader came from elsewhere", () => {

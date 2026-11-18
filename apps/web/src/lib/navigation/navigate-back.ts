@@ -17,14 +17,21 @@ function browserHistory(): BackHistory | undefined {
   return (window as Window & { navigation?: BackHistory }).navigation;
 }
 
-/** True when the entry before this page is `href`'s page, in this document. */
+/**
+ * True when the entry before this page is `href`'s page, in this document.
+ * A query `href` names (a project scope, a list view) must match too.
+ */
 function cameFrom(href: string, history: BackHistory | undefined): boolean {
   const current = history?.currentEntry;
   if (!history || !current?.url) return false;
   const entries = history.entries();
   const previous = entries[entries.findIndex((e) => e.key === current.key) - 1];
   if (!previous?.sameDocument || !previous.url) return false;
-  return new URL(previous.url).pathname === new URL(href, current.url).pathname;
+  const from = new URL(previous.url);
+  const to = new URL(href, current.url);
+  return (
+    from.pathname === to.pathname && (!to.search || from.search === to.search)
+  );
 }
 
 /**
