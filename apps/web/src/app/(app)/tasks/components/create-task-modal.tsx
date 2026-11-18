@@ -11,13 +11,12 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
+import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import type { CoworkerOption } from "@/lib/types/coworker";
-
 import { AgentSpotlightSkeleton } from "./agent-spotlight";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
@@ -40,6 +39,7 @@ export interface RunAtPrefill {
  *  assignee keeps its kind, and none stays none. A copy always starts as a
  *  Draft, so nothing runs before review. */
 export interface NewTaskCopyPrefill {
+  workspaceTags?: TaskWorkspaceTag[];
   taskId: string;
   name: string;
   visibility: "PUBLIC" | "PRIVATE";
@@ -449,6 +449,7 @@ export function CreateTaskModal({
             ...(promptOverride ? { description: promptOverride } : {}),
             ...(copyOverride
               ? {
+                  workspaceTags: copyOverride.workspaceTags,
                   copyOfTaskId: copyOverride.taskId,
                   name: copyOverride.name,
                   visibility: copyOverride.visibility,

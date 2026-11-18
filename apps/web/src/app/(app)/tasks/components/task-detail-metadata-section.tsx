@@ -256,7 +256,19 @@ export async function TaskMetadataSection({
           updateStatusError: tTasks("Errors.updateStatus"),
         }}
       />
-      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
+      <TaskTagSection
+        key={task.updatedAt.toString()}
+        tags={task.tags}
+        workspaceTags={task.workspaceTags}
+        edit={
+          isReadOnly
+            ? undefined
+            : {
+                taskId: task.id,
+                activeOrganizationId: task.workspace.organizationId ?? null,
+              }
+        }
+      />
     </div>
   );
 }

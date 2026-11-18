@@ -8,6 +8,7 @@ import type {
   TaskFormInitialDesignMdAttachment,
   TaskFormLabels,
 } from "@/app/tasks/components/task-form";
+import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   taskFormAssigneeId,
@@ -43,6 +44,7 @@ interface TaskEditReady {
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   initialValues: {
+    workspaceTags?: TaskWorkspaceTag[];
     name: string;
     description: string;
     assigneeId: string;
@@ -174,6 +176,7 @@ export async function loadTaskEdit(
     projectOptions,
     agentNameById,
     initialValues: {
+      workspaceTags: taskResult.workspaceTags,
       name: taskResult.name,
       description: taskResult.description ?? "",
       assigneeId: taskFormAssigneeId(taskResult),
