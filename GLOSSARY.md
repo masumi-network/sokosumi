@@ -24,6 +24,7 @@ _Avoid_: Task, run (unless a UI label)
 
 **Task**:
 Work assigned to a Coworker. Not a Job.
+A Task in an Organization workspace belongs to the workspace, not to the person who made it, so a refund on it has no user and shows only in the Workspace's credit history.
 _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 
 **Coworker**:

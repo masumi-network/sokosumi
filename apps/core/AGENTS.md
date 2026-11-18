@@ -374,6 +374,15 @@ A failure that comes and goes with the order: the log prints `Running tests with
   - `OUTPUT` files require `sourceUrl` (external URLs from agent results)
 - Files are scoped to users and jobs
 - Always verify user ownership before returning file data
+- Do not fetch the same public Blob URL on every request. Vercel's firewall answers a burst of server reads of `*.public.blob.vercel-storage.com` with `403` and `x-vercel-mitigated: challenge`, while curl from the same machine still gets `200`, so the value vanishes now and then without an error. Cache reads of content-addressed files (`readDesignMdContent` caches by URL) or store the derived value in the database.
+
+### Composio tools
+
+- Read a toolkit's real contract from the API before coding against it, not from Composio's docs or a summary of them: those miss tools and get casing and units wrong. `GET https://backend.composio.dev/api/v3/tools?toolkit_slug=<slug>&limit=500&toolkit_versions=latest` lists the tools, and `GET …/api/v3/tools/<SLUG>?toolkit_versions=latest&version=latest` gives `input_parameters` and `output_parameters`. Without `toolkit_versions=latest` the list is an old base set. Make test fixtures match `output_parameters`.
+
+### Soko Bot turns
+
+- A bot runs one foreground turn at a time: starting another while one runs throws `SokoBotTurnInProgressError` (`soko-bot-control-plane.service.ts`). Work that must follow a turn, such as a plan after research, cannot start inside it; start it when the turn settles.
 
 ## Additional Rules
 
