@@ -136,7 +136,13 @@ function recordRequestFailure(error: Error): void {
  * Logs parsing errors for debugging
  */
 export const errorHandler: ErrorHandler = (error, c) => {
-  if (shouldMarkWideEventError(error)) {
+  const isAuthRedirect =
+    c.req.path.startsWith("/auth/") &&
+    isAPIError(error) &&
+    error.statusCode >= 300 &&
+    error.statusCode < 400;
+
+  if (!isAuthRedirect && shouldMarkWideEventError(error)) {
     recordRequestFailure(error);
   }
   // evlog 2.28 captures `c.error` after `app.onError` and logs it whole, text
@@ -144,6 +150,13 @@ export const errorHandler: ErrorHandler = (error, c) => {
   // Sentry Logs do not treat them as failures, and a reported one is already
   // on the event above without its text.
   c.error = undefined;
+
+  if (isAuthRedirect) {
+    return new Response(null, {
+      status: error.statusCode,
+      headers: error.headers,
+    });
+  }
 
   const meta = {
     timestamp: new Date().toISOString(),

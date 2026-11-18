@@ -1,3 +1,4 @@
+import { betterAuth } from "better-auth/minimal";
 import type { DrainContext } from "evlog";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
@@ -8,6 +9,7 @@ import {
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
+import { betterAuthLogger } from "@/lib/evlog-library-logs";
 
 const getSessionMock = vi.hoisted(() => vi.fn());
 
@@ -86,6 +88,54 @@ describe("betterAuthEvlogMiddleware", () => {
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(captured[0]?.event.auth).toBeUndefined();
   });
+
+  it("emits an info event when Better Auth throws an OAuth error-page redirect", async () => {
+    const auth = betterAuth({
+      baseURL: "http://localhost",
+      basePath: "/auth",
+      secret: "test-secret-that-is-long-enough-for-better-auth",
+      logger: betterAuthLogger,
+      onAPIError: { errorURL: "http://localhost/sign-in-error" },
+      rateLimit: { enabled: false },
+    });
+    const app = createApp(await loadMiddleware());
+    app.get("/auth/*", (c) => auth.handler(c.req.raw));
+
+    const response = await app.request("http://localhost/auth/callback/google");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/sign-in-error?error=state_not_found",
+    );
+    expect(captured.map(({ event }) => event)).toMatchObject([
+      {
+        status: 302,
+        level: "info",
+        libraryLogs: [
+          { source: "better-auth", level: "info", message: "State not found" },
+        ],
+      },
+    ]);
+    expect(captured[0]?.event).not.toHaveProperty("error");
+  });
+
+  it.each([401, 500] as const)(
+    "keeps Better Auth library errors at error for HTTP %i",
+    async (status) => {
+      const app = createApp(await loadMiddleware());
+      app.get("/auth/check", (c) => {
+        betterAuthLogger.log("error", "Auth request failed");
+        return c.body(null, status);
+      });
+
+      const response = await app.request("/auth/check");
+
+      expect(response.status).toBe(status);
+      expect(captured.map(({ event }) => event)).toMatchObject([
+        { status, level: "error", error: { message: "Auth request failed" } },
+      ]);
+    },
+  );
 
   it("skips cookie identify when an Authorization header is present", async () => {
     getSessionMock.mockResolvedValue({
