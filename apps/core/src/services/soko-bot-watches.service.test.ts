@@ -45,6 +45,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import {
+  followUpCapabilities,
   followUpConnectedApp,
   followUpMessage,
   registerWatch,
@@ -176,9 +177,41 @@ describe("followUpMessage", () => {
     });
     expect(text).toContain("not in the top 19");
     expect(text).toContain("Write the answer itself");
+    expect(text).toContain("you post nothing yourself");
     expect(text).toContain("in the language they asked in");
     expect(text).toContain("start no new check now");
     expect(text).not.toContain("say in one or two sentences what you did");
+  });
+});
+
+describe("followUpCapabilities", () => {
+  const asked = [
+    "read_seo",
+    "save_seo_suggestions",
+    "post_chat",
+    "list_chats",
+    "read_chat",
+    "check_search_rankings",
+    "start_background_run",
+    "not_a_tool",
+  ];
+
+  it("gives an SEO check's follow-up no chat tools and no new check", () => {
+    expect(followUpCapabilities("seo_check", asked)).toEqual([
+      "read_seo",
+      "save_seo_suggestions",
+    ]);
+  });
+
+  it("keeps the asking turn's tools for every other follow-up, without run management", () => {
+    expect(followUpCapabilities("studio_job", asked)).toEqual([
+      "read_seo",
+      "save_seo_suggestions",
+      "post_chat",
+      "list_chats",
+      "read_chat",
+      "check_search_rankings",
+    ]);
   });
 });
 
