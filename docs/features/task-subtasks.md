@@ -259,12 +259,13 @@ Core:
   sub-tasks archived with the Task. A Soko Bot archive refuses a Task whose
   sub-task has a future Run at.
 - Adding a sub-task locks the Workspace, the Project, then the parent
-  (`requireSubtaskParent`), in the order a Task PATCH takes them. Adding and
-  restoring a sub-task then write the parent row (`touchTaskRow`), so a
-  SERIALIZABLE Soko Bot archive that read earlier fails and retries instead
-  of missing the sub-task. The lock comes before the write: a write alone
-  deadlocked with a status event on the parent (`40P01`, VERIFIED by
-  `task-subtasks.postgres.test.ts`).
+  (`requireSubtaskParent`), in the order a Task PATCH takes them. Restoring a
+  sub-task locks only the parent. Both then write the parent row
+  (`touchTaskRow`), so a SERIALIZABLE Soko Bot archive that read earlier fails
+  and retries instead of missing the sub-task. The lock comes before the
+  write: VERIFIED in this branch's review, a write alone deadlocked with a
+  status event on the parent (`40P01`) in the "waits for a status event"
+  test in `task-subtasks.postgres.test.ts`, which pins the lock-first order.
 - The migration adds the foreign key and CHECK `NOT VALID`, builds the index
   `CONCURRENTLY` in its own migration, and validates in a third. The old Core
   instance keeps writing Tasks during the deploy.

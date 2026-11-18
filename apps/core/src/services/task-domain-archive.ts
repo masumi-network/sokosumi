@@ -99,8 +99,9 @@ export async function restoreTaskRecord(
   actor: TaskDomainActor,
 ): Promise<void> {
   if (task.parentTaskId) {
-    // Lock, then write, as in requireSubtaskParent: no archive of the parent
-    // slips past this restore, at any isolation level.
+    // Lock, then write the parent row, as requireSubtaskParent does after
+    // its Workspace and Project locks: no archive of the parent slips past
+    // this restore, at any isolation level.
     await lockTaskRows(tx, [task.parentTaskId]);
     await touchTaskRow(tx, task.parentTaskId);
     const parent = await tx.task.findUnique({

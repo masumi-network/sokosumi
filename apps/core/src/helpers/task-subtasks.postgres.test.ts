@@ -122,6 +122,10 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
+    let inserted = () => {};
+    const eventInserted = new Promise<void>((resolve) => {
+      inserted = resolve;
+    });
     const pause = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
     // An agent's status event: the event first, then the Task's status.
@@ -130,6 +134,7 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
         await tx.taskEvent.create({
           data: { taskId: parent, comment: "Working on it" },
         });
+        inserted();
         await held;
         await tx.task.update({
           where: { id: parent },
@@ -138,7 +143,7 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
       },
       { timeout: 10_000 },
     );
-    await pause(100);
+    await eventInserted;
     const add = prisma.$transaction(
       (tx) =>
         requireSubtaskParent(tx, {
@@ -148,7 +153,14 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
         }),
       { timeout: 10_000 },
     );
-    await pause(200);
+    // Release the event only once the add waits on it, at its lock or write.
+    for (let tries = 0; tries < 100; tries += 1) {
+      const [waiting] = await prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT count(*) FROM pg_locks WHERE NOT granted`;
+      if (waiting && waiting.count > 0n) break;
+      if (tries === 99) throw new Error("The add never waited on the event");
+      await pause(50);
+    }
     release();
 
     const settled = await Promise.allSettled([event, add]);
