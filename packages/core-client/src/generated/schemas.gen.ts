@@ -54560,16 +54560,60 @@ export const CmoCompetitorsSchema = {
                 $ref: '#/components/schemas/CmoCompetitor'
             }
         },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/CmoCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'Cuso\'s This week: null until he wrote one.'
+        },
         limit: {
             type: 'integer',
             description: 'How many competitors can be tracked.'
+        },
+        mapPlayers: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The Brand Brain market map\'s players that are still watched, in the map\'s spelling.'
         },
         signals: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/CmoCompetitorSignal'
             },
-            description: 'What the checks of the last 30 days found, newest first.'
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
         },
         scoreboard: {
             type: 'array',
@@ -54641,7 +54685,9 @@ export const CmoCompetitorsSchema = {
     },
     required: [
         'competitors',
+        'feed',
         'limit',
+        'mapPlayers',
         'signals',
         'scoreboard',
         'topPosts',
@@ -54706,6 +54752,79 @@ export const CmoCompetitorSchema = {
         'facebookHandle',
         'source',
         'createdAt'
+    ]
+} as const;
+
+export const CmoCompetitorFeedItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        facts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    signalIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'The signals that back it; their sources show on hover.'
+                    },
+                    support: {
+                        type: 'string',
+                        enum: [
+                            'strong',
+                            'weak'
+                        ],
+                        description: 'weak: the sources back it only in part.'
+                    }
+                },
+                required: [
+                    'text',
+                    'signalIds',
+                    'support'
+                ]
+            }
+        },
+        meaning: {
+            type: 'string',
+            description: 'What this means for you.'
+        },
+        move: {
+            type: 'string',
+            description: 'One suggested move.'
+        },
+        big: {
+            type: 'boolean',
+            description: 'A price change, launch or ad burst, told in chat at once.'
+        },
+        addedToStrategyAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'facts',
+        'meaning',
+        'move',
+        'big',
+        'addedToStrategyAt'
     ]
 } as const;
 
@@ -54793,30 +54912,46 @@ export const CmoCompetitorScoreRowSchema = {
             type: 'string'
         },
         postsPerWeek: {
-            $ref: '#/components/schemas/CmoCompetitorMeasure'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         engagementPerPost: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CmoCompetitorMeasure'
                 },
                 {
-                    description: 'Likes and comments per post over the week\'s posts.'
+                    type: 'null'
                 }
-            ]
+            ],
+            description: 'Likes and comments per post over the week\'s posts.'
         },
         followers: {
-            $ref: '#/components/schemas/CmoCompetitorMeasure'
-        },
-        followerGrowth: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CmoCompetitorMeasure'
                 },
                 {
-                    description: 'Followers gained since the reading a week before.'
+                    type: 'null'
                 }
             ]
+        },
+        followerGrowth: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Followers gained since the reading a week before.'
         }
     },
     required: [
@@ -54830,10 +54965,7 @@ export const CmoCompetitorScoreRowSchema = {
 } as const;
 
 export const CmoCompetitorMeasureSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         value: {
             type: 'number'

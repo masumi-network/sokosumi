@@ -154,7 +154,11 @@ export type CmoChatSetup =
   | "cmo-new-client"
   | "cmo-comments"
   /** cal.com's month waiting for approval, for the change request. */
-  | "cmo-plan";
+  | "cmo-plan"
+  /** cal.com's competitors after a check: a week with moves, or a quiet one. */
+  | "cmo-competitors"
+  | "cmo-competitors-quiet"
+  | "cmo-competitors-second-hand";
 
 /** The brand Cuso's chat and replies cases run for, and the comments it answers. */
 export const CMO_CHAT_BRAND = "cal.com";

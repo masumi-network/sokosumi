@@ -2,11 +2,13 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
+  Binoculars,
   Brain,
   CalendarDays,
   ChartLine,
   type LucideIcon,
   MessageSquare,
+  Search,
   Settings,
   Share2,
   Target,
@@ -24,7 +26,9 @@ export const VIEWS = [
   ["chat", AGENT_NAME, MessageSquare],
   ["strategy", "Strategy", Target],
   ["calendar", "Calendar", CalendarDays],
+  ["seo", "SEO", Search],
   ["results", "Results", ChartLine],
+  ["competitors", "Competitors", Binoculars],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
   ["settings", "Settings", Settings],

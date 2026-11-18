@@ -86,6 +86,12 @@ const measureSchema = z
   })
   .openapi("CmoCompetitorMeasure");
 
+/**
+ * A cell that may have no data. A union, not `.nullable()`: on a named
+ * schema that makes the generated client's transformer read into `null`.
+ */
+const cellSchema = z.union([measureSchema, z.null()]);
+
 const scoreRowSchema = z
   .object({
     competitorId: z
@@ -94,14 +100,14 @@ const scoreRowSchema = z
       .nullable()
       .describe("Null for the business itself."),
     name: z.string(),
-    postsPerWeek: measureSchema.nullable(),
-    engagementPerPost: measureSchema
-      .nullable()
-      .describe("Likes and comments per post over the week's posts."),
-    followers: measureSchema.nullable(),
-    followerGrowth: measureSchema
-      .nullable()
-      .describe("Followers gained since the reading a week before."),
+    postsPerWeek: cellSchema,
+    engagementPerPost: cellSchema.describe(
+      "Likes and comments per post over the week's posts.",
+    ),
+    followers: cellSchema,
+    followerGrowth: cellSchema.describe(
+      "Followers gained since the reading a week before.",
+    ),
   })
   .openapi("CmoCompetitorScoreRow");
 
@@ -132,13 +138,57 @@ const sourceSchema = z
   })
   .openapi("CmoCompetitorSource");
 
+const feedItemSchema = z
+  .object({
+    id: z.string().uuid(),
+    competitorId: z.string().uuid(),
+    facts: z.array(
+      z.object({
+        text: z.string(),
+        signalIds: z
+          .array(z.string().uuid())
+          .describe("The signals that back it; their sources show on hover."),
+        support: z
+          .enum(["strong", "weak"])
+          .describe("weak: the sources back it only in part."),
+      }),
+    ),
+    meaning: z.string().describe("What this means for you."),
+    move: z.string().describe("One suggested move."),
+    big: z
+      .boolean()
+      .describe("A price change, launch or ad burst, told in chat at once."),
+    addedToStrategyAt: z.string().nullable(),
+  })
+  .openapi("CmoCompetitorFeedItem");
+
 export const cmoCompetitorsSchema = z
   .object({
     competitors: z.array(competitorSchema),
+    feed: z
+      .object({
+        checkDay: z
+          .string()
+          .describe("The day of the check it was written from."),
+        savedAt: dateTimeSchema,
+        items: z.array(feedItemSchema),
+        openQuestions: z
+          .array(z.string())
+          .describe("What the sources could not settle this week."),
+      })
+      .nullable()
+      .describe("Cuso's This week: null until he wrote one."),
     limit: z.number().int().describe("How many competitors can be tracked."),
+    mapPlayers: z
+      .array(z.string())
+      .describe(
+        "The Brand Brain market map's players that are still watched, in the map's spelling.",
+      ),
     signals: z
       .array(signalSchema)
-      .describe("What the checks of the last 30 days found, newest first."),
+      .describe(
+        "What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.",
+      ),
     scoreboard: z
       .array(scoreRowSchema)
       .describe(
@@ -160,3 +210,10 @@ export const cmoCompetitorsSchema = z
     }),
   })
   .openapi("CmoCompetitors");
+
+export const cmoCompetitorFeedItemParamsSchema = cmoProjectParamsSchema.extend({
+  itemId: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "itemId", in: "path" } }),
+});

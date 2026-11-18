@@ -1,17 +1,3 @@
-/**
- * Real-Postgres proof of competitor tracking: research fills the list up to
- * the cap and never overrides a member, and the weekly check runs once a
- * week, charges once, stores each finding once and redoes a check that died.
- *
- *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
- *     pnpm --filter core test src/services/cmo-competitors.postgres.test.ts
- *
- * The rules lean on unique keys and relational filters, so mocked Prisma
- * cannot show them. The network readers are mocked; fixtures are deleted
- * after each test.
- */
-import { randomUUID } from "node:crypto";
-import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const readers = vi.hoisted(() => ({
@@ -54,8 +40,16 @@ import {
   removeTrackedCompetitor,
   syncTrackedCompetitorsFromBrandBrain,
   updateTrackedCompetitor,
+  watchedMapPlayers,
 } from "@/services/cmo-competitors.service";
 import { expectCoreLog } from "@/test/core-log";
+import {
+  brain,
+  company,
+  deleteSeededCusos,
+  type Seeded,
+  seedCuso,
+} from "@/test-fixtures/cmo-competitors-db";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -63,143 +57,6 @@ const enabled =
 
 const CREDIT = 10_000_000_000n;
 const DAY = 86_400_000;
-
-interface Seeded {
-  userId: string;
-  organizationId: string;
-  projectId: string;
-  sokoBotId: string;
-}
-
-const seeded: Seeded[] = [];
-
-function company(name: string, url?: string) {
-  return { name, ...(url ? { url } : {}) };
-}
-
-function brain(
-  competitors: { name: string; url?: string }[],
-  players: string[] = [],
-) {
-  return {
-    summary: "Scheduling for small teams.",
-    voice: { tone: "Plain.", do: [], dont: [], examples: [] },
-    audience: [],
-    products: [],
-    competitors,
-    channels: [],
-    ...(players.length > 0
-      ? {
-          reveal: {
-            positioning: "Scheduling that stays out of the way",
-            insights: [],
-            buyers: [],
-            map: {
-              x: { low: "Simple", high: "Powerful" },
-              y: { low: "Cheap", high: "Premium" },
-              players: [
-                { name: "Acme", x: 50, y: 50, you: true },
-                ...players.map((name, index) => ({
-                  name,
-                  x: 10 * index,
-                  y: 10 * index,
-                })),
-              ],
-            },
-          },
-        }
-      : {}),
-  };
-}
-
-/** A subscribed Cuso with an approved strategy and Project credits. */
-async function seedCuso(credits = 100n): Promise<Seeded> {
-  const suffix = randomUUID().slice(0, 8);
-  const userId = `competitors-user-${suffix}`;
-  const organizationId = `competitors-org-${suffix}`;
-  await prisma.user.create({
-    data: {
-      id: userId,
-      name: "Competitors Owner",
-      email: `competitors-${suffix}@example.test`,
-      emailVerified: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
-  await prisma.organization.create({
-    data: {
-      id: organizationId,
-      name: "Competitors Org",
-      slug: organizationId,
-      members: { create: { userId, role: "owner" } },
-    },
-  });
-  const workspace = await prisma.workspace.create({
-    data: { organizationId },
-    select: { id: true },
-  });
-  const project = await prisma.project.create({
-    data: {
-      workspaceId: workspace.id,
-      name: "acme.io",
-      websiteUrl: "https://www.acme.io",
-    },
-    select: { id: true },
-  });
-  const bot = await prisma.sokoBot.create({
-    data: {
-      workspaceId: workspace.id,
-      projectId: project.id,
-      userId: null,
-      createdByUserId: userId,
-      versionId: CMO_SOKO_BOT_VERSION_IDS[0],
-      name: "Cuso",
-    },
-    select: { id: true },
-  });
-  await prisma.marketingStrategy.create({
-    data: { projectId: project.id, plan: {}, approvedAt: new Date() },
-  });
-  const now = new Date();
-  await prisma.polarSubscription.create({
-    data: {
-      kind: "CMO",
-      projectId: project.id,
-      organizationId,
-      polarSubscriptionId: `sub_${randomUUID()}`,
-      polarProductId: "prod_starter",
-      tier: "starter",
-      interval: "month",
-      status: "active",
-      currentPeriodStart: now,
-      currentPeriodEnd: new Date(now.getTime() + 30 * DAY),
-      cancelAtPeriodEnd: false,
-      endedAt: null,
-      polarEventAt: now,
-    },
-  });
-  if (credits > 0n) {
-    const amount = credits * CREDIT;
-    await prisma.transaction.create({
-      data: {
-        amount,
-        organizationId,
-        sourceCreditBucket: {
-          create: { amount, organizationId, projectId: project.id },
-        },
-      },
-    });
-  }
-  const row = {
-    userId,
-    organizationId,
-    projectId: project.id,
-    sokoBotId: bot.id,
-  };
-  seeded.push(row);
-  return row;
-}
 
 async function setBrain(projectId: string, body: unknown): Promise<void> {
   await prisma.brandBrain.upsert({
@@ -233,31 +90,7 @@ function page(url: string, extra: string[] = []) {
 }
 
 afterEach(async () => {
-  if (!enabled) return;
-  for (const cuso of seeded.splice(0)) {
-    await prisma.project.delete({ where: { id: cuso.projectId } });
-    await prisma.sokoBotUsage.deleteMany({
-      where: { sokoBotId: cuso.sokoBotId },
-    });
-    await prisma.sokoBot.deleteMany({ where: { id: cuso.sokoBotId } });
-    await prisma.creditConsumption.deleteMany({
-      where: { transaction: { organizationId: cuso.organizationId } },
-    });
-    await prisma.transaction.deleteMany({
-      where: { organizationId: cuso.organizationId },
-    });
-    await prisma.creditBucket.deleteMany({
-      where: { organizationId: cuso.organizationId },
-    });
-    await prisma.polarSubscription.deleteMany({
-      where: { organizationId: cuso.organizationId },
-    });
-    await prisma.workspace.deleteMany({
-      where: { organizationId: cuso.organizationId },
-    });
-    await prisma.organization.delete({ where: { id: cuso.organizationId } });
-    await prisma.user.delete({ where: { id: cuso.userId } });
-  }
+  if (enabled) await deleteSeededCusos();
 });
 
 describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
@@ -341,6 +174,24 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     await updateTrackedCompetitor(cuso, calendly.id, { name: "Calendly Inc" });
     await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
     expect(await names(cuso.projectId)).toEqual(["Calendly Inc"]);
+  });
+
+  it("keeps a renamed competitor on the market map and takes a removed one off", async () => {
+    const cuso = await seedCuso();
+    await setBrain(
+      cuso.projectId,
+      brain([company("Calendly"), company("Zcal")], ["Calendly", "Zcal"]),
+    );
+    await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
+    const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
+    if (!calendly || !zcal) throw new Error("not seeded");
+    expect(await watchedMapPlayers(cuso.projectId)).toEqual([
+      "Calendly",
+      "Zcal",
+    ]);
+    await updateTrackedCompetitor(cuso, calendly.id, { name: "Calendly Inc" });
+    await removeTrackedCompetitor(cuso, zcal.id);
+    expect(await watchedMapPlayers(cuso.projectId)).toEqual(["Calendly"]);
   });
 
   it("keeps a removed competitor's signals when a rename takes its name", async () => {

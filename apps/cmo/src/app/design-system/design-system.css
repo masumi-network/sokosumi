@@ -396,3 +396,18 @@
 .ds-r-pill {
   border-radius: var(--radius-pill);
 }
+
+/* A board or screen pins its own theme, so it picks its own logo file. */
+:root .ds-board.light .logo .logo-on-light,
+:root .ds-screen.light .logo .logo-on-light,
+:root .ds-board.dark .logo .logo-on-dark,
+:root .ds-screen.dark .logo .logo-on-dark {
+  display: block;
+}
+
+:root .ds-board.light .logo .logo-on-dark,
+:root .ds-screen.light .logo .logo-on-dark,
+:root .ds-board.dark .logo .logo-on-light,
+:root .ds-screen.dark .logo .logo-on-light {
+  display: none;
+}

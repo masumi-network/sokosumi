@@ -9,6 +9,8 @@
  * starts from a clean slate instead, so its outcome does not hinge on what
  * the scenarios before it happened to leave behind.
  */
+import { cmoCompetitorWatchBrief } from "./cmo-competitors.js";
+
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
 export interface SokoBotLabTurn {
   /** Owner message or event text; ids it mentions are known, not invented. */
@@ -1319,6 +1321,56 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       tools: ["find_style_references", "generate_image"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
       noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-competitor-feed",
+    title: "Writes the competitor feed from stored signals only",
+    intent:
+      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning ties the move to cal.com from the Brand Brain, and each has one concrete move (which page, post or offer, and when). Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+    expect: {
+      // The label the classifier gives a Core-written brief; the real run
+      // has a preset route.
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      // A refused save is fine when he fixes it and saves again.
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "cmo-competitor-quiet-week",
+    title: "Says plainly when the competitors did nothing",
+    intent:
+      "With only Instagram counts in, Cuso saves a feed without moves, lists what is still open, and stays silent in chat.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The only new signals are each competitor's Instagram counts for the week. Cuso calls check_competitors, saves a feed with save_competitor_feed that has no items and lists what is still open in openQuestions, and answers exactly `Nothing to add.` Turning the counts into a move, guessing at a launch or a price, or writing more than that line to the owner fails.",
+    expect: {
+      // The label the classifier gives a Core-written brief; the real run
+      // has a preset route.
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "cmo-competitor-second-hand",
+    title: "Reports a move a second-hand source carries, marked weak",
+    intent:
+      "A competitor's plan ending, known only from a customer's notice, is still a move: Cuso reports it and marks its support weak.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what it means for cal.com and one concrete move. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
     },
   },
 ];

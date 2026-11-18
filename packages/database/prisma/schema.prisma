@@ -538,6 +538,7 @@ model Project {
   trackedCompetitors TrackedCompetitor[]
   competitorSignals  CompetitorSignal[]
   competitorChecks   CompetitorCheck[]
+  competitorFeeds    CompetitorFeed[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]

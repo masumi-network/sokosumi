@@ -10,6 +10,10 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import {
+  COMPETITOR_CASE_SETUPS,
+  isCompetitorEvalCase,
+} from "./eval-cmo-competitors";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -131,16 +135,25 @@ export const EVAL_CASES: readonly EvalCase[] = [
   ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>
-    scenarioCase(
-      scenario,
-      "cmo",
-      "Chat",
-      scenario.id === "cmo-asks-before-planning"
-        ? "cmo-new-client"
-        : scenario.id === "cmo-change-request"
-          ? "cmo-plan"
-          : "cmo-brand",
-    ),
+    isCompetitorEvalCase(scenario.id)
+      ? scenarioCase(
+          scenario,
+          "cmo",
+          "Competitors",
+          COMPETITOR_CASE_SETUPS[
+            scenario.id as keyof typeof COMPETITOR_CASE_SETUPS
+          ],
+        )
+      : scenarioCase(
+          scenario,
+          "cmo",
+          "Chat",
+          scenario.id === "cmo-asks-before-planning"
+            ? "cmo-new-client"
+            : scenario.id === "cmo-change-request"
+              ? "cmo-plan"
+              : "cmo-brand",
+        ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
 ];

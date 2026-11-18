@@ -21,6 +21,7 @@ import mountGetCmoCalendarEntryTextForProject from "./projects/[projectId]/calen
 import mountStartCmoPlanCheckoutForProject from "./projects/[projectId]/checkout/post.js";
 import mountRemoveCmoCompetitorForProject from "./projects/[projectId]/competitors/[competitorId]/delete.js";
 import mountUpdateCmoCompetitorForProject from "./projects/[projectId]/competitors/[competitorId]/patch.js";
+import mountAddCmoCompetitorMoveToStrategyForProject from "./projects/[projectId]/competitors/feed/[itemId]/strategy/post.js";
 import mountGetCmoCompetitorsForProject from "./projects/[projectId]/competitors/get.js";
 import mountAddCmoCompetitorForProject from "./projects/[projectId]/competitors/post.js";
 import mountGetCmoOverviewForProject from "./projects/[projectId]/get.js";
@@ -76,6 +77,7 @@ mountGetCmoCompetitorsForProject(app);
 mountAddCmoCompetitorForProject(app);
 mountUpdateCmoCompetitorForProject(app);
 mountRemoveCmoCompetitorForProject(app);
+mountAddCmoCompetitorMoveToStrategyForProject(app);
 mountStartCmoPlanCheckoutForProject(app);
 mountConnectCmoMeasurementForProject(app);
 mountFinalizeCmoMeasurementForProject(app);
