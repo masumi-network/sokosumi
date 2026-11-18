@@ -7,7 +7,7 @@ import { type MoveTaskInput, moveTask } from "@/helpers/task-subtask-move";
 import { subtaskPositionAfter } from "@/helpers/task-subtasks";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { createTaskForActor } from "./task-domain.service";
+import { createTaskForActor, updateTaskForActor } from "./task-domain.service";
 import { archiveTaskRecord, restoreTaskRecord } from "./task-domain-archive";
 
 const enabled =
@@ -125,6 +125,33 @@ describe.skipIf(!enabled)("sub-task lifecycle against PostgreSQL", () => {
     expect(b.projectId).toBe(project.id);
     await expect(
       create("Elsewhere", { parent: { taskId: parent.id }, projectId: null }),
+    ).rejects.toThrow("A sub-task stays in its parent's project");
+  });
+
+  it("refuses a sub-task's Project change that comes with other fields", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Edit with move" },
+    });
+    const parent = await create("Edit parent", { projectId: project.id });
+    const child = await create("Edit child", {
+      parent: { taskId: parent.id },
+    });
+
+    await expect(
+      prisma.$transaction((tx) =>
+        updateTaskForActor(
+          {
+            actor,
+            userId,
+            workspaceId,
+            taskId: child.id,
+            intent: "metadata",
+            name: "Renamed",
+            projectId: null,
+          },
+          tx,
+        ),
+      ),
     ).rejects.toThrow("A sub-task stays in its parent's project");
   });
 

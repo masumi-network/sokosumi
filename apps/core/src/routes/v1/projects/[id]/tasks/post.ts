@@ -6,7 +6,10 @@ import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
-import { requireNotSubtask } from "@/helpers/task-subtasks";
+import {
+  requireNotSubtask,
+  requireSubtreeCanChangeProject,
+} from "@/helpers/task-subtasks";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -127,6 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
         if (!current) throw notFound("Task not found");
         await requireSeoTaskExecutionUnchanged(tx, current, { projectId });
+        await requireSubtreeCanChangeProject(tx, current.id);
         const projectAssignment = await tx.task.updateMany({
           where: {
             id: body.taskId,

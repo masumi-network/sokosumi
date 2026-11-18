@@ -35,6 +35,7 @@ import {
   newSubtaskPosition,
   requireNotSubtask,
   requireSubtaskParent,
+  requireSubtreeCanChangeProject,
 } from "@/helpers/task-subtasks";
 import {
   buildSokoBotScopeTaskWhere,
@@ -516,7 +517,10 @@ export async function updateTaskForActor(
       task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
     )
       throw conflict("Task changed; read it again");
-    if (input.projectId !== task.projectId) requireNotSubtask(task);
+    if (input.projectId !== task.projectId) {
+      requireNotSubtask(task);
+      await requireSubtreeCanChangeProject(tx, task.id);
+    }
     await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
     return tx.task.update({
       where: { id: task.id, updatedAt: task.updatedAt },
@@ -614,6 +618,11 @@ export async function updateTaskForActor(
     projectId: input.projectId,
     ...(assigneeWrite ?? {}),
   });
+  if (input.projectId !== undefined && input.projectId !== task.projectId) {
+    // A sub-task keeps its parent's Project; the trigger would refuse it as a 500.
+    requireNotSubtask(task);
+    await requireSubtreeCanChangeProject(tx, task.id);
+  }
   return tx.task.update({
     where: {
       id: task.id,

@@ -5,6 +5,8 @@ import { formatTaskIdentifier } from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
+import { requireNoSeoTaskExecution } from "@/helpers/seo-task-execution";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import type prisma from "@/lib/db/prisma";
 
 type Db = Pick<typeof prisma, "task">;
@@ -45,6 +47,65 @@ export function requireNotSubtask(task: { parentTaskId: string | null }) {
       "A sub-task stays in its parent's project and workspace. Move the parent instead.",
     );
   }
+}
+
+/**
+ * Locks the sub-tasks below a Task, top-down as an archive does: each level
+ * after the one above it. Returns their ids by level, so the length is the
+ * height of the tree. Lock the Task itself first.
+ *
+ * Under SERIALIZABLE, a sub-task created, restored or moved since this
+ * transaction's snapshot wrote its parent row, so the lock on that row fails
+ * with 40001 and the caller retries instead of reading a stale tree.
+ */
+export async function lockSubtaskTree(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+): Promise<string[][]> {
+  const levels: string[][] = [];
+  let level = [taskId];
+  // Stored trees are at most MAX_SUBTASK_DEPTH deep, so the bound only stops
+  // a walk over rows the guard never saw.
+  while (levels.length < LIMITS.MAX_SUBTASK_DEPTH) {
+    const children = await tx.task.findMany({
+      where: { parentTaskId: { in: level } },
+      select: { id: true },
+    });
+    if (children.length === 0) break;
+    level = children.map((child) => child.id);
+    if (!(await lockTaskRows(tx, level))) {
+      throw conflict("A sub-task changed meanwhile. Retry.");
+    }
+    levels.push(level);
+  }
+  return levels;
+}
+
+/**
+ * Sub-tasks follow their Task to another Project (task_subtask_follow_parent),
+ * so each one gets the guards a Project change by PATCH applies to the Task:
+ * not parked, and no frozen SEO analysis. Lock them first (lockSubtaskTree).
+ */
+export async function requireSubtasksCanChangeProject(
+  tx: Prisma.TransactionClient,
+  subtaskIds: string[],
+): Promise<void> {
+  if (subtaskIds.length === 0) return;
+  const subtasks = await tx.task.findMany({
+    where: { id: { in: subtaskIds } },
+    select: { status: true },
+  });
+  for (const subtask of subtasks) requireTaskNotParked(subtask);
+  await requireNoSeoTaskExecution(tx, subtaskIds);
+}
+
+/** lockSubtaskTree, then requireSubtasksCanChangeProject. Lock the Task first. */
+export async function requireSubtreeCanChangeProject(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+): Promise<void> {
+  const levels = await lockSubtaskTree(tx, taskId);
+  await requireSubtasksCanChangeProject(tx, levels.flat());
 }
 
 export interface SubtaskParent {

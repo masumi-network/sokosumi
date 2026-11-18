@@ -1,18 +1,23 @@
 import { type Prisma, type Task, TaskVisibility } from "@sokosumi/database";
+import { isTaskEditableStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskWriteAccess } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
-import { conflict, unprocessableEntity } from "@/helpers/error";
+import { conflict, forbidden, unprocessableEntity } from "@/helpers/error";
 import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import {
   loadTaskAncestors,
+  lockSubtaskTree,
   newSubtaskPosition,
+  requireSubtasksCanChangeProject,
   subtaskPositionAfter,
   touchTaskRow,
 } from "@/helpers/task-subtasks";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import type { UserContext } from "@/middleware/auth";
+
+const MOVE_CONFLICT_MESSAGE = "Task changed while moving it. Retry.";
 
 export interface MoveTaskInput {
   taskId: string;
@@ -68,8 +73,14 @@ async function reorderSubtask(
   if (!task.parentTaskId) {
     throw unprocessableEntity("Only a sub-task can be reordered");
   }
-  // The same lock sub-task creates take, so sibling writes serialize.
-  await lockTaskRows(tx, [task.parentTaskId]);
+  // The same lock sub-task creates take, so sibling writes serialize. The
+  // parent before the Task, top-down as an archive locks.
+  if (
+    !(await lockTaskRows(tx, [task.parentTaskId])) ||
+    !(await lockTaskRows(tx, [task.id]))
+  ) {
+    throw conflict(MOVE_CONFLICT_MESSAGE);
+  }
   const position = await subtaskPositionAfter(tx, {
     parentTaskId: task.parentTaskId,
     taskId: task.id,
@@ -91,8 +102,14 @@ async function detachSubtask(
   }
   // Lock, then write the old parent, as requireSubtaskParent does: a
   // SERIALIZABLE archive of the old parent that read this sub-task fails
-  // and retries instead of archiving a Task that left.
-  await lockTaskRows(tx, [task.id, oldParentTaskId]);
+  // and retries instead of archiving a Task that left. The parent before the
+  // Task, top-down as an archive locks.
+  if (
+    !(await lockTaskRows(tx, [oldParentTaskId])) ||
+    !(await lockTaskRows(tx, [task.id]))
+  ) {
+    throw conflict(MOVE_CONFLICT_MESSAGE);
+  }
   await touchTaskRow(tx, oldParentTaskId);
   return tx.task.update({
     where: { id: task.id },
@@ -118,9 +135,11 @@ async function attachSubtask(
       "A sub-task stays in its parent's workspace. Move the Task to that workspace first.",
     );
   }
-  // Workspace and Project, then the Task rows, in the order a Task PATCH
-  // takes them. Then write both parents, so a SERIALIZABLE archive that read
-  // either one's sub-tasks earlier fails and retries.
+  // Workspace and Project first, in the order a Task PATCH takes them. Then
+  // the Task rows top-down, as an archive locks them: both parents, the Task,
+  // then its sub-tasks level by level. Then write both parents, so a
+  // SERIALIZABLE archive that read either one's sub-tasks earlier fails and
+  // retries.
   const oldParentTaskId = task.parentTaskId;
   if (
     !(await lockCalendarScope(
@@ -130,13 +149,16 @@ async function attachSubtask(
       userContext.userId,
     )) ||
     !(await lockTaskRows(tx, [
-      task.id,
       parent.id,
       ...(oldParentTaskId ? [oldParentTaskId] : []),
-    ]))
+    ])) ||
+    !(await lockTaskRows(tx, [task.id]))
   ) {
-    throw conflict("Task changed while moving it. Retry.");
+    throw conflict(MOVE_CONFLICT_MESSAGE);
   }
+  // Locked before the height below is read: a sub-task added meanwhile wrote
+  // its parent, so this lock fails and the move retries.
+  const subtaskLevels = await lockSubtaskTree(tx, task.id);
   await touchTaskRow(tx, parent.id);
   if (oldParentTaskId) await touchTaskRow(tx, oldParentTaskId);
 
@@ -160,10 +182,7 @@ async function attachSubtask(
       "A Task cannot go under one of its own sub-tasks",
     );
   }
-  if (
-    chain.length + (await subtaskTreeHeight(tx, task.id)) >
-    LIMITS.MAX_SUBTASK_DEPTH
-  ) {
+  if (chain.length + subtaskLevels.length > LIMITS.MAX_SUBTASK_DEPTH) {
     throw unprocessableEntity(
       `Sub-tasks nest at most ${LIMITS.MAX_SUBTASK_DEPTH} levels deep`,
     );
@@ -172,11 +191,16 @@ async function attachSubtask(
   const projectChanged = parent.projectId !== task.projectId;
   if (projectChanged) {
     // The same guards as a project change by PATCH. The sub-tasks follow
-    // through the task_subtask_follow_parent trigger.
+    // through the task_subtask_follow_parent trigger, so they get the
+    // guards too.
     requireTaskNotParked(task);
+    if (!isTaskEditableStatus(task.status)) {
+      throw forbidden("You can only update draft, queued, or ready tasks");
+    }
     await requireSeoTaskExecutionUnchanged(tx, task, {
       projectId: parent.projectId,
     });
+    await requireSubtasksCanChangeProject(tx, subtaskLevels.flat());
   }
   const position =
     afterTaskId === undefined
@@ -195,25 +219,4 @@ async function attachSubtask(
     },
   });
   return { task: moved, projectChanged };
-}
-
-/** Levels of sub-tasks below a Task: 0 for a Task without any. */
-export async function subtaskTreeHeight(
-  tx: Prisma.TransactionClient,
-  taskId: string,
-): Promise<number> {
-  let height = 0;
-  let level = [taskId];
-  // Stored trees are at most MAX_SUBTASK_DEPTH deep, so the bound only stops
-  // a walk over rows the guard never saw.
-  while (height < LIMITS.MAX_SUBTASK_DEPTH) {
-    const children = await tx.task.findMany({
-      where: { parentTaskId: { in: level } },
-      select: { id: true },
-    });
-    if (children.length === 0) break;
-    height += 1;
-    level = children.map((child) => child.id);
-  }
-  return height;
 }

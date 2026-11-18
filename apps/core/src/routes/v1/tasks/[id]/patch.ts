@@ -55,7 +55,10 @@ import {
   reopenedWithoutInstructionsComment,
   taskReopenedWithoutInstructions,
 } from "@/helpers/task-reopen-instructions";
-import { requireNotSubtask } from "@/helpers/task-subtasks";
+import {
+  requireNotSubtask,
+  requireSubtreeCanChangeProject,
+} from "@/helpers/task-subtasks";
 import { dismissTaskTopics } from "@/helpers/task-tags";
 import {
   requireExpectedTaskWorkspaceTags,
@@ -452,6 +455,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId,
         ...(assigneeWrite ?? {}),
       });
+      if (projectIdWasProvided && projectId !== task.projectId) {
+        await requireSubtreeCanChangeProject(tx, task.id);
+      }
       const dueOnWrite =
         dueOn === undefined
           ? undefined

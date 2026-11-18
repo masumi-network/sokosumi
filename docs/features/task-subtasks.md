@@ -400,15 +400,26 @@ Core API:
     Task goes last, or after `afterTaskId`. A parent in another Project
     moves the Task and its sub-tasks there, with new numbers and aliases.
     That move uses the PATCH project guards: not parked, and no frozen SEO
-    analysis.
+    analysis. They apply to the Task and to every sub-task that follows
+    it. The Task itself must also be DRAFT, QUEUED or READY, as for a
+    PATCH. PATCH, the Project task routes and the Soko Bot project move
+    apply the same sub-task guards when the Task has sub-tasks
+    (`requireSubtreeCanChangeProject` in `helpers/task-subtasks.ts`).
   - `null`: detach. The Task keeps its Project.
   - Refused with 404: an archived or unwritable Task or parent. With 422:
     the Task itself, one of its own sub-tasks, a depth above 5, another
     workspace, another visibility, a private parent with another Owner.
   - The write runs in `serializableTransaction`. It locks the Workspace and
-    both Projects, then the Task and both parents, then writes both
-    parents (`touchTaskRow`). Detach locks the Task and the old parent and
-    writes the old parent. The code is `helpers/task-subtask-move.ts`.
+    both Projects, then top-down as an archive does: both parents, the
+    Task, then its sub-tasks level by level (`lockSubtaskTree`). Then it
+    writes both parents (`touchTaskRow`). The sub-tasks are locked before
+    the move reads the tree's height, so a sub-task added meanwhile fails
+    the move with 40001 and the retry sees it. Detach locks the old
+    parent, then the Task, and writes the old parent. The code is
+    `helpers/task-subtask-move.ts`.
+  - Two moves in opposite directions (A under B, and B under A) lock the
+    two rows in opposite order. Postgres then reports a deadlock (40P01)
+    and one move retries. INFERRED from the lock order, not tested.
 - A Task link with relation `parent` or `child`: POST and PATCH return
   400 "Parent links are now sub-tasks. Use POST /v1/tasks/{id}/move with
   parentTaskId." `UserWritableTaskLinkRelation` no longer has them. The
@@ -443,6 +454,21 @@ Open after this change:
   is needed.
 - No Task event records a move. A Project change by move is visible only
   through the new number and the alias of the old one.
+- Deploy window. The migrations run before the new Core is promoted, so
+  the old Core serves converted data for a while. REPORTED by the branch
+  review, not tested:
+  - A `projectId` PATCH on a child that the backfill converted returns
+    500 until the promote. The guard trigger refuses the write with
+    `task_subtask_parent_mismatch`, because the child would leave its
+    parent's Project.
+  - The old Core archive does not know about sub-tasks. It archives a
+    converted parent and leaves its children live under it.
+- Backfill cost. The backfill is one statement. It holds the row lock of
+  every Task it touched until the migration commits, so an old Core write
+  to one of those Tasks waits until then. Each link runs in its own
+  `BEGIN ... EXCEPTION` block, which is one subtransaction per link. Not
+  determined: the number of PARENT links in production, so the run time
+  and the lock window are not known.
 
 ## Least confident decisions
 

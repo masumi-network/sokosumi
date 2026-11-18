@@ -382,6 +382,8 @@ describe("PATCH /tasks/{id}", () => {
         },
         task: {
           update: taskUpdateMock,
+          // No sub-tasks follow the Task to another Project.
+          findMany: async () => [],
         },
         taskDueDateChange: { create: dueDateChangeCreateMock },
       });
@@ -556,6 +558,48 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("refuses a project change when a sub-task that would follow is parked", async () => {
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      projectId: OTHER_PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        projectSeoAnalysis: {
+          findUnique: async () => null,
+          findFirst: async () => null,
+        },
+        project: { findFirst: projectFindFirstMock },
+        task: {
+          update: taskUpdateMock,
+          // One level of sub-tasks below the Task, then none.
+          findMany: async ({
+            where,
+          }: {
+            where: { parentTaskId?: { in: string[] } };
+          }) =>
+            where.parentTaskId
+              ? where.parentTaskId.in.includes("tsk_123")
+                ? [{ id: "tsk_child" }]
+                : []
+              : [{ status: TaskStatus.GRANT_PENDING }],
+        },
+      }),
+    );
+
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: PROJECT_ID }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("updates priority alone", async () => {
@@ -1489,7 +1533,8 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
       return await callback({
         projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
-        task: { update: taskUpdateMock },
+        // No sub-tasks follow the Task to another Project.
+        task: { update: taskUpdateMock, findMany: async () => [] },
         taskEvent: { create: taskEventCreateMock },
       });
     });
