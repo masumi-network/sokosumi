@@ -12,12 +12,15 @@ import { ContactPanel } from "./contact-panel";
 
 // The service is a plain delegate, not the spy itself: Vitest fails a test
 // whose spy returned a rejected promise, even when the component catches it.
-const { createList, changeMembers, member, toastError } = vi.hoisted(() => ({
-  createList: vi.fn(),
-  changeMembers: vi.fn(),
-  member: { current: (): Promise<unknown> => Promise.resolve() },
-  toastError: vi.fn(),
-}));
+const { createList, changeMembers, member, toastError, unarchive } = vi.hoisted(
+  () => ({
+    createList: vi.fn(),
+    unarchive: vi.fn(),
+    changeMembers: vi.fn(),
+    member: { current: (): Promise<unknown> => Promise.resolve() },
+    toastError: vi.fn(),
+  }),
+);
 
 const LENA = {
   id: "c-1",
@@ -35,10 +38,16 @@ const LENA = {
   createdAt: "2026-11-12T07:00:00.000Z",
   updatedAt: "2026-11-12T07:00:00.000Z",
 } as unknown as ContactDetail;
+/** The contact Core returns; a test may swap in an archived one. */
+const shown = { current: LENA };
 
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: {
-    get: () => Promise.resolve(LENA),
+    get: () => Promise.resolve(shown.current),
+    unarchive: (id: string) => {
+      unarchive(id);
+      return Promise.resolve();
+    },
     interactions: () => Promise.resolve({ items: [], nextCursor: null }),
     activity: () => Promise.resolve({ items: [], nextCursor: null }),
     duplicates: () => Promise.resolve({ groups: [] }),
@@ -186,5 +195,98 @@ describe("ContactPanel lists menu", () => {
     ).toHaveAttribute("aria-busy", "true");
     answer();
     await waitFor(() => expect(option).not.toHaveAttribute("aria-busy"));
+  });
+});
+
+describe("ContactPanel archived contact", () => {
+  const ARCHIVED = {
+    ...LENA,
+    archivedAt: "2026-11-10T07:00:00.000Z",
+  } as unknown as ContactDetail;
+
+  beforeEach(() => {
+    shown.current = LENA;
+    unarchive.mockReset();
+    changeMembers.mockReset();
+  });
+
+  it("is read-only apart from Restore: no Enrich, menu and edits disabled", async () => {
+    shown.current = ARCHIVED;
+    const lists = await renderPanel();
+    expect(screen.getByText("panel.archivedOn")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "panel.enrichHint" }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "panel.menu" })).toBeDisabled();
+    expect(lists).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "panel.changeStage" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "panel.name: Lena Fischer" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "panel.restore" })).toBeEnabled();
+  });
+
+  /** Presses a trigger the way Radix opens a menu: primary-button pointerdown. */
+  function press(name: string) {
+    fireEvent.pointerDown(screen.getByRole("button", { name }), {
+      button: 0,
+      ctrlKey: false,
+    });
+  }
+  const EDIT_MENUS = [
+    "panel.menu",
+    "panel.changeStage",
+    "importance.change",
+    "panel.changeLists",
+  ];
+
+  it("opens no edit menu on an archived contact, so nothing can change", async () => {
+    shown.current = ARCHIVED;
+    await renderPanel();
+    for (const name of EDIT_MENUS) {
+      press(name);
+      expect(screen.queryByRole("menu")).toBeNull();
+    }
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    expect(changeMembers).not.toHaveBeenCalled();
+  });
+
+  it("still opens every edit menu on a live contact", async () => {
+    await renderPanel();
+    for (const name of EDIT_MENUS) {
+      press(name);
+      expect(await screen.findByRole("menu")).toBeInTheDocument();
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    }
+  });
+
+  it("restores in place: the notice goes and editing comes back", async () => {
+    shown.current = ARCHIVED;
+    await renderPanel();
+    shown.current = LENA;
+    fireEvent.click(screen.getByRole("button", { name: "panel.restore" }));
+    expect(unarchive).toHaveBeenCalledExactlyOnceWith("c-1");
+    await waitFor(() =>
+      expect(screen.queryByText("panel.archivedOn")).toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "panel.menu" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "panel.changeLists" }),
+    ).toBeEnabled();
+  });
+
+  it("shows no archived notice for a live contact, and offers Archive", async () => {
+    await renderPanel();
+    expect(screen.queryByText("panel.archivedOn")).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "panel.menu" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(
+      await screen.findByRole("menuitem", { name: "panel.archive" }),
+    ).toBeInTheDocument();
   });
 });

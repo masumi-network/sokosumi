@@ -10187,7 +10187,10 @@
           "answer": "Answer",
           "updateAnswer": "Update answer",
           "answered": "Answer saved",
-          "answerFailed": "Could not save the answer"
+          "answerFailed": "Could not save the answer",
+          "shareLabel": "Show to everyone in the room",
+          "shareHint": "Everyone who can open this document sees the question word for word and your answer, not who asked. You can't edit the question.",
+          "answeredShared": "Answer saved and shared with the room"
         },
         "Contents": {
           "hint": "The order viewers see, which also numbers the room (1, 1.1, 1.2).",
@@ -11199,13 +11202,15 @@
       "presets": {
         "all": "All contacts",
         "mine": "My contacts",
-        "recent": "Recently added"
+        "recent": "Recently added",
+        "archived": "Archived contacts"
       },
       "emptyViews": {
         "all": "No contacts yet.",
         "mine": "Nobody you have talked to yet. Everyone you email or meet shows up here.",
         "recent": "Nobody was added in the last two weeks.",
-        "list": "This list is empty. Select people in All contacts and add them here."
+        "list": "This list is empty. Select people in All contacts and add them here.",
+        "archived": "No archived contacts. People you archive show up here, ready to restore."
       },
       "views": {
         "label": "Contact views",
@@ -11223,7 +11228,8 @@
         "clearCompany": "Show every company",
         "companyLists": "Company lists",
         "newCompanyList": "New company list",
-        "noCompanyLists": "No company lists yet."
+        "noCompanyLists": "No company lists yet.",
+        "backToContacts": "Back to contacts"
       },
       "columns": {
         "name": "Name",
@@ -11566,7 +11572,12 @@
         "enriched": "Filled {fields} from the web · 1 credit",
         "enrichedNone": "Nothing new found on the web. No credits used.",
         "enrichFailed": "Could not look them up. Try again.",
-        "connectedVia": "Connected via"
+        "connectedVia": "Connected via",
+        "restore": "Restore",
+        "restoreName": "Restore {name}",
+        "restored": "{name} restored",
+        "restoreFailed": "Could not restore {name}. The contact is still archived.",
+        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them."
       },
       "stageGroups": {
         "general": "General",
@@ -13285,7 +13296,12 @@
       "welcome": "Welcome",
       "welcomeTitle": "Welcome to {title}",
       "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
-      "openFirst": "Open {name}"
+      "openFirst": "Open {name}",
+      "sharedTitle": "Answered for everyone",
+      "sharedNote": "Answered for everyone in the room",
+      "sharedLoading": "Loading answers shared with everyone…",
+      "sharedFailed": "Could not load the answers shared with everyone. Check your connection and try again.",
+      "retry": "Try again"
     }
   },
   "NotFound": {

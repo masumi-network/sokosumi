@@ -15,7 +15,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/{id}/questions/{questionId}",
     description:
-      "Answer a viewer's question. They see the answer beside the document.",
+      "Answer a viewer's question. They see the answer beside the document; with shared, so does everyone in the room who may open it.",
     tags: ["Drive"],
     request: {
       params: z.object({
@@ -54,6 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       roomId: id,
       questionId,
       answer: body.answer,
+      shared: body.shared,
       userId: userContext.userId,
     });
     return c.body(null, 204);
