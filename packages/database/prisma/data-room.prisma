@@ -177,6 +177,9 @@ model DataRoomQuestion {
   answer           String?
   answeredByUserId String?
   answeredAt       DateTime?
+  /// When the owner showed the answer to everyone in the room who may open
+  /// the document, without who asked. Null keeps it between asker and owner.
+  sharedAt         DateTime?
 
   @@index([roomId, createdAt])
   @@map("data_room_question")

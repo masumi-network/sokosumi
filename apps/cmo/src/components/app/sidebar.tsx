@@ -17,7 +17,6 @@ import { VIEW_PATHS, type View } from "../../lib/views";
 import { AccountMenu } from "../account-menu";
 import { hostOf } from "../brand-profile";
 import { BusinessMark, businessDisplayName } from "../business-mark";
-import { Logo } from "../logo";
 import { CusoStatus } from "./cuso-status";
 
 export const VIEWS = [
@@ -63,9 +62,6 @@ export function Sidebar({
   const displayName = businessDisplayName(overview);
   return (
     <nav className="side" aria-label="Main">
-      <div className="side-head">
-        <Logo />
-      </div>
       <div className="business card" title={overview.websiteUrl}>
         <BusinessMark overview={overview} size={28} />
         <span className="business-text">
@@ -105,16 +101,23 @@ export function Sidebar({
         now={now}
         onOpen={() => onSelect("chat")}
       />
-      <div className="who">
-        <span className="avatar" aria-hidden="true">
-          {initial(name || email)}
-        </span>
-        <span className="who-text">
-          <span className="who-name">{name || email}</span>
-          {name ? <span className="note">{email}</span> : null}
-        </span>
-        <AccountMenu label="Account" signOut={signOut} cusoPicker={false} />
-      </div>
+      {/* The person is the account menu's button, so the name has the row. */}
+      <AccountMenu
+        label="Account"
+        signOut={signOut}
+        cusoPicker={false}
+        trigger={
+          <>
+            <span className="avatar" aria-hidden="true">
+              {initial(name || email)}
+            </span>
+            <span className="who-text">
+              <span className="who-name">{name || email}</span>
+              {name ? <span className="note">{email}</span> : null}
+            </span>
+          </>
+        }
+      />
     </nav>
   );
 }

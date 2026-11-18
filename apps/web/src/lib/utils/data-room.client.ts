@@ -196,11 +196,17 @@ export async function answerDataRoomQuestion(input: {
   roomId: string;
   questionId: string;
   answer: string;
+  /** Left out keeps the current choice. */
+  shared?: boolean;
 }): Promise<void> {
   await patchDriveDataRoomsByIdQuestionsByQuestionId({
     client: getBrowserCoreClient(),
     path: { id: input.roomId, questionId: input.questionId },
-    body: { ...storeQuery(input.store), answer: input.answer },
+    body: {
+      ...storeQuery(input.store),
+      answer: input.answer,
+      shared: input.shared,
+    },
     throwOnError: true,
   });
 }

@@ -296,8 +296,9 @@ async function load(root: string): Promise<void> {
     await readJsonl<Described>(path.join(root, "_meta", "descriptions.jsonl"))
   ).filter((row) => uploaded.has(row.path) && !existing.has(row.path));
   console.log(`${existing.size} loaded, ${rows.length} to go`);
-  // The embedding model takes at most 20,000 input tokens a request; 100 descriptions ran over.
-  const BATCH = 25;
+  // The embedding model takes at most 20,000 input tokens and 20 seconds a
+  // request; 100 descriptions ran over the first, 25 sometimes the second.
+  const BATCH = 10;
   let costUsd = 0;
   for (let at = 0; at < rows.length; at += BATCH) {
     const batch = rows.slice(at, at + BATCH);
@@ -305,10 +306,11 @@ async function load(root: string): Promise<void> {
       batch.map(searchText),
     );
     costUsd += cost;
-    for (const [index, row] of batch.entries()) {
-      const source = manifest.get(row.path);
-      const created = await prisma.referenceImage.create({
-        data: {
+    // One insert and one update a batch: a round trip per row took hours.
+    const created = await prisma.referenceImage.createManyAndReturn({
+      data: batch.map((row) => {
+        const source = manifest.get(row.path);
+        return {
           libraryPath: row.path,
           pathname: uploaded.get(row.path) ?? blobPathname(row.path),
           width: row.width,
@@ -330,15 +332,26 @@ async function load(root: string): Promise<void> {
           suits: row.suits,
           textAmount: row.textAmount,
           usable: row.usable,
-        },
-        select: { id: true },
-      });
+        };
+      }),
+      select: { id: true, libraryPath: true },
+    });
+    const idByPath = new Map(created.map((row) => [row.libraryPath, row.id]));
+    const ids: string[] = [];
+    const vectors: string[] = [];
+    for (const [index, row] of batch.entries()) {
+      const id = idByPath.get(row.path);
       const embedding = embeddings[index];
-      if (embedding) {
-        await prisma.$executeRaw`
-          UPDATE "reference_image" SET "embedding" = ${vectorLiteral(embedding)}::vector
-          WHERE "id" = ${created.id}::uuid`;
+      if (id && embedding) {
+        ids.push(id);
+        vectors.push(vectorLiteral(embedding));
       }
+    }
+    if (ids.length > 0) {
+      await prisma.$executeRaw`
+        UPDATE "reference_image" AS image SET "embedding" = given.embedding::vector
+        FROM unnest(${ids}::uuid[], ${vectors}::text[]) AS given(id, embedding)
+        WHERE image."id" = given.id`;
     }
     console.log(
       `${Math.min(at + BATCH, rows.length)}/${rows.length} · $${costUsd.toFixed(2)}`,

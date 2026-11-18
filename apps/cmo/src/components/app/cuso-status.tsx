@@ -43,31 +43,27 @@ export function CusoStatus({
   const needsYou = pose === "needs-you";
   const working = pose === "reading" || pose === "thinking";
   const line = cusoLine(overview);
-  // While he works the line is on the stage; it is not said twice.
-  const onStage = needsYou ? "Needs you" : working ? line : null;
+  // What he waits on, or what he is doing, is the label on his stage.
+  const onStage = needsYou || working ? line : null;
+  // The stage's label is decoration; this says the state to a screen reader.
+  const label = `${AGENT_NAME}: ${line}`;
   const content = (
-    <>
-      <CusoScene
-        scene={SCENES[pose]}
-        now={onStage}
-        calling={needsYou}
-        compact
-      />
-      <span className="cuso-status-text">
-        <span className="cuso-status-name">{AGENT_NAME}</span>
-        {working ? null : <span className="note">{line}</span>}
-      </span>
-    </>
+    <CusoScene scene={SCENES[pose]} now={onStage} calling={needsYou} compact />
   );
   if (needsYou && onOpen) {
     return (
-      <button type="button" className="cuso-status" onClick={onOpen}>
+      <button
+        type="button"
+        className="cuso-status"
+        aria-label={label}
+        onClick={onOpen}
+      >
         {content}
       </button>
     );
   }
   return (
-    <div className="cuso-status" role="status">
+    <div className="cuso-status" role="status" aria-label={label}>
       {content}
     </div>
   );
