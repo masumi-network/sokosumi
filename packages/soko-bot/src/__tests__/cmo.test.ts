@@ -607,7 +607,8 @@ describe("pictures in chat", () => {
     expect(skill?.content).toContain(
       "In chat, a picture for a post or an ad goes the same way",
     );
-    expect(skill?.content).toContain("styleReferenceId and the few words");
+    expect(skill?.content).toContain("the reference's id as styleReferenceId");
+    expect(skill?.content).toContain("maxCredits 30");
     const scenario = CMO_SCENARIOS.find(
       (entry) => entry.id === "cmo-post-with-picture",
     );
