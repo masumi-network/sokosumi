@@ -1,10 +1,15 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { SeoTimeline } from "./seo-timeline";
+import { seoStops } from "./seo-timeline-model";
+
+// One stop with no stop before it holds every event.
+const allNodes = (workspace: Parameters<typeof seoStops>[0]) =>
+  seoStops(workspace, ["2026-01-01"]).get("2026-01-01")?.nodes ?? [];
 
 // The facts of a check row are spans of one line: the dot between them is a mark, with no space in the text.
 const facts = (line: string | RegExp) => (_: string, node: Element | null) =>
@@ -58,7 +63,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByText(facts("12 tests·desktop"))).toBeVisible();
@@ -95,7 +100,7 @@ describe("SEO timeline recovery", () => {
           formats={createFormats()}
           messages={messages}
         >
-          <SeoTimeline workspace={workspace} />
+          <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
         </NextIntlClientProvider>,
       );
       expect(screen.getByText(label)).toBeVisible();
@@ -153,7 +158,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     const graph = screen.getByRole("list", {
@@ -182,185 +187,6 @@ describe("SEO timeline recovery", () => {
     expect(task).toBeVisible();
     expect(task.closest("details")).toBeNull();
     expect(within(recheck).getAllByRole("link")).toHaveLength(1);
-  });
-
-  it("keeps the row of a check that the tiles do not show", () => {
-    const workspace = seoTestWorkspace();
-    const older = {
-      id: "older",
-      kind: "page_check" as const,
-      source: "agent" as const,
-      observedAt: new Date("2026-11-01T10:00:00Z"),
-      pageIds: workspace.scope.pageIds,
-      scopeVersion: 2,
-      sourceTaskId: "older-task",
-      countryCode: "US",
-      languageCode: "en",
-      devices: ["desktop" as const],
-      rulebookVersion: "test-rules",
-      artifactHash: "older-hash",
-      issues: 1,
-      coverage: { checked: 12, skipped: 0, failed: 0 },
-    };
-    // The newest check has no event: the tiles show it, and the only row is of the check before it.
-    workspace.observations = [
-      {
-        ...older,
-        id: "newest",
-        sourceTaskId: "newest-task",
-        observedAt: new Date("2026-11-02T10:00:00Z"),
-      },
-      older,
-    ];
-    workspace.timeline = [
-      {
-        id: "older-event",
-        kind: "check",
-        title: "SEO check results imported",
-        status: "completed",
-        detail: "",
-        at: older.observedAt,
-        pageIds: older.pageIds,
-        taskId: older.sourceTaskId,
-        observationId: older.id,
-      },
-    ];
-    render(
-      <NextIntlClientProvider
-        locale="en"
-        timeZone="UTC"
-        formats={createFormats()}
-        messages={messages}
-      >
-        <SeoTimeline workspace={workspace} summarized />
-      </NextIntlClientProvider>,
-    );
-    expect(screen.getByText("1 issue found")).toBeVisible();
-  });
-
-  it("shows what came before the last check as one closed line, and open when a row asks for attention", () => {
-    const workspace = seoTestWorkspace();
-    const check = (id: string, day: number) => ({
-      id,
-      kind: "page_check" as const,
-      source: "agent" as const,
-      observedAt: new Date(`2026-11-0${day}T10:00:00Z`),
-      pageIds: workspace.scope.pageIds,
-      scopeVersion: 2,
-      sourceTaskId: `${id}-task`,
-      countryCode: "US",
-      languageCode: "en",
-      devices: ["desktop" as const],
-      rulebookVersion: "test-rules",
-      artifactHash: id,
-      issues: 1,
-      coverage: { checked: 12, skipped: 0, failed: 0 },
-    });
-    workspace.observations = [check("newest", 3), check("older", 2)];
-    workspace.timeline = workspace.observations.map((observation) => ({
-      id: `${observation.id}-event`,
-      kind: "check" as const,
-      title: "SEO check results imported",
-      status: "completed",
-      detail: "",
-      at: observation.observedAt,
-      pageIds: observation.pageIds,
-      taskId: observation.sourceTaskId,
-      observationId: observation.id,
-    }));
-    const show = () =>
-      render(
-        <NextIntlClientProvider
-          locale="en"
-          timeZone="UTC"
-          formats={createFormats()}
-          messages={messages}
-        >
-          <SeoTimeline workspace={workspace} summarized />
-        </NextIntlClientProvider>,
-      );
-    const quiet = show();
-    const fold = screen
-      .getByRole("heading", { name: "History" })
-      .closest("details");
-    expect(fold?.open).toBe(false);
-    quiet.unmount();
-    // A sync that failed before the last check, with no good sync after it, is still news.
-    workspace.timeline.push({
-      id: "failed-sync",
-      kind: "metrics",
-      title: "Search Console sync",
-      status: "failed",
-      detail: "",
-      at: new Date("2026-11-01T10:00:00Z"),
-      pageIds: workspace.scope.pageIds,
-      taskId: null,
-      observationId: null,
-    });
-    show();
-    expect(
-      screen.getByRole("heading", { name: "History" }).closest("details"),
-    ).toBeNull();
-    expect(screen.getByText("Statistics sync failed")).toBeVisible();
-  });
-
-  it("leaves History out while the runs row opens each check in it", () => {
-    const workspace = seoTestWorkspace();
-    const check = (id: string, day: number, hour = 10) => ({
-      id,
-      kind: "page_check" as const,
-      source: "agent" as const,
-      observedAt: new Date(
-        `2026-11-0${day}T${String(hour).padStart(2, "0")}:00:00Z`,
-      ),
-      pageIds: workspace.scope.pageIds,
-      scopeVersion: 2,
-      sourceTaskId: `${id}-task`,
-      countryCode: "US",
-      languageCode: "en",
-      devices: ["desktop" as const],
-      rulebookVersion: "test-rules",
-      artifactHash: id,
-      issues: 1,
-      coverage: { checked: 12, skipped: 0, failed: 0 },
-    });
-    const show = (checks: ReturnType<typeof check>[]) => {
-      workspace.observations = checks;
-      workspace.timeline = checks.map((observation) => ({
-        id: `${observation.id}-event`,
-        kind: "check" as const,
-        title: "SEO check results imported",
-        status: "completed",
-        detail: "",
-        at: observation.observedAt,
-        pageIds: observation.pageIds,
-        taskId: observation.sourceTaskId,
-        observationId: observation.id,
-      }));
-      workspace.runs = checks.map((observation) => ({
-        observationId: observation.id,
-        kind: observation.kind,
-        observedAt: observation.observedAt,
-        issues: 1,
-        seconds: null,
-      }));
-      return render(
-        <NextIntlClientProvider
-          locale="en"
-          timeZone="UTC"
-          formats={createFormats()}
-          messages={messages}
-        >
-          <SeoTimeline workspace={workspace} summarized />
-        </NextIntlClientProvider>,
-      );
-    };
-    const covered = show([check("newest", 3), check("older", 2)]);
-    expect(screen.queryByRole("heading", { name: "History" })).toBeNull();
-    covered.unmount();
-    // A pick of Nov 2 shows its newest check: the morning check of that day is reached only here.
-    show([check("newest", 3), check("evening", 2, 18), check("morning", 2, 8)]);
-    expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
   });
 
   it("folds back-to-back clean checks of the same pages into one row", () => {
@@ -407,7 +233,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     const rows = within(
@@ -493,7 +319,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     // Two folded checks of 12 tests are not 12 tests in all; one page needs no count.
@@ -538,7 +364,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} summarized />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     // The tiles name no market, so the last check keeps its row here, also on an Audit with several pages.
@@ -585,7 +411,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("Check results")).toBeVisible();
@@ -632,7 +458,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("Check results")).toBeVisible();
@@ -641,7 +467,7 @@ describe("SEO timeline recovery", () => {
     expect(screen.getByText(facts("10 tests·desktop·2 pages"))).toBeVisible();
   });
 
-  it("shows a failed check and offers a reviewed new check without hiding its source Task", () => {
+  it("shows a failed check without hiding its source Task", () => {
     const workspace = seoTestWorkspace();
     workspace.timeline = [
       {
@@ -656,53 +482,6 @@ describe("SEO timeline recovery", () => {
         observationId: null,
       },
     ];
-    const retry = vi.fn();
-    const view = render(
-      <NextIntlClientProvider
-        locale="en"
-        timeZone="UTC"
-        formats={createFormats()}
-        messages={messages}
-      >
-        <SeoTimeline workspace={workspace} onRetry={retry} />
-      </NextIntlClientProvider>,
-    );
-    expect(screen.getByText("Failed")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Open task" })).toHaveAttribute(
-      "href",
-      "/tasks/source-task",
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Run a new check" }));
-    expect(retry).toHaveBeenCalledTimes(1);
-    view.rerender(
-      <NextIntlClientProvider
-        locale="en"
-        timeZone="UTC"
-        formats={createFormats()}
-        messages={messages}
-      >
-        <SeoTimeline workspace={workspace} />
-      </NextIntlClientProvider>,
-    );
-    expect(screen.getByText("Failed")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Run a new check" }),
-    ).toBeNull();
-  });
-
-  it("moves focus to the first revealed event when showing all", () => {
-    const workspace = seoTestWorkspace();
-    workspace.timeline = Array.from({ length: 6 }, (_, index) => ({
-      id: `scope-${index}`,
-      kind: "scope",
-      title: "Page selection changed",
-      status: "recorded",
-      detail: "",
-      at: new Date(Date.UTC(2026, 10, index + 1)),
-      pageIds: workspace.scope.pageIds,
-      taskId: null,
-      observationId: null,
-    }));
     render(
       <NextIntlClientProvider
         locale="en"
@@ -710,19 +489,15 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
-    const list = screen.getByRole("list", {
-      name: "SEO activity, newest first",
-    });
-    expect(within(list).getAllByRole("listitem")).toHaveLength(5);
-    fireEvent.click(screen.getByRole("button", { name: "Show all 6 events" }));
-    const items = within(list).getAllByRole("listitem");
-    expect(items).toHaveLength(6);
-    expect(items[5]).toHaveFocus();
+    expect(screen.getByText("Failed")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open task" })).toHaveAttribute(
+      "href",
+      "/tasks/source-task",
+    );
   });
-
   it("leaves routine syncs out and keeps open failures as one row", () => {
     const workspace = seoTestWorkspace();
     const sync = (id: string, status: string, day: number) => ({
@@ -771,7 +546,7 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
       </NextIntlClientProvider>,
     );
     const list = screen.getByRole("list", {
