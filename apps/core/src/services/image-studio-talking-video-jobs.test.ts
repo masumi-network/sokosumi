@@ -17,6 +17,7 @@ const {
   jobUpdateManyMock,
   getEnvMock,
   submitToQueueMock,
+  fetchQueueStatusMock,
   uploadReferenceMock,
   downloadMediaMock,
   requireProjectAccessMock,
@@ -31,6 +32,7 @@ const {
   jobUpdateManyMock: vi.fn(),
   getEnvMock: vi.fn(),
   submitToQueueMock: vi.fn(),
+  fetchQueueStatusMock: vi.fn(),
   uploadReferenceMock: vi.fn(),
   downloadMediaMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
@@ -80,6 +82,7 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
     "@/lib/image-studio/fal-client",
   )),
   submitToQueue: submitToQueueMock,
+  fetchQueueStatus: fetchQueueStatusMock,
   uploadReference: uploadReferenceMock,
   downloadMedia: downloadMediaMock,
 }));
@@ -99,6 +102,7 @@ import { TALKING_VIDEO_PRESENTERS } from "@/lib/image-studio/talking-video";
 import {
   createTalkingVideoJob,
   failImageJob,
+  reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
@@ -413,6 +417,52 @@ describe("the caption step failing", () => {
     expect(jobUpdateManyMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
+    expect(logged).toHaveLength(1);
+  });
+});
+
+describe("the caption step being cancelled", () => {
+  it("delivers the video the presenter model already made", async () => {
+    const pendingMediaUrl = "https://v3b.fal.media/files/avatar.mp4";
+    jobFindUniqueMock.mockResolvedValue({
+      id: "job-1",
+      kind: "TALKING_VIDEO",
+      status: "RUNNING",
+      model: "heygen/avatar-6/turbo/image-to-video",
+      projectId: "project-1",
+      requestedByUserId: "user-1",
+      falRequestId: "fal-2",
+      idempotencyKey: "key-abcdefgh",
+      cancelRequestedAt: new Date(),
+      pendingMediaUrl,
+      settings: {},
+      asset: null,
+    });
+    fetchQueueStatusMock.mockResolvedValue({ kind: "not_found" });
+    // Stop at the download: storing is the image job's own, tested path.
+    downloadMediaMock.mockRejectedValue(new Error("stop at the download"));
+    jobUpdateMock.mockResolvedValue({
+      statusUnreachableSince: null,
+      resultUnreachableSince: null,
+      authUnreachableSince: null,
+    });
+    const logged = expectCoreLog(
+      "warn",
+      "Delivered a talking video without captions",
+    );
+
+    await reconcileJob("job-1");
+
+    expect(downloadMediaMock).toHaveBeenCalledWith(
+      pendingMediaUrl,
+      expect.any(Number),
+      "video/mp4",
+    );
+    expect(jobUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "CANCELED" }),
       }),
     );
     expect(logged).toHaveLength(1);
