@@ -3,7 +3,7 @@
 import { ChevronLeft, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -135,11 +135,11 @@ export function HeaderMobileSearchControl() {
     };
   }, [debouncedReplaceHistoryQuery]);
 
-  function openSearch() {
+  function openSearch(event: MouseEvent<HTMLButtonElement>) {
     // Same search as the sidebar and ⌘K (Tasks, tags, files). On Credit
     // history itself, Search keeps filtering that page in place.
     if (historySearch && !isHistoryPath(pathname)) {
-      historySearch.openHistorySearch();
+      historySearch.openHistorySearch(event.currentTarget);
       return;
     }
     setExpanded(true);

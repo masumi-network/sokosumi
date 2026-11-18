@@ -130,19 +130,42 @@ describe("HistorySearchDialog", () => {
     vi.useRealTimers();
   });
 
-  it("sits at the top on phones so the on-screen keyboard leaves results visible", () => {
-    renderWithQuery(
-      <HistorySearchDialog
-        open
-        onOpenChange={vi.fn()}
-        activeOrganizationId={null}
-        labels={labels}
-      />,
-    );
+  it("keeps results scrollable above the on-screen keyboard", async () => {
+    const viewport = Object.assign(new EventTarget(), {
+      height: 300,
+      offsetTop: 0,
+    });
+    vi.stubGlobal("visualViewport", viewport);
+    const rect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue({ top: 80 } as DOMRect);
 
-    const dialog = screen.getByRole("dialog");
-    expect(dialog.className).toMatch(/max-sm:top-/);
-    expect(dialog.className).toMatch(/max-sm:translate-y-0/);
+    try {
+      renderWithQuery(
+        <HistorySearchDialog
+          open
+          onOpenChange={vi.fn()}
+          activeOrganizationId={null}
+          labels={labels}
+        />,
+      );
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog.className).toMatch(/max-sm:top-/);
+      const list = dialog.querySelector<HTMLElement>("[cmdk-list]");
+      // 300px visible, list starts at 80px, 8px gap above the keyboard.
+      expect(list?.style.maxHeight).toBe("212px");
+
+      // Keyboard closes: back to the usual 300px cap.
+      viewport.height = 812;
+      act(() => {
+        viewport.dispatchEvent(new Event("resize"));
+      });
+      expect(list?.style.maxHeight).toBe("300px");
+    } finally {
+      rect.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("requests owned scope for organization users", async () => {

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -9,14 +10,32 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => false,
 }));
 
-vi.mock("@/app/components/history-search-dialog", () => ({
-  HistorySearchDialog: ({
-    open,
-  }: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-  }) => (open ? <div data-testid="history-search-dialog" /> : null),
-}));
+// A real Radix dialog with no DialogTrigger, like the app's search dialog.
+vi.mock("@/app/components/history-search-dialog", async () => {
+  const { CommandDialog, CommandInput } = await import(
+    "@/components/ui/command"
+  );
+  return {
+    HistorySearchDialog: ({
+      open,
+      onOpenChange,
+      onCloseAutoFocus,
+    }: {
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      onCloseAutoFocus?: (event: Event) => void;
+    }) => (
+      <CommandDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        contentProps={{ onCloseAutoFocus }}
+      >
+        <div data-testid="history-search-dialog" />
+        <CommandInput aria-label="Search query" />
+      </CommandDialog>
+    ),
+  };
+});
 
 import {
   HistorySearchDialogProvider,
@@ -27,7 +46,10 @@ function SearchTrigger() {
   const { openHistorySearch } = useHistorySearch();
 
   return (
-    <button type="button" onClick={openHistorySearch}>
+    <button
+      type="button"
+      onClick={(event) => openHistorySearch(event.currentTarget)}
+    >
       Open search
     </button>
   );
@@ -94,6 +116,26 @@ describe("HistorySearchDialogProvider", () => {
     ).not.toBeInTheDocument();
 
     document.body.removeChild(input);
+  });
+
+  it("returns focus to the Search button that opened it after Escape", async () => {
+    const user = userEvent.setup();
+    render(
+      <HistorySearchDialogProvider activeOrganizationId={null}>
+        <SearchTrigger />
+      </HistorySearchDialogProvider>,
+    );
+    const opener = screen.getByRole("button", { name: "Open search" });
+
+    await user.click(opener);
+    expect(screen.getByLabelText("Search query")).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.queryByTestId("history-search-dialog"),
+    ).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 
   it("ignores non-matching keys", () => {

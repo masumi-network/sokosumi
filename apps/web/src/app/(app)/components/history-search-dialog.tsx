@@ -8,7 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import { FileText, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -52,6 +52,7 @@ interface HistorySearchDialogLabels {
 interface HistorySearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   labels: HistorySearchDialogLabels;
   activeOrganizationId: string | null;
 }
@@ -59,6 +60,7 @@ interface HistorySearchDialogProps {
 export function HistorySearchDialog({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   labels,
   activeOrganizationId,
 }: HistorySearchDialogProps) {
@@ -91,6 +93,8 @@ export function HistorySearchDialog({
     tags.length === 0 &&
     files.length === 0 &&
     tagsState !== "error";
+
+  const { listRef, listMaxHeight } = useListFitsVisibleViewport(open);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -137,16 +141,20 @@ export function HistorySearchDialog({
       title={labels.dialogTitle}
       description={labels.dialogDescription}
       commandProps={{ shouldFilter: false }}
-      // Phones: pin under the safe area, not centered, so the on-screen
-      // keyboard does not cover the results.
-      className="max-sm:top-[calc(env(safe-area-inset-top)+1rem)] max-sm:translate-y-0"
+      contentProps={{
+        // Phones: pin under the safe area, not centered, so the on-screen
+        // keyboard does not cover the results.
+        className:
+          "max-sm:top-[calc(env(safe-area-inset-top)+1rem)] max-sm:translate-y-0",
+        onCloseAutoFocus,
+      }}
     >
       <CommandInput
         placeholder={labels.searchPlaceholder}
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList>
+      <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
         {searching && history.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.loading}
@@ -398,4 +406,45 @@ function SearchNote({ children }: { children: string }) {
       {children}
     </div>
   );
+}
+
+/** `CommandList`'s usual `max-h-[300px]`. */
+const LIST_MAX_HEIGHT_PX = 300;
+/** Two result rows, so a short visible area still scrolls. */
+const LIST_MIN_HEIGHT_PX = 88;
+const LIST_KEYBOARD_GAP_PX = 8;
+
+/**
+ * Caps the results list at the bottom of the visual viewport, which the
+ * on-screen keyboard shrinks, so every row stays reachable by scrolling.
+ */
+function useListFitsVisibleViewport(open: boolean) {
+  // State, not a ref: the dialog portal mounts the list after the first effect.
+  const [list, listRef] = useState<HTMLDivElement | null>(null);
+  const [listMaxHeight, setListMaxHeight] = useState<number>();
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!open || !viewport || !list) return;
+
+    function fit() {
+      if (!list || !viewport) return;
+      const visibleBottom = viewport.offsetTop + viewport.height;
+      const room =
+        visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
+      setListMaxHeight(
+        Math.min(LIST_MAX_HEIGHT_PX, Math.max(LIST_MIN_HEIGHT_PX, room)),
+      );
+    }
+
+    fit();
+    viewport.addEventListener("resize", fit);
+    viewport.addEventListener("scroll", fit);
+    return () => {
+      viewport.removeEventListener("resize", fit);
+      viewport.removeEventListener("scroll", fit);
+    };
+  }, [open, list]);
+
+  return { listRef, listMaxHeight };
 }

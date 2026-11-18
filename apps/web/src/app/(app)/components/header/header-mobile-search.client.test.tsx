@@ -9,7 +9,9 @@ const { pushMock, replaceMock, backMock } = vi.hoisted(() => ({
 }));
 
 let mockPathname = "/chat";
-let mockHistorySearch: { openHistorySearch: () => void } | null = null;
+let mockHistorySearch: {
+  openHistorySearch: (opener?: HTMLElement | null) => void;
+} | null = null;
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
   useOptionalHistorySearch: () => mockHistorySearch,
@@ -118,6 +120,10 @@ describe("HeaderMobileSearchControl", () => {
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     expect(openHistorySearch).toHaveBeenCalledTimes(1);
+    // The button gets focus back when the dialog closes.
+    expect(openHistorySearch).toHaveBeenCalledWith(
+      screen.getByRole("button", { name: "Search" }),
+    );
     expect(pushMock).not.toHaveBeenCalled();
     expect(
       screen.queryByTestId("header-mobile-search-expanded"),
