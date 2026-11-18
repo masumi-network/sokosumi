@@ -486,7 +486,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "One friendly reminder when the proposed strategy has waited about two days.",
     prompt:
-      "Strategy reminder. The strategy you proposed has waited about two days for the owner's approval, and nothing runs until they approve it. Write one or two friendly sentences in the brand's language: what the strategy does first, and that one click on Approve strategy (or a change request in chat) gets you started. Do not call tools. Do not repeat the whole strategy.",
+      "Strategy reminder. The strategy you proposed has waited about two days for the owner's approval, and nothing runs until they approve it. Write one or two friendly sentences in the owner's language: what the strategy does first, and that one click on Approve strategy (or a change request in chat) gets you started. Do not call tools. Do not repeat the whole strategy.",
   },
 ];
 

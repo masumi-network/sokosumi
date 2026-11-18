@@ -18,6 +18,7 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 }));
 
 import {
+  cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
@@ -505,6 +506,60 @@ describe("the funnel strategy", () => {
       costUsd: 0,
     });
     expect(jev.input).toBeUndefined();
+  });
+
+  it("asks Jev whether new calendar titles are in the posts' language", async () => {
+    jev.answer = async () => ({
+      answers: new Map([
+        ["inContentLanguage", { type: "boolean", probability: 0.05 }],
+      ]),
+      costUsd: 0.0003,
+    });
+    const strategy = plan({
+      contentLanguage: "English",
+      calendar: [
+        { ...entry("kept", "x", "post"), title: "Studio starten" },
+        {
+          ...entry("new", "x", "post"),
+          title: "Vom Wallet zur ersten Mint-Idee",
+        },
+      ],
+    });
+    const earlier = plan({
+      calendar: [{ ...entry("kept", "x", "post"), title: "Studio starten" }],
+    });
+    const checked = await cmoCalendarLanguage(strategy, earlier);
+    expect(checked.problems).toEqual([
+      "the calendar's titles are not in English, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story in English.",
+    ]);
+    expect(checked.costUsd).toBe(0.0003);
+    // Only this save's new entries are read: a kept piece is the owner's.
+    expect(jev.input?.state).toEqual({
+      contentLanguage: "English",
+      titles: ["Vom Wallet zur ersten Mint-Idee"],
+    });
+    jev.answer = async () => ({
+      answers: new Map([
+        ["inContentLanguage", { type: "boolean", probability: 0.9 }],
+      ]),
+      costUsd: 0.0003,
+    });
+    expect((await cmoCalendarLanguage(strategy, null)).problems).toEqual([]);
+    // No language set, nothing new, or Jev down: no finding and no call.
+    jev.input = undefined;
+    expect(
+      await cmoCalendarLanguage(plan({ calendar: strategy.calendar }), null),
+    ).toEqual({ problems: [], costUsd: 0 });
+    expect(await cmoCalendarLanguage(strategy, strategy)).toEqual({
+      problems: [],
+      costUsd: 0,
+    });
+    expect(jev.input).toBeUndefined();
+    jev.answer = () => Promise.reject(new Error("Jev down"));
+    expect(await cmoCalendarLanguage(strategy, null)).toEqual({
+      problems: [],
+      costUsd: 0,
+    });
   });
 
   it("refuses a pace reached by piling one network", () => {

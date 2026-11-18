@@ -479,6 +479,13 @@ export function PlanReview({
     );
   }
 
+  // Same path as a change, and not in a transition (which would hold the
+  // waiting screen back): the plan waits while Cuso refits it.
+  const update = () => {
+    setRefusal(null);
+    send("Fitting your strategy to your answers", onUpdate).catch(() => {});
+  };
+
   const written = strategy.contentLanguage
     ? ` Written in ${strategy.contentLanguage}.`
     : "";
@@ -504,12 +511,8 @@ export function PlanReview({
       disabled={going || busy}
       onClick={() => {
         setRefusal(null);
-        // Same path as a change, and not in a transition (which would hold
-        // the waiting screen back): the plan waits while Cuso refits it.
         if (unfitted) {
-          send("Fitting your strategy to your answers", onUpdate).catch(
-            () => {},
-          );
+          update();
           return;
         }
         // A refused approval (a new version on its way) stays here.
@@ -704,6 +707,19 @@ export function PlanReview({
                 onAnswer={(value, text) => answer(question.id, value, text)}
               />
             ))}
+            {unfitted ? (
+              <div className="ob-unfitted" role="status">
+                <p>This strategy still shows your old answer.</p>
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  disabled={busy}
+                  onClick={update}
+                >
+                  Update strategy
+                </button>
+              </div>
+            ) : null}
             {strategy.pace ? (
               <div className="ob-pace">
                 <PacePicker

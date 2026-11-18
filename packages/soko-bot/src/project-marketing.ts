@@ -913,7 +913,7 @@ export const marketingStrategyPlanSchema = z.object({
   why: longText.optional(),
   goals: z.array(shortText).min(1).max(6),
   audience: shortText.optional(),
-  /** The language posts, ads and emails are written in, named in English ("German"). */
+  /** The language every piece is in, its calendar title and brief included, named in English ("German"). */
   contentLanguage: shortText.optional(),
   positioning: longText.optional(),
   pillars: cmoPillarsSchema,
