@@ -52,6 +52,17 @@ export type SokoBotScenarioTrigger =
        * them and `task_event` every automated trigger has lab coverage.
        */
       beat: "standup" | "weekly-wrap" | "dreaming" | "delta";
+    }
+  | {
+      /**
+       * The follow-up of a wait_for the bot set in its chat turn for `ask`,
+       * started as the watch sync starts one: a child turn whose brief is
+       * Core's, with no owner message in it.
+       */
+      kind: "follow_up";
+      ask: string;
+      outcome: string;
+      then: string;
     };
 
 export interface SokoBotScenario {
@@ -1125,6 +1136,13 @@ export const CMO_PLACEHOLDER_PATTERN =
 export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
 
 /** Cuso (CMO) behaviour; run against a CMO bot, not the personal assistant. */
+const CMO_GERMAN_ASK =
+  "Welche drei Themen sollten wir diese Woche auf LinkedIn bringen? Bitte kurz, und ändere nichts am Kalender.";
+
+/** A reply with a German function word; product names and quoted titles may stay English. */
+const GERMAN_REPLY_PATTERN =
+  "[\\s\\S]*\\b(?:und|oder|für|nicht|wir|ist|sind|diese[mnrs]?|eine[mnrs]?)\\b";
+
 export const CMO_SCENARIOS: SokoBotScenario[] = [
   {
     id: "cmo-asks-before-planning",
@@ -1169,6 +1187,68 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY"],
       answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|\\b\\d+(?:[.,]\\d+)?\\s?(?:%|percent|x\\b|×)|\\b\\d{2,}\\s+(?:customers|teams|companies)`,
+    },
+  },
+  {
+    id: "cmo-reply-language-german",
+    title: "Answers a German message in German",
+    intent:
+      "The owner writes German to a Cuso whose Brand Brain, strategy and posts are English: the reply is German.",
+    prompt: CMO_GERMAN_ASK,
+    rubric:
+      "The owner wrote German; the Brand Brain, the strategy and the posts in Cuso's context are English. Cuso's whole reply is German: three LinkedIn topics for this week from the strategy or the Brand Brain, briefly. Product names and a quoted post title may stay English. A reply in English, or one that changes language part-way, fails. Changing the calendar fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerMatches: `^${GERMAN_REPLY_PATTERN}`,
+    },
+  },
+  {
+    id: "cmo-reply-language-follow-up",
+    title: "Reports a follow-up in the owner's language",
+    intent:
+      "A follow-up Core starts has no owner message in it: Cuso still writes its DONE report in the language the owner last wrote in.",
+    prompt: "",
+    trigger: {
+      kind: "follow_up",
+      ask: CMO_GERMAN_ASK,
+      outcome:
+        'The background run "Competitor pricing pages" finished: Calendly, SavvyCal and Doodle each open their pricing page with a free plan.',
+      then: "Tell the owner what the three competitors open their pricing pages with, and suggest one LinkedIn post that answers it.",
+    },
+    rubric:
+      "The owner's latest message in the chat was German; the follow-up's brief and Cuso's own plan are English. Cuso's answer starts with DONE: and speaks to the owner in German: what Calendly, SavvyCal and Doodle open their pricing pages with, and one LinkedIn post that answers it. Only the post's own words, when he writes them out, are English, the strategy's contentLanguage; product and competitor names stay as they are. A report to the owner in English fails; so does asking again whether to do it.",
+    expect: {
+      routes: ["DELEGATE_TASK"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerMatches: `^DONE:${GERMAN_REPLY_PATTERN}`,
+    },
+  },
+  {
+    id: "cmo-reply-language-english-after-german",
+    title: "Answers English after German earlier in the chat",
+    intent:
+      "The chat above the owner's new message is German, Cuso's own messages included: an English message still gets an English reply.",
+    prompt: [
+      "CONTEXT (last 6 messages in #Cuso):",
+      "- Robin Keller: Welche drei Themen sollten wir diese Woche auf LinkedIn bringen?",
+      "- Cuso (personal assistant): Diese Woche würde ich drei Themen bringen: wie ein Buchungslink das Hin und Her per E-Mail ersetzt, Round-Robin für Vertriebsteams und die 14-tägige Testphase für Teams.",
+      "- Robin Keller: Danke, passt so. Mach bitte den ersten als Entwurf.",
+      "- Cuso (personal assistant): LinkedIn-Post zur Freigabe bereit",
+      "- Cuso (personal assistant): Der Entwurf zum Buchungslink ist fertig und wartet auf deine Freigabe.",
+      "- Cuso (personal assistant): Nothing to add.",
+      "",
+      "Robin Keller mentioned you in #Cuso:",
+      "",
+      "What is on the calendar for next week? A short rundown please, and change nothing.",
+    ].join("\n"),
+    rubric:
+      "The earlier messages in the chat are German, Cuso's own included, but the owner's new message is English. Cuso's whole reply is English: a short rundown of next week's pieces from the calendar in his context (or that nothing is planned, if so). A reply in German, or one that changes language part-way, fails. Changing the calendar fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerMatches: "\\b(?:the|and|on|is|are)\\b",
+      answerAvoids: "\\b(?:und|oder|nicht|für|wir|sind|nächste[nr]?)\\b",
     },
   },
   {
@@ -1401,7 +1481,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning ties the move to cal.com from the Brand Brain, and each has one concrete move (which page, post or offer, and when). Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for cal.com, from the Brand Brain; a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
     expect: {
       // The label the classifier gives a Core-written brief; the real run
       // has a preset route.
@@ -1436,7 +1516,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "A competitor's plan ending, known only from a customer's notice, is still a move: Cuso reports it and marks its support weak.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what it means for cal.com and one concrete move. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what Zcal ending the plan means for cal.com (a meaning that would fit any move fails) and one concrete move, on a connected network when it is a post. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
     expect: {
       routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
       tools: ["check_competitors", "save_competitor_feed"],
