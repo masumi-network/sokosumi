@@ -396,6 +396,52 @@ export async function cmoSideChannelFit(
   }
 }
 
+/** Titles Jev reads to tell a calendar's language. */
+const LANGUAGE_TITLES_READ = 20;
+
+/**
+ * Whether new calendar titles are in the language the posts are written in:
+ * Jev reads a sample of them. A strategy written for an owner who writes
+ * German once put German titles over English posts. A failed check is no
+ * finding.
+ */
+export async function cmoCalendarLanguage(
+  strategy: MarketingStrategyPlan,
+  earlier: MarketingStrategyPlan | null,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const language = strategy.contentLanguage?.trim();
+  const known = new Set(earlier?.calendar.map((entry) => entry.id));
+  const titles = strategy.calendar
+    .filter((entry) => entry.status !== "skipped" && !known.has(entry.id))
+    .slice(0, LANGUAGE_TITLES_READ)
+    .map((entry) => entry.title);
+  if (!language || titles.length === 0) return { problems: [], costUsd: 0 };
+  try {
+    const { answers, costUsd } = await evaluateWithJev({
+      state: { contentLanguage: language, titles },
+      questions: {
+        inContentLanguage: {
+          type: "boolean" as const,
+          instructions: `Are these titles written in ${language}? Names of brands, products and places, and a trade word borrowed from another language, do not count against it.`,
+        },
+      },
+      timeoutMs: 15_000,
+    });
+    const answer = answers.get("inContentLanguage");
+    return {
+      problems:
+        answer?.type === "boolean" && answer.probability < 0.3
+          ? [
+              `the calendar's titles are not in ${language}, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story in ${language}.`,
+            ]
+          : [],
+      costUsd,
+    };
+  } catch {
+    return { problems: [], costUsd: 0 };
+  }
+}
+
 /** The most a social network takes a day: X's feed moves fastest. */
 const MAX_PER_DAY: Record<string, number> = { x: 3 };
 const MAX_PER_DAY_OTHER = 2;

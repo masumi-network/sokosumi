@@ -1120,6 +1120,18 @@ body:has(.ob) .site-header {
   background: var(--surface);
 }
 
+/* A no the strategy does not show yet: what to do, beside the checks. */
+.ob-checks > .ob-unfitted {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 14px 20px;
+  background: var(--warn);
+  color: var(--primary-foreground);
+}
+
 .ob-chip-row {
   display: flex;
   flex-wrap: wrap;
