@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliation-lease";
 
 const { pending, reconcileTurnMock, startTurnMock } = vi.hoisted(() => ({
   pending: [] as Promise<unknown>[],
@@ -38,7 +39,7 @@ import {
   expectBackgroundProbe,
   probeBackgroundFailure,
 } from "@/test/background-probe";
-import { expectCoreLog } from "@/test/core-log";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import mount from "./post";
 
 const TURN_ID = "00000000-0000-4000-8000-000000000001";
@@ -134,5 +135,26 @@ describe("POST /soko-bots/me/turns", () => {
     });
     expect(errors[0]?.event.method).toBeUndefined();
     expect(JSON.stringify(errors[0]?.event)).not.toContain("board update");
+  });
+
+  it("records a replaced drain grant as info", async () => {
+    reconcileTurnMock.mockRejectedValueOnce(
+      new SokoBotReconciliationLeaseLostError(
+        "Soko Bot reconciliation lease was replaced",
+      ),
+    );
+
+    const response = await startTurn();
+    await Promise.all(pending);
+
+    expect(response.status).toBe(201);
+    expect(coreLogEvents()).toContainEqual(
+      expect.objectContaining({
+        level: "info",
+        operation: "soko_bot_turn_reconcile",
+        turn: { id: TURN_ID },
+        outcome: "lease_lost",
+      }),
+    );
   });
 });

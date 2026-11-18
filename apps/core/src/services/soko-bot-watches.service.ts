@@ -15,6 +15,7 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
@@ -543,6 +544,8 @@ export async function syncSokoBotWatches(input: {
                 started.reconciliationLeaseToken,
               )
               .catch((error: unknown) => {
+                if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+                  return;
                 const log = createCoreLogger({
                   operation: OPERATION,
                   watch: { id: watch.id },
