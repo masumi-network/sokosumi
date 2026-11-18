@@ -54457,6 +54457,13 @@ export const CmoCompetitorsSchema = {
             type: 'integer',
             description: 'How many competitors can be tracked.'
         },
+        mapPlayers: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The Brand Brain market map\'s players that are still watched, in the map\'s spelling.'
+        },
         signals: {
             type: 'array',
             items: {
@@ -54536,6 +54543,7 @@ export const CmoCompetitorsSchema = {
         'competitors',
         'feed',
         'limit',
+        'mapPlayers',
         'signals',
         'scoreboard',
         'topPosts',
@@ -54760,30 +54768,46 @@ export const CmoCompetitorScoreRowSchema = {
             type: 'string'
         },
         postsPerWeek: {
-            $ref: '#/components/schemas/CmoCompetitorMeasure'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         engagementPerPost: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CmoCompetitorMeasure'
                 },
                 {
-                    description: 'Likes and comments per post over the week\'s posts.'
+                    type: 'null'
                 }
-            ]
+            ],
+            description: 'Likes and comments per post over the week\'s posts.'
         },
         followers: {
-            $ref: '#/components/schemas/CmoCompetitorMeasure'
-        },
-        followerGrowth: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CmoCompetitorMeasure'
                 },
                 {
-                    description: 'Followers gained since the reading a week before.'
+                    type: 'null'
                 }
             ]
+        },
+        followerGrowth: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Followers gained since the reading a week before.'
         }
     },
     required: [
@@ -54797,10 +54821,7 @@ export const CmoCompetitorScoreRowSchema = {
 } as const;
 
 export const CmoCompetitorMeasureSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         value: {
             type: 'number'

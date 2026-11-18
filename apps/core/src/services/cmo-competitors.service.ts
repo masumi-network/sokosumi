@@ -97,6 +97,31 @@ export function researchedCompetitors(
 }
 
 /**
+ * The Brand Brain market map's players that are still watched, in the map's
+ * spelling: one a member renamed stays (research knows it by `researchKey`),
+ * one a member removed leaves.
+ */
+export async function watchedMapPlayers(projectId: string): Promise<string[]> {
+  const [brandBrain, watched] = await Promise.all([
+    prisma.brandBrain.findUnique({
+      where: { projectId },
+      select: { body: true },
+    }),
+    prisma.trackedCompetitor.findMany({
+      where: { projectId, removedAt: null },
+      select: { nameKey: true, researchKey: true },
+    }),
+  ]);
+  const keys = new Set(
+    watched.flatMap(({ nameKey, researchKey }) => [nameKey, researchKey]),
+  );
+  const players = parseBrandBrain(brandBrain?.body)?.reveal?.map?.players ?? [];
+  return players
+    .filter((player) => !player.you && keys.has(competitorNameKey(player.name)))
+    .map((player) => player.name);
+}
+
+/**
  * Holds the Project's competitor list while a write checks and changes it,
  * so two writes never take the list past the cap or share a name.
  */

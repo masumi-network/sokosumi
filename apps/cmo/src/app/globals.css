@@ -3654,3 +3654,241 @@ button.cal-card:hover {
     transform: none;
   }
 }
+
+/* Text for screen readers only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Competitors ── */
+.comp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.comp-moves,
+.comp-open {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comp-move {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.comp-move:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.comp-move p {
+  margin: 0;
+}
+
+.comp-move .label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.comp-fact {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.comp-open {
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+/* A source or a number that says where it comes from, in a note beside it. */
+.sourced {
+  display: inline-block;
+}
+
+/* A 32px tap height that leaves the line of text as it was. */
+.source-chip,
+.source-number {
+  margin: -8px -4px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline dashed;
+  text-underline-offset: 4px;
+  cursor: help;
+}
+
+/* Two sources of one sentence stay two. */
+.sourced + .sourced {
+  margin-left: 8px;
+}
+
+.source-number {
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+.source-chip:focus-visible,
+.source-number:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -4px;
+}
+
+/* In the top layer, so no table or card clips it; it flips to stay on screen. */
+.source-pop {
+  position: fixed;
+  inset: auto;
+  position-area: block-end span-inline-end;
+  position-try-fallbacks:
+    flip-inline,
+    flip-block,
+    flip-block flip-inline;
+  flex-direction: column;
+  gap: 8px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  margin: 0;
+  padding: 12px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+
+.source-pop:popover-open {
+  display: flex;
+}
+
+.source-pop q {
+  color: var(--muted);
+}
+
+.source-pop a {
+  color: inherit;
+}
+
+/* A card may be narrower than its table: the table scrolls inside it. */
+.comp-page,
+.comp-page > .card {
+  min-width: 0;
+}
+
+.comp-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.comp-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.comp-table th,
+.comp-table td {
+  padding: 12px 12px 12px 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.comp-table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.comp-table tbody th {
+  font-weight: 600;
+}
+
+.cell-empty {
+  display: inline-block;
+  width: 16px;
+  border-top: 1px solid var(--muted);
+  vertical-align: middle;
+}
+
+/* On a phone the source goes under the finding rather than beside it. */
+@media (max-width: 640px) {
+  .comp-found {
+    flex-wrap: wrap;
+  }
+
+  .comp-found > .grow {
+    flex-basis: 60%;
+  }
+}
+
+.comp-posts {
+  display: grid;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.comp-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.comp-form > [role="alert"],
+.comp-form-acts {
+  grid-column: 1 / -1;
+}
+
+.comp-form-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+/* Loading: dashed hairline boxes with hairline bars, never a shimmer. */
+.comp-skeleton {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+}
+
+.comp-skeleton span {
+  height: 8px;
+  border-radius: var(--radius-mark);
+  background: var(--border);
+}
+
+.comp-skeleton span:first-child {
+  width: 30%;
+}
+
+.comp-skeleton span:last-child {
+  width: 60%;
+}
