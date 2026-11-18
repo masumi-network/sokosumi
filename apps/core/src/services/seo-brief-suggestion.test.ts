@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { expectCoreLog } from "@/test/core-log";
 import { suggestSeoPageAction } from "./seo-brief-suggestion";
 
@@ -9,6 +9,9 @@ vi.mock("ai", () => ({
 }));
 
 describe("first audit page action", () => {
+  beforeEach(() => {
+    evaluator.mockReset();
+  });
   it("sends only the public route cue and shares a pending read across unrelated URLs with that cue", async () => {
     evaluator.mockResolvedValueOnce({
       answers: { action: { choice: "buy", probabilities: { buy: 0.98 } } },
@@ -26,7 +29,6 @@ describe("first audit page action", () => {
   });
 
   it("keeps ambiguous homepages, private path suffixes and query parameter guesses out of the model", async () => {
-    vi.clearAllMocks();
     for (const url of [
       "https://shop.test/?action=buy",
       "https://shop.test/de",
