@@ -6,13 +6,13 @@ const {
   createSandboxMock,
   driveGetOrCreateMock,
   getSandboxMock,
-  reconcileTurnMock,
+  reconcileRuntimeCompletionMock,
 } = vi.hoisted(() => ({
   createEventMock: vi.fn(),
   createSandboxMock: vi.fn(),
   driveGetOrCreateMock: vi.fn(),
   getSandboxMock: vi.fn(),
-  reconcileTurnMock: vi.fn(),
+  reconcileRuntimeCompletionMock: vi.fn(),
 }));
 
 // PostgreSQL's clock is the test clock here.
@@ -58,7 +58,9 @@ vi.mock("@/lib/db/prisma", () => {
   };
 });
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
+  sokoBotControlPlane: {
+    reconcileRuntimeCompletion: reconcileRuntimeCompletionMock,
+  },
 }));
 
 import { expectCoreLogWhys } from "@/test/core-log";
@@ -136,7 +138,10 @@ describe("SandboxSokoBotRuntime", () => {
       ["Creating the Vercel Sandbox VM, its Drive or the runner failed"],
     );
     driveGetOrCreateMock.mockRejectedValue(new Error("Drive unavailable"));
-    await new SandboxSokoBotRuntime().createSession(turn);
+    await new SandboxSokoBotRuntime().createSession({
+      ...turn,
+      reconciliationLeaseToken: "launch-lease",
+    });
     await Promise.all(pending);
 
     // The drain binds on turn.started + message.received before it reads a
@@ -150,7 +155,11 @@ describe("SandboxSokoBotRuntime", () => {
         "session.waiting",
       ],
     );
-    expect(reconcileTurnMock).toHaveBeenCalledWith("turn_2");
+    expect(reconcileRuntimeCompletionMock).toHaveBeenCalledWith(
+      "turn_2",
+      expect.any(String),
+      "launch-lease",
+    );
     expect(errors[0]?.event).toMatchObject({
       operation: "soko_bot_sandbox_launch",
       turnId: "turn_2",
