@@ -7,7 +7,6 @@ import {
 import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import type { TaskStatus } from "@/lib/types/core-dto";
-
 import { DragScrollContainer } from "./drag-scroll-container";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
@@ -17,6 +16,7 @@ import {
   isDnDDragColumn,
   isDnDDropColumn,
 } from "./task-dnd";
+import { useBoardKeyboard } from "./use-board-keyboard";
 
 interface KanbanBoardProps {
   tasks: TaskWithCoworker[];
@@ -45,6 +45,7 @@ export function KanbanBoard({
   compact = false,
   statusLabels,
 }: KanbanBoardProps) {
+  useBoardKeyboard();
   return (
     <DragScrollContainer className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
       {columns.map((column) => {
