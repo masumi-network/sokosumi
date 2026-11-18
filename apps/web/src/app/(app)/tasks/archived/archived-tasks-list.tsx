@@ -47,11 +47,16 @@ export function ArchivedTasksList({
   const [restoredIds, setRestoredIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  // A new search starts clean, so restored rows from the last one go.
-  const [restoredForQuery, setRestoredForQuery] = useState(query);
-  if (restoredForQuery !== query) {
-    setRestoredForQuery(query);
-    setRestoredIds(new Set());
+  // New rows from the server (a refresh or a new search): an id they no
+  // longer list is confirmed restored, so stop hiding it. Restored rows from
+  // the last search go, and one archived again later shows again.
+  const [seenTasks, setSeenTasks] = useState(tasks);
+  if (seenTasks !== tasks) {
+    setSeenTasks(tasks);
+    setRestoredIds(
+      (current) =>
+        new Set(tasks.map((task) => task.id).filter((id) => current.has(id))),
+    );
   }
   const rows = tasks.filter((task) => !restoredIds.has(task.id));
   // Rows still in this page but restored count off the total too. Core reads

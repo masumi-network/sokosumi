@@ -235,6 +235,30 @@ describe("ArchivedTasksList result summary", () => {
     );
   });
 
+  it("shows a restored Task again once it is archived again", async () => {
+    restoreMock.mockResolvedValue(undefined);
+    const { rerender } = render(
+      <ArchivedTasksList tasks={[row("r0")]} total={1} query="spring" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Restore Task r0" }));
+    await waitFor(() => expect(screen.queryByText("Task r0")).toBeNull());
+
+    // The refresh confirms the restore.
+    rerender(<ArchivedTasksList tasks={[]} total={0} query="spring" />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No archived tasks match",
+    );
+
+    // Archived again elsewhere; the next refresh of the same search has it.
+    rerender(
+      <ArchivedTasksList tasks={[row("r0")]} total={1} query="spring" />,
+    );
+    expect(screen.getByText("Task r0")).toBeTruthy();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "1 archived task matches \u201cspring\u201d.",
+    );
+  });
+
   it("keeps one live region across searches", () => {
     const { rerender } = render(
       <ArchivedTasksList tasks={rows(3)} total={3} />,
