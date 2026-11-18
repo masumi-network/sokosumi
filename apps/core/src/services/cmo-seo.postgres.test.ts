@@ -21,7 +21,11 @@ import {
   searchCmoKeywords,
   setCmoSeoSuggestionStatus,
 } from "./cmo-seo.service";
-import { keepCmoSeoAudit, verifyCmoSeoChanges } from "./cmo-seo-audit.service";
+import {
+  keepCmoSeoAudit,
+  pauseCmoSeoAuditsWithoutCuso,
+  verifyCmoSeoChanges,
+} from "./cmo-seo-audit.service";
 import { seoCheckOutcome } from "./cmo-seo-rankings.service";
 
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
@@ -488,5 +492,38 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     expect(await seoCheckOutcome(analysis.id)).toMatch(
       /failed: The worker timed out\. Nothing was charged/,
     );
+  });
+
+  it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {
+    const active = (await monitors()).find((m) => m.state === "ACTIVE");
+    if (!active) throw new Error("fixture has an active monitor");
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(0);
+
+    await prisma.sokoBot.update({
+      where: { id: cuso.sokoBotId },
+      data: { archivedAt: new Date() },
+    });
+    const operation =
+      await prisma.taskScheduleCreateOperation.findUniqueOrThrow({
+        where: { scheduleId: active.id },
+      });
+    // Under another operation id it is a monitor a person made in this Project.
+    await prisma.taskScheduleCreateOperation.update({
+      where: { id: operation.id },
+      data: { operationId: randomUUID() },
+    });
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(0);
+    await prisma.taskScheduleCreateOperation.update({
+      where: { id: operation.id },
+      data: { operationId: operation.operationId },
+    });
+
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(1);
+    const paused = await prisma.taskSchedule.findUniqueOrThrow({
+      where: { id: active.id },
+    });
+    expect(paused.state).toBe("PAUSED");
+    expect(paused.nextRunAt).toBeNull();
+    expect(await pauseCmoSeoAuditsWithoutCuso()).toBe(0);
   });
 });
