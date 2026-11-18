@@ -194,6 +194,27 @@ describe.skipIf(!enabled)("GET /tasks unanswered mentions", () => {
     expect(await markedFor(bobId)).toEqual([quietTaskId]);
   });
 
+  it("lists a sub-task whose comment mentions the person", async () => {
+    const subtask = await prisma.task.create({
+      data: {
+        name: "Sub-task",
+        workspaceId,
+        status: TaskStatus.READY,
+        ownerId: bobId,
+        parentTaskId: quietTaskId,
+        position: 1,
+      },
+    });
+    await comment(bobId, subtask.id, `@${adaId} this part is yours`);
+
+    // The plain list hides sub-tasks; the mention list must not.
+    expect((await list(adaId)).data.map((task) => task.id)).not.toContain(
+      subtask.id,
+    );
+    const filtered = await list(adaId, "&unansweredMention=true");
+    expect(filtered.data.map((task) => task.id)).toContain(subtask.id);
+  });
+
   it("records no mention on a private Task for a person who cannot open it", async () => {
     await comment(
       bobId,

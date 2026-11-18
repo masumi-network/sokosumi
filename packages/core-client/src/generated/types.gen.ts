@@ -97636,7 +97636,7 @@ export type GetTasksData = {
          */
         includeSubtasks?: 'true' | 'false';
         /**
-         * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. People only; coworkers and Soko Bots get 400.
+         * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
          */
         unansweredMention?: 'true' | 'false';
         /**

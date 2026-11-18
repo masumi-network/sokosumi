@@ -151,7 +151,7 @@ const unansweredMentionQuerySchema = z
   .openapi({
     param: { name: "unansweredMention", in: "query" },
     description:
-      "true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. People only; coworkers and Soko Bots get 400.",
+      "true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.",
     example: "true",
   });
 
@@ -320,9 +320,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const scheduleFilter = scheduleId ? { scheduleId } : {};
     // Agents work on sub-tasks assigned to them, so they always see them.
     const agentSubtaskFilter = parentTaskId ? { parentTaskId } : {};
+    // A mention on a sub-task still needs an answer, so the mention list
+    // keeps sub-tasks.
     const humanSubtaskFilter = parentTaskId
       ? { parentTaskId }
-      : includeSubtasks === "true"
+      : includeSubtasks === "true" || unansweredMention
         ? {}
         : { parentTaskId: null };
     const dueFilter = dueOnTo
