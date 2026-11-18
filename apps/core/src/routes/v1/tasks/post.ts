@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { calendarDateSchema } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
@@ -127,6 +128,11 @@ export const createTaskRequestSchema = z
       description:
         "Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.",
       example: "2026-06-24T09:00:00.000Z",
+    }),
+    dueOn: calendarDateSchema.nullish().openapi({
+      description:
+        "The day the Task should be done by (YYYY-MM-DD). Omitted or null leaves it without one.",
+      example: "2026-11-20",
     }),
     channel: taskEventChannelField.optional(),
     origin: taskEventDeprecatedOriginField.optional(),
@@ -346,6 +352,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           assigneeUserId: body.assigneeUserId,
           status: runAt ? TaskStatus.QUEUED : body.status,
           runAt,
+          dueOn: body.dueOn ? new Date(`${body.dueOn}T00:00:00.000Z`) : null,
           channel: body.channel,
           visibility: body.visibility,
           priority: body.priority,

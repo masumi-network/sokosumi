@@ -95,6 +95,8 @@ export interface CreateTaskDomainInput {
     | typeof TaskStatus.READY;
   /** Set together with QUEUED: the one time the Task moves to Ready. */
   runAt?: Date | null;
+  /** The day the Task should be done by, at 00:00 UTC. */
+  dueOn?: Date | null;
   channel?: Channel;
   /** Server-reserved effect identity, committed with this operation. */
   effectEventId?: string;
@@ -348,6 +350,7 @@ export async function createTaskForActor(
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       runAt: input.runAt ?? null,
+      dueOn: input.dueOn ?? null,
       events: {
         create: taskCreationEvents({
           status,
