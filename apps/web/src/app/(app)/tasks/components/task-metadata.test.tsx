@@ -323,6 +323,22 @@ describe("TaskMetadata", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("puts the workspace credits directly under the Organization row", () => {
+    renderTaskMetadata({
+      task: createTask({
+        organization: { id: "org_1", name: "Masumi", slug: "masumi" },
+      }),
+      credits: <p>3 credits used in this workspace</p>,
+    });
+
+    const organizationRow = screen.getByRole("group", {
+      name: "Organization: Masumi (read-only)",
+    });
+    expect(organizationRow.nextElementSibling).toBe(
+      screen.getByText("3 credits used in this workspace"),
+    );
+  });
+
   it("links the project name, or shows a muted No project", () => {
     const { unmount } = renderTaskMetadata({
       task: createTask(),

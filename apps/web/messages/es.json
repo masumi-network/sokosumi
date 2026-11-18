@@ -2141,7 +2141,6 @@
         "unfollow": "Dejar de seguir",
         "unfollowError": "No se pudo dejar de seguir. Inténtalo de nuevo.",
         "followError": "No se pudo seguir. Inténtalo de nuevo.",
-        "credits": "Créditos usados en este espacio de trabajo",
         "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
         "noCreditsUsed": "Sin créditos usados en este espacio de trabajo",
         "assigneeField": {

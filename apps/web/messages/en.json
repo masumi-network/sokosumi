@@ -2141,7 +2141,6 @@
         "unfollow": "Stop following",
         "unfollowError": "Couldn’t stop following. Try again.",
         "followError": "Couldn’t follow. Try again.",
-        "credits": "Credits used in this workspace",
         "creditsUsed": "{credits, plural, one {# credit used in this workspace} other {# credits used in this workspace}}",
         "noCreditsUsed": "No credits used in this workspace",
         "assigneeField": {

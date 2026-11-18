@@ -2141,7 +2141,6 @@
         "unfollow": "Nicht mehr folgen",
         "unfollowError": "Folgen konnte nicht beendet werden. Bitte erneut versuchen.",
         "followError": "Folgen fehlgeschlagen. Bitte erneut versuchen.",
-        "credits": "In diesem Workspace verbrauchte Credits",
         "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
         "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht",
         "assigneeField": {

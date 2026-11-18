@@ -304,8 +304,6 @@ export function TaskMetadata({
           </PropertyRow>
         ) : null}
 
-        {credits}
-
         {task.visibility === "PRIVATE" ? (
           <PropertyRow
             label={labels.privateBadge}
@@ -315,7 +313,8 @@ export function TaskMetadata({
           </PropertyRow>
         ) : null}
 
-        {/* Last and set apart: the workspace owns it, so it never edits here. */}
+        {/* Last and set apart: the workspace owns it, so it never edits here.
+            The workspace's credits for this Task sit under its name. */}
         <div className="border-t pt-1">
           <PropertyRow
             label={labels.organization}
@@ -330,6 +329,7 @@ export function TaskMetadata({
               aria-hidden
             />
           </PropertyRow>
+          {credits}
         </div>
       </div>
     </section>
