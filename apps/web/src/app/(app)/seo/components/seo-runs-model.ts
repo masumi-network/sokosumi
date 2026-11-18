@@ -77,15 +77,6 @@ export function seoRunDays(
     picked: Boolean(selected && !selected.newest && selected.day === to),
     /** Every day with a check, newest first: the calendar under "Other dates" marks them. */
     checkDays: all.map((entry) => entry.day),
-    /**
-     * The check a press on each day shows in the tiles. A check of some of the pages has no count in the row: only
-     * its own History row says what it covered.
-     */
-    checks: new Set(
-      all.flatMap((entry) =>
-        entry.check && entry.issues !== null ? [entry.check] : [],
-      ),
-    ),
   };
 }
 
@@ -125,15 +116,6 @@ export function seoNextScheduledCheck(
 /** The audit timeline stays visible for its first completed check or a check currently running. */
 export function seoRunsRow(days: SeoRunDay[], running: boolean) {
   return days.length > 0 || running;
-}
-
-/**
- * The rule checks a press on a day of the runs row, or the day under "Other dates", shows in the tiles with its result
- * and the link to its results: the newest of each day, when the row counts its issues. An earlier check of the same
- * day is reached only from its History row.
- */
-export function seoRunChecks(workspace: Pick<ProjectSeoWorkspace, "runs">) {
-  return seoRunDays(workspace, { from: null, to: null }).checks;
 }
 
 /** The runs row names the day of this rule check: it is the run in view, so a line with its date says it twice. */

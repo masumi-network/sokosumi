@@ -12270,8 +12270,6 @@
         "home": "Home page"
       },
       "timeline": {
-        "title": "History",
-        "runNewCheck": "Run a new check",
         "statuses": {
           "requested": "Requested",
           "running": "Running",
@@ -12279,10 +12277,6 @@
           "partial": "Partial",
           "unavailable": "Unavailable"
         },
-        "empty": "No checks or changes for these pages yet",
-        "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
-        "emptyOff": "Nothing recorded for these pages",
-        "emptyBodyOff": "Page selections, tasks and failed syncs appear here.",
         "details": "Work details",
         "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
@@ -12297,7 +12291,6 @@
         "sourceDetails": "Details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
-        "showAll": "Show all {count} events",
         "metricsSyncedTimes": "{count, plural, one {Statistics synced} other {Statistics synced # times}}",
         "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
@@ -12741,6 +12734,17 @@
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
       "runs": {
+        "details": "Details",
+        "detailsOf": "Details of {day}",
+        "since": "What happened after {day}.",
+        "sinceStart": "What happened up to this day.",
+        "sinceAll": "Everything recorded so far.",
+        "checks": "{count, plural, one {# check} other {# checks}}",
+        "pageChanges": "{count, plural, one {# page change} other {# page changes}}",
+        "tasks": "{count, plural, one {# Task linked} other {# Tasks linked}}",
+        "failedSyncs": "{count, plural, one {# failed sync} other {# failed syncs}}",
+        "failedChecks": "{count, plural, one {# failed check} other {# failed checks}}",
+        "scopeChanges": "{count, plural, one {# page selection change} other {# page selection changes}}",
         "label": "Checks",
         "running": "Running",
         "left": "about {minutes} min left",

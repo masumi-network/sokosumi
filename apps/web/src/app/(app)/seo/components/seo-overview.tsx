@@ -31,7 +31,6 @@ import {
   withoutRuleCodes,
 } from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
-import { seoCheckRunning } from "./seo-setup-model";
 import {
   SeoDate,
   SeoFoldSummary,
@@ -45,7 +44,6 @@ import {
   seoSiteUrl,
 } from "./seo-shared";
 import { useSeoTileDay } from "./seo-summary-tiles";
-import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 type Diagnostic = ReturnType<typeof seoOverviewModel>["diagnostics"][number];
@@ -276,8 +274,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const { data } = model;
   const overview = seoOverviewModel(data);
   const sameDayAsTile = useSeoTileDay(data);
-  const checkRunning = seoCheckRunning(data);
-  // History rows carry their own check's coverage; only checks without a row are listed here.
+  // The details of a day of the runs row carry each check's coverage; only checks without a row there are listed here.
   const onTimeline = new Set(data.timeline.map((event) => event.observationId));
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
@@ -529,7 +526,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {oneCheck ? (
-              // The date of the tests tile, the check's History row or its page card links its results.
+              // The date of the tests tile, the check's row in the details of its day or its page card links its results.
               <p className="text-muted-foreground text-xs">
                 {t.rich("overview.fromCheck", {
                   date: () => <SeoDate value={oneCheckAt} />,
@@ -641,21 +638,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </div>
         </details>
       ) : null}
-      {/* History is the last block of the tab: the issues, the pages and the page details are the result. */}
-      <SeoTimeline
-        // With several pages each page row gives its last check: its issues, and its day and the results link
-        // when the check is not the one the tests tile dates and links.
-        // With one page the tests tile links the results of the check in view. History keeps the row of a check a press
-        // on a day does not show, an earlier check of the same day, and of a check whose row says more than the tiles:
-        // a partial check, a check of some of the pages, each check of several markets.
-        summarized={data.pages.length > 1}
-        workspace={data}
-        onRetry={
-          data.availableActions.canRequestAnalysis && !checkRunning
-            ? () => model.setDialog("analysis")
-            : undefined
-        }
-      />
     </div>
   );
 }
