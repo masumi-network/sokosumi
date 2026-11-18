@@ -56,8 +56,7 @@ import {
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
-import { runAsBackgroundWork, tryUseLogger } from "@/lib/evlog";
-import { getRedisClient } from "@/lib/redis";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
@@ -87,6 +86,7 @@ import {
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { pendingEmailChange } from "./auth-pending-email-change";
+import { createAuthRateLimitStorage } from "./auth-rate-limit";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -110,12 +110,6 @@ const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
 const ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED =
   "ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED";
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
-
-const INCREMENT_RATE_LIMIT_SCRIPT = `
-local count = redis.call("incr", KEYS[1])
-if count == 1 then redis.call("expire", KEYS[1], ARGV[1]) end
-return count
-`;
 
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
@@ -357,30 +351,7 @@ export const auth = betterAuth({
   // Sessions already use storeSessionInDatabase. Keep verification values
   // there too and use secondary storage only for rate-limit counters.
   verification: { storeInDatabase: true },
-  secondaryStorage: {
-    get: () => null,
-    getAndDelete: () => null,
-    set: () => {},
-    delete: () => {},
-    async increment(key, ttl) {
-      let cause = "redis_not_configured";
-      try {
-        const redis = getRedisClient();
-        if (redis) {
-          return (await redis.eval(
-            INCREMENT_RATE_LIMIT_SCRIPT,
-            1,
-            `auth:rate-limit:${betterAuthCookiePrefix}:${key}`,
-            ttl,
-          )) as number;
-        }
-      } catch (error) {
-        cause = error instanceof Error ? error.name : "unknown";
-      }
-      tryUseLogger()?.set({ rateLimit: { failOpen: true, cause } });
-      return 0;
-    },
-  },
+  secondaryStorage: createAuthRateLimitStorage(betterAuthCookiePrefix),
   trustedOrigins: Array.from(
     new Set([
       "https://app.sokosumi.com",

@@ -65,7 +65,9 @@ vi.mock("@/clients/email.client", () => ({
   sendEmail: m.sendEmail,
   sendEmails: m.sendEmails,
 }));
-vi.mock("@/lib/redis", () => ({ getRedisClient: () => ({ eval: m.redis }) }));
+vi.mock("@/lib/redis", () => ({
+  getRedisRateLimitClient: () => ({ status: "ready", eval: m.redis }),
+}));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     workspace: { findUnique: m.workspaceFindUnique },
@@ -1596,6 +1598,7 @@ describe("newsletter subscribers from contacts", () => {
       expect.any(String),
       1,
       `newsletter:signup:${NEWSLETTER_ID}:unknown`,
+      600,
     );
     m.createManyAndReturn.mockResolvedValue([]);
     m.findMany.mockResolvedValue(people.map(() => ({ status: "PENDING" })));

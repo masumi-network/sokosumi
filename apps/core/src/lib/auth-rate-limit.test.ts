@@ -1,25 +1,31 @@
+import { strict as assert } from "node:assert";
+import { once } from "node:events";
+import { createServer } from "node:net";
 import { betterAuth } from "better-auth/minimal";
 import { Hono } from "hono";
+import Redis from "ioredis";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { coreLogEvents } from "@/test/core-log";
 import { auth } from "./auth";
 
-const { findMany, create, evalRedis, getRedisClient } = vi.hoisted(() => ({
-  findMany: vi.fn(async () => []),
-  create: vi.fn(async ({ data }) => data),
-  evalRedis: vi.fn(),
-  getRedisClient: vi.fn(),
-}));
+const { findMany, create, evalRedis, getRedisRateLimitClient } = vi.hoisted(
+  () => ({
+    findMany: vi.fn(async () => []),
+    create: vi.fn(async ({ data }) => data),
+    evalRedis: vi.fn(),
+    getRedisRateLimitClient: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/db/prisma", () => ({
   default: { rateLimit: { findMany, create } },
 }));
 
-vi.mock("@/lib/redis", () => ({ getRedisClient }));
+vi.mock("@/lib/redis", () => ({ getRedisRateLimitClient }));
 
-const { handler } = betterAuth({
+const { handler, $context } = betterAuth({
   ...auth.options,
   rateLimit: { ...auth.options.rateLimit, enabled: true },
 });
@@ -40,7 +46,7 @@ function request(path: string, init?: RequestInit) {
 beforeEach(() => {
   vi.resetAllMocks();
   evalRedis.mockResolvedValue(1);
-  getRedisClient.mockReturnValue({ eval: evalRedis });
+  getRedisRateLimitClient.mockReturnValue({ status: "ready", eval: evalRedis });
 });
 
 it("serves an auth request without querying the Prisma rate-limit table", async () => {
@@ -85,8 +91,38 @@ it("fails open and records a single request event when Redis rejects", async () 
   ]);
 });
 
+it("answers with fail-open before Redis reports a refused connection", async () => {
+  await $context;
+  const server = createServer().listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  await server[Symbol.asyncDispose]();
+  assert(address && typeof address !== "string");
+
+  const redis = new Redis(address.port, address.address);
+  const refused = once(redis, "error").then(([error]) => error);
+  redis.once("error", () => redis.disconnect());
+  getRedisRateLimitClient.mockReturnValue(redis);
+
+  const response = request("/ok");
+  try {
+    const first = await Promise.race([response, refused.then(() => null)]);
+    expect(await refused).toMatchObject({ code: "ECONNREFUSED" });
+    expect(first?.status).toBe(200);
+    expect(coreLogEvents()).toMatchObject([
+      {
+        level: "info",
+        rateLimit: { failOpen: true, cause: "redis_not_ready" },
+      },
+    ]);
+  } finally {
+    redis.disconnect();
+    await response;
+  }
+});
+
 it("works without a configured Redis client", async () => {
-  getRedisClient.mockReturnValue(null);
+  getRedisRateLimitClient.mockReturnValue(null);
 
   expect((await request("/ok")).status).toBe(200);
   expect(findMany).not.toHaveBeenCalled();
