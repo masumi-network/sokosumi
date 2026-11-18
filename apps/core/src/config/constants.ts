@@ -35,6 +35,12 @@ export const TIME = {
  * Rate limits and capacity constraints
  */
 export const LIMITS = {
+  /**
+   * Levels of sub-tasks below a Task (SOKD-279). The `task_subtask_guard`
+   * trigger in migration 20261118021500_task_subtasks enforces the same 5.
+   */
+  MAX_SUBTASK_DEPTH: 5,
+
   /** Maximum API key requests per minute */
   API_KEY_MAX_REQUESTS_PER_MINUTE: 100,
 

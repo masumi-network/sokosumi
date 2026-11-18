@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { loadTaskAncestors } from "@/helpers/task-subtasks";
 import prisma from "@/lib/db/prisma";
 
 const enabled =
@@ -158,6 +159,20 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
       select: { taskId: true },
     });
     expect(alias?.taskId).toBe(grandchild);
+  });
+
+  it("lists a sub-task's ancestors root first, with identifiers", async () => {
+    const project = await createProject("Ancestors");
+    const root = await createTask({ projectId: project });
+    const child = await createTask({ projectId: project, parentTaskId: root });
+
+    const ancestors = await loadTaskAncestors(child, prisma);
+
+    expect(ancestors.map((row) => [row.id, row.identifier])).toEqual([
+      [root, expect.stringMatching(/-1$/)],
+      [child, expect.stringMatching(/-2$/)],
+    ]);
+    expect(await loadTaskAncestors(null, prisma)).toEqual([]);
   });
 
   it("deletes sub-tasks with their parent", async () => {

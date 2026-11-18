@@ -261,6 +261,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           AND: [...HUMAN_TASK_VISIBILITY_AND],
@@ -300,6 +301,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           AND: [...HUMAN_TASK_VISIBILITY_AND],
@@ -321,6 +323,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           AND: [...HUMAN_TASK_VISIBILITY_AND],
@@ -338,6 +341,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
           AND: [...HUMAN_TASK_VISIBILITY_AND],
         },
@@ -357,6 +361,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           AND: [...HUMAN_TASK_VISIBILITY_AND],
@@ -375,6 +380,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           ownerId: "user_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           AND: [...HUMAN_TASK_VISIBILITY_AND],
@@ -722,6 +728,7 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: {
           archivedAt: null,
+          parentTaskId: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
           visibility: TaskVisibility.PRIVATE,
           AND: [...HUMAN_TASK_VISIBILITY_AND],
@@ -819,6 +826,7 @@ describe("GET /tasks", () => {
         expect.objectContaining({
           where: {
             archivedAt: null,
+            parentTaskId: null,
             workspaceId: "11111111-1111-7111-8111-111111111111",
             AND: [...HUMAN_TASK_VISIBILITY_AND],
             scheduleId: SCHEDULE_ID,
@@ -894,6 +902,7 @@ describe("GET /tasks", () => {
         expect.objectContaining({
           where: {
             archivedAt: null,
+            parentTaskId: null,
             workspaceId: "11111111-1111-7111-8111-111111111111",
             AND: [...HUMAN_TASK_VISIBILITY_AND],
             OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
@@ -931,6 +940,7 @@ describe("GET /tasks", () => {
         expect.objectContaining({
           where: {
             archivedAt: null,
+            parentTaskId: null,
             workspaceId: "11111111-1111-7111-8111-111111111111",
             AND: [...HUMAN_TASK_VISIBILITY_AND],
             OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],

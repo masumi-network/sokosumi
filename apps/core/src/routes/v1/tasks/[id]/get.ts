@@ -5,6 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { resolveTaskRefToId } from "@/helpers/task-ref";
+import { loadTaskAncestors } from "@/helpers/task-subtasks";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -82,7 +83,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!archivedTask) {
         throw notFound("Task not found");
       }
-      return ok(c, taskSchema.parse(mapTask(archivedTask, authContext)));
+      return ok(
+        c,
+        taskSchema.parse({
+          ...mapTask(archivedTask, authContext),
+          ancestors: await loadTaskAncestors(archivedTask.parentTaskId, prisma),
+        }),
+      );
     }
 
     const workspaceId =
@@ -102,6 +109,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include,
     );
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    // A coworker reads only what it is assigned; parent names would leak.
+    const ancestors = isCoworkerAuthContext(authContext)
+      ? []
+      : await loadTaskAncestors(task.parentTaskId, prisma);
+    return ok(
+      c,
+      taskSchema.parse({ ...mapTask(task, authContext), ancestors }),
+    );
   });
 }

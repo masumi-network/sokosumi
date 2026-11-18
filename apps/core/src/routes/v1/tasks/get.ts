@@ -154,6 +154,26 @@ const archivedQuerySchema = z
     example: "true",
   });
 
+const parentTaskIdQuerySchema = z
+  .string()
+  .optional()
+  .openapi({
+    param: { name: "parentTaskId", in: "query" },
+    description:
+      "Only the direct sub-tasks of this Task, ordered by position unless sort is given.",
+    example: "01960001-0001-7001-8001-000000000001",
+  });
+
+const includeSubtasksQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .openapi({
+    param: { name: "includeSubtasks", in: "query" },
+    description:
+      "true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.",
+    example: "true",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -166,6 +186,8 @@ const query = z
     dueOnTo: dueOnToQuerySchema,
     statusBefore: statusBeforeQuerySchema,
     archived: archivedQuerySchema,
+    parentTaskId: parentTaskIdQuerySchema,
+    includeSubtasks: includeSubtasksQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -241,6 +263,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeSokoBotId,
       assigneeUserId,
       dueOnTo,
+      includeSubtasks,
+      parentTaskId,
       projectId,
       q,
       scheduleId,
@@ -269,6 +293,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
     const scheduleFilter = scheduleId ? { scheduleId } : {};
+    // Agents work on sub-tasks assigned to them, so they always see them.
+    const agentSubtaskFilter = parentTaskId ? { parentTaskId } : {};
+    const humanSubtaskFilter = parentTaskId
+      ? { parentTaskId }
+      : includeSubtasks === "true"
+        ? {}
+        : { parentTaskId: null };
     const dueFilter = dueOnTo
       ? { dueOn: { lte: new Date(`${dueOnTo}T00:00:00.000Z`) } }
       : {};
@@ -342,6 +373,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
             ...scheduleFilter,
+            ...agentSubtaskFilter,
             ...dueFilter,
             ...statusAgeFilter,
             ...searchFilter,
@@ -356,6 +388,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             AND: [listAccessFilter],
             ...projectFilter,
             ...scheduleFilter,
+            ...agentSubtaskFilter,
             ...dueFilter,
             ...statusAgeFilter,
             ...searchFilter,
@@ -380,6 +413,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
           ...scheduleFilter,
+          ...agentSubtaskFilter,
           ...dueFilter,
           ...statusAgeFilter,
           ...searchFilter,
@@ -401,6 +435,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
           ...scheduleFilter,
+          ...humanSubtaskFilter,
           ...dueFilter,
           ...statusAgeFilter,
           ...searchFilter,
@@ -416,22 +451,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // and it makes cursor pagination unstable: a row updated mid-paging moves
     // between pages, so "Load more" can duplicate or skip rows.
     const orderBy =
-      archived && sort === undefined
-        ? ([{ archivedAt: "desc" as const }, { id: "desc" as const }] as const)
-        : sort === "updatedAt"
-          ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
-          : sort === "dueOn"
-            ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
-            : sort === "priority"
-              ? ([
-                  { priority: "asc" as const },
-                  { updatedAt: "desc" as const },
-                  { id: "desc" as const },
-                ] as const)
-              : ([
-                  { createdAt: "desc" as const },
-                  { id: "desc" as const },
-                ] as const);
+      parentTaskId && sort === undefined
+        ? ([{ position: "asc" as const }, { id: "asc" as const }] as const)
+        : archived && sort === undefined
+          ? ([
+              { archivedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const)
+          : sort === "updatedAt"
+            ? ([
+                { updatedAt: "desc" as const },
+                { id: "desc" as const },
+              ] as const)
+            : sort === "dueOn"
+              ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
+              : sort === "priority"
+                ? ([
+                    { priority: "asc" as const },
+                    { updatedAt: "desc" as const },
+                    { id: "desc" as const },
+                  ] as const)
+                : ([
+                    { createdAt: "desc" as const },
+                    { id: "desc" as const },
+                  ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

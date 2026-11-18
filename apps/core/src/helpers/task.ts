@@ -381,6 +381,17 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
   return null;
 }
 
+// Fixtures and narrow selects may omit the relation; that reads as none.
+function mapSubtaskProgress(
+  subtasks: readonly { status: TaskStatus }[] | undefined,
+) {
+  const rows = subtasks ?? [];
+  return {
+    completed: rows.filter((row) => row.status === TaskStatus.COMPLETED).length,
+    total: rows.length,
+  };
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -444,6 +455,9 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     runAt: task.runAt ?? null,
     // A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day.
     dueOn: task.dueOn ? task.dueOn.toISOString().slice(0, 10) : null,
+    parentTaskId: task.parentTaskId ?? null,
+    position: task.position ?? null,
+    subtaskProgress: mapSubtaskProgress(task.subtasks),
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
     participants: mapTaskParticipants(task),
