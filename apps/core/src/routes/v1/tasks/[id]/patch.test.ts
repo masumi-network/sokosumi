@@ -1342,7 +1342,8 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
   });
 });
 
-describe("PATCH /tasks/{id} Run at", () => {
+describe("PATCH /tasks/{id} Run at and workspace tags", () => {
+  const clearTags = vi.fn();
   const RUN_AT = "2099-01-05T09:00:00.000Z";
   const LATER_RUN_AT = "2099-01-12T09:00:00.000Z";
   const taskEventCreateMock = vi.fn();
@@ -1407,9 +1408,33 @@ describe("PATCH /tasks/{id} Run at", () => {
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
+        taskWorkspaceTag: { deleteMany: clearTags },
       });
     });
     mockTask();
+  });
+
+  it("clears workspace tags on a completed Task without a status change", async () => {
+    mockTask({ status: TaskStatus.COMPLETED });
+    const response = await patch({ workspaceTagIds: [] });
+    expect(response.status).toBe(200);
+    expect(clearTags).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123", labelId: { notIn: [] } },
+    });
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      taskId: "tsk_123",
+      eventType: "task_event",
+    });
+  });
+
+  it("refuses to change labels on a Task outside the active workspace", async () => {
+    mockTask({ workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" });
+    const response = await patch({ workspaceTagIds: [] });
+    expect(response.status).toBe(404);
+    expect(clearTags).not.toHaveBeenCalled();
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("queues a Draft Task at its Run at", async () => {

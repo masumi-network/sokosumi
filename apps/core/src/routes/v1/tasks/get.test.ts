@@ -345,6 +345,26 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("keeps tag filters, privacy and workspace scope on both the page and its count", async () => {
+    const labelId = "33333333-3333-4333-8333-333333333333";
+    const response = await createApp().request(
+      `http://localhost/?scope=workspace&topicTagId=qa&workspaceTagId=${labelId}`,
+    );
+
+    expect(response.status).toBe(200);
+    const where = {
+      archivedAt: null,
+      workspaceId: USER_WORKSPACE_CONTEXT.workspaceId,
+      AND: [...HUMAN_TASK_VISIBILITY_AND],
+      visibleTopics: { some: { topicId: "qa" } },
+      workspaceTags: { some: { labelId } },
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(taskCountMock).toHaveBeenCalledWith({ where });
+  });
+
   it("filters tasks by projectId", async () => {
     const app = createApp();
     const projectId = "33333333-3333-4333-8333-333333333333";

@@ -1900,6 +1900,10 @@ export type Task = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    workspaceTags?: Array<{
+        id: string;
+        displayName: string;
+    }>;
     /**
      * Sequence number within the project. Null when the task has no project.
      */
@@ -14244,6 +14248,10 @@ export type TaskListItem = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    workspaceTags?: Array<{
+        id: string;
+        displayName: string;
+    }>;
     /**
      * Sequence number within the project. Null when the task has no project.
      */
@@ -94591,6 +94599,14 @@ export type GetTasksData = {
          */
         q?: string;
         /**
+         * Only Tasks with this workspace tag.
+         */
+        workspaceTagId?: string;
+        /**
+         * Only Tasks with this visible topic tag.
+         */
+        topicTagId?: TaskTagId & unknown;
+        /**
          * Comma-separated status filters
          */
         status?: Array<TaskStatus>;
@@ -94739,6 +94755,10 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
+        /**
+         * Workspace tag IDs to assign. An empty array clears all workspace tags.
+         */
+        workspaceTagIds?: Array<string>;
         tagSuggestionReceipt?: string;
         /**
          * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
@@ -97594,6 +97614,10 @@ export type PatchTasksByIdData = {
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
         priority?: TaskPriority;
+        /**
+         * Workspace tag IDs to assign. An empty array clears all workspace tags.
+         */
+        workspaceTagIds?: Array<string>;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */

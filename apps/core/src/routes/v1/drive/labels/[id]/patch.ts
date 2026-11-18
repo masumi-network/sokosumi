@@ -97,6 +97,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       await prisma.$transaction(async (tx) => {
+        // Task assignments hold shared locks on these rows. Take both locks
+        // before moving assignments so a concurrent edit cannot revive the source.
+        const active = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM workspace_label
+          WHERE id IN (${label.id}::uuid, ${target.id}::uuid)
+            AND "mergedIntoId" IS NULL
+            AND (id = ${label.id}::uuid OR "archivedAt" IS NULL)
+          ORDER BY id FOR UPDATE
+        `;
+        if (active.length !== 2) {
+          throw conflict(
+            "A merged label or archived target cannot be used for a merge",
+          );
+        }
+        if (label.kind === "TAG") {
+          // Update assignments in place. A concurrent removal or workspace
+          // move then deletes the same row and cannot leave a copied tag behind.
+          await tx.$executeRaw`
+            DELETE FROM task_workspace_tag AS source
+            USING task_workspace_tag AS target
+            WHERE source."labelId" = ${label.id}::uuid
+              AND target."labelId" = ${target.id}::uuid
+              AND source."taskId" = target."taskId"
+          `;
+          await tx.taskWorkspaceTag.updateMany({
+            where: { labelId: label.id },
+            data: { labelId: target.id },
+          });
+        }
+
         // Move assignments that the target does not already have, then drop
         // the duplicates, so a merge never doubles a file's tag list.
         const assignments = await tx.fileLabel.findMany({
