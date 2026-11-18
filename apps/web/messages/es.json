@@ -2309,7 +2309,7 @@
         "add": "Añadir subtarea",
         "addPlaceholder": "Escribe una subtarea y pulsa Intro",
         "movedTo": "Movida a la posición {position} de {total}",
-        "reorderHandle": "Mover {name}. Usa flecha arriba o abajo.",
+        "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
         "toggleLabel": "{name} hecha",
         "agentDoneHint": "Al desmarcarla vuelve a {assignee}",
         "changeError": "No se pudo guardar el cambio de la subtarea. Inténtalo de nuevo.",

@@ -2309,7 +2309,7 @@
         "add": "Teilaufgabe hinzufügen",
         "addPlaceholder": "Teilaufgabe eingeben und Enter drücken",
         "movedTo": "Auf Position {position} von {total} verschoben",
-        "reorderHandle": "{name} verschieben. Pfeil nach oben oder unten verwenden.",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
         "toggleLabel": "{name} erledigt",
         "agentDoneHint": "Abwählen gibt sie an {assignee} zurück",
         "changeError": "Die Änderung an der Teilaufgabe wurde nicht gespeichert. Versuche es erneut.",

@@ -2003,7 +2003,7 @@
             "commentLabel": "What to fix",
             "commentPlaceholder": "What should {assignee} change or redo?",
             "confirm": "Send back to {assignee}",
-            "reopenAsDraft": "Reopen as Draft",
+            "reopenAsDraft": "Reopen as draft",
             "cancel": "Not now"
           },
           "cancel": "Cancel",
@@ -2309,7 +2309,7 @@
         "add": "Add sub-task",
         "addPlaceholder": "Add a sub-task and press Enter",
         "movedTo": "Moved to position {position} of {total}",
-        "reorderHandle": "Move {name}. Use Arrow Up or Arrow Down.",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
         "toggleLabel": "{name} done",
         "agentDoneHint": "Unchecking sends it back to {assignee}",
         "changeError": "Could not save the sub-task change. Try again.",
