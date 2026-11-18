@@ -66,8 +66,8 @@ export function SubscriptionCard({
         </div>
         {billing.hasTesterCredits ? (
           <p className="note">
-            Your Tester credits stay. {AGENT_NAME} spends the plan's monthly
-            credits first, then them.
+            You keep the credits you have. {AGENT_NAME} uses the plan's monthly
+            credits first.
           </p>
         ) : null}
       </section>

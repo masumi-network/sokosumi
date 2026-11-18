@@ -75,8 +75,34 @@ describe("useComposioConnection", () => {
       connectionId: "ca_1",
       sessionUri: "https://backend.composio.dev/session/one",
     });
-    expect(finalize).toHaveBeenCalledWith("ca_1");
+    expect(finalize).toHaveBeenCalledWith("ca_1", undefined);
   });
+
+  it.each([
+    ["zernio:p1", "proof", "connected"],
+    ["zernio:p1", undefined, "failed"],
+    ["zernio:other", "proof", "failed"],
+    [null, "proof", "failed"],
+  ])(
+    "ties a TikTok callback to the initiated profile and proof",
+    async (connectionId, callbackProof, kind) => {
+      initiate.mockResolvedValue({
+        ok: true,
+        value: {
+          connectionId: "zernio:p1",
+          redirectUrl: "https://zernio.com/connect",
+        },
+      });
+      flow.waitForCallback.mockResolvedValue(
+        callback({ connectionId, sessionUri: null, callbackProof }),
+      );
+      await expect(connect()).resolves.toMatchObject({ kind });
+      expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
+      if (kind === "connected")
+        expect(finalize).toHaveBeenCalledExactlyOnceWith("zernio:p1", "proof");
+      else expect(finalize).not.toHaveBeenCalled();
+    },
+  );
 
   it("announces the start once the popup is open", async () => {
     const onStart = vi.fn();

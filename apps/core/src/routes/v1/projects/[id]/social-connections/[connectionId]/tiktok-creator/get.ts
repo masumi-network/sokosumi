@@ -4,6 +4,8 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
+import { getZernioTikTokCreatorInfo } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -66,6 +68,16 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     });
     if (!connection) throw notFound("Active TikTok connection not found");
     requireSocialProviderEnabled("tiktok", connection.project);
+    c.header("Cache-Control", "no-store");
+    const zernioAccountId = getZernioAccountId(
+      connection.composioConnectedAccountId,
+    );
+    if (zernioAccountId) {
+      return ok(
+        c,
+        await getZernioTikTokCreatorInfo(zernioAccountId, c.req.raw.signal),
+      );
+    }
     const toolSlug = "TIKTOK_QUERY_CREATOR_INFO";
     const sessionId = await createComposioToolSession({
       toolkitSlug: "tiktok",
@@ -82,8 +94,13 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
         context: "read TikTok creator info",
         refused: "TikTok refused the creator info",
       });
-      c.header("Cache-Control", "no-store");
-      return ok(c, tikTokCreatorInfoSchema.parse(info));
+      const creator = tikTokCreatorInfoSchema.parse(info);
+      return ok(c, {
+        ...creator,
+        privacy_level_options: creator.privacy_level_options.filter(
+          (level) => level === "SELF_ONLY",
+        ),
+      });
     } finally {
       await deleteComposioToolSession(
         sessionId,

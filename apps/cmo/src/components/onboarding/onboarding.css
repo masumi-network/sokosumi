@@ -815,19 +815,14 @@ body:has(.ob) .site-header {
   text-wrap: balance;
 }
 
+/* Facts to read, not rows to open: no box and no fill, only a hairline. */
 .ob-plan .ob-goal-facts {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   width: 100%;
-  gap: 1px;
-  overflow: hidden;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--border);
+  gap: 16px 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
   text-align: left;
-}
-
-.ob-plan .ob-goal-facts > div {
-  padding: 14px 20px;
-  background: var(--surface);
 }
 
 .ob-plan .ob-goal-facts dt {

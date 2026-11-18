@@ -307,7 +307,7 @@ export const messages: CusoMessage[] = [
   message(
     "m1",
     true,
-    "Your month is planned. I will write and schedule every piece.",
+    "Your month is planned. I will write and schedule every post.",
     "01T09:12:00",
   ),
   message(
