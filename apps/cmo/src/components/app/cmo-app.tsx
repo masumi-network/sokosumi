@@ -6,7 +6,14 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -33,6 +40,7 @@ import {
   BrandBrainPage,
   ChannelsPage,
   type ConnectChannel,
+  ResultsLead,
   ResultsPage,
   SettingsPage,
 } from "./pages";
@@ -206,7 +214,6 @@ export function CmoApp({
   }, []);
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
-  const [highlight, setHighlight] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -306,7 +313,6 @@ export function CmoApp({
 
   function openUpdate(id: string) {
     go("chat");
-    setHighlight(id);
     window.setTimeout(
       () =>
         document
@@ -389,9 +395,6 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
-                    highlighted={
-                      item.kind === "update" && item.update.id === highlight
-                    }
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -451,7 +454,13 @@ export function CmoApp({
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
-                  line={PAGE_LEADS[view].line}
+                  line={
+                    view === "results" ? (
+                      <ResultsLead overview={overview} />
+                    ) : (
+                      PAGE_LEADS[view].line
+                    )
+                  }
                 />
               ) : null}
               {view === "calendar" ? (
@@ -512,6 +521,7 @@ export function CmoApp({
                   }
                   ads={actions}
                   onChange={setOverview}
+                  openView={go}
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage
@@ -574,7 +584,7 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   },
   results: {
     title: "How it's going",
-    line: "Real numbers from your accounts, checked every Monday.",
+    line: "Real numbers from your accounts, checked every week.",
   },
   channels: {
     title: "Where I post",
@@ -586,7 +596,7 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   },
 };
 
-function PageLead({ title, line }: { title: string; line: string }) {
+function PageLead({ title, line }: { title: string; line: ReactNode }) {
   return (
     <header className="page-lead">
       <h1 className="ob-h1">{title}</h1>
@@ -622,14 +632,12 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
-  highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
-  highlighted: boolean;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
@@ -695,7 +703,6 @@ function ThreadEntry({
           <div id={`update-${item.update.id}`}>
             <UpdateCard
               update={item.update}
-              focused={highlighted}
               actions={actions}
               approved={
                 overview.strategyVersion?.approvedAt != null &&

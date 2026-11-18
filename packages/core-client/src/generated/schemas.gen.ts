@@ -54407,6 +54407,487 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoCompetitorsSchema = {
+    type: 'object',
+    properties: {
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitor'
+            }
+        },
+        limit: {
+            type: 'integer',
+            description: 'How many competitors can be tracked.'
+        },
+        signals: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitorSignal'
+            },
+            description: 'What the checks of the last 30 days found, newest first.'
+        },
+        scoreboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitorScoreRow'
+            },
+            description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
+        },
+        topPosts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitorTopPost'
+            },
+            description: 'Each competitor\'s three strongest Instagram posts.'
+        },
+        check: {
+            type: 'object',
+            properties: {
+                lastCheckedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                nextCheckAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                creditsPerCompetitor: {
+                    type: 'number'
+                },
+                sources: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        },
+                        news: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        },
+                        ads: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        },
+                        social: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'news',
+                        'ads',
+                        'social'
+                    ]
+                }
+            },
+            required: [
+                'lastCheckedAt',
+                'nextCheckAt',
+                'creditsPerCompetitor',
+                'sources'
+            ]
+        }
+    },
+    required: [
+        'competitors',
+        'limit',
+        'signals',
+        'scoreboard',
+        'topPosts',
+        'check'
+    ]
+} as const;
+
+export const CmoCompetitorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'RESEARCH',
+                'MEMBER'
+            ],
+            description: 'Who put it on the list: Brand Brain research, or a member.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'websiteUrl',
+        'pricingUrl',
+        'instagramHandle',
+        'facebookHandle',
+        'source',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoCompetitorSignalSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'WEBSITE_CHANGE',
+                'PRICE_CHANGE',
+                'NEWS',
+                'AD',
+                'SOCIAL'
+            ]
+        },
+        summary: {
+            type: 'string',
+            description: 'What happened, in one line.'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceTitle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourcePublisher: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        quote: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The source\'s own words that back the summary.'
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'kind',
+        'summary',
+        'observedAt',
+        'sourceUrl',
+        'sourceTitle',
+        'sourcePublisher',
+        'quote'
+    ]
+} as const;
+
+export const CmoCompetitorScoreRowSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Null for the business itself.'
+        },
+        name: {
+            type: 'string'
+        },
+        postsPerWeek: {
+            $ref: '#/components/schemas/CmoCompetitorMeasure'
+        },
+        engagementPerPost: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    description: 'Likes and comments per post over the week\'s posts.'
+                }
+            ]
+        },
+        followers: {
+            $ref: '#/components/schemas/CmoCompetitorMeasure'
+        },
+        followerGrowth: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    description: 'Followers gained since the reading a week before.'
+                }
+            ]
+        }
+    },
+    required: [
+        'competitorId',
+        'name',
+        'postsPerWeek',
+        'engagementPerPost',
+        'followers',
+        'followerGrowth'
+    ]
+} as const;
+
+export const CmoCompetitorMeasureSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        value: {
+            type: 'number'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'value',
+        'sourceUrl',
+        'observedAt'
+    ]
+} as const;
+
+export const CmoCompetitorTopPostSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        signalId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        type: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        postedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        likes: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        comments: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'competitorId',
+        'signalId',
+        'url',
+        'caption',
+        'type',
+        'postedAt',
+        'likes',
+        'comments'
+    ]
+} as const;
+
+export const CmoCompetitorSourceSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ok',
+                'not_configured',
+                'not_connected',
+                'failed'
+            ],
+            description: 'not_configured: CMO lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.'
+        },
+        needs: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'What it takes to read this source, when it cannot be read.'
+        }
+    },
+    required: [
+        'status',
+        'needs'
+    ]
+} as const;
+
+export const CmoCompetitorCreateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
+export const CmoCompetitorUpdateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        }
+    }
+} as const;
+
 export const CmoCheckoutSchema = {
     type: 'object',
     properties: {

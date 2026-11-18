@@ -353,12 +353,14 @@ button[aria-busy="true"] {
   overflow-wrap: anywhere;
 }
 
-.note a {
+.note a,
+.muted a {
   color: var(--foreground);
   text-underline-offset: 3px;
 }
 
-.note a:hover {
+.note a:hover,
+.muted a:hover {
   text-decoration-thickness: 2px;
 }
 
@@ -695,6 +697,22 @@ a.button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* A state in words: no line and no fill, so it never reads as a button. */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.state .status-disc {
+  width: 16px;
+  height: 16px;
 }
 
 /* ── Landing ── */
@@ -1243,8 +1261,8 @@ button.cuso-status .ob-stage-art {
   background: var(--card);
 }
 
-/* Look here: the card in focus, or one that needs the owner now. */
-.card-focus {
+/* The post that is open on the Calendar: a button, so it may cast the big shadow. */
+button.card-focus {
   box-shadow: var(--shadow-big);
 }
 
@@ -1773,7 +1791,7 @@ button.cuso-status .ob-stage-art {
   gap: 16px;
 }
 
-.page .page-body > .card:not(.card-focus),
+.page .page-body > .card,
 .page .cal-head,
 .page .kpi {
   border-radius: var(--radius-card);
@@ -3170,7 +3188,6 @@ button.cuso-status .ob-stage-art {
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  align-items: start;
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -3207,6 +3224,18 @@ button.cal-card:hover {
   overflow: hidden;
   border-radius: var(--radius-control);
   background: var(--surface);
+}
+
+/* A post without a picture leads with its opening words in the same box. */
+.cal-words {
+  display: -webkit-box;
+  place-items: initial;
+  padding: 16px;
+  font-size: 1rem;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
 }
 
 .cal-thumb img,
@@ -3269,14 +3298,14 @@ button.cal-card:hover {
   cursor: default;
 }
 
-.cal-making .cal-body {
-  flex: 1;
+.cal-making .cal-thumb {
+  background: none;
 }
 
 .cal-making-lines {
   display: grid;
   gap: 6px;
-  margin: 8px 0;
+  width: 60%;
 }
 
 .cal-making-lines span {
@@ -3287,12 +3316,6 @@ button.cal-card:hover {
 
 .cal-making-lines span:last-child {
   width: 60%;
-}
-
-.cal-making .tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -3316,7 +3339,7 @@ button.cal-card:hover {
   -webkit-line-clamp: 3;
 }
 
-.cal-body .tag {
+.cal-body .state {
   margin-top: auto;
 }
 
