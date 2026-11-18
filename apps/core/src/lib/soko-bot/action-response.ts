@@ -341,11 +341,25 @@ function describeRead(capability: string, value: unknown): string[] {
  */
 const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
 
-function inputCovers(later: unknown, earlier: unknown): boolean {
+/**
+ * A talking video refused for its price is made again with a shorter script,
+ * as the refusal asks: the same video for the owner.
+ */
+const REWRITTEN_KEYS: Record<string, Set<string>> = {
+  generate_talking_video: new Set(["script", "maxCredits"]),
+};
+
+function inputCovers(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  const rewritten = REWRITTEN_KEYS[capability];
   return Object.entries(earlier).every(
     ([key, value]) =>
       FILE_NAMING_KEYS.has(key) ||
+      rewritten?.has(key) ||
       JSON.stringify(later[key]) === JSON.stringify(value),
   );
 }
@@ -467,7 +481,7 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input)),
+          inputCovers(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(
