@@ -87,20 +87,25 @@ function retryLastFailed() {
   });
 }
 
+const detail = {
+  schedules: [],
+  turns: [
+    {
+      id: RETRY_TURN_ID,
+      source: "ADMIN_RETRY",
+      status: "RUNNING",
+      leaseToken: "row-lease",
+    },
+  ],
+};
+
 describe("POST /admin/soko-bots/{sokoBotId}/actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     pending.length = 0;
     performAdminActionMock.mockResolvedValue({
-      schedules: [],
-      turns: [
-        {
-          id: RETRY_TURN_ID,
-          source: "ADMIN_RETRY",
-          status: "STARTING",
-          leaseToken: "lease-1",
-        },
-      ],
+      detail,
+      reconciliation: { turnId: RETRY_TURN_ID, leaseToken: "lease-1" },
     });
     reconcileTurnMock.mockResolvedValue(undefined);
   });
@@ -122,6 +127,16 @@ describe("POST /admin/soko-bots/{sokoBotId}/actions", () => {
       undefined,
       "lease-1",
     );
+  });
+
+  it("returns diagnostics on replay without borrowing the retry row's lease", async () => {
+    performAdminActionMock.mockResolvedValueOnce({ detail });
+
+    const response = await retryLastFailed();
+    await Promise.all(pending);
+
+    expect(response.status).toBe(200);
+    expect(reconcileTurnMock).not.toHaveBeenCalled();
   });
 
   it("logs a failed reconcile on its own event without the turn's text", async () => {

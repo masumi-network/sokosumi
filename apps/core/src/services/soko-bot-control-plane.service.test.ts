@@ -4358,7 +4358,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
 
-    const detail = await new SokoBotControlPlane(
+    const { detail } = await new SokoBotControlPlane(
       runtimeWithReset(resetSession),
     ).performAdminAction({
       sokoBotId: BOT_ID,
@@ -4404,7 +4404,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     turnFindFirstMock.mockResolvedValue(null);
 
-    const detail = await new SokoBotControlPlane().performAdminAction({
+    const { detail } = await new SokoBotControlPlane().performAdminAction({
       sokoBotId: BOT_ID,
       operatorId: "admin_1",
       action: "RESET_SESSION",
@@ -5273,19 +5273,18 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
   });
 
-  it("settles a no-session cancellation only under its current lease", async () => {
-    turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
-    turnFindUniqueMock.mockResolvedValue({
+  it("claims a fresh lease to settle a no-session cancellation", async () => {
+    turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
       eveSessionId: null,
       startedAt: null,
       costUsdMicros: 0n,
       status: "CANCEL_REQUESTED",
-      leaseToken: "cancel-lease-1",
+      leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
       cancellationRequestedAt: new Date(),
       scheduleRun: null,
-    });
+    }));
 
     const settled =
       await new SokoBotControlPlane().settleUndeliverableCancellation(
@@ -5297,7 +5296,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "turn_cancelled_before_acceptance",
-          leaseToken: "cancel-lease-1",
+          leaseToken: expect.any(String),
           eveSessionId: null,
         }),
         data: expect.objectContaining({ status: "CANCELLED" }),

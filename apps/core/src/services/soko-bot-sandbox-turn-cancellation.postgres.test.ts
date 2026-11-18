@@ -95,6 +95,7 @@ vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
 });
 
 import { RuntimeEventLog, runtimeEvent } from "@/lib/soko-bot/turn-loop";
+import { coreLogEvents } from "@/test/core-log";
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
 import { failSandboxTurn } from "./soko-bot-sandbox-turn.service";
 
@@ -170,7 +171,12 @@ describe.skipIf(!enabled)(
 
     const report = () =>
       failSandboxTurn(
-        { turnId, sessionId, expiresAt: Date.now() + HOUR },
+        {
+          turnId,
+          sessionId,
+          expiresAt: Date.now() + HOUR,
+          reconciliationLeaseToken: "lease",
+        },
         died,
       );
     const settled = () =>
@@ -192,6 +198,32 @@ describe.skipIf(!enabled)(
           cancellationRequestedAt: new Date(),
         },
       });
+
+    it("runtime close leaves an admin reset's replacement lease alone", async () => {
+      const resetToken = randomUUID();
+      hooks.afterAuthorized = async () => {
+        await requestCancellation(prisma);
+        await prisma.sokoBotTurn.update({
+          where: { id: turnId },
+          data: { leaseToken: resetToken },
+        });
+      };
+
+      await report();
+
+      expect(await failures()).toBe(0);
+      expect(
+        await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: turnId } }),
+      ).toMatchObject({ status: "CANCEL_REQUESTED", leaseToken: resetToken });
+      expect(coreLogEvents()).toContainEqual(
+        expect.objectContaining({
+          level: "info",
+          operation: "soko_bot_turn_reconcile",
+          turn: { id: turnId },
+          outcome: "lease_lost",
+        }),
+      );
+    });
 
     it("settles CANCELLED when only the owner's row update committed", async () => {
       hooks.afterAuthorized = async () => {

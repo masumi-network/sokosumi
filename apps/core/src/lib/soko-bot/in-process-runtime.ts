@@ -249,7 +249,7 @@ async function runTurn(
       message: error instanceof Error ? error.message : "Soko Bot turn failed",
     });
   }
-  await closeTurn(log, input.turnId);
+  await closeTurn(log, input.reconciliationLeaseToken);
 }
 
 /** Reads a turn's recorded events back for the drain. */
