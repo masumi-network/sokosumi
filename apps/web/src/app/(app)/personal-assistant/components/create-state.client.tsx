@@ -60,6 +60,7 @@ export function CreateState({
   const tStudio = useTranslations("App.SokoBot.AvatarStudio");
   const router = useRouter();
   const nameId = useId();
+  const spendNoticeId = useId();
   const [name, setName] = useState("");
   // Spaces pass the native `required` check, so say what is missing here.
   const [blank, setBlank] = useState(false);
@@ -240,7 +241,8 @@ export function CreateState({
           </div>
         </fieldset>
         {/* Pinned to the foot on phones, so Create stays in reach above the pictures.
-            Only the create button: a taller bar hid the pictures it sits over. */}
+            Only the create button and its short credit notice, seen whenever Create is:
+            a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
             "bg-background sticky bottom-0 flex flex-col gap-2 pt-3 md:static md:pt-0",
@@ -255,18 +257,22 @@ export function CreateState({
             // Locked while it creates, so a second submit cannot race the first.
             disabled={isPending || !avatarCode}
             loading={isPending}
+            aria-describedby={spendNoticeId}
           >
             {/* Buttons do not wrap: a long name would push the phone page sideways. */}
             <span className="truncate">
               {t("submit", { name: name.trim() })}
             </span>
           </Button>
+          <p
+            id={spendNoticeId}
+            className="text-muted-foreground text-center text-xs"
+          >
+            {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
+          </p>
         </div>
         {/* Right under the pinned button once scrolled to the end. */}
         <div className="-mt-6 flex flex-col gap-2">
-          <p className="text-muted-foreground text-center text-xs">
-            {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
-          </p>
           <Button
             type="button"
             variant="ghost"

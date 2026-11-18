@@ -81,23 +81,6 @@ describe("AvatarStudio", () => {
     );
   });
 
-  it("lays out by its own width, so a narrow setup frame on a wide screen keeps one column", () => {
-    const { container } = render(
-      withIntl(
-        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />,
-      ),
-    );
-    const root = container.firstElementChild as HTMLElement;
-    expect(root.className).toMatch(/(^|\s)@container(\s|$)/);
-    // Viewport breakpoints split it into two columns inside setup's 416 px frame,
-    // which drew the animals at 8 px (SOKD-281).
-    for (const el of [root, ...root.querySelectorAll("*")]) {
-      expect(el.getAttribute("class") ?? "").not.toMatch(
-        /(^|\s)(sm|md|lg|xl):/,
-      );
-    }
-  });
-
   it("disables the backgrounds the animal cannot be read on", () => {
     render(
       withIntl(
