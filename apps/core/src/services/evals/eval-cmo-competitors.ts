@@ -1,8 +1,8 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
-import { parseFeedItems } from "@/services/cmo-competitor-feed.service";
-import { competitorNameKey } from "@/services/cmo-competitors.service";
+import { parseFeedItems } from "@/services/competitor-feed.service";
+import { competitorNameKey } from "@/services/competitors.service";
 import type { EvalLaneRecord } from "@/services/evals/eval-lanes.service";
 
 /** The competitors cal.com's lane tracks in the competitor cases. */

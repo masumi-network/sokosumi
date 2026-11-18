@@ -38,6 +38,7 @@ function createDatabaseProject(
     websiteUrl: null,
     presenterFileId: null,
     presenterConsentAt: null,
+    competitorChecksSince: null,
     sitePlatform: null,
     logo: null,
     studioLogoPosition: null,

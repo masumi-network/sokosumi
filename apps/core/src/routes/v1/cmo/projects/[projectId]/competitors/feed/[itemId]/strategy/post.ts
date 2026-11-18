@@ -8,7 +8,7 @@ import {
   cmoCompetitorFeedItemParamsSchema,
   cmoCompetitorsSchema,
 } from "@/schemas/cmo-competitors.schema";
-import { addCompetitorMoveToStrategy } from "@/services/cmo-competitor-feed.service";
+import { addCompetitorMoveToStrategy } from "@/services/cmo-competitors.service";
 
 import { competitorsResponse } from "../../../helpers.js";
 
