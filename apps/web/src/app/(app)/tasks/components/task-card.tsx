@@ -172,8 +172,10 @@ export function TaskCard({
             <div
               className={cn(
                 "min-w-0 overflow-x-clip pe-1",
-                // A narrow card has room for the tag only without a date.
-                task.dueOn ? "hidden @min-[14rem]:flex" : "flex",
+                // Beside a date the tag needs a wide card, or the date and the
+                // faces squeeze it to nothing. In pixels like the column
+                // width, so a larger browser font does not hide it.
+                task.dueOn ? "hidden @min-[288px]:flex" : "flex",
               )}
             >
               <TaskTags
@@ -181,6 +183,7 @@ export function TaskCard({
                 showManualTopics={!compact}
                 workspaceTags={task.workspaceTags}
                 compact
+                quiet
               />
             </div>
           )}

@@ -77,10 +77,13 @@ export function TaskTags({
   tags,
   workspaceTags = [],
   compact = false,
+  quiet = false,
   showManualTopics = true,
   inLink = false,
 }: TaskTagsProps & {
   compact?: boolean;
+  /** Tags with no box, for a board card. */
+  quiet?: boolean;
   showManualTopics?: boolean;
   inLink?: boolean;
 }) {
@@ -100,7 +103,7 @@ export function TaskTags({
       )}
       aria-label={t("label")}
     >
-      {visible.map((tag) => renderTagBadge(tag, compact))}
+      {visible.map((tag) => renderTagBadge(tag, quiet))}
       {remaining > 0 &&
         (inLink ? (
           <span
@@ -120,8 +123,9 @@ export function TaskTags({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "text-muted-foreground relative z-10 min-h-6 px-1.5 text-xs",
-                  // On a card's one-line row the count is no taller than the row.
+                  "relative z-10 min-h-6 px-1.5 text-xs",
+                  quiet && "text-muted-foreground",
+                  // On a card's one-line row the count keeps one fixed height.
                   compact && "h-6",
                 )}
                 aria-label={t("showAll", { count: badges.length })}

@@ -173,7 +173,8 @@ export function TaskStatusBadge({
     <span
       role={showLabel ? undefined : "img"}
       aria-label={showLabel ? undefined : statusLabel}
-      title={showLabel ? undefined : statusLabel}
+      // A plain label can truncate, so it keeps its full text on hover.
+      title={showLabel && !plain ? undefined : statusLabel}
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium",
         plain
