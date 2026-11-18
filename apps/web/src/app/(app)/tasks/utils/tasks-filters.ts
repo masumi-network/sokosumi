@@ -439,7 +439,8 @@ export function getTasksFiltersResetKey(
 
 /**
  * True when the Filters menu narrows the board past its defaults: a
- * non-default scope, an assignee, a status, private visibility or Stuck.
+ * non-default scope, an assignee, a status, private visibility, Stuck or
+ * Needs me.
  * Clear filters resets these.
  */
 export function hasClearableTasksFilters(
