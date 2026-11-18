@@ -7,7 +7,11 @@ import {
   getProjectSeoWorkspace,
 } from "./project-seo.service";
 import { recordProjectSeoPageChange } from "./project-seo-page-changes.service";
-import { getSeoBrief, saveSeoBrief } from "./seo-audit-brief.service";
+import {
+  getSeoBrief,
+  getSeoBriefSuggestion,
+  saveSeoBrief,
+} from "./seo-audit-brief.service";
 import { pinSeoAuditBrief } from "./seo-audit-brief-dispatch";
 
 const enabled =
@@ -43,6 +47,30 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
     await prisma.workspace.deleteMany({ where: { id: workspaceId } });
     await prisma.user.deleteMany({ where: { id: userId } });
     await prisma.$disconnect();
+  });
+  it("only suggests actions for a saved page in the requesting user's collection", async () => {
+    const page = await addProjectSeoPage(actor, {
+      url: "https://suggestion.example.test/",
+      relationship: "primary",
+    });
+    expect(await getSeoBriefSuggestion(actor, page.id)).toEqual({
+      action: null,
+    });
+    const other = await prisma.project.create({
+      data: { id: randomUUID(), workspaceId, name: "Other collection" },
+    });
+    await expect(
+      getSeoBriefSuggestion(
+        { ...actor, owner: { kind: "project", id: other.id } },
+        page.id,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      getSeoBriefSuggestion({ ...actor, userId: randomUUID() }, page.id),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      getSeoBriefSuggestion({ ...actor, sokoBotId: randomUUID() }, page.id),
+    ).rejects.toMatchObject({ status: 403 });
   });
   it("serializes simultaneous edits and keeps notes out of the shared workspace and other actors", async () => {
     const p = await addProjectSeoPage(actor, {

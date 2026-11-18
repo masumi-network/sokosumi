@@ -22,6 +22,7 @@ import {
   briefPriorities,
 } from "./seo-audit-brief-priorities";
 import { briefNamedOutcomes } from "./seo-brief-landing-outcomes";
+import { suggestSeoPageAction } from "./seo-brief-suggestion";
 
 const BRIEF_KIND = "audit_brief";
 const empty: SeoBriefContent = {
@@ -96,6 +97,13 @@ export async function getSeoBrief(actor: SeoActor): Promise<SeoAuditBrief> {
   ownerSession(actor);
   await requireSeoOwner(actor);
   return briefResponse(actor, await currentBrief(actor, prisma), prisma);
+}
+
+export async function getSeoBriefSuggestion(actor: SeoActor, pageId: string) {
+  ownerSession(actor);
+  await requireSeoOwner(actor);
+  const [page] = await requireSeoPages(actor, [pageId]);
+  return { action: await suggestSeoPageAction(page.url) };
 }
 
 export async function saveSeoBrief(
