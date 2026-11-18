@@ -57,6 +57,7 @@ export function CreateState({
 }) {
   const t = useTranslations("App.SokoBot.Create");
   const tChat = useTranslations("App.SokoBot.Chat");
+  const tStudio = useTranslations("App.SokoBot.AvatarStudio");
   const router = useRouter();
   const nameId = useId();
   const [name, setName] = useState("");
@@ -224,9 +225,8 @@ export function CreateState({
         <SokoBotSetupHeader
           faceless
           title={t("pictureTitle", { name: name.trim() })}
-          hint={t(
-            paidByOrganization ? "spendNoticeOrganization" : "spendNotice",
-          )}
+          // A look costs nothing; the credit notice sits under Create, which makes the bot.
+          hint={tStudio("description")}
           headingRef={pictureHeadingRef}
         />
         {/* Locked while creating: the bot gets the picture picked on submit.
@@ -264,6 +264,9 @@ export function CreateState({
         </div>
         {/* Right under the pinned button once scrolled to the end. */}
         <div className="-mt-6 flex flex-col gap-2">
+          <p className="text-muted-foreground text-center text-xs">
+            {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
+          </p>
           <Button
             type="button"
             variant="ghost"

@@ -112,8 +112,23 @@ for (const { name, ...viewport } of PROJECTS) {
       await page
         .getByRole("heading", { name: `Choose a look for ${BOT}` })
         .waitFor();
+      // Every animal is a real target at every size; viewport breakpoints once
+      // drew them 8px wide in setup's narrow frame.
+      const owl = page.getByRole("button", { name: "Owl", exact: true });
+      const owlBox = await owl.boundingBox();
+      assert.ok(owlBox && owlBox.width >= 32, "the Owl tile is at least 32px");
+      await owl.click();
+      assert.equal(await owl.getAttribute("aria-pressed"), "true");
+      // A look is free; the credit notice sits under Create, which makes the bot.
+      const notice = page.getByText("Uses your credits.");
+      const create = page.getByRole("button", { name: `Create ${BOT}` });
+      assert.ok(
+        ((await notice.boundingBox())?.y ?? 0) >
+          ((await create.boundingBox())?.y ?? Infinity),
+        "the credit notice follows Create",
+      );
       await shot("3-picture");
-      await page.getByRole("button", { name: `Create ${BOT}` }).click();
+      await create.click();
 
       await expectStep(
         page,

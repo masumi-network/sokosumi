@@ -91,6 +91,20 @@ describe("CreateState", () => {
       screen.getByRole("heading", { name: "Choose a look for Atlas" }),
     ).toBeTruthy();
     expect(screen.getByRole("list", { name: "Step 2 of 3" })).toBeTruthy();
+    // A look costs nothing; the credit notice sits under Create, which makes the bot.
+    expect(
+      screen.getByText(
+        "Pick an animal, colours and details. No two assistants share a look.",
+      ),
+    ).toBeVisible();
+    const notice = screen.getByText(
+      "Uses your credits. Set a daily limit in its settings.",
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Create Atlas" })
+        .compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByLabelText("Name")).toHaveValue("Atlas");
