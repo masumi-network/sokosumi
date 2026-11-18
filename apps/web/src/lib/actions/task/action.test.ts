@@ -839,6 +839,22 @@ describe("updateTask Run at", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
+  it("leaves a Task Core parked for instructions as Input required", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.INPUT_REQUIRED,
+    });
+    const { updateTask } = await import("./action");
+
+    const result = await updateTask({
+      ...baseInput,
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: true });
+  });
+
   it("sends no Run at when none is given", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",

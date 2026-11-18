@@ -646,7 +646,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
           : {}),
       });
 
-      if (desiredStatus !== patchedTask.status) {
+      // Core parked it to wait for a person's instructions: its call stands.
+      const parked = patchedTask.status === TaskStatus.INPUT_REQUIRED;
+      if (desiredStatus !== patchedTask.status && !parked) {
         await taskService.createTaskEvent(taskId, {
           status: desiredStatus,
         });
