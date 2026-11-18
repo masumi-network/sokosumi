@@ -70,16 +70,17 @@ export function TaskListItem({
       </span>
       <span
         className={cn(
-          "line-clamp-1 min-w-0 text-sm font-medium",
+          // The title takes the room the columns leave, so every column
+          // after it starts at the same place in every row.
+          "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
           hasName ? "text-foreground" : "text-muted-foreground",
         )}
       >
         {hasName ? task.name : t("noTitle")}
       </span>
-      {/* Tags give way before the title does, down to a width that still
-          reads, so a tag is never cut to one letter. They and the date show
-          only where the title still has room beside them. */}
-      <span className="hidden max-w-48 min-w-20 shrink-[3] overflow-x-clip xl:flex xl:empty:hidden">
+      {/* A column of its own, kept on a row with no tags, so the tags line
+          up. It shows only where the title still has room beside it. */}
+      <span className="hidden w-36 shrink-0 overflow-x-clip 2xl:flex">
         <TaskTags
           tags={task.tags}
           showManualTopics={!compact}
@@ -90,18 +91,21 @@ export function TaskListItem({
         />
       </span>
 
-      <span className="ms-auto flex shrink-0 items-center gap-4">
-        <TaskPrivateIndicator visibility={task.visibility} />
-        {task.statusSince && !task.isPending ? (
-          // From lg up: a narrow row gives this room to the title.
-          <span className="hidden lg:flex lg:empty:hidden">
+      <span className="flex shrink-0 items-center gap-3">
+        {/* The small marks share one column. */}
+        <span className="flex w-9 items-center justify-end gap-1">
+          <TaskPrivateIndicator visibility={task.visibility} />
+        </span>
+        {/* From lg up: a narrow row gives this room to the title. */}
+        <span className="hidden w-28 lg:flex">
+          {task.statusSince && !task.isPending ? (
             <TaskStatusAge
               status={task.status}
               statusSince={task.statusSince}
               stuckOnly
             />
-          </span>
-        ) : null}
+          ) : null}
+        </span>
         <TaskStatusBadge
           status={task.status}
           label={statusLabels?.[task.status]}
