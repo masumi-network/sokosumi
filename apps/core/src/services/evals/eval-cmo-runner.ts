@@ -12,6 +12,7 @@ import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
+import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import {
   approveMarketingStrategy,
@@ -442,6 +443,49 @@ export async function prepareCmoChatCase(
       },
       update: skipped,
     });
+    // The numbers for that search and its neighbours, as keyword research
+    // stored them: the case then needs no paid research to reach the refusal.
+    const cuso = await findCusoForBot(lane.cusoBotId);
+    if (cuso) {
+      const market = await cmoSeoMarket(cuso);
+      const key = `calendly alternative|${market.countryCode}|${market.languageCode}`;
+      const research = {
+        payload: {
+          topic: "calendly alternative",
+          countryCode: market.countryCode,
+          languageCode: market.languageCode,
+          ideas: [
+            ["calendly alternative", 9900, 45],
+            ["free calendly alternative", 2400, 38],
+            ["open source scheduling software", 880, 22],
+            ["scheduling software for teams", 1300, 41],
+          ].map(([keyword, searchVolume, difficulty]) => ({
+            keyword,
+            searchVolume,
+            difficulty,
+            intent: "commercial",
+            cpc: null,
+          })),
+        },
+        observedAt: new Date(),
+      };
+      await prisma.projectSeoResearch.upsert({
+        where: {
+          projectId_kind_key: {
+            projectId: lane.cusoProjectId,
+            kind: "keyword_ideas",
+            key,
+          },
+        },
+        create: {
+          projectId: lane.cusoProjectId,
+          kind: "keyword_ideas",
+          key,
+          ...research,
+        },
+        update: research,
+      });
+    }
     return {};
   }
   if (setup !== "cmo-comments") return {};
