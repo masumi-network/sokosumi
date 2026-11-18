@@ -507,8 +507,15 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         write = mutate(turnId);
         write.catch(() => undefined);
         // The write must be queued behind the lock while its lease is live.
+        // Each phase also has its own monotonic deadline, so neither outlives
+        // the test if the write fails early or PostgreSQL's clock stalls.
+        const queueBy = performance.now() + 5_000;
         let queued = false;
-        while (!queued && (await databaseNow()).getTime() < leaseEnd) {
+        while (
+          !queued &&
+          performance.now() < queueBy &&
+          (await databaseNow()).getTime() < leaseEnd
+        ) {
           const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>`
             SELECT count(*)::int AS waiting FROM pg_stat_activity
             WHERE ${holderPid}::int = ANY(pg_blocking_pids(pid))
@@ -516,12 +523,13 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
           queued = waiting > 0;
         }
         expect(queued).toBe(true);
-        // Then the lease runs out while it waits; bounded in case the clock stalls.
-        const giveUpAt = Date.now() + 10_000;
-        while (
-          (await databaseNow()).getTime() <= leaseEnd &&
-          Date.now() < giveUpAt
-        ) {}
+        // Then the lease runs out while it waits.
+        const expireBy = performance.now() + 10_000;
+        let expired = false;
+        while (!expired && performance.now() < expireBy) {
+          expired = (await databaseNow()).getTime() > leaseEnd;
+        }
+        expect(expired).toBe(true);
       } finally {
         release.resolve();
         await Promise.allSettled([holder, write]);

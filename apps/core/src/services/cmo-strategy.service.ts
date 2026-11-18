@@ -23,6 +23,8 @@ import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
   brandBrainOpenFixes,
+  briefCarriesFix,
+  fixBriefLine,
   parseBrandBrain,
   requestBrandBrainFix,
   withdrawBrandBrainFix,
@@ -192,7 +194,8 @@ function newestStrategyTurn(sokoBotId: string) {
       clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
     },
     orderBy: { createdAt: "desc" },
-    select: TURN_ROW_SELECT,
+    // The brief: a fix turn's tells which fixes it carried.
+    select: { ...TURN_ROW_SELECT, userMessage: true },
   });
 }
 
@@ -419,12 +422,17 @@ export async function startNextCmoChange(
   if (open.length === 0) return null;
   const last = await newestStrategyTurn(cuso.sokoBotId);
   if (last && (await settledTurnStatus(last, now)) === "running") return null;
-  // The last fix turn was sent every fix asked up to the time in its id.
-  const sent =
+  // Nothing new for Cuso when the last fix turn's brief already told him
+  // every open fix: a fix it carried that is still open is not retried.
+  const lastBrief =
     last && cmoChangeKind(last.clientTurnId) === "fix"
-      ? Number(last.clientTurnId?.split(":").at(-1))
-      : Number.NaN;
-  if (open.every((fix) => Date.parse(fix.at) <= sent)) return null;
+      ? last.userMessage
+      : undefined;
+  if (
+    lastBrief !== undefined &&
+    open.every((fix) => briefCarriesFix(lastBrief, fix.section, fix.note))
+  )
+    return null;
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
   const newest = Math.max(...open.map((fix) => Date.parse(fix.at)));
@@ -616,9 +624,12 @@ function seasonLines(span: { start: string; end: string }): string[] {
  */
 function correctionLines(brain: BrandBrain): string[] {
   return [
-    ...brandBrainOpenFixes(brain).map(
-      (fix) =>
-        `- ${fix.section}: you wrote "${brain.profile[fix.section]?.answer ?? ""}". The owner's correction: ${fix.note}`,
+    ...brandBrainOpenFixes(brain).map((fix) =>
+      fixBriefLine(
+        fix.section,
+        brain.profile[fix.section]?.answer ?? "",
+        fix.note,
+      ),
     ),
     ...brandBrainCorrections(brain).map(
       (question) =>

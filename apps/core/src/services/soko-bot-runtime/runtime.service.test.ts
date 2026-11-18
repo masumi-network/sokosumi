@@ -11907,6 +11907,68 @@ describe("CMO record saves", () => {
     expect(upsert.create.body.profile.pricing.answer).toBe("From 9 dollars");
   });
 
+  it("closes a fix its turn's brief carried, whatever the fix's stored time", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000c2";
+    const pricing = {
+      answer: "From 9 dollars",
+      findings: [
+        { point: "From 9 dollars", evidence: "fact", confidence: "high" },
+      ],
+    };
+    // Stored before the clock switch by a host 5 minutes fast; the fix turn
+    // that carried it started at 10:00:01 by PostgreSQL's clock.
+    const fix = {
+      note: "From 19 dollars.",
+      at: "2026-11-10T10:05:00.000Z",
+      fixed: false,
+    };
+    const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({
+          createdAt: new Date("2026-11-10T10:00:01.000Z"),
+          userMessage: [
+            "Fix Acme's Brand Brain. The owner corrected what you wrote:",
+            `- pricing: you wrote "From 9 dollars". The owner's correction: ${fix.note}`,
+          ].join("\n"),
+        }),
+      },
+      brandBrain: {
+        findUnique: vi.fn().mockResolvedValue({
+          body: { profile: { pricing: { ...pricing, fix } } },
+        }),
+        upsert: vi.fn().mockResolvedValue({
+          id: "brain-1",
+          body: { profile: {} },
+          updatedAt: null,
+        }),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_brand_brain",
+      toolCallId: "brain",
+      input: {
+        sections: { pricing: { ...pricing, answer: "From 19 dollars" } },
+      },
+    });
+
+    const upsert = tx.brandBrain.upsert.mock.calls[0]?.[0];
+    expect(upsert.update.body.profile.pricing.fix).toEqual({
+      ...fix,
+      fixed: true,
+    });
+  });
+
   it("surfaces reveal-without-essentials as a tool validation error", async () => {
     const PROJECT = "01960001-0001-7001-8001-0000000000c2";
     const tx = {

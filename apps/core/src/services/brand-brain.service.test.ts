@@ -19,6 +19,7 @@ vi.mock(
 import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
+  fixBriefLine,
   requestBrandBrainFix,
   saveBrandBrain,
   saveStudioBrandCopy,
@@ -626,76 +627,66 @@ describe("Brand Brain fixes", () => {
     expect(brainUpdate).not.toHaveBeenCalled();
   });
 
+  /** The brief of a turn that was told about the pricing fix with `note`. */
+  const briefOf = (note: string) =>
+    [
+      "Fix Acme's Brand Brain.",
+      fixBriefLine("pricing", sixteen.pricing.answer, note),
+    ].join("\n");
+
+  const rewriteWithFix = (fix: { note: string; at: string }, brief: string) => {
+    brainFindUnique.mockResolvedValueOnce({
+      body: {
+        ...essentials,
+        profile: {
+          ...sixteen,
+          pricing: { ...sixteen.pricing, fix: { ...fix, fixed: false } },
+        },
+        questions: [],
+      },
+    });
+    return saveBrandBrain(
+      PROJECT_ID,
+      {
+        sections: {
+          pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
+        },
+      },
+      undefined,
+      { brief },
+    );
+  };
+  const pricingFix = () =>
+    brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix;
+
   it("keeps a correction open that came after the rewriting turn started", async () => {
-    const rewrite = (fixAt: string) => {
-      brainFindUnique.mockResolvedValueOnce({
-        body: {
-          ...essentials,
-          profile: {
-            ...sixteen,
-            pricing: {
-              ...sixteen.pricing,
-              fix: { note: "From 19 dollars.", at: fixAt, fixed: false },
-            },
-          },
-          questions: [],
-        },
-      });
-      return saveBrandBrain(
-        PROJECT_ID,
-        {
-          sections: {
-            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
-          },
-        },
-        undefined,
-        { briefedAt: new Date(asked) },
-      );
-    };
-    const fixOf = () =>
-      brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix;
-
     // In the turn's brief: the rewrite closes it.
-    await rewrite("2026-11-10T09:59:00.000Z");
-    expect(fixOf()).toMatchObject({ fixed: true });
+    await rewriteWithFix(
+      { note: "From 19 dollars.", at: asked },
+      briefOf("From 19 dollars."),
+    );
+    expect(pricingFix()).toMatchObject({ fixed: true });
 
-    // Asked while the turn wrote: the next change still has it.
-    await rewrite("2026-11-10T10:01:00.000Z");
-    expect(fixOf()).toMatchObject({ fixed: false });
+    // Added while the turn wrote: the next change still has it.
+    await rewriteWithFix(
+      { note: "From 19 dollars. Teams pay per seat.", at: asked },
+      briefOf("From 19 dollars."),
+    );
+    expect(pricingFix()).toMatchObject({ fixed: false });
   });
 
-  it("closes a fix asked before the turn started when the asking host runs 5 minutes ahead", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(asked).getTime() + 5 * 60_000);
-    try {
-      brainFindUnique.mockResolvedValueOnce({
-        body: { ...essentials, profile: sixteen, questions: [] },
-      });
-      await requestBrandBrainFix(PROJECT_ID, {
-        section: "pricing",
-        note: "From 19 dollars.",
-      });
-      const withFix = brainUpdate.mock.lastCall?.[0].data.body;
-      brainFindUnique.mockResolvedValueOnce({ body: withFix });
+  it("closes a fix stored before the clock switch whose time is ahead of the turn that carried it", async () => {
+    // Stamped by a host 5 minutes fast; the fix turn that carried it started
+    // at 10:00:01 by PostgreSQL's clock. What decides is the brief, not time.
+    await rewriteWithFix(
+      { note: "From 19 dollars.", at: "2026-11-10T10:05:00.000Z" },
+      briefOf("From 19 dollars."),
+    );
 
-      // The fix turn is created a second later, by PostgreSQL's clock.
-      await saveBrandBrain(
-        PROJECT_ID,
-        {
-          sections: {
-            pricing: { ...sixteen.pricing, answer: "From 19 dollars a month." },
-          },
-        },
-        undefined,
-        { briefedAt: new Date(new Date(asked).getTime() + 1_000) },
-      );
-
-      expect(
-        brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix,
-      ).toMatchObject({ at: asked, fixed: true });
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(pricingFix()).toMatchObject({
+      at: "2026-11-10T10:05:00.000Z",
+      fixed: true,
+    });
   });
 
   it("keeps a no open on its question while its section's fix stays open", async () => {
@@ -707,7 +698,7 @@ describe("Brand Brain fixes", () => {
       answer: "no" as const,
       corrected: false,
     };
-    const rewrite = (fixAt: string) => {
+    const rewrite = (brief: string) => {
       brainFindUnique.mockResolvedValueOnce({
         body: {
           ...essentials,
@@ -715,7 +706,7 @@ describe("Brand Brain fixes", () => {
             ...sixteen,
             pricing: {
               ...sixteen.pricing,
-              fix: { note: "Not true.", at: fixAt, fixed: false },
+              fix: { note: "Not true.", at: asked, fixed: false },
             },
           },
           questions: [no],
@@ -729,18 +720,18 @@ describe("Brand Brain fixes", () => {
           },
         },
         undefined,
-        { briefedAt: new Date(asked) },
+        { brief },
       );
     };
     const questionOf = () =>
       brainUpsert.mock.lastCall?.[0].update.body.questions[0];
 
     // Answered while the turn wrote: the turn never read it.
-    await rewrite("2026-11-10T10:01:00.000Z");
+    await rewrite("Fix Acme's Brand Brain.");
     expect(questionOf()).toMatchObject({ corrected: false });
 
     // In the turn's brief: the rewrite corrects it.
-    await rewrite("2026-11-10T09:59:00.000Z");
+    await rewrite(briefOf("Not true."));
     expect(questionOf()).toMatchObject({ corrected: true });
   });
 
