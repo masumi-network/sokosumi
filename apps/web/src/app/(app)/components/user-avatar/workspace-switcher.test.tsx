@@ -286,6 +286,31 @@ describe("workspace switcher", () => {
     });
   });
 
+  it("replaces to the projects list when current route is inside a project", async () => {
+    // A Project belongs to one workspace: staying on it after a switch shows a 404.
+    pathnameMock = "/projects/project-7/bots";
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: "org-1",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/projects");
+      expect(refreshMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("keeps an open Audit in the address after a switch on the SEO page", async () => {
     pathnameMock = "/seo";
     window.history.replaceState(

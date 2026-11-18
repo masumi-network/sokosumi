@@ -35,6 +35,11 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
+/** A Project belongs to one workspace; after a switch its pages are a 404. */
+export function getProjectDetailBasePath(pathname: string): string | null {
+  return /^\/projects\/[^/]+(?:\/.*)?$/.test(pathname) ? "/projects" : null;
+}
+
 /**
  * An Audit and a Project belong to one workspace, so the selection in the SEO
  * page's query does not survive a switch. An open Audit stays in the address
@@ -163,6 +168,17 @@ export async function switchOrganizationWorkspace(
     if (taskDetailBasePath) {
       runRouterTransition(() => {
         options.router?.replace(taskDetailBasePath);
+        refreshUnlessRendered();
+      }, options.startTransition);
+      return;
+    }
+  }
+
+  if (options?.router && options?.pathname) {
+    const projectDetailBasePath = getProjectDetailBasePath(options.pathname);
+    if (projectDetailBasePath) {
+      runRouterTransition(() => {
+        options.router?.replace(projectDetailBasePath);
         refreshUnlessRendered();
       }, options.startTransition);
       return;

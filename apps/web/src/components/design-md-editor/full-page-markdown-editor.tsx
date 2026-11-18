@@ -88,7 +88,18 @@ export function FullPageMarkdownEditor({
 
   return (
     <>
-      <div className={cn("flex h-full min-h-0 flex-col", className)}>
+      {/*
+        The app's main column grows with its content, so h-full bounds
+        nothing: the editor grew to the whole file, its toolbar scrolled away
+        and text ran under the footer. This is the main column's height (the
+        header's 4rem, or the phone's 5rem top padding, plus p-4).
+      */}
+      <div
+        className={cn(
+          "flex h-[calc(100dvh-6rem-env(safe-area-inset-top))] min-h-0 flex-col",
+          className,
+        )}
+      >
         <header className="border-b px-4 py-4 sm:px-6">
           <h1 className="font-semibold text-lg tracking-tight sm:text-xl">
             {labels.title}
@@ -96,13 +107,14 @@ export function FullPageMarkdownEditor({
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:divide-x">
+          <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:grid-rows-1 lg:divide-x">
             <div className="flex min-h-0 flex-col overflow-hidden p-4 sm:p-6">
               <MarkdownEditor
                 value={value}
                 onChange={onValueChange}
+                ariaLabel={labels.title}
                 className="flex h-full min-h-0 flex-col"
-                editorClassName="max-h-none min-h-0 flex-1"
+                editorClassName="h-full max-h-none"
               />
             </div>
             <div className="app-scrollbar min-h-0 overflow-y-auto p-4 sm:p-6">
@@ -129,8 +141,9 @@ export function FullPageMarkdownEditor({
               <MarkdownEditor
                 value={value}
                 onChange={onValueChange}
+                ariaLabel={labels.title}
                 className="flex h-full min-h-0 flex-col"
-                editorClassName="max-h-none min-h-0 flex-1"
+                editorClassName="h-full max-h-none"
               />
             </TabsContent>
             <TabsContent
