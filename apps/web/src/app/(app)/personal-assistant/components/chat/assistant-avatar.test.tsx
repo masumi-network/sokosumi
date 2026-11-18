@@ -15,6 +15,7 @@ describe("AssistantAvatar", () => {
     const face = screen.getByRole("img", { name: "avatarAlt" });
     expect(face).toHaveAttribute("src", "https://blob/avatar.webp");
     expect(face.className).toContain("object-cover");
+    expect(face.className).not.toContain("ring-1");
     expect(document.querySelector("video")).toBeNull();
   });
 
