@@ -120,8 +120,9 @@ function browseListKey(
 ) {
   return `${query}|${state}|${projects
     .map(
+      // A close's status changes without touching the project itself.
       (project) =>
-        `${project.id}:${project.updatedAt}:${project.starredAt ?? ""}`,
+        `${project.id}:${project.updatedAt}:${project.starredAt ?? ""}:${JSON.stringify(project.closeStatus ?? null)}`,
     )
     .join("|")}`;
 }

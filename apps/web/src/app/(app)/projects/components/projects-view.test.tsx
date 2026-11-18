@@ -45,7 +45,8 @@ vi.mock("use-debounce", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key} ${JSON.stringify(values)}` : key,
 }));
 
 vi.mock("@/app/projects/actions", () => ({
@@ -387,6 +388,86 @@ describe("ProjectsView empty states", () => {
       expect(panel.firstElementChild).toHaveClass("flex-1");
       unmount();
     }
+  });
+});
+
+describe("ProjectsView closing cards", () => {
+  const closing = {
+    ...project,
+    closingAt: new Date("2026-09-18T10:00:00.000Z"),
+    closedAt: null,
+  };
+
+  // A refresh can change only what the close still owes, or fail it, while
+  // the project itself (id, updatedAt, Pin) stays the same.
+  it("follows a refreshed close status when nothing else changed", () => {
+    const { rerender } = renderView({
+      projects: [
+        {
+          ...closing,
+          closeStatus: { state: "CLOSING", owedOccurrenceCount: 2 },
+        },
+      ],
+    });
+    expect(screen.getByText('remaining {"count":2}')).toBeInTheDocument();
+
+    const props = {
+      nextCursor: null,
+      query: "",
+      state: "open" as const,
+      initialCreateProjectOpen: false,
+      createProjectModalResetKey: "false",
+      labels,
+    };
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSING", owedOccurrenceCount: 1 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('remaining {"count":1}')).toBeInTheDocument();
+
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSE_FAILED", owedOccurrenceCount: 1 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("failedBadge")).toBeInTheDocument();
+    expect(screen.queryByText("badge")).not.toBeInTheDocument();
+
+    // A failed read shows the badge alone; the next good read brings the
+    // line back.
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[{ ...closing, closeStatus: null }]}
+      />,
+    );
+    expect(screen.getByText("badge")).toBeInTheDocument();
+    expect(screen.queryByText("failed")).not.toBeInTheDocument();
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSING", owedOccurrenceCount: 0 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('remaining {"count":0}')).toBeInTheDocument();
   });
 });
 
