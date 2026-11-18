@@ -30,6 +30,7 @@ import {
   fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
+  getCmoChatWorkForProject,
   getCmoCompetitorsForProject,
   getCmoOverviewForProject,
   getCmoSeoForProject,
@@ -77,6 +78,7 @@ import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
 import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
+import type { ChatWork } from "../lib/chat-work";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
 import { lastCusoCookie } from "../lib/last-cuso";
@@ -468,6 +470,19 @@ export async function loadPieceText(
     path: { projectId, id: entryId },
   });
   return data?.data.text ?? null;
+}
+
+/**
+ * The pictures, videos and voice-overs Cuso started in chat, each as it
+ * stands now. Empty when Core cannot say, so the chat still shows.
+ */
+export async function loadChatWork(projectId: string): Promise<ChatWork[]> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkForProject({
+    ...core,
+    path: { projectId },
+  });
+  return data?.data.items ?? [];
 }
 
 /** Overview and messages in one go, for the app's polling. */

@@ -89,9 +89,9 @@ export const REFERENCE_STYLE_MODELS = [
  * A styled picture the style check turned down keeps its finished job (it
  * was paid for) and says so in the job's error, which this starts.
  */
-const REJECTED = "Style check: ";
+export const CMO_STYLE_REJECTED = "Style check: ";
 /** A chat picture that passed keeps that on its job, so it is judged once. */
-const PASSED = "Style passed";
+export const CMO_STYLE_PASSED = "Style passed";
 
 const LIVE = new Set<ProjectImageJobStatus>([
   ProjectImageJobStatus.PENDING,
@@ -390,7 +390,7 @@ export async function listCmoMediaJobs(
         status: row.status,
         assetId: row.asset?.id ?? null,
         prompt: row.prompt,
-        rejected: row.error?.startsWith(REJECTED) ?? false,
+        rejected: row.error?.startsWith(CMO_STYLE_REJECTED) ?? false,
       },
     ];
   });
@@ -880,7 +880,7 @@ async function checkAndBrand(
     await prisma.projectImageJob.update({
       where: { id: job.id },
       data: {
-        error: `${REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
+        error: `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
       },
       select: { id: true },
     });
@@ -918,10 +918,13 @@ export async function finishCmoChatPicture(input: {
   | { passed: false; problems: string }
 > {
   const { job, drive } = input;
-  if (job.error?.startsWith(REJECTED))
-    return { passed: false, problems: job.error.slice(REJECTED.length) };
+  if (job.error?.startsWith(CMO_STYLE_REJECTED))
+    return {
+      passed: false,
+      problems: job.error.slice(CMO_STYLE_REJECTED.length),
+    };
   const finished =
-    job.error === PASSED
+    job.error === CMO_STYLE_PASSED
       ? null
       : await checkAndBrand(
           input,
@@ -939,8 +942,8 @@ export async function finishCmoChatPicture(input: {
     });
     return {
       passed: false,
-      problems: row?.error?.startsWith(REJECTED)
-        ? row.error.slice(REJECTED.length)
+      problems: row?.error?.startsWith(CMO_STYLE_REJECTED)
+        ? row.error.slice(CMO_STYLE_REJECTED.length)
         : "the picture or its reference could not be read",
     };
   }
@@ -965,7 +968,7 @@ export async function finishCmoChatPicture(input: {
       return { passed: false, problems: "its file could not be saved" };
     await prisma.projectImageJob.update({
       where: { id: job.id },
-      data: { error: PASSED },
+      data: { error: CMO_STYLE_PASSED },
       select: { id: true },
     });
   }

@@ -3416,6 +3416,50 @@ button.cal-card:hover {
   margin: 0;
 }
 
+/* What Cuso makes in the chat: a frame that waits, then the file itself. */
+.made {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.made-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  text-align: center;
+}
+
+.made-frame .note {
+  margin: 0;
+}
+
+.made-media {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.made-audio {
+  display: block;
+  width: 100%;
+}
+
 .sheet-head > span:not(.sheet-steps) {
   flex: 1;
   min-width: 0;

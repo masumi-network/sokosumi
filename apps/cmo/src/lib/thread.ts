@@ -1,6 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import type { CusoMessage } from "./chat-messages";
+import type { ChatWork } from "./chat-work";
 import { strategyApproved } from "./strategy";
 
 type Update = CmoOverview["updates"][number];
@@ -9,7 +10,8 @@ type Update = CmoOverview["updates"][number];
  * One item in the chat thread. Messages come from the chat with Cuso; cards
  * come from what Cuso saved (Brand Brain, strategy, reports) and from the
  * owner's own steps (approval). Nothing here is invented: every card is a
- * record in Core.
+ * record in Core. What Cuso makes in chat (a picture, a video, a
+ * voice-over) sits where he started it, and fills in once it is made.
  */
 export type ThreadItem =
   | { kind: "message"; at: string; message: CusoMessage }
@@ -19,6 +21,7 @@ export type ThreadItem =
   | { kind: "strategy"; at: string }
   | { kind: "connect"; at: string }
   | { kind: "production"; at: string }
+  | { kind: "work"; at: string; work: ChatWork }
   | { kind: "update"; at: string; update: Update };
 
 function iso(value: Date | string | null | undefined): string | null {
@@ -35,6 +38,7 @@ function iso(value: Date | string | null | undefined): string | null {
 export function buildThread(
   overview: CmoOverview,
   messages: CusoMessage[],
+  work: ChatWork[] = [],
 ): ThreadItem[] {
   // A report is a message in the room; it shows as its card below.
   const reports = new Set(overview.updates.map((update) => update.id));
@@ -90,6 +94,10 @@ export function buildThread(
   for (const update of overview.updates) {
     if (update.kind === "production") continue;
     items.push({ kind: "update", at: iso(update.at) ?? created, update });
+  }
+  for (const made of work) {
+    const at = iso(made.at) ?? created;
+    if (!hired || at > hired) items.push({ kind: "work", at, work: made });
   }
   // Stable: cards built at the same moment keep the order pushed above.
   return items

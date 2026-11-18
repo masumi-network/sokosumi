@@ -56100,6 +56100,77 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoChatWorkSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChatWorkItem'
+            }
+        }
+    },
+    required: [
+        'items'
+    ]
+} as const;
+
+export const CmoChatWorkItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'The tool call that started it.'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video',
+                'audio'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'making',
+                'ready',
+                'failed'
+            ],
+            description: 'making until the file exists; failed when it never will.'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Cuso started it.'
+        },
+        title: {
+            type: 'string',
+            description: 'What was asked for: the prompt, or the words spoken.'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the finished file plays from; null until it is ready.'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'state',
+        'at',
+        'title',
+        'url'
+    ]
+} as const;
+
 export const CmoCompetitorsSchema = {
     type: 'object',
     properties: {

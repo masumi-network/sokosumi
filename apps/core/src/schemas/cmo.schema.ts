@@ -207,6 +207,27 @@ export const cmoPieceTextSchema = z
   .object({ text: z.string() })
   .openapi("CmoPieceText");
 
+export const cmoChatWorkItemSchema = z
+  .object({
+    id: z.string().describe("The tool call that started it."),
+    kind: z.enum(["image", "video", "audio"]),
+    state: z
+      .enum(["making", "ready", "failed"])
+      .describe("making until the file exists; failed when it never will."),
+    at: dateTimeSchema.describe("When Cuso started it."),
+    title: z
+      .string()
+      .describe("What was asked for: the prompt, or the words spoken."),
+    url: z
+      .union([z.string(), z.null()])
+      .describe("Where the finished file plays from; null until it is ready."),
+  })
+  .openapi("CmoChatWorkItem");
+
+export const cmoChatWorkSchema = z
+  .object({ items: z.array(cmoChatWorkItemSchema) })
+  .openapi("CmoChatWork");
+
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
 
