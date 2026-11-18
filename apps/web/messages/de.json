@@ -12893,7 +12893,15 @@
         "action": "Aktion",
         "kind": "Art",
         "status": "Status",
-        "csvLabel": "CSV herunterladen: {table}"
+        "csvLabel": "CSV herunterladen: {table}",
+        "table": "In eine Tabelle kopieren",
+        "tableLabel": "In eine Tabelle kopieren: {table}",
+        "tableTitle": "{table} · {site} · {date}",
+        "tableDescription": "Aus SEO kopiert am {date}. Ein Schnappschuss: Er ändert sich nicht, wenn SEO erneut prüft.",
+        "tableCopied": "{count, plural, one {# Keyword in eine neue Tabelle kopiert.} other {# Keywords in eine neue Tabelle kopiert.}}",
+        "openTable": "Tabelle öffnen",
+        "tableFailed": "Die Tabelle ist noch nicht vollständig. Drücke erneut auf „In eine Tabelle kopieren“, um sie fertigzustellen.",
+        "list": "Liste"
       },
       "datePresets": {
         "label": "Schnellauswahl",
