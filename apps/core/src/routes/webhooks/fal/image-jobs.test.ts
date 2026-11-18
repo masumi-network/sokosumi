@@ -133,6 +133,8 @@ describe("fal completion callback", () => {
       JOB_ID,
       "https://v3b.fal.media/files/a.png",
       { width: 1344, height: 768 },
+      // The request the media answers: a talking video's row carries two.
+      REQUEST_ID,
     );
     expect(failImageJobMock).not.toHaveBeenCalled();
   });
