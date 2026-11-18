@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
-import { Check, Copy, WandSparkles } from "lucide-react";
+import { Bot, Check, Copy } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -464,7 +464,7 @@ function StrategyActionBody({
             );
           }}
         >
-          <WandSparkles />
+          <Bot />
           {t("agent.askHow")}
         </Button>
       ) : null}

@@ -18,7 +18,7 @@ import {
   MessageCircle,
   Phone,
   Send,
-  Sparkles,
+  Zap,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ComponentProps, ComponentType } from "react";
@@ -285,10 +285,7 @@ export function ListChip({
       <span className="truncate">{name}</span>
       {automatic ? (
         <>
-          <Sparkles
-            aria-hidden
-            className="text-muted-foreground size-3 shrink-0"
-          />
+          <Zap aria-hidden className="text-muted-foreground size-3 shrink-0" />
           <span className="sr-only">
             {t("addedAutomatically", { list: name })}
           </span>
