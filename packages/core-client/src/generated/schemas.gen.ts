@@ -61238,6 +61238,9 @@ export const ProjectSeoIndexAssessmentSchema = {
                 maxLength: 2000
             },
             maxItems: 20
+        },
+        publicEvidenceAvailable: {
+            type: 'boolean'
         }
     },
     required: [

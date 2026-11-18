@@ -73,7 +73,10 @@ export function projectSeoMetricsRow(
   }
   // A verdict belongs to one page, so any sync that inspected a selected page counts.
   if (data.indexedPages)
-    out.indexSources.push({ at: row.observedAt, pages: data.indexedPages });
+    out.indexSources.push({
+      at: data.collectedAt ? new Date(data.collectedAt) : row.observedAt,
+      pages: data.indexedPages,
+    });
   // Distinct-user totals cannot be sliced or added from an incompatible page group.
   if (
     data.pageUrls.length !== selectedUrls.size ||

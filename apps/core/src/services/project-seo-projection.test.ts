@@ -1229,6 +1229,23 @@ describe("stored SEO workspace projections", () => {
         checkedAt: "2026-11-03T12:00:00.000Z",
       }),
     ]);
+    // Selecting the older report again changes its activation time, not Google's read time.
+    const reactivated = searchObservation(input, "2026-11-04T12:00:00Z");
+    input.observations.unshift({
+      ...reactivated,
+      pageIds: wide.pageIds,
+      payload: {
+        ...wide.payload,
+        observedAt: reactivated.observedAt.toISOString(),
+        collectedAt: wide.observedAt.toISOString(),
+      },
+    });
+    expect(projectSeoProjection(input).indexStatus?.pages).toEqual([
+      expect.objectContaining({
+        verdict: "FAIL",
+        checkedAt: newest.observedAt.toISOString(),
+      }),
+    ]);
   });
 
   it("keeps a Task linked from an observation outside the selected scope", () => {
