@@ -1,0 +1,58 @@
+.color[data-tag-color="gray"] {
+  --tag-accent: var(--chart-5);
+}
+.color[data-tag-color="red"] {
+  --tag-accent: var(--status-destructive);
+}
+.color[data-tag-color="orange"] {
+  --tag-accent: var(--chart-2);
+}
+.color[data-tag-color="yellow"] {
+  --tag-accent: var(--chart-3);
+}
+.color[data-tag-color="green"] {
+  --tag-accent: var(--status-success);
+}
+.color[data-tag-color="teal"] {
+  --tag-accent: color-mix(in oklab, var(--status-success), var(--status-info));
+}
+.color[data-tag-color="blue"] {
+  --tag-accent: var(--status-info);
+}
+.color[data-tag-color="purple"] {
+  --tag-accent: color-mix(in oklab, var(--status-info), var(--chart-1));
+}
+.color[data-tag-color="pink"] {
+  --tag-accent: var(--chart-1);
+}
+
+.badge {
+  background-color: color-mix(
+    in oklab,
+    var(--tag-accent) 14%,
+    var(--background)
+  );
+  color: var(--foreground);
+}
+.dot {
+  background-color: var(--tag-accent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--foreground) 25%, transparent);
+}
+
+/* The disk samples RGB colors. Its mathematical endpoints stay fixed across themes. */
+.wheel {
+  background-image:
+    linear-gradient(rgb(0 0 0 / var(--wheel-shade)) 0 100%),
+    radial-gradient(closest-side in srgb, white, transparent),
+    conic-gradient(
+      from 90deg in srgb,
+      red,
+      yellow,
+      lime,
+      cyan,
+      blue,
+      magenta,
+      red
+    );
+}

@@ -1,12 +1,13 @@
 "use client";
 
-import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
+import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 import {
   Building2,
   CircleDashed,
   Eye,
   Hourglass,
   Sparkles,
+  Tag,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -33,6 +34,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { useWorkspaceTags } from "@/queries/workspace-tags";
+import { TaskTagDot } from "./task-tag-colors";
 
 /**
  * Focuses the first visible toolbar button outside the chip list. A removed
@@ -78,6 +81,29 @@ export function TasksViewFilters({
   labels,
 }: TasksViewFiltersProps) {
   const t = useTranslations("App.Tasks.Filters");
+  const tTags = useTranslations("App.Tasks.Tags");
+  const workspaceTags = useWorkspaceTags(activeOrganizationId, {
+    includeArchived: true,
+  });
+  const tagOptions = useMemo(
+    () => [
+      ...Array.from(workspaceTags.data ?? [])
+        .sort((a, b) => Number(a.archived) - Number(b.archived))
+        .map((tag) => ({
+          mark: <TaskTagDot {...tag} />,
+          value: tag.id,
+          label: tag.displayName,
+          group: tag.archived ? t("archivedTags") : t("workspaceTags"),
+        })),
+      ...Object.values(TaskTagId).map((id) => ({
+        mark: <TaskTagDot id={id} />,
+        value: id,
+        label: tTags(`vocabulary.${id}`),
+        group: t("topicTags"),
+      })),
+    ],
+    [t, tTags, workspaceTags.data],
+  );
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -241,6 +267,16 @@ export function TasksViewFilters({
       ),
     });
 
+    nextSections.push({
+      id: "tag",
+      label: tTags("label"),
+      icon: Tag,
+      value: filters.tag ?? null,
+      allLabel: labels.all,
+      onChange: (tag) => handleFilterChange({ tag: tag ?? undefined }),
+      options: tagOptions,
+    });
+
     return nextSections;
   }, [
     activeOrganizationId,
@@ -257,6 +293,8 @@ export function TasksViewFilters({
     labels.statusOptions,
     labels.visibilityLabel,
     labels.visibilityPrivate,
+    tTags,
+    tagOptions,
   ]);
 
   const me = coworkerOptions.find(
@@ -293,6 +331,14 @@ export function TasksViewFilters({
         assigneeUserId: null,
       },
     },
+    filters.tag && {
+      id: "tag",
+      label: tTags("label"),
+      value:
+        tagOptions.find((option) => option.value === filters.tag)?.label ??
+        t("workspaceTags"),
+      clear: { tag: undefined },
+    },
     filters.status && {
       id: "status",
       label: labels.statusLabel,
@@ -312,6 +358,12 @@ export function TasksViewFilters({
                 key={chip.id}
                 className="bg-muted text-foreground inline-flex min-w-0 items-center rounded-full ps-3 text-sm"
               >
+                {chip.id === "tag" && filters.tag && (
+                  <span className="me-1.5 flex">
+                    {tagOptions.find((item) => item.value === filters.tag)
+                      ?.mark ?? <TaskTagDot id={filters.tag} />}
+                  </span>
+                )}
                 <span className="truncate">{name}</span>
                 <ChipRemoveButton
                   aria-label={t("removeFilter", { filter: name })}

@@ -19,6 +19,7 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 
@@ -91,6 +92,8 @@ const memoryVersion =
   )?.version ?? 0;
 
 const turnId = randomUUID();
+// Runtime authorization compares the turn's times with PostgreSQL's clock.
+const turnNow = (await databaseNow()).getTime();
 await prisma.sokoBotContextSnapshot.create({
   data: {
     id: randomUUID(),
@@ -119,8 +122,9 @@ await prisma.sokoBotContextSnapshot.create({
         status: "RUNNING",
         classification: { confidence: 1 },
         capabilityNames: [...SOKO_BOT_CAPABILITIES],
-        deadlineAt: new Date(Date.now() + 20 * 60_000),
-        leaseExpiresAt: new Date(Date.now() + 20 * 60_000),
+        createdAt: new Date(turnNow),
+        deadlineAt: new Date(turnNow + 20 * 60_000),
+        leaseExpiresAt: new Date(turnNow + 20 * 60_000),
       },
     },
   },

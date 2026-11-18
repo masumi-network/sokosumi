@@ -18,6 +18,15 @@ export function parseDriveFilePathname(
   pathname: string,
   userId: string,
 ): ParsedDriveFilePathname {
+  // Blob reads rebuild the pathname as a URL, which drops tabs and newlines,
+  // reads "\" as "/" and resolves "." and ".." (also as %2e). Any of those
+  // would let the path pass the checks below as the caller's own and still
+  // read another owner's file.
+  const segments = pathname.replace(/[\t\n\r]/g, "").split(/[/\\]/);
+  if (segments.some((s) => s === "" || /^(\.|%2e){1,2}$/i.test(s))) {
+    throw unprocessableEntity("Invalid pathname format");
+  }
+
   const userPrefix = buildUserDriveFilePrefix(userId);
   const isUserFile = pathname.startsWith(userPrefix);
 

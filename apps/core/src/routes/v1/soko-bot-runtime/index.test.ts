@@ -20,6 +20,9 @@ const service = vi.hoisted(() => ({
   sandboxFileSource: vi.fn(),
   startSandboxTurn: vi.fn(),
 }));
+// PostgreSQL's clock is the test clock here, unless a test takes it down.
+const databaseNow = vi.hoisted(() => vi.fn(async () => new Date()));
+vi.mock("@/lib/db/database-now", () => ({ databaseNow }));
 vi.mock("@/services/soko-bot-sandbox-turn.service", () => service);
 
 const { default: runtimeRouter } = await import("./index");
@@ -95,6 +98,24 @@ describe("POST /turns/:turnId/fail with the runner's diagnostic", () => {
 
     expect(response.status).toBe(401);
     expect(service.failSandboxTurn).not.toHaveBeenCalled();
+  });
+
+  it("rejects a bad token without the database, even while it is down", async () => {
+    databaseNow.mockClear();
+    databaseNow.mockRejectedValueOnce(new Error("Database unavailable"));
+    try {
+      const response = await post(
+        "/fail",
+        { ...exited, diagnostic: startFailed },
+        { [SOKO_BOT_TURN_TOKEN_HEADER]: token(OTHER_TURN_ID) },
+      );
+
+      expect(response.status).toBe(401);
+      expect(databaseNow).not.toHaveBeenCalled();
+    } finally {
+      databaseNow.mockReset();
+      databaseNow.mockImplementation(async () => new Date());
+    }
   });
 
   it.each([

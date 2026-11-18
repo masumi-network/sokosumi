@@ -6,6 +6,7 @@ import { TaskStatus } from "@sokosumi/core-client";
 
 import { getTasksListPage } from "./tasks-list-page";
 
+const WORKSPACE_TAG_ID = "12345678-1234-7123-8123-123456789abc";
 const listTasksMock = vi.fn();
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 
@@ -88,6 +89,7 @@ describe("getTasksListPage", () => {
       assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
+      tag: WORKSPACE_TAG_ID,
       visibility: null,
       coworkersById: new Map(),
       personalAssistantFallback: "Personal assistant",
@@ -103,6 +105,7 @@ describe("getTasksListPage", () => {
       assigneeSokoBotId: undefined,
       assigneeUserId: undefined,
       projectId: PROJECT_ID,
+      workspaceTagId: WORKSPACE_TAG_ID,
       cursor: null,
       limit: 2,
     });

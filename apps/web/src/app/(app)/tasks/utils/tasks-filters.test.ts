@@ -7,6 +7,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  getTaskTagQuery,
   hasActiveTasksFilters,
   hasClearableTasksFilters,
   parseTasksFilters,
@@ -375,7 +376,7 @@ describe("tasks-filters", () => {
         "org-1",
       ),
     ).toBe(
-      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:all:any",
+      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:all:any:all",
     );
   });
 
@@ -572,6 +573,34 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
         "org-1",
       ),
     ).toEqual({ ...defaults, projectId: PROJECT_ID });
+  });
+
+  it.each([
+    ["research", { topicTagId: "research" }],
+    [PROJECT_ID, { workspaceTagId: PROJECT_ID }],
+  ])(
+    "preserves tag %s across URL, Core query and filter reset",
+    (tag, query) => {
+      const initial = new URLSearchParams({ tag, projectId: PROJECT_ID });
+      const filters = getTasksFiltersFromSearchParams(initial, "org-1", []);
+      expect(getTaskTagQuery(filters.tag)).toEqual(query);
+      expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+      const cleared = clearTasksFilters(filters, "org-1");
+      expect(getTasksFiltersResetKey(filters, "org-1")).not.toBe(
+        getTasksFiltersResetKey(cleared, "org-1"),
+      );
+      expect(
+        buildTasksFiltersSearchParams(initial, cleared, "org-1").toString(),
+      ).toBe(`projectId=${PROJECT_ID}`);
+    },
+  );
+
+  it("drops malformed tag identifiers before sending a Core query", () => {
+    expect(
+      parseTasksFilters({ tag: "build me a tag" }, null).tag,
+    ).toBeUndefined();
+    expect(getTaskTagQuery(["qa"])).toEqual({});
+    expect(getTaskTagQuery("12345678-1234-1234-1234-123456789abc")).toEqual({});
   });
 
   it("reads, writes and clears the Stuck filter", () => {
