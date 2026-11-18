@@ -8,6 +8,14 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. Core
 - **The OAuth provider re-runs the hooks.** Once a sign-in sets the session cookie during an OAuth request, `@better-auth/oauth-provider` resumes `/oauth2/authorize` through every before and after hook, with `newSession` still set. A hook that reads `newSession` must expect that resumed call, and a hook that sets the session cookie must skip `/oauth2/authorize`, or the provider resumes again without end and the sign-in never answers.
 - **Test the whole hook chain.** OAuth provider tests wire `afterNewSession` (the ordered after hook), never a single step: a test with one helper misses the resume loop. On a preview the loop shows as an endless spinner with only the CORS preflight in Core's logs and no client callback.
 
+## Auth rate limits
+
+Better Auth uses Core's Redis client for per-IP, per-endpoint counters. An atomic increment starts the endpoint's fixed window on the first request. Sessions and verification values use PostgreSQL.
+
+The limiter fails open when Redis is unavailable, following Core's chat read budget. It sets `rateLimit.failOpen` on the request's wide event at its normal severity. The cause is the error class or `redis_not_configured` when there is no Redis URL, as supported in local development and tests. The edge auth flood guard provides the first layer of throttling in production.
+
+Follow-up for the 2026-11-08 incident (SOKOSUMI-CORE-4Y). Drop the Prisma `RateLimit` model and table in a separate migration after all deployments and their rollback targets have stopped using the table.
+
 ## Session cookie cache
 
 - **A Core write to a session field does not reach the UI at once.** Core caches the session in a cookie for `BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE` (5 minutes by default), and a Prisma write such as `PATCH /v1/users/{id}/preferences` does not refresh that cookie. The route returns 200, but `useSession()` keeps the old value until the cache expires. For a change the UI must show now, write with `authClient.updateUser`, or switch the active organization with `auth.api.setActiveOrganization`.

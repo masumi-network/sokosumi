@@ -1141,7 +1141,7 @@ describe("core auth config", () => {
     );
   });
 
-  it("uses uuid database ids and database-backed rate limits", async () => {
+  it("uses UUID database IDs and joins", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1156,9 +1156,6 @@ describe("core auth config", () => {
           experimental?: {
             joins: boolean;
           };
-          rateLimit: {
-            storage: string;
-          };
         },
       ]
     >;
@@ -1166,7 +1163,6 @@ describe("core auth config", () => {
     expect(config.advanced.database.generateId).toBe("uuid");
     expect(config.advanced.database.joins).toBe(true);
     expect(config.experimental).toBeUndefined();
-    expect(config.rateLimit.storage).toBe("database");
   });
 
   it("defines user additional fields for auth parity", async () => {

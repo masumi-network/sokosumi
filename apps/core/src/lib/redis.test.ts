@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getEnvMock, redisCtor } = vi.hoisted(() => ({
+const { getEnvMock, redisCtor, on } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   redisCtor: vi.fn(),
+  on: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -11,6 +12,8 @@ vi.mock("@/config/env", () => ({
 
 vi.mock("ioredis", () => ({
   default: class Redis {
+    on = on;
+
     constructor(url: string) {
       redisCtor(url);
     }
@@ -74,5 +77,6 @@ describe("getRedisClient", () => {
     const { getRedisClient } = await import("./redis");
     expect(getRedisClient()).not.toBeNull();
     expect(redisCtor).toHaveBeenCalledWith("redis://primary");
+    expect(on).toHaveBeenCalledWith("error", expect.any(Function));
   });
 });

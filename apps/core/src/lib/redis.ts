@@ -18,6 +18,8 @@ export function getRedisClient(): Redis | null {
 
   if (cachedClient === undefined) {
     cachedClient = new Redis(url);
+    // Callers handle command failures. Keep reconnect events out of stderr.
+    cachedClient.on("error", () => {});
   }
 
   return cachedClient;
