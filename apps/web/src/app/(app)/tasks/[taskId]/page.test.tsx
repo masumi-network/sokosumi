@@ -394,6 +394,19 @@ describe("TaskDetailPage", () => {
       expect(getTaskByIdMock).toHaveBeenCalledWith(TASK_UUID);
     });
 
+    // Same text as the page heading, so the tab never shows Markdown marks.
+    it("strips inline Markdown from the title like the heading does", async () => {
+      getTaskByIdMock.mockResolvedValue({
+        id: "task_1",
+        name: "**Weekly** `brief` for [Spring](https://example.com)",
+      });
+      const { generateMetadata } = await import("./page");
+
+      await expect(
+        generateMetadata({ params: Promise.resolve({ taskId: TASK_UUID }) }),
+      ).resolves.toEqual({ title: "Weekly brief for Spring" });
+    });
+
     it("keeps the default title when the task cannot be read", async () => {
       getTaskByIdMock.mockResolvedValueOnce(null);
       getTaskByIdMock.mockRejectedValueOnce(new Error("Core down"));

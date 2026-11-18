@@ -183,6 +183,12 @@ for (const { name: size, ...viewport } of PROJECTS) {
         "a board card shows an empty tags line",
       );
       await card.click();
+      // Opening a task moves focus to its heading, so a screen reader reads
+      // the task name even when the streamed tab title is late.
+      await page.waitForFunction((name) => {
+        const el = document.activeElement;
+        return el?.tagName === "H1" && el.textContent === name;
+      }, LONG_NAME);
 
       await page.getByRole("button", { name: "Archive", exact: true }).click();
       await page.waitForURL(`${BASE_URL}/tasks`);

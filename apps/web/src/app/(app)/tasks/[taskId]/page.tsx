@@ -14,11 +14,12 @@ import { MarkNotificationsRead } from "@/components/notifications/mark-notificat
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { getPrivateCachedSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import { isUuidString } from "@/lib/utils/uuid";
 
 /**
- * The task's name as the tab title, which is also what a screen reader
- * announces when the task opens. Same private-cached read as the page.
+ * The task's name as the tab title, as plain text like the page heading.
+ * Same private-cached read as the page.
  */
 export async function generateMetadata({
   params,
@@ -27,7 +28,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { taskId } = await params;
   const task = await getPrivateCachedTask(taskId).catch(() => null);
-  return task ? { title: task.name } : {};
+  return task ? { title: stripInlineMarkdown(task.name) } : {};
 }
 
 export default async function TaskDetailPage({
