@@ -48,11 +48,17 @@ export function TaskListItem({
     // status and the people, and leaves tags, dates and the comment count
     // to the wide one, so the title keeps its room.
     "flex items-center gap-3 text-xs",
-    "bg-background rounded-lg border border-border px-3 transition-colors",
+    // The list draws the surface and the hairlines. A row lifted out of it
+    // by a drag brings its own box.
+    "px-3 transition-colors",
+    // Inside the row: the list clips at its rounded edge, so a ring drawn
+    // outside the row would lose its sides.
+    "focus-visible:outline-ring focus-visible:outline-2 focus-visible:-outline-offset-2",
     compact ? "py-1.5" : "py-2.5",
     "hover:bg-accent",
     "press content-in",
-    (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
+    (dragHandleProps?.isDragging || isOverlay) &&
+      "bg-senary border-border rounded-lg border shadow-sm",
   );
   const row = (
     <>
@@ -64,13 +70,17 @@ export function TaskListItem({
       </span>
       <span
         className={cn(
-          "line-clamp-1 min-w-0 text-sm font-medium",
+          // The title takes the room the columns leave, so every column
+          // after it starts at the same place in every row.
+          "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
           hasName ? "text-foreground" : "text-muted-foreground",
         )}
       >
         {hasName ? task.name : t("noTitle")}
       </span>
-      <span className="hidden min-w-0 shrink-[2] lg:flex">
+      {/* A column of its own, kept on a row with no tags, so the tags line
+          up. It shows only where the title still has room beside it. */}
+      <span className="hidden w-36 shrink-0 overflow-x-clip 2xl:flex">
         <TaskTags
           tags={task.tags}
           showManualTopics={!compact}
@@ -81,24 +91,30 @@ export function TaskListItem({
         />
       </span>
 
-      <span className="ms-auto flex shrink-0 items-center gap-4">
-        <TaskPrivateIndicator visibility={task.visibility} />
-        {task.statusSince && !task.isPending ? (
-          <TaskStatusAge
-            status={task.status}
-            statusSince={task.statusSince}
-            stuckOnly
-          />
-        ) : null}
+      <span className="flex shrink-0 items-center gap-3">
+        {/* The small marks share one column. */}
+        <span className="flex w-9 items-center justify-end gap-1">
+          <TaskPrivateIndicator visibility={task.visibility} />
+        </span>
+        {/* From lg up: a narrow row gives this room to the title. */}
+        <span className="hidden w-28 lg:flex">
+          {task.statusSince && !task.isPending ? (
+            <TaskStatusAge
+              status={task.status}
+              statusSince={task.statusSince}
+              stuckOnly
+            />
+          ) : null}
+        </span>
         <TaskStatusBadge
           status={task.status}
           label={statusLabels?.[task.status]}
-          className="w-28 lg:w-36"
+          className="w-32 lg:w-40"
           plain
         />
         {/* One date, as on a board card: a scheduled Task says when it
             starts, and that it is late only once it is. */}
-        <span className="hidden w-44 items-center gap-2 lg:flex">
+        <span className="hidden w-44 items-center gap-2 xl:flex">
           {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
           {task.dueOn ? (
             <TaskDueBadge
@@ -119,7 +135,7 @@ export function TaskListItem({
             participants={task.participants}
           />
         </span>
-        <span className="text-muted-foreground hidden w-8 items-center gap-1 lg:flex">
+        <span className="text-muted-foreground hidden w-8 items-center gap-1 xl:flex">
           {task.commentsCount > 0 ? (
             <>
               <MessageSquare className="size-3.5" aria-hidden />
