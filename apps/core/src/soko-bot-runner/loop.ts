@@ -4,7 +4,11 @@ import {
   stepCountIs,
   type ToolSet,
 } from "ai";
-import { streamModelCall } from "../lib/soko-bot/stream-model-call";
+import {
+  REASONING_SUMMARY_OPTIONS,
+  stepReasoningSummary,
+  streamModelCall,
+} from "../lib/soko-bot/stream-model-call";
 import { endedByTool, toolEndedTurn } from "../lib/soko-bot/turn-parts";
 import { compactHistory } from "./history";
 import {
@@ -19,12 +23,6 @@ import {
   TIME_UP_PROMPT,
 } from "./rounds";
 
-/** Each provider's switch for a returned reasoning summary; others ignore it. */
-const REASONING_SUMMARY_OPTIONS = {
-  openai: { reasoningSummary: "auto" },
-  google: { thinkingConfig: { includeThoughts: true } },
-};
-
 export interface TurnLoopInput {
   model: LanguageModel;
   system: string;
@@ -35,13 +33,14 @@ export interface TurnLoopInput {
   /** Epoch ms by which the turn must have answered. */
   deadline: number;
   stopped: AbortSignal;
+  /** Told each step's reasoning summary as the step ends, when it has one. */
+  onReasoning?: (summary: string) => Promise<void>;
   now?: () => number;
 }
 
 export interface TurnLoopResult {
   text: string;
   finishReason: string;
-  steps: { reasoningText?: string | undefined }[];
 }
 
 /**
@@ -62,7 +61,6 @@ export async function runTurnLoop(
   const timeUp = () => input.background && now() >= reportAt;
   let messages: ModelMessage[] = [{ role: "user", content: input.message }];
   let stepsLeft = input.maxSteps;
-  const steps: TurnLoopResult["steps"] = [];
   let text = "";
   let finishReason = "";
   let idleRounds = 0;
@@ -80,15 +78,18 @@ export async function runTurnLoop(
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
       providerOptions: REASONING_SUMMARY_OPTIONS,
+      onStepFinish: async (step) => {
+        const summary = stepReasoningSummary(step);
+        if (summary) await input.onReasoning?.(summary);
+      },
       abortSignal: signal(),
       maxRetries: 1,
     });
-    steps.push(...result.steps);
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
     const ended = toolEndedTurn(result.steps);
-    if (ended) return { text: ended, finishReason: result.finishReason, steps };
+    if (ended) return { text: ended, finishReason: result.finishReason };
     text =
       result.text ||
       (result.steps.findLast((step) => step.text.trim())?.text ?? "");
@@ -134,6 +135,5 @@ export async function runTurnLoop(
   return {
     text: input.background ? reportText(text) : text,
     finishReason,
-    steps,
   };
 }

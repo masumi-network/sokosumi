@@ -671,22 +671,32 @@ async function settleAndStop(log: RuntimeEventLog): Promise<void> {
   await stopTurnSandbox(log.turnId);
 }
 
+/**
+ * One model step's reasoning summary, kept on the turn as it arrives so the
+ * chat shows it while the bot works. It is the provider's own summary, never
+ * raw chain of thought; the event projection redacts and bounds it before it
+ * is stored.
+ */
+export async function recordSandboxReasoning(
+  claims: TurnTokenClaims,
+  text: string,
+): Promise<void> {
+  await authorizeTurn(claims);
+  const summary = text.trim();
+  if (!summary) return;
+  await logFor(claims).append(
+    runtimeEvent("reasoning.completed", { text: summary }),
+  );
+}
+
 /** The loop finished: build the owner's answer and settle. */
 export async function completeSandboxTurn(
   claims: TurnTokenClaims,
-  input: { text: string; finishReason: string; reasoning?: string },
+  input: { text: string; finishReason: string },
 ): Promise<void> {
   const authorized = await authorizeTurn(claims);
   const log = logFor(claims);
   try {
-    // The provider's own summary, never raw chain of thought. The event
-    // projection redacts and bounds it before it is stored.
-    const reasoning = input.reasoning?.trim();
-    if (reasoning) {
-      await log.append(
-        runtimeEvent("reasoning.completed", { text: reasoning }),
-      );
-    }
     await finishTurn({
       log,
       turnId: claims.turnId,

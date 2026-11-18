@@ -26,7 +26,11 @@ import {
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
-import { streamModelCall } from "@/lib/soko-bot/stream-model-call";
+import {
+  REASONING_SUMMARY_OPTIONS,
+  stepReasoningSummary,
+  streamModelCall,
+} from "@/lib/soko-bot/stream-model-call";
 import { withTurnSkills } from "@/services/chat-message-skills.service";
 import {
   evaluationBinding,
@@ -148,14 +152,20 @@ async function runTurn(
       offered: ToolSet = tools,
     ) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
+      const request = sokoBotModelRequest({
+        role: "agent",
+        model: turn.model,
+        inferenceRegion: turn.inferenceRegion,
+        purpose,
+      });
       const result = await withEvaluationTurn(input.turnId, () =>
         streamModelCall({
-          ...sokoBotModelRequest({
-            role: "agent",
-            model: turn.model,
-            inferenceRegion: turn.inferenceRegion,
-            purpose,
-          }),
+          ...request,
+          // The provider's reasoning summary, as the sandbox runner asks for.
+          providerOptions: {
+            ...REASONING_SUMMARY_OPTIONS,
+            ...request.providerOptions,
+          },
           system: turn.system,
           messages: [{ role: "user", content: message }],
           tools: offered,
@@ -167,6 +177,12 @@ async function runTurn(
               model: turn.model,
               role: "agent",
             });
+            const reasoning = stepReasoningSummary(step);
+            if (reasoning) {
+              await log.append(
+                runtimeEvent("reasoning.completed", { text: reasoning }),
+              );
+            }
             await log.append(
               runtimeEvent("step.completed", {
                 modelId: turn.model,
