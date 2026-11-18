@@ -291,7 +291,8 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     expectNear(turn.createdAt, now.getTime());
     expectNear(turn.reconcilerHeartbeatAt, now.getTime());
     expectNear(turn.leaseExpiresAt, now.getTime() + 16 * MINUTE);
-    expectNear(turn.deadlineAt, now.getTime() + 60 * MINUTE);
+    // A preset route is not a person asking: the 15-minute deadline.
+    expectNear(turn.deadlineAt, now.getTime() + 15 * MINUTE);
   });
 
   it("lets a sandbox call through on a live turn when the host runs 2 minutes ahead", async () => {
