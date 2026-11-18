@@ -2,6 +2,7 @@
 
 import { TaskStatus } from "@sokosumi/core-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import {
   SUBTASK_LIST_LIMIT,
   type SubtaskRow,
@@ -102,6 +103,13 @@ export function useTaskSubtasks({
     },
     initialData: initialRows,
   });
+  // A cached list outlives the page: back on it, or after a refresh, the
+  // server's rows are newer. A change in flight keeps its optimistic order.
+  useEffect(() => {
+    const key = taskSubtasksQueryKey(parentTaskId);
+    if (queryClient.isMutating({ mutationKey: key }) === 0)
+      queryClient.setQueryData(key, initialRows);
+  }, [queryClient, parentTaskId, initialRows]);
 
   // Changes overlap: a quick second toggle starts before the first settles.
   const lastInFlight = () =>

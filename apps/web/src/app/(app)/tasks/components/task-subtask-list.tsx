@@ -12,7 +12,13 @@ import {
 import { TaskStatus } from "@sokosumi/core-client";
 import { GripVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
@@ -37,6 +43,8 @@ interface TaskSubtaskListProps {
   readOnly: boolean;
   /** False at the deepest level, where Core refuses another sub-task. */
   canAdd: boolean;
+  /** Core's count of every sub-task, for when the list shows only the first page. */
+  progress: { completed: number; total: number };
 }
 
 /**
@@ -49,6 +57,7 @@ export function TaskSubtaskList({
   initialRows,
   readOnly,
   canAdd,
+  progress,
 }: TaskSubtaskListProps) {
   const t = useTranslations("App.Tasks.Subtasks");
   const tTasks = useTranslations("App.Tasks");
@@ -70,22 +79,32 @@ export function TaskSubtaskList({
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
   const handles = useRef(new Map<string, HTMLButtonElement>());
+  // Set by a move; focused once the moved row is in its new place.
+  const movedId = useRef<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const ids = rows.map((row) => row.id);
-  const completed = rows.filter(
-    (row) => row.status === TaskStatus.COMPLETED,
-  ).length;
+  const truncated = rows.length >= SUBTASK_LIST_LIMIT;
+  const order = ids.join();
+
+  // Runs when the order changes.
+  useEffect(() => {
+    // React moves the row's node, which can drop focus on the way.
+    if (movedId.current) handles.current.get(movedId.current)?.focus();
+    movedId.current = null;
+  }, [order]);
 
   function moveTo(id: string, next: string[]) {
     if (next === ids) return;
+    movedId.current = id;
     move(id, next);
-    setAnnouncement(
-      t("movedTo", { position: next.indexOf(id) + 1, total: next.length }),
-    );
-    // React moves the row's node, which can drop focus on the way.
-    requestAnimationFrame(() => handles.current.get(id)?.focus());
+    const text = t("movedTo", {
+      position: next.indexOf(id) + 1,
+      total: next.length,
+    });
+    // Same text twice is not read again; a trailing space makes it new.
+    setAnnouncement((current) => (current === text ? `${text}\u00A0` : text));
   }
 
   function moveBy(id: string, step: -1 | 1) {
@@ -142,7 +161,18 @@ export function TaskSubtaskList({
         >
           {t("title")}
         </h2>
-        <TaskSubtaskProgress progress={{ completed, total: rows.length }} />
+        <TaskSubtaskProgress
+          progress={
+            truncated
+              ? progress
+              : {
+                  completed: rows.filter(
+                    (row) => row.status === TaskStatus.COMPLETED,
+                  ).length,
+                  total: rows.length,
+                }
+          }
+        />
       </div>
       {rows.length > 0 ? (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -166,12 +196,13 @@ export function TaskSubtaskList({
           </ol>
         </DndContext>
       ) : null}
-      {rows.length >= SUBTASK_LIST_LIMIT ? (
+      {truncated ? (
         <p className="text-muted-foreground text-xs">
           {t("truncated", { count: SUBTASK_LIST_LIMIT })}
         </p>
       ) : null}
-      {readOnly || !canAdd ? null : (
+      {/* Past the first page a new sub-task would land out of sight. */}
+      {readOnly || !canAdd || truncated ? null : (
         <form onSubmit={handleAdd}>
           <Input
             value={draftName}

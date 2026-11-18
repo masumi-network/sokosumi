@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SubtaskRow } from "@/app/tasks/utils/task-subtask-row";
+import {
+  SUBTASK_LIST_LIMIT,
+  type SubtaskRow,
+} from "@/app/tasks/utils/task-subtask-row";
 import { TaskSubtaskList } from "./task-subtask-list";
 
 const setTaskStatusFromDrag = vi.hoisted(() => vi.fn());
@@ -42,22 +45,28 @@ function row(id: string, overrides: Partial<SubtaskRow> = {}): SubtaskRow {
   };
 }
 
-function renderList(rows: SubtaskRow[]) {
+function renderList(
+  rows: SubtaskRow[],
+  progress = { completed: 0, total: rows.length },
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   // The refetch after a change answers with what the server would hold.
   getTasks.mockImplementation(async () => ({ data: [] }));
-  render(
+  const list = (initialRows: SubtaskRow[]) => (
     <QueryClientProvider client={queryClient}>
       <TaskSubtaskList
         parentTaskId="parent"
-        initialRows={rows}
+        initialRows={initialRows}
         readOnly={false}
         canAdd
+        progress={progress}
       />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const { rerender } = render(list(rows));
+  return { rerender: (next: SubtaskRow[]) => rerender(list(next)) };
 }
 
 function rowNames() {
@@ -151,6 +160,31 @@ describe("TaskSubtaskList", () => {
     fireEvent.submit(input);
 
     await waitFor(() => expect(input).toHaveValue("Book the venue"));
+  });
+
+  it("shows the server's rows when the page renders again", async () => {
+    const { rerender } = renderList([row("a")]);
+
+    rerender([row("a", { status: TaskStatus.COMPLETED }), row("b")]);
+
+    await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
+    expect(
+      screen.getByRole("checkbox", { name: "toggleLabel a" }),
+    ).toBeChecked();
+  });
+
+  it("counts every sub-task and offers no add past the first page", () => {
+    renderList(
+      Array.from({ length: SUBTASK_LIST_LIMIT }, (_, index) =>
+        row(`r${index}`),
+      ),
+      { completed: 7, total: 140 },
+    );
+
+    expect(screen.getByText("progressLabel 7 140")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "add" }),
+    ).not.toBeInTheDocument();
   });
 
   it("reopens a person's done sub-task to Ready without asking", async () => {

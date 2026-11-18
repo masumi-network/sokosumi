@@ -44,6 +44,7 @@ export async function TaskSubtaskSection({
       )}
       readOnly={readOnly}
       canAdd={canAdd}
+      progress={task.subtaskProgress}
     />
   );
 }
