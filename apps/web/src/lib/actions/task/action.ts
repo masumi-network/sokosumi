@@ -298,10 +298,11 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       });
 
       // Core parked it to wait for a person's instructions: its call stands
-      // over a run the form asked for. A Draft starts no run and still applies.
+      // over a run the form asked for. Any other status starts no run and still applies.
       const parked =
         patchedTask.status === TaskStatus.INPUT_REQUIRED &&
-        desiredStatus !== TaskStatus.DRAFT;
+        (desiredStatus === TaskStatus.READY ||
+          desiredStatus === TaskStatus.QUEUED);
       if (desiredStatus !== patchedTask.status && !parked) {
         await taskService.createTaskEvent(taskId, {
           status: desiredStatus,

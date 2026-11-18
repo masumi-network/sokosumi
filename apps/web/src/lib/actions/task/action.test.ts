@@ -839,35 +839,38 @@ describe("updateTask Run at", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("leaves a Task Core parked for instructions as Input required", async () => {
-    taskServiceMock.patchTask.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.INPUT_REQUIRED,
-    });
-    const { updateTask } = await import("./action");
+  it.each([TaskStatus.READY, TaskStatus.QUEUED])(
+    "leaves a Task Core parked for instructions over a %s run",
+    async (status) => {
+      taskServiceMock.patchTask.mockResolvedValue({
+        id: "task-1",
+        status: TaskStatus.INPUT_REQUIRED,
+      });
+      const { updateTask } = await import("./action");
 
-    const result = await updateTask({
-      ...baseInput,
-      desiredStatus: TaskStatus.READY,
-    });
+      const result = await updateTask({ ...baseInput, desiredStatus: status });
 
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ ok: true });
-  });
+      expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ ok: true });
+    },
+  );
 
-  it("still moves a parked Task to the Draft the form chose", async () => {
-    taskServiceMock.patchTask.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.INPUT_REQUIRED,
-    });
-    const { updateTask } = await import("./action");
+  it.each([TaskStatus.DRAFT, TaskStatus.CANCELED])(
+    "still moves a parked Task to the %s the form chose",
+    async (status) => {
+      taskServiceMock.patchTask.mockResolvedValue({
+        id: "task-1",
+        status: TaskStatus.INPUT_REQUIRED,
+      });
+      const { updateTask } = await import("./action");
 
-    await updateTask({ ...baseInput, desiredStatus: TaskStatus.DRAFT });
+      await updateTask({ ...baseInput, desiredStatus: status });
 
-    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
-      status: TaskStatus.DRAFT,
-    });
-  });
+      expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+        status,
+      });
+    },
+  );
 
   it("sends no Run at when none is given", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
