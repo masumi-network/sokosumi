@@ -84,6 +84,11 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   edit_ad_campaign: () => ({ updated: true }),
   delete_ad_campaign: () => ({ deleted: true }),
   handle_social_comment: () => ({ handled: true }),
+  // A paid check by the global SEO service; the case checks that Cuso asked.
+  check_search_rankings: () => ({
+    status: "started",
+    note: "The SEO specialist is checking now; it usually takes a few minutes. End your turn: tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. Core wakes you with it.",
+  }),
 };
 
 /** What a tool answers in an eval workspace instead of running; null runs it. */

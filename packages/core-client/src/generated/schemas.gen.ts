@@ -54953,6 +54953,642 @@ export const CmoCustomerPortalSchema = {
     ]
 } as const;
 
+export const CmoSeoSchema = {
+    type: 'object',
+    properties: {
+        websiteUrl: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        audit: {
+            $ref: '#/components/schemas/CmoSeoAudit'
+        },
+        searchConsole: {
+            $ref: '#/components/schemas/CmoSearchConsole'
+        },
+        articles: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        pageChanges: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        keywordSearches: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoKeywordSearch'
+            }
+        },
+        keywordSearchesLeft: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'websiteUrl',
+        'countryCode',
+        'languageCode',
+        'audit',
+        'searchConsole',
+        'articles',
+        'pageChanges',
+        'keywordSearches',
+        'keywordSearchesLeft'
+    ]
+} as const;
+
+export const CmoSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        creditsPerAudit: {
+            type: 'integer'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active',
+                'paused',
+                'not_started',
+                'unavailable'
+            ]
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        running: {
+            type: 'boolean'
+        },
+        skipped: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'date-time'
+            }
+        },
+        latest: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                observedAt: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                checked: {
+                    type: 'integer'
+                },
+                passed: {
+                    type: 'integer'
+                },
+                issues: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            severity: {
+                                type: 'string',
+                                enum: [
+                                    'critical',
+                                    'major',
+                                    'minor'
+                                ]
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'severity',
+                            'detail'
+                        ]
+                    }
+                },
+                fixes: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            why: {
+                                type: 'string'
+                            },
+                            effort: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'title',
+                            'why',
+                            'effort',
+                            'pageUrl'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'observedAt',
+                'checked',
+                'passed',
+                'issues',
+                'fixes'
+            ]
+        },
+        lastFailedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'creditsPerAudit',
+        'status',
+        'nextRunAt',
+        'running',
+        'skipped',
+        'latest',
+        'lastFailedAt'
+    ]
+} as const;
+
+export const CmoSearchConsoleSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'connected',
+                'not_connected',
+                'no_property',
+                'unavailable'
+            ]
+        },
+        property: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        from: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        to: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        totals: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                clicks: {
+                    type: 'number'
+                },
+                impressions: {
+                    type: 'number'
+                },
+                ctr: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                position: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'clicks',
+                'impressions',
+                'ctr',
+                'position'
+            ]
+        },
+        nearFirstPage: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    clicks: {
+                        type: 'number'
+                    },
+                    impressions: {
+                        type: 'number'
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ]
+            }
+        },
+        lowClickRate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    clicks: {
+                        type: 'number'
+                    },
+                    impressions: {
+                        type: 'number'
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ]
+            }
+        }
+    },
+    required: [
+        'status',
+        'property',
+        'from',
+        'to',
+        'observedAt',
+        'totals',
+        'nearFirstPage',
+        'lowClickRate'
+    ]
+} as const;
+
+export const CmoSeoSuggestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'article',
+                'page_change'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'audit',
+                'cuso'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        why: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        newText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        draft: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoEvidence'
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'verified',
+                'dismissed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        doneAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        verifiedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'source',
+        'title',
+        'keyword',
+        'pageUrl',
+        'why',
+        'body',
+        'newText',
+        'draft',
+        'evidence',
+        'status',
+        'createdAt',
+        'doneAt',
+        'verifiedAt'
+    ]
+} as const;
+
+export const CmoSeoEvidenceSchema = {
+    type: 'object',
+    properties: {
+        metric: {
+            type: 'string',
+            enum: [
+                'searchVolume',
+                'difficulty',
+                'intent',
+                'position',
+                'clicks',
+                'impressions',
+                'ctr',
+                'auditIssue'
+            ]
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        value: {
+            type: 'string'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'keyword_research',
+                'search_console',
+                'weekly_audit'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'metric',
+        'keyword',
+        'pageUrl',
+        'value',
+        'source',
+        'observedAt'
+    ]
+} as const;
+
+export const CmoKeywordSearchSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        ideas: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoKeywordIdea'
+            }
+        }
+    },
+    required: [
+        'topic',
+        'countryCode',
+        'languageCode',
+        'observedAt',
+        'ideas'
+    ]
+} as const;
+
+export const CmoKeywordIdeaSchema = {
+    type: 'object',
+    properties: {
+        keyword: {
+            type: 'string'
+        },
+        searchVolume: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        difficulty: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        intent: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'informational',
+                'navigational',
+                'commercial',
+                'transactional',
+                null
+            ]
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        positionSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'search_console',
+                'weekly_audit',
+                null
+            ]
+        }
+    },
+    required: [
+        'keyword',
+        'searchVolume',
+        'difficulty',
+        'intent',
+        'position',
+        'positionSource'
+    ]
+} as const;
+
+export const CmoKeywordSearchRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 80
+        }
+    },
+    required: [
+        'topic'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CmoSeoSuggestionStatusRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'dismissed'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ],
+    additionalProperties: false
+} as const;
+
 export const CmoAdBudgetRequestSchema = {
     type: 'object',
     properties: {

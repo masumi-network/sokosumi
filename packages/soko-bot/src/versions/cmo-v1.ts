@@ -34,6 +34,7 @@ export const cmoV1: SokoBotVersion = {
     "cmo-production",
     "cmo-daily-watch",
     "cmo-measurement",
+    "cmo-seo",
     "cmo-launch-video",
     "social-posting-instructions",
     "long-and-chained-work-follow-ups",

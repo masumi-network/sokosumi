@@ -643,6 +643,8 @@ describe("pages", () => {
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
+        openSeo={() => {}}
+        connectSearchConsole={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -658,6 +660,8 @@ describe("pages", () => {
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
+        openSeo={() => {}}
+        connectSearchConsole={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -675,6 +679,8 @@ describe("pages", () => {
           connect={async () => ({ url: null, error: null })}
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );

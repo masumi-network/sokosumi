@@ -214,26 +214,6 @@ describe("cmoPlanProblems", () => {
     expect(problems).toMatch(/experiment is missing/);
   });
 
-  it("asks for a comparison page among the seo articles", () => {
-    const articles = [
-      { ...entry("a", "seo", "article"), title: "How to mint an NFT" },
-      { ...entry("b", "seo", "article"), title: "NFT fees explained" },
-    ];
-    expect(cmoPlanProblems(plan({ calendar: articles })).join("\n")).toMatch(
-      /none of the 2 seo articles is a comparison page/,
-    );
-    expect(
-      cmoPlanProblems(
-        plan({
-          calendar: [
-            ...articles,
-            { ...entry("c", "seo", "article"), title: "NMKR vs Mintable" },
-          ],
-        }),
-      ).join("\n"),
-    ).not.toMatch(/comparison page/);
-  });
-
   it("names titles, facts and phrases the calendar repeats", () => {
     const titled = (id: string, date: string, title: string) => ({
       ...entry(id, "instagram", "image post"),

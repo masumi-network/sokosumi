@@ -101,7 +101,7 @@ export async function isCmoSubscribed(
  * counts until the period ends; past due and ended do not), and Tester
  * credits not used up.
  */
-async function cmoPaidFor(
+export async function cmoPaidFor(
   projectId: string,
   now: Date,
   db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,

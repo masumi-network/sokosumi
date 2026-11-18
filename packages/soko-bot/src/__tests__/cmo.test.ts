@@ -339,12 +339,18 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    const saved = cmoSaveStrategyInputSchema.parse(plan("website", "article"));
-    expect(saved.strategy.channels[0]?.channel).toBe("seo");
+    const saved = cmoSaveStrategyInputSchema.parse(plan("twitter", "thread"));
+    expect(saved.strategy.channels[0]?.channel).toBe("x");
     expect(saved.strategy.calendar[0]).toMatchObject({
-      channel: "seo",
-      format: "article",
+      channel: "x",
+      format: "reply",
     });
+    // SEO has its own tab: a strategy never plans an article or a page fix.
+    const seo = cmoSaveStrategyInputSchema.safeParse(
+      plan("website", "article"),
+    );
+    expect(seo.success).toBe(false);
+    expect(seo.error?.issues[0]?.message).toContain("Use a channel Cuso runs");
     expect(
       cmoSaveStrategyInputSchema.parse(plan("linkedin", "carousel")).strategy
         .calendar[0]?.format,
