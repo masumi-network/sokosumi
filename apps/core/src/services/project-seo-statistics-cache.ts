@@ -52,6 +52,9 @@ export async function withAutomaticSeoStatistics<T>(
       entity: integration.entityId,
       revision: integration.connectionRevision,
       provider: input.provider,
+      ...(input.provider === "ga4" &&
+        input.channel !== "ai_assistant" &&
+        !actor.sokoBotId && { landingOutcomeVersion: 1 }),
       propertyId: input.propertyId,
       pageUrls: [...context.pageUrls].sort(),
       from: input.from,

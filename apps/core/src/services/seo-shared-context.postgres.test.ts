@@ -24,7 +24,9 @@ import { sha256 } from "./project-seo-store";
 import {
   createSeoAudit,
   getSeoAuditWorkspaceMapping,
+  listSeoAudits,
 } from "./seo-audit.service";
+import { deleteSeoAudit } from "./seo-audit-deletion";
 import { listSeoChat, sendSeoChat } from "./seo-chat.service";
 import { disconnectSeoConnection } from "./seo-connection-oauth.service";
 import {
@@ -327,6 +329,25 @@ describe.skipIf(!enabled)(
         where: { id: { in: [firstUserId, secondUserId, foreignUserId] } },
       });
       await prisma.$disconnect();
+    });
+
+    it("limits removal of a workspace audit to the member who created it", async () => {
+      const { actor, other } = await audit("Creator deletion");
+      const id = actor.owner.id;
+      const summary = (await listSeoAudits(other, {})).audits.find(
+        (item) => item.id === id,
+      );
+      expect(summary?.canDelete).toBe(false);
+      await expect(deleteSeoAudit(other, id)).rejects.toMatchObject({
+        status: 403,
+      });
+      await expect(deleteSeoAudit(outsider, id)).rejects.toMatchObject({
+        status: 404,
+      });
+      await deleteSeoAudit(actor, id);
+      await expect(
+        getSeoAuditWorkspaceMapping(other.userId, id),
+      ).rejects.toMatchObject({ status: 404 });
     });
 
     it("shares new organization measurements and authored chat across current members without transferring account access", async () => {

@@ -36,6 +36,8 @@ function createDatabaseProject(
     contextMdUpdatingSince: null,
     contextMdVersion: 0,
     websiteUrl: null,
+    presenterFileId: null,
+    presenterConsentAt: null,
     sitePlatform: null,
     logo: null,
     studioLogoPosition: null,

@@ -35,6 +35,7 @@ export interface TaskCardData
     | "participants"
     | "commentsCount"
     | "tags"
+    | "workspaceTags"
     | "runAt"
     | "dueOn"
     | "statusSince"
@@ -115,9 +116,14 @@ export function TaskCard({
             </TaskDetailLink>
           )}
         </h3>
+        <TaskTags
+          tags={task.tags}
+          showManualTopics={!compact}
+          workspaceTags={task.workspaceTags}
+          compact={compact}
+        />
         {!compact && (
           <>
-            <TaskTags tags={task.tags} />
             {task.project ? (
               <Link
                 href={`/projects/${task.project.id}`}

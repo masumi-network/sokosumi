@@ -21,6 +21,10 @@ const prisma = vi.hoisted(() => {
     socialPost: { create: vi.fn().mockResolvedValue({ id: "post-1" }) },
   };
 });
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({ default: prisma }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn().mockResolvedValue({ id: "cuso-1" }),

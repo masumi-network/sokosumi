@@ -218,6 +218,7 @@ export function mapTaskToTaskWithCoworker(
         : getCommentsCount(task.events),
     columnId: getColumnId(task.status),
     tags: task.tags,
+    workspaceTags: task.workspaceTags,
     description: task.description ?? null,
     descriptionPlain,
     events: "events" in task ? task.events : [],

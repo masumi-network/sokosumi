@@ -83,7 +83,11 @@ export async function requireSeoOwner(
   await requireSeoWorkspace(actor, client);
   if (actor.owner.kind === "audit") {
     const audit = await client.seoAudit.findFirst({
-      where: { id: actor.owner.id, workspaceId: actor.workspaceId },
+      where: {
+        id: actor.owner.id,
+        workspaceId: actor.workspaceId,
+        deletedAt: null,
+      },
       select: { id: true, projectId: true, name: true },
     });
     if (!audit) throw notFound("SEO audit not found");
@@ -140,7 +144,11 @@ export async function requireLockedSeoOwner(
     throw notFound("SEO workspace not found");
   if (actor.owner.kind === "audit") {
     const audit = await client.seoAudit.findFirst({
-      where: { id: actor.owner.id, workspaceId: actor.workspaceId },
+      where: {
+        id: actor.owner.id,
+        workspaceId: actor.workspaceId,
+        deletedAt: null,
+      },
       select: { projectId: true },
     });
     if (!audit) throw notFound("SEO audit not found");
@@ -151,7 +159,7 @@ export async function requireLockedSeoOwner(
       throw notFound("Linked Project not found");
     const rows = await client.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "seo_audit"
-      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid
+      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid AND "deletedAt" IS NULL
       FOR UPDATE
     `;
     if (!rows.length) throw notFound("SEO audit not found");
