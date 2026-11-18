@@ -338,8 +338,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const parksForInstructions =
         (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&
         (nextAssigneeId ?? nextAssigneeSokoBotId) !== null &&
-        // New instructions in the description are what parking asks for.
-        description === undefined &&
         // A new agent, or its own agent's Task queued again.
         (nextStatus !== task.status ||
           nextAssigneeId !== task.assigneeId ||

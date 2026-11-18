@@ -910,7 +910,8 @@ describe("PATCH /tasks/{id}", () => {
       });
     });
 
-    it("does not park it when the same PATCH writes new instructions", async () => {
+    it("parks it when the edit form sends the description along", async () => {
+      // The Web form sends every field, changed or not.
       taskEventCountMock.mockResolvedValue(0);
 
       const response = await createApp().request("http://localhost/tsk_123", {
@@ -918,12 +919,14 @@ describe("PATCH /tasks/{id}", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assigneeId: "cow_123",
-          description: "Use the March figures",
+          description: "Same as before",
         }),
       });
 
       expect(response.status).toBe(200);
-      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+        TaskStatus.INPUT_REQUIRED,
+      );
     });
 
     it("keeps it Ready when a person commented after the reopen", async () => {
