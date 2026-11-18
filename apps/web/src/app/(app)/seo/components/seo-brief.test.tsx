@@ -194,6 +194,53 @@ it("sends only the selected goal reference when the reader starts a full audit",
   }
 });
 
+it("explains why a rankings check cannot save a draft, then keeps the draft private when returning to a full audit", async () => {
+  const user = userEvent.setup();
+  const execute = vi.fn().mockResolvedValue(true);
+  const review = {
+    ...model(fixture),
+    analysisKind: "audit_full" as const,
+    reviewGoal: {
+      scopeKey: "audit-scope",
+      pageId: page.id,
+      revision: fixture.revision,
+      action: "buy" as const,
+      changed: true,
+      share: true,
+    },
+    execute,
+    operationKey: () => "7aef7be8-3fcb-488f-84d8-35283331c737",
+  };
+  render(<SeoAnalysisDialog model={review} />, { wrapper });
+  const checkbox = screen.getByRole("checkbox", { name: /Guide · Buy/ });
+  expect(checkbox).toBeChecked();
+  await user.click(checkbox);
+  await user.click(screen.getByRole("button", { name: "Change options" }));
+  const kind = screen.getByRole("combobox", { name: "Check type" });
+  await user.click(kind);
+  await user.click(
+    await screen.findByRole("option", { name: "Keyword positions" }),
+  );
+  const hint = messages.App.Seo.setup.goal.unsupportedCheck;
+  expect(screen.getByText(hint)).toBeVisible();
+  expect(screen.queryByRole("checkbox", { name: /Guide · Buy/ })).toBeNull();
+  await user.click(kind);
+  await user.click(await screen.findByRole("option", { name: "Full audit" }));
+  expect(screen.queryByText(hint)).toBeNull();
+  expect(
+    screen.getByRole("checkbox", { name: /Guide · Buy/ }),
+  ).not.toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Start check" }));
+  expect(execute).toHaveBeenCalledOnce();
+  const body = execute.mock.calls[0][0].body;
+  expect(body.setupGoal).toEqual({
+    pageId: page.id,
+    expectedRevision: fixture.revision,
+    action: "buy",
+  });
+  expect(body).not.toHaveProperty("sharedBrief");
+});
+
 it("shows the ranked sales or support page on Actions and its advice in the matching action", async () => {
   const user = userEvent.setup();
   const price = {

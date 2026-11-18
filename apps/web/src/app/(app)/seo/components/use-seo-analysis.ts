@@ -3,7 +3,7 @@ import type { CreateProjectSeoMonitorRequest } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { selectedBriefPages } from "./seo-brief-model";
+import { briefForReview, selectedBriefPages } from "./seo-brief-model";
 import {
   allowedSeoAnalysisKinds,
   analysisSeoBody,
@@ -66,10 +66,24 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     );
   }
   const kind = kinds.find((value) => value === chosenKind) ?? "page_check";
+  const choice =
+    !monitor && (kind === "audit_full" || kind === "page_check")
+      ? model.reviewGoal
+      : null;
+  const brief = model.brief?.data;
+  const staleGoal = Boolean(
+    choice &&
+      choice.revision !== brief?.revision &&
+      (choice.changed || (kind === "audit_full" && choice.share)),
+  );
+  const reviewGoal =
+    choice && choice.revision === brief?.revision ? choice : null;
+  const reviewBrief = briefForReview(brief, reviewGoal);
   const serviceAvailable = monitor
     ? model.data.availableActions.canCreateMonitor === true
     : model.data.availableActions.canRequestAnalysis;
   async function submit(form: FormData) {
+    if (staleGoal) return;
     if (!serviceAvailable) {
       toast.error(
         t(monitor ? "monitor.unavailable" : "analysis.serviceUnavailable"),
@@ -113,9 +127,19 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
       }
       const sharedBrief =
         kind === "audit_full"
-          ? selectedBriefPages(form, model.brief?.data, workspace.scope.pageIds)
+          ? selectedBriefPages(form, reviewBrief, workspace.scope.pageIds)
           : undefined;
-      const request = sharedBrief ? { ...body, sharedBrief } : body;
+      const request = {
+        ...body,
+        ...(reviewGoal?.changed && {
+          setupGoal: {
+            pageId: reviewGoal.pageId,
+            expectedRevision: reviewGoal.revision,
+            action: reviewGoal.action,
+          },
+        }),
+        ...(sharedBrief && { sharedBrief }),
+      };
       await model.execute(
         {
           kind: "request_analysis",
@@ -143,6 +167,9 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const requirements = seoAnalysisRequirements(kind, modules);
   return {
     kind,
+    reviewBrief,
+    reviewGoal,
+    staleGoal,
     kinds,
     serviceAvailable,
     canUsePaidSearchData,

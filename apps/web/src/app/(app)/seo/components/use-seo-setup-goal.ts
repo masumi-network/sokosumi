@@ -1,17 +1,10 @@
-import { useRef, useState } from "react";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import {
-  type BriefPage,
-  briefDraft,
-  briefPage,
-  canSetBriefPage,
-  changeBriefPage,
-} from "./seo-brief-model";
+import { useState } from "react";
+import { type BriefPage, briefPage, canSetBriefPage } from "./seo-brief-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 type Action = BriefPage["action"];
 
-/** Setup edits only this page's desired action. The paid check has its own review and submit. */
+/** Setup keeps an edit local. Only the final launch can write the brief or start the check. */
 export function useSeoSetupGoal(
   model: SeoWorkspaceModel,
   pageId: string,
@@ -27,92 +20,46 @@ export function useSeoSetupGoal(
     data && Number.isInteger(data.revision) && !atPageLimit ? data : undefined;
   const saved = briefPage(brief?.pages ?? [], pageId);
   const [choice, setChoice] = useState<{
+    pageId: string;
     revision: number;
     action: Action;
     share: boolean;
   } | null>(null);
-  const current = choice?.revision === brief?.revision ? choice : null;
+  // The parent keys setup by viewer, workspace and page selection. A brief revision also invalidates its consent.
+  const current =
+    choice?.pageId === pageId && choice.revision === brief?.revision
+      ? choice
+      : null;
+  if (choice && !current) setChoice(null);
   const action = current ? current.action : saved.action;
-  const share = current?.share === true && Boolean(action);
-  const [error, setError] = useState<"error" | "conflict" | null>(null);
-  const [pending, setPending] = useState(false);
-  const [savedRevision, setSavedRevision] = useState<number | null>(null);
+  const share = full && Boolean(action) && current?.share === true;
   const changed = current !== null && action !== saved.action;
-  const saving = useRef(false);
-  const mounted = useRef(false);
-  useMountEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  });
 
-  function choose(action: Action) {
-    if (!brief) return;
-    setSavedRevision(null);
-    setChoice({ revision: brief.revision, action, share: false });
-    setError(null);
+  function choose(action: Action, share = false) {
+    if (brief) setChoice({ pageId, revision: brief.revision, action, share });
   }
-  async function submit(next: "save" | "review") {
-    if (
-      saving.current ||
-      (next === "review" && !model.data.availableActions.canRequestAnalysis)
-    )
-      return;
-    let revision = brief?.revision;
-    if (changed && brief) {
-      saving.current = true;
-      setPending(true);
-      try {
-        const result = await model.brief.saveWithRevision({
-          ...briefDraft(brief),
-          pages: changeBriefPage(brief.pages, { ...saved, action }),
-        });
-        if (!mounted.current) return;
-        if (typeof result !== "number") {
-          setError(result);
-          model.setSetupGoalAdvanced(true);
-          return;
-        }
-        revision = result;
-        if (next === "save") setSavedRevision(result);
-      } finally {
-        saving.current = false;
-        if (mounted.current) setPending(false);
-      }
-    }
-    setChoice(null);
-    setError(null);
-    if (next === "save") return;
+
+  function review() {
+    if (!model.data.availableActions.canRequestAnalysis) return;
     model.openAnalysis(
       full ? "audit_full" : "page_check",
-      full && share && revision !== undefined
-        ? { pageId, revision }
+      brief && (changed || share)
+        ? { pageId, revision: brief.revision, action, changed, share }
         : undefined,
     );
+    // Review owns this approval. Cancel keeps the draft and asks again before sharing it.
+    if (share) choose(action);
   }
+
   return {
     canEdit: Boolean(brief),
     atPageLimit,
     action,
     role: saved.role,
-    share,
-    pending,
-    error,
-    choose,
     changed,
-    privateSaved: savedRevision !== null && savedRevision === brief?.revision,
-    save: () => submit("save"),
-    review: () => submit("review"),
-    setShare: (value: boolean) => {
-      if (brief) setChoice({ revision: brief.revision, action, share: value });
-    },
-    reload: async () => {
-      const result = await model.brief.reload();
-      if (result.isSuccess && mounted.current) {
-        setChoice(null);
-        setError(null);
-      }
-    },
+    share,
+    choose,
+    review,
+    setShare: (value: boolean) => choose(action, value),
   };
 }

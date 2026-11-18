@@ -13,6 +13,9 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
     changeStateMock: vi.fn(),
   }));
 const deleteAuditMock = vi.hoisted(() => vi.fn());
+const authenticatedSessionId = vi.hoisted(() =>
+  vi.fn<() => string | undefined>(),
+);
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
@@ -24,7 +27,10 @@ vi.mock("@/middleware/auth-middleware", () => ({
         ...params,
         session: {
           user: { id: "reader" },
-          session: { activeOrganizationId: "team" },
+          session: {
+            id: authenticatedSessionId(),
+            activeOrganizationId: "team",
+          },
         },
       }),
 }));
@@ -51,6 +57,12 @@ const OWNER = {
   id: "01960001-0001-7001-8001-000000000001",
 } as const;
 const MONITOR_ID = "01960001-0001-7001-8001-000000000042";
+const CURRENT_SESSION_ID = "current-session";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  authenticatedSessionId.mockReturnValue(CURRENT_SESSION_ID);
+});
 
 it("preserves the Core refusal so the confirmation can explain how to resolve it", async () => {
   deleteAuditMock.mockRejectedValueOnce(
@@ -77,11 +89,29 @@ function mutate(command: unknown) {
   return mutateSeo({ owner: OWNER, command: command as SeoCommand });
 }
 
-describe("mutateSeo monitor commands", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+it("keeps a stale goal revision distinguishable from a network failure", async () => {
+  requestAnalysisMock.mockRejectedValueOnce(
+    new CoreApiRequestError("The brief changed", { status: 409 }),
+  );
+  const result = await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: {
+        setupGoal: { pageId: MONITOR_ID, expectedRevision: 1, action: "buy" },
+      },
+    } as SeoCommand,
+    briefViewer: {
+      userId: "reader",
+      organizationId: "team",
+      sessionId: CURRENT_SESSION_ID,
+    },
   });
+  expect(result).toMatchObject({ ok: false, error: { status: 409 } });
+  expect(requestAnalysisMock).toHaveBeenCalledTimes(1);
+});
 
+describe("mutateSeo monitor commands", () => {
   it("sends a valid monitor command to Core", async () => {
     runNowMock.mockResolvedValue({});
 
@@ -114,16 +144,67 @@ describe("mutateSeo monitor commands", () => {
   });
 });
 
-it("refuses the goal selection after an account switch before submitting the analysis", async () => {
-  const command = {
-    kind: "request_analysis",
-    body: { sharedBrief: { revision: 2, pageIds: [MONITOR_ID] } },
-  } as SeoCommand;
+it.each([
+  { sharedBrief: { revision: 2, pageIds: [MONITOR_ID] } },
+  { setupGoal: { pageId: MONITOR_ID, expectedRevision: 0, action: "buy" } },
+])(
+  "refuses private goal changes and sharing after an account switch",
+  async (body) => {
+    const command = {
+      kind: "request_analysis",
+      body,
+    } as SeoCommand;
+    const result = await mutateSeo({
+      owner: OWNER,
+      command,
+      briefViewer: {
+        userId: "reader",
+        organizationId: "another team",
+        sessionId: CURRENT_SESSION_ID,
+      },
+    });
+    expect(result).toMatchObject({ ok: false, error: { status: 409 } });
+    expect(requestAnalysisMock).not.toHaveBeenCalled();
+  },
+);
+
+it("accepts an older share-only confirmation from the same user and organization", async () => {
+  const body = { sharedBrief: { revision: 2, pageIds: [MONITOR_ID] } };
   const result = await mutateSeo({
     owner: OWNER,
-    command,
-    briefViewer: { userId: "reader", organizationId: "another team" },
+    command: { kind: "request_analysis", body } as SeoCommand,
+    briefViewer: { userId: "reader", organizationId: "team" },
   });
-  expect(result).toMatchObject({ ok: false, error: { status: 409 } });
-  expect(requestAnalysisMock).not.toHaveBeenCalled();
+  expect(result).toEqual({ ok: true, value: null });
+  expect(requestAnalysisMock).toHaveBeenCalledWith(OWNER, body);
 });
+
+it.each([
+  ["the user signed in again", "previous-session", CURRENT_SESSION_ID],
+  ["the review omitted its session", undefined, CURRENT_SESSION_ID],
+  ["neither side identifies the session", undefined, undefined],
+] as const)(
+  "refuses a private setup goal before calling Core when %s",
+  async (_, reviewId, currentId) => {
+    authenticatedSessionId.mockReturnValueOnce(currentId);
+    const result = await mutateSeo({
+      owner: OWNER,
+      command: {
+        kind: "request_analysis",
+        body: {
+          setupGoal: { pageId: MONITOR_ID, expectedRevision: 0, action: "buy" },
+        },
+      } as SeoCommand,
+      briefViewer: {
+        userId: "reader",
+        organizationId: "team",
+        sessionId: reviewId,
+      },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { status: 409, kind: "seo_viewer_changed" },
+    });
+    expect(requestAnalysisMock).not.toHaveBeenCalled();
+  },
+);

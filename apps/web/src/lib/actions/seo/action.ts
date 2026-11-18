@@ -10,7 +10,10 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { SeoCommand } from "@/lib/actions/seo/types";
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import type { SeoOwner } from "@/lib/seo/owner";
 import { seoServiceNoRedirect } from "@/lib/services/seo.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
@@ -51,7 +54,11 @@ export const mutateSeo = withSession<
   AuthenticatedRequest & {
     owner: SeoOwner;
     command: SeoCommand;
-    briefViewer?: { userId: string; organizationId: string | null };
+    briefViewer?: {
+      userId: string;
+      organizationId: string | null;
+      sessionId?: string;
+    };
   },
   ActionResultDto<null, ActionError>
 >(async ({ owner, command, briefViewer, session }) => {
@@ -68,9 +75,12 @@ export const mutateSeo = withSession<
   }
   if (
     command.kind === "request_analysis" &&
-    command.body?.sharedBrief &&
+    (command.body?.sharedBrief || command.body?.setupGoal) &&
     (!briefViewer ||
       briefViewer.userId !== session.user.id ||
+      (command.body.setupGoal && !briefViewer.sessionId) ||
+      (briefViewer.sessionId !== undefined &&
+        briefViewer.sessionId !== session.session.id) ||
       briefViewer.organizationId !==
         (session.session.activeOrganizationId ?? null))
   ) {
@@ -155,6 +165,12 @@ export const mutateSeo = withSession<
     if (command.kind.includes("monitor")) revalidatePath("/schedules");
     return toActionResult(ok(null));
   } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
+    const refusal = toCoreApiActionError(error);
+    if (
+      command.kind === "request_analysis" &&
+      error instanceof CoreApiRequestError
+    )
+      refusal.status = error.status;
+    return toActionResult(err(refusal));
   }
 });

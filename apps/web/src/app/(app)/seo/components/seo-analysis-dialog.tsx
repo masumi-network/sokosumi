@@ -127,11 +127,35 @@ export function SeoAnalysisDialog({
             />
             {full && !monitor && model.brief ? (
               <SeoBriefSummary
-                setupGoal={keepSetupSelection ? model.sharedSetupGoal : null}
+                brief={form.reviewBrief}
+                setupGoal={
+                  keepSetupSelection && form.reviewGoal?.share
+                    ? form.reviewGoal
+                    : null
+                }
                 onShareChange={() => setKeepSetupSelection(false)}
                 model={model}
                 edit={() => setEditingBrief(true)}
               />
+            ) : null}
+            {form.reviewGoal?.changed && (!full || !form.reviewGoal.action) ? (
+              <p className="text-muted-foreground text-sm">
+                {t("setup.goal.private", {
+                  goal: form.reviewGoal.action
+                    ? t(
+                        `brief.actions.${form.reviewGoal.action.replaceAll(" ", "_")}`,
+                      )
+                    : t("setup.goal.autoOption"),
+                })}
+              </p>
+            ) : null}
+            {!monitor &&
+            model.reviewGoal?.changed &&
+            !full &&
+            form.kind !== "page_check" ? (
+              <p className="text-muted-foreground text-sm" role="status">
+                {t("setup.goal.unsupportedCheck")}
+              </p>
             ) : null}
             {full ? (
               <p className="text-muted-foreground text-sm">
@@ -331,9 +355,14 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
+          {form.staleGoal ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t("setup.goal.reviewChanged")}
+            </p>
+          ) : null}
           <DialogFooter className="sm:items-center">
             {/* The close button and Escape leave the form; a Cancel beside the submit said it twice. */}
-            {noService ? (
+            {noService || form.staleGoal ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -350,6 +379,7 @@ export function SeoAnalysisDialog({
               loading={model.pending}
               disabled={
                 noService ||
+                form.staleGoal ||
                 model.pending ||
                 (monitor && !form.rule) ||
                 !form.workspace.scope.pageIds.length ||

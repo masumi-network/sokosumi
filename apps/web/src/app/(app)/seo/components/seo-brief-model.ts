@@ -30,6 +30,27 @@ export const SEO_BRIEF_TEXT_LIMIT = 300;
 export const SEO_BRIEF_CONSTRAINTS_LIMIT = 600;
 export type BriefPage = SaveSeoAuditBriefRequest["pages"][number];
 
+/** The owner's uncommitted setup choice, bound to the private brief they read. */
+export type SeoSetupGoalChoice = Pick<BriefPage, "pageId" | "action"> & {
+  revision: number;
+  changed: boolean;
+  share: boolean;
+};
+
+/** Show the same single-page edit that Core will apply if this run starts. */
+export function briefForReview(
+  brief: SeoAuditBrief | undefined,
+  goal: SeoSetupGoalChoice | null,
+) {
+  if (!brief || !goal?.changed || goal.revision !== brief.revision)
+    return brief;
+  const page = briefPage(brief.pages, goal.pageId);
+  return {
+    ...brief,
+    pages: changeBriefPage(brief.pages, { ...page, action: goal.action }),
+  };
+}
+
 export function briefDraft({
   revision,
   audience,

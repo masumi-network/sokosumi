@@ -17,7 +17,7 @@ import { SeoField, SeoSelect } from "./seo-form-fields";
 import { useSeoSetupGoal } from "./use-seo-setup-goal";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-const SKIP = "skip";
+const AUTOMATIC = "automatic";
 const ACTION_FIELD = "seo-setup-action";
 
 export function SeoSetupGoal({
@@ -36,14 +36,17 @@ export function SeoSetupGoal({
     t(`brief.actions.${action.replaceAll(" ", "_")}`);
   const suggestion = model.setupGoalSuggestion;
   const canRun = model.data.availableActions.canRequestAnalysis;
+  const collapsedSummary = goal.action
+    ? t(goal.share ? "setup.goal.selected" : "setup.goal.private", {
+        goal: label(goal.action),
+      })
+    : full
+      ? t("setup.goal.automatic")
+      : null;
   return (
     <div className="grid min-w-0 max-w-sm grid-cols-1 gap-3">
-      {full ? (
-        <p className="text-muted-foreground text-sm">
-          {goal.share && goal.action
-            ? t("setup.goal.selected", { goal: label(goal.action) })
-            : t("setup.goal.automatic")}
-        </p>
+      {!model.setupGoalAdvanced && collapsedSummary ? (
+        <p className="text-muted-foreground text-sm">{collapsedSummary}</p>
       ) : null}
       <Collapsible
         open={model.setupGoalAdvanced}
@@ -60,11 +63,6 @@ export function SeoSetupGoal({
           />
         </CollapsibleTrigger>
         <CollapsibleContent className="grid min-w-0 gap-3 pt-2">
-          {!canRun ? (
-            <p className="text-muted-foreground text-sm">
-              {t("setup.goal.pausedHelp")}
-            </p>
-          ) : null}
           {goal.canEdit ? (
             <>
               {model.data.scope.pageIds.length > 1 ? (
@@ -75,8 +73,7 @@ export function SeoSetupGoal({
               <SeoField id={ACTION_FIELD} label={t("setup.goal.question")}>
                 <SeoSelect
                   id={ACTION_FIELD}
-                  value={goal.action ?? SKIP}
-                  disabled={goal.pending}
+                  value={goal.action ?? AUTOMATIC}
                   onValueChange={(value) =>
                     goal.choose(
                       SEO_BRIEF_ACTIONS.find((action) => action === value) ??
@@ -85,14 +82,8 @@ export function SeoSetupGoal({
                   }
                   options={[
                     {
-                      value: SKIP,
-                      label: t(
-                        !canRun
-                          ? "setup.goal.noSavedGoal"
-                          : full
-                            ? "setup.goal.autoOption"
-                            : "setup.goal.skip",
-                      ),
+                      value: AUTOMATIC,
+                      label: t("setup.goal.autoOption"),
                     },
                     ...SEO_BRIEF_ACTIONS.map((value) => ({
                       value,
@@ -115,12 +106,11 @@ export function SeoSetupGoal({
                   {t("setup.goal.suggested", { action: label(suggestion) })}
                 </Button>
               ) : null}
-              {full && goal.action ? (
+              {canRun && full && goal.action ? (
                 <div className="flex items-start gap-2">
                   <Checkbox
                     id="seo-setup-share"
                     checked={goal.share}
-                    disabled={goal.pending}
                     aria-describedby="seo-setup-share-details"
                     onCheckedChange={(value) => goal.setShare(value === true)}
                   />
@@ -145,48 +135,16 @@ export function SeoSetupGoal({
                   </div>
                 </div>
               ) : null}
-              {!canRun ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!goal.changed && !goal.privateSaved}
-                    aria-disabled={!goal.changed || undefined}
-                    className="aria-disabled:opacity-50"
-                    loading={goal.pending}
-                    onClick={goal.changed ? () => void goal.save() : undefined}
-                  >
-                    {t("setup.goal.savePrivate")}
-                  </Button>
-                  <span role="status" className="text-muted-foreground text-sm">
-                    {goal.privateSaved ? t("saved") : null}
-                  </span>
-                </div>
-              ) : null}
-              {goal.error ? (
-                <div
-                  role="alert"
-                  className="text-destructive space-y-1 text-sm"
-                >
-                  <p>
-                    {t(
-                      goal.error === "conflict"
-                        ? "brief.conflict"
-                        : "saveFailed",
-                    )}
-                  </p>
-                  {goal.error === "conflict" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void goal.reload()}
-                    >
-                      {t("brief.reload")}
-                    </Button>
-                  ) : null}
-                </div>
+              {goal.changed ? (
+                <p role="status" className="text-muted-foreground text-sm">
+                  {t(
+                    !canRun
+                      ? "setup.goal.pausedDraft"
+                      : full
+                        ? "setup.goal.draft"
+                        : "setup.goal.freeDraft",
+                  )}
+                </p>
               ) : null}
             </>
           ) : model.brief.error ? (
@@ -199,7 +157,7 @@ export function SeoSetupGoal({
                 onClick={() => {
                   // Retry disappears on success. Keep keyboard focus in the disclosure.
                   advanced.current?.focus();
-                  void goal.reload();
+                  void model.brief.reload();
                 }}
               >
                 {t("brief.retry")}
@@ -236,9 +194,7 @@ export function SeoSetupGoal({
           variant="primary"
           size="sm"
           className="h-auto min-h-8 max-w-full justify-self-start whitespace-normal"
-          loading={goal.pending}
-          disabled={goal.pending}
-          onClick={() => void goal.review()}
+          onClick={goal.review}
         >
           <Play />
           {t(full ? "runFullAudit" : "runPageCheck")}

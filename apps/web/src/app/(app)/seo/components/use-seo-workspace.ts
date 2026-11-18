@@ -32,7 +32,7 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
-import { canSetBriefPage } from "./seo-brief-model";
+import { canSetBriefPage, type SeoSetupGoalChoice } from "./seo-brief-model";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
@@ -287,14 +287,14 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     data.scope.version,
     data.scope.pageIds,
   ]);
-  const [sharedSetupGoal, setSharedSetupGoal] = useState<{
-    scopeKey: string;
-    pageId: string;
-    revision: number;
-  } | null>(null);
+  const [reviewGoal, setReviewGoal] = useState<
+    (SeoSetupGoalChoice & { scopeKey: string }) | null
+  >(null);
   // Returning to an earlier page selection must not restore consent from a closed review.
-  if (sharedSetupGoal && sharedSetupGoal.scopeKey !== setupScopeKey)
-    setSharedSetupGoal(null);
+  if (reviewGoal && reviewGoal.scopeKey !== setupScopeKey) {
+    setReviewGoal(null);
+    if (dialog === "analysis") setDialogState(null);
+  }
   /**
    * One check at a time. Every way to the check form goes through here, so a press while a check runs opens
    * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
@@ -310,7 +310,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
-    setSharedSetupGoal(null);
+    setReviewGoal(null);
     setDialogState(value);
   }
   /** Opens the schedule form on the run button's check: the full audit where these pages allow one. */
@@ -318,16 +318,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setDialog("monitor");
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
-  function openAnalysis(
-    kind: SeoAnalysisKind,
-    approved?: { pageId: string; revision: number },
-  ) {
+  function openAnalysis(kind: SeoAnalysisKind, choice?: SeoSetupGoalChoice) {
     if (requireGoogleSetup() || checkInFlight()) return;
-    setSharedSetupGoal(
-      kind === "audit_full" && approved
-        ? { ...approved, scopeKey: setupScopeKey }
-        : null,
-    );
+    setReviewGoal(choice ? { ...choice, scopeKey: setupScopeKey } : null);
     setAnalysisKind(kind);
     setDialogState("analysis");
   }
@@ -358,11 +351,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         owner,
         command,
         ...(command.kind === "request_analysis" &&
-        command.body.sharedBrief &&
+        (command.body.sharedBrief || command.body.setupGoal) &&
         session?.user.id
           ? {
               briefViewer: {
                 userId: session.user.id,
+                sessionId: session.session.id,
                 organizationId: session.session.activeOrganizationId ?? null,
               },
             }
@@ -378,7 +372,10 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         );
         // A conflict means this view is stale: read the current revision so the next try can land.
         if (response.error.status === 409) {
-          if (command.kind === "request_analysis" && command.body.sharedBrief)
+          if (
+            command.kind === "request_analysis" &&
+            (command.body.sharedBrief || command.body.setupGoal)
+          )
             await brief.reload();
           await refetchForViewer();
         }
@@ -400,7 +397,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       if (
         command.kind === "record_page_change" ||
         command.kind === "sync_statistics" ||
-        command.kind === "import_audit"
+        command.kind === "import_audit" ||
+        (command.kind === "request_analysis" && command.body.setupGoal)
       )
         await brief.invalidate();
       toast.success(success);
@@ -549,12 +547,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setupGoalPageId,
     setupGoalSuggestion,
     setupScopeKey,
-    sharedSetupGoal:
-      sharedSetupGoal?.scopeKey === setupScopeKey &&
-      setupGoalPageId === sharedSetupGoal.pageId &&
-      brief.data?.revision === sharedSetupGoal.revision
-        ? sharedSetupGoal
-        : null,
+    reviewGoal: reviewGoal?.scopeKey === setupScopeKey ? reviewGoal : null,
     statisticsSync,
     setup,
     waitingForGoogle,

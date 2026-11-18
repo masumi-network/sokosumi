@@ -16,17 +16,18 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoBriefSummary({
   model,
+  brief = model.brief?.data,
   edit,
   setupGoal,
   onShareChange,
 }: {
   model: SeoWorkspaceModel;
+  brief?: SeoAuditBrief;
   edit: () => void;
   setupGoal?: { pageId: string; revision: number } | null;
   onShareChange?: () => void;
 }) {
   const t = useTranslations("App.Seo");
-  const brief = model.brief?.data;
   const pageGoals = (brief?.pages ?? []).flatMap((goal) => {
     if (
       !model.data.scope.pageIds.includes(goal.pageId) ||
@@ -50,7 +51,7 @@ export function SeoBriefSummary({
             <p className="text-sm break-words">{brief.outcome}</p>
           )}
         </>
-      ) : (
+      ) : !pageGoals.length ? (
         <p className="text-muted-foreground text-sm">
           {model.brief?.error
             ? t("brief.readFailed")
@@ -58,7 +59,7 @@ export function SeoBriefSummary({
               ? t("brief.empty")
               : t("loading")}
         </p>
-      )}
+      ) : null}
       {model.data.availableActions.canEdit && (
         <Button
           type="button"
