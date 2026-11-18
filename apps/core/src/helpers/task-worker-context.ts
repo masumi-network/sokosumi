@@ -20,6 +20,7 @@ export async function requireTaskWorkerContext(
   taskId: string,
   expected: TaskWorkerContext,
   tx: Prisma.TransactionClient,
+  contextMismatch = conflict,
 ) {
   const coworker = requireCoworkerAuthContext(authContext);
   if (!(await lockTaskRows(tx, [taskId]))) throw notFound("Task not found");
@@ -30,7 +31,7 @@ export async function requireTaskWorkerContext(
     task.workspaceId !== expected.workspaceId ||
     task.assigneeId !== coworker.coworkerId
   ) {
-    throw conflict(
+    throw contextMismatch(
       "Task context changed. Read the current Task before delivery",
       {
         kind: "task_context_changed",
