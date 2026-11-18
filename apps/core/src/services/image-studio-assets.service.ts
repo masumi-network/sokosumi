@@ -20,6 +20,7 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
+import { readTalkingVideoSettings } from "@/lib/image-studio/talking-video";
 import type {
   StudioAdHeadline,
   StudioAssetRating,
@@ -66,6 +67,7 @@ export interface AssetView extends StudioAssetRating {
   mediaType: "IMAGE" | "VIDEO";
   durationSeconds: number | null;
   video: VideoSettingsView | null;
+  aiGenerated?: boolean;
   createdAt: Date;
   jobId: string;
 }
@@ -85,6 +87,7 @@ const assetSelect = {
   bytes: true,
   contentType: true,
   mediaType: true,
+  aiGenerated: true,
   durationSeconds: true,
   createdAt: true,
   jobId: true,
@@ -113,6 +116,7 @@ function toAssetView({
   headline,
   job,
   project,
+  aiGenerated,
   ...asset
 }: Prisma.ProjectImageAssetGetPayload<{
   select: typeof assetSelect;
@@ -124,6 +128,7 @@ function toAssetView({
     lettering: job.lettering === "ideogram" ? "ideogram" : "overlay",
     ...(batchId ? { batchId } : {}),
     ...(headline ? { headline } : {}),
+    ...(aiGenerated ? { aiGenerated } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
     ...emptyStudioAssetRating(),
@@ -588,6 +593,11 @@ export interface JobView {
   settings: unknown;
   /** A video job's own settings. Null for an image job. */
   video: VideoSettingsView | null;
+  talkingVideo?: {
+    voice: string;
+    presenterId: string | null;
+    languageCode: string;
+  };
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
   referenceFileIds?: string[];
@@ -710,6 +720,12 @@ export async function listJobs(
   return jobs.map(toJobView);
 }
 
+function talkingVideoView(settings: unknown): JobView["talkingVideo"] {
+  const { voice, presenterId, languageCode } =
+    readTalkingVideoSettings(settings);
+  return { voice, presenterId, languageCode };
+}
+
 export function toJobView(job: {
   id: string;
   projectId: string;
@@ -756,9 +772,14 @@ export function toJobView(job: {
     ...productView(job),
     lettering: job.lettering === "ideogram" ? "ideogram" : "overlay",
     ...splitVideoSettings(
-      job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",
+      job.kind === "TEXT_TO_VIDEO" ||
+        job.kind === "IMAGE_TO_VIDEO" ||
+        job.kind === "TALKING_VIDEO",
       job.settings,
     ),
+    ...(job.kind === "TALKING_VIDEO"
+      ? { talkingVideo: talkingVideoView(job.settings) }
+      : {}),
     referenceAssetIds: job.referenceAssetIds,
     ...(job.referenceFileIds?.length
       ? { referenceFileIds: job.referenceFileIds }

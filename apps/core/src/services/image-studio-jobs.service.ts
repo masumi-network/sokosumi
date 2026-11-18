@@ -12,6 +12,7 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   readImageDimensionsFromBytes,
+  talkingVideoQuotedSeconds,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
@@ -83,6 +84,20 @@ import {
   studioBrandPromptBlock,
 } from "@/lib/image-studio/studio-brand";
 import {
+  buildTalkingVideoCaptionInput,
+  buildTalkingVideoInput,
+  creditsPerTalkingVideo,
+  findTalkingVideoPresenter,
+  frameTalkingVideoPresenter,
+  readTalkingVideoSettings,
+  TALKING_VIDEO_ASPECT_RATIO,
+  TALKING_VIDEO_CAPTION_ENDPOINT,
+  TALKING_VIDEO_RESOLUTION,
+  type TalkingVideoModel,
+  type TalkingVideoSettings,
+  talkingVideoModel,
+} from "@/lib/image-studio/talking-video";
+import {
   findVideoModelForEndpoint,
   videoModel,
 } from "@/lib/image-studio/video-catalog";
@@ -95,6 +110,7 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { speakVoiceover } from "@/lib/soko-bot/voiceover";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
@@ -234,6 +250,7 @@ interface ReserveImageJobInput
   letteringQuoteCents?: bigint;
   letteringSettings?: ImageJobSettings;
   letteringModel?: string;
+  presenterConsentAt?: Date;
 }
 
 /**
@@ -527,6 +544,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         exportHeadline,
         lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
         letteringQuoteCents: input.letteringQuoteCents,
+        presenterConsentAt: input.presenterConsentAt,
         useProductCutout: inheritsCutout || input.useProductCutout,
         productCutoutChecksum: inheritsCutout
           ? source?.job.productCutoutChecksum
@@ -624,12 +642,17 @@ function recoverableSelection() {
  * A settler that dies leaves the lease behind; the deadline is what lets the
  * next one through.
  */
-async function claimForSettlement(jobId: string): Promise<string | null> {
+async function claimForSettlement(
+  jobId: string,
+  /** Claim only while the job still waits on this provider request. */
+  falRequestId?: string,
+): Promise<string | null> {
   const owner = crypto.randomUUID();
   const deadline = new Date(Date.now() - SETTLE_LEASE_MS);
   const claimed = await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
+      falRequestId,
       status: { in: [...LIVE_STATUSES] },
       OR: [{ settleLeaseAt: null }, { settleLeaseAt: { lt: deadline } }],
     },
@@ -754,18 +777,11 @@ async function buildReferenceUrls(
     );
   }
   for (const fileId of providerFileIds) {
-    // These durable prefixes identify automated requests even during recovery.
-    // A bot must never inherit the human requester's data-room access.
-    const kind =
-      job.idempotencyKey.startsWith("soko-bot:") ||
-      job.idempotencyKey.startsWith("cmo-media:")
-        ? "soko_bot"
-        : "interactive";
     urls.push(
       await uploadFileReference(job.workspaceId, fileId, {
         userId: job.requestedByUserId,
         organizationId,
-        kind,
+        kind: automatedRequestKind(job.idempotencyKey),
       }),
     );
   }
@@ -1099,11 +1115,199 @@ export async function createVideoJob(input: CreateVideoJobInput) {
   });
 }
 
+export interface CreateTalkingVideoJobInput {
+  modelId?: string;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  /** The words the presenter speaks. */
+  script: string;
+  voice: string;
+  /** ISO 639-1 language of the script. */
+  languageCode: string;
+  /** A stock presenter, or the requester's own photo in Files. */
+  presenter:
+    | { kind: "stock"; id: string }
+    | { kind: "file"; fileId: string; actor: FileActor; consentAt: Date };
+  idempotencyKey: string;
+}
+
+/**
+ * Create (or replay) a talking video job and, when this caller owns the lease,
+ * send it. The same row, lease, quote and settlement as every studio job.
+ *
+ * The quote comes from the script, because the video is as long as the voice
+ * and the voice is not made until the job is sent.
+ */
+export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
+  const access = await requireProjectAccess({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  });
+  requireStudioBlobToken();
+
+  let model: TalkingVideoModel;
+  try {
+    model = talkingVideoModel(input.modelId);
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Invalid talking video model",
+      { kind: "invalid_video_settings" },
+    );
+  }
+  if (
+    input.presenter.kind === "stock" &&
+    !findTalkingVideoPresenter(input.presenter.id)
+  )
+    throw unprocessableEntity("Choose a presenter from the list.", {
+      kind: "invalid_video_settings",
+    });
+
+  const settings: TalkingVideoSettings = {
+    aspectRatio: TALKING_VIDEO_ASPECT_RATIO,
+    durationSeconds: talkingVideoQuotedSeconds(input.script),
+    resolution: TALKING_VIDEO_RESOLUTION,
+    voice: input.voice,
+    presenterId: input.presenter.kind === "stock" ? input.presenter.id : null,
+    languageCode: input.languageCode,
+  };
+  const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
+  return await reserveAndSend({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    sessionId: null,
+    prompt: input.script,
+    idempotencyKey: input.idempotencyKey,
+    kind: ProjectImageJobKind.TALKING_VIDEO,
+    model: model.endpoint,
+    settings,
+    referenceAssetIds: [],
+    referenceFileIds: ownPhoto ? [ownPhoto.fileId] : [],
+    referenceFileActor: ownPhoto?.actor,
+    presenterConsentAt: ownPhoto?.consentAt,
+    parentAssetId: null,
+    organizationId: access.organizationId,
+    chargedCredits: creditsPerTalkingVideo(model, input.script),
+  });
+}
+
 function isVideoKind(kind: ProjectImageJobKind): boolean {
   return (
     kind === ProjectImageJobKind.TEXT_TO_VIDEO ||
-    kind === ProjectImageJobKind.IMAGE_TO_VIDEO
+    kind === ProjectImageJobKind.IMAGE_TO_VIDEO ||
+    kind === ProjectImageJobKind.TALKING_VIDEO
   );
+}
+
+/**
+ * The endpoint a job's provider request was sent to. A talking video's second
+ * request is its captions, on another endpoint than the model the row names.
+ */
+function queueModel(job: {
+  model: string;
+  pendingMediaUrl: string | null;
+}): string {
+  return job.pendingMediaUrl ? TALKING_VIDEO_CAPTION_ENDPOINT : job.model;
+}
+
+/** How much longer than its quote a voice may run before the job is refused. */
+const VOICE_OVERRUN_LIMIT = 2;
+
+/**
+ * Speak a talking video's script and name the presenter photo, as the input
+ * its model takes. The voice is kept in the studio's store and on the row.
+ */
+async function prepareTalkingVideo(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    prompt: string;
+    settings: Prisma.JsonValue;
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+  step: (reason: ImageJobFailureReason) => void,
+): Promise<Record<string, unknown>> {
+  const settings = readTalkingVideoSettings(job.settings);
+  step("reference_not_sendable");
+  const stock = settings.presenterId
+    ? findTalkingVideoPresenter(settings.presenterId)
+    : null;
+  let imageUrl = stock?.imageUrl;
+  if (!imageUrl) {
+    const fileId = job.referenceFileIds[0];
+    if (!fileId) throw new Error("The talking video has no presenter photo.");
+    const { bytes } = await downloadStudioFileReference(
+      job.workspaceId,
+      fileId,
+      {
+        userId: job.requestedByUserId,
+        organizationId,
+        kind: automatedRequestKind(job.idempotencyKey),
+      },
+    );
+    imageUrl = await uploadReference({
+      bytes: await frameTalkingVideoPresenter(bytes),
+      contentType: "image/jpeg",
+      fileName: `${fileId}.jpg`,
+    });
+  }
+
+  step("voice_unavailable");
+  const voice = await speakVoiceover({
+    text: job.prompt,
+    voice: settings.voice,
+    languageCode: settings.languageCode,
+  });
+  const quotedSeconds = settings.durationSeconds;
+  const spokenSeconds = Math.ceil(voice.durationSeconds ?? quotedSeconds);
+  if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
+    throw new Error("The voice ran far longer than the script was quoted at.");
+  const stored = await put(
+    `projects/${job.projectId}/image-studio/${job.id}-voice.mp3`,
+    voice.bytes as unknown as Buffer,
+    {
+      access: "private",
+      token: requireStudioBlobToken(),
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "audio/mpeg",
+      abortSignal: AbortSignal.timeout(60_000),
+    },
+  );
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: {
+      voiceBlobPathname: stored.pathname,
+      settings: { ...settings, durationSeconds: spokenSeconds },
+    },
+    select: { id: true },
+  });
+  const audioUrl = await uploadReference({
+    bytes: voice.bytes,
+    contentType: "audio/mpeg",
+    fileName: `${job.id}.mp3`,
+  });
+  step("request_not_supported");
+  return buildTalkingVideoInput({ imageUrl, audioUrl });
+}
+
+/**
+ * These durable prefixes identify automated requests even during recovery.
+ * A bot must never inherit the human requester's data-room access.
+ */
+function automatedRequestKind(
+  idempotencyKey: string,
+): "soko_bot" | "interactive" {
+  return idempotencyKey.startsWith("soko-bot:") ||
+    idempotencyKey.startsWith("cmo-media:")
+    ? "soko_bot"
+    : "interactive";
 }
 
 function readVideoSettings(value: Prisma.JsonValue): VideoSettings {
@@ -1162,6 +1366,22 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
   // and the row was left SUBMITTING with the charge taken. The sweeper then
   // called that SUBMISSION_UNCERTAIN, which is deliberately never refunded
   // automatically — so the person paid for a request that was never sent.
+  if (job.kind === ProjectImageJobKind.TALKING_VIDEO) {
+    // No assembled prompt and no snapshot: the script is spoken as written.
+    let reason: ImageJobFailureReason = "reference_not_sendable";
+    let request: Record<string, unknown>;
+    try {
+      // The voice is bought here, before the video: a few cents the studio
+      // carries when a later step fails, since only a delivery is charged.
+      request = await prepareTalkingVideo(job, organizationId, (step) => {
+        reason = step;
+      });
+    } catch (error) {
+      return await failBeforeSend(job.id, reason, error);
+    }
+    return await submitPreparedJob(job, request);
+  }
+
   const letteringEdit =
     job.lettering === "ideogram" && job.letteringQuoteCents == null;
   let input: Record<string, unknown>;
@@ -1280,35 +1500,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
       variationIndex: job.variationIndex ?? null,
     };
   } catch (error) {
-    // The error can quote the prompt it was building, so no cause.
-    recordCoreWarning(
-      {
-        operation: "image_job_submit",
-        imageJobs: [
-          {
-            id: job.id,
-            failureReason: preflightReason,
-            failure: messageSafeErrorFields(error),
-          },
-        ],
-      },
-      {
-        message: "An image generation failed before it was sent",
-        why: "Preparing the request for the image provider threw",
-        fix: "Nothing was sent or charged and the job is marked failed. If this repeats, look up failureReason and the error name under failure.",
-      },
-    );
-    // Nothing to give back: the charge happens on delivery, and there was none.
-    return await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        status: ProjectImageJobStatus.FAILED,
-        error: imageJobFailureMessage(preflightReason),
-        failureReason: preflightReason,
-        settledAt: new Date(),
-        submitLeaseAt: null,
-      },
-    });
+    return await failBeforeSend(job.id, preflightReason, error);
   }
 
   // Track the write through response completion without holding up the paid call.
@@ -1336,6 +1528,51 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     }),
   );
 
+  return await submitPreparedJob(job, input);
+}
+
+/** Settle a job whose request could not be prepared. Nothing was sent. */
+async function failBeforeSend(
+  jobId: string,
+  reason: ImageJobFailureReason,
+  error: unknown,
+) {
+  // The error can quote the prompt it was building, so no cause.
+  recordCoreWarning(
+    {
+      operation: "image_job_submit",
+      imageJobs: [
+        {
+          id: jobId,
+          failureReason: reason,
+          failure: messageSafeErrorFields(error),
+        },
+      ],
+    },
+    {
+      message: "An image generation failed before it was sent",
+      why: "Preparing the request for the image provider threw",
+      fix: "Nothing was sent or charged and the job is marked failed. If this repeats, look up failureReason and the error name under failure.",
+    },
+  );
+  // Nothing to give back: the charge happens on delivery, and there was none.
+  return await prisma.projectImageJob.update({
+    where: { id: jobId },
+    data: {
+      status: ProjectImageJobStatus.FAILED,
+      error: imageJobFailureMessage(reason),
+      failureReason: reason,
+      settledAt: new Date(),
+      submitLeaseAt: null,
+    },
+  });
+}
+
+/** The paid call: send a prepared request and record what the provider said. */
+async function submitPreparedJob(
+  job: { id: string; model: string },
+  input: Record<string, unknown>,
+) {
   const outcome = await submitToQueue({
     model: job.model,
     input,
@@ -1448,7 +1685,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   }
 
   const status = await fetchQueueStatus({
-    model: job.model,
+    model: queueModel(job),
     requestId: job.falRequestId,
   });
 
@@ -1524,7 +1761,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   }
 
   const result = await fetchQueueResult({
-    model: job.model,
+    model: queueModel(job),
     requestId: job.falRequestId,
   });
   if (result.kind === "pending") return;
@@ -1547,10 +1784,12 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
   const produced = result.media[0]!;
-  await settleWithMedia(job.id, produced.url, {
-    width: produced.width,
-    height: produced.height,
-  });
+  await settleWithMedia(
+    job.id,
+    produced.url,
+    { width: produced.width, height: produced.height },
+    job.falRequestId,
+  );
 }
 
 /**
@@ -1736,6 +1975,7 @@ export async function failImageJob(
   /** The provider's own words. Logged, never shown. */
   providerDetail?: string,
 ): Promise<void> {
+  if (await deliverUncaptionedTalkingVideo(jobId)) return;
   if (providerDetail) {
     // Where a raw transport string belongs. "Unexpected status code: 422" is
     // useful to whoever is debugging the job and useless to whoever was waiting
@@ -1812,9 +2052,101 @@ export async function settleWithMedia(
   jobId: string,
   sourceUrl: string,
   providerSize?: { width: number | null; height: number | null },
+  /** The provider request this media answers. */
+  requestId?: string,
 ): Promise<void> {
+  if (await startTalkingVideoCaptions(jobId, sourceUrl, requestId)) return;
   await storeMedia(jobId, sourceUrl, providerSize);
   nudgeCmoMonth(jobId);
+}
+
+/**
+ * A talking video came back from its presenter model: send it on for captions
+ * instead of storing it. True when this media is not the one to store.
+ *
+ * The same row carries both requests, so the answer to the first can arrive
+ * again after the second was sent: a webhook retry, or a poll that read the
+ * old request id. `requestId` tells those apart, and the lease is taken on it,
+ * so the caption request is sent once.
+ */
+async function startTalkingVideoCaptions(
+  jobId: string,
+  sourceUrl: string,
+  requestId: string | undefined,
+): Promise<boolean> {
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: {
+      kind: true,
+      falRequestId: true,
+      pendingMediaUrl: true,
+      settings: true,
+    },
+  });
+  if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO) return false;
+  if (requestId && job.falRequestId !== requestId) return true;
+  if (job.pendingMediaUrl) return false;
+
+  const lease = await claimForSettlement(jobId, requestId);
+  if (!lease) return true;
+  const outcome = await submitToQueue({
+    model: TALKING_VIDEO_CAPTION_ENDPOINT,
+    input: buildTalkingVideoCaptionInput({
+      videoUrl: sourceUrl,
+      languageCode: readTalkingVideoSettings(job.settings).languageCode,
+    }),
+    webhookUrl: webhookUrl(),
+  });
+  if (outcome.kind !== "queued") {
+    await releaseSettlementLease(jobId, lease);
+    recordCoreWarning(
+      {
+        operation: "image_job_settle",
+        imageJobs: [{ id: jobId, captions: { outcome: outcome.kind } }],
+      },
+      {
+        message: "Delivered a talking video without captions",
+        why: "fal did not accept the caption request",
+        fix: "The video was kept as its presenter model made it. If this repeats, check the caption endpoint and its input.",
+      },
+    );
+    return false;
+  }
+  await prisma.projectImageJob.updateMany({
+    where: { id: jobId, settleLeaseOwner: lease },
+    data: {
+      falRequestId: outcome.requestId,
+      pendingMediaUrl: sourceUrl,
+      status: ProjectImageJobStatus.RUNNING,
+      settleLeaseAt: null,
+      settleLeaseOwner: null,
+    },
+  });
+  return true;
+}
+
+/**
+ * A talking video whose caption step failed is still a video the studio paid
+ * for: deliver it as its presenter model made it. True when it was handled.
+ */
+async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: { kind: true, pendingMediaUrl: true },
+  });
+  if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO || !job.pendingMediaUrl)
+    return false;
+  recordCoreWarning(
+    { operation: "image_job_settle", imageJobs: [{ id: jobId }] },
+    {
+      message: "Delivered a talking video without captions",
+      why: "fal reported the caption step as failed",
+      fix: "The video was kept as its presenter model made it. If this repeats, check the caption endpoint and its input.",
+    },
+  );
+  await storeMedia(jobId, job.pendingMediaUrl);
+  nudgeCmoMonth(jobId);
+  return true;
 }
 
 /** Media types a log may name; the rest of a Content-Type is the provider's text. */
@@ -1969,7 +2301,9 @@ async function storeMedia(
     downloaded = video
       ? await downloadMedia(
           sourceUrl,
-          LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
+          job.kind === ProjectImageJobKind.TALKING_VIDEO
+            ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
+            : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
           "video/mp4",
         )
       : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
@@ -2155,6 +2489,7 @@ async function storeMedia(
         organizationId: project.organizationId,
         chargedCents: job.chargedCents,
       },
+      aiGenerated: job.kind === ProjectImageJobKind.TALKING_VIDEO,
       blobPathname: blob.pathname,
       backdropBlobPathname,
       backdropContentType: backdrop?.contentType,
@@ -2263,6 +2598,7 @@ async function insertAsset(input: {
     /** The quote written at submit. What gets taken here. */
     chargedCents: bigint | null;
   };
+  aiGenerated: boolean;
   blobPathname: string;
   backdropBlobPathname?: string;
   backdropContentType?: string;
@@ -2379,6 +2715,7 @@ async function insertAsset(input: {
         backdropContentType: input.backdropContentType,
         contentType: input.contentType,
         mediaType: input.mediaType,
+        aiGenerated: input.aiGenerated,
         durationSeconds: input.durationSeconds,
         width: input.width,
         height: input.height,
@@ -2632,7 +2969,7 @@ export async function requestCancel(options: {
     throw unprocessableEntity("This request has not reached the provider yet.");
   }
   const outcome = await cancelQueued({
-    model: job.model,
+    model: queueModel(job),
     requestId: job.falRequestId,
   });
 
@@ -2677,14 +3014,19 @@ async function finaliseCancellations(limit: number): Promise<number> {
     },
     orderBy: { cancelRequestedAt: "asc" },
     take: limit,
-    select: { id: true, model: true, falRequestId: true },
+    select: {
+      id: true,
+      model: true,
+      pendingMediaUrl: true,
+      falRequestId: true,
+    },
   });
 
   let finalised = 0;
   for (const job of requested) {
     if (!job.falRequestId) continue;
     const status = await fetchQueueStatus({
-      model: job.model,
+      model: queueModel(job),
       requestId: job.falRequestId,
     });
     // Unreachable says nothing; leave it for the next pass.

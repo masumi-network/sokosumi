@@ -585,6 +585,13 @@ export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_SCRIPT_MAX_LENGTH,
+  TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoPriceFigures,
+  talkingVideoQuotedSeconds,
+} from "./talking-video-credits.js";
+export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
   isTaskArchivableStatus,

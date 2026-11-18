@@ -96,6 +96,8 @@ export const LIMITS = {
 
   /** Largest generated video the studio will store. 15 s at 768P is ~10 MB. */
   IMAGE_STUDIO_MAX_VIDEO_BYTES: 64 * 1024 * 1024,
+  /** A talking video is 1080p at about 1.5 MB a second, up to some 45 seconds. */
+  IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES: 128 * 1024 * 1024,
 
   /**
    * Maximum pending guest invitations per external channel. Bounds email blast
