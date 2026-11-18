@@ -17,6 +17,7 @@ import type {
   TaskTagSnapshot,
   TaskTagWrite,
 } from "@/lib/actions/task/task-write-input";
+import { cn } from "@/lib/utils";
 import {
   representedTaskTopics,
   useTaskTagCatalog,
@@ -90,7 +91,11 @@ export function TaskTags({
   return (
     <div
       role="group"
-      className="flex min-w-0 flex-wrap items-center gap-1"
+      className={cn(
+        "flex min-w-0 items-center gap-1",
+        // One tag on one line: it truncates, the count after it stays whole.
+        compact ? "*:first:min-w-0 *:first:shrink" : "flex-wrap",
+      )}
       aria-label={t("label")}
     >
       {visible.map(renderTagBadge)}
@@ -112,7 +117,11 @@ export function TaskTags({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="relative z-10 min-h-6 px-1.5 text-xs"
+                className={cn(
+                  "relative z-10 min-h-6 px-1.5 text-xs",
+                  // On a card's one-line row the count is no taller than the row.
+                  compact && "h-6",
+                )}
                 aria-label={t("showAll", { count: badges.length })}
                 onPointerDown={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}

@@ -2570,7 +2570,6 @@
         "label": "Tags",
         "empty": "Noch keine Tags",
         "showAll": "Alle {count} Tags anzeigen",
-        "noProject": "Kein Projekt",
         "openProject": "Projekt öffnen: {name}",
         "vocabulary": {
           "research": "Recherche",

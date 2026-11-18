@@ -12,6 +12,7 @@ import {
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
+import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import {
   buildTasksFiltersSearchParams,
   clearTasksFilters,
@@ -345,6 +346,9 @@ export function TasksView(props: TasksViewProps) {
                       {viewMode === "board" ? (
                         <TaskCard
                           task={activeDragTask}
+                          quietStatus={
+                            COLUMN_MAIN_STATUS[activeDragTask.columnId]
+                          }
                           compact={density === "compact"}
                           statusLabels={labels.filters.statusOptions}
                         />

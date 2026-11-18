@@ -154,6 +154,8 @@ interface TaskStatusBadgeProps {
   label?: string;
   className?: string;
   showLabel?: boolean;
+  /** No box around the marker and word, for a card that is already a box. */
+  plain?: boolean;
 }
 
 export function TaskStatusBadge({
@@ -161,6 +163,7 @@ export function TaskStatusBadge({
   label,
   className,
   showLabel = true,
+  plain = false,
 }: TaskStatusBadgeProps) {
   const marker = getTaskStatusMarker(status);
   const style = getToneStyle(marker.tone);
@@ -172,13 +175,14 @@ export function TaskStatusBadge({
       aria-label={showLabel ? undefined : statusLabel}
       title={showLabel ? undefined : statusLabel}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
-        style.box,
-        style.label,
+        "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium",
+        plain
+          ? "text-foreground"
+          : ["rounded-sm border px-2.5 py-1", style.box, style.label],
         className,
       )}
     >
-      <StatusMarker spec={marker} />
+      <StatusMarker spec={marker} tone={plain ? style.onSurface : undefined} />
       {showLabel && <span>{statusLabel}</span>}
     </span>
   );

@@ -42,6 +42,6 @@ export const TASK_DETAIL_CONTEXT_STRIP_CLASS =
  * classes, so a padding change cannot make the skeleton jump on load.
  */
 export const TASK_CARD_DENSITY_CLASS = {
-  normal: "space-y-2.5 p-3",
-  compact: "space-y-1 p-2",
+  normal: "flex flex-col gap-2 p-3",
+  compact: "flex flex-col gap-1 px-3 py-2",
 } as const;

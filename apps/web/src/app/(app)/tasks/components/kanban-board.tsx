@@ -4,6 +4,7 @@ import {
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
+import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
@@ -76,6 +77,7 @@ export function KanbanBoard({
                       dragHandleProps={dragHandleProps}
                       compact={compact}
                       statusLabels={statusLabels}
+                      quietStatus={COLUMN_MAIN_STATUS[column.id]}
                     />
                   )}
                 </DraggableTask>
@@ -85,6 +87,7 @@ export function KanbanBoard({
                   task={task}
                   compact={compact}
                   statusLabels={statusLabels}
+                  quietStatus={COLUMN_MAIN_STATUS[column.id]}
                 />
               )
             }

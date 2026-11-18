@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -48,6 +47,11 @@ interface TaskCardProps {
   dragHandleProps?: DragHandleProps;
   compact?: boolean;
   statusLabels?: Record<TaskStatusType, string>;
+  /**
+   * The status the surrounding column already names. A card in that status
+   * shows the marker without the word. Unset outside a board column.
+   */
+  quietStatus?: TaskStatusType;
 }
 
 export function TaskCard({
@@ -55,6 +59,7 @@ export function TaskCard({
   dragHandleProps,
   compact = false,
   statusLabels,
+  quietStatus,
 }: TaskCardProps) {
   const t = useTranslations("App.Tasks.Tags");
   const handleProps = dragHandleProps
@@ -72,41 +77,56 @@ export function TaskCard({
     >
       <article
         className={cn(
-          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-foreground hover:shadow-sm press content-in",
+          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-control-border hover:shadow-sm press content-in",
           TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],
           dragHandleProps?.isDragging && "shadow-lg",
         )}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <TaskStatusBadge
             status={task.status}
             label={statusLabels?.[task.status]}
-            className="w-fit rounded-sm"
+            showLabel={task.status !== quietStatus}
+            plain
           />
-          {task.statusSince && !task.isPending ? (
-            <TaskStatusAge
-              status={task.status}
-              statusSince={task.statusSince}
-              className="me-auto"
-            />
-          ) : null}
-          <TaskPrivateIndicator visibility={task.visibility} />
-        </div>
-        <h3
-          className={cn(
-            "text-foreground text-sm leading-snug font-medium",
-            compact ? "line-clamp-1" : "line-clamp-2",
-          )}
-        >
-          <TaskPriorityMark
-            priority={task.priority}
-            className="mr-1.5 inline-block align-[-2px]"
-          />
-          {task.identifier ? (
-            <span className="text-muted-foreground mr-1.5 text-xs font-normal tabular-nums">
+          {task.identifier && task.project && !task.isPending ? (
+            // The identifier's prefix is the project, so it is the way there.
+            <Link
+              href={`/projects/${task.project.id}`}
+              // The name starts with what is shown and then says where it goes.
+              aria-label={`${task.identifier}, ${t("openProject", { name: task.project.name })}`}
+              title={task.project.name}
+              // Taller than its text by the row gap, and no taller: a larger
+              // target would take taps and drags meant for the title.
+              className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 -my-1 rounded-sm py-1 tabular-nums hover:underline focus-visible:outline-2"
+              onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {task.identifier}
+            </Link>
+          ) : task.identifier ? (
+            <span className="text-muted-foreground tabular-nums">
               {task.identifier}
             </span>
           ) : null}
+          <TaskPriorityMark priority={task.priority} className="size-3.5" />
+          <span className="ms-auto flex items-center gap-2">
+            {task.statusSince && !task.isPending ? (
+              <TaskStatusAge
+                status={task.status}
+                statusSince={task.statusSince}
+                stuckOnly
+              />
+            ) : null}
+            <TaskPrivateIndicator visibility={task.visibility} />
+          </span>
+        </div>
+        <h3
+          className={cn(
+            "text-foreground text-sm leading-5 font-medium",
+            compact ? "line-clamp-1" : "line-clamp-2",
+          )}
+        >
           {task.isPending ? (
             task.name
           ) : (
@@ -119,56 +139,48 @@ export function TaskCard({
             </TaskDetailLink>
           )}
         </h3>
-        <TaskTags
-          tags={task.tags}
-          showManualTopics={!compact}
-          workspaceTags={task.workspaceTags}
-          compact={compact}
-        />
-        {!compact && (
-          <>
-            {task.project ? (
-              <Link
-                href={`/projects/${task.project.id}`}
-                title={task.project.name}
-                aria-label={t("openProject", { name: task.project.name })}
-                className="text-muted-foreground hover:text-foreground focus-visible:outline-ring relative z-10 flex min-h-8 min-w-0 items-center gap-2 rounded-sm text-xs hover:underline focus-visible:outline-2"
-                onPointerDown={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-              >
-                <ProjectAvatar
-                  name={task.project.name}
-                  logo={task.project.logo}
-                  className="size-5 shrink-0 rounded-sm"
-                />
-                <span className="min-w-0 line-clamp-2 break-words">
-                  {task.project.name}
-                </span>
-              </Link>
-            ) : (
-              <p className="text-muted-foreground text-xs">{t("noProject")}</p>
-            )}
-          </>
-        )}
-        {task.runAt ? (
-          <TaskRunAtBadge runAt={task.runAt} className="flex" />
-        ) : null}
-        {task.dueOn ? (
-          <TaskDueBadge
-            dueOn={task.dueOn}
-            status={task.status}
-            className="flex"
+        {/* One line. A container, so the tag can leave a narrow card and the
+            date can truncate there, and so the line's unwrapped width cannot
+            widen a column that sizes to its content. */}
+        <div className="@container flex min-h-5 items-center gap-2">
+          {/* A scheduled Task says when it starts, and that it is late only
+              once it is. Any other Task says when it is due. */}
+          {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
+          {task.dueOn ? (
+            <TaskDueBadge
+              dueOn={task.dueOn}
+              status={task.status}
+              overdueOnly={!!task.runAt}
+              // Alone it stays whole. Beside a start time both give way.
+              className={task.runAt ? undefined : "@min-[14rem]:shrink-0"}
+            />
+          ) : null}
+          <TaskSubtaskProgress
+            progress={task.subtaskProgress}
+            className="shrink-0"
           />
-        ) : null}
-        <TaskSubtaskProgress progress={task.subtaskProgress} className="flex" />
-        <TaskMetaDetails
-          project={null}
-          assignee={task.assignee}
-          participants={task.participants}
-          commentsCount={task.commentsCount}
-          createdAt={task.createdAt}
-          variant="card"
-        />
+          {/* A start time is long, so it takes the tag's place. Clips, so a
+              tag squeezed by its neighbours never runs under the comment
+              count; the end padding keeps the count button's focus ring. */}
+          {task.runAt ? null : (
+            <div className="hidden min-w-0 overflow-x-clip pe-1 @min-[14rem]:flex">
+              <TaskTags
+                tags={task.tags}
+                showManualTopics={!compact}
+                workspaceTags={task.workspaceTags}
+                compact
+              />
+            </div>
+          )}
+          <TaskMetaDetails
+            project={null}
+            assignee={task.assignee}
+            participants={task.participants}
+            commentsCount={task.commentsCount}
+            createdAt={task.createdAt}
+            variant="card"
+          />
+        </div>
       </article>
     </div>
   );

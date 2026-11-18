@@ -198,17 +198,11 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
         TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],
       )}
     >
-      <StatusBadgeSkeleton />
-      <TextLineSkeleton className="w-4/5 text-sm leading-snug" />
-      {compact ? null : (
-        <div className="flex min-h-8 items-center gap-2">
-          <Skeleton className="size-5 shrink-0 rounded-sm" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-      )}
-      <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
-        <Skeleton className="size-5 rounded-full" />
+      <TextLineSkeleton className="w-20 text-xs leading-5" />
+      <TextLineSkeleton className="w-4/5 text-sm leading-5" />
+      <div className="flex min-h-5 items-center justify-between gap-2">
         <Skeleton className="h-3 w-12" />
+        <Skeleton className="size-5 rounded-full" />
       </div>
     </div>
   );
