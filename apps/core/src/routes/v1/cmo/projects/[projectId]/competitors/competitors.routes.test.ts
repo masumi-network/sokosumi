@@ -111,6 +111,7 @@ const COMPETITORS = {
     openQuestions: [],
   },
   limit: 5,
+  mapPlayers: ["Calendly"],
   signals: [
     {
       id: SIGNAL_ID,

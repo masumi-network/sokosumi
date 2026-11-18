@@ -3,6 +3,7 @@
 import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
 import { cmoPlans } from "../../../test-fixtures/cmo";
+import { competitors, noCompetitors } from "./competitors-fixture";
 import { chat, messages, overview, seo } from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
@@ -19,6 +20,13 @@ const actions: CmoAppActions = {
   saveBrandBrain: async () => overview,
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
+  competitors: {
+    loadCompetitors: async () => competitors,
+    addCompetitor: async () => ({ competitors, error: null }),
+    updateCompetitor: async () => ({ competitors, error: null }),
+    removeCompetitor: async () => ({ competitors, error: null }),
+    addMoveToStrategy: async () => ({ competitors, error: null }),
+  },
   connectChannel: async () => ({ url: null, error: null }),
   addMailingList: async () => ({ overview, error: null }),
   connectMeasurement: async () => ({ url: null, error: null }),
@@ -70,10 +78,16 @@ const actions: CmoAppActions = {
 /** The signed-in app on one page, over fixture data, for looking at without Core. */
 interface FixtureAppProps {
   view: View;
+  /** Competitors: the page with nobody watched yet, or still loading. */
+  state?: "empty" | "loading";
 }
 
-export function FixtureApp({ view }: FixtureAppProps) {
+export function FixtureApp({ view, state }: FixtureAppProps) {
   const data = view === "chat" ? chat : { overview, messages };
+  const loadCompetitors =
+    state === "loading"
+      ? () => new Promise<null>(() => {})
+      : async () => (state === "empty" ? noCompetitors : competitors);
   return (
     <CmoApp
       overview={data.overview}
@@ -82,7 +96,11 @@ export function FixtureApp({ view }: FixtureAppProps) {
       email="francis@acme.io"
       initialView={view}
       plans={cmoPlans}
-      actions={{ ...actions, loadState: async () => data }}
+      actions={{
+        ...actions,
+        loadState: async () => data,
+        competitors: { ...actions.competitors, loadCompetitors },
+      }}
     />
   );
 }

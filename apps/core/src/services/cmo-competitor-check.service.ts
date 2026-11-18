@@ -155,6 +155,7 @@ export function newsSignals(items: readonly PickedNews[]): SignalDraft[] {
       url: item.url,
       publisher: item.publisher,
       publishedAt: item.publishedAt.toISOString(),
+      event: item.event,
     },
     dedupeKey: `news:${item.url}`,
   }));

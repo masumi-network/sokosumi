@@ -89,6 +89,13 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           saveBrandBrain: same,
           retryLearning: result,
           pauseEntry: same,
+          competitors: {
+            loadCompetitors: async () => null,
+            addCompetitor: async () => ({ competitors: null, error: null }),
+            updateCompetitor: async () => ({ competitors: null, error: null }),
+            removeCompetitor: async () => ({ competitors: null, error: null }),
+            addMoveToStrategy: async () => ({ competitors: null, error: null }),
+          },
           connectChannel: none,
           addMailingList: result,
           connectMeasurement: none,
