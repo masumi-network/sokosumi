@@ -364,6 +364,7 @@ import {
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+  getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator as coreGetProjectsByIdSocialConnectionsByConnectionIdTiktokCreator,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -4650,6 +4651,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator(
+    id: string,
+    connectionId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdTiktokCreator({
+          client,
+          path: { id, connectionId },
+          cache: "no-store",
+        }),
+      "Failed to read TikTok creator settings",
+    );
+  }
+
   async function getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
     id: string,
     connectionId: string,
@@ -7429,6 +7446,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+    getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator,
     getProjectsByIdSocialConnectionsByConnectionIdSubscription,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,

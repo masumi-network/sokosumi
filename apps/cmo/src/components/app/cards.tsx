@@ -287,7 +287,7 @@ export function StrategyCard({
           <>
             <StatusText>Approved</StatusText>
             <span className="note">
-              {AGENT_NAME} runs this plan and keeps it current.
+              {AGENT_NAME} runs this strategy and keeps it current.
             </span>
           </>
         ) : (
@@ -390,7 +390,6 @@ const UPDATE_TITLES = {
   weekly: "Weekly results",
   monthly: "Next month's strategy",
   brand: "Brand Brain refreshed",
-  request: "Done",
   production: "Your month",
 } as const;
 
@@ -400,6 +399,45 @@ const CHANGE_LABELS = {
   brand: "What changed in the Brand Brain",
   daily: "What I changed today",
 } as const;
+
+/**
+ * What Cuso did on a request, as his own message: a headline, what is done
+ * (ticked) and what comes next. It holds his words only, so it reads in the
+ * language he answered in, and it needs nothing from the owner.
+ */
+function RequestNote({
+  update,
+  superseded,
+}: {
+  update: Update;
+  superseded: boolean;
+}) {
+  const done = update.done ?? [];
+  const upNext = superseded ? [] : (update.upNext ?? []);
+  return (
+    <div className="stack-sm">
+      <p className="txt">
+        <strong>{update.headline}</strong>
+      </p>
+      {done.length + upNext.length > 0 ? (
+        <div className="steps txt">
+          {done.map((item) => (
+            <div key={item} className="step ok">
+              <span className="dot" aria-hidden="true" />
+              {item}
+            </div>
+          ))}
+          {upNext.map((item) => (
+            <div key={item} className="step">
+              <span className="dot" aria-hidden="true" />
+              {item}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** Updates that change the strategy, which the owner can put back. */
 function changesStrategy(kind: Update["kind"]): boolean {
@@ -426,12 +464,11 @@ export function UpdateCard({
   focused?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  if (update.kind === "request") {
+    return <RequestNote update={update} superseded={superseded} />;
+  }
   return (
-    <div
-      className={
-        focused || update.kind === "request" ? "card card-focus" : "card"
-      }
-    >
+    <div className={focused ? "card card-focus" : "card"}>
       <div className="ch">
         <b>{UPDATE_TITLES[update.kind]}</b>
         <span className="note">{update.headline}</span>
@@ -462,9 +499,7 @@ export function UpdateCard({
             />
           </div>
         ) : null}
-        {update.kind !== "request" &&
-        update.kind !== "production" &&
-        (update.changes ?? []).length > 0 ? (
+        {update.kind !== "production" && (update.changes ?? []).length > 0 ? (
           <div>
             <span className="label">{CHANGE_LABELS[update.kind]}</span>
             <ul className={update.revertedAt ? "list reverted" : "list"}>

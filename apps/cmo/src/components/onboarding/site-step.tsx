@@ -242,7 +242,7 @@ export function SiteStep({
             {skipping
               ? "Skipping…"
               : next === "plan"
-                ? "Write my plan"
+                ? "Write my strategy"
                 : "See your brand"}
             {skipping ? null : <ArrowRight size={16} aria-hidden="true" />}
           </button>

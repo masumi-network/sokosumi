@@ -318,7 +318,7 @@ export const cmoSaveStrategyInputSchema = z.object({
           ctx.addIssue({
             code: "custom",
             path: ["proposals", index, "channel"],
-            message: `Propose only a channel Cuso runs today that the plan does not use yet: ${live}`,
+            message: `Propose only a channel Cuso runs today that the strategy does not use yet: ${live}`,
           });
         }
       });
@@ -456,7 +456,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Measures last week with real numbers only and improves the strategy. Revertible.",
     prompt:
-      "Weekly marketing review, following your measure and improve skill. Using the packet below, the connected sources and list_social_posts or get_social_post where needed: what was published last week and how it performed. Report only numbers a source gave you, each with its source; when there are none, say so plainly. Never present an estimate as a result. Decide the week: hold, fix, test or investigate. Hold is a good answer when the numbers are too few or nothing is off; then change nothing. Otherwise make one to three changes with save_strategy: your changes become a new version, which the owner approves before it runs (the approved plan keeps running until then). Report with report_update kind weekly: results, verdict, one to three learnings (what the week taught, one line each: next month's plan reads them), and each change you made. The owner can go back from the card. Then write one short sentence for the owner; the card carries the details.",
+      "Weekly marketing review, following your measure and improve skill. Using the packet below, the connected sources and list_social_posts or get_social_post where needed: what was published last week and how it performed. Report only numbers a source gave you, each with its source; when there are none, say so plainly. Never present an estimate as a result. Decide the week: hold, fix, test or investigate. Hold is a good answer when the numbers are too few or nothing is off; then change nothing. Otherwise make one to three changes with save_strategy: your changes become a new version, which the owner approves before it runs (the approved strategy keeps running until then). Report with report_update kind weekly: results, verdict, one to three learnings (what the week taught, one line each: next month's strategy reads them), and each change you made. The owner can go back from the card. Then write one short sentence for the owner; the card carries the details.",
   },
   {
     key: "cmo-monthly-strategy",
@@ -466,7 +466,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Writes next month's strategy from what worked and what changed, then keeps executing. Revertible.",
     prompt:
-      "Monthly strategy. Next month starts soon. Using the packet below (Brand Brain, the current strategy and calendar, the posts of the last weeks and their results), write next month's strategy with save_strategy: set month to next month, keep the calendar entries still due this month, and plan all of next month. Build on what worked and on the weekly learnings in the packet (weeklyLearnings), drop what did not, and reflect what changed in the business. Plan one experiment for the month: one change, what you expect it to move, and how you will know. Use only numbers you actually have. Keep the goals unless the owner changed them. Then report with report_update kind monthly: a headline, results (honest, no estimates), and in changes each difference from this month's strategy. Your plan becomes a new version: the owner approves it before it runs, and the approved plan keeps running until then. They can change it in chat or go back from the card. Then write one short sentence for the owner.",
+      "Monthly strategy. Next month starts soon. Using the packet below (Brand Brain, the current strategy and calendar, the posts of the last weeks and their results), write next month's strategy with save_strategy: set month to next month, keep the calendar entries still due this month, and plan all of next month. Build on what worked and on the weekly learnings in the packet (weeklyLearnings), drop what did not, and reflect what changed in the business. Plan one experiment for the month: one change, what you expect it to move, and how you will know. Use only numbers you actually have. Keep the goals unless the owner changed them. Then report with report_update kind monthly: a headline, results (honest, no estimates), and in changes each difference from this month's strategy. Your strategy becomes a new version: the owner approves it before it runs, and the approved strategy keeps running until then. They can change it in chat or go back from the card. Then write one short sentence for the owner.",
   },
   {
     key: "cmo-brand-refresh",
@@ -486,7 +486,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "One friendly reminder when the proposed strategy has waited about two days.",
     prompt:
-      "Strategy reminder. The strategy you proposed has waited about two days for the owner's approval, and nothing runs until they approve it. Write one or two friendly sentences in the brand's language: what the plan does first, and that one click on Approve strategy (or a change request in chat) gets you started. Do not call tools. Do not repeat the whole plan.",
+      "Strategy reminder. The strategy you proposed has waited about two days for the owner's approval, and nothing runs until they approve it. Write one or two friendly sentences in the brand's language: what the strategy does first, and that one click on Approve strategy (or a change request in chat) gets you started. Do not call tools. Do not repeat the whole strategy.",
   },
 ];
 
@@ -514,7 +514,7 @@ export const CMO_DREAMING_SCHEDULE = {
   cronExpression: dreaming.cronExpression,
   prompt: dreaming.promptShared.replace(
     STAND_UP_LINE,
-    "Never remind about goals, deadlines, the plan or the calendar: your daily run does that.",
+    "Never remind about goals, deadlines, the strategy or the calendar: your daily run does that.",
   ),
 } as const;
 

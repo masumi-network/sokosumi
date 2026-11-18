@@ -200,12 +200,12 @@ describe("accessibility", () => {
 /** One rule per line pattern, each proven by a bad and a good sample. */
 const SHADOW_DECLARATION = /\bbox-?[sS]hadow\s*:\s*["'`]?([^;"'`,}]*)/;
 const SHADOW_OK =
-  /^(?:none|var\(--shadow-(?:pill|hard|hero|iris|on-strip)\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
+  /^(?:none|var\(--shadow(?:-big|-iris|-on-strip)?\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
 const BLUR = /\bblur\(|backdrop-filter|\bbackdropFilter/;
 const RADIUS_DECLARATION =
   /\b(?:border(?:-[a-z]+)*-radius|border(?:[A-Z][a-z]+)*Radius)\s*:\s*["'`]?([^;"'`}]*)/;
 const RADIUS_OK =
-  /^(?:var\(--radius-(?:mark|control|card|panel|pill)\)|50%|0|inherit)$/;
+  /^(?:var\(--radius-(?:mark|control|card|pill)\)|50%|0|inherit)$/;
 const IRIS_TEXT =
   /(?<![\w-])(?:color|stroke|text-decoration-color|border[\w-]*|outline[\w-]*|borderColor|outlineColor)\s*:[^;]*var\(--primary(?:-hover)?\)/;
 const SIGNAL_TEXT = /(?<![\w-])(?:color|stroke)\s*:[^;]*var\(--(?:ok|warn)\)/;
@@ -266,20 +266,16 @@ function thickBorder(line: string): boolean {
 
 /** The values design-system.md names, read from the `:root` block. */
 const TOKENS: Record<string, string> = {
-  "--line-pill": "2px",
-  "--line-thick": "3px",
-  "--line-hero": "4px",
-  "--offset-pill": "3px",
-  "--offset-hard": "6px",
-  "--offset-hero": "10px",
-  "--shadow-pill": "var(--offset-pill) var(--offset-pill) 0 var(--line)",
-  "--shadow-hard": "var(--offset-hard) var(--offset-hard) 0 var(--line)",
-  "--shadow-hero": "var(--offset-hero) var(--offset-hero) 0 var(--line)",
-  "--shadow-iris": "var(--offset-hard) var(--offset-hard) 0 var(--primary)",
+  "--line-width": "3px",
+  "--line-width-small": "2px",
+  "--offset": "4px",
+  "--offset-big": "6px",
+  "--shadow": "var(--offset) var(--offset) 0 var(--line)",
+  "--shadow-big": "var(--offset-big) var(--offset-big) 0 var(--line)",
+  "--shadow-iris": "var(--offset) var(--offset) 0 var(--primary)",
   "--radius-mark": "8px",
   "--radius-control": "12px",
   "--radius-card": "20px",
-  "--radius-panel": "28px",
   "--radius-pill": "999px",
   "--tracking-heading": "-0.03em",
 };
@@ -313,7 +309,7 @@ describe("strokes", () => {
     expect(thickBorder("  border-top: 6px solid var(--surface);")).toBe(true);
     expect(thickBorder("  border-left-width: 3px;")).toBe(true);
     expect(thickBorder("  border: 1px solid var(--line);")).toBe(false);
-    expect(thickBorder("  border: var(--line-thick) solid var(--line);")).toBe(
+    expect(thickBorder("  border: var(--line-width) solid var(--line);")).toBe(
       false,
     );
     expect(thickBorder("  border-radius: 14px;")).toBe(false);
@@ -333,10 +329,12 @@ const CASTS_SHADOW = [
   /\[aria-(?:pressed|selected)/,
   // Classes that are only ever set on a <button>.
   /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option)(?![\w-])/,
+  // The chat's composer: the frame around its textarea.
+  /^\.composer$/,
   /^\.card-focus$/,
   /^\.ob-who-menu$/,
   // The shadow samples on /design-system.
-  /^\.ds-shadow-(?:pill|hard|hero)$/,
+  /^\.ds-shadow(?:-big)?$/,
 ];
 
 /** A rule's selectors, split at the commas outside `:not(...)` and the like. */
@@ -365,7 +363,7 @@ function passiveShadows(css: string): string[] {
   for (const [, list = "", body = ""] of rules.matchAll(
     /([^{}]+)\{([^{}]*)\}/g,
   )) {
-    if (!/box-shadow:\s*var\(--shadow-/.test(body)) continue;
+    if (!/box-shadow:\s*var\(--shadow/.test(body)) continue;
     for (const selector of selectors(list)) {
       if (!CASTS_SHADOW.some((allowed) => allowed.test(selector))) {
         found.push(selector);
@@ -386,7 +384,7 @@ describe("shadows mean action", () => {
   });
 
   it("flags a shadow on a tag or a picture and passes buttons and the focus card", () => {
-    const shadow = "{ box-shadow: var(--shadow-pill); }";
+    const shadow = "{ box-shadow: var(--shadow); }";
     expect(passiveShadows(`.tag ${shadow}`)).toEqual([".tag"]);
     expect(passiveShadows(`.ob-stage-art ${shadow}`)).toEqual([
       ".ob-stage-art",
@@ -448,9 +446,10 @@ describe("visual system", () => {
       expect(badShadow("  box-shadow: 0 1px 2px var(--border);")).toBe(true);
       expect(badShadow('boxShadow: "0 0 0 3px var(--surface)"')).toBe(true);
       expect(badShadow("  box-shadow: 6px 6px 0 var(--line);")).toBe(true);
-      expect(badShadow("  box-shadow: var(--shadow-hard);")).toBe(false);
-      expect(badShadow("  box-shadow: var(--shadow-pill);")).toBe(false);
-      expect(badShadow("  box-shadow: var(--shadow-hero);")).toBe(false);
+      expect(badShadow("  box-shadow: var(--shadow);")).toBe(false);
+      expect(badShadow("  box-shadow: var(--shadow-hero);")).toBe(true);
+      expect(badShadow("  box-shadow: 10px 10px 0 var(--line);")).toBe(true);
+      expect(badShadow("  box-shadow: var(--shadow-big);")).toBe(false);
       expect(badShadow("  box-shadow: var(--shadow-iris);")).toBe(false);
       expect(badShadow("  box-shadow: inset 0 0 0 1px var(--line);")).toBe(
         false,

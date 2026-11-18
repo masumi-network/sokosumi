@@ -229,7 +229,7 @@ describe("onboardingStep", () => {
         },
       }),
     ).toBe(false);
-    // A later no after a revision clears changes in Core, so Update plan
+    // A later no after a revision clears changes in Core, so Update strategy
     // shows again instead of Approve.
     expect(
       planUnfitted({

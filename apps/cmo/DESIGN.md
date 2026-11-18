@@ -53,6 +53,7 @@ Rules for any copy: onboarding, messages inside the app, marketing site, ads, er
 - Light banter is fine. Not stiff and corporate, not crude.
 - No long, rambling sentences. Minimal fluff.
 - Minimal to no em dashes or hyphens.
+- The month of marketing the agent writes is the strategy, never the plan. A plan is a paid CMO plan.
 - Banned words and phrases: none locked yet. Flag anything that reads as hype or invented confidence for review.
 
 Example prompt responses, from the current live build:

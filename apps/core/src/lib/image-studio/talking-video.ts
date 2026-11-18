@@ -25,12 +25,19 @@ import type { VideoSettings } from "./video-model";
 export const TALKING_VIDEO_CAPTION_ENDPOINT =
   "fal-ai/workflow-utilities/auto-subtitle";
 
-/** Read off each model page on 2026-11-18. */
+/**
+ * Measured, not read off the model page. The page says $0.05 per second at
+ * 1080p; fal billed a 6.08 s Turbo clip 22 units at $0.05, so $1.10, on
+ * 2026-11-18. With one measurement it is unknown whether part of that is a
+ * fixed charge, so a video costs the larger of $1.10 and that clip's rate
+ * per second: an upper bound either way. The standard tier is left out until
+ * its price is measured too.
+ */
 const PRICES_VERIFIED_AT = "2026-11-18";
 const VOICE_PER_1000_CHARACTERS_USD = 0.08;
 const CAPTIONS_PER_MINUTE_USD = 0.03;
 
-/** The only resolution sent. 2K costs $0.0875 a second on Turbo and is never asked for. */
+/** The only resolution sent. */
 export const TALKING_VIDEO_RESOLUTION = "1080p";
 export const TALKING_VIDEO_ASPECT_RATIO = "9:16";
 const FRAME = { width: 1080, height: 1920 } as const;
@@ -51,30 +58,16 @@ const MODELS: TalkingVideoModel[] = [
   {
     id: "avatar-6-turbo",
     label: "HeyGen Avatar 6 Turbo",
-    description: "A presenter speaking your script, at the lower price.",
+    description: "A presenter speaking your script.",
     endpoint: "heygen/avatar-6/turbo/image-to-video",
     price: {
-      perSecondUsd: 0.05,
+      perSecondUsd: 0.181,
+      minimumVideoUsd: 1.1,
       voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
       captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
       basis:
-        "$0.05 per second of video at 1080p, as fal lists it, plus the voice ($0.08 per 1,000 characters) and the captions ($0.03 per minute).",
+        "The larger of $1.10 and $0.181 per second of video at 1080p, from what fal billed for a measured clip, plus the voice ($0.08 per 1,000 characters) and the captions ($0.03 per minute).",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
-      verifiedAt: PRICES_VERIFIED_AT,
-    },
-  },
-  {
-    id: "avatar-6",
-    label: "HeyGen Avatar 6",
-    description: "The same presenter at higher quality, at twice the price.",
-    endpoint: "heygen/avatar-6/image-to-video",
-    price: {
-      perSecondUsd: 0.1,
-      voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
-      captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
-      basis:
-        "$0.10 per second of video at 1080p, as fal lists it, plus the voice ($0.08 per 1,000 characters) and the captions ($0.03 per minute).",
-      sourceUrl: "https://fal.ai/models/heygen/avatar-6/image-to-video",
       verifiedAt: PRICES_VERIFIED_AT,
     },
   },

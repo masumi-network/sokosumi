@@ -19,6 +19,7 @@ import {
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
@@ -444,6 +445,31 @@ export async function prepareCmoChatCase(
 }
 
 /**
+ * The picture of the chat post case: started as a job with a reference
+ * library image. No check where the library is not set up.
+ */
+export async function styledPictureChecks(
+  lane: EvalLaneRecord,
+  since: Date,
+): Promise<ScenarioCheck[]> {
+  if (!referenceLibraryAvailable()) return [];
+  const styled = await prisma.projectImageJob.count({
+    where: {
+      projectId: lane.cusoProjectId,
+      createdAt: { gte: since },
+      referenceLibraryIds: { isEmpty: false },
+    },
+  });
+  return [
+    {
+      label: "Starts the picture in a reference library style",
+      pass: styled > 0,
+      actual: `${styled} styled job${styled === 1 ? "" : "s"}`,
+    },
+  ];
+}
+
+/**
  * How each comment was handled, from the turn's handle_social_comment
  * calls: every comment once, and the action each one calls for.
  */
@@ -612,7 +638,7 @@ async function pollMonth(
         status: "ERROR",
         checks: [],
         output: {},
-        error: "The month case lost its plan",
+        error: "The month case lost its strategy",
         turnIds: [],
       },
     };

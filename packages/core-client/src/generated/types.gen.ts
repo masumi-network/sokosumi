@@ -6299,6 +6299,7 @@ export type ProjectImageStudioTalkingVideoCatalog = {
         endpoint: string;
         price: {
             perSecondUsd: number;
+            minimumVideoUsd: number;
             voicePer1000CharactersUsd: number;
             captionsPerMinuteUsd: number;
             basis: string;
@@ -9767,6 +9768,15 @@ export type ProjectSocialConnectionSubscription = {
     textLimit: number;
 };
 
+export type TikTokCreatorInfo = {
+    creator_nickname: string;
+    privacy_level_options: Array<string>;
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+    max_video_post_duration_sec: number;
+};
+
 export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
     posts: Array<SocialAccountPost>;
@@ -10812,6 +10822,16 @@ export type PublishSocialPostRequest = {
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+    tikTokSettings?: TikTokPostSettings;
+};
+
+export type TikTokPostSettings = {
+    privacyLevel: 'SELF_ONLY';
+    allowComment: boolean;
+    allowDuet: boolean;
+    allowStitch: boolean;
+    promotesOwnBrand: boolean;
+    acceptedMusicUsage: true;
 };
 
 export type CreateSocialPostRequest = {
@@ -65795,6 +65815,133 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses 
 };
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponse = GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/tiktok-creator';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorError = GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses = {
+    /**
+     * Current TikTok creator settings
+     */
+    200: {
+        data: TikTokCreatorInfo;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponse = GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses];
 
 export type GetProjectsByIdSocialConnectionsStatisticsData = {
     body?: never;

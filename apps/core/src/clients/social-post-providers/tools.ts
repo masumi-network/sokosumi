@@ -161,7 +161,14 @@ export async function executeComposioTool(input: {
   }>(response, input.context);
   const toolResult = record(result.data);
   const providerResult = record(toolResult?.data) ?? toolResult;
-  const toolError = result.error ?? toolResult?.error;
+  const providerError = input.toolSlug.startsWith("TIKTOK_")
+    ? providerResult?.error
+    : undefined;
+  const reportedError = result.error ?? toolResult?.error ?? providerError;
+  const toolError =
+    input.toolSlug.startsWith("TIKTOK_") && record(reportedError)?.code === "ok"
+      ? null
+      : reportedError;
   const isXImageUpload = input.context === "upload X image";
   if (
     toolError ||

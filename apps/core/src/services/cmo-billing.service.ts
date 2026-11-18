@@ -349,7 +349,7 @@ export async function requireCmoCommitter(
   const workspace = { id: cuso.workspaceId, userId: null, organizationId };
   if (!(await mayApproveMarketingStrategy(userId, workspace))) {
     throw new CmoForbiddenError(
-      "Only the organization's owners and admins approve Cuso's plan and start his month",
+      "Only the organization's owners and admins approve Cuso's strategy and start his month",
     );
   }
 }

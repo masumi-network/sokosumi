@@ -98,7 +98,7 @@ describe("pre-hire Site", () => {
       />,
     );
     expect(html).toContain(
-      "Give me your website. I&#x27;ll bring back a plan.",
+      "Give me your website. I&#x27;ll bring back a strategy.",
     );
     expect(html).toContain("Start reading");
     expect(html).toContain('value="acme.io"');
@@ -141,7 +141,7 @@ describe("step markers", () => {
       ).exec(html)?.[1];
     expect(marker("Research")).toBe("done");
     expect(marker("Brand")).toBe("done");
-    expect(marker("Plan")).toBe("now");
+    expect(marker("Strategy")).toBe("now");
     expect(marker("Launch")).toBe("next");
     expect(html.match(/aria-current="step"/g)).toHaveLength(1);
   });
@@ -402,8 +402,8 @@ describe("Brand", () => {
   });
 
   it("leads on to where the founder was when opened again", () => {
-    const html = render(draft(), { label: "Plan", onClick: () => {} });
-    expect(html).toContain("Continue to Plan");
+    const html = render(draft(), { label: "Strategy", onClick: () => {} });
+    expect(html).toContain("Continue to Strategy");
     expect(html).not.toContain("Looks like us");
   });
 });
@@ -414,12 +414,12 @@ describe("Plan", () => {
       draft({ strategy: null, work: work("strategy") }),
       "planning",
     );
-    expect(html).toContain("Writing your plan");
+    expect(html).toContain("Writing your strategy");
     expect(html).toContain("This takes a few minutes.");
     expect(html).toContain(" so far");
     expect(html).toContain("Your channels");
     expect(html).toContain("Choosing your idea, channels and pillars");
-    expect(html).not.toContain("Approve plan");
+    expect(html).not.toContain("Approve strategy");
   });
 
   it("shows the plan in the feed as Cuso saves it", () => {
@@ -441,7 +441,7 @@ describe("Plan", () => {
     expect(after).toContain("LinkedIn, 2 a week");
     expect(after).toContain("Product stories: 100% of pieces");
     expect(after).toContain("Writing four weeks, day by day");
-    expect(after).not.toContain("Writing your strategy");
+    expect(after.match(/Writing your strategy/g)).toHaveLength(1);
   });
 
   it("offers to try again when planning stopped", () => {
@@ -449,7 +449,7 @@ describe("Plan", () => {
       draft({ strategy: null, work: work("strategy", { status: "failed" }) }),
       "planning",
     );
-    expect(html).toContain("Planning stopped");
+    expect(html).toContain("Writing stopped");
     expect(html).toContain("Try again");
   });
 
@@ -496,12 +496,12 @@ describe("Plan", () => {
     });
     expect(html).toContain("What stops people buying");
     expect(html).toContain("Teams fear vendors that go quiet.");
-    expect(html).toContain("I also looked at 1 other plan.");
+    expect(html).toContain("I also looked at 1 other strategy.");
     expect(html).toContain("Compare them");
     expect(html).not.toContain("Lead with price.");
     expect(html).toMatch(/<details class="ob-more">/);
-    expect(html).toContain("Everything in the plan");
-    expect(html).toContain("Why this plan");
+    expect(html).toContain("Everything in the strategy");
+    expect(html).toContain("Why this strategy");
   });
 
   it("is read-only once approved: answers, pace and budget as text, no change", () => {
@@ -548,8 +548,8 @@ describe("Plan", () => {
     expect(html).toContain("€200 a month for ads");
     for (const live of [
       "Ask for a change",
-      "Approve plan",
-      "Update plan",
+      "Approve strategy",
+      "Update strategy",
       ">All-in<",
       ">Change<",
       ">Yes<",
@@ -560,14 +560,14 @@ describe("Plan", () => {
 
   it("asks for the plan when Brand is confirmed and nothing writes it", () => {
     const html = plan(draft({ strategy: null }), "writing-needed");
-    expect(html).toContain("Write my plan");
+    expect(html).toContain("Write my strategy");
   });
 
   it("shows the goal, the plan and Approve plan as the primary", () => {
     const html = plan(draft());
     expect(html).toContain("The goal");
     expect(html).toContain("More demo requests");
-    expect(html).toContain("Approve plan");
+    expect(html).toContain("Approve strategy");
     expect(html).toContain("Ask for a change");
     expect(html).toContain("X now once a week");
     for (const tab of ["Your funnel", "Your month", "How we know it works"]) {
@@ -578,8 +578,8 @@ describe("Plan", () => {
 
   it("tells a viewer who cannot approve who does, and hides Approve", () => {
     const html = plan(draft({ viewerCanApprove: false }));
-    expect(html).not.toContain("Approve plan");
-    expect(html).toContain("An owner or admin approves the plan.");
+    expect(html).not.toContain("Approve strategy");
+    expect(html).toContain("An owner or admin approves the strategy.");
   });
 
   it("asks the plan's questions as chips with Yes and No", () => {
@@ -590,13 +590,13 @@ describe("Plan", () => {
     expect(html.match(/>Yes</g)).toHaveLength(2);
     expect(html.match(/>No</g)).toHaveLength(2);
     expect(html.match(/>Not sure</g)).toHaveLength(2);
-    expect(html).toContain("Approve plan");
+    expect(html).toContain("Approve strategy");
   });
 
   it("updates the plan instead of approving while a no is not fitted", () => {
     const html = plan(questionsOn(["yes", "no"]));
-    expect(html).toContain("Update plan");
-    expect(html).not.toContain("Approve plan");
+    expect(html).toContain("Update strategy");
+    expect(html).not.toContain("Approve strategy");
     expect(html).toContain("Many more");
   });
 
@@ -724,7 +724,7 @@ describe("Launch", () => {
 
     const after = render(approved({ channels: [active("x")] }));
     expect(after).not.toContain("to launch.");
-    expect(after).toContain("only does what your approved plan says");
+    expect(after).toContain("only does what your approved strategy says");
     expect(after).toContain("@acme");
     expect(launchOff(after)).toBe(false);
   });
