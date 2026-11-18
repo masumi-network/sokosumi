@@ -124,7 +124,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
         <div className="ob-alts">
           <p>
             I also looked at {alternatives.length} other{" "}
-            {alternatives.length === 1 ? "plan" : "plans"}.{" "}
+            {alternatives.length === 1 ? "strategy" : "strategies"}.{" "}
             <button
               type="button"
               className="button button-ghost button-small"
@@ -170,9 +170,9 @@ function Everything({ overview, strategy }: PlanPanelProps) {
   }
   return (
     <details className="ob-more">
-      <summary>Everything in the plan</summary>
+      <summary>Everything in the strategy</summary>
       {strategy.why ? (
-        <Section title="Why this plan">
+        <Section title="Why this strategy">
           <p>{strategy.why}</p>
         </Section>
       ) : null}
@@ -304,12 +304,12 @@ export function MonthPanel({
         <div className="ob-month-pending">
           <Sparkles size={16} aria-hidden="true" />
           <p>
-            <b>These are the topics.</b> Once you approve, I write every piece
+            <b>These are the topics.</b> Once you approve, I write every post
             and make its pictures and videos.
           </p>
           <p className="ob-month-counts num">
             {[
-              `${strategy.calendar.length} pieces`,
+              `${strategy.calendar.length} posts`,
               counts.pictures > 0 ? `${counts.pictures} with pictures` : "",
               counts.videos > 0
                 ? `${counts.videos} ${counts.videos === 1 ? "video" : "videos"}`
@@ -452,7 +452,7 @@ function HowItWorks() {
         ))}
       </ol>
       <p className="note">
-        You stay in control: change, pause or undo any piece by telling me.
+        You stay in control: change, pause or undo any post by telling me.
         Complaints and anything sensitive come to you.
       </p>
     </div>

@@ -57,7 +57,6 @@ export {
 } from "./billing-notification-message-keys.js";
 export {
   brandColors,
-  brandFontName,
   brandFonts,
   type DesignMdBrandLook,
   designMdBrandLook,
@@ -162,8 +161,10 @@ export {
   CMO_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
@@ -185,7 +186,6 @@ export {
   contactChannelInputSchema,
   contactFieldsSchema,
   contactFilterSchema,
-  contactImportMappingSchema,
   contactImportSchema,
   contactInteractionInputSchema,
   contactListInputSchema,
@@ -463,9 +463,7 @@ export {
 } from "./project-logo-path.js";
 export {
   SEO_CAPABILITIES,
-  SEO_CAPABILITIES_AS_OF,
   SEO_CAPABILITY_GROUPS,
-  SEO_CAPABILITY_UNLOCKS,
   type SeoCapability,
   type SeoCapabilityGroup,
   type SeoCapabilityId,
@@ -477,8 +475,6 @@ export {
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
   SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MARKUP_PERCENT,
-  SEO_MAX_CALL_CENTS,
   SEO_MIN_AUDIT_USD,
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
@@ -502,7 +498,6 @@ export {
   SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
   SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_FIXED_NOTES,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
@@ -528,7 +523,6 @@ export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   isSocialProviderEnabled,
   isXLongPostSubscription,
-  SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
@@ -558,7 +552,6 @@ export {
   socialProviderUnavailableMessage,
   splitYouTubePostText,
   validateSocialPostMedia,
-  X_LONG_POST_SUBSCRIPTION_TYPES,
   X_PREMIUM_TEXT_LIMIT,
   type XLongPostSubscriptionType,
 } from "./social-post.js";
@@ -584,6 +577,13 @@ export {
 export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
+export {
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_SCRIPT_MAX_LENGTH,
+  TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoPriceFigures,
+  talkingVideoQuotedSeconds,
+} from "./talking-video-credits.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,

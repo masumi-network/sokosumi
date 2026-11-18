@@ -2,11 +2,14 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
   ImageStudioRecentProjects,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  ProjectTalkingVideoScripts,
+  ProjectTalkingVideos,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
   SaveStudioPairwisePick,
@@ -198,6 +201,36 @@ export const imageStudioService = {
       input,
     );
     return result.data;
+  },
+
+  async createTalkingVideoJob(
+    projectId: string,
+    input: CreateProjectTalkingVideoJobRequest,
+  ): Promise<ProjectImageJob> {
+    const result = await coreClient.postProjectsByIdImageStudioTalkingVideoJobs(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
+  /** Answering this settles finished talking videos, like `getState`. */
+  async getTalkingVideos(projectId: string): Promise<ProjectTalkingVideos> {
+    const result =
+      await coreClient.getProjectsByIdImageStudioTalkingVideos(projectId);
+    return result.data;
+  },
+
+  async writeTalkingVideoScripts(
+    projectId: string,
+    input: { topic?: string; languageCode: string },
+  ): Promise<ProjectTalkingVideoScripts["scripts"]> {
+    const result =
+      await coreClient.postProjectsByIdImageStudioTalkingVideoScripts(
+        projectId,
+        input,
+      );
+    return result.data.scripts;
   },
 
   async cancelJob(

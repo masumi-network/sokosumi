@@ -42,6 +42,7 @@ interface TaskMetadataLabels {
   status: string;
   statusLabels: Record<TaskStatus, string>;
   organization: string;
+  organizationReadOnly: string;
   personalWorkspace: string;
   project: string;
   noProject: string;
@@ -116,6 +117,12 @@ interface TaskMetadataProps {
   schedule?: ReactNode;
   /** A row of its own (see {@link PropertyRow}): what the Task has cost. */
   credits?: ReactNode;
+  /** A row of its own: the Task's participants, after the assignee. */
+  participants?: ReactNode;
+  /** Replaces the read-only Assignee row when the viewer may change it. */
+  assigneeField?: ReactNode;
+  /** Replaces the read-only Project row when the viewer may change it. */
+  projectField?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   priorityLabels: TaskPriorityLabels;
@@ -133,6 +140,9 @@ export function TaskMetadata({
   project,
   schedule,
   credits,
+  participants,
+  assigneeField,
+  projectField,
   labels,
   statusFieldLabels,
   priorityLabels,
@@ -240,52 +250,50 @@ export function TaskMetadata({
           </div>
         ) : null}
 
-        <PropertyRow
-          label={labels.assignee}
-          value={assignee?.name ?? labels.noAssignee}
-          icon={
-            assignee ? (
-              <PersonAvatar person={assignee} />
+        {assigneeField ?? (
+          <PropertyRow
+            label={labels.assignee}
+            value={assignee?.name ?? labels.noAssignee}
+            icon={
+              assignee ? (
+                <PersonAvatar person={assignee} />
+              ) : (
+                <UserRound className="text-muted-foreground size-4" />
+              )
+            }
+          >
+            {assignee ? (
+              <span className="truncate">{assignee.name}</span>
             ) : (
-              <UserRound className="text-muted-foreground size-4" />
-            )
-          }
-        >
-          {assignee ? (
-            <span className="truncate">{assignee.name}</span>
-          ) : (
-            <span className="text-muted-foreground truncate">
-              {labels.noAssignee}
-            </span>
-          )}
-        </PropertyRow>
+              <span className="text-muted-foreground truncate">
+                {labels.noAssignee}
+              </span>
+            )}
+          </PropertyRow>
+        )}
 
-        <PropertyRow
-          label={labels.organization}
-          value={organizationName}
-          icon={<Building2 className="text-muted-foreground size-4" />}
-        >
-          <span className="truncate">{organizationName}</span>
-        </PropertyRow>
+        {participants}
 
-        <PropertyRow
-          label={labels.project}
-          value={project?.name ?? labels.noProject}
-          icon={<FolderKanban className="text-muted-foreground size-4" />}
-        >
-          {project ? (
-            <Link
-              href={`/projects/${project.id}`}
-              className="hover:text-foreground truncate transition-colors"
-            >
-              {project.name}
-            </Link>
-          ) : (
-            <span className="text-muted-foreground truncate">
-              {labels.noProject}
-            </span>
-          )}
-        </PropertyRow>
+        {projectField ?? (
+          <PropertyRow
+            label={labels.project}
+            value={project?.name ?? labels.noProject}
+            icon={<FolderKanban className="text-muted-foreground size-4" />}
+          >
+            {project ? (
+              <Link
+                href={`/projects/${project.id}`}
+                className="hover:text-foreground truncate transition-colors"
+              >
+                {project.name}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground truncate">
+                {labels.noProject}
+              </span>
+            )}
+          </PropertyRow>
+        )}
 
         {schedule ? (
           <PropertyRow
@@ -296,8 +304,6 @@ export function TaskMetadata({
           </PropertyRow>
         ) : null}
 
-        {credits}
-
         {task.visibility === "PRIVATE" ? (
           <PropertyRow
             label={labels.privateBadge}
@@ -306,6 +312,25 @@ export function TaskMetadata({
             <span className="truncate">{labels.privateBadge}</span>
           </PropertyRow>
         ) : null}
+
+        {/* Last and set apart: the workspace owns it, so it never edits here.
+            The workspace's credits for this Task sit under its name. */}
+        <div className="border-t pt-1">
+          <PropertyRow
+            label={labels.organization}
+            value={`${organizationName} (${labels.organizationReadOnly})`}
+            icon={<Building2 className="text-muted-foreground size-4" />}
+          >
+            <span className="text-muted-foreground truncate">
+              {organizationName}
+            </span>
+            <Lock
+              className="text-muted-foreground ml-auto size-3.5 shrink-0"
+              aria-hidden
+            />
+          </PropertyRow>
+          {credits}
+        </div>
       </div>
     </section>
   );

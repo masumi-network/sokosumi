@@ -3,20 +3,17 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import en from "@/../messages/en.json";
-import {
-  SocialAccountMetrics,
-  SocialMetricTiles,
-} from "./social-account-metrics";
+import { SocialMetricTiles } from "./social-account-metrics";
 
 function renderMetrics(metrics: SocialAccountMetric[], showLifetime = true) {
   return render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-      <SocialAccountMetrics metrics={metrics} showLifetime={showLifetime} />
+      <SocialMetricTiles metrics={metrics} showLifetime={showLifetime} />
     </NextIntlClientProvider>,
   );
 }
 
-describe("SocialAccountMetrics", () => {
+describe("SocialMetricTiles", () => {
   it.each([
     ["quote_count", "Quotes"],
     ["dislikeCount", "Dislikes"],
@@ -42,16 +39,12 @@ describe("SocialAccountMetrics", () => {
   });
 
   it("retains period captions for account-level metrics", () => {
-    const { container } = renderMetrics([
+    renderMetrics([
       { key: "followers_count", value: 10, period: "lifetime", unit: "count" },
       { key: "reach", value: 20, period: "days_28", unit: "count" },
     ]);
     expect(screen.getByText("Lifetime")).toBeVisible();
     expect(screen.getByText("Last 28 days")).toBeVisible();
-    expect(container.querySelectorAll("dl")).toHaveLength(1);
-    expect(screen.getByText("Followers").closest("dl")?.children).toHaveLength(
-      2,
-    );
   });
 
   it("exports only dt/dd tile groups for use inside another definition list", () => {

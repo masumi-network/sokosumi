@@ -22,6 +22,7 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     [TASK_SCHEDULES_PATH]: {},
     "/calendar": {},
     "/studio": {},
+    "/tiktok-studio": {},
     "/social": {},
     "/ads": {},
     "/seo": {},

@@ -124,7 +124,7 @@ export function PartsPreview() {
             { term: "Who", value: "Product teams" },
             { term: "The offer", value: "A 14-day trial" },
             { term: "Where", value: "LinkedIn, X" },
-            { term: "This month", value: "28 pieces" },
+            { term: "This month", value: "28 posts" },
           ]}
         />
       </div>

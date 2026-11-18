@@ -15,10 +15,14 @@ const service = vi.hoisted(() => ({
   proxySandboxModelCall: vi.fn(),
   recordSandboxAction: vi.fn(),
   recordSandboxActionResult: vi.fn(),
+  recordSandboxReasoning: vi.fn(),
   runSandboxTool: vi.fn(),
   sandboxFileSource: vi.fn(),
   startSandboxTurn: vi.fn(),
 }));
+// PostgreSQL's clock is the test clock here, unless a test takes it down.
+const databaseNow = vi.hoisted(() => vi.fn(async () => new Date()));
+vi.mock("@/lib/db/database-now", () => ({ databaseNow }));
 vi.mock("@/services/soko-bot-sandbox-turn.service", () => service);
 
 const { default: runtimeRouter } = await import("./index");
@@ -96,6 +100,24 @@ describe("POST /turns/:turnId/fail with the runner's diagnostic", () => {
     expect(service.failSandboxTurn).not.toHaveBeenCalled();
   });
 
+  it("rejects a bad token without the database, even while it is down", async () => {
+    databaseNow.mockClear();
+    databaseNow.mockRejectedValueOnce(new Error("Database unavailable"));
+    try {
+      const response = await post(
+        "/fail",
+        { ...exited, diagnostic: startFailed },
+        { [SOKO_BOT_TURN_TOKEN_HEADER]: token(OTHER_TURN_ID) },
+      );
+
+      expect(response.status).toBe(401);
+      expect(databaseNow).not.toHaveBeenCalled();
+    } finally {
+      databaseNow.mockReset();
+      databaseNow.mockImplementation(async () => new Date());
+    }
+  });
+
   it.each([
     ["an unknown event", { event: "anything" }],
     ["text of its own", { ...startFailed, why: "USER-WRITTEN" }],
@@ -138,5 +160,23 @@ describe("a runtime request's wide event", () => {
     expect(coreLogEvents()).toContainEqual(
       expect.objectContaining({ turnId: TURN_ID }),
     );
+  });
+});
+
+describe("POST /turns/:turnId/reasoning", () => {
+  it("hands Core a step's reasoning summary while the turn runs", async () => {
+    const response = await post("/reasoning", { text: "Checking the plan." });
+
+    expect(response.status).toBe(200);
+    expect(service.recordSandboxReasoning).toHaveBeenCalledWith(
+      expect.objectContaining({ turnId: TURN_ID }),
+      "Checking the plan.",
+    );
+  });
+
+  it("refuses an empty summary", async () => {
+    const response = await post("/reasoning", { text: "" });
+
+    expect(response.status).toBe(400);
   });
 });

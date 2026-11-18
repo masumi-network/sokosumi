@@ -49,6 +49,10 @@ vi.mock("@/services/soko-bot-availability.service", () => ({
     disabledReason: null,
   }),
 }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -183,7 +187,11 @@ describe("SokoBotControlPlane reconciliation", () => {
     signRequestTokenMock.mockResolvedValue("request-token");
     const tx = {
       sokoBot: { updateMany: botUpdateManyMock },
-      sokoBotEvent: { createMany: eventCreateManyMock },
+      // No persisted settlement trigger unless a test adds one.
+      sokoBotEvent: {
+        createMany: eventCreateManyMock,
+        findMany: async () => [],
+      },
       sokoBotSchedule: { update: vi.fn() },
       sokoBotScheduleRun: { updateMany: vi.fn() },
       sokoBotTurn: {
@@ -701,7 +709,10 @@ describe("reconciling beside another writer under the same lease", () => {
     });
     transactionMock.mockImplementation(async (callback) =>
       callback({
-        sokoBotEvent: { createMany: eventCreateManyMock },
+        sokoBotEvent: {
+          createMany: eventCreateManyMock,
+          findMany: async () => [],
+        },
         sokoBotTurn: {
           findUnique: turnFindUniqueMock,
           update: turnUpdateMock,

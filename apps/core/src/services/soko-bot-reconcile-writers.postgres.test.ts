@@ -687,4 +687,250 @@ describe.skipIf(!enabled)("reconciling beside another writer", () => {
         .eveStreamIndex,
     ).toBe(0);
   });
+
+  /**
+   * The rows a drain writes for these events, as `persistEvent` writes them:
+   * a failure keeps its code in the payload, and the cursor ends on the last.
+   */
+  function projectedEvents(
+    events: { type: string; code?: string }[],
+    from = 0,
+  ): Prisma.SokoBotEventCreateManyInput[] {
+    return events.map(({ type, code }, offset) => ({
+      turnId,
+      eveEventId: `evt_${randomUUID()}`,
+      eveStartIndex: from + offset,
+      sequence: from + offset,
+      type,
+      summary: code ?? type,
+      payload: type.endsWith(".failed")
+        ? { code: code ?? "unknown" }
+        : undefined,
+      providerAt: new Date(),
+    }));
+  }
+
+  /** What a drain that died after `persistEvent` left behind. */
+  async function persistedByDeadDrain(
+    events: { type: string; code?: string }[],
+    turn: Prisma.SokoBotTurnUpdateInput = {},
+  ) {
+    await prisma.sokoBotEvent.createMany({ data: projectedEvents(events) });
+    await prisma.sokoBotTurn.update({
+      where: { id: turnId },
+      data: {
+        eveStreamIndex: events.length - 1,
+        costUsdMicros: 1_000_000n,
+        ...turn,
+      },
+    });
+  }
+
+  /** The runtime has nothing after the cursor; a drain must not wait on it. */
+  async function* nothingAfterCursor(): AsyncIterable<IndexedRuntimeEvent> {}
+
+  it.each([
+    ["session.waiting", "COMPLETED", null],
+    ["session.completed", "COMPLETED", null],
+    ["input.requested", "FAILED", "runtime_input_unsupported"],
+  ])(
+    "settles from a %s a dead drain persisted",
+    async (trigger, status, errorKind) => {
+      await persistedByDeadDrain([
+        { type: "turn.completed" },
+        { type: trigger },
+      ]);
+      const signal = new AbortController().signal;
+
+      const [outcome] = await race([], new Map([[signal, nothingAfterCursor]]));
+
+      expect(outcome.status).toBe("fulfilled");
+      const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+        where: { id: turnId },
+      });
+      expect(turn.status).toBe(status);
+      expect(turn.errorKind).toBe(errorKind);
+      expect(turn.leaseToken).toBeNull();
+    },
+  );
+
+  it("settles a persisted session.failed with its own code, not a later interruption", async () => {
+    // The dead drain's catch overwrote the projected code on the row.
+    await persistedByDeadDrain(
+      [{ type: "session.failed", code: "provider_down" }],
+      {
+        errorKind: "runtime_stream_interrupted",
+        errorDetail: "settlement failed",
+      },
+    );
+    const signal = new AbortController().signal;
+
+    const [outcome] = await race([], new Map([[signal, nothingAfterCursor]]));
+
+    expect(outcome.status).toBe("fulfilled");
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: turnId },
+    });
+    expect(turn.status).toBe("FAILED");
+    expect(turn.errorKind).toBe("provider_down");
+    expect(turn.errorDetail).toBeNull();
+  });
+
+  it("settles from the outcome committed with the trigger it found", async () => {
+    // Another drain under the same lease commits turn.failed and
+    // session.waiting after this drain read the turn and its prior outcome,
+    // while this drain's first heartbeat waits on that commit.
+    const signal = new AbortController().signal;
+    const control = new SokoBotControlPlane(
+      scriptedRuntime(new Map([[signal, nothingAfterCursor]])),
+    );
+    const otherMayCommit = Promise.withResolvers<void>();
+    const otherHoldsRow = Promise.withResolvers<number>();
+    let drained = false;
+    const other = prisma.$transaction(
+      async (tx) => {
+        await tx.sokoBotEvent.createMany({
+          data: projectedEvents([
+            { type: "turn.failed", code: "model_gateway_error" },
+            { type: "session.waiting" },
+          ]),
+        });
+        await tx.sokoBotTurn.update({
+          where: { id: turnId },
+          data: {
+            eveStreamIndex: 1,
+            errorKind: "model_gateway_error",
+            errorDetail: "Gateway refused",
+          },
+        });
+        otherHoldsRow.resolve(await backendPid(tx));
+        await otherMayCommit.promise;
+      },
+      { timeout: 60_000 },
+    );
+    let drain: Promise<PromiseSettledResult<void>[]> | undefined;
+    let waited = false;
+    try {
+      const pid = await otherHoldsRow.promise;
+      drain = Promise.allSettled([
+        control.reconcileTurn(turnId, signal, LEASE),
+      ]).finally(() => {
+        drained = true;
+      });
+      waited = await waitForWaiterOn(pid, () => drained);
+    } finally {
+      otherMayCommit.resolve();
+      await other;
+    }
+    const [outcome] = (await drain) ?? [];
+
+    expect(waited).toBe(true);
+    expect(outcome?.status).toBe("fulfilled");
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: turnId },
+    });
+    expect(turn.status).toBe("FAILED");
+    expect(turn.errorKind).toBe("model_gateway_error");
+    expect(turn.errorDetail).toBe("Gateway refused");
+  });
+
+  it("leaves a turn an admin reset fenced to the reset, even under its token", async () => {
+    // Reset installed its token and asked for cancellation after the dead
+    // drain persisted a completion; a tokenless drain adopts that token.
+    const resetToken = randomUUID();
+    await persistedByDeadDrain(
+      [{ type: "turn.completed" }, { type: "session.waiting" }],
+      {
+        status: "CANCEL_REQUESTED",
+        cancellationRequestedAt: new Date(Date.now() + 1_000),
+        leaseToken: resetToken,
+      },
+    );
+    const signal = new AbortController().signal;
+    const control = new SokoBotControlPlane(
+      scriptedRuntime(new Map([[signal, nothingAfterCursor]])),
+    );
+
+    await control.reconcileTurn(turnId, signal);
+
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: turnId },
+    });
+    expect(turn.status).toBe("CANCEL_REQUESTED");
+    expect(turn.leaseToken).toBe(resetToken);
+  });
+
+  it("still settles a cancelled turn from what it streams after a persisted trigger", async () => {
+    await persistedByDeadDrain(
+      [{ type: "turn.completed" }, { type: "session.waiting" }],
+      { status: "CANCEL_REQUESTED", cancellationRequestedAt: new Date() },
+    );
+    const signal = new AbortController().signal;
+    const streamed = [
+      runtimeEvent("turn.cancelled"),
+      runtimeEvent("session.waiting"),
+    ];
+
+    const [outcome] = await race(
+      [],
+      new Map([
+        [
+          signal,
+          async function* () {
+            for (const [offset, event] of streamed.entries())
+              yield { startIndex: 2 + offset, event };
+          },
+        ],
+      ]),
+    );
+
+    expect(outcome.status).toBe("fulfilled");
+    expect(
+      (await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: turnId } }))
+        .status,
+    ).toBe("CANCELLED");
+  });
+
+  it("bills once when two drains both reach settlement from one persisted trigger", async () => {
+    await persistedByDeadDrain([
+      { type: "turn.completed" },
+      { type: "session.waiting" },
+    ]);
+    const a = new AbortController().signal;
+    const b = new AbortController().signal;
+    const control = new SokoBotControlPlane(
+      scriptedRuntime(
+        new Map([
+          [a, nothingAfterCursor],
+          [b, nothingAfterCursor],
+        ]),
+      ),
+    );
+    let drains: Promise<void>[] = [];
+    let firstPaused = false;
+    // The first drain in settlement has read the active turn; it resumes
+    // only after the other drain has settled it.
+    settlementPause.afterRead = async () => {
+      firstPaused = true;
+      await Promise.race(drains.map((drain) => drain.catch(() => undefined)));
+    };
+    drains = [a, b].map((signal) =>
+      control.reconcileTurn(turnId, signal, LEASE),
+    );
+
+    const outcomes = await Promise.allSettled(drains);
+
+    expect(firstPaused).toBe(true);
+    expect(outcomes.map((outcome) => outcome.status)).toEqual([
+      "fulfilled",
+      "fulfilled",
+    ]);
+    expect(
+      (await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: turnId } }))
+        .status,
+    ).toBe("COMPLETED");
+    expect(
+      await prisma.sokoBotUsage.count({ where: { sokoBotId: botId } }),
+    ).toBe(1);
+  });
 });

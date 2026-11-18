@@ -35,6 +35,8 @@ export const IMAGE_JOB_FAILURE_REASONS = [
   /** A reference image could not be handed to the provider. */
   "reference_not_sendable",
   "product_cutout_unavailable",
+  /** A talking video's script could not be spoken. Nothing was sent. */
+  "voice_unavailable",
   /** The model or the settings can no longer be expressed to the provider. */
   "request_not_supported",
   /** Somebody asked for it to stop, and fal confirmed nothing was produced. */
@@ -64,6 +66,8 @@ const MESSAGES: Record<ImageJobFailureReason, string> = {
     "A reference image could not be sent to the image provider.",
   product_cutout_unavailable:
     "The original product photo must be an accessible, still PNG with a transparent background.",
+  voice_unavailable:
+    "The voice for this video could not be made, so nothing was sent.",
   request_not_supported:
     "This model, or these settings, are no longer available from the image provider.",
   cancelled: "Cancelled before an image was produced.",

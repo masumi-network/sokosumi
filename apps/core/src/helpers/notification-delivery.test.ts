@@ -282,6 +282,41 @@ describe("resolveNotificationDelivery", () => {
     ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
+  it("pushes a followed Task's Direct by default, but never against a stored off row or without consent", () => {
+    const followed = (
+      preferences: Parameters<
+        typeof resolveNotificationDelivery
+      >[0]["preferences"],
+      pushOptIn = true,
+    ) =>
+      resolveNotificationDelivery({
+        category: "CHAT_DIRECT_MESSAGE",
+        preferences,
+        pushOptIn,
+        osBannerDefaultOn: true,
+      }).osBanner;
+
+    expect(followed(NO_PREFERENCES)).toBe(true);
+    expect(
+      followed([
+        {
+          category: "CHAT_DIRECT_MESSAGE",
+          channel: "OS_BANNER",
+          enabled: false,
+        },
+      ]),
+    ).toBe(false);
+    expect(followed(NO_PREFERENCES, false)).toBe(false);
+    // Without the flag the Direct keeps its off default.
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_DIRECT_MESSAGE",
+        preferences: NO_PREFERENCES,
+        pushOptIn: true,
+      }).osBanner,
+    ).toBe(false);
+  });
+
   it("withholds the banner without account-wide push consent", () => {
     expect(
       resolveNotificationDelivery({

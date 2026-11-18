@@ -338,17 +338,6 @@ export function createRoomComposerOverflowMarkdownFile(content: string): File {
   });
 }
 
-interface PendingCoworkerStreamInput {
-  isCoworkerStreamRoom: boolean;
-  hasPendingMessage: boolean;
-}
-
-export function shouldConsumePendingCoworkerStream(
-  input: PendingCoworkerStreamInput,
-): boolean {
-  return input.isCoworkerStreamRoom && input.hasPendingMessage;
-}
-
 export function appendMessage(
   messages: ChatRoomMessage[],
   nextMessage: ChatRoomMessage,

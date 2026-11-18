@@ -98,6 +98,7 @@ import {
 function turn(overrides = {}) {
   return {
     id: "turn",
+    clientTurnId: "client-turn",
     source: "SCHEDULE",
     status: "COMPLETED",
     sokoBotId: "bot",
@@ -172,6 +173,28 @@ describe("durable delivery", () => {
     expect(mocks.emitMessageNotifications).toHaveBeenCalledWith({
       messageId: "message",
       mentionedUserIds: [],
+      throwOnError: true,
+    });
+  });
+
+  it("pushes a followed Task's completion summary like a Direct the owner never turned off", async () => {
+    const summaryTurn = turn({
+      source: "EVENT",
+      clientTurnId: "task-interest:status:e1",
+    });
+    mocks.find.mockResolvedValue(delivery({ turn: summaryTurn }));
+    mocks.update.mockResolvedValue(
+      delivery({
+        status: "PERSISTED",
+        messageId: "message",
+        turn: summaryTurn,
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.emitMessageNotifications).toHaveBeenCalledWith({
+      messageId: "message",
+      mentionedUserIds: [],
+      osBannerDefaultOn: true,
       throwOnError: true,
     });
   });

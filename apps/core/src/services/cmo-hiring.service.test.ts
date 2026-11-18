@@ -3,7 +3,7 @@ import {
   CMO_RESEARCH_GROUPS,
   CMO_SOKO_BOT_VERSION_ID,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { unpaidCuso } = vi.hoisted(() => ({ unpaidCuso: vi.fn() }));
 
@@ -31,10 +31,16 @@ import {
   resetCmoServiceMocks,
   sokoBotFindUnique,
   startTurn,
+  toolCallFindFirst,
   turnFindFirst,
   userFindUnique,
 } from "@/test-fixtures/cmo-service";
 
+// PostgreSQL's clock: the test clock, or the time a test sets.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => pgClock.now ?? new Date(),
+}));
 vi.mock(
   "@/lib/db/prisma",
   async () =>
@@ -114,6 +120,7 @@ vi.mock("@/config/env", async (importOriginal) =>
 
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
+  cmoActivity,
   cmoLearningState,
   cmoResearchEndAnswer,
   cmoResearchParts,
@@ -139,6 +146,12 @@ describe("learning state", () => {
     goals: "More sales",
   };
   const now = new Date("2026-10-05T10:00:00Z");
+  beforeEach(() => {
+    pgClock.now = now;
+  });
+  afterEach(() => {
+    pgClock.now = null;
+  });
   const turn = (status: string, minutesAgo: number) => ({
     id: "turn-1",
     status,
@@ -266,6 +279,73 @@ describe("learning state", () => {
       retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
     ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("activity", () => {
+  const cuso = { sokoBotId: "bot-1", websiteUrl: "https://acme.io" };
+  const running = {
+    id: "turn-chat",
+    eveSessionId: "sess-1",
+    createdAt: new Date("2026-11-17T10:00:00Z"),
+  };
+
+  it("is nothing while Cuso rests", async () => {
+    turnFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toBeNull();
+  });
+
+  it("names the step he is on and his latest reasoning, for any turn", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    toolCallFindFirst.mockResolvedValue({
+      capability: "web_fetch",
+      input: { url: "https://acme.io/pricing" },
+    });
+    // The runtime's own log, so it shows before the turn is reconciled.
+    eventFindFirst.mockResolvedValue({
+      data: { text: " The pricing page says who it is for. " },
+    });
+    expect(await cmoActivity(cuso)).toEqual({
+      step: "Reading acme.io/pricing",
+      reasoning: "The pricing page says who it is for.",
+    });
+    expect(eventFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          sessionId: "sess-1",
+          type: "reasoning.completed",
+          occurredAt: { gte: running.createdAt },
+        },
+      }),
+    );
+    // The running turn, whatever started it: no chat or hiring filter.
+    expect(turnFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          sokoBotId: "bot-1",
+          status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+        },
+      }),
+    );
+  });
+
+  it("never names a tool: one without its own words reads as working", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    toolCallFindFirst.mockResolvedValue({
+      capability: "create_task",
+      input: {},
+    });
+    eventFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toEqual({
+      step: "Working",
+      reasoning: null,
+    });
+  });
+
+  it("has no step before his first one", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    eventFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toEqual({ step: null, reasoning: null });
   });
 });
 

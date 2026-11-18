@@ -499,9 +499,12 @@ describe("starting from a template", () => {
     const brandReview = await screen.findByRole("button", {
       name: "WebsiteDraft.reviewCopy",
     });
-    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
-      projectId: "p",
-    });
+    // The review button shows while the draft is still being asked for.
+    await waitFor(() =>
+      expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
+        projectId: "p",
+      }),
+    );
     await waitFor(() => expect(brandReview).toBeEnabled());
     fireEvent.click(brandReview);
     expect(
