@@ -2,23 +2,34 @@
 
 import { TagColor, type TaskTagId } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import type { ComponentProps } from "react";
+import type { ComponentProps, CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { cn } from "@/lib/utils";
 import { useTaskTagCatalog } from "./task-tag-catalog";
 import styles from "./task-tag-colors.module.css";
+import { normalizeTagHex } from "./task-tag-wheel-color";
 
-export const TAG_COLORS = Object.values(TagColor).filter(
-  (color) => color !== null,
-);
+const TAG_COLORS = Object.values(TagColor).filter((color) => color !== null);
+
+interface TagColorFields {
+  color?: TagColor;
+  customColor?: string | null;
+}
+
+export function explicitTaskTagColor(tag: TagColorFields) {
+  return normalizeTagHex(tag.customColor) ?? tag.color ?? null;
+}
 
 /** Keep the implicit color stable across languages, renames and renders. */
 export function resolvedTaskTagColor(
   id: string,
-  color?: TagColor | null,
-): TagColor {
-  if (color && TAG_COLORS.includes(color)) return color;
+  color?: string | null,
+): string {
+  const hex = normalizeTagHex(color);
+  if (hex) return hex;
+  const named = TAG_COLORS.find((candidate) => candidate === color);
+  if (named) return named;
   const index =
     Array.from(id).reduce(
       (total, character) => total + character.charCodeAt(0),
@@ -27,66 +38,66 @@ export function resolvedTaskTagColor(
   return TAG_COLORS[index] ?? "gray";
 }
 
-function useTagColor(
-  id: string,
-  color?: TagColor | null,
-  taskTopicId?: TaskTagId,
-) {
+interface TagColorProps extends TagColorFields {
+  id: string;
+  taskTopicId?: TaskTagId;
+}
+
+function useTagColor({ id, taskTopicId, ...tag }: TagColorProps) {
   const cached = useTaskTagCatalog()?.byId.get(id);
   return resolvedTaskTagColor(
     (cached ? cached.taskTopicId : taskTopicId) ?? id,
-    cached ? cached.color : color,
+    explicitTaskTagColor(cached ?? tag),
   );
 }
 
-export function TaskTagDot({
-  id,
-  color,
-}: {
-  id: string;
-  color?: TagColor | null;
-}) {
-  return (
-    <span
-      aria-hidden
-      data-tag-color={useTagColor(id, color)}
-      className={cn(styles.color, styles.dot, "size-2.5 shrink-0 rounded-full")}
-    />
-  );
+function accentStyle(
+  color: string,
+): (CSSProperties & { "--tag-accent": string }) | undefined {
+  const hex = normalizeTagHex(color);
+  return hex ? { "--tag-accent": hex } : undefined;
+}
+
+export function TaskTagDot(props: TagColorProps) {
+  return <TagColorSwatch color={useTagColor(props)} />;
 }
 
 export function TaskTagBadge({
   id,
   color,
+  customColor,
   taskTopicId,
   className,
+  children,
   ...props
-}: Omit<ComponentProps<typeof Badge>, "id" | "color"> & {
-  id: string;
-  color?: TagColor | null;
-  taskTopicId?: TaskTagId;
-}) {
+}: Omit<ComponentProps<typeof Badge>, "id" | "color"> & TagColorProps) {
+  const accent = useTagColor({ id, color, customColor, taskTopicId });
   return (
     <Badge
       {...props}
       variant="outline"
-      data-tag-color={useTagColor(id, color, taskTopicId)}
+      data-tag-color={accent}
+      style={accentStyle(accent)}
       className={cn(
         styles.color,
         styles.badge,
         "max-w-full gap-1 rounded-sm font-normal has-[button]:overflow-visible has-[button]:py-0 has-[button]:pe-0",
         className,
       )}
-    />
+    >
+      <TagColorSwatch color={accent} />
+      {children}
+    </Badge>
   );
 }
 
-export function TagColorSwatch({ color }: { color: TagColor }) {
+export function TagColorSwatch({ color }: { color: string }) {
   return (
     <span
       aria-hidden
       data-tag-color={color}
-      className={cn(styles.color, styles.dot, "size-3 shrink-0 rounded-full")}
+      style={accentStyle(color)}
+      className={cn(styles.color, styles.dot, "size-2.5 shrink-0 rounded-full")}
     />
   );
 }

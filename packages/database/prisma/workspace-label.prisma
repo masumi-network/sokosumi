@@ -9,6 +9,8 @@ model WorkspaceLabel {
 
   kind         FileLabelKind
   color        TagColor?
+  /// Exact override for a tag wheel color. workspace_label_custom_color_check requires #RRGGBB.
+  customColor  String?       @db.VarChar(7)
   /// Work-type presets are candidates for automatic Task classification only.
   isTaskPreset Boolean       @default(false)
 

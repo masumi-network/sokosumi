@@ -1,7 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import { getEnv } from "@/config/env";
-import type { TaskWorkspaceTagCatalogEntry } from "@/helpers/task-tag-catalog";
+import {
+  type TaskWorkspaceTagCatalogEntry,
+  workspaceTagSuggestion,
+} from "@/helpers/task-tag-catalog";
 import {
   MAX_TASK_TAGS,
   parseTaskTagAnswers,
@@ -263,17 +266,8 @@ export async function classifyTaskTags(
         b.probability - a.probability || a.label.id.localeCompare(b.label.id),
     )
     .slice(0, MAX_TASK_TAGS)
-    .map(
-      ({
-        label: { id, displayName, color, vocabularyVersion },
-        probability,
-      }) => ({
-        id,
-        displayName,
-        color,
-        vocabularyVersion,
-        autoApply: probability >= AUTO_APPLY_PROBABILITY,
-      }),
+    .map(({ label, probability }) =>
+      workspaceTagSuggestion(label, probability >= AUTO_APPLY_PROBABILITY),
     );
   return {
     ok: true as const,

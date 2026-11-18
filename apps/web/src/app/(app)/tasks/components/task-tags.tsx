@@ -52,13 +52,17 @@ function useTopicTags(
 }
 
 function renderTagBadge(
-  tag: Pick<TaskWorkspaceTag, "id" | "displayName" | "color" | "taskTopicId">,
+  tag: Pick<
+    TaskWorkspaceTag,
+    "id" | "displayName" | "color" | "customColor" | "taskTopicId"
+  >,
 ) {
   return (
     <TaskTagBadge
       id={tag.id}
       key={tag.id}
       color={tag.color}
+      customColor={tag.customColor}
       taskTopicId={tag.taskTopicId}
     >
       <span className="truncate">{tag.displayName}</span>

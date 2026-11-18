@@ -82,7 +82,12 @@ export function useTaskFormWorkspaceTags(
           if (!label || label.archived)
             return initialIds.has(tag.id) ? [tag] : [];
           return [
-            { ...tag, displayName: label.displayName, color: label.color },
+            {
+              ...tag,
+              displayName: label.displayName,
+              color: label.color,
+              customColor: label.customColor,
+            },
           ];
         })
       : (current?.chosen ?? base);
@@ -99,10 +104,11 @@ export function useTaskFormWorkspaceTags(
   );
   const automatic = remaining
     .filter((tag) => tag.autoApply)
-    .map(({ id, displayName, color }) => ({
+    .map(({ id, displayName, color, customColor }) => ({
       id,
       displayName,
       color,
+      customColor,
       source: "jev" as const,
     }));
   const selected = [...chosen, ...automatic];

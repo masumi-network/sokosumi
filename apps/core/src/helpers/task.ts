@@ -432,6 +432,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
       id: label.id,
       displayName: label.displayName,
       color: label.color,
+      customColor: label.customColor,
       taskTopicId: workspaceLabelTopicId(label),
       source: state === "JEV_ADDED" ? ("jev" as const) : ("manual" as const),
     })),

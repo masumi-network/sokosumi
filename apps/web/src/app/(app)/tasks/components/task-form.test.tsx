@@ -483,6 +483,17 @@ async function setRunAt(
   await user.click(screen.getByRole("button", { name: "apply" }));
 }
 
+async function chooseTagColor(
+  user: ReturnType<typeof userEvent.setup>,
+  hex: string,
+) {
+  await user.click(await screen.findByRole("button", { name: "changeColor" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "colorHex" }), {
+    target: { value: hex },
+  });
+  await user.click(screen.getByRole("button", { name: "applyColor" }));
+}
+
 describe("TaskForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -747,6 +758,7 @@ describe("TaskForm", () => {
     vi.mocked(createWorkspaceTag).mockResolvedValue({
       ...tag,
       color: "purple",
+      customColor: "#6341A2",
       id: "two",
       displayName: "Finance",
     });
@@ -770,14 +782,12 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.click(await screen.findByRole("button", { name: "Release" }));
     await user.type(screen.getByRole("textbox", { name: "search" }), "Finance");
-    const createColor = screen.getByRole("combobox", { name: "changeColor" });
     expect(
-      createColor.parentElement?.querySelector("[data-tag-color]"),
+      screen
+        .getByRole("button", { name: "changeColor" })
+        .querySelector("[data-tag-color]"),
     ).toBeNull();
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "changeColor" }),
-      "purple",
-    );
+    await chooseTagColor(user, "#6341a2");
     await user.click(screen.getByRole("button", { name: "create" }));
     await waitFor(() =>
       expect(
@@ -786,7 +796,7 @@ describe("TaskForm", () => {
     );
     expect(createWorkspaceTag).toHaveBeenCalledWith({
       activeOrganizationId: "org-1",
-      color: "purple",
+      color: "#6341A2",
       displayName: "Finance",
     });
     await user.keyboard("{Escape}");
@@ -811,6 +821,7 @@ describe("TaskForm", () => {
     vi.mocked(setWorkspaceTagColor).mockResolvedValue({
       ...tag,
       color: "green",
+      customColor: "#248F76",
     });
     const client = new QueryClient();
     render(
@@ -845,18 +856,49 @@ describe("TaskForm", () => {
     ).not.toBeInTheDocument();
     expect(within(tags).queryByText("appliedByJev")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "add" }));
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "changeColor" }),
-      "green",
+    await user.click(
+      await screen.findByRole("button", { name: "changeColor" }),
     );
+    fireEvent.change(screen.getByRole("slider", { name: "colorBrightness" }), {
+      target: { value: "20" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "colorHex" }), {
+      target: { value: "#248f" },
+    });
+    expect(screen.getByRole("button", { name: "applyColor" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(setWorkspaceTagColor).not.toHaveBeenCalled();
+    expect(chip).toHaveAttribute("data-tag-color", "blue");
+    await chooseTagColor(user, "#248f76");
     await waitFor(() =>
-      expect(chip).toHaveAttribute("data-tag-color", "green"),
+      expect(chip).toHaveAttribute("data-tag-color", "#248F76"),
     );
     expect(setWorkspaceTagColor).toHaveBeenCalledWith({
       activeOrganizationId: "org-1",
       id: "existing",
-      color: "green",
+      color: "#248F76",
     });
+    await user.click(
+      await screen.findByRole("button", { name: "changeColor" }),
+    );
+    expect(screen.getByRole("textbox", { name: "colorHex" })).toHaveValue(
+      "#248F76",
+    );
+    vi.mocked(setWorkspaceTagColor).mockResolvedValue({
+      ...tag,
+      color: null,
+      customColor: null,
+    });
+    await user.click(screen.getByRole("button", { name: "colors.auto" }));
+    expect(setWorkspaceTagColor).toHaveBeenCalledTimes(2);
+    expect(setWorkspaceTagColor).toHaveBeenLastCalledWith({
+      activeOrganizationId: "org-1",
+      id: tag.id,
+      color: null,
+    });
+    await waitFor(() =>
+      expect(chip).not.toHaveAttribute("data-tag-color", "#248F76"),
+    );
     expect(updateTask).not.toHaveBeenCalled();
   });
 
@@ -929,15 +971,15 @@ describe("TaskForm", () => {
     const client = new QueryClient();
     const first =
       Promise.withResolvers<Awaited<ReturnType<typeof setWorkspaceTagColor>>>();
-    let saved: "blue" | "green" = "blue";
+    let saved: string | null = null;
     vi.mocked(fetchWorkspaceLabels).mockImplementation(async () => [
-      { ...tag, color: saved },
+      { ...tag, color: "blue", customColor: saved },
     ]);
     vi.mocked(setWorkspaceTagColor)
       .mockReturnValueOnce(first.promise)
       .mockImplementationOnce(async () => {
-        saved = "green";
-        return { ...tag, color: saved };
+        saved = "#248F76";
+        return { ...tag, color: "blue", customColor: saved };
       });
     render(
       <TaskForm
@@ -958,19 +1000,15 @@ describe("TaskForm", () => {
     );
     const chip = screen.getByText("Payments").closest("[data-slot=badge]");
     await user.click(screen.getByRole("button", { name: "add" }));
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "changeColor" }),
-      "red",
+    await chooseTagColor(user, "#D71260");
+    await waitFor(() =>
+      expect(chip).toHaveAttribute("data-tag-color", "#D71260"),
     );
-    await waitFor(() => expect(chip).toHaveAttribute("data-tag-color", "red"));
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "add" }));
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "changeColor" }),
-      "green",
-    );
+    await chooseTagColor(user, "#248F76");
     await waitFor(() =>
-      expect(chip).toHaveAttribute("data-tag-color", "green"),
+      expect(chip).toHaveAttribute("data-tag-color", "#248F76"),
     );
     await act(async () => {
       first.reject(new Error("Write failed"));
@@ -978,7 +1016,7 @@ describe("TaskForm", () => {
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith("colorError"),
     );
-    expect(chip).toHaveAttribute("data-tag-color", "green");
+    expect(chip).toHaveAttribute("data-tag-color", "#248F76");
   });
 
   it.each([

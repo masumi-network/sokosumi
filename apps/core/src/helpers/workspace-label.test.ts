@@ -12,6 +12,7 @@ describe("Workspace tag color identity", () => {
       id: "design-tag",
       kind: "TAG" as const,
       color: "pink" as const,
+      customColor: "#127DA2",
       archivedAt: null,
       vocabularyVersion: 2,
       createdByUserId: null,
@@ -19,6 +20,7 @@ describe("Workspace tag color identity", () => {
     expect(toWorkspaceLabel(row)).toMatchObject({
       taskTopicId: "design",
       color: "pink",
+      customColor: "#127DA2",
     });
     for (const change of [
       { createdByUserId: "user" },

@@ -24,7 +24,7 @@ import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { projectSummarySchema } from "@/schemas/project.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
-import { tagColorSchema } from "@/schemas/tag-color.schema";
+import { workspaceTagColorFields } from "@/schemas/tag-color.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -227,7 +227,7 @@ const taskAssigneeSchema = z
 const workspaceTaskTag = z.object({
   id: z.uuid(),
   displayName: z.string(),
-  color: tagColorSchema.nullish(),
+  ...workspaceTagColorFields,
 });
 
 export const dismissedTopicIdsSchema = z

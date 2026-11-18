@@ -5,7 +5,6 @@ import type {
   FileCollection,
   FileResource,
   FileSearchMeta,
-  TagColor,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
 import {
@@ -26,6 +25,7 @@ import {
   postDriveLabels,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   putDriveShares,
+  TagColor,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -170,8 +170,14 @@ export async function fetchWorkspaceLabels(input: {
   return response.data.data;
 }
 
+function workspaceTagColorWrite(color: string | null) {
+  if (color === null) return { color: null };
+  const named = Object.values(TagColor).find((choice) => choice === color);
+  return named ? { color: named } : { customColor: color };
+}
+
 export async function createWorkspaceTag(input: {
-  color?: TagColor | null;
+  color?: string | null;
   activeOrganizationId: string | null;
   displayName: string;
 }): Promise<WorkspaceLabel> {
@@ -182,7 +188,7 @@ export async function createWorkspaceTag(input: {
       ...storeQuery(store),
       kind: "TAG",
       displayName: input.displayName,
-      ...(input.color ? { color: input.color } : {}),
+      ...(input.color ? workspaceTagColorWrite(input.color) : {}),
     },
     throwOnError: true,
   });
@@ -192,14 +198,14 @@ export async function createWorkspaceTag(input: {
 export async function setWorkspaceTagColor(input: {
   activeOrganizationId: string | null;
   id: string;
-  color: TagColor | null;
+  color: string | null;
 }): Promise<WorkspaceLabel> {
   const response = await patchDriveLabelsById({
     client: getBrowserCoreClient(),
     path: { id: input.id },
     body: {
       ...storeQuery(driveStoreForActiveWorkspace(input.activeOrganizationId)),
-      color: input.color,
+      ...workspaceTagColorWrite(input.color),
     },
     throwOnError: true,
   });

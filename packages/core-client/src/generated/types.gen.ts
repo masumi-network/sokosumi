@@ -1904,6 +1904,10 @@ export type Task = {
         id: string;
         displayName: string;
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         source?: 'manual' | 'jev';
         taskTopicId?: TaskTagId;
     }>;
@@ -1911,6 +1915,10 @@ export type Task = {
         id: string;
         displayName: string;
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
     }>;
     /**
      * Sequence number within the project. Null when the task has no project.
@@ -5239,6 +5247,10 @@ export type DeleteDriveFileRequest = {
 export type WorkspaceLabel = {
     taskTopicId?: TaskTagId;
     color?: TagColor;
+    /**
+     * Exact six-digit hex color for the tag. Overrides its named color when present.
+     */
+    customColor?: string | null;
     id: string;
     kind: 'TAG' | 'CATEGORY';
     displayName: string;
@@ -14277,6 +14289,10 @@ export type TaskListItem = {
         id: string;
         displayName: string;
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         source?: 'manual' | 'jev';
         taskTopicId?: TaskTagId;
     }>;
@@ -14284,6 +14300,10 @@ export type TaskListItem = {
         id: string;
         displayName: string;
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
     }>;
     /**
      * Sequence number within the project. Null when the task has no project.
@@ -14368,6 +14388,10 @@ export type TaskTagSuggestion = {
         id: string;
         displayName: string;
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         autoApply: boolean;
     }>;
     receipt: string;
@@ -43743,6 +43767,10 @@ export type GetDriveLabelsResponse = GetDriveLabelsResponses[keyof GetDriveLabel
 export type PostDriveLabelsData = {
     body: {
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         kind: 'TAG' | 'CATEGORY';
         displayName: string;
         description?: string | null;
@@ -43870,6 +43898,10 @@ export type PostDriveLabelsResponse = PostDriveLabelsResponses[keyof PostDriveLa
 export type PatchDriveLabelsByIdData = {
     body: {
         color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         displayName?: string;
         description?: string | null;
         archived?: boolean;

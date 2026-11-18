@@ -89,15 +89,13 @@ export function TasksViewFilters({
     () => [
       ...Array.from(workspaceTags.data ?? [])
         .sort((a, b) => Number(a.archived) - Number(b.archived))
-        .map(({ id, displayName, archived, color }) => ({
-          color,
-          mark: <TaskTagDot id={id} color={color} />,
-          value: id,
-          label: displayName,
-          group: archived ? t("archivedTags") : t("workspaceTags"),
+        .map((tag) => ({
+          mark: <TaskTagDot {...tag} />,
+          value: tag.id,
+          label: tag.displayName,
+          group: tag.archived ? t("archivedTags") : t("workspaceTags"),
         })),
       ...Object.values(TaskTagId).map((id) => ({
-        color: undefined,
         mark: <TaskTagDot id={id} />,
         value: id,
         label: tTags(`vocabulary.${id}`),
@@ -362,13 +360,8 @@ export function TasksViewFilters({
               >
                 {chip.id === "tag" && filters.tag && (
                   <span className="me-1.5 flex">
-                    <TaskTagDot
-                      id={filters.tag}
-                      color={
-                        tagOptions.find((item) => item.value === filters.tag)
-                          ?.color
-                      }
-                    />
+                    {tagOptions.find((item) => item.value === filters.tag)
+                      ?.mark ?? <TaskTagDot id={filters.tag} />}
                   </span>
                 )}
                 <span className="truncate">{name}</span>

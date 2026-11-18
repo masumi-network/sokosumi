@@ -10,13 +10,14 @@ export interface TaskWorkspaceTagCatalogEntry {
   displayName: string;
   description: string | null;
   color: TagColor | null;
+  customColor?: string | null;
   vocabularyVersion: number;
   isUnmodifiedDefault?: boolean;
 }
 
 export type TaskWorkspaceTagSuggestion = Pick<
   TaskWorkspaceTagCatalogEntry,
-  "id" | "displayName" | "color" | "vocabularyVersion"
+  "id" | "displayName" | "color" | "customColor" | "vocabularyVersion"
 > & { autoApply: boolean };
 
 export interface TaskTagEvaluation {
@@ -56,6 +57,7 @@ export async function loadTaskTagCatalog(
       displayName: true,
       description: true,
       color: true,
+      customColor: true,
       vocabularyVersion: true,
       createdByUserId: true,
     },
@@ -94,8 +96,14 @@ export function taskTagCatalogFingerprint(
 }
 
 export function workspaceTagSuggestion(
-  { id, displayName, color, vocabularyVersion }: TaskWorkspaceTagCatalogEntry,
+  {
+    id,
+    displayName,
+    color,
+    customColor,
+    vocabularyVersion,
+  }: TaskWorkspaceTagCatalogEntry,
   autoApply: boolean,
 ): TaskWorkspaceTagSuggestion {
-  return { id, displayName, color, vocabularyVersion, autoApply };
+  return { id, displayName, color, customColor, vocabularyVersion, autoApply };
 }

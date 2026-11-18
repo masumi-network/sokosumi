@@ -510,6 +510,7 @@ describe("GET /tasks", () => {
     };
     const custom = {
       ...seed,
+      customColor: "#127DA2",
       id: "00000000-0000-4000-8000-000000000002",
       createdByUserId: "user_other",
     };
@@ -534,7 +535,13 @@ describe("GET /tasks", () => {
         source: "manual",
         taskTopicId: "design",
       },
-      { id: custom.id, displayName: "Design", color: null, source: "manual" },
+      {
+        id: custom.id,
+        displayName: "Design",
+        color: null,
+        customColor: "#127DA2",
+        source: "manual",
+      },
     ]);
   });
 

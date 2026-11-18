@@ -284,28 +284,41 @@ describe.skipIf(!enabled)("Drive label merge on Tasks", () => {
         kind: "TAG",
         displayName: "Release watch",
         color: "purple",
+        customColor: "#127da2",
       }),
     );
     expect(created.status).toBe(201);
     const { data: label } = await created.json();
-    expect(label.color).toBe("purple");
+    expect(label).toMatchObject({ color: "purple", customColor: "#127DA2" });
     const decision = { taskId: bothTagsTask, labelId: label.id };
     await prisma.taskWorkspaceTagDecision.create({
       data: { ...decision, state: "JEV_SUGGESTED" },
     });
-    for (const color of ["teal", null]) {
+    for (const invalid of ["#123", "#12345678", "transparent", "red);url(x)"]) {
+      const update = await patch.request(
+        `/${label.id}`,
+        jsonRequest("PATCH", { scope: "me", customColor: invalid }),
+      );
+      expect(update.status).toBe(422);
+    }
+    for (const [change, expected] of [
+      [{ customColor: "#ab331c" }, { color: "purple", customColor: "#AB331C" }],
+      [{ color: "teal" }, { color: "teal", customColor: null }],
+      [{ customColor: "#fefefe" }, { color: "teal", customColor: "#FEFEFE" }],
+      [{ color: null }, { color: null, customColor: null }],
+    ]) {
       const updated = await patch.request(
         `/${label.id}`,
-        jsonRequest("PATCH", { scope: "me", color }),
+        jsonRequest("PATCH", { scope: "me", ...change }),
       );
       expect(updated.status).toBe(200);
       expect((await updated.json()).data).toMatchObject({
-        color,
+        ...expected,
         vocabularyVersion: label.vocabularyVersion,
       });
       const labels = await list.request("/?scope=me&kind=TAG");
       expect((await labels.json()).data).toContainEqual(
-        expect.objectContaining({ id: label.id, color }),
+        expect.objectContaining({ id: label.id, ...expected }),
       );
       expect(
         await prisma.taskWorkspaceTagDecision.count({ where: decision }),

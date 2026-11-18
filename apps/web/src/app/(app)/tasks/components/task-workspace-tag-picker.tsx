@@ -1,6 +1,6 @@
 "use client";
 
-import type { TagColor, WorkspaceLabel } from "@sokosumi/core-client";
+import type { WorkspaceLabel } from "@sokosumi/core-client";
 import { checkFileLabelName } from "@sokosumi/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus } from "lucide-react";
@@ -27,6 +27,7 @@ import { JevTagIndicator } from "./task-draft-tags";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TaskTagColorSelect } from "./task-tag-color-select";
 import {
+  explicitTaskTagColor,
   TaskTagBadge,
   TaskTagDot,
   TaskTagRemoveButton,
@@ -104,6 +105,7 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
           <TaskTagBadge
             id={tag.id}
             color={tag.color}
+            customColor={tag.customColor}
             taskTopicId={tag.taskTopicId}
             key={tag.id}
             className="gap-1"
@@ -195,11 +197,11 @@ function TagChoices({
   const t = useTranslations("App.Tasks.Tags");
   const [search, setSearch] = useState("");
   const [error, setError] = useState(false);
-  const [newColor, setNewColor] = useState<TagColor | null>(null);
+  const [newColor, setNewColor] = useState<string | null>(null);
   const client = useQueryClient();
   const queryKey = workspaceTagsQueryKey(activeOrganizationId);
   const colorMutation = useMutation({
-    mutationFn: ({ id, color }: { id: string; color: TagColor | null }) =>
+    mutationFn: ({ id, color }: { id: string; color: string | null }) =>
       setWorkspaceTagColor({ activeOrganizationId, id, color }),
     onMutate: async ({ id, color }) => {
       await client.cancelQueries({ queryKey, exact: true });
@@ -207,7 +209,11 @@ function TagChoices({
         .getQueryData<WorkspaceLabel[]>(queryKey)
         ?.find((tag) => tag.id === id);
       client.setQueryData<WorkspaceLabel[]>(queryKey, (tags) =>
-        tags?.map((tag) => (tag.id === id ? { ...tag, color } : tag)),
+        tags?.map((tag) =>
+          tag.id === id
+            ? { ...tag, color: color ? tag.color : null, customColor: color }
+            : tag,
+        ),
       );
       return before;
     },
@@ -215,8 +221,9 @@ function TagChoices({
       if (before)
         client.setQueryData<WorkspaceLabel[]>(queryKey, (tags) =>
           tags?.map((tag) =>
-            tag.id === variables.id && tag.color === variables.color
-              ? { ...tag, color: before.color }
+            tag.id === variables.id &&
+            explicitTaskTagColor(tag) === variables.color
+              ? { ...tag, color: before.color, customColor: before.customColor }
               : tag,
           ),
         );
@@ -229,7 +236,7 @@ function TagChoices({
       const latest = client
         .getQueryData<WorkspaceLabel[]>(queryKey)
         ?.find((tag) => tag.id === updated.id);
-      if (latest && latest.color !== variables.color) {
+      if (latest && explicitTaskTagColor(latest) !== variables.color) {
         await client.invalidateQueries({ queryKey, exact: true });
         return;
       }
@@ -335,7 +342,7 @@ function TagChoices({
                   className="min-w-0 flex-1 justify-start"
                   onClick={() => choose(tag)}
                 >
-                  <TaskTagDot id={tag.id} color={tag.color} />
+                  <TaskTagDot {...tag} />
                   <span className="min-w-0 flex-1 truncate text-start">
                     {tag.displayName}
                   </span>
@@ -344,7 +351,7 @@ function TagChoices({
                 <TaskTagColorSelect
                   id={tag.taskTopicId ?? tag.id}
                   name={tag.displayName}
-                  color={tag.color}
+                  color={explicitTaskTagColor(tag)}
                   disabled={disabled || creating || colorMutation.isPending}
                   onChange={(color) =>
                     colorMutation.mutate({ id: tag.id, color })

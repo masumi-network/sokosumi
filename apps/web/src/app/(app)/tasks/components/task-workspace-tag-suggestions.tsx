@@ -37,7 +37,7 @@ export function WorkspaceTagSuggestions({
               aria-label={t("acceptSuggestion", { name: tag.displayName })}
               className="h-7 gap-1 px-2 text-xs"
             >
-              <TaskTagDot id={tag.id} color={tag.color} />
+              <TaskTagDot {...tag} />
               <span className="truncate">{tag.displayName}</span>
               <Plus aria-hidden className="size-3" />
             </Button>

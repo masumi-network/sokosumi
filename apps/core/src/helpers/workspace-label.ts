@@ -9,6 +9,7 @@ export const workspaceLabelSelect = {
   displayName: true,
   description: true,
   color: true,
+  customColor: true,
   archivedAt: true,
   vocabularyVersion: true,
   createdByUserId: true,

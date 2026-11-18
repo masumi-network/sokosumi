@@ -45,7 +45,7 @@ const taskParticipantsInclude = {
 } as const;
 
 const workspaceTagLabel = {
-  select: { id: true, displayName: true, color: true },
+  select: { id: true, displayName: true, color: true, customColor: true },
 } as const;
 
 const taskOwnerAssigneeCreatorInclude = {
@@ -122,7 +122,7 @@ export function taskTagSuggestionsForViewer(
 
 type WorkspaceTagSuggestions = {
   workspaceTagDecisions?: {
-    label: Pick<WorkspaceLabel, "id" | "displayName" | "color">;
+    label: Pick<WorkspaceLabel, "id" | "displayName" | "color" | "customColor">;
   }[];
 };
 

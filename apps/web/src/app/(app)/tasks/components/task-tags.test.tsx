@@ -118,6 +118,45 @@ describe("TaskTagSection", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
+  it("shows a color dot on Finance, Operations, and Data and analytics without fetching a catalog", () => {
+    render(
+      <TaskTagSection
+        tags={{
+          manual: [],
+          automatic: ["finance", "operations"],
+          rejected: [],
+        }}
+        workspaceTags={[
+          {
+            id: "operations-tag",
+            displayName: "Operations",
+            taskTopicId: "operations",
+          },
+          {
+            id: "analytics",
+            displayName: "Data and analytics",
+            color: "teal",
+            customColor: "#2F7189",
+          },
+        ]}
+      />,
+    );
+    for (const label of [
+      "vocabulary.finance",
+      "Operations",
+      "Data and analytics",
+    ]) {
+      const badge = screen
+        .getByText(label)
+        .closest<HTMLElement>("[data-slot=badge]")!;
+      const dot = badge.querySelector("[aria-hidden=true][data-tag-color]");
+      expect(dot).toBeVisible();
+      expect(dot).toHaveAttribute("data-tag-color", badge.dataset.tagColor);
+      if (label === "Data and analytics")
+        expect(dot).toHaveAttribute("data-tag-color", "#2F7189");
+    }
+  });
+
   it("restores a workspace tag after an edit fails and preserves Jev’s suggestions", async () => {
     vi.mocked(setTaskWorkspaceTags).mockResolvedValue({
       ok: false,
@@ -483,6 +522,7 @@ it("uses the workspace color for a verified default topic and keeps a human homo
       displayName: "Design",
       taskTopicId: "design",
       color: "pink",
+      customColor: "#D32A91",
     },
     manual,
   ]);
@@ -495,7 +535,7 @@ it("uses the workspace color for a verified default topic and keeps a human homo
   );
   expect(
     screen.getByText("vocabulary.design").closest("[data-slot=badge]"),
-  ).toHaveAttribute("data-tag-color", "pink");
+  ).toHaveAttribute("data-tag-color", "#D32A91");
   expect(
     screen.getByText("Research").closest("[data-slot=badge]"),
   ).toHaveAttribute("data-tag-color", "red");
