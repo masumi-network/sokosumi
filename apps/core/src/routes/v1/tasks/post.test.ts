@@ -17,6 +17,9 @@ import { issueTaskTagReceipt } from "@/services/task-tag-suggestions.service";
 import { expectCoreLogWhys } from "@/test/core-log";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
+vi.mock("@/helpers/task-tag-rollout", () => ({
+  TASK_WORKSPACE_JEV_ENABLED: true,
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -2227,9 +2230,9 @@ describe("POST /tasks inline tag classification failure modes", () => {
     gateway.enabled = true;
     createWorkspaceTagAssignments.mockResolvedValue({ count: 1 });
     createWorkspaceTagDecisions.mockResolvedValue({ count: 1 });
-    allowedLabels.mockResolvedValue([
-      { id: workspaceLabelId, vocabularyVersion: 1 },
-    ]);
+    allowedLabels
+      .mockReset()
+      .mockResolvedValue([{ id: workspaceLabelId, vocabularyVersion: 1 }]);
     cachedSuggestionsMock.mockResolvedValue(null);
     resolveEffectiveDesignMdMock.mockResolvedValue(null);
     generateTaskNameMock.mockResolvedValue("Generated name");
