@@ -13,6 +13,7 @@ import type {
   TaskLinkDeleted,
   TaskParticipant,
   TaskPriority,
+  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarEntry,
@@ -27,6 +28,8 @@ interface ListTasksParams {
   assigneeSokoBotId?: string;
   assigneeUserId?: string;
   projectId?: string;
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
   q?: string;
   scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
@@ -46,6 +49,9 @@ interface ListTasksParams {
 }
 
 interface CreateTaskInput {
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
@@ -64,6 +70,10 @@ interface CreateTaskInput {
 }
 
 interface PatchTaskInput {
+  expectedWorkspaceTagIds?: string[];
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
@@ -158,6 +168,8 @@ export const taskService = (() => {
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
       parentTaskId: params.parentTaskId,
+      workspaceTagId: params.workspaceTagId,
+      topicTagId: params.topicTagId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
       statusBefore: params.statusBefore,

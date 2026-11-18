@@ -23,7 +23,10 @@ import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-provid
 import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
+  TikTokPostSettings,
 } from "@/clients/social-post-providers/types";
+import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -56,6 +59,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+import { isTalkingVideoMedia } from "@/services/image-studio-drive.service";
 import {
   projectExecutorUserId,
   requireLockedOpenProject,
@@ -111,6 +115,7 @@ export interface PublishDueSocialPostsResult {
 }
 
 export interface PublishSocialPostNowInput {
+  tikTokSettings?: TikTokPostSettings;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -172,6 +177,7 @@ type AttemptTrigger = "scheduler" | "publish_now";
 type AttemptOutcome = "published" | "retried" | "failed" | "missed" | "skipped";
 
 interface AttemptOptions {
+  tikTokSettings?: TikTokPostSettings;
   trigger: AttemptTrigger;
   actorUserId?: string;
   execution?: PublishDueSocialPostsInput;
@@ -831,13 +837,18 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const toolSlug =
+    provider === "tiktok" &&
+    getZernioAccountId(connection.composioConnectedAccountId)
+      ? ZERNIO_TIKTOK_CREATE_POST
+      : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
       attempt: await nextAttemptNumber(post.id),
       trigger: options.trigger,
       actorUserId: options.actorUserId ?? null,
-      toolSlug: SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug,
     },
     select: { id: true },
   });
@@ -909,13 +920,18 @@ async function attemptPublish(
     );
     if (projectOutcome) return projectOutcome;
     const context: SocialPostPublishContext = {
+      ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
+      tikTokSettings: options.tikTokSettings,
       ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
+      ...((await isTalkingVideoMedia(post.projectId, media))
+        ? { aiGenerated: true }
+        : {}),
       media,
       signal,
     };
@@ -1024,7 +1040,7 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
-      toolSlug: published.toolSlug ?? SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug: published.toolSlug ?? toolSlug,
       providerOutcome:
         published.providerOutcome ??
         (media.length > 0 ? `published, ${media.length} media` : "published"),
@@ -1283,6 +1299,10 @@ export async function publishSocialPostNow(
           post.project,
         );
       }
+      if (post.provider === "tiktok" && !input.tikTokSettings)
+        throw badRequest(
+          "Choose the TikTok audience and confirm the music usage before publishing",
+        );
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {
           throw badRequest("A social connection is required to publish a post");
@@ -1364,7 +1384,11 @@ export async function publishSocialPostNow(
       socialConnection: post.socialConnection,
       project: post.project,
     },
-    { trigger: "publish_now", actorUserId: input.userId },
+    {
+      trigger: "publish_now",
+      actorUserId: input.userId,
+      tikTokSettings: input.tikTokSettings,
+    },
   );
   return {
     ...(await getSocialPost({

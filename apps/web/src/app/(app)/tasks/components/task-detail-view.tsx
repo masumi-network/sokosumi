@@ -1,9 +1,11 @@
 import type { Task } from "@sokosumi/core-client";
 import {
+  isTaskEditableStatus,
   removeTaskContextAttachmentLinks,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
@@ -38,6 +40,7 @@ import {
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -89,6 +92,14 @@ export async function TaskDetailView({
   const assigneeOptionsPromise = forceReadOnly
     ? Promise.resolve([])
     : listTaskAssigneeOptions(task.workspace.organizationId ?? null);
+  // Started with the other reads so the Project picker adds no waterfall.
+  const projectOptionsPromise =
+    forceReadOnly || !isTaskEditableStatus(task.status)
+      ? Promise.resolve([])
+      : getProjectFilterOptions().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return null;
+        });
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const workspaceAccessPromise = userService.getWorkspaceAccess();
@@ -247,6 +258,8 @@ export async function TaskDetailView({
                   hasAssignedSeatPromise={hasAssignedSeatPromise}
                   projectPromise={projectPromise}
                   sessionPromise={sessionPromise}
+                  assigneeOptionsPromise={assigneeOptionsPromise}
+                  projectOptionsPromise={projectOptionsPromise}
                 />
               </Suspense>
               <TaskRelatedTasks
@@ -579,6 +592,8 @@ async function TaskDetailActionsSlot({
         !forceReadOnly && hasAssignedSeat
           ? {
               name: task.name,
+              tags: task.tags,
+              workspaceTags: task.workspaceTags,
               description: task.description
                 ? removeTaskContextAttachmentLinks(task.description)
                 : null,

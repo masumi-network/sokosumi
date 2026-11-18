@@ -31,6 +31,7 @@ import { mapTaskFollowerRows } from "./task-follower-rows";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
+import { workspaceLabelTopicId } from "./workspace-label";
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
 
@@ -438,6 +439,17 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
+    workspaceTags: task.workspaceTags?.map(({ label, state }) => ({
+      id: label.id,
+      displayName: label.displayName,
+      color: label.color,
+      customColor: label.customColor,
+      taskTopicId: workspaceLabelTopicId(label),
+      source: state === "JEV_ADDED" ? ("jev" as const) : ("manual" as const),
+    })),
+    workspaceTagSuggestions: task.workspaceTagDecisions?.map(
+      ({ label }) => label,
+    ),
     status: task.status,
     priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.

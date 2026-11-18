@@ -34,7 +34,7 @@ body:has(.ob) .site-header {
   align-items: center;
   gap: 16px;
   padding: 14px 32px;
-  border-bottom: var(--line-hero) solid var(--line);
+  border-bottom: var(--line-width) solid var(--line);
   background: var(--background);
 }
 
@@ -53,7 +53,7 @@ body:has(.ob) .site-header {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border: var(--line-pill) solid var(--clear);
+  border: var(--line-width-small) solid var(--clear);
   border-radius: var(--radius-pill);
   background: none;
   color: var(--muted);
@@ -93,7 +93,7 @@ body:has(.ob) .site-header {
 
 /* A step you can go back to is a button, so it casts a shadow; the label does not. */
 .ob-step.now > button {
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
 }
 
 .ob-who {
@@ -110,10 +110,10 @@ body:has(.ob) .site-header {
   min-width: 0;
   height: 32px;
   padding: 0 12px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--card);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font: inherit;
   font-size: 0.75rem;
@@ -139,10 +139,10 @@ body:has(.ob) .site-header {
   z-index: 20;
   min-width: 180px;
   padding: 4px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow);
 }
 
 .ob-who-item {
@@ -196,6 +196,16 @@ body:has(.ob) .site-header {
 
 .ob-main > .ob-hire {
   --ob-col: 820px;
+}
+
+/* The hire screen's one button is the hero's call to action: the big shadow. */
+.ob-hire-row .button {
+  box-shadow: var(--shadow-big);
+}
+
+.ob-hire-row .button:active:not(:disabled) {
+  transform: translate(var(--offset-big), var(--offset-big));
+  box-shadow: none;
 }
 
 .ob-main > .ob-launch-done {
@@ -295,9 +305,8 @@ body:has(.ob) .site-header {
   height: 176px;
 }
 
-/* In the sidebar the stage is a picture, not an action: a hairline, flat. */
+/* In the sidebar the stage is a picture, not an action: the line, no shadow. */
 .ob-scene-compact .ob-stage-art {
-  border-width: 1px;
   border-radius: var(--radius-card);
 }
 
@@ -407,8 +416,8 @@ body:has(.ob) .site-header {
 
 /* A fold: one row that opens to its details. */
 .ob-fold {
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -418,7 +427,7 @@ body:has(.ob) .site-header {
   gap: 12px;
   min-height: 56px;
   padding: 0 20px;
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
   color: var(--muted);
   cursor: pointer;
   list-style: none;
@@ -627,7 +636,7 @@ body:has(.ob) .site-header {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -679,7 +688,7 @@ body:has(.ob) .site-header {
   place-items: center;
   width: 20px;
   height: 20px;
-  border: var(--line-pill) solid var(--border);
+  border: var(--line-width-small) solid var(--border);
   border-radius: var(--radius-mark);
   color: var(--primary-foreground);
 }
@@ -690,7 +699,7 @@ body:has(.ob) .site-header {
 }
 
 .working > .ob-box {
-  border: var(--line-pill) dashed var(--line);
+  border: var(--line-width-small) dashed var(--line);
 }
 
 .ob-box-dot {
@@ -806,19 +815,14 @@ body:has(.ob) .site-header {
   text-wrap: balance;
 }
 
+/* Facts to read, not rows to open: no box and no fill, only a hairline. */
 .ob-plan .ob-goal-facts {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   width: 100%;
-  gap: 1px;
-  overflow: hidden;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
-  background: var(--border);
+  gap: 16px 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
   text-align: left;
-}
-
-.ob-plan .ob-goal-facts > div {
-  padding: 14px 20px;
-  background: var(--surface);
 }
 
 .ob-plan .ob-goal-facts dt {
@@ -858,8 +862,8 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 1px;
   overflow: hidden;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--border);
 }
 
@@ -963,7 +967,7 @@ body:has(.ob) .site-header {
   margin: 0 auto;
   padding: 20px;
   overflow-y: auto;
-  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -998,10 +1002,10 @@ body:has(.ob) .site-header {
   place-items: center;
   width: 32px;
   height: 32px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   cursor: pointer;
 }
@@ -1017,8 +1021,8 @@ body:has(.ob) .site-header {
 
 /* Plan wait: the live plan as Cuso saves idea, channels and pillars. */
 .ob-feed {
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
   padding: 6px;
   width: 100%;
@@ -1150,7 +1154,7 @@ body:has(.ob) .site-header {
   min-width: 0;
   min-height: 44px;
   padding: 0 16px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -1199,7 +1203,7 @@ body:has(.ob) .site-header {
 .ob-progress li {
   flex: 1;
   height: 10px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
 }
 
@@ -1245,7 +1249,7 @@ body:has(.ob) .site-header {
 .ob-question-details {
   min-height: 44px;
   padding: 0 16px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -1303,8 +1307,8 @@ body:has(.ob) .site-header {
   inset: 0;
   width: 100%;
   height: 100%;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   padding: 20px 16px 16px;
   background: var(--primary-hover);
   object-fit: contain;
@@ -1314,7 +1318,7 @@ body:has(.ob) .site-header {
 .ob-tilt {
   position: absolute;
   padding: 6px 12px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--foreground);
@@ -1398,7 +1402,7 @@ body:has(.ob) .site-header {
 
 .ob-brand .ob-hero-row .card,
 .ob-plan .ob-checks {
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: none;
 }
@@ -1469,8 +1473,8 @@ body:has(.ob) .site-header {
   width: 100%;
   min-height: 56px;
   padding: 0 20px;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
   color: var(--muted);
   font: inherit;
@@ -1575,8 +1579,8 @@ body:has(.ob) .site-header {
   justify-items: center;
   gap: 8px;
   padding: 32px 16px;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
   text-align: center;
 }
@@ -1592,7 +1596,7 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 1px;
   overflow: hidden;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   background: var(--border);
 }
 
@@ -1649,7 +1653,7 @@ body:has(.ob) .site-header {
 .ob-tabs button {
   height: 32px;
   padding: 0 14px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--foreground);
@@ -1666,7 +1670,7 @@ body:has(.ob) .site-header {
 .ob-tabs button[aria-selected="true"],
 .ob-tabs button[aria-pressed="true"] {
   background: var(--primary);
-  box-shadow: var(--shadow-pill);
+  box-shadow: var(--shadow);
   color: var(--primary-foreground);
 }
 
@@ -1677,8 +1681,8 @@ body:has(.ob) .site-header {
 
 .ob-tabpanel {
   padding: 24px;
-  border: var(--line-thick) solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -1940,7 +1944,7 @@ body:has(.ob) .site-header {
   width: 36px;
   height: 36px;
   margin-bottom: 8px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
   background: var(--card);
 }
@@ -2049,7 +2053,7 @@ body:has(.ob) .site-header {
   top: -12px;
   left: 16px;
   padding: 2px 10px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--primary);
   color: var(--primary-foreground);
@@ -2720,4 +2724,23 @@ body:has(.ob) .site-header {
 .ob-where input:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+.ob-presenter {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px;
+}
+
+.ob-presenter-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ob-presenter-consent input {
+  margin-top: 2px;
 }

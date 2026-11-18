@@ -1,4 +1,6 @@
-import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
+import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
+
+import { isUuidString } from "@/lib/utils/uuid";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
@@ -14,6 +16,8 @@ export interface TasksFilters {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  /** A workspace tag UUID or a built-in topic ID. */
+  tag?: string;
   /** Only Tasks that have sat in a waiting status for {@link STUCK_AFTER_DAYS} days or more. */
   stuck: boolean;
 }
@@ -51,6 +55,7 @@ export interface TasksFiltersSearchParams {
   projectId?: TasksFilterQueryParam;
   visibility?: TasksFilterQueryParam;
   stuck?: TasksFilterQueryParam;
+  tag?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -64,6 +69,7 @@ export const TASKS_FILTER_PARAM_KEYS = {
   projectId: "projectId",
   visibility: "visibility",
   stuck: "stuck",
+  tag: "tag",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -121,6 +127,23 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 
   const normalized = raw.trim();
   return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
+/** Built-in topic IDs and workspace label UUIDs are disjoint. */
+export function getTaskTagQuery(raw: unknown): {
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
+} {
+  if (typeof raw !== "string") return {};
+  const tag = raw.trim();
+  const topicTagId = Object.values(TaskTagId).find((topic) => topic === tag);
+  if (topicTagId) return { topicTagId };
+  return isUuidString(tag) ? { workspaceTagId: tag.toLowerCase() } : {};
+}
+
+export function sanitizeTaskTagFilter(raw: unknown): string | undefined {
+  const { workspaceTagId, topicTagId } = getTaskTagQuery(raw);
+  return workspaceTagId ?? topicTagId;
 }
 
 export function sanitizeTasksVisibilityInput(
@@ -201,6 +224,7 @@ export function getTasksFiltersFromSearchParams(
         searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
       visibility:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.visibility) ?? undefined,
+      tag: searchParams.get(TASKS_FILTER_PARAM_KEYS.tag) ?? undefined,
       stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
     },
     activeOrganizationId,
@@ -286,6 +310,7 @@ export function parseTasksFilters(
     status,
     projectId,
     visibility,
+    tag: sanitizeTaskTagFilter(firstQueryString(searchParams.tag)),
     stuck: sanitizeTasksStuckInput(firstQueryString(searchParams.stuck)),
   };
 }
@@ -354,6 +379,12 @@ export function buildTasksFiltersSearchParams(
     );
   }
 
+  if (filters.tag) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.tag, filters.tag);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.tag);
+  }
+
   if (filters.stuck) {
     nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.stuck, "1");
   } else {
@@ -382,7 +413,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}`;
 }
 
 /**
@@ -402,6 +433,7 @@ export function hasClearableTasksFilters(
         filters.assigneeUserId ||
         filters.status ||
         filters.visibility ||
+        filters.tag ||
         filters.stuck,
     )
   );
@@ -420,6 +452,7 @@ export function clearTasksFilters(
     assigneeUserId: null,
     status: null,
     visibility: null,
+    tag: undefined,
     stuck: false,
   };
 }
@@ -446,6 +479,7 @@ export function hasActiveTasksFilters(
       filters.assigneeSokoBotId ||
       filters.assigneeUserId ||
       filters.status ||
+      filters.tag ||
       filters.visibility === TaskVisibility.PRIVATE,
   );
 

@@ -1,4 +1,5 @@
 import { TaskPriority, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { CURATED_FILE_VOCABULARY } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -349,6 +350,27 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("keeps tag filters, privacy and workspace scope on both the page and its count", async () => {
+    const labelId = "33333333-3333-4333-8333-333333333333";
+    const response = await createApp().request(
+      `http://localhost/?scope=workspace&topicTagId=qa&workspaceTagId=${labelId}`,
+    );
+
+    expect(response.status).toBe(200);
+    const where = {
+      archivedAt: null,
+      parentTaskId: null,
+      workspaceId: USER_WORKSPACE_CONTEXT.workspaceId,
+      AND: [...HUMAN_TASK_VISIBILITY_AND],
+      visibleTopics: { some: { topicId: "qa" } },
+      workspaceTags: { some: { labelId } },
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(taskCountMock).toHaveBeenCalledWith({ where });
+  });
+
   it("filters tasks by projectId", async () => {
     const app = createApp();
     const projectId = "33333333-3333-4333-8333-333333333333";
@@ -417,6 +439,58 @@ describe("GET /tasks", () => {
     });
   });
 
+  it.each([
+    {
+      actor: "standalone coworker",
+      auth: COWORKER_AUTH_CONTEXT,
+      workspace: null,
+      expected: { labelId: { in: [] } },
+    },
+    {
+      actor: "delegated coworker",
+      auth: DELEGATED_COWORKER_AUTH_CONTEXT,
+      workspace: DELEGATED_WORKSPACE_CONTEXT,
+      expected: {
+        label: {
+          workspaceId: DELEGATED_WORKSPACE_CONTEXT.workspaceId,
+          workspace: {
+            vendorGrants: {
+              some: { vendorId: DELEGATED_VENDOR_ID, status: "GRANTED" },
+            },
+          },
+        },
+      },
+    },
+    {
+      actor: "human API key",
+      auth: { ...USER_AUTH_CONTEXT, authenticationMethod: "api_key" as const },
+      workspace: USER_WORKSPACE_CONTEXT,
+      expected: {
+        state: "JEV_SUGGESTED",
+        label: {
+          workspaceId: USER_WORKSPACE_CONTEXT.workspaceId,
+          workspace: {
+            OR: [
+              { userId: "user_123" },
+              { organization: { members: { some: { userId: "user_123" } } } },
+            ],
+          },
+        },
+      },
+    },
+  ])(
+    "limits workspace-label suggestions on a project list for a $actor",
+    async ({ auth, workspace, expected }) => {
+      const response = await createApp(auth, workspace).request(
+        "http://localhost/?projectId=33333333-3333-4333-8333-333333333333",
+      );
+      expect(response.status).toBe(200);
+      const include = taskFindManyMock.mock.calls[0]?.[0].include;
+      expect(include.workspaceTagDecisions.where).toMatchObject(expected);
+      expect(include.workspaceTags).toBeDefined();
+    },
+  );
+
   it("does not include task links for coworker-scoped task list reads", async () => {
     const app = createApp(COWORKER_AUTH_CONTEXT, null);
 
@@ -426,6 +500,56 @@ describe("GET /tasks", () => {
     const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
     expect(include).not.toHaveProperty("linksFrom");
     expect(include).not.toHaveProperty("linksTo");
+  });
+
+  it("exposes a verified topic on an applied seed without exposing its private rubric or creator", async () => {
+    const design = CURATED_FILE_VOCABULARY.find(
+      (label) => label.kind === "TAG" && label.displayName === "Design",
+    )!;
+    const seed = {
+      id: "00000000-0000-4000-8000-000000000001",
+      kind: "TAG",
+      displayName: design.displayName,
+      description: design.description,
+      color: null,
+      archivedAt: null,
+      createdByUserId: null,
+    };
+    const custom = {
+      ...seed,
+      customColor: "#127DA2",
+      id: "00000000-0000-4000-8000-000000000002",
+      createdByUserId: "user_other",
+    };
+    taskFindManyMock.mockResolvedValue([
+      {
+        ...createTask(),
+        workspaceTags: [
+          { state: "MANUAL", label: seed },
+          { state: "MANUAL", label: custom },
+        ],
+      },
+    ]);
+    const response = await createApp(COWORKER_AUTH_CONTEXT, null).request(
+      "http://localhost/",
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data[0].workspaceTags).toEqual([
+      {
+        id: seed.id,
+        displayName: "Design",
+        color: null,
+        source: "manual",
+        taskTopicId: "design",
+      },
+      {
+        id: custom.id,
+        displayName: "Design",
+        color: null,
+        customColor: "#127DA2",
+        source: "manual",
+      },
+    ]);
   });
 
   it("returns task list items without links", async () => {

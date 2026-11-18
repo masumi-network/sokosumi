@@ -78,7 +78,7 @@ export function LearningCard({
           ? "Done"
           : `${missing} not confirmed yet`;
   return (
-    <div className={failed ? "card card-focus" : "card"}>
+    <div className="card">
       <div className="ch">
         <b>Learning</b>
         <span className="sp" />
@@ -198,8 +198,8 @@ const PREVIEW_LABELS = {
   newsletter: "Newsletter",
 } as const;
 
-/** Ads, SEO and newsletters have no Sokosumi tool yet: preview only. */
-const EXECUTABLE_PREVIEWS = new Set(["post"]);
+/** Ads and newsletters show as previews here; SEO work lives in the SEO tab. */
+const EXECUTABLE_PREVIEWS = new Set(["post", "seo"]);
 
 export function StrategyCard({
   overview,
@@ -213,7 +213,7 @@ export function StrategyCard({
   if (!strategy) return null;
   const approved = strategyApproved(overview);
   return (
-    <div className={approved ? "card" : "card card-focus"}>
+    <div className="card">
       <div className="ch">
         <b>
           Your strategy
@@ -324,7 +324,7 @@ export function StrategyCard({
 /** Opens CMO's own Channels page, where each network connects in place. */
 export function ConnectCard({ actions }: { actions: CardActions }) {
   return (
-    <div className="card card-focus">
+    <div className="card">
       <div className="ch">
         <b>Connect a channel</b>
         <span className="muted">Not connected</span>
@@ -390,7 +390,6 @@ const UPDATE_TITLES = {
   weekly: "Weekly results",
   monthly: "Next month's strategy",
   brand: "Brand Brain refreshed",
-  request: "Done",
   production: "Your month",
 } as const;
 
@@ -400,6 +399,45 @@ const CHANGE_LABELS = {
   brand: "What changed in the Brand Brain",
   daily: "What I changed today",
 } as const;
+
+/**
+ * What Cuso did on a request, as his own message: a headline, what is done
+ * (ticked) and what comes next. It holds his words only, so it reads in the
+ * language he answered in, and it needs nothing from the owner.
+ */
+function RequestNote({
+  update,
+  superseded,
+}: {
+  update: Update;
+  superseded: boolean;
+}) {
+  const done = update.done ?? [];
+  const upNext = superseded ? [] : (update.upNext ?? []);
+  return (
+    <div className="stack-sm">
+      <p className="txt">
+        <strong>{update.headline}</strong>
+      </p>
+      {done.length + upNext.length > 0 ? (
+        <div className="steps txt">
+          {done.map((item) => (
+            <div key={item} className="step ok">
+              <span className="dot" aria-hidden="true" />
+              {item}
+            </div>
+          ))}
+          {upNext.map((item) => (
+            <div key={item} className="step">
+              <span className="dot" aria-hidden="true" />
+              {item}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** Updates that change the strategy, which the owner can put back. */
 function changesStrategy(kind: Update["kind"]): boolean {
@@ -411,7 +449,6 @@ export function UpdateCard({
   actions,
   approved,
   superseded = false,
-  focused = false,
 }: {
   update: Update;
   actions: CardActions;
@@ -422,16 +459,13 @@ export function UpdateCard({
   approved: boolean;
   /** Reported before the approval that came later: its Up next is history. */
   superseded?: boolean;
-  /** Opened from Results: the card in focus. */
-  focused?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  if (update.kind === "request") {
+    return <RequestNote update={update} superseded={superseded} />;
+  }
   return (
-    <div
-      className={
-        focused || update.kind === "request" ? "card card-focus" : "card"
-      }
-    >
+    <div className="card">
       <div className="ch">
         <b>{UPDATE_TITLES[update.kind]}</b>
         <span className="note">{update.headline}</span>
@@ -462,9 +496,7 @@ export function UpdateCard({
             />
           </div>
         ) : null}
-        {update.kind !== "request" &&
-        update.kind !== "production" &&
-        (update.changes ?? []).length > 0 ? (
+        {update.kind !== "production" && (update.changes ?? []).length > 0 ? (
           <div>
             <span className="label">{CHANGE_LABELS[update.kind]}</span>
             <ul className={update.revertedAt ? "list reverted" : "list"}>

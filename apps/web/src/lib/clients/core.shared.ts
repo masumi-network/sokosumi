@@ -151,6 +151,8 @@ import type {
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
+  PostProjectsByIdImageStudioTalkingVideoJobsData,
+  PostProjectsByIdImageStudioTalkingVideoScriptsData,
   PostProjectsByIdImageStudioVideoJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
@@ -349,6 +351,7 @@ import {
   getProjectsByIdHide as coreGetProjectsByIdHide,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
+  getProjectsByIdImageStudioTalkingVideos as coreGetProjectsByIdImageStudioTalkingVideos,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
   getProjectsByIdNewsletterAnalytics as coreGetProjectsByIdNewsletterAnalytics,
@@ -361,6 +364,7 @@ import {
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+  getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator as coreGetProjectsByIdSocialConnectionsByConnectionIdTiktokCreator,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -505,6 +509,8 @@ import {
   postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
+  postProjectsByIdImageStudioTalkingVideoJobs as corePostProjectsByIdImageStudioTalkingVideoJobs,
+  postProjectsByIdImageStudioTalkingVideoScripts as corePostProjectsByIdImageStudioTalkingVideoScripts,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdNewsletterIssues as corePostProjectsByIdNewsletterIssues,
@@ -4536,6 +4542,53 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioTalkingVideoJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioTalkingVideoJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioTalkingVideoJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start the talking video",
+    );
+  }
+
+  async function postProjectsByIdImageStudioTalkingVideoScripts(
+    id: string,
+    body: NonNullable<
+      PostProjectsByIdImageStudioTalkingVideoScriptsData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioTalkingVideoScripts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to write talking video scripts",
+    );
+  }
+
+  async function getProjectsByIdImageStudioTalkingVideos(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudioTalkingVideos({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch the Project's talking videos",
+    );
+  }
+
   async function postProjectsByIdImageStudioJobsByJobIdCancel(
     id: string,
     jobId: string,
@@ -4596,6 +4649,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to refresh account subscription",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator(
+    id: string,
+    connectionId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdTiktokCreator({
+          client,
+          path: { id, connectionId },
+          cache: "no-store",
+        }),
+      "Failed to read TikTok creator settings",
     );
   }
 
@@ -7370,11 +7439,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
+    postProjectsByIdImageStudioTalkingVideoJobs,
+    postProjectsByIdImageStudioTalkingVideoScripts,
+    getProjectsByIdImageStudioTalkingVideos,
     getProjectsByIdSocialPosts,
     getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+    getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator,
     getProjectsByIdSocialConnectionsByConnectionIdSubscription,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,

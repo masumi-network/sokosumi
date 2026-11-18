@@ -105,10 +105,12 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     botStatus: "IDLE",
     learning: "done",
     work: null,
+    activity: null,
     brandVisual: null,
     brandMedia: null,
     brandBrainConfirmedAt: null,
     projectLogo: null,
+    presenterSet: false,
     onboardingStep: "done",
     routines: [
       {

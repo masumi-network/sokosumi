@@ -98,7 +98,7 @@ describe("pre-hire Site", () => {
       />,
     );
     expect(html).toContain(
-      "Give me your website. I&#x27;ll bring back a strategy.",
+      "Give me your website. I&#x27;ll show you a month of posts.",
     );
     expect(html).toContain("Start reading");
     expect(html).toContain('value="acme.io"');
@@ -439,7 +439,7 @@ describe("Plan", () => {
     );
     expect(after).toContain("Show the rockets working.");
     expect(after).toContain("LinkedIn, 2 a week");
-    expect(after).toContain("Product stories: 100% of pieces");
+    expect(after).toContain("Product stories: 100% of posts");
     expect(after).toContain("Writing four weeks, day by day");
     expect(after.match(/Writing your strategy/g)).toHaveLength(1);
   });
@@ -656,6 +656,8 @@ describe("Launch", () => {
         overview={value}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
         onGoToday={() => {}}
       />,
     );
@@ -702,7 +704,7 @@ describe("Launch", () => {
     const html = render(approved());
     expect(html).toContain("One thing, then I start.");
     expect(html).toContain("LinkedIn");
-    expect(html).toContain("1 of 4 pieces go here");
+    expect(html).toContain("1 of 4 posts go here");
     // Either network unlocks Launch, so neither row claims to be needed.
     expect(html).not.toContain("Needed to start");
     // The chips say what each would add.

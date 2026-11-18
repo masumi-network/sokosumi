@@ -24,6 +24,8 @@ interface TaskReopenToReadyDialogProps {
   /** Reopens without a run. Absent where only Ready makes sense. */
   onReopenAsDraft?: () => void;
   isPending?: boolean;
+  /** The pending change is "Reopen as draft": its button shows the spinner. */
+  isDraftPending?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function TaskReopenToReadyDialog({
   onConfirm,
   onReopenAsDraft,
   isPending = false,
+  isDraftPending = false,
 }: TaskReopenToReadyDialogProps) {
   const t = useTranslations("App.Tasks.Detail.actions.sendBack");
   const values = { assignee: assigneeName };
@@ -83,7 +86,8 @@ export function TaskReopenToReadyDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={isPending}
+              disabled={isPending && !isDraftPending}
+              loading={isDraftPending}
               onClick={onReopenAsDraft}
             >
               {t("reopenAsDraft")}
@@ -101,7 +105,7 @@ export function TaskReopenToReadyDialog({
           <Button
             type="button"
             disabled={!comment.trim()}
-            loading={isPending}
+            loading={isPending && !isDraftPending}
             onClick={onConfirm}
           >
             {t("confirm", values)}

@@ -78,7 +78,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: archivedWorkspaceId,
           ...buildHumanTaskVisibilityWhere(userId),
         },
-        include: buildTaskIncludeForViewer(authContext, archivedWorkspaceId),
+        include: buildTaskIncludeForViewer(
+          authContext,
+          archivedWorkspaceId,
+          c.var.workspaceContext?.workspaceId,
+        ),
       });
       if (!archivedTask) {
         throw notFound("Task not found");
@@ -98,7 +102,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? requireWorkspaceContext(workspaceContext).workspaceId
         : null;
 
-    const include = buildTaskIncludeForViewer(authContext, workspaceId);
+    const include = buildTaskIncludeForViewer(
+      authContext,
+      workspaceId,
+      c.var.workspaceContext?.workspaceId,
+    );
     const taskId = workspaceId
       ? await resolveTaskRefToId(id, workspaceId, prisma)
       : id;

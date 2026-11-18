@@ -86,6 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             include: buildTaskIncludeForViewer(
               authContext,
               movedTask.workspaceId,
+              c.var.workspaceContext?.workspaceId,
             ),
           }),
         };
@@ -213,7 +214,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         deliveryWorkspaceIds: [movedTask.workspaceId, targetWorkspace.id],
         task: await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),
+          include: buildTaskIncludeForViewer(
+            authContext,
+            targetWorkspace.id,
+            c.var.workspaceContext?.workspaceId,
+          ),
         }),
       };
     }, "Task changed by a concurrent request. Please retry.");

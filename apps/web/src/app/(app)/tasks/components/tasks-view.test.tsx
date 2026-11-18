@@ -682,6 +682,41 @@ it("drops a load-more task once it is archived, and keeps the other load-more ro
   expect(boardCard(loaded.id)).toBeInTheDocument();
 });
 
+it("discards a slow page for the previous tag after the board switches tags", async () => {
+  const page =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksColumn>>>();
+  vi.mocked(loadMoreTasksColumn).mockReturnValueOnce(page.promise);
+  const taggedBoard = (tag: string) => {
+    searchParamsRef.current = new URLSearchParams({ tag });
+    return cloneElement(boardView([TASK], undefined, "done-cursor"), {
+      initialFilters: { ...EMPTY_FILTERS, tag },
+    });
+  };
+  try {
+    const { rerender } = render(taggedBoard("research"));
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(loadMoreTasksColumn).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "research" }),
+    );
+    rerender(taggedBoard("writing"));
+    // Even a return to the original tag starts a fresh stream of pages.
+    rerender(taggedBoard("research"));
+    await act(async () => {
+      page.resolve({
+        tasks: [{ ...CANCELED_TASK, id: "old-research" }],
+        nextCursor: null,
+      });
+      await page.promise;
+    });
+    expect(
+      screen.queryByTestId("board-card-old-research"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
 it("keeps the column's unloaded count in step as more Tasks load", async () => {
   const doneHidden = () =>
     screen.getByTestId("board-density").getAttribute("data-done-hidden");

@@ -1,5 +1,6 @@
 import {
   type Prisma,
+  type WorkspaceLabel,
   workCreatorInclude,
   workspaceRelationInclude,
 } from "@sokosumi/database";
@@ -43,6 +44,10 @@ const taskParticipantsInclude = {
   },
 } as const;
 
+const workspaceTagLabel = {
+  select: { id: true, displayName: true, color: true, customColor: true },
+} as const;
+
 const taskOwnerAssigneeCreatorInclude = {
   owner: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
@@ -54,7 +59,72 @@ const taskOwnerAssigneeCreatorInclude = {
   assigneeUser: taskEventApiInclude.user,
   ...workCreatorInclude,
   ...taskParticipantsInclude,
+  workspaceTags: {
+    select: {
+      state: true,
+      label: {
+        select: {
+          ...workspaceTagLabel.select,
+          kind: true,
+          archivedAt: true,
+          createdByUserId: true,
+          description: true,
+        },
+      },
+    },
+    orderBy: { label: { normalizedName: "asc" } },
+  },
 } as const;
+
+/** Applied tags belong to the Task. A pending offer can reveal an unapplied workspace label. */
+export function taskTagSuggestionsForViewer(
+  authContext: AuthenticationContext,
+  activeWorkspaceId?: string | null,
+) {
+  const userId =
+    authContext.actor === "coworker"
+      ? authContext.context?.userId
+      : authContext.userId;
+  const bound =
+    activeWorkspaceId &&
+    userId &&
+    (authContext.actor !== "sokoBot" ||
+      authContext.workspaceId === activeWorkspaceId);
+  const where: Prisma.TaskWorkspaceTagDecisionWhereInput = bound
+    ? {
+        state: "JEV_SUGGESTED",
+        label: {
+          workspaceId: activeWorkspaceId,
+          archivedAt: null,
+          mergedIntoId: null,
+          workspace: {
+            OR: [
+              { userId },
+              { organization: { members: { some: { userId } } } },
+            ],
+            ...(authContext.actor === "coworker" && {
+              vendorGrants: {
+                some: { vendorId: authContext.vendorId, status: "GRANTED" },
+              },
+            }),
+          },
+        },
+      }
+    : { labelId: { in: [] } };
+  return {
+    workspaceTagDecisions: {
+      where,
+      select: { label: workspaceTagLabel },
+      orderBy: { label: { normalizedName: "asc" } },
+    },
+  } as const satisfies Prisma.TaskInclude;
+}
+
+type WorkspaceTagSuggestions = {
+  workspaceTagDecisions?: {
+    label: Pick<WorkspaceLabel, "id" | "displayName" | "color" | "customColor">;
+  }[];
+};
 
 export const taskFileApiInclude = {
   uploadedByUser: { select: { id: true, name: true, image: true } },
@@ -133,9 +203,11 @@ export const taskInclude = {
 export function buildTaskIncludeForViewer(
   authContext: AuthenticationContext,
   workspaceId?: string | null,
+  activeWorkspaceId?: string | null,
 ) {
   return {
     ...taskBaseInclude,
+    ...taskTagSuggestionsForViewer(authContext, activeWorkspaceId),
     share: true,
     ...buildVisibleTaskLinksInclude(authContext, workspaceId),
   };
@@ -143,11 +215,13 @@ export function buildTaskIncludeForViewer(
 
 export type TaskListItemWithIncludes = Prisma.TaskGetPayload<{
   include: typeof taskListInclude;
-}>;
+}> &
+  WorkspaceTagSuggestions;
 
 export type TaskWithIncludes = Prisma.TaskGetPayload<{
   include: typeof taskInclude;
-}>;
+}> &
+  WorkspaceTagSuggestions;
 
 type TaskDetailInclude = ReturnType<typeof buildTaskIncludeForViewer>;
 

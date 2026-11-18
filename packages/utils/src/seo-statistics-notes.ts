@@ -191,11 +191,6 @@ const FIXED_NOTES = new Map<string, SeoStatisticsNoteReading>([
   ],
 ]);
 
-/** The fixed notes of the catalog. A builder's notes are read by readSeoStatisticsNote. */
-export const SEO_STATISTICS_FIXED_NOTES: readonly string[] = [
-  ...FIXED_NOTES.keys(),
-];
-
 /** The catalog's reading of one stored note, or null for a note this catalog does not know. */
 export function readSeoStatisticsNote(
   note: string,

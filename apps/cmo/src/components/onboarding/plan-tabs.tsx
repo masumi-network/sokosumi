@@ -304,12 +304,12 @@ export function MonthPanel({
         <div className="ob-month-pending">
           <Sparkles size={16} aria-hidden="true" />
           <p>
-            <b>These are the topics.</b> Once you approve, I write every piece
+            <b>These are the topics.</b> Once you approve, I write every post
             and make its pictures and videos.
           </p>
           <p className="ob-month-counts num">
             {[
-              `${strategy.calendar.length} pieces`,
+              `${strategy.calendar.length} posts`,
               counts.pictures > 0 ? `${counts.pictures} with pictures` : "",
               counts.videos > 0
                 ? `${counts.videos} ${counts.videos === 1 ? "video" : "videos"}`
@@ -452,7 +452,7 @@ function HowItWorks() {
         ))}
       </ol>
       <p className="note">
-        You stay in control: change, pause or undo any piece by telling me.
+        You stay in control: change, pause or undo any post by telling me.
         Complaints and anything sensitive come to you.
       </p>
     </div>

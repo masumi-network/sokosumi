@@ -1,5 +1,6 @@
 import type {
   ProjectSummary,
+  Task,
   TaskEvent,
   TaskPriority,
   TaskShare,
@@ -9,6 +10,8 @@ import type {
   UserSummary,
 } from "@sokosumi/core-client";
 import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
+
+export type TaskWorkspaceTag = NonNullable<Task["workspaceTags"]>[number];
 
 export interface TaskAssigneeView {
   id: string;
@@ -47,6 +50,7 @@ export interface TaskWithCoworker {
   commentsCount: number;
   columnId: KanbanColumnId;
   tags?: TaskTags;
+  workspaceTags?: TaskWorkspaceTag[];
   description?: string | null;
   descriptionPlain?: string | null;
   events: TaskEvent[];

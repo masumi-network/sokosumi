@@ -58,6 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           include: buildTaskIncludeForViewer(
             authContext,
             currentTask.workspaceId,
+            c.var.workspaceContext?.workspaceId,
           ),
         }),
         workspaceId: currentTask.workspaceId,

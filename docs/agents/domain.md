@@ -21,7 +21,7 @@ This is a **single-context** repo: one shared domain language (jobs, agents, cre
 │   ├── web/
 │   ├── core/
 │   ├── cmo/
-│   ├── apple/                 ← Native macOS + iOS; product intent in VISION.md
+│   ├── apple/                 ← macOS; product intent in VISION.md
 │   └── cli/                   ← Developer CLI; product intent in VISION.md
 └── packages/
     └── core-client/

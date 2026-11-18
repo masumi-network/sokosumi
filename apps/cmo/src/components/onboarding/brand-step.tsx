@@ -30,6 +30,7 @@ import {
   RivalFacts,
   SectionEditor,
   Voice,
+  voiceDetail,
 } from "../brand-profile";
 import { BusinessMark } from "../business-mark";
 import { MarketingToday } from "../marketing-today";
@@ -120,7 +121,7 @@ export function brandTiles(
       id: "voice",
       label: "Your voice",
       value: short(firstSentence(brain.voice.tone)),
-      detail: brain.voice.do[0] ? short(brain.voice.do[0]) : undefined,
+      detail: short(voiceDetail(brain.voice)),
       section: "positioning",
       body: <Voice brain={brain} />,
     });
@@ -388,7 +389,7 @@ export function BrandStep({
           </div>
 
           {left.length > 0 ? (
-            <div className="card card-focus ob-left">
+            <div className="card ob-left">
               <p>
                 {left.length} {left.length === 1 ? "question" : "questions"}{" "}
                 left
