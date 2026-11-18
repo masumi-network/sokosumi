@@ -5537,6 +5537,124 @@
         "retry": "Erneut versuchen"
       }
     },
+    "Competitors": {
+      "title": "Wettbewerber",
+      "pickTitle": "Projekt wählen",
+      "pickBody": "Wettbewerber gehören zu einem Projekt: wen es beobachtet und was die wöchentliche Prüfung gefunden hat. Wähle ein Projekt, um seine Wettbewerber zu öffnen.",
+      "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes.",
+      "loading": "Wettbewerber werden geladen…",
+      "error": {
+        "title": "Wettbewerber konnten nicht geladen werden",
+        "description": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      },
+      "check": {
+        "title": "Wöchentliche Prüfung",
+        "on": "An",
+        "off": "Aus",
+        "what": "Einmal pro Woche liest Sokosumi von jedem Wettbewerber die Website und die Preisseite, die Nachrichten über ihn, seine neuen Anzeigen und sein Instagram und behält, was sich geändert hat, mit Quelle.",
+        "price": "Das kostet {credits} Credits pro Wettbewerber und Woche.",
+        "priceTotal": "{count, plural, one {Bei # Wettbewerber sind das {credits} Credits pro Woche.} other {Bei # Wettbewerbern sind das {credits} Credits pro Woche.}}",
+        "payer": "Die Credits kommen aus diesem Workspace.",
+        "last": "Letzte Prüfung {last}, nächste {next}.",
+        "first": "Die erste Prüfung läuft innerhalb einer Stunde, oder jetzt.",
+        "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}. Die nächste versucht es erneut.",
+        "source": {
+          "pages": "Websites",
+          "news": "Nachrichten",
+          "ads": "Anzeigen",
+          "social": "Instagram"
+        },
+        "turnOn": "Einschalten",
+        "turnOff": "Ausschalten",
+        "runNow": "Jetzt prüfen",
+        "failed": "Das hat nicht geklappt. Versuche es erneut.",
+        "outcome": {
+          "not_due": "Eine Prüfung läuft bereits oder wurde diese Woche gemacht.",
+          "no_competitors": "Füge zuerst einen Wettbewerber hinzu.",
+          "paused": "Die wöchentliche Prüfung ist aus.",
+          "unfunded": "Diese Prüfung kostet {credits} Credits, der Workspace hat weniger. Lade Credits auf und prüfe dann erneut."
+        }
+      },
+      "list": {
+        "title": "Beobachtungsliste",
+        "count": "{count} von {limit}",
+        "empty": "Noch niemand. Füge die Wettbewerber hinzu, die du beobachten willst.",
+        "emptyReadOnly": "Noch niemand.",
+        "noWebsite": "Keine Website",
+        "pricingPage": "Preisseite",
+        "facebook": "Facebook {handle}",
+        "edit": "Bearbeiten",
+        "remove": "Entfernen",
+        "editNamed": "{name} bearbeiten",
+        "removeNamed": "{name} entfernen",
+        "add": "Wettbewerber hinzufügen",
+        "full": "Das sind alle {limit}. Entferne einen, um einen anderen zu beobachten.",
+        "failed": "Das hat nicht geklappt. Versuche es erneut."
+      },
+      "form": {
+        "addTitle": "Wettbewerber hinzufügen",
+        "editTitle": "Wettbewerber bearbeiten",
+        "description": "Der Name reicht, um Nachrichten zu finden. Mit Website und Preisseite sieht die Prüfung, was sich dort geändert hat.",
+        "name": {
+          "label": "Name",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Website",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Preisseite",
+          "placeholder": "acme.com/preise"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Facebook-Seite",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Abbrechen",
+        "add": "Hinzufügen",
+        "save": "Speichern",
+        "failed": "Das hat nicht geklappt. Versuche es erneut."
+      },
+      "thisWeek": {
+        "title": "Diese Woche",
+        "checked": "Prüfung vom {date}",
+        "none": "Noch keine Zusammenfassung. Alles, was die Prüfungen finden, steht unten mit Quelle.",
+        "quiet": "Eine ruhige Woche: nichts zu berichten.",
+        "unknown": "Ein Wettbewerber",
+        "big": "Großer Schritt",
+        "weak": "Teilweise belegt",
+        "meaning": "Was das für dich bedeutet",
+        "move": "Vorgeschlagener Schritt",
+        "open": "Noch offen"
+      },
+      "findings": {
+        "title": "Was die Prüfungen gefunden haben",
+        "notChecked": "Noch nichts. Funde erscheinen hier nach der ersten Prüfung.",
+        "nothing": "Die Prüfungen haben in den letzten fünf Wochen keine Änderungen gefunden.",
+        "kind": {
+          "WEBSITE_CHANGE": "Website",
+          "PRICE_CHANGE": "Preis",
+          "NEWS": "Nachrichten",
+          "AD": "Anzeigen",
+          "SOCIAL": "Instagram"
+        }
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Konto",
+        "posts": "Beiträge pro Woche",
+        "engagement": "Likes und Kommentare pro Beitrag",
+        "followers": "Follower",
+        "growth": "Neue Follower in einer Woche",
+        "you": "(du)"
+      }
+    },
     "Newsletter": {
       "title": "Newsletter",
       "description": "Jedes Projekt hat seinen eigenen Newsletter. Wähle ein Projekt aus, um ihn zu verwalten.",
@@ -5656,6 +5774,7 @@
           "schedules": "Zeitpläne",
           "social": "Social-Media-Beiträge",
           "ads": "Ads",
+          "competitors": "Wettbewerber",
           "newsletter": "Newsletter",
           "contacts": "Kontakte",
           "groups": {
