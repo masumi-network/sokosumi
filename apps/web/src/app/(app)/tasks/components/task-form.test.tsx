@@ -211,7 +211,8 @@ vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
     ) : null,
 }));
 
-vi.mock("./task-context-attachments", () => ({
+vi.mock("./task-context-attachments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./task-context-attachments")>()),
   getDefaultTaskContextSelection: (project?: { designMd?: unknown }) => ({
     brand: {
       enabled: true,
