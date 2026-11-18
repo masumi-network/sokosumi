@@ -44036,6 +44036,11 @@ export const ProjectSeoMetricSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        selectedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         coverage: {
             type: 'string',
             enum: [
@@ -44705,6 +44710,12 @@ export const ProjectSeoIndexAssessedPageSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        googleReturnedUnknown: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         },
         auditPageUrl: {
             type: 'string',
@@ -61343,6 +61354,9 @@ export const ProjectSeoIndexAssessmentSchema = {
                 maxLength: 2000
             },
             maxItems: 20
+        },
+        publicEvidenceAvailable: {
+            type: 'boolean'
         }
     },
     required: [

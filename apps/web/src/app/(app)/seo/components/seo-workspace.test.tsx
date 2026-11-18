@@ -3953,11 +3953,10 @@ describe("SEO workspace integration", () => {
       const search = within(dialog).getByRole("region", {
         name: "Search Console",
       });
-      await waitFor(() =>
-        expect(
-          within(search).getByRole("combobox", { name: "Property" }),
-        ).toHaveTextContent("Example website"),
-      );
+      expect(await within(search).findByText("Example website")).toBeVisible();
+      expect(
+        within(search).queryByRole("combobox", { name: "Property" }),
+      ).toBeNull();
       // The saved period is not offered again: every sync reads the same rolling days.
       expect(
         within(search).getByTestId("seo-statistics-reads-search_console"),

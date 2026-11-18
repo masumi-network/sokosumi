@@ -441,6 +441,7 @@ export const seoMetricSchema = z
     timeZone: z.string(),
     channel: seoTrafficChannelSchema,
     observedAt: dateTimeSchema,
+    selectedAt: dateTimeSchema.optional(),
     coverage: z.enum(["complete", "partial", "unavailable"]),
     points: z.array(
       z.object({ date: seoDateSchema, value: z.number().nullable() }),
@@ -545,8 +546,7 @@ export const seoIndexAssessmentSchema = z
     evidence: z.array(z.string().max(2000)).max(20),
   })
   .strict()
-  .refine((value) => value.report === (value.status === "issue"))
-  .openapi("ProjectSeoIndexAssessment");
+  .refine((value) => value.report === (value.status === "issue"));
 export const seoIndexTriageSchema = z
   .object({
     assessments: z
@@ -555,6 +555,7 @@ export const seoIndexTriageSchema = z
           .safeExtend({
             taskId: z.string(),
             checkedAt: dateTimeSchema,
+            googleReturnedUnknown: z.literal(true).optional(),
             auditPageUrl: seoUrlSchema.optional(),
           })
           .openapi("ProjectSeoIndexAssessedPage"),

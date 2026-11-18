@@ -103,6 +103,7 @@ function network(
   workspace: ProjectSeoWorkspace,
   routes: {
     connection?: (provider: string) => object;
+    properties?: { id: string; name: string }[];
     chat?: (init?: RequestInit) => Reply;
     unfiltered?: ProjectSeoWorkspace | (() => Reply);
   } = {},
@@ -126,7 +127,7 @@ function network(
           provider: "search_console",
           status: "available",
           reason: null,
-          properties: [],
+          properties: routes.properties ?? [],
         });
       if (pathname.endsWith("/chat"))
         return (
@@ -519,6 +520,7 @@ describe("SEO audit first run", () => {
   it("explains automatic collection on Traffic once the account is connected", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {
+      properties: [{ id: "sc-domain:example.com", name: "Example" }],
       connection: (provider) => ({
         provider,
         name: provider,

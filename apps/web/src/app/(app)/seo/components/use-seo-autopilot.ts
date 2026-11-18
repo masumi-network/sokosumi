@@ -154,8 +154,7 @@ function useAutomaticProvider(
   const needsProperty =
     enabled &&
     connected &&
-    choice.properties.data?.status === "available" &&
-    Boolean(choice.properties.data.properties.length) &&
+    choice.eligibleProperties.length > 0 &&
     !choice.propertyId;
   const failed =
     enabled &&
@@ -170,6 +169,8 @@ function useAutomaticProvider(
         (connected && choice.properties.isFetching) ||
         collection.isFetching),
     needsProperty,
+    sitesWithoutProperty:
+      enabled && connected ? choice.sitesWithoutProperty : [],
     failed,
     retry: async () => {
       if (connected && choice.propertyId && !choice.propertiesUnavailable)
@@ -201,6 +202,7 @@ export function useSeoAutopilot(context: StatisticsContext) {
           : "idle";
   return {
     state,
+    sitesWithoutProperty: search.sitesWithoutProperty,
     /** Google Analytics alone: the Agent tab names why its statistics are missing. */
     analytics: {
       collected: analytics.collected,

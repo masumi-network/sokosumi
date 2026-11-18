@@ -12561,7 +12561,7 @@
           "search_console": "Searches, clicks and positions in Google Search",
           "ga4": "Visits and page views on your site"
         },
-        "propertyNotMatching": "It does not cover the selected pages, so no statistics load from it."
+        "propertyNotMatching": "No Search Console property covers all selected pages on {sites}. Check this Google account’s property access or select pages from one property."
       },
       "metrics": {
         "page_views": "Page views",

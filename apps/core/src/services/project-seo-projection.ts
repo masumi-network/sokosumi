@@ -143,7 +143,7 @@ export function projectSeoProjection(
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
     metrics,
-    timeline,
+    collections: new Map(),
     searchSources,
     indexSources,
     seenGroups: seenMetricGroups,
@@ -644,6 +644,7 @@ export function projectSeoProjection(
         status: analysis.status,
         detail: "The requested scope is frozen for this analysis.",
       });
+  timeline.push(...metricRows.collections.values());
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
   const indexing = indexAuditFindings(

@@ -48,6 +48,59 @@ describe("draft tag suggestions", () => {
     expect(suggestTaskTags).toHaveBeenCalledTimes(1);
   });
 
+  it("restores the previous draft's tags on undo and only reuses its exact receipt", async () => {
+    suggestTaskTags
+      .mockResolvedValueOnce(success())
+      .mockResolvedValueOnce(
+        Response.json({ tags: ["writing"], receipt: "receipt-2" }),
+      );
+    const { result, rerender } = renderHook(useTaskTagSuggestions, {
+      initialProps: defaults,
+    });
+    await advance(1200);
+    expect(result.current.tags).toEqual(["research"]);
+    rerender({ ...defaults, description: "Write the customer newsletter" });
+    await advance(10000);
+    expect(result.current.tags).toEqual(["writing"]);
+    rerender({ ...defaults, description: `${description}!` });
+    expect(result.current.tags).toEqual(["research"]);
+    expect(result.current.tagSuggestionReceipt).toBeUndefined();
+    rerender(defaults);
+    expect(result.current.tagSuggestionReceipt).toBe("receipt-1");
+    await advance(10000);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(2);
+    suggestTaskTags.mockResolvedValueOnce(
+      Response.json({ tags: ["planning"], receipt: "receipt-3" }),
+    );
+    rerender({ ...defaults, description: "Plan the winter campaign" });
+    await advance(10000);
+    expect(result.current.tags).toEqual(["planning"]);
+    rerender(defaults);
+    expect(result.current.tagSuggestionReceipt).toBe("receipt-1");
+    await advance(10000);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(3);
+  });
+
+  it("can classify an older draft again when its suggestion is no longer retained", async () => {
+    const { result, rerender } = renderHook(useTaskTagSuggestions, {
+      initialProps: defaults,
+    });
+    await advance(1200);
+    for (const draft of [
+      "Write the customer newsletter",
+      "Plan the winter campaign",
+    ]) {
+      rerender({ ...defaults, description: draft });
+      await advance(10000);
+    }
+    suggestTaskTags.mockResolvedValueOnce(
+      Response.json({ tags: ["research"], receipt: "renewed-receipt" }),
+    );
+    rerender(defaults);
+    await advance(10000);
+    expect(result.current.tagSuggestionReceipt).toBe("renewed-receipt");
+  });
+
   it("keeps equivalent in-flight punctuation suggestions but withholds the changed-input receipt", async () => {
     let resolve!: (value: Response) => void;
     suggestTaskTags.mockImplementationOnce(

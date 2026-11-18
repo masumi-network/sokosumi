@@ -15,6 +15,9 @@ export const seoReusedInspectionTimesSchema = z.record(
   seoUrlSchema,
   z.iso.datetime(),
 );
+export const seoAnsweredUnknownPageUrlsSchema = z
+  .array(seoUrlSchema)
+  .max(SEO_MAX_PAGES);
 
 /** This finite bridge carries no credentials, query rows, or arbitrary provider operations. */
 export const seoTaskIndexedPageSchema = seoIndexedPageSchema
@@ -53,7 +56,16 @@ export const seoTaskIndexingReceiptSchema = z
 export const seoTaskIndexingResultRequestSchema = seoTaskIndexingRequestSchema
   .extend({
     receiptHash: hash,
-    assessments: z.array(seoIndexAssessmentSchema).min(1).max(SEO_MAX_PAGES),
+    assessments: z
+      .array(
+        seoIndexAssessmentSchema
+          .safeExtend({
+            publicEvidenceAvailable: z.boolean().optional(),
+          })
+          .openapi("ProjectSeoIndexAssessment"),
+      )
+      .min(1)
+      .max(SEO_MAX_PAGES),
   })
   .strict()
   .openapi("SeoTaskIndexingResultRequest");
@@ -70,6 +82,7 @@ export const seoTaskIndexingResultSchema = z
       .array(
         seoIndexAssessmentSchema.safeExtend({
           checkedAt: z.iso.datetime().optional(),
+          googleReturnedUnknown: z.literal(true).optional(),
         }),
       )
       .min(1)
