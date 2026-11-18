@@ -40,7 +40,10 @@ import {
 import { authClient } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
-import { uploadDriveFile } from "@/lib/utils/drive-file-upload.client";
+import {
+  isDriveFileUploadDuplicate,
+  uploadDriveFile,
+} from "@/lib/utils/drive-file-upload.client";
 
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_MIB = 12;
@@ -99,7 +102,12 @@ export function TikTokStudio({
   const [presenterId, setPresenterId] = useState(
     catalog.presenters[0]?.id ?? OWN_PHOTO,
   );
-  const [photo, setPhoto] = useState<{ id: string; name: string } | null>(null);
+  const [photo, setPhoto] = useState<{
+    id: string;
+    name: string;
+    /** A local preview of the file just uploaded. */
+    previewUrl: string;
+  } | null>(null);
   const [consent, setConsent] = useState(false);
   const [voice, setVoice] = useState(catalog.defaultVoice);
   const [languageCode, setLanguageCode] = useState<string>(
@@ -156,11 +164,21 @@ export function TikTokStudio({
         driveStoreForActiveWorkspace(data.session.activeOrganizationId ?? null),
       );
       if (!result.resourceId) throw new Error("Photo not finalized");
-      setPhoto({ id: result.resourceId, name: file.name });
+      if (photo) URL.revokeObjectURL(photo.previewUrl);
+      setPhoto({
+        id: result.resourceId,
+        name: file.name,
+        previewUrl: URL.createObjectURL(file),
+      });
       setPresenterId(OWN_PHOTO);
       setConsent(false);
-    } catch {
-      setProblem({ field: "presenter", message: t("photoFailed") });
+    } catch (error) {
+      setProblem({
+        field: "presenter",
+        message: isDriveFileUploadDuplicate(error)
+          ? tStudio("productPhotoDuplicate")
+          : t("photoFailed"),
+      });
     } finally {
       setUploading(false);
     }
@@ -356,6 +374,7 @@ export function TikTokStudio({
             ))}
             <PresenterTile
               busy={uploading}
+              image={photo?.previewUrl}
               label={photo ? photo.name : t("ownPhoto")}
               onSelect={() =>
                 photo ? setPresenterId(OWN_PHOTO) : photoInput.current?.click()
