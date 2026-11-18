@@ -103,7 +103,7 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of pieces`,
+        label: `${pillar.name}: ${pillar.share}% of posts`,
       });
     }
   }
@@ -116,7 +116,7 @@ export function planningRows(
       label: !strategy
         ? "Choosing your idea, channels and pillars"
         : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} pieces so far`
+          ? `Writing four weeks, day by day: ${pieces} posts so far`
           : "Writing four weeks, day by day",
       url: null,
       status: "running",
@@ -485,7 +485,7 @@ export function PlanReview({
   const line =
     pages > 0
       ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the strategy."}`;
+      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the strategy."}`;
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -905,7 +905,7 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "piece" : "pieces"}` : "",
+      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "post" : "posts"}` : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>

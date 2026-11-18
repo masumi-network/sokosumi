@@ -16,6 +16,9 @@ import type {
   SocialPostPublishResult,
 } from "@/clients/social-post-providers/types";
 
+import { publishZernioTikTokVideo } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
+
 const TIKTOK_QUERY_CREATOR_TOOL_SLUG = "TIKTOK_QUERY_CREATOR_INFO";
 const TIKTOK_PUBLISH_TOOL_SLUG = "TIKTOK_PUBLISH_VIDEO";
 const TIKTOK_STATUS_TOOL_SLUG = "TIKTOK_FETCH_PUBLISH_STATUS";
@@ -51,6 +54,9 @@ export async function publishTikTokVideo(
   if (!video?.fileUrl) {
     throw new ComposioToolError({ message: "TikTok requires a video" });
   }
+  const zernioAccountId = getZernioAccountId(context.connectedAccountId);
+  if (zernioAccountId)
+    return publishZernioTikTokVideo(context, zernioAccountId, video.fileUrl);
   const sessionId = await createComposioToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,
@@ -76,6 +82,7 @@ export async function publishTikTokVideo(
     const settings = context.tikTokSettings;
     if (
       !settings?.acceptedMusicUsage ||
+      settings.privacyLevel !== "SELF_ONLY" ||
       !options.includes(settings.privacyLevel)
     ) {
       throw new ComposioToolError({

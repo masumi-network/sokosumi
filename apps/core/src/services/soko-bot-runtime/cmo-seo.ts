@@ -1,4 +1,5 @@
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import prisma from "@/lib/db/prisma";
 import {
   RuntimeEventLog,
   runtimeEvent,
@@ -103,6 +104,17 @@ export async function executeCmoSeoTool(
       case "check_search_rankings": {
         const { keywords, then } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.check_search_rankings.parse(input.input);
+        // This turn answers a check that failed or timed out: another one
+        // from here would wait and follow up again, without the owner's word.
+        const answering = await prisma.sokoBotWatch.findFirst({
+          where: { firedTurnId: authorized.turn.id, kind: "seo_check" },
+          select: { id: true },
+        });
+        if (answering)
+          return {
+            status: "unavailable",
+            note: "This follow-up is the answer to the check you asked for. If it failed or did not finish, tell the owner so plainly, give the numbers you have, and ask whether to check again; start no new check now.",
+          };
         const check = await checkCmoSearchRankings(cuso, keywords);
         if (check.status === "started" || check.status === "running") {
           await registerSeoCheckWatch(authorized, {

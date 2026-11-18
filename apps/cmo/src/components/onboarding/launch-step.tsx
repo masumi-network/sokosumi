@@ -156,7 +156,7 @@ export function LaunchStep({
       {
         term: "Pace",
         value: pace
-          ? `${pace.name}, ${plan?.pace?.perWeek ?? 0} pieces a week`
+          ? `${pace.name}, ${plan?.pace?.perWeek ?? 0} posts a week`
           : "",
       },
       {
@@ -190,7 +190,7 @@ export function LaunchStep({
           <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
           <p className="muted">
             {AGENT_NAME} makes your month now and posts on your strategy's
-            schedule. Pause or change any piece from the calendar.
+            schedule. Pause or change any post from the calendar.
           </p>
           {summary.length > 0 ? (
             <dl className="ob-summary">
@@ -256,7 +256,7 @@ export function LaunchStep({
                     <p className="ob-small muted">
                       {key === "seo"
                         ? "Page fixes and articles you paste into your site."
-                        : `${pieces(key)} of ${calendar.length} pieces go here`}
+                        : `${pieces(key)} of ${calendar.length} posts go here`}
                     </p>
                   </div>
                   {key === "seo" ? (

@@ -648,6 +648,8 @@ model ProjectSocialConnection {
   /// X subscription tier read from the provider at connect/reconnect and account sync; null when unknown or not X
   subscriptionType              String?
   composioConnectedAccountId    String
+  /// Dedicated profile to release along with this TikTok authorization.
+  zernioProfileId               String?
   status                        String
   activeExternalAccountKey      String?
   connectorUserId               String
@@ -728,6 +730,7 @@ model ProjectSocialConnectionIntent {
   action             String
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+  /// Composio auth configuration ID, or the digest of the one-use Zernio callback proof.
   authConfigId       String
   callbackRedeemedAt DateTime?
   expiresAt          DateTime
@@ -745,6 +748,8 @@ model ProjectSocialConnectionAudit {
   externalAccountId         String
   externalHandle            String?
   connectedAccountId        String?
+  /// Preserve the retired profile across reconnects so provider cleanup can retry.
+  zernioProfileId           String?
   providerOutcome           String?
   createdAt                 DateTime @default(now())
 
@@ -5248,6 +5253,8 @@ enum ProjectImageJobKind {
   TEXT_TO_VIDEO
   /// Image to video: animates one gallery image, sent as the model's still.
   IMAGE_TO_VIDEO
+  /// A presenter photo speaking a script: voice, then lip-sync, then captions.
+  TALKING_VIDEO
 }
 
 enum ProjectImageMediaType {
@@ -5508,6 +5515,14 @@ model ProjectImageJob {
   /// case whose own wording says it better than a code could.
   failureReason String?
 
+  /// The voice a talking video speaks with, in the studio's private store.
+  voiceBlobPathname  String?
+  /// A talking video before its captions, on the provider's CDN. Set while the
+  /// caption step runs, and delivered as it is when that step fails.
+  pendingMediaUrl    String?
+  /// When the requester confirmed they may use the presenter photo they chose.
+  presenterConsentAt DateTime?
+
   /// When somebody asked the provider to stop, and it accepted.
   ///
   /// Separate from `status` because fal documents that an accepted
@@ -5604,6 +5619,8 @@ model ProjectImageAsset {
   backdropContentType String?
   /// What the bytes are. A video plays in the gallery and attaches to Social as one.
   mediaType       ProjectImageMediaType @default(IMAGE)
+  /// Shows a lifelike person who was generated, so publishing labels it.
+  aiGenerated     Boolean               @default(false)
   /// Requested length of a video. Null for images.
   durationSeconds Int?
   width           Int
