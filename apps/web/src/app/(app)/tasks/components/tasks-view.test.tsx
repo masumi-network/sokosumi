@@ -153,7 +153,15 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   focusToolbarControl: (
     await importOriginal<typeof import("./tasks-view-filters")>()
   ).focusToolbarControl,
-  TasksViewFilters: () => <button type="button">Filters</button>,
+  // The filter row places the Display control, so the stub does too.
+  TasksViewFilters: ({ display }: { display?: React.ReactNode }) => (
+    <>
+      {display}
+      <span data-filters-menu>
+        <button type="button">Filters</button>
+      </span>
+    </>
+  ),
 }));
 vi.mock("./task-list-view", () => ({
   TaskListView: ({ compact }: { compact: boolean }) => (
