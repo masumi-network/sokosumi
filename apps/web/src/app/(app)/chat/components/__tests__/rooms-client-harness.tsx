@@ -201,7 +201,6 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
     isStreaming: false,
     activeStreamParentMessageId: null,
     sendStreamMessage,
-    consumePendingStreamMessage: vi.fn(),
   }),
 }));
 
