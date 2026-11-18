@@ -163,26 +163,29 @@ export function TasksViewFilters({
     const nextSections: FilterDropdownMenuSection[] = [];
 
     if (activeOrganizationId !== null) {
-      nextSections.push({
-        id: "scope",
-        label: labels.scopeLabel,
-        icon: Building2,
-        value: filters.scope,
-        onChange: (scope) =>
-          handleFilterChange({
-            scope: (scope as TasksFilters["scope"]) ?? "workspace",
-          }),
-        options: [
-          {
-            value: "workspace",
-            label: labels.scopeWorkspace,
-          },
-          {
-            value: "owned",
-            label: labels.scopeOwned,
-          },
-        ],
-      });
+      // Needs me reads the reader's own Tasks, so a scope has no effect.
+      if (!filters.needsMe) {
+        nextSections.push({
+          id: "scope",
+          label: labels.scopeLabel,
+          icon: Building2,
+          value: filters.scope,
+          onChange: (scope) =>
+            handleFilterChange({
+              scope: (scope as TasksFilters["scope"]) ?? "workspace",
+            }),
+          options: [
+            {
+              value: "workspace",
+              label: labels.scopeWorkspace,
+            },
+            {
+              value: "owned",
+              label: labels.scopeOwned,
+            },
+          ],
+        });
+      }
 
       nextSections.push({
         id: "visibility",
