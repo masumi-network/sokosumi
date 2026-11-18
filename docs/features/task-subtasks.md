@@ -409,9 +409,10 @@ Core API:
   - Refused with 404: an archived or unwritable Task or parent. With 422:
     the Task itself, one of its own sub-tasks, a depth above 5, another
     workspace, another visibility, a private parent with another Owner.
-  - The write runs in `serializableTransaction`. It locks the Workspace and
-    both Projects. Then it locks the Task rows in one global order: by
-    depth (the number of Tasks above a row), then by id. The rows are the
+  - The write runs in `serializableTransaction`. Every Task write that
+    changes a Project or adds a sub-task locks in one global order: the
+    Workspace, then the Projects (sorted by id), then the Task rows. The
+    Task rows lock by depth (the number of Tasks above a row), then by id. The rows are the
     old parent, the new parent, the Task, and the Task's sub-tasks. One
     query locks each depth (`lockSubtaskTree` in `helpers/task-subtasks.ts`).
     An archive locks a tree in the same order: top-down, and by id inside
@@ -441,7 +442,16 @@ Core API:
     serialization failure (40001), up to 8 times, then answer 409.
     Archive (`DELETE /v1/tasks/{id}`), restore, and PATCH use
     `retriedTransaction` and keep Read Committed. The Soko Bot Project
-    change locks the Task before its sub-tasks, as an archive does.
+    change locks the Workspace and both Projects first, as PATCH does
+    (`lockCalendarScope`). Then it locks the Task before its sub-tasks, as
+    an archive does. Its update gives the Task a number in the new Project
+    and keys the old Project. A sub-task create holds the Workspace and the
+    Project and then waits for the parent Task, so a change that locked
+    the Task first deadlocked with it (REPORTED by the review). VERIFIED
+    with a Postgres test in `helpers/task-subtask-move.postgres.test.ts`:
+    with the Workspace and Project lock removed, the change failed after
+    about 1 s (the default deadlock timeout) with "Transaction failed due
+    to a write conflict or a deadlock".
   - Known behaviour, not changed: the status rule applies only to the
     Task itself. A sub-task that follows its parent to another Project
     can be in any status that is not parked, RUNNING included.

@@ -115,12 +115,23 @@ function sokoBotProjectMove(taskId: string, projectId: string) {
   );
 }
 
-/** Resolves once another backend of this database waits for a row lock. */
-async function waitForLockWaiter(): Promise<void> {
+/** The backend that runs this transaction. */
+async function backendPid(tx: Prisma.TransactionClient): Promise<number> {
+  const [row] = await tx.$queryRaw<[{ pid: number }]>`
+    SELECT pg_backend_pid() AS pid`;
+  return row.pid;
+}
+
+/**
+ * Resolves once a backend waits on a lock that `blocker` holds. Only that
+ * backend counts, so a test file that runs at the same time cannot open the
+ * gate early.
+ */
+async function waitForLockWaiter(blocker: number): Promise<void> {
   for (let attempt = 0; attempt < LOCK_WAIT_ATTEMPTS; attempt += 1) {
     const [row] = await prisma.$queryRaw<Array<{ waiting: number }>>`
       SELECT count(*)::int AS waiting FROM pg_stat_activity
-      WHERE datname = current_database() AND wait_event_type = 'Lock'
+      WHERE ${blocker}::int = ANY(pg_blocking_pids(pid))
     `;
     if (row && row.waiting > 0) return;
     await new Promise((resolve) => setTimeout(resolve, LOCK_WAIT_POLL_MS));
@@ -290,7 +301,7 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
                 },
               ),
             );
-            await waitForLockWaiter();
+            await waitForLockWaiter(await backendPid(tx));
             const task = await tx.task.findUniqueOrThrow({
               where: { id: root },
             });
@@ -305,6 +316,83 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
       expect(moved?.ok).toBe(false);
       expect(isPrismaTransactionConflict(moved?.error)).toBe(true);
       expect((await placement(root)).projectId).toBe(home);
+    });
+  }
+
+  for (const [branch, extra] of [
+    ["a Project move alone", {}],
+    ["a Project move with other fields", { name: "Renamed by the bot" }],
+  ] as const) {
+    it(`locks the Workspace and both Projects before the Task in ${branch} by Soko Bot, so a sub-task create under the Task does not deadlock with it`, async () => {
+      // The create locks the Workspace and the Project, then the parent. The
+      // Project change once locked the Task first, then its update keyed the
+      // old Project: each waited for the other (SOKD-279 review).
+      const [home, away] = [
+        await createProject(`Order home ${branch}`),
+        await createProject(`Order away ${branch}`),
+      ];
+      const root = await createTask("Order root", { projectId: home });
+      const step = await createTask("Order step", {
+        projectId: home,
+        parentTaskId: root,
+      });
+
+      let botStarted = (_pid: number) => {};
+      const botPid = new Promise<number>((resolve) => {
+        botStarted = resolve;
+      });
+      let changing: Promise<{ ok: boolean; error?: unknown }> | undefined;
+      let creating: Promise<{ ok: boolean; error?: unknown }> | undefined;
+      await prisma.$transaction(
+        async (gate) => {
+          // Holds the sub-task, so the Project change stops at it.
+          await lockTaskRows(gate, [step]);
+          changing = settle(
+            prisma.$transaction(
+              async (botTx) => {
+                botStarted(await backendPid(botTx));
+                return sokoBotProjectMoveIn(botTx, root, away, extra);
+              },
+              { timeout: 60_000 },
+            ),
+          );
+          await waitForLockWaiter(await backendPid(gate));
+          creating = settle(
+            prisma.$transaction(
+              async (createTx) => {
+                await createTx.$executeRawUnsafe(
+                  `SET LOCAL deadlock_timeout = '${MOVE_DEADLOCK_TIMEOUT}'`,
+                );
+                return createTaskForActor(
+                  {
+                    actor: { kind: "user", userId },
+                    ownerId: userId,
+                    organizationId: null,
+                    workspaceId,
+                    name: "Order late step",
+                    status: TaskStatus.DRAFT,
+                    parent: { taskId: root },
+                  },
+                  createTx,
+                );
+              },
+              { timeout: 60_000 },
+            ),
+          );
+          await waitForLockWaiter(await botPid);
+        },
+        { timeout: 30_000 },
+      );
+
+      expect(await changing).toMatchObject({ ok: true });
+      // The create waited for the change, then found its parent moved.
+      const created = await creating;
+      expect(created?.ok).toBe(false);
+      expect(created?.error).toMatchObject({
+        status: 409,
+        message: "Parent Task changed while adding a sub-task",
+      });
+      expect((await placement(root)).projectId).toBe(away);
     });
   }
 
@@ -366,7 +454,7 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
               },
             ),
           );
-          await waitForLockWaiter();
+          await waitForLockWaiter(await backendPid(tx));
           const oldParent = await tx.task.findUniqueOrThrow({
             where: { id: oldParentId },
           });
@@ -419,7 +507,7 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
               },
             ),
           );
-          await waitForLockWaiter();
+          await waitForLockWaiter(await backendPid(tx));
           const oldParent = await tx.task.findUniqueOrThrow({
             where: { id: oldParentId },
           });
@@ -519,7 +607,7 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
           moveTask(detachTx, userContext, { taskId, parentTaskId: null }),
         ),
       );
-      await waitForLockWaiter();
+      await waitForLockWaiter(await backendPid(tx));
       // The sub-task goes with it (ON DELETE CASCADE).
       await tx.task.delete({ where: { id: oldParentId } });
     });

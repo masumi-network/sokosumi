@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { type Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { lockTaskRows } from "@/helpers/calendar-locks";
 import { errorHandler } from "@/helpers/error-handler";
@@ -67,12 +67,20 @@ function createApp(userId: string) {
   return app;
 }
 
-/** Resolves once another backend of this database waits for a row lock. */
-async function waitForLockWaiter(): Promise<void> {
+/**
+ * Resolves once a backend waits on a lock that the `blocker` transaction
+ * holds. Only that backend counts, so a test file that runs at the same time
+ * cannot open the gate early.
+ */
+async function waitForLockWaiter(
+  blocker: Prisma.TransactionClient,
+): Promise<void> {
+  const [{ pid: blockerPid }] = await blocker.$queryRaw<[{ pid: number }]>`
+    SELECT pg_backend_pid() AS pid`;
   for (let attempt = 0; attempt < LOCK_WAIT_ATTEMPTS; attempt += 1) {
     const [row] = await prisma.$queryRaw<Array<{ waiting: number }>>`
       SELECT count(*)::int AS waiting FROM pg_stat_activity
-      WHERE datname = current_database() AND wait_event_type = 'Lock'
+      WHERE ${blockerPid}::int = ANY(pg_blocking_pids(pid))
     `;
     if (row && row.waiting > 0) return;
     await new Promise((resolve) => setTimeout(resolve, LOCK_WAIT_POLL_MS));
@@ -248,7 +256,7 @@ describe.skipIf(!enabled)("archived Tasks", () => {
         );
         await lockTaskRows(tx, [subtask.id]);
         restoring = restore(adaId, subtask.id);
-        await waitForLockWaiter();
+        await waitForLockWaiter(tx);
         await lockTaskRows(tx, [parent.id]);
       },
       { timeout: 30_000 },

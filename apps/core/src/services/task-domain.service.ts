@@ -15,7 +15,7 @@ import {
   requireTaskWriteAccess,
   type TaskAssigner,
 } from "@/helpers/access-control";
-import { lockTaskRows } from "@/helpers/calendar-locks";
+import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   badRequest,
   conflict,
@@ -476,6 +476,27 @@ async function requireMutableTask(
 }
 
 /**
+ * Locks a Project change in the order a sub-task create, PATCH and move take:
+ * the Workspace, both Projects, then the Task before its sub-tasks, top-down
+ * as an archive locks them. The update renumbers in the new Project and keys
+ * the old one, so a Task lock taken first deadlocks with a sub-task create.
+ */
+async function lockProjectChange(
+  tx: Prisma.TransactionClient,
+  task: Pick<Task, "id" | "workspaceId" | "projectId">,
+  projectId: string | null | undefined,
+): Promise<void> {
+  if (
+    !(await lockCalendarScope(tx, task.workspaceId, [
+      task.projectId,
+      projectId,
+    ])) ||
+    !(await lockTaskRows(tx, [task.id]))
+  )
+    throw conflict("Task changed; read it again");
+}
+
+/**
  * Canonical metadata/assignment operation. Soko Bot stays inside its bounded
  * pre-execution state ceiling; owner route keeps existing editable-state rules.
  */
@@ -518,14 +539,12 @@ export async function updateTaskForActor(
       task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
     )
       throw conflict("Task changed; read it again");
+    await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
     if (input.projectId !== task.projectId) {
       requireNotSubtask(task);
-      // The Task before its sub-tasks, top-down as an archive locks them.
-      if (!(await lockTaskRows(tx, [task.id])))
-        throw conflict("Task changed; read it again");
+      await lockProjectChange(tx, task, input.projectId);
       await requireSubtreeCanChangeProject(tx, task.id);
     }
-    await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
     return tx.task.update({
       where: { id: task.id, updatedAt: task.updatedAt },
       data: {
@@ -625,9 +644,7 @@ export async function updateTaskForActor(
   if (input.projectId !== undefined && input.projectId !== task.projectId) {
     // A sub-task keeps its parent's Project; the trigger would refuse it as a 500.
     requireNotSubtask(task);
-    // The Task before its sub-tasks, top-down as an archive locks them.
-    if (!(await lockTaskRows(tx, [task.id])))
-      throw conflict("Task changed; read it again");
+    await lockProjectChange(tx, task, input.projectId);
     await requireSubtreeCanChangeProject(tx, task.id);
   }
   return tx.task.update({
