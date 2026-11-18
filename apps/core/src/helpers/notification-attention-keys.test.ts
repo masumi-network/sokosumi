@@ -27,7 +27,7 @@ const UPDATE_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.canceled",
   // An SEO monitor result got worse. The reader can read it later: nothing waits on them.
   "Notifications.Task.seoMonitorWorse",
-  // Task interest moments for a plain participant: news, not a request.
+  // Task interest moments on the bell: news, not a request.
   "Notifications.Task.overdue",
   "Notifications.Task.dueDateMovedLater",
 ];

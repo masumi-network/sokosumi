@@ -1957,7 +1957,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_followed_tasks:
     "List the Tasks the owner follows with you: you tell them when one completes, fails, is canceled, goes overdue or has its due date moved later. Returns each Task's identifier, name, status and due date, newest follow first.",
   stop_following_task:
-    "Stop following a Task for the owner, when they ask: you no longer post its updates in this chat. They stay a participant on the Task and keep getting its updates as notifications. Only for the owner's own request in their chat.",
+    "Stop following a Task for the owner, when they ask: you no longer post its updates in this chat. Their place on the Task's participant list does not change. Only for the owner's own request in their chat.",
   find_agents:
     "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer; `closest` then shows the nearest listings, which do related work, not this. Use when no Coworker suits the work.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",

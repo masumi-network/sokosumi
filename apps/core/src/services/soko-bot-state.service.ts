@@ -49,11 +49,6 @@ export async function getSokoBotActivity(
   activeTurnId: string | null;
   lastTurnAt: Date | null;
   lastActivityAt: Date | null;
-  id: string;
-  userId: string | null;
-  avatarSeed: string | null;
-  avatarImageUrl: string | null;
-  avatarCode: string | null;
 } | null> {
   const where = await stateWhere(viewerUserId, workspaceId, selector);
   if (!where) return null;
@@ -67,11 +62,6 @@ export async function getSokoBotActivity(
       status: true,
       lastTurnAt: true,
       lastActivityAt: true,
-      id: true,
-      userId: true,
-      avatarSeed: true,
-      avatarImageUrl: true,
-      avatarCode: true,
       turns: {
         where: {
           ...FOREGROUND_TURN,
@@ -89,11 +79,6 @@ export async function getSokoBotActivity(
     activeTurnId: bot.turns[0]?.id ?? null,
     lastTurnAt: bot.lastTurnAt,
     lastActivityAt: bot.lastActivityAt,
-    id: bot.id,
-    userId: bot.userId,
-    avatarSeed: bot.avatarSeed,
-    avatarImageUrl: bot.avatarImageUrl,
-    avatarCode: bot.avatarCode,
   };
 }
 

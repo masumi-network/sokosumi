@@ -38,17 +38,16 @@ export async function dispatchTaskInterestTools(
   switch (input.capability) {
     case "list_followed_tasks": {
       const userId = followerOf(authorized);
-      const rows = await prisma.taskParticipant.findMany({
+      const rows = await prisma.taskFollower.findMany({
         where: {
           userId,
-          subscribedAt: { not: null },
           task: {
             workspaceId: authorized.turn.workspaceId,
             archivedAt: null,
             ...buildSokoBotReaderTaskWhere(authorized.reader),
           },
         },
-        orderBy: { subscribedAt: "desc" },
+        orderBy: { createdAt: "desc" },
         take: FOLLOWED_TASKS_LIMIT,
         select: {
           task: {
@@ -99,9 +98,8 @@ export async function dispatchTaskInterestTools(
         });
         if (!task)
           throw new SokoBotRuntimeValidationError("The task was not found");
-        const { count } = await tx.taskParticipant.updateMany({
-          where: { taskId, userId, subscribedAt: { not: null } },
-          data: { subscribedAt: null },
+        const { count } = await tx.taskFollower.deleteMany({
+          where: { taskId, userId },
         });
         const result = { taskId, following: false };
         await commitActionReceipt(tx, {

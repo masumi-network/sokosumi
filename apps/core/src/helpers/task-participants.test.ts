@@ -2,8 +2,8 @@ import { TaskVisibility } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  addSelfAsTaskParticipant,
   addTaskParticipantsFromComment,
-  subscribeSelfToTask,
 } from "./task-participants";
 
 function workspaceOf(users: Array<{ id: string; name: string }>) {
@@ -176,68 +176,116 @@ describe("addTaskParticipantsFromComment", () => {
   });
 });
 
-describe("subscribeSelfToTask", () => {
-  function client(memberIds: string[]) {
-    return {
-      workspace: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue(
-            workspaceOf(memberIds.map((id) => ({ id, name: id }))),
+describe("addSelfAsTaskParticipant", () => {
+  it("inserts the viewer when they are a workspace member", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const result = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi.fn().mockResolvedValue(
+            workspaceOf([
+              { id: "user_alice", name: "Alice" },
+              { id: "user_bob", name: "Bob" },
+            ]),
           ),
-      },
-      taskParticipant: {
-        findMany: vi.fn(),
-        createMany: vi.fn().mockResolvedValue({ count: 0 }),
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      },
-    };
-  }
-  const params = {
-    taskId: "tsk_1",
-    workspaceId: "ws_1",
-    visibility: TaskVisibility.PUBLIC,
-    ownerId: "user_owner",
-    userId: "user_alice",
-  };
-
-  it("subscribes a member and upgrades a plain participant without moving an earlier subscribedAt", async () => {
-    const tx = client(["user_alice"]);
-    const result = await subscribeSelfToTask(tx, params);
-
-    expect(result).toEqual({ subscribed: true });
-    expect(tx.taskParticipant.createMany).toHaveBeenCalledWith({
-      data: [
-        {
-          taskId: "tsk_1",
-          userId: "user_alice",
-          subscribedAt: expect.any(Date),
         },
-      ],
+        taskParticipant: {
+          findMany: vi.fn(),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+
+    expect(result).toEqual({ added: true });
+    expect(createMany).toHaveBeenCalledWith({
+      data: [{ taskId: "tsk_1", userId: "user_alice" }],
       skipDuplicates: true,
-    });
-    expect(tx.taskParticipant.updateMany).toHaveBeenCalledWith({
-      where: { taskId: "tsk_1", userId: "user_alice", subscribedAt: null },
-      data: { subscribedAt: expect.any(Date) },
     });
   });
 
-  it("refuses non-members and PRIVATE non-owners without writing", async () => {
-    const nonMember = client(["user_bob"]);
-    const privateOther = client(["user_alice"]);
+  it("is a no-op when createMany inserts nothing (already present or race)", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 0 });
+    const result = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(
+              workspaceOf([{ id: "user_alice", name: "Alice" }]),
+            ),
+        },
+        taskParticipant: {
+          findMany: vi.fn(),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
 
-    expect(await subscribeSelfToTask(nonMember, params)).toEqual({
-      subscribed: false,
-    });
-    expect(
-      await subscribeSelfToTask(privateOther, {
-        ...params,
+    expect(result).toEqual({ added: false });
+    expect(createMany).toHaveBeenCalled();
+  });
+
+  it("skips non-members and PRIVATE non-owners", async () => {
+    const createMany = vi.fn();
+    const nonMember = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(workspaceOf([{ id: "user_bob", name: "Bob" }])),
+        },
+        taskParticipant: {
+          findMany: vi.fn(),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
+        visibility: TaskVisibility.PUBLIC,
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+    const privateOther = await addSelfAsTaskParticipant(
+      {
+        workspace: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue(
+              workspaceOf([{ id: "user_alice", name: "Alice" }]),
+            ),
+        },
+        taskParticipant: {
+          findMany: vi.fn(),
+          createMany,
+        },
+      },
+      {
+        taskId: "tsk_1",
+        workspaceId: "ws_1",
         visibility: TaskVisibility.PRIVATE,
-      }),
-    ).toEqual({ subscribed: false });
-    for (const tx of [nonMember, privateOther]) {
-      expect(tx.taskParticipant.createMany).not.toHaveBeenCalled();
-      expect(tx.taskParticipant.updateMany).not.toHaveBeenCalled();
-    }
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+
+    expect(nonMember).toEqual({ added: false });
+    expect(privateOther).toEqual({ added: false });
+    expect(createMany).not.toHaveBeenCalled();
   });
 });

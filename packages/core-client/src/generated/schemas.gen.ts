@@ -7620,6 +7620,14 @@ export const TaskSchema = {
             },
             example: []
         },
+        followers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFollower'
+            },
+            example: [],
+            description: 'People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.'
+        },
         files: {
             type: 'array',
             items: {
@@ -7939,26 +7947,11 @@ export const TaskParticipantSchema = {
             format: 'date-time',
             example: '2026-09-24T12:00:00.000Z',
             description: 'When this person joined the Task (via @ mention or self-subscribe).'
-        },
-        subscribedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2026-09-24T12:00:00.000Z',
-            description: 'When this person subscribed to the Task\'s moments. Null for a participant added by @.'
-        },
-        followsWithSokoBot: {
-            type: 'boolean',
-            description: 'True when the person is subscribed and their personal Soko Bot in the Task\'s workspace receives the moments.'
         }
     },
     required: [
         'user',
-        'addedAt',
-        'subscribedAt',
-        'followsWithSokoBot'
+        'addedAt'
     ]
 } as const;
 
@@ -8968,6 +8961,63 @@ export const TaskLinkPeerTaskSchema = {
         archivedAt: null,
         identifier: 'SOK-12'
     }
+} as const;
+
+export const TaskFollowerSchema = {
+    type: 'object',
+    properties: {
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        followedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-09-24T12:00:00.000Z',
+            description: 'When this person started following the Task.'
+        },
+        sokoBot: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarImageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarCode: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'avatarSeed',
+                'avatarImageUrl',
+                'avatarCode'
+            ],
+            description: 'The follower\'s personal Soko Bot in the Task\'s workspace, which reports the Task\'s moments to them. Null when that bot is archived or gone: the moments then go to the bell.'
+        }
+    },
+    required: [
+        'user',
+        'followedAt',
+        'sokoBot'
+    ]
 } as const;
 
 export const TaskFileSchema = {
@@ -54513,45 +54563,13 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
-        },
-        id: {
-            type: 'string'
-        },
-        userId: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        avatarImageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        avatarCode: {
-            type: [
-                'string',
-                'null'
-            ]
         }
     },
     required: [
         'status',
         'activeTurnId',
         'lastTurnAt',
-        'lastActivityAt',
-        'id',
-        'userId',
-        'avatarSeed',
-        'avatarImageUrl',
-        'avatarCode'
+        'lastActivityAt'
     ]
 } as const;
 
@@ -58002,6 +58020,21 @@ export const TaskParticipantsSchema = {
     },
     required: [
         'participants'
+    ]
+} as const;
+
+export const TaskFollowersSchema = {
+    type: 'object',
+    properties: {
+        followers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskFollower'
+            }
+        }
+    },
+    required: [
+        'followers'
     ]
 } as const;
 

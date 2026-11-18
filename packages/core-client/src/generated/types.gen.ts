@@ -1944,6 +1944,10 @@ export type Task = {
     share: TaskShare | null;
     links: Array<TaskLink>;
     /**
+     * People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.
+     */
+    followers?: Array<TaskFollower>;
+    /**
      * Files uploaded to this task (newest first).
      */
     files: Array<TaskFile>;
@@ -2014,14 +2018,6 @@ export type TaskParticipant = {
      * When this person joined the Task (via @ mention or self-subscribe).
      */
     addedAt: Date;
-    /**
-     * When this person subscribed to the Task's moments. Null for a participant added by @.
-     */
-    subscribedAt: Date | null;
-    /**
-     * True when the person is subscribed and their personal Soko Bot in the Task's workspace receives the moments.
-     */
-    followsWithSokoBot: boolean;
 };
 
 export type WorkCreatorUser = {
@@ -2368,6 +2364,23 @@ export type TaskLinkPeerTask = {
      * Project identifier and number, e.g. SOK-123. Null when the peer has no project.
      */
     identifier: string | null;
+};
+
+export type TaskFollower = {
+    user: UserSummary;
+    /**
+     * When this person started following the Task.
+     */
+    followedAt: Date;
+    /**
+     * The follower's personal Soko Bot in the Task's workspace, which reports the Task's moments to them. Null when that bot is archived or gone: the moments then go to the bell.
+     */
+    sokoBot: {
+        id: string;
+        avatarSeed: string | null;
+        avatarImageUrl: string | null;
+        avatarCode: string | null;
+    } | null;
 };
 
 export type TaskFile = {
@@ -13648,11 +13661,6 @@ export type SokoBotActivity = {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
     lastActivityAt: Date | null;
-    id: string;
-    userId: string | null;
-    avatarSeed: string | null;
-    avatarImageUrl: string | null;
-    avatarCode: string | null;
 };
 
 export type CreateSokoBotRequest = {
@@ -14661,6 +14669,10 @@ export type TaskLinkDeleted = {
 
 export type TaskParticipants = {
     participants: Array<TaskParticipant>;
+};
+
+export type TaskFollowers = {
+    followers: Array<TaskFollower>;
 };
 
 export type TaskSellerReceipt = {
@@ -97190,16 +97202,16 @@ export type DeleteTasksByIdParticipantsByUserIdResponses = {
 
 export type DeleteTasksByIdParticipantsByUserIdResponse = DeleteTasksByIdParticipantsByUserIdResponses[keyof DeleteTasksByIdParticipantsByUserIdResponses];
 
-export type DeleteTasksByIdSubscriptionData = {
+export type DeleteTasksByIdFollowData = {
     body?: never;
     path: {
         id: string;
     };
     query?: never;
-    url: '/tasks/{id}/subscription';
+    url: '/tasks/{id}/follow';
 };
 
-export type DeleteTasksByIdSubscriptionErrors = {
+export type DeleteTasksByIdFollowErrors = {
     /**
      * Unauthorized
      */
@@ -97247,14 +97259,14 @@ export type DeleteTasksByIdSubscriptionErrors = {
     };
 };
 
-export type DeleteTasksByIdSubscriptionError = DeleteTasksByIdSubscriptionErrors[keyof DeleteTasksByIdSubscriptionErrors];
+export type DeleteTasksByIdFollowError = DeleteTasksByIdFollowErrors[keyof DeleteTasksByIdFollowErrors];
 
-export type DeleteTasksByIdSubscriptionResponses = {
+export type DeleteTasksByIdFollowResponses = {
     /**
-     * Task participants
+     * Task followers
      */
     200: {
-        data: TaskParticipants;
+        data: TaskFollowers;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -97263,7 +97275,97 @@ export type DeleteTasksByIdSubscriptionResponses = {
     };
 };
 
-export type DeleteTasksByIdSubscriptionResponse = DeleteTasksByIdSubscriptionResponses[keyof DeleteTasksByIdSubscriptionResponses];
+export type DeleteTasksByIdFollowResponse = DeleteTasksByIdFollowResponses[keyof DeleteTasksByIdFollowResponses];
+
+export type PostTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type PostTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No personal Soko Bot
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdFollowError = PostTasksByIdFollowErrors[keyof PostTasksByIdFollowErrors];
+
+export type PostTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdFollowResponse = PostTasksByIdFollowResponses[keyof PostTasksByIdFollowResponses];
 
 export type DeleteTasksByIdData = {
     body?: never;

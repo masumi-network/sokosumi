@@ -102,17 +102,34 @@ export const taskParticipantSchema = z
         "When this person joined the Task (via @ mention or self-subscribe).",
       example: "2026-09-24T12:00:00.000Z",
     }),
-    subscribedAt: dateTimeSchema.nullable().openapi({
-      description:
-        "When this person subscribed to the Task's moments. Null for a participant added by @.",
-      example: "2026-09-24T12:00:00.000Z",
-    }),
-    followsWithSokoBot: z.boolean().openapi({
-      description:
-        "True when the person is subscribed and their personal Soko Bot in the Task's workspace receives the moments.",
-    }),
   })
   .openapi("TaskParticipant");
+
+export const taskFollowerSchema = z
+  .object({
+    user: userSummarySchema,
+    followedAt: dateTimeSchema.openapi({
+      description: "When this person started following the Task.",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+    sokoBot: z
+      .object({
+        id: z.string().uuid(),
+        avatarSeed: z.string().nullable(),
+        avatarImageUrl: z.string().nullable(),
+        avatarCode: z.string().nullable(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "The follower's personal Soko Bot in the Task's workspace, which reports the Task's moments to them. Null when that bot is archived or gone: the moments then go to the bell.",
+      }),
+  })
+  .openapi("TaskFollower");
+
+export const taskFollowersResponseSchema = z
+  .object({ followers: z.array(taskFollowerSchema) })
+  .openapi("TaskFollowers");
 
 const taskEventActorSchema = z
   .discriminatedUnion("type", [
@@ -379,6 +396,13 @@ export const taskSchema = taskBaseSchema
     // Mirrors `jobSchema.share`.
     share: z.union([taskShareSchema, z.null()]).openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
+    // Optional on the wire: a Web build that reaches a Core without it
+    // (deploy order) reads no followers instead of failing the page.
+    followers: z.array(taskFollowerSchema).optional().openapi({
+      example: [],
+      description:
+        "People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.",
+    }),
     files: z.array(taskFileSchema).openapi({
       example: [],
       description: "Files uploaded to this task (newest first).",

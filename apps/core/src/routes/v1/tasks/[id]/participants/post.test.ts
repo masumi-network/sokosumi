@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
 
 import mountPostTaskParticipant from "./post";
 
@@ -13,19 +18,34 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { requireTaskCommentAccessMock, subscribeSelfToTaskMock, findManyMock } =
-  vi.hoisted(() => ({
-    requireTaskCommentAccessMock: vi.fn(),
-    subscribeSelfToTaskMock: vi.fn(),
-    findManyMock: vi.fn(),
-  }));
+const {
+  requireTaskCommentAccessMock,
+  addSelfAsTaskParticipantMock,
+  findManyMock,
+  notifyTaskParticipantsAddedMock,
+  waitUntilMock,
+} = vi.hoisted(() => ({
+  requireTaskCommentAccessMock: vi.fn(),
+  addSelfAsTaskParticipantMock: vi.fn(),
+  findManyMock: vi.fn(),
+  notifyTaskParticipantsAddedMock: vi.fn(),
+  waitUntilMock: vi.fn((promise: Promise<unknown>) => promise),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: waitUntilMock,
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCommentAccess: requireTaskCommentAccessMock,
 }));
 
 vi.mock("@/helpers/task-participants", () => ({
-  subscribeSelfToTask: subscribeSelfToTaskMock,
+  addSelfAsTaskParticipant: addSelfAsTaskParticipantMock,
+}));
+
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskParticipantsAdded: notifyTaskParticipantsAddedMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -46,8 +66,9 @@ const auth = {
   role: "user",
 } as AuthenticationContext;
 
-function mountApp() {
+function mountApp(options: { evlog?: boolean } = {}) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
     c.set("authContext", auth);
     c.set("isAuthenticated", true);
@@ -62,25 +83,7 @@ const remaining = [
     id: "tp_1",
     createdAt: new Date("2026-09-24T12:00:00.000Z"),
     userId: "user_alice",
-    subscribedAt: new Date("2026-09-25T08:00:00.000Z"),
-    user: {
-      id: "user_alice",
-      name: "Alice",
-      image: null,
-      sokoBots: [{ workspaceId: "ws_1" }],
-    },
-  },
-  {
-    id: "tp_2",
-    createdAt: new Date("2026-09-24T13:00:00.000Z"),
-    userId: "user_bob",
-    subscribedAt: new Date("2026-09-25T09:00:00.000Z"),
-    user: {
-      id: "user_bob",
-      name: "Bob",
-      image: null,
-      sokoBots: [{ workspaceId: "ws_other" }],
-    },
+    user: { id: "user_alice", name: "Alice", image: null },
   },
 ];
 
@@ -93,11 +96,12 @@ describe("POST /{id}/participants", () => {
       visibility: "PUBLIC",
       ownerId: "user_owner",
     });
-    subscribeSelfToTaskMock.mockResolvedValue({ subscribed: true });
+    addSelfAsTaskParticipantMock.mockResolvedValue({ added: true });
     findManyMock.mockResolvedValue(remaining);
+    notifyTaskParticipantsAddedMock.mockResolvedValue(undefined);
   });
 
-  it("subscribes only the authenticated viewer and marks a bot only in the Task's workspace", async () => {
+  it("adds only the authenticated viewer and notifies once", async () => {
     const app = mountApp();
 
     const response = await app.request(
@@ -112,27 +116,59 @@ describe("POST /{id}/participants", () => {
           {
             user: { id: "user_alice", name: "Alice", image: null },
             addedAt: "2026-09-24T12:00:00.000Z",
-            subscribedAt: "2026-09-25T08:00:00.000Z",
-            followsWithSokoBot: true,
-          },
-          {
-            user: { id: "user_bob" },
-            followsWithSokoBot: false,
           },
         ],
       },
     });
-    expect(subscribeSelfToTaskMock).toHaveBeenCalledWith(expect.anything(), {
-      taskId: "tsk_123",
-      workspaceId: "ws_1",
-      visibility: "PUBLIC",
-      ownerId: "user_owner",
-      userId: "user_alice",
-    });
+    expect(addSelfAsTaskParticipantMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        taskId: "tsk_123",
+        workspaceId: "ws_1",
+        visibility: "PUBLIC",
+        ownerId: "user_owner",
+        userId: "user_alice",
+      },
+    );
+    expect(waitUntilMock).toHaveBeenCalled();
+    expect(notifyTaskParticipantsAddedMock).toHaveBeenCalledWith(
+      "tsk_123",
+      expect.any(String),
+      ["user_alice"],
+    );
   });
 
-  it("forbids when join eligibility fails", async () => {
-    subscribeSelfToTaskMock.mockResolvedValue({ subscribed: false });
+  it("notifies as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("notifyTaskParticipantsAdded");
+    notifyTaskParticipantsAddedMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("notifyTaskParticipantsAdded"),
+    );
+
+    const response = await mountApp({ evlog: true }).request(
+      "http://localhost/tsk_123/participants",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("is a no-op when the viewer is already a participant", async () => {
+    addSelfAsTaskParticipantMock.mockResolvedValue({ added: false });
+    const app = mountApp();
+
+    const response = await app.request(
+      "http://localhost/tsk_123/participants",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(notifyTaskParticipantsAddedMock).not.toHaveBeenCalled();
+    expect(waitUntilMock).not.toHaveBeenCalled();
+  });
+
+  it("forbids when join eligibility fails and the viewer is not a participant", async () => {
+    addSelfAsTaskParticipantMock.mockResolvedValue({ added: false });
+    findManyMock.mockResolvedValue([]);
     const app = mountApp();
 
     const response = await app.request(
@@ -141,6 +177,7 @@ describe("POST /{id}/participants", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(notifyTaskParticipantsAddedMock).not.toHaveBeenCalled();
   });
 
   it("forbids a viewer who cannot comment", async () => {
@@ -156,7 +193,7 @@ describe("POST /{id}/participants", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(subscribeSelfToTaskMock).not.toHaveBeenCalled();
+    expect(addSelfAsTaskParticipantMock).not.toHaveBeenCalled();
   });
 
   it("forbids coworker auth even with X-Context-User-Id", async () => {
@@ -179,6 +216,6 @@ describe("POST /{id}/participants", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(subscribeSelfToTaskMock).not.toHaveBeenCalled();
+    expect(addSelfAsTaskParticipantMock).not.toHaveBeenCalled();
   });
 });

@@ -27,8 +27,8 @@ import {
   sokoBotSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
+import { mapTaskFollowerRows } from "./task-follower-rows";
 import { mapTaskLinksForTask } from "./task-link";
-import { mapTaskParticipantRows } from "./task-participant-rows";
 import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
 
@@ -446,8 +446,22 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     dueOn: task.dueOn ? task.dueOn.toISOString().slice(0, 10) : null,
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
-    participants: mapTaskParticipantRows(task, task.participants ?? []),
+    participants: mapTaskParticipants(task),
   };
+}
+
+function mapTaskParticipants(
+  task: TaskListItemWithIncludes | TaskWithIncludes,
+) {
+  const rows = task.participants ?? [];
+  return rows.map((row) => ({
+    user: userSummaryFromLoadedRelation(
+      `Task ${task.id} participant`,
+      row.userId,
+      row.user,
+    ),
+    addedAt: row.createdAt,
+  }));
 }
 
 function mapTaskBase(
@@ -489,6 +503,7 @@ export function mapTask(
     share: task.share,
     links,
     files: files.map(mapTaskFile),
+    followers: mapTaskFollowerRows(task, task.followers ?? []),
     selectableStatuses: getSelectableTaskStatuses(task, authContext),
   };
 }

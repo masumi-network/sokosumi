@@ -11,7 +11,7 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
-
+import { followTask, unfollowTask } from "./task-follow.service";
 import { syncTaskInterest } from "./task-interest-delivery.service";
 
 // Outbound side effects only: the row, the push, the chat post and the
@@ -87,19 +87,19 @@ async function createTask(
   });
 }
 
-async function follow(
+/** A participant, or with `follows` a follower who is not a participant. */
+async function addToTask(
   taskId: string,
   userId: string,
-  options: { subscribed?: boolean; joinedAt?: Date } = {},
+  options: { follows?: boolean; joinedAt?: Date } = {},
 ) {
-  await prisma.taskParticipant.create({
-    data: {
-      taskId,
-      userId,
-      subscribedAt: options.subscribed ? new Date() : null,
-      ...(options.joinedAt ? { createdAt: options.joinedAt } : {}),
-    },
-  });
+  const data = {
+    taskId,
+    userId,
+    ...(options.joinedAt ? { createdAt: options.joinedAt } : {}),
+  };
+  if (options.follows) await prisma.taskFollower.create({ data });
+  else await prisma.taskParticipant.create({ data });
 }
 
 describe.skipIf(!enabled)("Task interest delivery", () => {
@@ -172,18 +172,18 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
   it("sends a completed Task once per participant, on the channel each one has now", async () => {
     const task = await createTask("Send the contract");
     const before = new Date(Date.now() - 60_000);
-    await follow(task.id, users.owner, { joinedAt: before });
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.owner, { joinedAt: before });
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: before,
     });
-    await follow(task.id, users.archivedBotFollower, {
-      subscribed: true,
+    await addToTask(task.id, users.archivedBotFollower, {
+      follows: true,
       joinedAt: before,
     });
-    await follow(task.id, users.plain, { joinedAt: before });
-    await follow(task.id, users.actor, { joinedAt: before });
-    await follow(task.id, users.leaver, { joinedAt: before });
+    await addToTask(task.id, users.plain, { joinedAt: before });
+    await addToTask(task.id, users.actor, { joinedAt: before });
+    await addToTask(task.id, users.leaver, { joinedAt: before });
     const event = await prisma.taskEvent.create({
       data: {
         taskId: task.id,
@@ -196,7 +196,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
       data: { status: TaskStatus.COMPLETED },
     });
     // Joined after the Task completed: not told about it.
-    await follow(task.id, users.late, {
+    await addToTask(task.id, users.late, {
       joinedAt: new Date(Date.now() + 60_000),
     });
 
@@ -241,10 +241,63 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     expect(mocks.startTaskSummaryTurn).not.toHaveBeenCalled();
   });
 
+  it("tells a participant who also follows once, from the bot", async () => {
+    const task = await createTask("Sign the lease");
+    const before = new Date(Date.now() - 60_000);
+    await addToTask(task.id, users.follower, { joinedAt: before });
+    await addToTask(task.id, users.follower, {
+      follows: true,
+      joinedAt: before,
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.CANCELED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.CANCELED },
+    });
+
+    await tick();
+
+    expect(botUsers()).toEqual([followerBotId]);
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+  });
+
+  it("follows a Task without adding a participant, and only with a live bot", async () => {
+    const task = await createTask("Plan the offsite");
+    await prisma.$transaction((tx) => followTask(tx, task, users.follower));
+    const again = await prisma.$transaction((tx) =>
+      followTask(tx, task, users.follower),
+    );
+    expect(again).toMatchObject([
+      { user: { id: users.follower }, sokoBot: { id: followerBotId } },
+    ]);
+    expect(
+      await prisma.taskParticipant.count({ where: { taskId: task.id } }),
+    ).toBe(0);
+
+    await expect(
+      prisma.$transaction((tx) => followTask(tx, task, users.plain)),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      prisma.$transaction((tx) =>
+        followTask(tx, task, users.archivedBotFollower),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+
+    await addToTask(task.id, users.follower);
+    expect(
+      await prisma.$transaction((tx) => unfollowTask(tx, task, users.follower)),
+    ).toEqual([]);
+    expect(
+      await prisma.taskParticipant.count({ where: { taskId: task.id } }),
+    ).toBe(1);
+  });
+
   it("holds a summary the bot cannot start yet and starts it later, even past the lookback window", async () => {
     const task = await createTask("Ship the report");
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: new Date(Date.now() - 60_000),
     });
     await prisma.taskEvent.create({
@@ -283,8 +336,8 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
 
   it("rings the bell when the summary throws, and leaves a busy bot for the next tick", async () => {
     const task = await createTask("Close the books");
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: new Date(Date.now() - 60_000),
     });
     await prisma.taskEvent.create({
@@ -314,11 +367,11 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
   it("closes nothing for the others when a participant who was told leaves", async () => {
     const task = await createTask("Book the venue");
     const before = new Date(Date.now() - 60_000);
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: before,
     });
-    await follow(task.id, users.plain, { joinedAt: before });
+    await addToTask(task.id, users.plain, { joinedAt: before });
     await prisma.taskEvent.create({
       data: { taskId: task.id, status: TaskStatus.CANCELED },
     });
@@ -342,7 +395,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
 
   it("sends nothing for a Task reopened before the tick", async () => {
     const task = await createTask("Reopened report");
-    await follow(task.id, users.plain, {
+    await addToTask(task.id, users.plain, {
       joinedAt: new Date(Date.now() - 60_000),
     });
     await prisma.taskEvent.create({
@@ -366,11 +419,11 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
   it("falls back to the bell when the bot is gone at post time, and retries a failed send", async () => {
     const task = await createTask("Renew the lease");
     const before = new Date(Date.now() - 60_000);
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: before,
     });
-    await follow(task.id, users.plain, { joinedAt: before });
+    await addToTask(task.id, users.plain, { joinedAt: before });
     await prisma.taskEvent.create({
       data: { taskId: task.id, status: TaskStatus.FAILED },
     });
@@ -409,7 +462,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
       dueOn: new Date("2026-11-20T00:00:00.000Z"),
     });
     for (const task of [kept, undone]) {
-      await follow(task.id, users.plain, { joinedAt: before });
+      await addToTask(task.id, users.plain, { joinedAt: before });
       await prisma.taskDueDateChange.create({
         data: {
           taskId: task.id,
@@ -423,7 +476,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     const twice = await createTask("Moved twice", {
       dueOn: new Date("2026-12-10T00:00:00.000Z"),
     });
-    await follow(twice.id, users.plain, { joinedAt: before });
+    await addToTask(twice.id, users.plain, { joinedAt: before });
     const moves: string[] = [];
     for (const [from, to, at] of [
       ["2026-11-20", "2026-11-30", before],
@@ -459,12 +512,12 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     const task = await createTask("Overdue report", {
       dueOn: new Date("2026-11-16T00:00:00.000Z"),
     });
-    await follow(task.id, users.follower, { subscribed: true });
-    await follow(task.id, users.plain);
+    await addToTask(task.id, users.follower, { follows: true });
+    await addToTask(task.id, users.plain);
     await createTask("Already done", {
       dueOn: new Date("2026-11-16T00:00:00.000Z"),
       status: TaskStatus.COMPLETED,
-    }).then((done) => follow(done.id, users.plain));
+    }).then((done) => addToTask(done.id, users.plain));
 
     // 13:45 UTC: 08:45 in New York, 14:45 in Berlin (the fallback).
     await tick(new Date("2026-11-17T13:45:00.000Z"));
@@ -483,10 +536,10 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     expect(mocks.createNotification).not.toHaveBeenCalled();
   });
 
-  it("closes the deferred summary of a follower who left, so it holds no retry place", async () => {
+  it("closes the deferred summary of a follower who unfollowed, so it holds no retry place", async () => {
     const task = await createTask("Draft the brief");
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: new Date(Date.now() - 60_000),
     });
     await prisma.taskEvent.create({
@@ -498,7 +551,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     });
     mocks.startTaskSummaryTurn.mockResolvedValue("deferred");
     await tick();
-    await prisma.taskParticipant.deleteMany({ where: { taskId: task.id } });
+    await prisma.taskFollower.deleteMany({ where: { taskId: task.id } });
 
     await tick(new Date(Date.now() + 2 * 60 * 60 * 1_000));
 
@@ -512,8 +565,8 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
 
   it("puts a deferred summary that fails on retry back to wait", async () => {
     const task = await createTask("Plan the offsite");
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: new Date(Date.now() - 60_000),
     });
     await prisma.taskEvent.create({
@@ -545,8 +598,8 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     const task = await createTask("Overdue audit", {
       dueOn: new Date("2026-12-01T00:00:00.000Z"),
     });
-    await follow(task.id, users.follower, { subscribed: true });
-    await follow(task.id, users.leaver);
+    await addToTask(task.id, users.follower, { follows: true });
+    await addToTask(task.id, users.leaver);
 
     // 05:00 UTC: 00:00 in New York, 06:00 in Berlin (the leaver's fallback).
     expect((await tick(new Date("2026-12-02T05:00:00.000Z"))).moments).toBe(0);
@@ -564,8 +617,8 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
 
   it("leaves a cancel to the wake of the bot that delegated the Task", async () => {
     const task = await createTask("Order the badges");
-    await follow(task.id, users.follower, {
-      subscribed: true,
+    await addToTask(task.id, users.follower, {
+      follows: true,
       joinedAt: new Date(Date.now() - 60_000),
     });
     await prisma.taskEvent.create({

@@ -42,7 +42,7 @@ export type MomentKind =
 export const TASK_MOMENT_CHANNEL = {
   sokoBot: "SOKO_BOT",
   bell: "BELL",
-  /** Recorded for a participant the moment skips, so it is decided once. */
+  /** Recorded for a person the moment skips, so it is decided once. */
   none: "NONE",
   /** A summary the bot could not start yet; tried again from `retryAt`. */
   deferred: "DEFERRED",
@@ -55,7 +55,7 @@ export interface TaskMoment {
   key: string;
   /**
    * The Notification row's event id. A status moment uses its Task event, so
-   * an Owner who also follows as a plain participant gets the one row the
+   * an Owner who is also a participant gets the one row the
    * status dispatch writes, not two.
    */
   eventId: string;
@@ -133,8 +133,14 @@ function statusMoment(
   ];
 }
 
+/** A Task someone hears from: it has a participant or a follower. */
+const HAS_AUDIENCE = {
+  OR: [{ participants: { some: {} } }, { followers: { some: {} } }],
+} satisfies Prisma.TaskWhereInput;
+
 /**
- * Completed, failed and canceled events on Tasks with participants. Newest
+ * Completed, failed and canceled events on Tasks with participants or
+ * followers. Newest
  * first: past the cap, old moments wait, never new ones.
  */
 export async function statusMoments(since: Date): Promise<TaskMoment[]> {
@@ -142,7 +148,7 @@ export async function statusMoments(since: Date): Promise<TaskMoment[]> {
     where: {
       createdAt: { gte: since },
       status: { in: [...SETTLED_TASK_STATUSES] },
-      task: { archivedAt: null, participants: { some: {} } },
+      task: { archivedAt: null, ...HAS_AUDIENCE },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: SCAN_CAP,
@@ -184,7 +190,7 @@ export async function dueDateMovedLaterMoments(
   const changes = await prisma.taskDueDateChange.findMany({
     where: {
       createdAt: { gte: since },
-      task: { archivedAt: null, participants: { some: {} } },
+      task: { archivedAt: null, ...HAS_AUDIENCE },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: SCAN_CAP,
@@ -220,7 +226,7 @@ export async function overdueMoments(now: Date): Promise<TaskMoment[]> {
       archivedAt: null,
       dueOn: { gte: new Date(today.getTime() - 2 * DAY_MS), lte: today },
       status: { notIn: [...SETTLED_TASK_STATUSES] },
-      participants: { some: {} },
+      ...HAS_AUDIENCE,
     },
     orderBy: { id: "asc" },
     take: SCAN_CAP,
@@ -247,21 +253,27 @@ export async function overdueMoments(now: Date): Promise<TaskMoment[]> {
 
 interface OpenMoment {
   moment: TaskMoment;
-  /** Current participants with no ledger row for it yet. */
+  /** Current participants and followers with no ledger row for it yet. */
   openUserIds: string[];
 }
 
 /**
- * Moments a current participant has no ledger row for yet. A row of someone
- * who left does not count, so their leaving closes nothing for the others.
+ * Moments a current participant or follower has no ledger row for yet. A
+ * row of someone who left does not count, so their leaving closes nothing
+ * for the others.
  */
 export async function openMoments(
   moments: TaskMoment[],
 ): Promise<OpenMoment[]> {
   if (moments.length === 0) return [];
-  const [participants, ledger] = await Promise.all([
+  const taskIds = [...new Set(moments.map((m) => m.taskId))];
+  const [participants, followers, ledger] = await Promise.all([
     prisma.taskParticipant.findMany({
-      where: { taskId: { in: [...new Set(moments.map((m) => m.taskId))] } },
+      where: { taskId: { in: taskIds } },
+      select: { taskId: true, userId: true },
+    }),
+    prisma.taskFollower.findMany({
+      where: { taskId: { in: taskIds } },
       select: { taskId: true, userId: true },
     }),
     prisma.taskMomentDelivery.findMany({
@@ -269,15 +281,15 @@ export async function openMoments(
       select: { momentKey: true, userId: true },
     }),
   ]);
-  const participantsOf = new Map<string, string[]>();
-  for (const { taskId, userId } of participants) {
-    participantsOf.set(taskId, [...(participantsOf.get(taskId) ?? []), userId]);
+  const audienceOf = new Map<string, Set<string>>();
+  for (const { taskId, userId } of [...participants, ...followers]) {
+    audienceOf.set(taskId, (audienceOf.get(taskId) ?? new Set()).add(userId));
   }
   const recorded = new Set(
     ledger.map((row) => `${row.momentKey}\u0000${row.userId}`),
   );
   return moments.flatMap((moment) => {
-    const openUserIds = (participantsOf.get(moment.taskId) ?? []).filter(
+    const openUserIds = [...(audienceOf.get(moment.taskId) ?? [])].filter(
       (userId) => !recorded.has(`${moment.key}\u0000${userId}`),
     );
     return openUserIds.length > 0 ? [{ moment, openUserIds }] : [];
@@ -285,7 +297,7 @@ export async function openMoments(
 }
 
 /**
- * Drops overdue moments no open participant's morning has reached yet, so
+ * Drops overdue moments no open person's morning has reached yet, so
  * they do not take batch places from moments that can be sent now.
  */
 export async function dueNow(

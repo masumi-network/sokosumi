@@ -342,12 +342,6 @@ export const sokoBotActivitySchema = z
     lastTurnAt: dateTimeSchema.nullable(),
     /** What "Active 5m ago" counts from; any activity, not only turns. */
     lastActivityAt: dateTimeSchema.nullable(),
-    /** The bot's face, so a surface can draw it without the full state. */
-    id: z.string(),
-    userId: z.string().nullable(),
-    avatarSeed: z.string().nullable(),
-    avatarImageUrl: z.string().nullable(),
-    avatarCode: z.string().nullable(),
   })
   .openapi("SokoBotActivity");
 

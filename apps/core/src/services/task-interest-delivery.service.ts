@@ -3,9 +3,9 @@ import { NotificationKind, type Prisma, TaskStatus } from "@sokosumi/database";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { createNotification } from "@/helpers/notifications";
+import { isFollowingSokoBot } from "@/helpers/task-follower-rows";
 import { isOverdueMomentDue } from "@/helpers/task-interest-clock";
 import { taskNotificationPayload } from "@/helpers/task-notifications";
-import { isFollowingSokoBot } from "@/helpers/task-participant-rows";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
@@ -75,9 +75,8 @@ const MOMENT_TASK_SELECT = {
   workspace: { select: { userId: true, organizationId: true } },
   assignee: { select: { name: true } },
   assigneeSokoBot: { select: { name: true } },
-  participants: {
-    select: { userId: true, subscribedAt: true, createdAt: true },
-  },
+  participants: { select: { userId: true, createdAt: true } },
+  followers: { select: { userId: true, createdAt: true } },
   // The latest settling event: a status moment holds only while it is this.
   events: {
     where: { status: { in: [...SETTLED_TASK_STATUSES] } },
@@ -113,16 +112,51 @@ function momentStillHolds(moment: TaskMoment, task: MomentTask): boolean {
   );
 }
 
+interface Audience {
+  userId: string;
+  /** When they first joined or followed, whichever came first. */
+  since: Date;
+  /** Their personal Soko Bot follows the Task for them. */
+  follows: boolean;
+}
+
 /**
- * Participants the moment reaches: not its actor, still a workspace member,
- * able to see the Task, and on the Task before the moment happened.
+ * Participants and followers, one entry per person. Following and taking
+ * part are separate lists: a follower need not be a participant.
  */
-async function reachedParticipants(moment: TaskMoment, task: MomentTask) {
-  const candidates = task.participants.filter(
-    (participant) =>
-      participant.userId !== moment.actorUserId &&
-      isPrivateTaskVisibleToHuman(task, participant.userId) &&
-      (moment.at === null || participant.createdAt <= moment.at),
+function audienceOf(task: MomentTask): Audience[] {
+  const byUser = new Map<string, Audience>();
+  for (const [rows, follows] of [
+    [task.participants, false],
+    [task.followers, true],
+  ] as const) {
+    for (const row of rows) {
+      const known = byUser.get(row.userId);
+      byUser.set(row.userId, {
+        userId: row.userId,
+        since:
+          known && known.since < row.createdAt ? known.since : row.createdAt,
+        follows: (known?.follows ?? false) || follows,
+      });
+    }
+  }
+  return [...byUser.values()];
+}
+
+/**
+ * People the moment reaches: not its actor, still a workspace member, able
+ * to see the Task, and on it or following it before the moment happened.
+ */
+async function reachedAudience(
+  moment: TaskMoment,
+  task: MomentTask,
+  audience: Audience[],
+) {
+  const candidates = audience.filter(
+    (person) =>
+      person.userId !== moment.actorUserId &&
+      isPrivateTaskVisibleToHuman(task, person.userId) &&
+      (moment.at === null || person.since <= moment.at),
   );
   if (candidates.length === 0) return [];
   const { organizationId, userId: personalUserId } = task.workspace;
@@ -250,8 +284,9 @@ async function deliverMoment(
       )
       .map((row) => row.userId),
   );
-  const participantIds = new Set(task.participants.map((p) => p.userId));
-  const open = task.participants.filter((p) => !decided.has(p.userId));
+  const audience = audienceOf(task);
+  const audienceIds = new Set(audience.map((p) => p.userId));
+  const open = audience.filter((p) => !decided.has(p.userId));
 
   const record = (userId: string, channel: string, retryAt: Date | null) =>
     prisma.taskMomentDelivery.upsert({
@@ -266,23 +301,24 @@ async function deliverMoment(
       update: { channel, retryAt },
     });
 
-  // A deferred summary for someone who left: closed, so it stops coming due.
+  // A deferred summary for someone who left or unfollowed: closed, so it
+  // stops coming due.
   for (const row of ledger) {
-    if (!decided.has(row.userId) && !participantIds.has(row.userId)) {
+    if (!decided.has(row.userId) && !audienceIds.has(row.userId)) {
       await record(row.userId, TASK_MOMENT_CHANNEL.none, null);
     }
   }
   if (open.length === 0) return;
 
   const reached = momentStillHolds(moment, task)
-    ? await reachedParticipants(moment, task)
+    ? await reachedAudience(moment, task, audience)
     : [];
   const reachedIds = new Set(reached.map((r) => r.userId));
   // Not reached now is final, for overdue too: it reached no one who is
   // not a member or cannot see the Task, and a Task that moved on is over.
-  for (const participant of open) {
-    if (!reachedIds.has(participant.userId)) {
-      await record(participant.userId, TASK_MOMENT_CHANNEL.none, null);
+  for (const person of open) {
+    if (!reachedIds.has(person.userId)) {
+      await record(person.userId, TASK_MOMENT_CHANNEL.none, null);
     }
   }
 
@@ -330,9 +366,7 @@ async function deliverMoment(
     }
 
     const followingBot =
-      recipient.subscribedAt !== null &&
-      inWorkspace &&
-      isFollowingSokoBot(inWorkspace)
+      recipient.follows && inWorkspace && isFollowingSokoBot(inWorkspace)
         ? inWorkspace
         : null;
 
@@ -427,10 +461,10 @@ async function deliverMoment(
 }
 
 /**
- * Tell Task participants about the five moments they follow: completed,
- * failed, canceled, overdue and due date moved later. A subscribed
- * participant whose personal Soko Bot is live hears it from the bot; every
- * other participant gets a bell Notification. The channel is chosen at send
+ * Tell Task participants and followers about five moments: completed,
+ * failed, canceled, overdue and due date moved later. A follower whose
+ * personal Soko Bot is live hears it from the bot; everyone else gets a bell
+ * Notification. The channel is chosen at send
  * time, and membership and visibility are checked again then.
  */
 export async function syncTaskInterest(input: {

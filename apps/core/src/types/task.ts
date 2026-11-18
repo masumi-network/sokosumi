@@ -5,7 +5,7 @@ import {
 } from "@sokosumi/database";
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 
-import { taskParticipantRowInclude } from "@/helpers/task-participant-rows";
+import { taskFollowersInclude } from "@/helpers/task-follower-rows";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   buildVisibleTaskLinksInclude,
@@ -37,7 +37,9 @@ const taskParticipantsInclude = {
     orderBy: {
       id: "asc" as const,
     },
-    include: taskParticipantRowInclude,
+    include: {
+      user: taskEventApiInclude.user,
+    },
   },
 } as const;
 
@@ -75,6 +77,7 @@ const taskBaseInclude = {
   ...workspaceRelationInclude,
   ...taskOwnerAssigneeCreatorInclude,
   ...taskFilesInclude,
+  ...taskFollowersInclude,
   events: {
     include: taskEventApiInclude,
     orderBy: {

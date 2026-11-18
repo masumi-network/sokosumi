@@ -14,12 +14,6 @@ interface ParticipantClient {
   };
 }
 
-interface SubscribeClient extends ParticipantClient {
-  taskParticipant: ParticipantClient["taskParticipant"] & {
-    updateMany: Prisma.TransactionClient["taskParticipant"]["updateMany"];
-  };
-}
-
 /**
  * Workspace humans a Task comment may @.
  * Personal workspace: its user. Organization workspace: current members.
@@ -120,13 +114,12 @@ export async function addTaskParticipantsFromComment(
 }
 
 /**
- * Subscribe the authenticated viewer: add them as a participant if needed,
- * then set `subscribedAt`. Idempotent; a repeat keeps the first time. Same
- * workspace-member and PRIVATE visibility rules as an @ add. Returns false
- * when the viewer may not join.
+ * Self-join: insert the authenticated viewer only.
+ * Idempotent when already a participant. Same workspace-member and PRIVATE
+ * visibility rules as an @ add. Returns whether a row was inserted.
  */
-export async function subscribeSelfToTask(
-  tx: SubscribeClient,
+export async function addSelfAsTaskParticipant(
+  tx: ParticipantClient,
   params: {
     taskId: string;
     workspaceId: string;
@@ -134,31 +127,25 @@ export async function subscribeSelfToTask(
     ownerId: string | null;
     userId: string;
   },
-): Promise<{ subscribed: boolean }> {
+): Promise<{ added: boolean }> {
   if (
     !isPrivateTaskVisibleToHuman(
       { visibility: params.visibility, ownerId: params.ownerId },
       params.userId,
     )
   ) {
-    return { subscribed: false };
+    return { added: false };
   }
 
   const members = await listTaskWorkspaceMembers(tx, params.workspaceId);
   if (!members.some((member) => member.id === params.userId)) {
-    return { subscribed: false };
+    return { added: false };
   }
 
-  const now = new Date();
-  await tx.taskParticipant.createMany({
-    data: [{ taskId: params.taskId, userId: params.userId, subscribedAt: now }],
+  const result = await tx.taskParticipant.createMany({
+    data: [{ taskId: params.taskId, userId: params.userId }],
     skipDuplicates: true,
   });
-  // A plain participant (added by @) becomes subscribed.
-  await tx.taskParticipant.updateMany({
-    where: { taskId: params.taskId, userId: params.userId, subscribedAt: null },
-    data: { subscribedAt: now },
-  });
 
-  return { subscribed: true };
+  return { added: result.count > 0 };
 }
