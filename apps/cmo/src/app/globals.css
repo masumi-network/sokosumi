@@ -1542,6 +1542,24 @@ button.card-focus {
   margin-left: auto;
 }
 
+/* Settings: the time zone, with its one-tap suggestion and the full list. */
+.time-zone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-zone select {
+  max-width: 100%;
+  font: inherit;
+  padding: 6px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .list.reverted .grow {
   color: var(--muted);
   text-decoration: line-through;

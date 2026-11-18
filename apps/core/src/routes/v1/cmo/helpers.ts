@@ -43,6 +43,7 @@ function mapOverview(overview: CmoOverview) {
     presenterSet: overview.presenterSet,
     onboardingStep: overview.onboardingStep,
     routines: overview.routines,
+    timeZone: overview.timeZone,
     subscriptionActive: overview.subscriptionActive,
     viewerCanApprove: overview.viewerCanApprove,
     brandBrain: overview.brandBrain,

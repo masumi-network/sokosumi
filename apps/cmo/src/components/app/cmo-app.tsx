@@ -87,6 +87,8 @@ export interface CmoAppActions
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
+  setTimeZone: (timeZone: string) => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -565,6 +567,7 @@ export function CmoApp({
                   name={name}
                   email={email}
                   startOver={actions.startOver}
+                  setTimeZone={actions.setTimeZone}
                   signOut={actions.signOut}
                   topUp={topUp}
                   plans={plans}

@@ -165,6 +165,7 @@ export const overview: CmoOverview = cmoOverview({
       rewriting: false,
     },
   },
+  timeZone: "Europe/Berlin",
   routines: [
     {
       key: "cmo-daily-run",
