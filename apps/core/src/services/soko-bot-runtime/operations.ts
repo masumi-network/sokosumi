@@ -113,6 +113,16 @@ export interface RuntimeOperations {
   generateVideo: (
     ...args: RuntimeOperationArguments<typeof mediaGeneration.generateVideo>
   ) => ReturnType<typeof mediaGeneration.generateVideo>;
+  checkTalkingVideoRequest: (
+    ...args: RuntimeOperationArguments<
+      typeof mediaChecks.checkTalkingVideoRequest
+    >
+  ) => ReturnType<typeof mediaChecks.checkTalkingVideoRequest>;
+  generateTalkingVideo: (
+    ...args: RuntimeOperationArguments<
+      typeof mediaGeneration.generateTalkingVideo
+    >
+  ) => ReturnType<typeof mediaGeneration.generateTalkingVideo>;
   refuseCmoRunMedia: (
     ...args: RuntimeOperationArguments<typeof mediaChecks.refuseCmoRunMedia>
   ) => ReturnType<typeof mediaChecks.refuseCmoRunMedia>;

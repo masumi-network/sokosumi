@@ -831,6 +831,10 @@ img { max-width: 100%; display: block; }
 }
 .footer__mascot { width: clamp(110px, 16vw, 150px); height: auto; display: block; margin-bottom: 0.4rem; filter: drop-shadow(0 16px 26px rgba(16, 20, 28, 0.2)); }
 .footer__inner .nav__brand { font-size: 1.1rem; }
+/* The approved Dela wordmark (Masumi Family Brand Guide): black on light, white on dark, never under 80px wide. */
+.nav__brand .nav__wordmark { width: auto; height: 16px; padding: 0; border-radius: 0; background: none; }
+.nav__wordmark--dark, :root[data-theme="dark"] .nav__wordmark--light { display: none; }
+:root[data-theme="dark"] .nav__wordmark--dark { display: block; }
 .footer__tag { color: var(--ink-soft); max-width: 42ch; font-size: 0.95rem; }
 .footer__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.8rem; margin-top: 1.3rem; }
 .footer__links a { color: var(--ink-mid); font-size: 0.97rem; font-weight: 500; }

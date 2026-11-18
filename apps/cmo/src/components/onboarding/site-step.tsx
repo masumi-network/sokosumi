@@ -12,6 +12,7 @@ import {
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
+import { ReasoningLine } from "../cuso-trace";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
 import { brandTiles, tileSource } from "./brand-step";
@@ -174,6 +175,7 @@ export function SiteStep({
             : `${AGENT_NAME} read your site`}
         </p>
         <h1 className="ob-h1">{title}</h1>
+        {running ? <ReasoningLine activity={overview.activity} /> : null}
         <Checklist items={checklist} />
       </div>
 
@@ -242,7 +244,7 @@ export function SiteStep({
             {skipping
               ? "Skipping…"
               : next === "plan"
-                ? "Write my plan"
+                ? "Write my strategy"
                 : "See your brand"}
             {skipping ? null : <ArrowRight size={16} aria-hidden="true" />}
           </button>

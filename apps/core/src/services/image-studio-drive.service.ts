@@ -356,3 +356,29 @@ export async function moveLegacyStudioFolderTasks(
   }
   return { moved, failed };
 }
+
+/**
+ * Whether a post's media includes a talking video's copy in Files. Core names
+ * that copy itself (`studioAssetFileName`): the Content Studio folder, and the
+ * job id's last eight hex digits before the extension.
+ */
+export async function isTalkingVideoMedia(
+  projectId: string,
+  media: readonly { pathname: string; name: string; kind: string }[],
+): Promise<boolean> {
+  const suffixes = media.flatMap((item) => {
+    if (item.kind !== "video") return [];
+    if (!item.pathname.includes(`/${IMAGE_STUDIO_DRIVE_FOLDER}/`)) return [];
+    const match = /-([0-9a-f]{8})\.[a-z0-9]+$/.exec(item.name);
+    return match?.[1] ? [match[1]] : [];
+  });
+  if (suffixes.length === 0) return false;
+  const rows = await prisma.$queryRaw<{ found: boolean }[]>`
+    select exists (
+      select 1 from project_image_job
+      where "projectId" = ${projectId}::uuid
+        and kind = 'TALKING_VIDEO'
+        and right(replace(id::text, '-', ''), 8) = any(${suffixes})
+    ) as found`;
+  return rows[0]?.found ?? false;
+}

@@ -381,11 +381,11 @@ describe("cmoProductionMessage", () => {
     expect(message).toContain("- a · 2026-11-05 09:00 · linkedin/text");
     expect(message).toContain("Connected networks: x");
     expect(message).toContain("update_social_post");
-    expect(message).toContain("educational 1 of 2 (plan 60%)");
+    expect(message).toContain("educational 1 of 2 (planned 60%)");
     expect(message).toContain("report_update kind production");
     expect(message).toContain("DONE:");
     expect(cmoMixLedger(strategy(calendar))).toBe(
-      "educational 1 of 2 (plan 60%), promotional 1 of 2 (plan 40%)",
+      "educational 1 of 2 (planned 60%), promotional 1 of 2 (planned 40%)",
     );
   });
 
@@ -722,7 +722,7 @@ describe("advanceCmoProduction", () => {
         clientTurnId: `${RUN}:review:1`,
         message: "Rewrite these",
         background: expect.objectContaining({
-          title: "Rewrite pieces that miss the plan for Acme",
+          title: "Rewrite pieces that miss the strategy for Acme",
         }),
       }),
     );

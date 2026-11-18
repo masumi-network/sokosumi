@@ -150,6 +150,7 @@ function failureBodies(t: Translator): Record<StudioFailureReason, string> {
     submission_uncertain: t("FailureReasons.submission_uncertain"),
     reference_not_sendable: t("FailureReasons.reference_not_sendable"),
     product_cutout_unavailable: t("FailureReasons.product_cutout_unavailable"),
+    voice_unavailable: t("FailureReasons.voice_unavailable"),
     request_not_supported: t("FailureReasons.request_not_supported"),
     cancelled: t("FailureReasons.cancelled"),
     abandoned_before_send: t("FailureReasons.abandoned_before_send"),

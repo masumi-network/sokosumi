@@ -35,6 +35,18 @@ describe("Social provider availability", () => {
     },
   );
 
+  it.each([null, "other", "UTXO", "utxo-other", SOCIAL_BETA_ORGANIZATION_SLUG])(
+    "includes TikTok when Core enables the workspace (%s)",
+    (organizationSlug) => {
+      expect(
+        isSocialProviderEnabled("tiktok", {
+          organizationSlug,
+          tiktokEnabled: true,
+        }),
+      ).toBe(true);
+    },
+  );
+
   it.each(["tiktok"] as const)(
     "explains %s availability using the public list in every workspace",
     (provider) => {

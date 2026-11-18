@@ -235,4 +235,16 @@ describe("image receipts", () => {
       }),
     ).toMatchObject({ disposition: "UNKNOWN" });
   });
+
+  it("treats a talking video job like a video job", () => {
+    expect(
+      externalActionReceipt("generate_talking_video", {
+        jobId: "job-t",
+        status: "QUEUED",
+      }),
+    ).toMatchObject({ targetId: "job-t", disposition: "APPLIED" });
+    expect(
+      externalActionReceipt("generate_talking_video", { status: "FAILED" }),
+    ).toMatchObject({ disposition: "REJECTED" });
+  });
 });
