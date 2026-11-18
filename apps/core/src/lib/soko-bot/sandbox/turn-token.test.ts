@@ -15,11 +15,13 @@ describe("turn tokens", () => {
     const token = issueTurnToken({
       turnId: TURN,
       sessionId: "sess_1",
+      reconciliationLeaseToken: "launch-lease",
       expiresAt,
     });
     await expect(verifyTurnToken(token, TURN, hostNow)).resolves.toEqual({
       turnId: TURN,
       sessionId: "sess_1",
+      reconciliationLeaseToken: "launch-lease",
       expiresAt,
     });
   });
