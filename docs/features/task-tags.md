@@ -21,12 +21,19 @@ attempts per content revision. Leases, revision/workspace checks, and
 compare-and-set writes discard obsolete results.
 Human corrections are never overwritten by the worker.
 
-Jev uses Gateway `/v1/evaluate`, model `typesafe-ai/jev`, ten boolean questions,
-a 300-character title and 8,000-character description ceiling, and a 12-second
-request timeout. Answers require known IDs, finite probabilities, and confidence
-at least 0.85. At most five tags appear, prioritizing manual choices. Logs contain
-model, task/workspace IDs, revision, outcome, usage, Gateway cost and generation ID
-when returned; they never include task text or raw provider errors.
+Jev uses Gateway `/v1/evaluate` with model `typesafe-ai/jev`. It evaluates
+17 built-in topics and the active workspace tag catalog, including user-created
+tags. Matching built-in topics and unmodified presets share a question. Each
+request covers up to 40 questions, a 300-character title and an 8,000-character
+description. All requests for one classification share a 12-second timeout.
+
+Answers require known IDs and finite probabilities. Jev returns up to five
+built-in topics with confidence of at least 0.85. Manual topic choices take
+priority. Jev also returns up to five workspace tags at that threshold. It
+automatically applies workspace matches with confidence of at least 0.98.
+
+Logs contain model, task/workspace IDs, revision, outcome, usage, Gateway cost
+and generation ID when returned; they never include task text or raw provider errors.
 
 Non-EU routing is authorized for this classifier. Other features' residency
 settings are unchanged. Every evaluation still sets `zeroDataRetention: true`
