@@ -192,20 +192,99 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
     ).rejects.toThrow(/task_subtask_parent_mismatch/);
   });
 
-  it("keeps a sub-task's parent for life and a position only on sub-tasks", async () => {
+  it("moves a sub-task to another parent, refuses a cycle, and keeps a position only on sub-tasks", async () => {
     const parent = await createTask({ projectId: null });
     const other = await createTask({ projectId: null });
     const child = await createTask({ projectId: null, parentTaskId: parent });
-
-    await expect(
+    const grandchild = await createTask({
+      projectId: null,
+      parentTaskId: child,
+    });
+    const reparent = (taskId: string, parentTaskId: string) =>
       prisma.task.update({
-        where: { id: child },
-        data: { parentTask: { connect: { id: other } } },
-      }),
-    ).rejects.toThrow(/task_subtask_parent_immutable/);
+        where: { id: taskId },
+        data: { parentTaskId, position: 1 },
+      });
+
+    await reparent(child, other);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: child } }))
+        .parentTaskId,
+    ).toBe(other);
+    await expect(reparent(other, grandchild)).rejects.toThrow(
+      /task_subtask_cycle/,
+    );
+    await expect(reparent(child, child)).rejects.toThrow(/task_subtask_cycle/);
     await expect(
-      prisma.task.update({ where: { id: other }, data: { position: 1 } }),
+      prisma.task.update({ where: { id: parent }, data: { position: 1 } }),
     ).rejects.toThrow(/task_subtask_position_check/);
+  });
+
+  it("counts the moved Task's own sub-tasks toward the depth", async () => {
+    // A chain at levels 0..3, and a Task with two levels of sub-tasks.
+    const chain = [await createTask({ projectId: null })];
+    for (let level = 1; level <= 3; level += 1) {
+      chain.push(
+        await createTask({ projectId: null, parentTaskId: chain.at(-1) }),
+      );
+    }
+    const moved = await createTask({ projectId: null });
+    const middle = await createTask({ projectId: null, parentTaskId: moved });
+    await createTask({ projectId: null, parentTaskId: middle });
+    const moveUnder = (parentTaskId: string | undefined) =>
+      prisma.task.update({
+        where: { id: moved },
+        data: { parentTaskId, position: 1 },
+      });
+
+    // Level 4 + 2 levels below it = 6.
+    await expect(moveUnder(chain[3])).rejects.toThrow(/task_subtask_too_deep/);
+    // Level 3 + 2 = 5.
+    await expect(moveUnder(chain[2])).resolves.toMatchObject({
+      parentTaskId: chain[2],
+    });
+  });
+
+  it("passes a visibility change down to every level of sub-tasks", async () => {
+    const root = await createTask({ projectId: null });
+    const child = await createTask({ projectId: null, parentTaskId: root });
+    const grandchild = await createTask({
+      projectId: null,
+      parentTaskId: child,
+    });
+
+    await prisma.task.update({
+      where: { id: root },
+      data: { visibility: "PRIVATE" },
+    });
+
+    const rows = await prisma.task.findMany({
+      where: { id: { in: [child, grandchild] } },
+      select: { visibility: true },
+    });
+    expect(rows.map((row) => row.visibility)).toEqual(["PRIVATE", "PRIVATE"]);
+  });
+
+  it("requires the same owner when a Task moves under a private parent", async () => {
+    const parent = await createTask({ projectId: null, visibility: "PRIVATE" });
+    const theirs = await createTask({
+      projectId: null,
+      visibility: "PRIVATE",
+      ownerId: otherUserId,
+    });
+    const mine = await createTask({ projectId: null, visibility: "PRIVATE" });
+    const moveUnderParent = (taskId: string) =>
+      prisma.task.update({
+        where: { id: taskId },
+        data: { parentTaskId: parent, position: 1 },
+      });
+
+    await expect(moveUnderParent(theirs)).rejects.toThrow(
+      /task_subtask_private_owner/,
+    );
+    await expect(moveUnderParent(mine)).resolves.toMatchObject({
+      parentTaskId: parent,
+    });
   });
 
   it("allows five levels of sub-tasks and rejects a sixth", async () => {

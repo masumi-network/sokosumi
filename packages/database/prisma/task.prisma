@@ -123,10 +123,12 @@ model Task {
   dueOn DateTime? @db.Date
 
   /// Sub-tasks: the Task this one is a step of. Not a TaskLink; PARENT links
-  /// are separate. Set at create and never changed. A sub-task carries its
-  /// parent's workspace, project and visibility, and nests at most
-  /// MAX_SUBTASK_DEPTH deep. The `task_subtask_guard` trigger and the
-  /// `task_subtask_position_check` CHECK enforce this in SQL.
+  /// became sub-tasks (SOKD-279). Set at create or by a move, which can
+  /// attach, re-parent or detach a Task. A sub-task carries its parent's
+  /// workspace, project and visibility, is never its own ancestor, and nests
+  /// at most MAX_SUBTASK_DEPTH deep. The `task_subtask_guard` trigger and the
+  /// `task_subtask_position_check` and `task_subtask_not_self_check` CHECKs
+  /// enforce this in SQL.
   parentTaskId String?
   parentTask   Task?   @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subtasks     Task[]  @relation("TaskSubtasks")
