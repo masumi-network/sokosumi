@@ -97,7 +97,10 @@ describe("seoTablePlan", () => {
       device: null,
     }),
   ]);
-  const exported = seoKeywordsTableExport(groups.checked, groups.ideas, t);
+  const exported = seoKeywordsTableExport(
+    [...groups.checked, ...groups.ideas],
+    t,
+  );
 
   it("types each column by what it holds, keeps keyword text text, and a blank blank", () => {
     const plan = seoTablePlan(exported, source, "key-1");
@@ -109,20 +112,14 @@ describe("seoTablePlan", () => {
     expect(type("Difficulty")).toBe("number");
     expect(type("Position")).toBe("number");
     expect(type("Last checked")).toBe("date");
-    expect(type("List")).toBe("text");
     const id = (name: string) =>
       plan.table.columns.find((column) => column.name === name)?.id ?? "";
     const rows = plan.batches.flatMap((batch) => batch.insert);
-    // The list's order: the reader's own choice first, the ideas last.
+    // The rows keep the order they are given in.
     expect(rows.map((row) => row.values[id("Keyword")])).toEqual([
       "2026-13-01",
       "battery app",
       "battery saver",
-    ]);
-    expect(rows.map((row) => row.values[id("List")])).toEqual([
-      "Keywords",
-      "Keywords",
-      "Ideas",
     ]);
     const [tracked, read, idea] = rows;
     expect(read.values[id("Difficulty")]).toBe(35);

@@ -12,6 +12,9 @@ import { SeoBriefSummary } from "./seo-brief-summary";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+// The export menu of the Actions list opens a saved Table with the router.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 afterEach(cleanup);
 const data = seoTestWorkspace();
 const page = data.pages[0];
