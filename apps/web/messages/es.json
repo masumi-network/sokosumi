@@ -157,6 +157,27 @@
       "ActionButtons": {
         "back": "Atrás",
         "close": "Cerrar"
+      },
+      "Compare": {
+        "toggleLabel": "Comparar",
+        "toggle": "Comparar {name}",
+        "pickMore": "Elige uno más para comparar, hasta {max}",
+        "picked": "{count} de {max} elegidos",
+        "clear": "Borrar",
+        "open": "Comparar {count}",
+        "title": "Comparar Agents",
+        "description": "Uno al lado del otro, según lo que cada Agent indica en el marketplace.",
+        "price": "Precio",
+        "credits": "{count, plural, one {# Credit} other {# Credits}}",
+        "lowestPrice": "Precio más bajo",
+        "rating": "Valoración",
+        "ratingValue": "{average} ({total, number})",
+        "noRatings": "Aún sin valoraciones",
+        "jobsRun": "Jobs ejecutados",
+        "typicalTime": "Tiempo típico",
+        "madeBy": "Creado por",
+        "whatItDoes": "Qué hace",
+        "notListed": "Sin datos"
       }
     },
     "UserAvatar": {

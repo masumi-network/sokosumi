@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
 import { AgentCarousel } from "./agent-carousel";
+import { AgentCompareToggle } from "./agent-compare";
 
 function AgentsNotAvailable(): React.JSX.Element {
   const t = useTranslations("Components.Agents");
@@ -87,11 +88,17 @@ function Agents({
           key={agent.id}
           className="basis-full md:basis-auto md:pr-2"
         >
-          <AgentCard
-            agent={agent}
-            ratingStats={ratingStatsMap[agent.id]}
-            className={agentCardClassName}
-          />
+          <div className="flex h-full flex-col items-start gap-2">
+            <AgentCard
+              agent={agent}
+              ratingStats={ratingStatsMap[agent.id]}
+              className={agentCardClassName}
+            />
+            {/* x402 listings carry no price or metrics to compare. */}
+            {agent.kind === "cardano" ? (
+              <AgentCompareToggle agent={agent} />
+            ) : null}
+          </div>
         </CarouselItem>
       ))}
     </AgentCarousel>

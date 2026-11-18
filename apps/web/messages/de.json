@@ -157,6 +157,27 @@
       "ActionButtons": {
         "back": "Zurück",
         "close": "Schließen"
+      },
+      "Compare": {
+        "toggleLabel": "Vergleichen",
+        "toggle": "{name} vergleichen",
+        "pickMore": "Wähle noch einen zum Vergleichen, bis zu {max}",
+        "picked": "{count} von {max} gewählt",
+        "clear": "Leeren",
+        "open": "{count} vergleichen",
+        "title": "Agents vergleichen",
+        "description": "Nebeneinander, nach den Angaben der Agents im Marktplatz.",
+        "price": "Preis",
+        "credits": "{count, plural, one {# Credit} other {# Credits}}",
+        "lowestPrice": "Günstigster Preis",
+        "rating": "Bewertung",
+        "ratingValue": "{average} ({total, number})",
+        "noRatings": "Noch keine Bewertungen",
+        "jobsRun": "Ausgeführte Jobs",
+        "typicalTime": "Typische Dauer",
+        "madeBy": "Anbieter",
+        "whatItDoes": "Was er macht",
+        "notListed": "Keine Angabe"
       }
     },
     "UserAvatar": {

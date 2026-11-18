@@ -4,6 +4,10 @@ import { useTranslations } from "next-intl";
 import { Suspense, useMemo } from "react";
 import FilterSection from "@/app/agents/components/filter-section";
 import {
+  AgentCompareBar,
+  AgentCompareProvider,
+} from "@/components/agents/agent-compare";
+import {
   Agents,
   AgentsNotAvailable,
   AgentsNotFound,
@@ -58,26 +62,30 @@ function FilteredAgentsInner({
   }
 
   return (
-    <div className="flex flex-col gap-12">
-      {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
-      <FilterSection categories={categories} />
-      {!filteredAgents.length ? (
-        <AgentsNotFound />
-      ) : (
-        groupedAgents.map((group) => (
-          <Agents
-            key={group.categorySlug}
-            agents={group.agents}
-            icon={group.categoryIcon}
-            ratingStatsMap={ratingStatsMap}
-            title={
-              group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
-                ? t("othersCategory")
-                : group.categoryName
-            }
-          />
-        ))
-      )}
-    </div>
+    <AgentCompareProvider>
+      <div className="flex flex-col gap-12">
+        {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
+        <FilterSection categories={categories} />
+        {!filteredAgents.length ? (
+          <AgentsNotFound />
+        ) : (
+          groupedAgents.map((group) => (
+            <Agents
+              key={group.categorySlug}
+              agents={group.agents}
+              icon={group.categoryIcon}
+              ratingStatsMap={ratingStatsMap}
+              title={
+                group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
+                  ? t("othersCategory")
+                  : group.categoryName
+              }
+            />
+          ))
+        )}
+        {/* All agents, so a pick survives a filter that hides it. */}
+        <AgentCompareBar agents={agents} />
+      </div>
+    </AgentCompareProvider>
   );
 }

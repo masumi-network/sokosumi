@@ -13,6 +13,8 @@ export interface CatalogBrowseAgent {
   name: string;
   description: string | null;
   summary: string | null;
+  /** Price in credits; null when the listing has none (x402). */
+  credits: number | null;
   image: string | null;
   icon: string | null;
   categories: CoreCategory[];
@@ -52,6 +54,7 @@ export function mapAgentListItemToCatalogBrowseAgent(
       name: item.name,
       description: item.description,
       summary: item.summary,
+      credits: item.credits,
       image: item.image,
       icon: item.icon,
       categories: item.categories,
@@ -72,6 +75,7 @@ export function mapAgentListItemToCatalogBrowseAgent(
     name: item.name,
     description: item.description,
     summary: null,
+    credits: null,
     image: item.image,
     icon: null,
     categories: [],
