@@ -299,6 +299,8 @@ Before adding, changing, or removing a `/v1` route (new route files, OpenAPI def
 - `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
 - `@sokosumi/soko-bot` - Soko Bot contracts (capabilities, persona, memory, tools). Core owns the control plane (`src/lib/soko-bot/`); the loop runs in a per-bot Vercel Sandbox (`src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`src/routes/v1/soko-bot-runtime`). In-process is the evaluation adapter. There is no `apps/soko-bot` deployable.
 
+**Soko Bot turn lifecycle.** Read [the lifecycle reference](docs/soko-bot-turn-lifecycle.md) before reviewing, debugging, or changing turn startup, cancellation, reconciliation, runtime fences, or watchdog recovery.
+
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 
 - `@/helpers/*` → `src/helpers/*`

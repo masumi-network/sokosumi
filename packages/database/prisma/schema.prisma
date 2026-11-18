@@ -487,6 +487,8 @@ model Project {
   seoCompetitors          ProjectSeoCompetitor[]
   seoAnalyses             ProjectSeoAnalysis[]
   seoActionTasks          ProjectSeoActionTask[]
+  seoSuggestions          ProjectSeoSuggestion[]
+  seoResearch             ProjectSeoResearch[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
@@ -528,6 +530,10 @@ model Project {
   newsletterIssues        NewsletterIssue[]
 
   marketingStrategies MarketingStrategy[]
+
+  trackedCompetitors TrackedCompetitor[]
+  competitorSignals  CompetitorSignal[]
+  competitorChecks   CompetitorCheck[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -646,6 +652,8 @@ model ProjectSocialConnection {
   /// X subscription tier read from the provider at connect/reconnect and account sync; null when unknown or not X
   subscriptionType              String?
   composioConnectedAccountId    String
+  /// Dedicated profile to release along with this TikTok authorization.
+  zernioProfileId               String?
   status                        String
   activeExternalAccountKey      String?
   connectorUserId               String
@@ -726,6 +734,7 @@ model ProjectSocialConnectionIntent {
   action             String
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+  /// Composio auth configuration ID, or the digest of the one-use Zernio callback proof.
   authConfigId       String
   callbackRedeemedAt DateTime?
   expiresAt          DateTime
@@ -743,6 +752,8 @@ model ProjectSocialConnectionAudit {
   externalAccountId         String
   externalHandle            String?
   connectedAccountId        String?
+  /// Preserve the retired profile across reconnects so provider cleanup can retry.
+  zernioProfileId           String?
   providerOutcome           String?
   createdAt                 DateTime @default(now())
 

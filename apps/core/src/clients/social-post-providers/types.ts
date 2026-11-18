@@ -10,6 +10,8 @@ export type TikTokPostSettings = z.infer<typeof tikTokPostSettingsSchema>;
 
 /** One publish attempt's provider-independent input. Media stays as refs. */
 export interface SocialPostPublishContext {
+  /** Persisted Social post ID used for provider idempotency. */
+  postId?: string;
   provider: SocialPostProvider;
   connectedAccountId: string;
   executorUserId: string;

@@ -82,7 +82,7 @@ Evaluation is best effort through Core's existing `waitUntil` mechanism, after t
 ### Project social accounts
 
 Project social accounts are available for X, YouTube, LinkedIn, Instagram, and
-Facebook. TikTok remains Coming soon. Connect accounts from the Project’s **Social**
+Facebook. Mainnet utxo projects also support TikTok. Connect accounts from the Project’s **Social**
 page. The same connection supports reconnection, replacement, and disconnection. Publishing
 and scheduling work on every connected provider: the composer and the API
 apply the chosen account's rules (text limits, per-provider image limits including
@@ -91,19 +91,20 @@ Instagram needs media, YouTube needs a video, LinkedIn and YouTube
 need text). Each provider's auth config must carry its publishing scope before
 posts can go out; publishing fails with a clear permission error until then.
 
-Set `COMPOSIO_API_KEY` and a separate auth-config ID for each enabled provider
+Set `COMPOSIO_API_KEY` and a separate auth-config ID for each Composio provider
 on the Core deployment. Create each OAuth configuration in the same Composio
 environment as that API key. Omit unconfigured variables; connecting that
 provider returns a setup error without starting authorization.
 
-| Provider  | Composio toolkit | Core environment variable           | Identity access                                    | Publishing scope                                                 |
-| --------- | ---------------- | ----------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
-| X         | `twitter`        | `COMPOSIO_X_AUTH_CONFIG_ID`         | Existing custom OAuth configuration (`users.read`) | —                                                                |
-| TikTok    | `tiktok`         | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`    | `user.info.basic`                                  | `video.publish`                                                  |
-| Instagram | `instagram`      | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic`                         | `instagram_business_content_publish`                             |
-| LinkedIn  | `linkedin`       | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `openid`, `profile`                                | `w_member_social`                                                |
-| Facebook  | `facebook`       | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`  | `public_profile`                                   | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
-| YouTube   | `youtube`        | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`   | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload`                 |
+| Provider                         | Composio toolkit  | Core environment variable           | Identity access                                    | Publishing scope                                                                              |
+| -------------------------------- | ----------------- | ----------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| X                                | `twitter`         | `COMPOSIO_X_AUTH_CONFIG_ID`         | Existing custom OAuth configuration (`users.read`) | —                                                                                             |
+| Legacy TikTok                    | `tiktok`          | `ZERNIO_API_KEY`                    | TikTok                                             | Server-side Zernio key for account linking and publishing. See [TikTok setup](#tiktok-setup). |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` | `video.publish`                     |
+| Instagram                        | `instagram`       | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic`                         | `instagram_business_content_publish`                                                          |
+| LinkedIn                         | `linkedin`        | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `openid`, `profile`                                | `w_member_social`                                                                             |
+| Facebook                         | `facebook`        | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`  | `public_profile`                                   | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`                              |
+| YouTube                          | `youtube`         | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`   | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload`                                              |
 
 Use the provider OAuth callback shown by Composio when registering your OAuth
 app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
@@ -119,9 +120,7 @@ until that endpoint answers, so deploy Core first and turn the verifier on secon
 
 Account types and setup requirements:
 
-- [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
-  Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
-  The preview composer requires a creator-selected private audience and records it on the attempt.
+- New TikTok connections use [Zernio](https://docs.zernio.com/platforms/tiktok). Existing Composio sandbox connections use their original credentials and private audience.
 - [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
   Creator accounts, not Personal accounts.
 - [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
@@ -146,7 +145,7 @@ Core after changing them. The **Web** project needs no new variables.
 | ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `COMPOSIO_API_KEY`                         | Yes            | Composio project API key (starts with `ak_`). Mark it sensitive.                                                                                                                     |
 | `COMPOSIO_X_AUTH_CONFIG_ID`                | Per provider   | Composio auth-config ID (`ac_…`) for X.                                                                                                                                              |
-| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`           | Per provider   | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup).                                                                                                                        |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`           | Per provider   | Auth-config ID for existing Composio TikTok connections. See [TikTok setup](#tiktok-setup).                                                                                          |
 | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID`        | Per provider   | Auth-config ID for Instagram.                                                                                                                                                        |
 | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for LinkedIn.                                                                                                                                                         |
 | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for Facebook.                                                                                                                                                         |
@@ -180,44 +179,11 @@ leave the list.
 
 #### TikTok setup
 
-TikTok has no Composio-managed OAuth app, so each environment needs its own
-TikTok developer app.
+New TikTok connections and explicit replacements in the mainnet utxo workspace use Zernio. Configure `ZERNIO_API_KEY` on the Core deployment with read/write Accounts and Publishing permissions. Analytics permission enables performance reporting. Set the key separately for the intended preview branch and Production. Redeploy Core after changing its environment.
 
-1. In the [TikTok for Developers](https://developers.tiktok.com/) portal, create
-   an app under your organization and add the **Login Kit** and **Content
-   Posting API** products. Turn on **Direct Post** in Content Posting API.
-2. Request the scopes `user.info.basic` and `video.publish`.
-3. In [Composio](https://docs.composio.dev/toolkits/tiktok), create an auth
-   config for the `tiktok` toolkit that uses your own developer app. Enter the
-   app's client key and client secret and the same scopes. Copy the redirect
-   URI Composio shows into the TikTok app's Login Kit redirect URIs.
-4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
-   Core Vercel project for the chosen network, then redeploy Core. TikTok is enabled only for projects owned by the mainnet `utxo` workspace. Personal workspaces and preprod are excluded.
-5. While the app is in sandbox, only TikTok accounts added as target users can
-   authorize it. Add the accounts you test with.
-6. Connect the account: open **Social**, choose a project, then **Connect
-   account → TikTok**.
-7. Post a test: a TikTok post needs exactly one MP4 video, and its caption is
-   at most 2,200 characters. Photos, GIFs, and a second video are rejected
-   before scheduling.
+Open the project's **Social posts → Accounts → Connect account → TikTok**. Core creates an isolated Zernio profile and verifies the authorized TikTok identity before attaching it to the project. The browser returns to the initiating Web origin at `/zernio/callback`. TikTok's OAuth app and provider redirect are managed by Zernio.
 
-Use a private sandbox target account for the recording. In **New post** select
-only that account, attach one MP4, review the preview and editable caption, pick
-**Only me**, review the interaction settings, confirm music usage, then choose
-**Post now**. Show TikTok's confirmation and the private video in the creator's
-profile. TikTok must audit the app before public posting.
-
-For a first review, record the actual sandbox OAuth consent screen and return
-to Sokosumi on the same Web domain registered in the portal. Keep Login Kit
-(`user.info.basic`) and Content Posting API Direct Post (`video.publish`).
-Remove Share Kit and the upload-to-inbox scope `video.upload` for this flow.
-Submit an MP4 or MOV under 50 MB.
-
-TikTok pulls the video from the public URL of the selected Drive attachment.
-Verify the exact media domain or URL prefix in TikTok's **URL properties**.
-For a prefix, place TikTok's signature file at the requested path on the
-media host and complete verification. The Web URL in the review form and
-the media URL used by Direct Post are separate properties.
+For **Post now**, choose one TikTok account, review one MP4 and the caption, select the audience and interaction settings, and confirm consent. New Zernio connections publish videos publicly when the creator explicitly selects **Everyone (public)**. Existing Composio sandbox connections retain **Only me**. Published status is recorded only after the provider confirms publication.
 
 ### Turnstile protection for authentication email
 

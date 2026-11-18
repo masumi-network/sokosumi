@@ -25,6 +25,8 @@ import type {
   SocialPostPublishResult,
   TikTokPostSettings,
 } from "@/clients/social-post-providers/types";
+import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -834,13 +836,18 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const toolSlug =
+    provider === "tiktok" &&
+    getZernioAccountId(connection.composioConnectedAccountId)
+      ? ZERNIO_TIKTOK_CREATE_POST
+      : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
       attempt: await nextAttemptNumber(post.id),
       trigger: options.trigger,
       actorUserId: options.actorUserId ?? null,
-      toolSlug: SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug,
     },
     select: { id: true },
   });
@@ -912,6 +919,7 @@ async function attemptPublish(
     );
     if (projectOutcome) return projectOutcome;
     const context: SocialPostPublishContext = {
+      ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
@@ -1028,7 +1036,7 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
-      toolSlug: published.toolSlug ?? SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug: published.toolSlug ?? toolSlug,
       providerOutcome:
         published.providerOutcome ??
         (media.length > 0 ? `published, ${media.length} media` : "published"),

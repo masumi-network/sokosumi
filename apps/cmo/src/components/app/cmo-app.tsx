@@ -5,7 +5,14 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -32,6 +39,7 @@ import {
   BrandBrainPage,
   ChannelsPage,
   type ConnectChannel,
+  ResultsLead,
   ResultsPage,
   SettingsPage,
 } from "./pages";
@@ -203,7 +211,6 @@ export function CmoApp({
   }, []);
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
-  const [highlight, setHighlight] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -303,7 +310,6 @@ export function CmoApp({
 
   function openUpdate(id: string) {
     go("chat");
-    setHighlight(id);
     window.setTimeout(
       () =>
         document
@@ -386,9 +392,6 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
-                    highlighted={
-                      item.kind === "update" && item.update.id === highlight
-                    }
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -448,7 +451,13 @@ export function CmoApp({
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
-                  line={PAGE_LEADS[view].line}
+                  line={
+                    view === "results" ? (
+                      <ResultsLead overview={overview} />
+                    ) : (
+                      PAGE_LEADS[view].line
+                    )
+                  }
                 />
               ) : null}
               {view === "calendar" ? (
@@ -498,6 +507,7 @@ export function CmoApp({
                   }
                   ads={actions}
                   onChange={setOverview}
+                  openView={go}
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage
@@ -548,11 +558,11 @@ export function CmoApp({
 const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   calendar: {
     title: "Your month",
-    line: `Every piece ${AGENT_NAME} makes. Each one opens once it is made.`,
+    line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
   },
   results: {
     title: "How it's going",
-    line: "Real numbers from your accounts, checked every Monday.",
+    line: "Real numbers from your accounts, checked every week.",
   },
   channels: {
     title: "Where I post",
@@ -564,7 +574,7 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   },
 };
 
-function PageLead({ title, line }: { title: string; line: string }) {
+function PageLead({ title, line }: { title: string; line: ReactNode }) {
   return (
     <header className="page-lead">
       <h1 className="ob-h1">{title}</h1>
@@ -583,7 +593,7 @@ function PauseButton({ pause }: { pause: () => Promise<void> }) {
       disabled={pending}
       onClick={() => startTransition(pause)}
     >
-      {pending ? "Pausing…" : "Pause this piece"}
+      {pending ? "Pausing…" : "Pause this post"}
     </button>
   );
 }
@@ -600,14 +610,12 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
-  highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
-  highlighted: boolean;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
@@ -636,8 +644,8 @@ function ThreadEntry({
     return (
       <CusoSays at={item.at}>
         <p className="txt">
-          Your strategy is ready. I'm making this month's pieces now and publish
-          each one on its day; the Calendar shows every piece. Ask me anything
+          Your strategy is ready. I'm making this month's posts now and publish
+          each one on its day; the Calendar shows every post. Ask me anything
           here, or tell me what to change.
         </p>
       </CusoSays>
@@ -673,7 +681,6 @@ function ThreadEntry({
           <div id={`update-${item.update.id}`}>
             <UpdateCard
               update={item.update}
-              focused={highlighted}
               actions={actions}
               approved={
                 overview.strategyVersion?.approvedAt != null &&
@@ -772,9 +779,9 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? `A few pieces didn't finish. ${AGENT_NAME} tries them again on his next round.`
+            ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
             : notStarted
-              ? "He starts shortly: first every piece's words, then the pictures."
+              ? "He starts shortly: first every post's words, then the pictures."
               : production.state === "starting"
                 ? `${productionSteps(production)}. He makes the rest shortly.`
                 : `${productionSteps(production)}. First the words, then the pictures.`}

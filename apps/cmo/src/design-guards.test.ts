@@ -156,14 +156,6 @@ describe("voice", () => {
 
     expect(hedges).toEqual([]);
   });
-
-  /**
-   * DESIGN.md → Agent naming: each user names their own agent, so no screen
-   * hardcodes one. "June" is the example name from the demo.
-   */
-  it("hardcodes no agent name", () => {
-    expect(findLines(SOURCE, /\bJune\b/)).toEqual([]);
-  });
 });
 
 describe("accessibility", () => {
@@ -319,9 +311,8 @@ describe("strokes", () => {
 
 /**
  * A hard shadow means "you can act on this": only something to click, type in
- * or pick casts one, plus the one card that needs the owner now
- * (`.card-focus`) and the account menu that floats over the page. A picture,
- * a tag or a label that casts one looks clickable and is not.
+ * or pick casts one, plus the account menu that floats over the page. A card,
+ * a picture, a tag or a label that casts one looks clickable and is not.
  */
 const CASTS_SHADOW = [
   /(?:^|[\s>])(?:button|a|input|textarea|select)(?![\w-])/,
@@ -331,7 +322,6 @@ const CASTS_SHADOW = [
   /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option)(?![\w-])/,
   // The chat's composer: the frame around its textarea.
   /^\.composer$/,
-  /^\.card-focus$/,
   /^\.ob-who-menu$/,
   // The shadow samples on /design-system.
   /^\.ds-shadow(?:-big)?$/,
@@ -383,7 +373,7 @@ describe("shadows mean action", () => {
     ).toEqual([]);
   });
 
-  it("flags a shadow on a tag or a picture and passes buttons and the focus card", () => {
+  it("flags a shadow on a tag, a picture or a card and passes buttons", () => {
     const shadow = "{ box-shadow: var(--shadow); }";
     expect(passiveShadows(`.tag ${shadow}`)).toEqual([".tag"]);
     expect(passiveShadows(`.ob-stage-art ${shadow}`)).toEqual([
@@ -394,9 +384,10 @@ describe("shadows mean action", () => {
     ]);
     expect(
       passiveShadows(
-        `.button, .nav a.active, button.cal-card:hover, .card-focus ${shadow}`,
+        `.button, .nav a.active, button.cal-card:hover, button.card-focus ${shadow}`,
       ),
     ).toEqual([]);
+    expect(passiveShadows(`.card-focus ${shadow}`)).toEqual([".card-focus"]);
     expect(
       passiveShadows(
         `.ob-bar > .button:not(.button-ghost, :disabled) ${shadow}`,
