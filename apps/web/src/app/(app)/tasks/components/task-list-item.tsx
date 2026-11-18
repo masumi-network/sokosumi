@@ -59,14 +59,13 @@ export function TaskListItem({
               {task.name}
             </span>
           </div>
-          {!compact && (
-            <TaskTags
-              tags={task.tags}
-              workspaceTags={task.workspaceTags}
-              compact
-              inLink
-            />
-          )}
+          <TaskTags
+            tags={task.tags}
+            showManualTopics={!compact}
+            workspaceTags={task.workspaceTags}
+            compact
+            inLink
+          />
           {!compact && (
             <p className="text-muted-foreground line-clamp-1 text-xs break-all">
               {task.descriptionPlain ?? "—"}

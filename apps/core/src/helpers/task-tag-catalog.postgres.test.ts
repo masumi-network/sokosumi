@@ -63,7 +63,7 @@ describe.skipIf(!enabled)("Task vocabulary in PostgreSQL", () => {
             },
           ],
         });
-        const labels = await loadTaskTagCatalog(home.id, tx, true);
+        const labels = await loadTaskTagCatalog(home.id, tx);
         expect(labels.map((label) => label.displayName).sort()).toEqual(
           [
             ...CURATED_FILE_VOCABULARY.filter(
@@ -84,7 +84,7 @@ describe.skipIf(!enabled)("Task vocabulary in PostgreSQL", () => {
           data: { description: "My team's product design rubric" },
         });
         expect(
-          (await loadTaskTagCatalog(home.id, tx, true)).find(
+          (await loadTaskTagCatalog(home.id, tx)).find(
             (label) => label.id === seed.id,
           )?.isUnmodifiedDefault,
         ).toBe(false);

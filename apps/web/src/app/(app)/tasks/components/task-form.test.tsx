@@ -14,11 +14,14 @@ import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { loadTaskWorkspaceTags } from "@/lib/actions/task/load-workspace-tags";
 import {
   createWorkspaceTag,
   fetchWorkspaceLabels,
+  setWorkspaceTagColor,
 } from "@/lib/utils/file-search.client";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
+import { workspaceTagsQueryKey } from "@/queries/workspace-tags";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
@@ -37,6 +40,7 @@ const {
 
 vi.mock("@/lib/utils/file-search.client", () => ({
   createWorkspaceTag: vi.fn(),
+  setWorkspaceTagColor: vi.fn(),
   fetchWorkspaceLabels: vi.fn(),
 }));
 
@@ -54,6 +58,9 @@ vi.mock("@/hooks/use-os-detection", () => ({
   }),
 }));
 
+vi.mock("@/lib/actions/task/load-workspace-tags", () => ({
+  loadTaskWorkspaceTags: vi.fn(),
+}));
 vi.mock("@/lib/actions/task/action", () => ({
   createTask: vi.fn(),
   updateTask: vi.fn(),
@@ -739,6 +746,7 @@ describe("TaskForm", () => {
     vi.mocked(fetchWorkspaceLabels).mockResolvedValue([tag]);
     vi.mocked(createWorkspaceTag).mockResolvedValue({
       ...tag,
+      color: "purple",
       id: "two",
       displayName: "Finance",
     });
@@ -762,6 +770,14 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.click(await screen.findByRole("button", { name: "Release" }));
     await user.type(screen.getByRole("textbox", { name: "search" }), "Finance");
+    const createColor = screen.getByRole("combobox", { name: "changeColor" });
+    expect(
+      createColor.parentElement?.querySelector("[data-tag-color]"),
+    ).toBeNull();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "changeColor" }),
+      "purple",
+    );
     await user.click(screen.getByRole("button", { name: "create" }));
     await waitFor(() =>
       expect(
@@ -770,12 +786,183 @@ describe("TaskForm", () => {
     );
     expect(createWorkspaceTag).toHaveBeenCalledWith({
       activeOrganizationId: "org-1",
+      color: "purple",
       displayName: "Finance",
     });
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTask).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceTagIds: ["one", "two"] }),
+    );
+  });
+
+  it("updates a workspace tag’s color on already selected tags without replacing the selection", async () => {
+    const user = userEvent.setup();
+    const tag = {
+      id: "existing",
+      kind: "TAG" as const,
+      description: null,
+      archived: false,
+      vocabularyVersion: 1,
+      displayName: "Payroll",
+      color: "blue" as const,
+    };
+    vi.mocked(fetchWorkspaceLabels).mockResolvedValue([tag]);
+    vi.mocked(setWorkspaceTagColor).mockResolvedValue({
+      ...tag,
+      color: "green",
+    });
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <TaskForm
+          mode="edit"
+          labels={baseLabels}
+          coworkerOptions={coworkerOptions}
+          initialValues={{
+            name: "Task",
+            description: "A short brief",
+            workspaceTags: [tag],
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    const chip = screen.getByText("Payroll").closest("[data-slot=badge]");
+    expect(chip).toHaveAttribute("data-tag-color", "blue");
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "changeColor" }),
+      "green",
+    );
+    await waitFor(() =>
+      expect(chip).toHaveAttribute("data-tag-color", "green"),
+    );
+    expect(setWorkspaceTagColor).toHaveBeenCalledWith({
+      activeOrganizationId: "org-1",
+      id: "existing",
+      color: "green",
+    });
+    expect(updateTask).not.toHaveBeenCalled();
+  });
+
+  it("keeps the newer confirmed tag color when a closed picker’s earlier change fails", async () => {
+    const user = userEvent.setup();
+    const tag = {
+      id: "label",
+      displayName: "Payments",
+      kind: "TAG" as const,
+      archived: false,
+      description: null,
+      vocabularyVersion: 1,
+    };
+    const client = new QueryClient();
+    const first =
+      Promise.withResolvers<Awaited<ReturnType<typeof setWorkspaceTagColor>>>();
+    let saved: "blue" | "green" = "blue";
+    vi.mocked(fetchWorkspaceLabels).mockImplementation(async () => [
+      { ...tag, color: saved },
+    ]);
+    vi.mocked(setWorkspaceTagColor)
+      .mockReturnValueOnce(first.promise)
+      .mockImplementationOnce(async () => {
+        saved = "green";
+        return { ...tag, color: saved };
+      });
+    render(
+      <TaskForm
+        mode="edit"
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{
+          name: "Task",
+          description: "A short brief",
+          workspaceTags: [{ ...tag, color: "blue" }],
+        }}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    const chip = screen.getByText("Payments").closest("[data-slot=badge]");
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "changeColor" }),
+      "red",
+    );
+    await waitFor(() => expect(chip).toHaveAttribute("data-tag-color", "red"));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "changeColor" }),
+      "green",
+    );
+    await waitFor(() =>
+      expect(chip).toHaveAttribute("data-tag-color", "green"),
+    );
+    await act(async () => {
+      first.reject(new Error("Write failed"));
+    });
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("colorError"),
+    );
+    expect(chip).toHaveAttribute("data-tag-color", "green");
+  });
+
+  it("reloads a conflicting tag selection without losing other unsaved task edits", async () => {
+    const user = userEvent.setup();
+    const original = { id: "original", displayName: "Original" };
+    const concurrent = { id: "later", displayName: "Later" };
+    vi.mocked(loadTaskWorkspaceTags).mockResolvedValue({
+      workspaceTags: [original, concurrent],
+      workspaceTagSuggestions: [],
+    });
+    vi.mocked(updateTask)
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { kind: "task_workspace_tags_changed" },
+      })
+      .mockResolvedValueOnce({ ok: true, value: { taskId: "task" } });
+    render(
+      <TaskForm
+        mode="edit"
+        taskId="task"
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{
+          name: "Edit task",
+          description: "Initial brief",
+          workspaceTags: [original],
+        }}
+      />,
+    );
+    fireEvent.change(screen.getByTestId("markdown-editor"), {
+      target: { value: "New unsaved brief" },
+    });
+    await user.click(screen.getByRole("button", { name: "remove" }));
+    await user.click(screen.getByRole("button", { name: baseLabels.submit }));
+    expect(updateTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expectedWorkspaceTagIds: ["original"],
+        workspaceTagIds: [],
+      }),
+    );
+    expect(screen.getByText("Original")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "reloadTags" }));
+    expect(screen.getByText("Later")).toBeVisible();
+    await user.click(
+      within(screen.getByText("Original").parentElement!).getByRole("button", {
+        name: "remove",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: baseLabels.submit }));
+    expect(updateTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expectedWorkspaceTagIds: ["original", "later"],
+        workspaceTagIds: ["later"],
+        description: "New unsaved brief",
+      }),
     );
   });
 
@@ -3607,6 +3794,7 @@ describe("TaskForm draft tags", () => {
 
   function renderComposer(
     onCreateTask?: ComponentProps<typeof TaskForm>["onCreateTask"],
+    client?: QueryClient,
   ) {
     render(
       <TaskForm
@@ -3616,11 +3804,174 @@ describe("TaskForm draft tags", () => {
         initialValues={{ assigneeId: "coworker-2" }}
         {...(onCreateTask ? { onCreateTask } : {})}
       />,
+      client
+        ? {
+            wrapper: ({ children }) => (
+              <QueryClientProvider client={client}>
+                {children}
+              </QueryClientProvider>
+            ),
+          }
+        : undefined,
     );
     fireEvent.change(screen.getByTestId("markdown-editor"), {
       target: { value: description },
     });
   }
+
+  it("scores an unchanged draft again after the catalog meaning changes, and keeps its score after a recolor", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = new QueryClient();
+      const label = {
+        id: "label",
+        displayName: "Procurement",
+        kind: "TAG" as const,
+        archived: false,
+        description: "Purchasing office supplies",
+        vocabularyVersion: 1,
+      };
+      const catalog = Promise.withResolvers<[typeof label]>();
+      vi.mocked(fetchWorkspaceLabels).mockReturnValueOnce(catalog.promise);
+      const queryKey = workspaceTagsQueryKey("org-1");
+      vi.stubGlobal("fetch", suggestTaskTags);
+      suggestTaskTags.mockReset().mockImplementation(async () =>
+        Response.json({
+          receipt: "receipt",
+          tags: [],
+          workspaceSuggestions: [{ ...label, autoApply: true }],
+        }),
+      );
+      renderComposer(undefined, client);
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      expect(suggestTaskTags).not.toHaveBeenCalled();
+      await act(async () => {
+        catalog.resolve([label]);
+      });
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(label.displayName)).toBeVisible();
+      client.setQueryData(queryKey, [{ ...label, color: "pink" }]);
+      await act(() => vi.advanceTimersByTimeAsync(11000));
+      expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+      client.setQueryData(queryKey, [
+        {
+          ...label,
+          description: "Purchasing manufacturing equipment",
+          vocabularyVersion: 2,
+        },
+      ]);
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(screen.queryByText(label.displayName)).not.toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      expect(suggestTaskTags).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps Jev workspace matches removable after a punctuation or case edit without sending the old receipt", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", suggestTaskTags);
+    try {
+      suggestTaskTags.mockReset().mockResolvedValue(
+        Response.json({
+          tags: [],
+          receipt: "old-receipt",
+          workspaceSuggestions: [
+            { id: "buy", displayName: "Procurement", autoApply: true },
+          ],
+        }),
+      );
+      const onCreateTask = vi
+        .fn()
+        .mockResolvedValue(createTaskSuccess("t", "Task"));
+      renderComposer(onCreateTask);
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      for (const value of [`${description}.`, description.toUpperCase()]) {
+        fireEvent.change(screen.getByTestId("markdown-editor"), {
+          target: { value },
+        });
+        expect(screen.getByText("Procurement")).toBeVisible();
+      }
+      await act(() => vi.advanceTimersByTimeAsync(10_000));
+      expect(suggestTaskTags).toHaveBeenCalledOnce();
+      fireEvent.click(screen.getByRole("button", { name: "remove" }));
+      await act(async () =>
+        fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
+      );
+      expect(onCreateTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dismissedWorkspaceTagIds: ["buy"],
+        }),
+      );
+      expect(onCreateTask.mock.calls[0]?.[0]).not.toHaveProperty(
+        "tagSuggestionReceipt",
+      );
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("adds a moderate workspace suggestion by choice and submits a declined strong match", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("fetch", suggestTaskTags);
+      suggestTaskTags.mockReset().mockResolvedValue(
+        Response.json({
+          tags: ["research"],
+          receipt: "receipt",
+          workspaceSuggestions: [
+            {
+              id: "high",
+              displayName: "Procurement",
+              color: "blue",
+              autoApply: true,
+            },
+            {
+              id: "maybe",
+              displayName: "Vendors",
+              color: "orange",
+              autoApply: false,
+            },
+          ],
+        }),
+      );
+      const onCreate = vi
+        .fn()
+        .mockResolvedValue(createTaskSuccess("t", "Task"));
+      renderComposer(onCreate);
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      expect(
+        screen.getByText("Procurement").closest("[data-slot=badge]"),
+      ).toHaveTextContent("appliedByJev");
+      fireEvent.click(screen.getByRole("button", { name: "acceptSuggestion" }));
+      fireEvent.click(
+        screen
+          .getAllByRole("button", { name: "remove" })
+          .find((button) =>
+            button
+              .closest("[data-slot=badge]")
+              ?.textContent?.includes("Procurement"),
+          )!,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Create Task" }));
+      await act(async () => {});
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tagSuggestionReceipt: "receipt",
+          workspaceTagIds: ["maybe"],
+          dismissedWorkspaceTagIds: ["high"],
+        }),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
 
   /**
    * Item 3 acceptance, composer side: a Gateway outage, a policy rejection, a

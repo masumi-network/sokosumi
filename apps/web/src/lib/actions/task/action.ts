@@ -51,6 +51,7 @@ export type { TaskContextSelectionInput } from "./task-write-input";
 interface CreateTaskParameters extends AuthenticatedRequest {
   tagSuggestionReceipt?: string;
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
   /** A copy takes this Task's tags in Core instead of being classified. */
   copyOfTaskId?: string;
   name?: string;
@@ -67,7 +68,9 @@ interface CreateTaskParameters extends AuthenticatedRequest {
 }
 
 interface UpdateTaskParameters extends AuthenticatedRequest {
+  expectedWorkspaceTagIds?: string[];
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
   taskId: string;
   name: string;
   description: string;
@@ -175,6 +178,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   name?: string;
   tagSuggestionReceipt?: string;
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
   taskId: string;
   description: string;
   assigneeId: string | null;
@@ -238,6 +242,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     name,
     tagSuggestionReceipt,
     workspaceTagIds,
+    dismissedWorkspaceTagIds,
     copyOfTaskId,
     description,
     assigneeId,
@@ -256,6 +261,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         description,
         tagSuggestionReceipt,
         workspaceTagIds,
+        dismissedWorkspaceTagIds,
         copyOfTaskId,
         assigneeId,
         assigneeSokoBotId,
@@ -300,7 +306,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     projectId,
     context,
     desiredStatus,
+    expectedWorkspaceTagIds,
     workspaceTagIds,
+    dismissedWorkspaceTagIds,
     runAt,
     session,
   }) => {
@@ -326,7 +334,12 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       const patchedTask = await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        ...(workspaceTagIds !== undefined ? { workspaceTagIds } : {}),
+        ...(workspaceTagIds !== undefined
+          ? { workspaceTagIds, expectedWorkspaceTagIds }
+          : {}),
+        ...(dismissedWorkspaceTagIds !== undefined
+          ? { dismissedWorkspaceTagIds }
+          : {}),
         ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
@@ -453,16 +466,30 @@ export const setTaskDueOn = withSession<
 });
 
 export const setTaskWorkspaceTags = withSession<
-  AuthenticatedRequest & { taskId: string; workspaceTagIds: string[] },
+  AuthenticatedRequest & {
+    taskId: string;
+    expectedWorkspaceTagIds?: string[];
+    workspaceTagIds?: string[];
+    dismissedWorkspaceTagIds?: string[];
+  },
   ActionResultDto<
-    { workspaceTags: NonNullable<Task["workspaceTags"]> },
+    Required<Pick<Task, "workspaceTags" | "workspaceTagSuggestions">>,
     ActionError
   >
->(async ({ taskId, workspaceTagIds }) => {
+>(async (input) => {
   try {
-    const task = await taskService.patchTask(taskId, { workspaceTagIds });
+    const task = await taskService.patchTask(input.taskId, {
+      expectedWorkspaceTagIds: input.expectedWorkspaceTagIds,
+      workspaceTagIds: input.workspaceTagIds,
+      dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds,
+    });
     revalidateTaskMutationRoutes();
-    return toActionResult(ok({ workspaceTags: task.workspaceTags ?? [] }));
+    return toActionResult(
+      ok({
+        workspaceTags: task.workspaceTags ?? [],
+        workspaceTagSuggestions: task.workspaceTagSuggestions ?? [],
+      }),
+    );
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
@@ -638,6 +665,7 @@ export const createTaskAndLink = withSession<
     name,
     tagSuggestionReceipt,
     workspaceTagIds,
+    dismissedWorkspaceTagIds,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -665,6 +693,7 @@ export const createTaskAndLink = withSession<
         name,
         tagSuggestionReceipt,
         workspaceTagIds,
+        dismissedWorkspaceTagIds,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,

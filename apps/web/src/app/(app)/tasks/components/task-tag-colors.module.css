@@ -1,0 +1,39 @@
+.color[data-tag-color="gray"] {
+  --tag-accent: var(--chart-5);
+}
+.color[data-tag-color="red"] {
+  --tag-accent: var(--status-destructive);
+}
+.color[data-tag-color="orange"] {
+  --tag-accent: var(--chart-2);
+}
+.color[data-tag-color="yellow"] {
+  --tag-accent: var(--chart-3);
+}
+.color[data-tag-color="green"] {
+  --tag-accent: var(--status-success);
+}
+.color[data-tag-color="teal"] {
+  --tag-accent: color-mix(in oklab, var(--status-success), var(--status-info));
+}
+.color[data-tag-color="blue"] {
+  --tag-accent: var(--status-info);
+}
+.color[data-tag-color="purple"] {
+  --tag-accent: color-mix(in oklab, var(--status-info), var(--chart-1));
+}
+.color[data-tag-color="pink"] {
+  --tag-accent: var(--chart-1);
+}
+
+.badge {
+  background-color: color-mix(
+    in oklab,
+    var(--tag-accent) 14%,
+    var(--background)
+  );
+  color: var(--foreground);
+}
+.dot {
+  background-color: var(--tag-accent);
+}

@@ -93,6 +93,7 @@ export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
 
 export interface TaskFormCreateInput {
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
   tagSuggestionReceipt?: string;
   copyOfTaskId?: string;
   name?: string;

@@ -1236,6 +1236,7 @@ describe("draft task tag actions", () => {
         status: TaskStatus.DRAFT,
         tagSuggestionReceipt: "receipt-1",
         workspaceTagIds: ["tag-1", "tag-2"],
+        dismissedWorkspaceTagIds: ["not-for-this-task"],
       };
       if (related)
         await createTaskAndLink({
@@ -1249,7 +1250,11 @@ describe("draft task tag actions", () => {
           name: input.name,
           tagSuggestionReceipt: input.tagSuggestionReceipt,
           workspaceTagIds: input.workspaceTagIds,
+          dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds,
         }),
+      );
+      expect(taskServiceMock.createTask.mock.calls[0]?.[0]).not.toHaveProperty(
+        "expectedWorkspaceTagIds",
       );
       // Tags are automatic: nothing in web still sends hand corrections.
       expect(taskServiceMock.createTask.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -1268,11 +1273,36 @@ describe("draft task tag actions", () => {
       assigneeId: null,
       desiredStatus: TaskStatus.READY,
       workspaceTagIds: [],
+      expectedWorkspaceTagIds: ["before"],
     });
     expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
       "task-created",
-      expect.objectContaining({ workspaceTagIds: [] }),
+      expect.objectContaining({
+        workspaceTagIds: [],
+        expectedWorkspaceTagIds: ["before"],
+      }),
     );
+  });
+
+  it("dismisses a suggestion without replacing the applied workspace tags", async () => {
+    const workspaceTags = [
+      { id: "kept", displayName: "Release", source: "manual" },
+    ];
+    taskServiceMock.patchTask
+      .mockReset()
+      .mockResolvedValue({ workspaceTags, workspaceTagSuggestions: [] });
+    const { setTaskWorkspaceTags } = await import("./action");
+    const result = await setTaskWorkspaceTags({
+      taskId: "task",
+      dismissedWorkspaceTagIds: ["declined"],
+    });
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith("task", {
+      dismissedWorkspaceTagIds: ["declined"],
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { workspaceTags, workspaceTagSuggestions: [] },
+    });
   });
 
   it("forwards a copy's source Task so Core takes its tags", async () => {

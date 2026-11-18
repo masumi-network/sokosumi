@@ -1,6 +1,7 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import {
@@ -39,7 +40,7 @@ export function useTaskFormSubmission(
     originalStatus,
     copyOfTaskId,
     isCopy,
-    workspaceTagIds,
+    workspaceSelection,
     name,
     isPrivate,
     projectId,
@@ -61,6 +62,12 @@ export function useTaskFormSubmission(
     canUseSubmitShortcut,
     draftTags,
   } = model;
+  const {
+    workspaceTagIds,
+    dismissedWorkspaceTagIds,
+    expectedWorkspaceTagIds,
+    reportConflict,
+  } = workspaceSelection;
   const handleSave = useCallback(async () => {
     if (isSaveDisabled || (useWizard && step === 1)) return;
     if (
@@ -128,6 +135,7 @@ export function useTaskFormSubmission(
         });
         const result = await createTaskHandler({
           ...(workspaceTagIds ? { workspaceTagIds } : {}),
+          ...(dismissedWorkspaceTagIds ? { dismissedWorkspaceTagIds } : {}),
           ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
@@ -181,7 +189,10 @@ export function useTaskFormSubmission(
 
       const result = await updateTask({
         taskId,
-        ...(workspaceTagIds ? { workspaceTagIds } : {}),
+        ...(workspaceTagIds
+          ? { workspaceTagIds, expectedWorkspaceTagIds }
+          : {}),
+        ...(dismissedWorkspaceTagIds ? { dismissedWorkspaceTagIds } : {}),
         name: trimmedName,
         description: trimmedDescription,
         ...assigneeFields,
@@ -196,6 +207,12 @@ export function useTaskFormSubmission(
           : {}),
       });
       if (!result.ok) {
+        if (
+          result.error.kind === CORE_API_ERROR_KINDS.TASK_WORKSPACE_TAGS_CHANGED
+        ) {
+          reportConflict();
+          return;
+        }
         toast.error(labels.saveError);
         return;
       }
@@ -212,6 +229,9 @@ export function useTaskFormSubmission(
     }
   }, [
     draftTags.tagSuggestionReceipt,
+    expectedWorkspaceTagIds,
+    reportConflict,
+    dismissedWorkspaceTagIds,
     workspaceTagIds,
     copyOfTaskId,
     isCopy,

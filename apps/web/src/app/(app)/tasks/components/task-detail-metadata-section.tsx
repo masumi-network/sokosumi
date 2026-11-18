@@ -10,6 +10,7 @@ import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskMetadataParticipantsField } from "@/app/tasks/components/task-metadata-participants-field";
 import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
+import { TaskTagCatalogProvider } from "@/app/tasks/components/task-tag-catalog";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
 import {
   canCommentOnTaskForViewer,
@@ -177,19 +178,25 @@ export async function TaskMetadataSection({
           updateStatusError: tTasks("Errors.updateStatus"),
         }}
       />
-      <TaskTagSection
-        key={task.updatedAt.toString()}
-        tags={task.tags}
-        workspaceTags={task.workspaceTags}
-        edit={
-          isReadOnly
-            ? undefined
-            : {
-                taskId: task.id,
-                activeOrganizationId: task.workspace.organizationId ?? null,
-              }
-        }
-      />
+      <TaskTagCatalogProvider
+        organizationId={task.workspace.organizationId ?? null}
+        enabled={!forceReadOnly}
+      >
+        <TaskTagSection
+          key={task.updatedAt.toString()}
+          tags={task.tags}
+          workspaceTags={task.workspaceTags}
+          suggestions={task.workspaceTagSuggestions}
+          edit={
+            isReadOnly
+              ? undefined
+              : {
+                  taskId: task.id,
+                  activeOrganizationId: task.workspace.organizationId ?? null,
+                }
+          }
+        />
+      </TaskTagCatalogProvider>
     </div>
   );
 }

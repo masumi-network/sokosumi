@@ -109,13 +109,20 @@ describe.skipIf(!db)("Task tags against PostgreSQL", () => {
           { labelId: retired.id },
         ]),
       );
-      await setTaskWorkspaceTags(tx, taskId, workspaceId, []);
+      await setTaskWorkspaceTags(tx, taskId, workspaceId, [], [], false);
       expect(await ids()).toEqual([]);
       expect(
         await tx.taskWorkspaceTagDecision.count({ where: { taskId } }),
       ).toBe(0);
       await expect(
-        setTaskWorkspaceTags(tx, taskId, workspaceId, undefined, [current.id]),
+        setTaskWorkspaceTags(
+          tx,
+          taskId,
+          workspaceId,
+          undefined,
+          [current.id],
+          false,
+        ),
       ).rejects.toMatchObject({ status: 422 });
       await expect(
         setTaskWorkspaceTags(tx, taskId, workspaceId, [retired.id]),

@@ -186,16 +186,20 @@ describe("TasksViewFilters", () => {
   it("keeps a workspace tag distinct from a built-in topic when switching filters", () => {
     const props = renderTasksViewFilters("org-1");
     const tag = props.sections.find((section) => section.id === "tag");
-    expect(tag?.options).toContainEqual({
-      value: WORKSPACE_TAG_ID,
-      label: "Release blocker",
-      group: "workspaceTags",
-    });
-    expect(tag?.options).toContainEqual({
-      value: "12345678-abcd-7123-8123-456789012345",
-      label: "Past release",
-      group: "archivedTags",
-    });
+    expect(tag?.options).toContainEqual(
+      expect.objectContaining({
+        value: WORKSPACE_TAG_ID,
+        label: "Release blocker",
+        group: "workspaceTags",
+      }),
+    );
+    expect(tag?.options).toContainEqual(
+      expect.objectContaining({
+        value: "12345678-abcd-7123-8123-456789012345",
+        label: "Past release",
+        group: "archivedTags",
+      }),
+    );
     tag?.onChange(WORKSPACE_TAG_ID);
     expect(replaceMock).toHaveBeenLastCalledWith(
       `/tasks?tag=${WORKSPACE_TAG_ID}`,

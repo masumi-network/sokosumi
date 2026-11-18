@@ -168,6 +168,7 @@ export function resolveAssigneeWrite(
 export async function createTaskFromDescription(input: {
   tagSuggestionReceipt?: string;
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
   copyOfTaskId?: string;
   name?: string;
   description: string;
@@ -206,6 +207,9 @@ export async function createTaskFromDescription(input: {
       : {}),
     ...(input.workspaceTagIds !== undefined
       ? { workspaceTagIds: input.workspaceTagIds }
+      : {}),
+    ...(input.dismissedWorkspaceTagIds !== undefined
+      ? { dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds }
       : {}),
     ...(input.copyOfTaskId ? { copyOfTaskId: input.copyOfTaskId } : {}),
     description: trimmedDescription,

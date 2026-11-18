@@ -116,9 +116,14 @@ export function TaskCard({
             </TaskDetailLink>
           )}
         </h3>
+        <TaskTags
+          tags={task.tags}
+          showManualTopics={!compact}
+          workspaceTags={task.workspaceTags}
+          compact={compact}
+        />
         {!compact && (
           <>
-            <TaskTags tags={task.tags} workspaceTags={task.workspaceTags} />
             {task.project ? (
               <Link
                 href={`/projects/${task.project.id}`}

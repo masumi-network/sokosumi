@@ -1,13 +1,13 @@
 "use client";
 
-import type { WorkspaceLabel } from "@sokosumi/core-client";
+import type { TagColor, WorkspaceLabel } from "@sokosumi/core-client";
 import { checkFileLabelName } from "@sokosumi/utils";
-import { useQueryClient } from "@tanstack/react-query";
-import { Check, Plus, X } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, Plus, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,11 +15,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { createWorkspaceTag } from "@/lib/utils/file-search.client";
+import {
+  createWorkspaceTag,
+  setWorkspaceTagColor,
+} from "@/lib/utils/file-search.client";
 import {
   useWorkspaceTags,
   workspaceTagsQueryKey,
 } from "@/queries/workspace-tags";
+import { TaskTagCatalogProvider } from "./task-tag-catalog";
+import { TaskTagColorSelect } from "./task-tag-color-select";
+import { TaskTagBadge, TaskTagDot } from "./task-tag-colors";
+import {
+  TaskTagConflict,
+  type TaskTagConflictProps,
+} from "./task-tag-conflict";
+import { WorkspaceTagSuggestions } from "./task-workspace-tag-suggestions";
 
 interface TaskWorkspaceTagPickerProps {
   activeOrganizationId: string | null;
@@ -28,13 +39,16 @@ interface TaskWorkspaceTagPickerProps {
   onCreatingChange?: (pending: boolean) => void;
   disabled?: boolean;
   copying?: boolean;
+  conflict?: TaskTagConflictProps;
+  suggestions?: TaskWorkspaceTag[];
+  onDismissSuggestion?: (tag: TaskWorkspaceTag) => void;
 }
 
 export function TaskWorkspaceTagPicker(props: TaskWorkspaceTagPickerProps) {
-  return props.copying ? (
-    <CopyTagPicker {...props} />
-  ) : (
-    <TagPicker {...props} />
+  return (
+    <TaskTagCatalogProvider organizationId={props.activeOrganizationId}>
+      {props.copying ? <CopyTagPicker {...props} /> : <TagPicker {...props} />}
+    </TaskTagCatalogProvider>
   );
 }
 
@@ -72,6 +86,7 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const labelId = useId();
+  const addButton = useRef<HTMLButtonElement>(null);
   function setPending(pending: boolean) {
     setCreating(pending);
     props.onCreatingChange?.(pending);
@@ -83,8 +98,22 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
       </h2>
       <div className="flex flex-wrap items-center gap-1">
         {props.selected.map((tag) => (
-          <Badge variant="secondary" key={tag.id} className="gap-1">
-            {tag.displayName}
+          <TaskTagBadge
+            id={tag.id}
+            color={tag.color}
+            key={tag.id}
+            className="gap-1"
+          >
+            <span className="truncate">{tag.displayName}</span>
+            {tag.source === "jev" && (
+              <span
+                title={t("appliedByJev")}
+                className="text-muted-foreground inline-flex items-center gap-0.5"
+              >
+                <Sparkles aria-hidden className="size-3" />
+                {t("appliedByJev")}
+              </span>
+            )}
             <button
               type="button"
               disabled={props.disabled || creating}
@@ -98,7 +127,7 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
             >
               <X className="size-3" aria-hidden />
             </button>
-          </Badge>
+          </TaskTagBadge>
         ))}
         <Popover
           open={open}
@@ -108,6 +137,7 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
         >
           <PopoverTrigger asChild>
             <Button
+              ref={addButton}
               type="button"
               variant="outline"
               size="sm"
@@ -132,6 +162,27 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
           </PopoverContent>
         </Popover>
       </div>
+      {props.conflict && (
+        <TaskTagConflict
+          taskId={props.conflict.taskId}
+          onReload={(tags) => {
+            props.conflict?.onReload(tags);
+            requestAnimationFrame(() => addButton.current?.focus());
+          }}
+        />
+      )}
+      {props.suggestions && (
+        <WorkspaceTagSuggestions
+          suggestions={props.suggestions.filter(
+            (tag) => !props.selected.some((kept) => kept.id === tag.id),
+          )}
+          disabled={props.disabled || creating}
+          onAdd={(tag) =>
+            props.onChange([...props.selected, { ...tag, source: "manual" }])
+          }
+          onDismiss={props.onDismissSuggestion}
+        />
+      )}
     </section>
   );
 }
@@ -150,7 +201,49 @@ function TagChoices({
   const t = useTranslations("App.Tasks.Tags");
   const [search, setSearch] = useState("");
   const [error, setError] = useState(false);
+  const [newColor, setNewColor] = useState<TagColor | null>(null);
   const client = useQueryClient();
+  const queryKey = workspaceTagsQueryKey(activeOrganizationId);
+  const colorMutation = useMutation({
+    mutationFn: ({ id, color }: { id: string; color: TagColor | null }) =>
+      setWorkspaceTagColor({ activeOrganizationId, id, color }),
+    onMutate: async ({ id, color }) => {
+      await client.cancelQueries({ queryKey, exact: true });
+      const before = client
+        .getQueryData<WorkspaceLabel[]>(queryKey)
+        ?.find((tag) => tag.id === id);
+      client.setQueryData<WorkspaceLabel[]>(queryKey, (tags) =>
+        tags?.map((tag) => (tag.id === id ? { ...tag, color } : tag)),
+      );
+      return before;
+    },
+    onError: (_error, variables, before) => {
+      if (before)
+        client.setQueryData<WorkspaceLabel[]>(queryKey, (tags) =>
+          tags?.map((tag) =>
+            tag.id === variables.id && tag.color === variables.color
+              ? { ...tag, color: before.color }
+              : tag,
+          ),
+        );
+      toast.error(t("colorError"));
+      return client.invalidateQueries({ queryKey, exact: true });
+    },
+    onSuccess: async (updated, variables) => {
+      // A read started by a failed write must not replace a later confirmation.
+      await client.cancelQueries({ queryKey, exact: true }, { revert: false });
+      const latest = client
+        .getQueryData<WorkspaceLabel[]>(queryKey)
+        ?.find((tag) => tag.id === updated.id);
+      if (latest && latest.color !== variables.color) {
+        await client.invalidateQueries({ queryKey, exact: true });
+        return;
+      }
+      client.setQueryData<WorkspaceLabel[]>(queryKey, (tags) =>
+        tags?.map((tag) => (tag.id === updated.id ? updated : tag)),
+      );
+    },
+  });
   const catalog = useWorkspaceTags(activeOrganizationId);
   const name = checkFileLabelName(search);
   const matches =
@@ -179,6 +272,7 @@ function TagChoices({
       const tag = await createWorkspaceTag({
         activeOrganizationId,
         displayName: name.displayName,
+        ...(newColor ? { color: newColor } : {}),
       });
       client.setQueryData<WorkspaceLabel[]>(
         workspaceTagsQueryKey(activeOrganizationId),
@@ -189,6 +283,7 @@ function TagChoices({
       );
       onChange([...selected, tag]);
       setSearch("");
+      setNewColor(null);
     } catch {
       // Another person may have created the same normalized name since opening the picker.
       const latest = await catalog.refetch();
@@ -237,33 +332,54 @@ function TagChoices({
           matches.map((tag) => {
             const checked = selected.some((item) => item.id === tag.id);
             return (
-              <Button
-                key={tag.id}
-                type="button"
-                variant="ghost"
-                disabled={disabled || creating}
-                aria-pressed={checked}
-                className="w-full justify-between"
-                onClick={() => choose(tag)}
-              >
-                <span className="truncate">{tag.displayName}</span>
-                {checked && <Check className="size-4" aria-hidden />}
-              </Button>
+              <div key={tag.id} className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={disabled || creating}
+                  aria-pressed={checked}
+                  className="min-w-0 flex-1 justify-start"
+                  onClick={() => choose(tag)}
+                >
+                  <TaskTagDot id={tag.id} color={tag.color} />
+                  <span className="min-w-0 flex-1 truncate text-start">
+                    {tag.displayName}
+                  </span>
+                  {checked && <Check className="size-4" aria-hidden />}
+                </Button>
+                <TaskTagColorSelect
+                  id={tag.taskTopicId ?? tag.id}
+                  name={tag.displayName}
+                  color={tag.color}
+                  disabled={disabled || creating || colorMutation.isPending}
+                  onChange={(color) =>
+                    colorMutation.mutate({ id: tag.id, color })
+                  }
+                />
+              </div>
             );
           })
         )}
       </div>
       {catalog.isSuccess && name.valid && !exact && (
-        <Button
-          type="button"
-          disabled={disabled}
-          loading={creating}
-          variant="outline"
-          onClick={() => void create()}
-        >
-          <Plus className="size-4" aria-hidden />
-          {t("create", { name: name.displayName })}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            disabled={disabled}
+            loading={creating}
+            variant="outline"
+            onClick={() => void create()}
+          >
+            <Plus className="size-4" aria-hidden />
+            {t("create", { name: name.displayName })}
+          </Button>
+          <TaskTagColorSelect
+            name={name.displayName}
+            color={newColor}
+            disabled={disabled || creating}
+            onChange={setNewColor}
+          />
+        </div>
       )}
       {catalog.isSuccess && !search && !matches.length && (
         <p className="text-muted-foreground text-xs">{t("firstTag")}</p>
