@@ -1,7 +1,7 @@
 import { stripVTControlCharacters } from "node:util";
 import type { ComposioLogger } from "@composio/core";
 import type { BetterAuthOptions } from "better-auth/minimal";
-import { createError } from "evlog";
+import { createError, type RequestLogger } from "evlog";
 
 import {
   createCoreLogger,
@@ -106,14 +106,45 @@ function logLibraryMessage(
   if (!request) log.emit();
 }
 
+const pendingBetterAuthLogs = new WeakMap<
+  RequestLogger,
+  ((clientRedirect: boolean) => void)[]
+>();
+
+/** Better Auth can log a diagnostic before choosing an OAuth redirect. */
+export function deferBetterAuthRequestLogs(log: RequestLogger) {
+  const pending: ((clientRedirect: boolean) => void)[] = [];
+  pendingBetterAuthLogs.set(log, pending);
+  return (clientRedirect: boolean) => {
+    pendingBetterAuthLogs.delete(log);
+    for (const write of pending) write(clientRedirect);
+  };
+}
+
 /**
  * Better Auth's `logger` option. Its level stays at Better Auth's default,
  * `warn`: setting `level` at all makes Better Auth also print every API error
  * to `console` through its global logger.
  */
 export const betterAuthLogger = {
-  log: (level, message, ...args) =>
-    logLibraryMessage("better-auth", level, message, args),
+  log: (level, message, ...args) => {
+    const request = tryUseLiveLogger();
+    const pending = request ? pendingBetterAuthLogs.get(request) : undefined;
+    const write = (clientRedirect = false) => {
+      const downgrade =
+        clientRedirect &&
+        (level === "warn" || level === "error") &&
+        !args.some(Error.isError);
+      logLibraryMessage(
+        "better-auth",
+        downgrade ? "info" : level,
+        message,
+        args,
+      );
+    };
+    if (pending) pending.push(write);
+    else write();
+  },
 } satisfies NonNullable<BetterAuthOptions["logger"]>;
 
 /** The SDK prefixes each message with an ISO timestamp, gray on a terminal. */
