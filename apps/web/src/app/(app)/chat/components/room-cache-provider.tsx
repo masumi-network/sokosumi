@@ -14,6 +14,7 @@ import {
 import {
   chatRoomHref,
   isChatRoomPathname,
+  isChatShellPathname,
   roomIdFromPath,
 } from "@/app/chat/utils/chat-route-base";
 import {
@@ -27,6 +28,7 @@ import {
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
 import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
+import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";
 import type { RoomsClientProps } from "./rooms-client";
@@ -293,6 +295,9 @@ function RoomCacheSession({
       setNavigation({ pathname, target: url.pathname + url.search });
       const roomId = roomIdFromPath(url.pathname);
       if (!roomId) return;
+      // Chat's room view paints a cached room at once, ahead of its route.
+      if (isChatShellPathname(pathname) && roomCanPaint(cache, roomId, null))
+        markPageOnScreen(url.pathname);
       cache.prefetch(roomId, () =>
         provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
       );

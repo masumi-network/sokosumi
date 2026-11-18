@@ -4,10 +4,10 @@ import { AnnouncedFeature, SokoBotStatus } from "@sokosumi/core-client";
 import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
+import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
 import {
@@ -86,7 +86,7 @@ export default function PersonalAssistantNav({
 
 function StaticSokoBotsRow() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
     isPathActive(pathname, route),
   );
@@ -133,7 +133,7 @@ function StaticSokoBotsRow() {
 function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
   const bot = useLiveSokoBot(rendered);
   const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
   const isTeamActive = !isActive && isPathActive(pathname, SOKO_BOTS_ROUTE);
 
