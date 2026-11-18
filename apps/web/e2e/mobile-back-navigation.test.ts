@@ -127,6 +127,8 @@ for (const { name, browserType, device } of PHONES) {
       await backToChats(page).click();
       await page.waitForURL(`${BASE_URL}/chat`);
       await roomLink(page).waitFor();
+      // Only the navigation under test counts, not sign-up and onboarding.
+      errors.length = 0;
     });
     after(() => browser.close());
 
@@ -227,11 +229,13 @@ for (const { name, browserType, device } of PHONES) {
       assert.equal(lengthOnList, lengthInRoom, "Back pushed history");
       assert.doesNotMatch(urlAfterSwipe, ROOM_URL, "swipe back reopened room");
       // WebKit reports a fetch it cancels (an RSC or rooms read cut short by
-      // a navigation) as a page error "due to access control checks";
-      // Chromium runs the same steps without one.
+      // a navigation) as a page error, "… due to access control checks." or
+      // "Load failed". Chromium runs the same steps without one.
       assert.deepEqual(
         errors.filter(
-          (message) => !message.endsWith("due to access control checks."),
+          (message) =>
+            !message.endsWith("due to access control checks.") &&
+            !message.includes("Load failed"),
         ),
         [],
       );
