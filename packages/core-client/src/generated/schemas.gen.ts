@@ -7563,6 +7563,25 @@ export const TaskSchema = {
             description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
             example: '2026-11-20'
         },
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.',
+            example: null
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Order among the parent\'s sub-tasks, ascending. Null when parentTaskId is null.',
+            example: null
+        },
+        subtaskProgress: {
+            $ref: '#/components/schemas/TaskSubtaskProgress'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -7636,6 +7655,14 @@ export const TaskSchema = {
             example: [],
             description: 'Files uploaded to this task (newest first).'
         },
+        ancestors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskAncestor'
+            },
+            example: [],
+            description: 'For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.'
+        },
         selectableStatuses: {
             type: 'array',
             items: {
@@ -7683,6 +7710,9 @@ export const TaskSchema = {
         'pendingVendorGrantId',
         'runAt',
         'dueOn',
+        'parentTaskId',
+        'position',
+        'subtaskProgress',
         'scheduleId',
         'archivedAt',
         'credits',
@@ -8101,6 +8131,29 @@ export const TaskPrioritySchema = {
     ],
     example: 'NONE',
     description: 'URGENT, HIGH, MEDIUM, LOW, or NONE (default).'
+} as const;
+
+export const TaskSubtaskProgressSchema = {
+    type: 'object',
+    properties: {
+        completed: {
+            type: 'integer',
+            minimum: 0
+        },
+        total: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'completed',
+        'total'
+    ],
+    description: 'Direct, non-archived sub-tasks: how many are COMPLETED, and how many there are.',
+    example: {
+        completed: 3,
+        total: 5
+    }
 } as const;
 
 export const TaskEventSchema = {
@@ -9172,6 +9225,33 @@ export const TaskFileUploaderSokoBotSchema = {
         'type',
         'id',
         'sokoBot'
+    ]
+} as const;
+
+export const TaskAncestorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        }
+    },
+    required: [
+        'id',
+        'identifier',
+        'name',
+        'status'
     ]
 } as const;
 
@@ -56874,6 +56954,25 @@ export const TaskListItemSchema = {
             description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
             example: '2026-11-20'
         },
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.',
+            example: null
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Order among the parent\'s sub-tasks, ascending. Null when parentTaskId is null.',
+            example: null
+        },
+        subtaskProgress: {
+            $ref: '#/components/schemas/TaskSubtaskProgress'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -56946,6 +57045,9 @@ export const TaskListItemSchema = {
         'pendingVendorGrantId',
         'runAt',
         'dueOn',
+        'parentTaskId',
+        'position',
+        'subtaskProgress',
         'scheduleId',
         'archivedAt',
         'workspace',
@@ -58604,6 +58706,23 @@ export const TaskWorkspaceSchema = {
         'name',
         'workspaceId',
         'organizationId'
+    ]
+} as const;
+
+export const MoveTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        afterTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The sibling sub-task this one goes directly after, or null to make it first.',
+            example: '01960001-0001-7001-8001-000000000003'
+        }
+    },
+    required: [
+        'afterTaskId'
     ]
 } as const;
 
