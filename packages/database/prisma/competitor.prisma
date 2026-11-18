@@ -144,6 +144,11 @@ model CompetitorCheck {
   costUsd         Float     @default(0)
   /// Credits charged to the Project's payer, in cents (base 10^10).
   chargedCents    BigInt    @default(0)
+  /// The debit, for a Project that turned the check on itself: it marks the
+  /// check as charged, so a check that is run again is charged once. Null
+  /// for a Cuso's check, which is charged as his Soko Bot usage.
+  transactionId   String?   @unique
+  transaction     Transaction? @relation("TransactionCompetitorCheck", fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@unique([projectId, day])
   @@index([projectId, createdAt])

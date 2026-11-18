@@ -1,21 +1,24 @@
 import type { Hono } from "hono";
 
-import { syncCmoCompetitorChecks } from "@/services/cmo-competitor-check.service";
+import { syncCompetitorChecks } from "@/services/competitor-check-sync.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-const CMO_COMPETITORS_SYNC_LOCK_KEY = "cmo-competitors-sync";
+const COMPETITORS_SYNC_LOCK_KEY = "competitors-sync";
 /** A check reads a few pages per competitor; one more must fit before the cut. */
 const CHECK_HEADROOM_MS = 120_000;
 
-/** Runs the weekly competitor check of each paid Cuso whose check is due. */
+/**
+ * Runs the weekly competitor check of each Project whose check is due: paid
+ * Cusos, and Projects whose members turned it on.
+ */
 export default function mount(app: Hono) {
-  app.get("/cmo-competitors", async (c) => {
+  app.get("/competitors", async (c) => {
     return await handleSyncRequest(
       c,
-      CMO_COMPETITORS_SYNC_LOCK_KEY,
+      COMPETITORS_SYNC_LOCK_KEY,
       async (context) => {
-        const result = await syncCmoCompetitorChecks(
+        const result = await syncCompetitorChecks(
           () =>
             context.shouldContinue() &&
             context.msRemaining() > CHECK_HEADROOM_MS,

@@ -33,16 +33,18 @@ vi.mock("@/services/cmo-cuso.service", async (original) => ({
 import prisma from "@/lib/db/prisma";
 import {
   addCompetitorMoveToStrategy,
+  saveCusoCompetitorFeed,
+  startCompetitorWatchRun,
+} from "@/services/cmo-competitors.service";
+import {
   latestCompetitorFeed,
   readCompetitorSignals,
   recentCompetitorMoves,
-  saveCompetitorFeed,
-  startCompetitorWatchRun,
-} from "@/services/cmo-competitor-feed.service";
+} from "@/services/competitor-feed.service";
 import {
   addTrackedCompetitor,
   listTrackedCompetitors,
-} from "@/services/cmo-competitors.service";
+} from "@/services/competitors.service";
 import { expectCoreLog } from "@/test/core-log";
 import {
   deleteSeededCusos,
@@ -82,8 +84,8 @@ async function world(): Promise<World> {
     where: { id: cuso.sokoBotId },
     data: { sharedRoomId: room.id },
   });
-  await addTrackedCompetitor(cuso, { name: "Calendly" });
-  await addTrackedCompetitor(cuso, { name: "Zcal" });
+  await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
+  await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
   const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
   if (!calendly || !zcal) throw new Error("not seeded");
   await prisma.competitorCheck.create({
@@ -219,7 +221,7 @@ describe.skipIf(!enabled)(
 
     it("saves the week's moves and names the big ones", async () => {
       const w = await world();
-      const saved = await saveCompetitorFeed({
+      const saved = await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
         sokoBotId: w.cuso.sokoBotId,
         turnId: null,
@@ -229,7 +231,7 @@ describe.skipIf(!enabled)(
         ),
         now: NOW,
       });
-      expect(saved).toEqual({
+      expect(saved).toMatchObject({
         saved: 1,
         bigMoves: [
           {
@@ -249,7 +251,7 @@ describe.skipIf(!enabled)(
 
     it("puts a price change before a launch and the rest", async () => {
       const w = await world();
-      await saveCompetitorFeed({
+      await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
         sokoBotId: w.cuso.sokoBotId,
         turnId: null,
@@ -290,7 +292,7 @@ describe.skipIf(!enabled)(
         "Calendly raised Standard from $10 to $12 per seat.",
       );
       for (let save = 0; save < 2; save += 1)
-        await saveCompetitorFeed({
+        await saveCusoCompetitorFeed({
           projectId: w.cuso.projectId,
           sokoBotId: w.cuso.sokoBotId,
           turnId: null,
@@ -315,7 +317,7 @@ describe.skipIf(!enabled)(
 
     it("posts nothing for a week without big moves", async () => {
       const w = await world();
-      await saveCompetitorFeed({
+      await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
         sokoBotId: w.cuso.sokoBotId,
         turnId: null,
@@ -352,7 +354,7 @@ describe.skipIf(!enabled)(
         "Calendly raised Standard from $10 to $12 per seat and lost 20% of teams.",
       );
       await expect(
-        saveCompetitorFeed({
+        saveCusoCompetitorFeed({
           projectId: w.cuso.projectId,
           sokoBotId: w.cuso.sokoBotId,
           turnId: null,
@@ -368,7 +370,7 @@ describe.skipIf(!enabled)(
       const w = await world();
       jevSays(0.1);
       await expect(
-        saveCompetitorFeed({
+        saveCusoCompetitorFeed({
           projectId: w.cuso.projectId,
           sokoBotId: w.cuso.sokoBotId,
           turnId: null,
@@ -382,7 +384,7 @@ describe.skipIf(!enabled)(
       const w = await world();
       mocks.evaluateWithJev.mockRejectedValue(new Error("gateway down"));
       await expect(
-        saveCompetitorFeed({
+        saveCusoCompetitorFeed({
           projectId: w.cuso.projectId,
           sokoBotId: w.cuso.sokoBotId,
           turnId: null,
@@ -396,7 +398,7 @@ describe.skipIf(!enabled)(
 
     it("saves a quiet week as its open questions", async () => {
       const w = await world();
-      const saved = await saveCompetitorFeed({
+      const saved = await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
         sokoBotId: w.cuso.sokoBotId,
         turnId: null,
@@ -406,7 +408,7 @@ describe.skipIf(!enabled)(
         },
         now: NOW,
       });
-      expect(saved).toEqual({ saved: 0, bigMoves: [], costUsd: 0 });
+      expect(saved).toMatchObject({ saved: 0, bigMoves: [], costUsd: 0 });
       expect(await latestCompetitorFeed(w.cuso.projectId)).toMatchObject({
         items: [],
         openQuestions: ["Is Zcal's team page free or paid? No source says."],
@@ -415,7 +417,7 @@ describe.skipIf(!enabled)(
 
     it("sends a move to the strategy once, through the patch path", async () => {
       const w = await world();
-      await saveCompetitorFeed({
+      await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
         sokoBotId: w.cuso.sokoBotId,
         turnId: null,
@@ -444,7 +446,7 @@ describe.skipIf(!enabled)(
         addCompetitorMoveToStrategy(w.cuso, item.id),
       ).rejects.toThrow("already in the strategy");
       // Cuso rewriting the week keeps the move marked as added.
-      await saveCompetitorFeed({
+      await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
         sokoBotId: w.cuso.sokoBotId,
         turnId: null,

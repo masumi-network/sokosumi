@@ -22,12 +22,12 @@ vi.mock("@/config/env", async (original) => {
 });
 
 import prisma from "@/lib/db/prisma";
+import { getCmoCompetitors } from "@/services/cmo-competitors.service";
 import {
   addTrackedCompetitor,
   listTrackedCompetitors,
   removeTrackedCompetitor,
-} from "@/services/cmo-competitors.service";
-import { getCmoCompetitors } from "@/services/cmo-competitors-overview.service";
+} from "@/services/competitors.service";
 import {
   deleteSeededCusos,
   type Seeded,
@@ -94,8 +94,8 @@ describe.skipIf(!enabled)(
   () => {
     it("builds the scoreboard from the stored readings, with source and date", async () => {
       const cuso = await seedCuso();
-      await addTrackedCompetitor(cuso, { name: "Calendly" });
-      await addTrackedCompetitor(cuso, { name: "Zcal" });
+      await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
+      await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
       const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
       if (!calendly || !zcal) throw new Error("not seeded");
       await social(cuso, calendly.id, 7, reading(40_000, 5, 300));
@@ -141,7 +141,7 @@ describe.skipIf(!enabled)(
 
     it("gives no growth from one reading", async () => {
       const cuso = await seedCuso();
-      await addTrackedCompetitor(cuso, { name: "Calendly" });
+      await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
       const [calendly] = await listTrackedCompetitors(cuso.projectId);
       if (!calendly) throw new Error("not seeded");
       await social(cuso, calendly.id, 0, reading(41_200, 6, 900));
@@ -152,7 +152,7 @@ describe.skipIf(!enabled)(
 
     it("says what each source needs, and when the next check is", async () => {
       const cuso = await seedCuso();
-      await addTrackedCompetitor(cuso, { name: "Calendly" });
+      await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
       await prisma.competitorCheck.create({
         data: {
           projectId: cuso.projectId,
@@ -189,8 +189,8 @@ describe.skipIf(!enabled)(
 
     it("drops a removed competitor with its signals and its moves", async () => {
       const cuso = await seedCuso();
-      await addTrackedCompetitor(cuso, { name: "Calendly" });
-      await addTrackedCompetitor(cuso, { name: "Zcal" });
+      await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
+      await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
       const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
       if (!calendly || !zcal) throw new Error("not seeded");
       const item = (competitorId: string, id: string) => ({
@@ -218,7 +218,7 @@ describe.skipIf(!enabled)(
         },
       });
       await social(cuso, zcal.id, 0, reading(3_400, 2, 50));
-      await removeTrackedCompetitor(cuso, zcal.id);
+      await removeTrackedCompetitor(cuso.projectId, zcal.id);
 
       const page = await getCmoCompetitors(cuso, NOW);
       expect(page.mapPlayers).toEqual([]);

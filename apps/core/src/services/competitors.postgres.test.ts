@@ -31,17 +31,17 @@ vi.mock("@/helpers/cuso-low-credit-notification", () => ({
 
 import prisma from "@/lib/db/prisma";
 import {
-  COMPETITOR_CHECK_CREDITS,
-  runCompetitorCheck,
-} from "@/services/cmo-competitor-check.service";
+  runCusoCompetitorCheck,
+  syncTrackedCompetitorsFromBrandBrain,
+  watchedMapPlayers,
+} from "@/services/cmo-competitors.service";
+import { COMPETITOR_CHECK_CREDITS } from "@/services/competitor-check.service";
 import {
   addTrackedCompetitor,
   listTrackedCompetitors,
   removeTrackedCompetitor,
-  syncTrackedCompetitorsFromBrandBrain,
   updateTrackedCompetitor,
-  watchedMapPlayers,
-} from "@/services/cmo-competitors.service";
+} from "@/services/competitors.service";
 import { expectCoreLog } from "@/test/core-log";
 import {
   brain,
@@ -142,11 +142,11 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
     if (!calendly || !zcal) throw new Error("not seeded");
 
-    await updateTrackedCompetitor(cuso, calendly.id, {
+    await updateTrackedCompetitor(cuso.projectId, calendly.id, {
       websiteUrl: "calendly.com/teams",
       instagramHandle: "@Calendly",
     });
-    await removeTrackedCompetitor(cuso, zcal.id);
+    await removeTrackedCompetitor(cuso.projectId, zcal.id);
     await setBrain(
       cuso.projectId,
       brain([
@@ -171,7 +171,9 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
     const [calendly] = await listTrackedCompetitors(cuso.projectId);
     if (!calendly) throw new Error("not seeded");
-    await updateTrackedCompetitor(cuso, calendly.id, { name: "Calendly Inc" });
+    await updateTrackedCompetitor(cuso.projectId, calendly.id, {
+      name: "Calendly Inc",
+    });
     await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
     expect(await names(cuso.projectId)).toEqual(["Calendly Inc"]);
   });
@@ -189,15 +191,17 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
       "Calendly",
       "Zcal",
     ]);
-    await updateTrackedCompetitor(cuso, calendly.id, { name: "Calendly Inc" });
-    await removeTrackedCompetitor(cuso, zcal.id);
+    await updateTrackedCompetitor(cuso.projectId, calendly.id, {
+      name: "Calendly Inc",
+    });
+    await removeTrackedCompetitor(cuso.projectId, zcal.id);
     expect(await watchedMapPlayers(cuso.projectId)).toEqual(["Calendly"]);
   });
 
   it("keeps a removed competitor's signals when a rename takes its name", async () => {
     const cuso = await seedCuso();
-    await addTrackedCompetitor(cuso, { name: "Doodle" });
-    await addTrackedCompetitor(cuso, { name: "Zcal" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Doodle" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
     const [doodle, zcal] = await listTrackedCompetitors(cuso.projectId);
     if (!doodle || !zcal) throw new Error("not seeded");
     await prisma.competitorSignal.create({
@@ -211,8 +215,8 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
         dedupeKey: "news:x",
       },
     });
-    await removeTrackedCompetitor(cuso, doodle.id);
-    await updateTrackedCompetitor(cuso, zcal.id, { name: "Doodle" });
+    await removeTrackedCompetitor(cuso.projectId, doodle.id);
+    await updateTrackedCompetitor(cuso.projectId, zcal.id, { name: "Doodle" });
     expect(
       await prisma.competitorSignal.count({
         where: { competitorId: doodle.id },
@@ -223,11 +227,11 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
   it("stays at five when members add at the same time", async () => {
     const cuso = await seedCuso();
     for (const name of ["A1", "B2", "C3", "D4"])
-      await addTrackedCompetitor(cuso, { name });
+      await addTrackedCompetitor(cuso.projectId, { name });
     const results = await Promise.allSettled([
-      addTrackedCompetitor(cuso, { name: "E5" }),
-      addTrackedCompetitor(cuso, { name: "F6" }),
-      addTrackedCompetitor(cuso, { name: "G7" }),
+      addTrackedCompetitor(cuso.projectId, { name: "E5" }),
+      addTrackedCompetitor(cuso.projectId, { name: "F6" }),
+      addTrackedCompetitor(cuso.projectId, { name: "G7" }),
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(await names(cuso.projectId)).toHaveLength(5);
@@ -250,21 +254,21 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
   it("lets a member add up to five, and brings a removed one back whole", async () => {
     const cuso = await seedCuso();
     for (const name of ["A1", "B2", "C3", "D4", "E5"])
-      await addTrackedCompetitor(cuso, { name });
-    await expect(addTrackedCompetitor(cuso, { name: "F6" })).rejects.toThrow(
-      "You can track 5 competitors",
-    );
-    await expect(addTrackedCompetitor(cuso, { name: "a-1" })).rejects.toThrow(
-      "You can track 5 competitors",
-    );
+      await addTrackedCompetitor(cuso.projectId, { name });
+    await expect(
+      addTrackedCompetitor(cuso.projectId, { name: "F6" }),
+    ).rejects.toThrow("You can track 5 competitors");
+    await expect(
+      addTrackedCompetitor(cuso.projectId, { name: "a-1" }),
+    ).rejects.toThrow("You can track 5 competitors");
 
     const [first] = await listTrackedCompetitors(cuso.projectId);
     if (!first) throw new Error("not seeded");
-    await removeTrackedCompetitor(cuso, first.id);
-    await expect(addTrackedCompetitor(cuso, { name: "b 2" })).rejects.toThrow(
-      "You already track this competitor",
-    );
-    await addTrackedCompetitor(cuso, {
+    await removeTrackedCompetitor(cuso.projectId, first.id);
+    await expect(
+      addTrackedCompetitor(cuso.projectId, { name: "b 2" }),
+    ).rejects.toThrow("You already track this competitor");
+    await addTrackedCompetitor(cuso.projectId, {
       name: "A1",
       websiteUrl: "a1.example",
     });
@@ -280,29 +284,37 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
 
   it("refuses a rename onto a tracked name and frees a removed one", async () => {
     const cuso = await seedCuso();
-    await addTrackedCompetitor(cuso, { name: "Calendly" });
-    await addTrackedCompetitor(cuso, { name: "Zcal" });
-    await addTrackedCompetitor(cuso, { name: "Doodle" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Doodle" });
     const [calendly, zcal, doodle] = await listTrackedCompetitors(
       cuso.projectId,
     );
     if (!calendly || !zcal || !doodle) throw new Error("not seeded");
     await expect(
-      updateTrackedCompetitor(cuso, calendly.id, { name: "ZCAL" }),
+      updateTrackedCompetitor(cuso.projectId, calendly.id, { name: "ZCAL" }),
     ).rejects.toThrow("You already track this competitor");
 
-    await removeTrackedCompetitor(cuso, doodle.id);
-    await updateTrackedCompetitor(cuso, calendly.id, { name: "Doodle" });
+    await removeTrackedCompetitor(cuso.projectId, doodle.id);
+    await updateTrackedCompetitor(cuso.projectId, calendly.id, {
+      name: "Doodle",
+    });
     expect(await names(cuso.projectId)).toEqual(["Doodle", "Zcal"]);
   });
 
   it("refuses a field that is not an address or an account", async () => {
     const cuso = await seedCuso();
     await expect(
-      addTrackedCompetitor(cuso, { name: "X", websiteUrl: "not a site" }),
+      addTrackedCompetitor(cuso.projectId, {
+        name: "X",
+        websiteUrl: "not a site",
+      }),
     ).rejects.toThrow("The website is not a web address");
     await expect(
-      addTrackedCompetitor(cuso, { name: "X", instagramHandle: "two words" }),
+      addTrackedCompetitor(cuso.projectId, {
+        name: "X",
+        instagramHandle: "two words",
+      }),
     ).rejects.toThrow("That is not an Instagram account");
   });
 });
@@ -319,7 +331,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
   async function cusoTracking(...competitors: string[]): Promise<Seeded> {
     const cuso = await seedCuso();
     for (const name of competitors)
-      await addTrackedCompetitor(cuso, {
+      await addTrackedCompetitor(cuso.projectId, {
         name,
         websiteUrl: `https://${name.toLowerCase()}.example/`,
         pricingUrl: `https://${name.toLowerCase()}.example/pricing`,
@@ -330,9 +342,9 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
   it("runs once a week and charges the price per competitor once", async () => {
     const cuso = await cusoTracking("Calendly", "Zcal");
     const monday = new Date("2026-11-16T09:00:00Z");
-    expect(await runCompetitorCheck(cuso, monday)).toBe("checked");
+    expect(await runCusoCompetitorCheck(cuso, monday)).toBe("checked");
     expect(
-      await runCompetitorCheck(cuso, new Date(monday.getTime() + DAY)),
+      await runCusoCompetitorCheck(cuso, new Date(monday.getTime() + DAY)),
     ).toBe("not_due");
     expect(await spentCredits(cuso)).toBe(BigInt(COMPETITOR_CHECK_CREDITS * 2));
 
@@ -351,7 +363,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     });
 
     expect(
-      await runCompetitorCheck(cuso, new Date(monday.getTime() + 7 * DAY)),
+      await runCusoCompetitorCheck(cuso, new Date(monday.getTime() + 7 * DAY)),
     ).toBe("checked");
     expect(await spentCredits(cuso)).toBe(BigInt(COMPETITOR_CHECK_CREDITS * 4));
   });
@@ -362,7 +374,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url, url.endsWith("/pricing") ? ["Premium", "$ 15 /user/mo"] : []),
     );
-    await runCompetitorCheck(cuso, first);
+    await runCusoCompetitorCheck(cuso, first);
     expect(readers.ask).not.toHaveBeenCalled();
 
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
@@ -377,9 +389,9 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
       },
       costUsd: 0.0004,
     });
-    await runCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
+    await runCusoCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
     // Read again a week later with the same page: nothing new.
-    await runCompetitorCheck(cuso, new Date(first.getTime() + 14 * DAY));
+    await runCusoCompetitorCheck(cuso, new Date(first.getTime() + 14 * DAY));
 
     const signals = await prisma.competitorSignal.findMany({
       where: { projectId: cuso.projectId },
@@ -408,7 +420,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url),
     );
-    await runCompetitorCheck(cuso, first);
+    await runCusoCompetitorCheck(cuso, first);
 
     readers.readCompetitorPage.mockImplementation(async (url: string) => {
       if (url.endsWith("/pricing")) throw new Error("socket hang up");
@@ -423,7 +435,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
       },
       costUsd: 0.0004,
     });
-    await runCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
+    await runCusoCompetitorCheck(cuso, new Date(first.getTime() + 7 * DAY));
     expectCoreLog("warn", "A competitor check source failed");
 
     const signals = await prisma.competitorSignal.findMany({
@@ -448,7 +460,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url, url.endsWith("/pricing") ? ["Premium", "$ 15 /user/mo"] : []),
     );
-    await runCompetitorCheck(cuso, first);
+    await runCusoCompetitorCheck(cuso, first);
 
     readers.readCompetitorPage.mockImplementation(async (url: string) =>
       page(url, url.endsWith("/pricing") ? ["Premium", "$ 17 /user/mo"] : []),
@@ -466,13 +478,16 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     const store = vi
       .spyOn(prisma.competitorSignal, "createMany")
       .mockRejectedValueOnce(new Error("connection closed"));
-    await expect(runCompetitorCheck(cuso, second)).rejects.toThrow(
+    await expect(runCusoCompetitorCheck(cuso, second)).rejects.toThrow(
       "connection closed",
     );
     store.mockRestore();
 
     // The check that died is redone after an hour.
-    await runCompetitorCheck(cuso, new Date(second.getTime() + 2 * 3_600_000));
+    await runCusoCompetitorCheck(
+      cuso,
+      new Date(second.getTime() + 2 * 3_600_000),
+    );
     expect(
       await prisma.competitorSignal.findMany({
         where: { projectId: cuso.projectId },
@@ -509,8 +524,8 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
       costUsd: 0.0005,
     });
     const now = new Date("2026-11-13T09:00:00Z");
-    await runCompetitorCheck(cuso, now);
-    await runCompetitorCheck(cuso, new Date(now.getTime() + 7 * DAY));
+    await runCusoCompetitorCheck(cuso, now);
+    await runCusoCompetitorCheck(cuso, new Date(now.getTime() + 7 * DAY));
     const signals = await prisma.competitorSignal.findMany({
       where: { projectId: cuso.projectId },
     });
@@ -533,7 +548,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
       new Error("socket hang up"),
     );
     // A failing source is survived; the crash is simulated below.
-    expect(await runCompetitorCheck(cuso, start)).toBe("checked");
+    expect(await runCusoCompetitorCheck(cuso, start)).toBe("checked");
     const [warning] = expectCoreLog("warn", "A competitor check source failed");
     expect(warning?.event).toMatchObject({
       warnings: [
@@ -556,10 +571,16 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     });
 
     expect(
-      await runCompetitorCheck(cuso, new Date(start.getTime() + 30 * 60_000)),
+      await runCusoCompetitorCheck(
+        cuso,
+        new Date(start.getTime() + 30 * 60_000),
+      ),
     ).toBe("not_due");
     expect(
-      await runCompetitorCheck(cuso, new Date(start.getTime() + 2 * 3_600_000)),
+      await runCusoCompetitorCheck(
+        cuso,
+        new Date(start.getTime() + 2 * 3_600_000),
+      ),
     ).toBe("checked");
     expect(await spentCredits(cuso)).toBe(charged);
     expect(
@@ -581,12 +602,14 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
     await syncTrackedCompetitorsFromBrandBrain(cuso.projectId);
     const [calendly, zcal] = await listTrackedCompetitors(cuso.projectId);
     if (!calendly || !zcal) throw new Error("not seeded");
-    await updateTrackedCompetitor(cuso, zcal.id, { instagramHandle: null });
+    await updateTrackedCompetitor(cuso.projectId, zcal.id, {
+      instagramHandle: null,
+    });
     readers.readCompetitorPage.mockImplementation(async (url: string) => ({
       ...page(url),
       html: '<a href="/pricing">Pricing</a><a href="https://www.instagram.com/brand/">IG</a>',
     }));
-    await runCompetitorCheck(cuso);
+    await runCusoCompetitorCheck(cuso);
     const [after, untouched] = await listTrackedCompetitors(cuso.projectId);
     expect(after).toMatchObject({
       pricingUrl: "https://calendly.com/pricing",
@@ -600,9 +623,9 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
 
   it("does nothing without credits, and runs once there are some", async () => {
     const cuso = await seedCuso(0n);
-    await addTrackedCompetitor(cuso, { name: "Calendly" });
+    await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
     const now = new Date("2026-11-16T09:00:00Z");
-    expect(await runCompetitorCheck(cuso, now)).toBe("unfunded");
+    expect(await runCusoCompetitorCheck(cuso, now)).toBe("unfunded");
     expect(
       await prisma.competitorCheck.count({
         where: { projectId: cuso.projectId },
@@ -612,7 +635,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
 
   it("skips a Project with nothing to track", async () => {
     const cuso = await seedCuso();
-    expect(await runCompetitorCheck(cuso)).toBe("no_competitors");
+    expect(await runCusoCompetitorCheck(cuso)).toBe("no_competitors");
     expect(await spentCredits(cuso)).toBe(0n);
   });
 });

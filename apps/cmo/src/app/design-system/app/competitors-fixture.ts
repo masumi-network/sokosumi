@@ -173,6 +173,7 @@ export const competitors: CmoCompetitors = {
     },
   ],
   check: {
+    on: true,
     lastCheckedAt: AT,
     nextCheckAt: new Date("2026-11-22T21:00:00.000Z"),
     creditsPerCompetitor: 3,
@@ -208,6 +209,7 @@ export const noCompetitors: CmoCompetitors = {
   ],
   topPosts: [],
   check: {
+    on: true,
     lastCheckedAt: null,
     nextCheckAt: null,
     creditsPerCompetitor: 3,
