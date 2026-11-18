@@ -10,6 +10,7 @@ import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
 import { strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
+import { ReasoningLine } from "../cuso-trace";
 import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
@@ -278,6 +279,7 @@ function Planning({
           </p>
         )}
         {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
+        {running ? <ReasoningLine activity={overview.activity} /> : null}
         <Checklist items={checklist} />
         <div className="ob-feed" aria-label="What Cuso is writing">
           <p className="ob-feed-title">

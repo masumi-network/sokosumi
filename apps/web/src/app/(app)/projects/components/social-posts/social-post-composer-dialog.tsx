@@ -6,6 +6,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
   SocialQueueSlot,
+  TikTokPostSettings,
 } from "@sokosumi/core-client";
 import {
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -472,6 +473,65 @@ export function SocialPostComposerDialog({
         ? { ...connection, subscriptionType: fresh.subscriptionType }
         : connection;
     });
+  const tikTok = selectedConnections.find(
+    (connection) => connection.provider === "tiktok",
+  );
+  const creator = useQuery({
+    queryKey: [
+      "tiktok-creator-info",
+      session?.user?.id,
+      organizationId,
+      projectId,
+      tikTok?.id,
+    ],
+    queryFn: async () =>
+      (
+        await coreClient.getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator(
+          projectId,
+          tikTok!.id,
+        )
+      ).data,
+    enabled: open && Boolean(tikTok && session?.user?.id),
+    staleTime: 0,
+    retry: false,
+  });
+  const [audience, setAudience] = useState("");
+  const [acceptMusic, setAcceptMusic] = useState(false);
+  const [disclose, setDisclose] = useState(false);
+  const [ownBrand, setOwnBrand] = useState(false);
+  const [allowComment, setAllowComment] = useState(false);
+  const [allowDuet, setAllowDuet] = useState(false);
+  const [allowStitch, setAllowStitch] = useState(false);
+  const [videoMetadata, setVideoMetadata] = useState<{
+    url: string;
+    duration: number;
+  } | null>(null);
+  const tikTokVideo = media.find((item) => item.kind === "video")?.fileUrl;
+  const durationValid =
+    !!creator.data &&
+    !!videoMetadata &&
+    videoMetadata.url === tikTokVideo &&
+    videoMetadata.duration > 0 &&
+    videoMetadata.duration <= creator.data.max_video_post_duration_sec;
+  const tikTokSettings: TikTokPostSettings | undefined =
+    tikTok &&
+    selectedConnections.length === 1 &&
+    audience === tikTok.id &&
+    acceptMusic &&
+    (!disclose || ownBrand) &&
+    durationValid &&
+    creator.data?.privacy_level_options.includes("SELF_ONLY") &&
+    !creator.isError &&
+    !creator.isFetching
+      ? {
+          privacyLevel: "SELF_ONLY",
+          acceptedMusicUsage: true,
+          allowComment,
+          allowDuet,
+          allowStitch,
+          promotesOwnBrand: ownBrand,
+        }
+      : undefined;
   const selectedAccountsConnected =
     selectedConnections.length > 0 &&
     selectedConnections.every((connection) => connection.status === "active");
@@ -661,6 +721,7 @@ export function SocialPostComposerDialog({
     !scheduledAtTooSoon &&
     !scheduledBeforeQuote;
   const canSchedule =
+    !tikTok &&
     textValid &&
     mediaValid &&
     selectedAccountsConnected &&
@@ -682,9 +743,15 @@ export function SocialPostComposerDialog({
   const queueAvailable = queueSlots !== undefined;
   const hasQueueSlots = (queueSlots?.length ?? 0) > 0;
   const canQueue =
-    hasQueueSlots && textValid && mediaValid && connectionId !== "" && !isBusy;
+    !tikTok &&
+    hasQueueSlots &&
+    textValid &&
+    mediaValid &&
+    connectionId !== "" &&
+    !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
+    (!tikTok || !!tikTokSettings) &&
     mode.kind === "create" &&
     scheduledAt === "" &&
     !quotePending &&
@@ -695,6 +762,13 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
+    setAudience("");
+    setAcceptMusic(false);
+    setOwnBrand(false);
+    setDisclose(false);
+    setAllowComment(false);
+    setAllowDuet(false);
+    setAllowStitch(false);
     if (!enabledConnections.some((connection) => connection.id === id)) return;
     setConnectionIds((current) => {
       if (!multiAccount) return [id];
@@ -958,6 +1032,7 @@ export function SocialPostComposerDialog({
           projectId,
           postId: created.value.id,
           revision: created.value.revision,
+          ...(connection.provider === "tiktok" ? { tikTokSettings } : {}),
         });
         done.push(connection.id);
         if (!result.ok) {
@@ -2073,6 +2148,156 @@ export function SocialPostComposerDialog({
                 </div>
               )}
 
+              {tikTok && (
+                <fieldset className="space-y-3 border-t px-6 py-5 md:px-8">
+                  <legend className="font-semibold">TikTok</legend>
+                  {selectedConnections.length > 1 ? (
+                    <p>{t("composer.ttSingle")}</p>
+                  ) : creator.isError ? (
+                    <p role="alert">{t("composer.ttError")}</p>
+                  ) : !creator.data ? (
+                    <p role="status">{t("composer.ttLoading")}</p>
+                  ) : (
+                    <>
+                      <p>
+                        {t("composer.ttCreator", {
+                          name: creator.data.creator_nickname,
+                        })}
+                      </p>
+                      {tikTokVideo && (
+                        <video
+                          key={tikTokVideo}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          src={tikTokVideo}
+                          className="max-h-44 rounded-md"
+                          onLoadedMetadata={(event) =>
+                            setVideoMetadata({
+                              url: tikTokVideo,
+                              duration: event.currentTarget.duration,
+                            })
+                          }
+                        >
+                          <track kind="captions" />
+                        </video>
+                      )}
+                      <p>
+                        {t("composer.ttDuration", {
+                          seconds: creator.data.max_video_post_duration_sec,
+                        })}
+                      </p>
+                      <label className="grid gap-1">
+                        {t("composer.ttAudience")}
+                        <select
+                          className="rounded-md border bg-background p-2"
+                          value={audience === tikTok.id ? audience : ""}
+                          onChange={(event) => setAudience(event.target.value)}
+                        >
+                          <option value="">{t("composer.ttSelect")}</option>
+                          {creator.data.privacy_level_options.includes(
+                            "SELF_ONLY",
+                          ) && (
+                            <option value={tikTok.id}>
+                              {t("composer.ttOnlyMe")}
+                            </option>
+                          )}
+                        </select>
+                      </label>
+                      <div className="grid gap-2">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={
+                              allowComment && !creator.data.comment_disabled
+                            }
+                            disabled={creator.data.comment_disabled}
+                            onChange={(event) =>
+                              setAllowComment(event.target.checked)
+                            }
+                          />{" "}
+                          {t("composer.ttComment")}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={allowDuet && !creator.data.duet_disabled}
+                            disabled={creator.data.duet_disabled}
+                            onChange={(event) =>
+                              setAllowDuet(event.target.checked)
+                            }
+                          />{" "}
+                          {t("composer.ttDuet")}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={
+                              allowStitch && !creator.data.stitch_disabled
+                            }
+                            disabled={creator.data.stitch_disabled}
+                            onChange={(event) =>
+                              setAllowStitch(event.target.checked)
+                            }
+                          />{" "}
+                          {t("composer.ttStitch")}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={disclose}
+                            onChange={(event) => {
+                              setDisclose(event.target.checked);
+                              setOwnBrand(false);
+                            }}
+                          />{" "}
+                          {t("composer.ttDisclosure")}
+                        </label>
+                        {disclose && (
+                          <div className="grid gap-2">
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={ownBrand}
+                                onChange={(event) =>
+                                  setOwnBrand(event.target.checked)
+                                }
+                              />{" "}
+                              {t("composer.ttBrand")}
+                            </label>
+                            <label>
+                              <input type="checkbox" disabled />{" "}
+                              {t("composer.ttPaid")}
+                            </label>
+                          </div>
+                        )}
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={acceptMusic}
+                            onChange={(event) =>
+                              setAcceptMusic(event.target.checked)
+                            }
+                          />{" "}
+                          {t.rich("composer.ttConsent", {
+                            music: (chunks) => (
+                              <a
+                                className="underline"
+                                href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {chunks}
+                              </a>
+                            ),
+                          })}
+                        </label>
+                        <p>{t("composer.ttProcessing")}</p>
+                      </div>
+                    </>
+                  )}
+                </fieldset>
+              )}
               <section
                 aria-labelledby={scheduledAtId}
                 className="order-3 space-y-3 border-t px-6 py-5 md:order-none md:px-8"

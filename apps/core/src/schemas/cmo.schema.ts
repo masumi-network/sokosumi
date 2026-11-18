@@ -250,6 +250,21 @@ export const cmoWorkStepSchema = z
   })
   .openapi("CmoWorkStep");
 
+export const cmoActivitySchema = z
+  .object({
+    step: z
+      .union([z.string(), z.null()])
+      .describe(
+        'The step Cuso is on, in CMO\'s words ("Looking for a picture style"); null before his first one.',
+      ),
+    reasoning: z
+      .union([z.string(), z.null()])
+      .describe(
+        "The model's latest summary of its reasoning in this turn; null when it gave none.",
+      ),
+  })
+  .openapi("CmoActivity");
+
 export const cmoWorkSchema = z
   .object({
     kind: z.enum(["research", "strategy"]),
@@ -371,6 +386,11 @@ export const cmoOverviewSchema = z
         "Whether this member may approve the strategy: the organization's owners and admins only. Every other member works with Cuso but cannot.",
       ),
     work: z.union([cmoWorkSchema, z.null()]),
+    activity: z
+      .union([cmoActivitySchema, z.null()])
+      .describe(
+        "What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month's production); null while he rests.",
+      ),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
     onboardingStep: z
