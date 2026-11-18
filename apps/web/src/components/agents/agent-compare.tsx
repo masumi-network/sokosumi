@@ -163,7 +163,7 @@ function AgentCompareBar({
               {t("open", { count: picked.length })}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-3xl">
+          <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-[min(48rem,calc(100%-2rem))]">
             <DialogHeader>
               <DialogTitle>{t("title")}</DialogTitle>
               <DialogDescription>{t("description")}</DialogDescription>
