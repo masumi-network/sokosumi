@@ -6372,6 +6372,8 @@ export type ProjectImageStudioTalkingVideoCatalog = {
             voicePer1000CharactersUsd: number;
             captionsPerMinuteUsd: number;
             cutoutPerSecondUsd: number;
+            brollUsd: number;
+            musicUsd: number;
             basis: string;
             sourceUrl: string;
             verifiedAt: string;
@@ -6480,6 +6482,8 @@ export type ProjectTalkingVideo = {
     presenterId: string | null;
     languageCode: string;
     siteShots: boolean;
+    broll: boolean;
+    music: boolean;
 };
 
 export type ImageStudioRecentProjects = {
@@ -11483,6 +11487,8 @@ export type CreateProjectTalkingVideoJobRequest = {
         consent: true;
     };
     siteShots?: boolean;
+    broll?: boolean;
+    music?: boolean;
     idempotencyKey: string;
 };
 

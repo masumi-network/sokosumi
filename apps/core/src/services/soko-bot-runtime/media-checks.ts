@@ -396,7 +396,11 @@ export async function checkTalkingVideoRequest(
   if (posesAsCustomerTestimonial(input.script))
     throw new SokoBotRuntimeValidationError(TALKING_VIDEO_TESTIMONIAL_MESSAGE);
   const model = talkingVideoModel();
-  const extras = { siteShots: await talkingVideoShowsSite(input.projectId) };
+  const extras = {
+    siteShots: await talkingVideoShowsSite(input.projectId),
+    broll: input.broll === true,
+    music: input.music === true,
+  };
   const credits = creditsPerTalkingVideo(model, input.script, extras);
   if (credits > input.maxCredits) {
     let fits = input.script.length;

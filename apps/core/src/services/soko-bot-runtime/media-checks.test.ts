@@ -76,6 +76,10 @@ describe("checkTalkingVideoRequest", () => {
     expect((await request()).credits).toBe(56);
   });
 
+  it("adds the extras the bot asked for to the price", async () => {
+    expect((await request({ music: true, broll: true })).credits).toBe(107);
+  });
+
   it("refuses an unknown presenter and passes the owner's photo on", async () => {
     await expect(request({ presenter: "patrick" })).rejects.toThrow(
       "presenter must be owner",
