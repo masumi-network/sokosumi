@@ -121,11 +121,11 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/you");
   });
 
-  it("shows back to chats on developer", () => {
-    mockPathname = "/developer";
+  it("shows back to the Developer menu on a developer section", () => {
+    mockPathname = "/developer/api-keys";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat");
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/you/developer");
   });
 
   it("shows brand link to home on tasks list root", () => {

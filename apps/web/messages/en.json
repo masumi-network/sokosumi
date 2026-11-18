@@ -8840,6 +8840,8 @@
       }
     },
     "Developer": {
+      "title": "Developer",
+      "sectionsLabel": "Developer sections",
       "tabs": {
         "oauthClients": "OAuth clients",
         "apiKeys": "API keys",
