@@ -115,24 +115,17 @@ export class SokoBotTurnsSyncService {
 
     // A process can disappear after committing STARTING but before Eve create.
     // Replay these turns with their immutable turn id instead of expiring the
-    // user's message. recoverStartingTurn owns the lease CAS and applies the
-    // same rule: a start that never wrote a heartbeat is abandoned after the
-    // recovery grace, one that wrote one is abandoned once it is stale.
+    // user's message. recoverStartingTurn owns the lease CAS.
     const abandonBefore = new Date(
       now.getTime() - SOKO_BOT_TURN_STARTING_ABANDON_MS,
-    );
-    const staleBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
     );
     const abandonedStarts = await prisma.sokoBotTurn.findMany({
       where: {
         ...scope,
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
-        OR: [
-          { reconcilerHeartbeatAt: null, createdAt: { lte: abandonBefore } },
-          { reconcilerHeartbeatAt: { lte: staleBefore } },
-        ],
+        reconcilerHeartbeatAt: null,
+        createdAt: { lte: abandonBefore },
         deadlineAt: { gt: now },
       },
       select: { id: true },
@@ -166,6 +159,9 @@ export class SokoBotTurnsSyncService {
 
     if (!input.shouldContinue()) return result;
 
+    const staleBefore = new Date(
+      now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
+    );
     const graceBefore = new Date(
       now.getTime() - SOKO_BOT_TURN_STARTING_GRACE_MS,
     );

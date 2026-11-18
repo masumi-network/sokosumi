@@ -192,30 +192,6 @@ export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
 /** A heartbeat this old means its writer is dead. */
 export const SOKO_BOT_TURN_STALE_HEARTBEAT_MS = 45_000;
 
-function heartbeatStale(heartbeatAt: Date, now: Date): boolean {
-  return (
-    heartbeatAt.getTime() <= now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS
-  );
-}
-
-/**
- * Whether a sessionless STARTING row's owner is gone: its heartbeat is stale,
- * or it wrote none and the row is past the start recovery grace. The
- * watchdog's abandoned-start scan selects by the same rule.
- */
-function startOwnerGone(
-  turn: { reconcilerHeartbeatAt: Date | null; createdAt?: Date | null },
-  now: Date,
-): boolean {
-  if (turn.reconcilerHeartbeatAt instanceof Date) {
-    return heartbeatStale(turn.reconcilerHeartbeatAt, now);
-  }
-  return !(
-    turn.createdAt instanceof Date &&
-    turn.createdAt.getTime() > now.getTime() - SOKO_BOT_START_RECOVERY_GRACE_MS
-  );
-}
-
 /** How far back a bare "yes" can reach for the reply it answers. */
 const PREVIOUS_REPLY_WINDOW_MS = 12 * 60 * 60 * 1_000;
 
@@ -1199,7 +1175,15 @@ export class SokoBotControlPlane {
     });
     if (!turn) return null;
     const claimedAt = await databaseNow();
-    if (!startOwnerGone(turn, claimedAt)) return null;
+    const recoveryActivityAt =
+      turn.reconcilerHeartbeatAt ?? turn.createdAt ?? null;
+    if (
+      recoveryActivityAt instanceof Date &&
+      recoveryActivityAt.getTime() >
+        claimedAt.getTime() - SOKO_BOT_START_RECOVERY_GRACE_MS
+    ) {
+      return null;
+    }
     if (
       turn.sokoBot.archivedAt ||
       turn.sokoBot.adminPausedAt ||
@@ -2045,7 +2029,8 @@ export class SokoBotControlPlane {
       if (
         duplicate.status === "STARTING" &&
         duplicate.eveSessionId === null &&
-        startOwnerGone(duplicate, await databaseNow()) &&
+        duplicate.createdAt.getTime() <=
+          (await databaseNow()).getTime() - SOKO_BOT_START_RECOVERY_GRACE_MS &&
         bot.status !== "PAUSED" &&
         bot.adminPausedAt === null
       ) {
@@ -3216,7 +3201,8 @@ export class SokoBotControlPlane {
       if (
         turn.leaseExpiresAt > now &&
         (turn.reconcilerHeartbeatAt === null ||
-          !heartbeatStale(turn.reconcilerHeartbeatAt, now))
+          turn.reconcilerHeartbeatAt.getTime() >
+            now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS)
       ) {
         return;
       }

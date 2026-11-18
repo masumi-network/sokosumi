@@ -199,26 +199,22 @@ describe("SokoBotTurnsSyncService", () => {
     expect(expireTurnMock).not.toHaveBeenCalled();
     const abandonQuery = turnFindManyMock.mock.calls[2]?.[0] as {
       where: {
-        OR: [
-          { reconcilerHeartbeatAt: null; createdAt: { lte: Date } },
-          { reconcilerHeartbeatAt: { lte: Date } },
-        ];
+        status: string;
+        eveSessionId: null;
+        createdAt: { lte: Date };
       };
     };
     expect(abandonQuery.where).toEqual(
       expect.objectContaining({
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
+        reconcilerHeartbeatAt: null,
       }),
     );
-    const [neverBeat, staleBeat] = abandonQuery.where.OR;
-    expect(neverBeat.reconcilerHeartbeatAt).toBeNull();
-    expect(
-      Date.now() - neverBeat.createdAt.lte.getTime(),
-    ).toBeGreaterThanOrEqual(SOKO_BOT_TURN_STARTING_ABANDON_MS - 50);
-    expect(
-      Date.now() - staleBeat.reconcilerHeartbeatAt.lte.getTime(),
-    ).toBeGreaterThanOrEqual(SOKO_BOT_TURN_STALE_HEARTBEAT_MS - 50);
+    const abandonCutoff = abandonQuery.where.createdAt.lte.getTime();
+    expect(Date.now() - abandonCutoff).toBeGreaterThanOrEqual(
+      SOKO_BOT_TURN_STARTING_ABANDON_MS - 50,
+    );
   });
 
   it("only selects no-session STARTING turns for durable replay", async () => {
