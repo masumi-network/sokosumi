@@ -13,7 +13,7 @@ const relationLabels = {
   related: "Related",
   blocks: "Blocking",
   blocked_by: "Blocked by",
-  parent: "Sub-task",
+  parent: "Child task",
   child: "Parent task",
   duplicate: "Duplicate",
 };
@@ -101,7 +101,7 @@ describe("TaskRelatedTasks", () => {
       "Blocked by",
       "Blocking",
       "Parent task",
-      "Sub-task",
+      "Child task",
       "Related",
       "Duplicate",
     ]);

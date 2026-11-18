@@ -218,7 +218,7 @@ export async function TaskDetailView({
                   related: t("actions.relations.related"),
                   blocks: t("actions.relations.blocks"),
                   blocked_by: t("actions.relations.blockedBy"),
-                  parent: t("actions.relations.subtask"),
+                  parent: t("actions.relations.childTask"),
                   child: t("actions.relations.parent"),
                   duplicate: t("actions.relations.duplicate"),
                 }}

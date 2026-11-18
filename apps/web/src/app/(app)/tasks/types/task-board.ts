@@ -3,6 +3,7 @@ import type {
   TaskEvent,
   TaskPriority,
   TaskShare,
+  TaskSubtaskProgress,
   TaskTags,
   TaskVisibility,
   UserSummary,
@@ -56,6 +57,8 @@ export interface TaskWithCoworker {
   dueOn?: string | null;
   /** ISO time the Task last changed status, or was created. */
   statusSince?: string;
+  /** Direct sub-tasks done of all. Absent on saved chat result snapshots. */
+  subtaskProgress?: TaskSubtaskProgress;
 }
 
 export type KanbanColumnId =

@@ -21,8 +21,8 @@ export function buildTaskPickerOptions(
       icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
     },
     {
-      id: "subtask",
-      label: tDetailActions("relations.subtask"),
+      id: "child-task",
+      label: tDetailActions("relations.childTask"),
       relation: TaskLinkRelation.CHILD,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
     },
@@ -58,8 +58,8 @@ export function buildCreateRelatedOptions(
       icon: SquareMousePointer,
     },
     {
-      id: "add-subtask",
-      label: tDetailActions("relations.addSubtask"),
+      id: "add-child-task",
+      label: tDetailActions("relations.addChildTask"),
       relation: TaskLinkRelation.PARENT,
       icon: SquarePlus,
     },

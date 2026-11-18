@@ -2037,9 +2037,9 @@
             "blocks": "Blocking",
             "blockedBy": "Blocked by",
             "parent": "Parent task",
-            "subtask": "Sub-task",
+            "childTask": "Child task",
             "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task"
+            "addChildTask": "Add child task"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -2296,6 +2296,9 @@
           "tomorrowAt": "Starts tomorrow at {time}",
           "at": "Starts {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} of {total} sub-tasks done"
       },
       "Due": {
         "label": "Due date",

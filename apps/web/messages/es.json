@@ -2036,9 +2036,9 @@
             "blocks": "Bloqueando",
             "blockedBy": "Bloqueada por",
             "parent": "Tarea principal",
-            "subtask": "Subtarea",
+            "childTask": "Tarea hija",
             "duplicate": "Duplicada",
-            "addSubtask": "Agregar subtarea"
+            "addChildTask": "Agregar tarea hija"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Empezar a trabajar",
@@ -2296,6 +2296,9 @@
           "tomorrowAt": "Empieza mañana a las {time}",
           "at": "Empieza {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} de {total} subtareas completadas"
       },
       "Due": {
         "label": "Fecha límite",

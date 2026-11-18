@@ -16,7 +16,7 @@ interface TaskRelatedTasksProps {
   hrefBasePath?: string;
 }
 
-/** Blockers first, then hierarchy (parent, sub-tasks), then the loose links. */
+/** Blockers first, then hierarchy (parent, child tasks), then the loose links. */
 const RELATION_ORDER: readonly TaskLinkRelation[] = [
   "blocked_by",
   "blocks",

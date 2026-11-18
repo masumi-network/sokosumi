@@ -128,9 +128,9 @@ vi.mock("next-intl", () => ({
         "relations.related": "Related",
         "relations.blocks": "Blocking",
         "relations.blockedBy": "Blocked by",
-        "relations.subtask": "Sub-task",
+        "relations.childTask": "Child task",
         "relations.duplicate": "Duplicate",
-        "relations.addSubtask": "Add sub-task",
+        "relations.addChildTask": "Add child task",
         taskPickerSearchPlaceholder: "Search tasks...",
         taskPickerDescription: "Choose a task to link with the current task.",
         taskPickerEmpty: "No tasks found.",
@@ -691,7 +691,7 @@ const removableTaskLinks = [
     note: null,
     peerTask: {
       id: "task-subtask",
-      name: "Sub-task",
+      name: "Child task",
       status: TaskStatus.READY,
       archivedAt: null,
       identifier: null,
@@ -759,7 +759,7 @@ function renderWithRelatedList(
           {
             related: "Related",
             blocks: "Blocking",
-            parent: "Sub-task",
+            parent: "Child task",
             child: "Parent task",
           } as ComponentProps<typeof TaskRelatedTasks>["relationLabels"]
         }
@@ -1743,7 +1743,9 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
-    await user.click(screen.getAllByRole("menuitem", { name: "Sub-task" })[0]);
+    await user.click(
+      screen.getAllByRole("menuitem", { name: "Child task" })[0],
+    );
     await user.click(await screen.findByRole("button", { name: "Alpha task" }));
 
     const parents = await screen.findByRole("group", { name: "Parent task" });
@@ -1778,7 +1780,9 @@ describe("TaskDetailActions", () => {
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
-    await user.click(screen.getAllByRole("menuitem", { name: "Sub-task" })[0]);
+    await user.click(
+      screen.getAllByRole("menuitem", { name: "Child task" })[0],
+    );
     await user.click(
       await screen.findByRole("button", { name: "Related task" }),
     );
@@ -1928,7 +1932,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
     await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+      await screen.findByRole("menuitem", { name: "Add child task" }),
     );
     await user.click(
       await screen.findByRole("button", { name: "Submit related task" }),
@@ -1972,7 +1976,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
     await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+      await screen.findByRole("menuitem", { name: "Add child task" }),
     );
     await user.click(
       await screen.findByRole("button", { name: "Submit related task" }),
@@ -2010,7 +2014,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
     await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+      await screen.findByRole("menuitem", { name: "Add child task" }),
     );
 
     expect(screen.getByTestId("design-md-picker")).toHaveTextContent(
@@ -2060,7 +2064,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
     await user.click(
-      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+      await screen.findByRole("menuitem", { name: "Add child task" }),
     );
 
     expect(screen.getByText("user-1")).toBeInTheDocument();
@@ -2167,7 +2171,7 @@ describe("TaskDetailActions", () => {
       screen.getByRole("menuitem", { name: "Blocked task" }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("menuitem", { name: "Sub-task" }).length,
+      screen.getAllByRole("menuitem", { name: "Child task" }).length,
     ).toBeGreaterThan(0);
     expect(
       screen.queryByRole("menuitem", { name: "Parent task" }),
@@ -2344,10 +2348,12 @@ describe("TaskDetailActions", () => {
     renderActions();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    expect(screen.queryByRole("menuitem", { name: "Add sub-task" })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Add child task" }),
+    ).toBeNull();
 
     await user.click(screen.getByRole("menuitem", { name: "Create related" }));
-    await user.click(screen.getByRole("menuitem", { name: "Add sub-task" }));
+    await user.click(screen.getByRole("menuitem", { name: "Add child task" }));
     await user.click(
       await screen.findByRole("button", { name: "Submit related task" }),
     );

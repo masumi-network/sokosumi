@@ -13,6 +13,7 @@ import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
+import { TaskSubtaskProgress } from "./task-subtask-progress";
 
 interface TaskListItemProps {
   task: TaskWithCoworker;
@@ -82,6 +83,7 @@ export function TaskListItem({
         {task.dueOn ? (
           <TaskDueBadge dueOn={task.dueOn} status={task.status} />
         ) : null}
+        <TaskSubtaskProgress progress={task.subtaskProgress} />
         <TaskMetaDetails
           project={compact ? null : task.project}
           assignee={task.assignee}

@@ -2036,9 +2036,9 @@
             "blocks": "Blockiert",
             "blockedBy": "Blockiert durch",
             "parent": "Übergeordnete Aufgabe",
-            "subtask": "Unteraufgabe",
+            "childTask": "Untergeordnete Aufgabe",
             "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen"
+            "addChildTask": "Untergeordnete Aufgabe hinzufügen"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -2296,6 +2296,9 @@
           "tomorrowAt": "Startet morgen um {time}",
           "at": "Startet {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} von {total} Teilaufgaben erledigt"
       },
       "Due": {
         "label": "Fälligkeitsdatum",

@@ -60,6 +60,23 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
 }
 
 describe("TaskCard privacy cue", () => {
+  it("shows sub-task progress, and nothing for a Task without sub-tasks", () => {
+    const task = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard
+        task={{ ...task, subtaskProgress: { completed: 2, total: 3 } }}
+      />,
+    );
+    expect(screen.getByText("2/3")).toBeTruthy();
+
+    rerender(
+      <TaskCard
+        task={{ ...task, subtaskProgress: { completed: 0, total: 0 } }}
+      />,
+    );
+    expect(screen.queryByText("0/0")).toBeNull();
+  });
+
   it("shows the privacy icon on the status row for PRIVATE tasks", () => {
     render(<TaskCard task={buildTask(TaskVisibility.PRIVATE)} />);
 
