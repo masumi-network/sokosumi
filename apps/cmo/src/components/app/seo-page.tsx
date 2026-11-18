@@ -9,6 +9,11 @@ import type {
 import { Check, Copy, Download, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
+import {
+  pageChangeCopy,
+  plainIssueDetail,
+  withoutAuditIds,
+} from "../../lib/seo-copy";
 import { DraftText } from "../draft-text";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
@@ -42,6 +47,8 @@ const day = (iso: string | Date) =>
 
 const count = (value: number) => value.toLocaleString("en-US");
 
+const NOT_KNOWN = "Not known";
+
 const weekday = (iso: string | Date) =>
   new Date(iso).toLocaleDateString("en-GB", {
     weekday: "long",
@@ -74,7 +81,7 @@ function evidenceText(e: CmoSeoEvidence): string {
     case "ctr":
       return `${e.value} clicked${on}`;
     case "auditIssue":
-      return e.value;
+      return `did not pass the check "${withoutAuditIds(e.value)}"`;
   }
 }
 
@@ -201,21 +208,26 @@ function AuditCard({ seo }: { seo: CmoSeo }) {
             </div>
           </div>
           {latest.issues.length > 0 ? (
-            <ul className="list">
-              {latest.issues.map((issue) => (
-                <li key={`${issue.title}-${issue.pageUrl}`} className="li">
-                  <span className="tag">{issue.severity}</span>
-                  <span className="grow">
-                    <b>{issue.title}</b>
-                    <br />
-                    <span className="note">
-                      {pagePath(issue.pageUrl)}
-                      {issue.detail ? ` · ${issue.detail}` : ""}
+            <div className="stack-sm">
+              <span className="label">Checks that did not pass</span>
+              <ul className="list">
+                {latest.issues.map((issue) => (
+                  <li key={`${issue.title}-${issue.pageUrl}`} className="li">
+                    <span className="tag">{issue.severity}</span>
+                    <span className="grow">
+                      <b>{withoutAuditIds(issue.title)}</b>
+                      <br />
+                      <span className="note">
+                        {pagePath(issue.pageUrl)}
+                        {issue.detail
+                          ? ` · ${plainIssueDetail(issue.detail)}`
+                          : ""}
+                      </span>
                     </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
             <p>No issues found.</p>
           )}
@@ -298,8 +310,10 @@ function SearchConsoleCard({
                 <span className="note">{pagePath(row.pageUrl)}</span>
               </span>
               <span className="note num">
-                position {row.position?.toFixed(1)} · seen{" "}
-                {count(row.impressions)} · {count(row.clicks)} clicks
+                {row.position === null
+                  ? ""
+                  : `position ${row.position.toFixed(1)} · `}
+                seen {count(row.impressions)} · {count(row.clicks)} clicks
               </span>
             </li>
           ))}
@@ -328,14 +342,14 @@ function SearchConsoleCard({
           <div className="kpi">
             <span className="label">Average position</span>
             <span className="v num">
-              {gsc.totals.position?.toFixed(1) ?? "None"}
+              {gsc.totals.position?.toFixed(1) ?? NOT_KNOWN}
             </span>
           </div>
           <div className="kpi">
             <span className="label">Clicked</span>
             <span className="v num">
               {gsc.totals.ctr === null
-                ? "None"
+                ? NOT_KNOWN
                 : `${(gsc.totals.ctr * 100).toFixed(1)}%`}
             </span>
           </div>
@@ -362,12 +376,13 @@ function PageChange({
   change: CmoSeoSuggestion;
   setStatus: (status: "open" | "done" | "dismissed") => Promise<void>;
 }) {
+  const copy = pageChangeCopy(change);
   return (
     <li className="li seo-item">
       <div className="grow stack-sm">
-        <b>{change.title}</b>
+        <b>{copy.title}</b>
         <span className="note">{pagePath(change.pageUrl)}</span>
-        <p>{change.body}</p>
+        <p>{copy.what}</p>
         {change.newText ? (
           <div className="seo-copy">
             <span className="label">New text</span>
@@ -377,7 +392,17 @@ function PageChange({
             </div>
           </div>
         ) : null}
-        <p className="note">{change.why}</p>
+        <p className="note">{copy.why}</p>
+        {copy.detail ? (
+          <details>
+            <summary className="note">More detail</summary>
+            {copy.detail.split("\n\n").map((part) => (
+              <p key={part} className="note">
+                {part}
+              </p>
+            ))}
+          </details>
+        ) : null}
         <Evidence items={change.evidence} />
       </div>
       <div className="seo-actions">
@@ -497,11 +522,11 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
                   <td>{idea.keyword}</td>
                   <td className="num">
                     {idea.searchVolume === null
-                      ? "None"
+                      ? NOT_KNOWN
                       : count(idea.searchVolume)}
                   </td>
-                  <td className="num">{idea.difficulty ?? "None"}</td>
-                  <td>{idea.intent ?? "None"}</td>
+                  <td className="num">{idea.difficulty ?? NOT_KNOWN}</td>
+                  <td>{idea.intent ?? NOT_KNOWN}</td>
                   <td className="num">
                     {idea.position === null ? "Not yet" : idea.position}
                   </td>

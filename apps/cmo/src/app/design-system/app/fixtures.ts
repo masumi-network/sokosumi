@@ -389,6 +389,14 @@ export const seo: CmoSeo = {
           detail:
             "acme.io sends visitors to www.acme.io with a temporary redirect.",
         },
+        {
+          title:
+            "Script and style files for rendering load and are not blocked",
+          pageUrl: "https://acme.io/",
+          severity: "minor",
+          detail:
+            "1 of 17 script and style files rendering asks for failed to load",
+        },
       ],
       fixes: [],
     },
@@ -456,6 +464,33 @@ export const seo: CmoSeo = {
       doneAt: null,
       verifiedAt: null,
     },
+    {
+      id: "0198c0de-0000-7000-8000-000000000003",
+      kind: "page_change",
+      source: "audit",
+      title: "Fix the HubSpot script that fails to load during rendering",
+      keyword: null,
+      pageUrl: "https://acme.io/",
+      why: "The Finding RN-01 shows that 1 of the 17 script and style files the page's main frame requested during rendering failed: https://js-eu1.hs-scripts.com/27172445.js returned net::ERR_BLOCKED_BY_ORB. This is the HubSpot tracking/chat script. Since the page cannot rely on this file loading, check why the response is blocked: an ORB block usually means the file is served with a wrong Content-Type, is redirected to a non-script response (for example an HTML error page, a consent/cookie-walled response, or a bot-block), or is served from a region/CDN path that returns an unexpected body. Verify the URL returns the JavaScript directly (correct Content-Type: application/javascript, HTTP 200, no redirect to HTML), and if the HubSpot snippet is outdated, update it to the current embed code from the HubSpot account for portal ID 27172445. If the script is not intended to load for non-browser or non-EU contexts, make sure the page degrades gracefully without it. Note: the loading check for the 20 file URLs on hosts whose robots.txt the run did not read was limited to loading only, so robots.txt on those hosts was not checked.",
+      body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
+      newText: null,
+      draft: null,
+      evidence: [
+        {
+          metric: "auditIssue",
+          keyword: null,
+          pageUrl: "https://acme.io/",
+          value:
+            "Script and style files for rendering load and are not blocked",
+          source: "weekly_audit",
+          observedAt: seoAt("2026-11-16T06:12:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-16T06:20:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
   ],
   articles: [
     {
@@ -513,6 +548,22 @@ export const seo: CmoSeo = {
           searchVolume: 140,
           difficulty: 24,
           intent: "commercial",
+          position: null,
+          positionSource: null,
+        },
+        {
+          keyword: "team booking app free",
+          searchVolume: 10,
+          difficulty: null,
+          intent: "commercial",
+          position: null,
+          positionSource: null,
+        },
+        {
+          keyword: "booking software for sales teams",
+          searchVolume: null,
+          difficulty: null,
+          intent: null,
           position: null,
           positionSource: null,
         },

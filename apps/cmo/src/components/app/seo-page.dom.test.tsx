@@ -62,6 +62,40 @@ it("shows the weekly audit with its cost, the numbers behind each suggestion and
   expect(text()).not.toMatch(/Sokosumi|coming soon/i);
 });
 
+it("says the audit's findings in plain words, without its check ids", async () => {
+  await render(actions(seo));
+  expect(text()).toContain("Checks that did not pass");
+  expect(text()).toContain(
+    "1 of the 17 script and style files this page needs did not load.",
+  );
+  expect(text()).not.toContain("rendering asks for");
+  expect(text()).not.toMatch(/Finding|RN-01/);
+  expect(text()).toContain(
+    'did not pass the check "Script and style files for rendering load and are not blocked"',
+  );
+  const detail = container.querySelector("details:not([open])");
+  expect(detail?.querySelector("summary")?.textContent).toBe("More detail");
+  expect(detail?.textContent).toContain(
+    "update it to the current embed code from the HubSpot account",
+  );
+});
+
+it("says Not known for a keyword number that is missing", async () => {
+  await render(actions(seo));
+  const cells = [...container.querySelectorAll(".seo-table tbody tr")].map(
+    (row) => [...row.querySelectorAll("td")].map((cell) => cell.textContent),
+  );
+  expect(cells[2]).toEqual([
+    "team booking app free",
+    "10",
+    "Not known",
+    "commercial",
+    "Not yet",
+  ]);
+  expect(cells[3].slice(1, 4)).toEqual(["Not known", "Not known", "Not known"]);
+  expect(text()).not.toContain("None");
+});
+
 it("marks a page change done and asks Cuso for more ideas and a full article", async () => {
   const page = actions(seo);
   await render(page);
