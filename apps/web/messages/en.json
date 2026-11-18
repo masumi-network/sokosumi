@@ -10702,6 +10702,8 @@
           "sleeping": "Sleeping"
         },
         "shuffle": "Shuffle",
+        "moreDetails": "More details",
+        "moreDetailsHint": "Colours, face, headwear, corner and size",
         "animal": "Animal",
         "background": "Background",
         "body": "Animal colour",
