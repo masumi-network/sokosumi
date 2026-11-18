@@ -2343,7 +2343,7 @@
         "truncated": "Se muestran las primeras {count} subtareas.",
         "createDescription": "La subtarea va al final de la lista.",
         "name": "Nombre",
-        "description": "Descripción",
+        "description": "Descripción (opcional)",
         "assignee": "Responsable",
         "dueOn": "Fecha límite",
         "cancel": "Cancelar",

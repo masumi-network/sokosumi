@@ -29,14 +29,14 @@ beforeEach(() => {
 });
 
 describe("createSubtask", () => {
-  it("sends the description, the assignee and the due date to Core", async () => {
+  it("sends the trimmed description, the assignee and the due date to Core", async () => {
     createTask.mockResolvedValue({ id: "child" });
     const { createSubtask } = await import("./subtask-action");
 
     const result = await createSubtask({
       parentTaskId: "parent",
       name: "Book the venue",
-      description: "Ask for the corner table.",
+      description: "  Ask for the corner table.  ",
       assigneeUserId: "user-1",
       dueOn: "2026-12-01",
     });
@@ -52,6 +52,21 @@ describe("createSubtask", () => {
         assigneeUserId: "user-1",
         dueOn: "2026-12-01",
       }),
+    );
+  });
+
+  it("sends a blank description as null", async () => {
+    createTask.mockResolvedValue({ id: "child" });
+    const { createSubtask } = await import("./subtask-action");
+
+    await createSubtask({
+      parentTaskId: "parent",
+      name: "Book the venue",
+      description: "   ",
+    });
+
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ description: null }),
     );
   });
 });

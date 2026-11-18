@@ -92,7 +92,9 @@ export function TaskSubtaskCreateDialog({
             <Label htmlFor={descriptionId}>{t("description")}</Label>
             <Textarea
               id={descriptionId}
-              rows={4}
+              // The dialog does not scroll, so a long text must not push the
+              // buttons off the screen.
+              className="min-h-24 max-h-60"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
