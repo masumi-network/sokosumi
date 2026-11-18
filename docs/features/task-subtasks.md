@@ -418,11 +418,26 @@ Core API:
   PATCH, the Soko Bot project move, and the Project task routes). Detach
   it first, or move its parent.
 
+Web, CLI, and Soko Bot after the merge:
+
+- Web: the "Sub-tasks" section renders only when the Task has sub-tasks.
+  The inline add field is gone. Its header has a "+" button. The Task menu
+  has "Add sub-task…" (name, assignee, due date), "Add existing Task as
+  sub-task…", "Move under…", and "Remove from parent". "Child task", "Add
+  child task", "Remove parent", and the "Cloned from" line are gone. An
+  older parent or child link shows as "Related". This replaces the design
+  above that renamed "Add sub-task" to "Add child task" and kept an inline
+  add field.
+- CLI: `tasks move ID --parent ID` attaches or re-parents, and `--detach`
+  detaches. `tasks link --relation parent|child` fails before any request.
+  `tasks create --due YYYY-MM-DD` sends `dueOn`.
+- Soko Bot: a new tool, `set_task_parent`, calls the same `moveTask` as the
+  REST route. This replaces the design above ("No new tool names"), because
+  no tool moved a Task before. `link_tasks` refuses `parent` and `child`.
+  `get_task_status` returns `parentTaskId` and the readable sub-tasks.
+
 Open after this change:
 
-- Soko Bot `link_tasks` still accepts `parent` and `child` and writes a
-  PARENT link (`services/soko-bot-runtime/task-replies.ts`). Another
-  change owns it.
 - The old Core instance can write a new PARENT link during the deploy.
   That link stays a PARENT link. Not determined: whether a second backfill
   is needed.

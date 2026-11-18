@@ -100,8 +100,8 @@ export function taskLinkWriteValidationHook(result: {
 }
 
 /**
- * Takes every relation, `parent` and `child` included: Soko Bot's
- * `link_tasks` still sends them. User routes accept only the writable ones.
+ * Takes every relation, `parent` and `child` included. Callers refuse those
+ * two first: user routes by schema, Soko Bot's `link_tasks` in its handler.
  */
 export function mapTaskLinkRelationToWriteData(
   taskId: string,
