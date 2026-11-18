@@ -22,6 +22,19 @@ vi.mock("@/hooks/use-self-presence", () => ({
   useSelfPresence: () => "online",
 }));
 
+let scopeProjectId: string | null = null;
+
+vi.mock("@/app/components/project-scope/use-project-scope", async () => {
+  const { scopedHref } = await import(
+    "@/app/components/project-scope/project-scope-href"
+  );
+  return {
+    useProjectScope: () => ({
+      hrefFor: (href: string) => scopedHref(href, scopeProjectId),
+    }),
+  };
+});
+
 vi.mock("@/components/analytics/cookie-banner", () => ({
   openConsentPreferences: vi.fn(),
 }));
@@ -303,6 +316,19 @@ describe("YouPageClient", () => {
         before.compareDocumentPosition(after) &
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
+    }
+  });
+
+  it("keeps the selected project on the TikTok Studio row, like the sidebar", () => {
+    scopeProjectId = "p-1";
+    try {
+      renderYouPage();
+      expect(screen.getByTestId("you-tiktok-studio")).toHaveAttribute(
+        "href",
+        "/tiktok-studio?projectId=p-1",
+      );
+    } finally {
+      scopeProjectId = null;
     }
   });
 

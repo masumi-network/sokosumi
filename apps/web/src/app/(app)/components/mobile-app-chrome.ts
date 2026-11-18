@@ -1,4 +1,9 @@
 import {
+  campaignsHref,
+  RANGE_PARAMS,
+  type RangeParam,
+} from "@/app/ads/ads-query";
+import {
   CHAT_CHATS_LIST_PATH,
   classifyChatChromeSurface,
   isChatRoomPathname,
@@ -96,12 +101,27 @@ export function getAgentJobsPathAgentId(
   return (pathname && AGENT_JOBS_PATH.exec(pathname)?.[1]) || null;
 }
 
+/** The campaign list a campaign page came from, like its own Back link. */
+function adsListHref(searchParams: SearchParamsLike): string {
+  const projectId = searchParams?.get?.("projectId");
+  const accountId = searchParams?.get?.("accountId");
+  if (!projectId || !accountId) {
+    return "/ads";
+  }
+  const range = searchParams?.get?.("range");
+  return campaignsHref(
+    projectId,
+    accountId,
+    RANGE_PARAMS.find((param): param is RangeParam => param === range),
+  );
+}
+
 /**
  * Back target for main list routes and their nested pages.
  * Tab list roots → null; Agents root → home; non-tab hub roots → Chats
  * (Soko Bot setup opened from Home → home); nested → list root.
- * You page rows outside `/you/` (Account, Billing, Connections) → You.
- * Ads pages (campaigns) → Ads.
+ * You page rows outside `/you/` (Account, Billing, Connections, SEO, Ads) → You.
+ * Ads pages (campaigns) → the Ads list for their project, account and range.
  * Developer sections → the You → Developer menu; their detail pages → the
  * section list.
  */
@@ -113,7 +133,7 @@ export function resolveMobileAppBackTarget(
     return null;
   }
   if (pathname.startsWith("/ads/")) {
-    return { href: "/ads", labelKey: "back" };
+    return { href: adsListHref(searchParams), labelKey: "back" };
   }
   if (
     YOU_HUB_CHILD_PATHS.some(

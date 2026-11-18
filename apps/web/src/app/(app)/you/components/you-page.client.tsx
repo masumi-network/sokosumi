@@ -28,6 +28,7 @@ import {
   MobileStackedMenuGroup,
   MobileStackedMenuLink,
 } from "@/app/components/mobile-stacked-menu/mobile-stacked-menu";
+import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { getAccountNavItems } from "@/app/components/sidebar/components/account-menu-config";
 import type {
   AccountAdminSettingsChrome,
@@ -84,6 +85,7 @@ export function YouPageClient({
   const { showLogoutModal } = useGlobalModalsContext();
   const router = useRouter();
   const presence = useSelfPresence();
+  const { hrefFor } = useProjectScope();
 
   const displayName = resolveAccountDisplayName(
     sessionUser.name,
@@ -210,7 +212,7 @@ export function YouPageClient({
               testId="you-studio"
             />
             <MobileStackedMenuLink
-              href={TIKTOK_STUDIO_HREF}
+              href={hrefFor(TIKTOK_STUDIO_HREF)}
               icon={<Clapperboard className="size-4 shrink-0" aria-hidden />}
               label={tMenu("tiktokStudio")}
               testId="you-tiktok-studio"

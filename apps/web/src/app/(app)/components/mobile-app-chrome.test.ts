@@ -218,14 +218,38 @@ describe("mobile-app-chrome", () => {
     });
 
     it.each(["/ads/campaigns/c1", "/ads/campaigns/c1/edit"])(
-      "sends Ads page %s back to Ads",
+      "sends Ads page %s back to its project, account and range",
       (pathname) => {
-        expect(resolveMobileAppBackTarget(pathname)).toEqual({
-          href: "/ads",
+        expect(
+          resolveMobileAppBackTarget(
+            pathname,
+            new URLSearchParams("projectId=p1&accountId=a1&range=7d"),
+          ),
+        ).toEqual({
+          href: "/ads?projectId=p1&tab=campaigns&account=a1&range=7d",
           labelKey: "back",
         });
       },
     );
+
+    it("drops an unknown range from the Ads list it goes back to", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/ads/campaigns/c1",
+          new URLSearchParams("projectId=p1&accountId=a1&range=1y"),
+        ),
+      ).toEqual({
+        href: "/ads?projectId=p1&tab=campaigns&account=a1",
+        labelKey: "back",
+      });
+    });
+
+    it("sends an Ads page with no project or account back to Ads", () => {
+      expect(resolveMobileAppBackTarget("/ads/campaigns/c1")).toEqual({
+        href: "/ads",
+        labelKey: "back",
+      });
+    });
   });
 
   describe("shouldShowMobileBottomNav", () => {
