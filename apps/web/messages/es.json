@@ -10702,6 +10702,8 @@
           "sleeping": "Durmiendo"
         },
         "shuffle": "Al azar",
+        "moreDetails": "Más detalles",
+        "moreDetailsHint": "Colores, cara, sombrero, esquina y tamaño",
         "animal": "Animal",
         "background": "Fondo",
         "body": "Color del animal",
