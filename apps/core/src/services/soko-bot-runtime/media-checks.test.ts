@@ -56,8 +56,9 @@ describe("checkTalkingVideoRequest", () => {
     const { credits, model } = await request();
 
     expect(model.id).toBe("avatar-6-turbo");
-    // 112 characters is about 9 s: $1.629 of video, plus voice and captions.
-    expect(credits).toBe(165);
+    // 112 characters is about 9 s: $1.629 of video, plus the voice and
+    // timing its words.
+    expect(credits).toBe(164);
   });
 
   it("refuses an unknown presenter and passes the owner's photo on", async () => {

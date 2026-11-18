@@ -99,6 +99,8 @@ import {
   type TalkingVideoSettings,
   talkingVideoModel,
 } from "@/lib/image-studio/talking-video";
+import { editTalkingVideo } from "@/lib/image-studio/talking-video-edit";
+import { timeSpokenWords } from "@/lib/image-studio/talking-video-words";
 import {
   findVideoModelForEndpoint,
   videoModel,
@@ -119,6 +121,7 @@ import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 import { readReferenceImage } from "@/services/reference-library.service";
+import { writeTalkingVideoHookLine } from "@/services/talking-video-scripts.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -1177,6 +1180,8 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     voice: input.voice,
     presenterId: input.presenter.kind === "stock" ? input.presenter.id : null,
     languageCode: input.languageCode,
+    words: [],
+    hookLine: null,
   };
   const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
   return await reserveAndSend({
@@ -1294,18 +1299,34 @@ async function prepareTalkingVideo(
       abortSignal: AbortSignal.timeout(60_000),
     },
   );
-  await prisma.projectImageJob.update({
-    where: { id: job.id },
-    data: {
-      voiceBlobPathname: stored.pathname,
-      settings: { ...settings, durationSeconds: spokenSeconds },
-    },
-    select: { id: true },
-  });
   const audioUrl = await uploadReference({
     bytes: voice.bytes,
     contentType: "audio/mpeg",
     fileName: `${job.id}.mp3`,
+  });
+  const [words, hookLine] = await Promise.all([
+    timeSpokenWords({
+      audioUrl,
+      script: job.prompt,
+      languageCode: settings.languageCode,
+    }),
+    writeTalkingVideoHookLine({
+      script: job.prompt,
+      languageCode: settings.languageCode,
+    }),
+  ]);
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: {
+      voiceBlobPathname: stored.pathname,
+      settings: {
+        ...settings,
+        durationSeconds: spokenSeconds,
+        words,
+        hookLine,
+      },
+    },
+    select: { id: true },
   });
   step("request_not_supported");
   return buildTalkingVideoInput({ imageUrl, audioUrl });
@@ -2075,8 +2096,9 @@ export async function settleWithMedia(
 }
 
 /**
- * A talking video came back from its presenter model: send it on for captions
- * instead of storing it. True when this media is not the one to store.
+ * A talking video came back from its presenter model without word timings
+ * for Core's own edit: send it on for captions instead of storing it. True
+ * when this media is not the one to store.
  *
  * The same row carries both requests, so the answer to the first can arrive
  * again after the second was sent: a webhook retry, or a poll that read the
@@ -2100,6 +2122,8 @@ async function startTalkingVideoCaptions(
   if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO) return false;
   if (requestId && job.falRequestId !== requestId) return true;
   if (job.pendingMediaUrl) return false;
+  // With word timings Core edits and captions the clip itself, when storing it.
+  if (readTalkingVideoSettings(job.settings).words.length > 0) return false;
 
   const lease = await claimForSettlement(jobId, requestId);
   if (!lease) return true;
@@ -2339,6 +2363,36 @@ async function storeMedia(
     return;
   }
 
+  let editedSeconds: number | null = null;
+  if (job.kind === ProjectImageJobKind.TALKING_VIDEO && !job.pendingMediaUrl) {
+    const settings = readTalkingVideoSettings(job.settings);
+    try {
+      const edited = await editTalkingVideo({
+        clip: downloaded.bytes,
+        words: settings.words,
+        clipSeconds: settings.durationSeconds,
+        hookLine: settings.hookLine,
+      });
+      if (edited) {
+        downloaded = { bytes: edited.bytes, contentType: "video/mp4" };
+        editedSeconds = Math.ceil(edited.durationSeconds);
+      }
+    } catch (error) {
+      // ffmpeg's output can name a caption, which is the script's words.
+      recordCoreWarning(
+        {
+          operation: "image_job_settle",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Delivered a talking video without its edit",
+          why: "Cutting and captioning the presenter clip threw",
+          fix: "The video was kept as its presenter model made it. If this repeats, check that Core can fetch and run its ffmpeg build.",
+        },
+      );
+    }
+  }
+
   const backdrop = job.useProductCutout && !video ? downloaded : null;
   if (backdrop) {
     try {
@@ -2512,7 +2566,7 @@ async function storeMedia(
         ? ProjectImageMediaType.VIDEO
         : ProjectImageMediaType.IMAGE,
       durationSeconds: video
-        ? readVideoSettings(job.settings).durationSeconds
+        ? (editedSeconds ?? readVideoSettings(job.settings).durationSeconds)
         : null,
       width: dimensions?.width ?? 0,
       height: dimensions?.height ?? 0,
