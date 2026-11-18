@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { type Ref, useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import Categories from "@/app/agents/components/categories";
@@ -20,9 +20,13 @@ import { cn } from "@/lib/utils";
 
 interface FilterSectionProps {
   categories: Category[];
+  searchRef?: Ref<HTMLInputElement>;
 }
 
-export default function FilterSection({ categories }: FilterSectionProps) {
+export default function FilterSection({
+  categories,
+  searchRef,
+}: FilterSectionProps) {
   const t = useTranslations("App.Agents.FilterSection");
   const {
     query,
@@ -69,7 +73,9 @@ export default function FilterSection({ categories }: FilterSectionProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Input
+          ref={searchRef}
           className="max-w-full min-w-36 shrink-0 md:max-w-64"
+          aria-label={t("searchPlaceholder")}
           placeholder={t("searchPlaceholder")}
           value={searchValue}
           onChange={(e) => {

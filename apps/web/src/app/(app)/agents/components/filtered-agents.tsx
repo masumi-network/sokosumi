@@ -42,7 +42,7 @@ function FilteredAgentsInner({
 }: FilteredAgentsProps) {
   const t = useTranslations("Components.Agents");
   const { query, categories: selectedCategories, kind } = useGalleryFilter();
-  const catalogRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
@@ -64,14 +64,11 @@ function FilteredAgentsInner({
 
   return (
     <AgentCompareProvider>
-      {/* Focus target after the last compare pick goes. */}
-      <div
-        ref={catalogRef}
-        tabIndex={-1}
-        className="flex flex-col gap-12 outline-none"
-      >
-        {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
-        <FilterSection categories={categories} />
+      <div className="flex flex-col gap-12">
+        {/* Keep filter chrome mounted on empty matches so kind/search stay usable.
+            Search takes focus after the last compare pick goes: it stays
+            mounted under any filter and shows its focus ring. */}
+        <FilterSection categories={categories} searchRef={searchRef} />
         {!filteredAgents.length ? (
           <AgentsNotFound />
         ) : (
@@ -90,7 +87,7 @@ function FilteredAgentsInner({
           ))
         )}
         {/* All agents, so a pick survives a filter that hides it. */}
-        <AgentCompareBar agents={agents} returnFocusTo={catalogRef} />
+        <AgentCompareBar agents={agents} returnFocusTo={searchRef} />
       </div>
     </AgentCompareProvider>
   );
