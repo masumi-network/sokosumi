@@ -362,15 +362,6 @@ export function withoutRuleCodes(line: string) {
   return line.replace(RULE_CODE, "");
 }
 
-/** Every rule ID the shown guidance cites, once, in order: they fold with the sources. */
-export function pageDetailRuleCodes(lines: readonly string[]) {
-  return [
-    ...new Set(
-      lines.flatMap((line) => [...line.matchAll(RULE_CODE)].map((m) => m[1])),
-    ),
-  ];
-}
-
 const TOOL_RANGES_PREFIX = "vendor tools:";
 
 /** The ranges on a guidance line that lists the tools' ranges; undefined for any other line. */

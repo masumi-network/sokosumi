@@ -17,7 +17,6 @@ import {
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailReferences,
-  pageDetailRuleCodes,
   seoCheckedAt,
   seoOverviewModel,
   toolRangeFit,
@@ -348,7 +347,7 @@ export function SeoPageDetails({
       evidence: finding.evidence,
     })),
   );
-  // A position row shows its lines in its own fold, so its rule IDs stay out of the section's.
+  // A position row shows its lines in its own fold, so it shows no guidance of its own.
   const guidanceRows = pageDetailGuidanceRows(
     overview.diagnostics
       .filter((finding) => !seoRankDetail(finding.evidence))
@@ -357,12 +356,6 @@ export function SeoPageDetails({
         name: checkName(finding.title),
         evidence: finding.evidence,
       })),
-  );
-  // Rule IDs leave the shown guidance and fold with the sources.
-  const ruleCodes = pageDetailRuleCodes(
-    overview.diagnostics
-      .filter((finding) => guidanceRows.has(finding.id))
-      .flatMap((finding) => pageDetailGuidance(finding.evidence)),
   );
   // A question or fix request goes to the agent's chat as a draft; the owner sends it.
   const showRankings = () => void model.setFilters({ tab: "rankings" });
@@ -491,12 +484,9 @@ export function SeoPageDetails({
         ) : null}
         {notes.length ? (
           <section className="space-y-2">
-            {/* Notes do not count toward the verdict; say so where they are listed. */}
-            <SectionHeading className="text-muted-foreground text-xs">
-              <span className="font-semibold tracking-wide uppercase">
-                {t("overview.pageNotes", { count: notes.length })}
-              </span>{" "}
-              · {t("overview.notesNotCounted")}
+            {/* Notes do not count toward the verdict; the summary counts them apart from suggestions. */}
+            <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              {t("overview.pageNotes", { count: notes.length })}
             </SectionHeading>
             <ul className="divide-border divide-y">
               {notes.map((finding) => (
@@ -517,14 +507,10 @@ export function SeoPageDetails({
           </section>
         ) : null}
         {/* Rows show their value and guidance; provenance folds once. */}
-        {references.length || ruleCodes.length ? (
+        {references.length ? (
           <details className="text-muted-foreground border-border border-t pt-2 text-sm">
             <SeoFoldSummary className="py-2.5">
-              {references.length && ruleCodes.length
-                ? t("overview.referencesAndRules")
-                : references.length
-                  ? t("overview.references", { count: references.length })
-                  : t("overview.rulesOnly")}
+              {t("overview.references", { count: references.length })}
             </SeoFoldSummary>
             <ul className="list-disc space-y-1 ps-4 pt-1">
               {references.map((reference) => (
@@ -534,11 +520,6 @@ export function SeoPageDetails({
                     : reference.line}
                 </li>
               ))}
-              {ruleCodes.length ? (
-                <li className="break-words">
-                  {t("overview.ruleIds", { ids: ruleCodes.join(", ") })}
-                </li>
-              ) : null}
             </ul>
           </details>
         ) : null}

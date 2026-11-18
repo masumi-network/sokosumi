@@ -963,7 +963,7 @@ describe("SEO workspace integration", () => {
     // Notes sit under their own heading, so a rule name does not read as a claim about the page.
     expect(
       screen.getByRole("heading", {
-        name: "Notes (2) · not counted as issues",
+        name: "Notes (2)",
       }),
     ).toBeVisible();
     // A note leads with what the check found; the rule name follows, so it does not read as a claim.
@@ -1001,7 +1001,7 @@ describe("SEO workspace integration", () => {
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
-    // Rule IDs leave the shown line and fold with the sources.
+    // Rule IDs leave the shown line.
     expect(
       screen.getByText("Ranges SEO tools use: Ahrefs under 70"),
     ).toBeVisible();
@@ -1040,9 +1040,9 @@ describe("SEO workspace integration", () => {
     );
     expect(reference).not.toBeVisible();
     expect(screen.queryByText("Check details")).toBeNull();
-    await user.click(screen.getByText("Sources and rule IDs"));
+    await user.click(screen.getByText("1 source"));
     expect(reference).toBeVisible();
-    expect(screen.getByText("Rule IDs: N1-246")).toBeVisible();
+    expect(screen.queryByText(/N1-246/)).toBeNull();
     // A note on a page removed since names that page in the question; nothing is sent.
     await user.click(
       screen.getByRole("button", {
