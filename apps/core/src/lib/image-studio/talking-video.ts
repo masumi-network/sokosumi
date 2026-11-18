@@ -3,6 +3,7 @@ import {
   creditsPerTalkingVideoCents,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoExtras,
   type TalkingVideoPriceFigures,
 } from "@sokosumi/utils";
 import sharp from "sharp";
@@ -35,6 +36,13 @@ export const TALKING_VIDEO_WORDS_ENDPOINT =
   "fal-ai/elevenlabs/speech-to-text/scribe-v2";
 
 /**
+ * Cuts the presenter out of the clip, for standing them over the brand's
+ * site. Asked for h264, it returns the clip and its matte as two files.
+ */
+export const TALKING_VIDEO_CUTOUT_ENDPOINT =
+  "veed/video-background-removal/fast";
+
+/**
  * Transcribes a video and burns the words in. Used only when the voice's
  * words could not be timed, so Core's own edit has nothing to plan from.
  */
@@ -52,6 +60,8 @@ const PRICES_VERIFIED_AT = "2026-11-18";
 const VOICE_PER_1000_CHARACTERS_USD = 0.08;
 /** Timing the spoken words for the captions, on `TALKING_VIDEO_WORDS_ENDPOINT`. */
 const CAPTIONS_PER_MINUTE_USD = 0.008;
+/** fal's price for `TALKING_VIDEO_CUTOUT_ENDPOINT`, per 30 frames. */
+const CUTOUT_PER_30_FRAMES_USD = 0.008;
 
 /** The only resolution sent. */
 export const TALKING_VIDEO_RESOLUTION = "1080p";
@@ -80,8 +90,11 @@ const MODELS: TalkingVideoModel[] = [
       perSecondUsd: 0.05,
       voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
       captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
+      // fal billed 18 units for a 14.16 s clip of this model (354 frames at
+      // 25 a second), on 2026-11-18: one and a half units per 30 frames.
+      cutoutPerSecondUsd: (CUTOUT_PER_30_FRAMES_USD * 18) / 14.16,
       basis:
-        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). The edit itself is made by Core and costs nothing.",
+        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). The edit itself is made by Core and costs nothing.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
       verifiedAt: PRICES_VERIFIED_AT,
     },
@@ -154,6 +167,15 @@ export function talkingVideoModel(id?: string): TalkingVideoModel {
   return model;
 }
 
+/** The model a stored job names, for pricing it again. */
+export function talkingVideoModelForEndpoint(
+  endpoint: string,
+): TalkingVideoModel {
+  const model = MODELS.find((candidate) => candidate.endpoint === endpoint);
+  if (!model) throw new Error("Unknown talking video model.");
+  return model;
+}
+
 export function findTalkingVideoPresenter(
   id: string,
 ): TalkingVideoPresenter | null {
@@ -166,8 +188,9 @@ export function findTalkingVideoPresenter(
 export function creditsPerTalkingVideo(
   model: TalkingVideoModel,
   script: string,
+  extras: TalkingVideoExtras = {},
 ): number {
-  return creditsPerTalkingVideoCents(model.price, script);
+  return creditsPerTalkingVideoCents(model.price, script, extras);
 }
 
 /**
@@ -210,6 +233,10 @@ export interface TalkingVideoSettings extends VideoSettings {
   words: SpokenWord[];
   /** A few words shown over the first seconds, or null for none. */
   hookLine: string | null;
+  /** The middle sentences show the brand's site. */
+  siteShots: boolean;
+  /** The site's screenshot in the studio's store, once it is taken. */
+  sitePagePathname: string | null;
 }
 
 function readSpokenWords(value: unknown): SpokenWord[] {
@@ -244,6 +271,9 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
       typeof raw.hookLine === "string" && raw.hookLine.trim()
         ? raw.hookLine.trim().slice(0, TALKING_VIDEO_HOOK_MAX_LENGTH)
         : null,
+    siteShots: raw.siteShots === true,
+    sitePagePathname:
+      typeof raw.sitePagePathname === "string" ? raw.sitePagePathname : null,
   };
 }
 
@@ -279,6 +309,12 @@ export function buildTalkingVideoInput(input: {
  * quarters of the frame's height, which is still below TikTok's safe area.
  * Core's own edit places them inside it; this is the fallback's best.
  */
+export function buildTalkingVideoCutoutInput(input: {
+  videoUrl: string;
+}): Record<string, unknown> {
+  return { video_url: input.videoUrl, output_codec: "h264" };
+}
+
 export function buildTalkingVideoCaptionInput(input: {
   videoUrl: string;
   languageCode: string;

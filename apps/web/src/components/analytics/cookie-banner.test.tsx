@@ -8,7 +8,8 @@ const pathname = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ usePathname: pathname }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { product: string }) =>
+    values ? `${key}:${values.product}` : key,
 }));
 
 function clearConsentCookie() {
@@ -47,6 +48,26 @@ describe("CookieBanner mobile", () => {
   afterEach(() => {
     clearConsentCookie();
     vi.unstubAllGlobals();
+  });
+
+  it("names the product the person is signing in to", async () => {
+    render(<CookieBanner />);
+    expect(await screen.findByText(/body:Sokosumi/)).toBeVisible();
+    clearConsentCookie();
+
+    window.history.replaceState(
+      null,
+      "",
+      `/signup?client_id=cmo&redirect_uri=${encodeURIComponent(
+        "https://app.cmo.xyz/api/auth/callback/sokosumi",
+      )}&exp=1&sig=abc`,
+    );
+    try {
+      render(<CookieBanner />);
+      expect(await screen.findByText(/body:CMO\.XYZ/)).toBeVisible();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 
   it("opens full-bleed at the bottom with left 0", async () => {

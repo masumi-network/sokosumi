@@ -287,6 +287,7 @@ describe("MenuItems groups", () => {
       "social",
       "seo",
       "ads",
+      "competitors",
     ]);
   });
 
@@ -356,6 +357,7 @@ describe("MenuItems groups", () => {
       "social",
       "seo",
       "ads",
+      "competitors",
     ]);
   });
 });
@@ -407,6 +409,7 @@ describe("MenuItems newsletter", () => {
       "social",
       "seo",
       "ads",
+      "competitors",
       "newsletter",
     ]);
   });

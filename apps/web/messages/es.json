@@ -1264,8 +1264,7 @@
       "termsOfServices": "Términos de uso",
       "privacyPolicy": "Política de privacidad",
       "imprint": "Aviso legal",
-      "acceptableUse": "Uso aceptable",
-      "usesSokosumi": "Usa tu cuenta de Sokosumi."
+      "acceptableUse": "Uso aceptable"
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1281,8 +1280,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Iniciar sesión / Registrarse",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Iniciar sesión / Registrarse",
+        "template": "{product} - %s"
       },
       "description": "Usa coworkers de IA para tus tareas más complejas"
     },
@@ -1474,6 +1473,7 @@
       "chooseAccountTitle": "Elige una cuenta",
       "chooseAccountTitleFor": "Elige una cuenta para {client}",
       "signedInAs": "Sesión iniciada en Sokosumi como <account>{email}</account>",
+      "signedInAsCmo": "Sesión iniciada como <account>{email}</account>",
       "continueAs": "Continuar como {account}",
       "useAnotherAccount": "Usar otra cuenta",
       "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
@@ -1483,7 +1483,7 @@
       "backTo": "Volver a {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
+      "accountNotLinked": "Este correo ya tiene una cuenta. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
       "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
       "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo.",
       "expired": "Ese inicio de sesión tardó demasiado o se inició en otro navegador. Inténtalo de nuevo.",
@@ -4385,6 +4385,7 @@
       }
     },
     "TikTokStudio": {
+      "showSite": "Mostrar tu sitio web en el vídeo",
       "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
       "intro": "Una persona dice tu guion, con subtítulos, listo para TikTok, Reels y Shorts.",
@@ -5534,6 +5535,124 @@
         "retry": "Reintentar"
       }
     },
+    "Competitors": {
+      "title": "Competidores",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Los competidores pertenecen a un proyecto: a quién observa y qué encontró la revisión semanal. Elige un proyecto para abrir sus competidores.",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "loading": "Cargando competidores…",
+      "error": {
+        "title": "No se pudieron cargar los competidores",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
+      "check": {
+        "title": "Revisión semanal",
+        "on": "Activada",
+        "off": "Desactivada",
+        "what": "Una vez por semana Sokosumi lee de cada competidor su sitio web y su página de precios, las noticias sobre él, sus anuncios nuevos y su Instagram, y guarda lo que cambió con su fuente.",
+        "price": "Cuesta {credits} créditos por competidor a la semana.",
+        "priceTotal": "{count, plural, one {Con # competidor son {credits} créditos a la semana.} other {Con # competidores son {credits} créditos a la semana.}}",
+        "payer": "Los créditos salen de este espacio de trabajo.",
+        "last": "Última revisión {last}, próxima {next}.",
+        "first": "La primera revisión se hace en menos de una hora, o ahora.",
+        "sourceFailed": "La última revisión no pudo leer: {sources}. La próxima lo intenta de nuevo.",
+        "source": {
+          "pages": "sitios web",
+          "news": "noticias",
+          "ads": "anuncios",
+          "social": "Instagram"
+        },
+        "turnOn": "Activar",
+        "turnOff": "Desactivar",
+        "runNow": "Revisar ahora",
+        "failed": "No funcionó. Inténtalo de nuevo.",
+        "outcome": {
+          "not_due": "Ya hay una revisión en curso o se hizo esta semana.",
+          "no_competitors": "Añade primero un competidor.",
+          "paused": "La revisión semanal está desactivada.",
+          "unfunded": "Esta revisión cuesta {credits} créditos y el espacio de trabajo tiene menos. Añade créditos y revisa de nuevo."
+        }
+      },
+      "list": {
+        "title": "Lista de seguimiento",
+        "count": "{count} de {limit}",
+        "empty": "Nadie todavía. Añade los competidores que quieres observar.",
+        "emptyReadOnly": "Nadie todavía.",
+        "noWebsite": "Sin sitio web",
+        "pricingPage": "página de precios",
+        "facebook": "Facebook {handle}",
+        "edit": "Editar",
+        "remove": "Quitar",
+        "editNamed": "Editar {name}",
+        "removeNamed": "Quitar {name}",
+        "add": "Añadir competidor",
+        "full": "Son los {limit}. Quita uno para observar otro.",
+        "failed": "No funcionó. Inténtalo de nuevo."
+      },
+      "form": {
+        "addTitle": "Añadir un competidor",
+        "editTitle": "Editar competidor",
+        "description": "El nombre basta para encontrar noticias. Con el sitio web y la página de precios la revisión ve qué cambió allí.",
+        "name": {
+          "label": "Nombre",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Sitio web",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Página de precios",
+          "placeholder": "acme.com/precios"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Página de Facebook",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Cancelar",
+        "add": "Añadir",
+        "save": "Guardar",
+        "failed": "No funcionó. Inténtalo de nuevo."
+      },
+      "thisWeek": {
+        "title": "Esta semana",
+        "checked": "Revisión del {date}",
+        "none": "Aún no hay resumen. Todo lo que encuentran las revisiones está abajo con su fuente.",
+        "quiet": "Una semana tranquila: nada que contar.",
+        "unknown": "Un competidor",
+        "big": "Movimiento grande",
+        "weak": "Respaldado en parte",
+        "meaning": "Qué significa para ti",
+        "move": "Movimiento sugerido",
+        "open": "Sigue abierto"
+      },
+      "findings": {
+        "title": "Lo que encontraron las revisiones",
+        "notChecked": "Nada todavía. Los hallazgos aparecen aquí tras la primera revisión.",
+        "nothing": "Las revisiones no encontraron cambios en las últimas cinco semanas.",
+        "kind": {
+          "WEBSITE_CHANGE": "Sitio web",
+          "PRICE_CHANGE": "Precio",
+          "NEWS": "Noticias",
+          "AD": "Anuncios",
+          "SOCIAL": "Instagram"
+        }
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Cuenta",
+        "posts": "Publicaciones por semana",
+        "engagement": "Me gusta y comentarios por publicación",
+        "followers": "Seguidores",
+        "growth": "Seguidores ganados en una semana",
+        "you": "(tú)"
+      }
+    },
     "Newsletter": {
       "title": "Boletín",
       "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
@@ -5653,6 +5772,7 @@
           "schedules": "Programaciones",
           "social": "Publicaciones sociales",
           "ads": "Anuncios",
+          "competitors": "Competidores",
           "newsletter": "Boletín",
           "contacts": "Contactos",
           "groups": {
@@ -13844,7 +13964,7 @@
   },
   "CookieConsent": {
     "title": "Usamos cookies",
-    "body": "Las cookies necesarias mantienen Sokosumi en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
+    "body": "Las cookies necesarias mantienen {product} en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
     "policyLink": "Política de cookies",
     "acceptAll": "Aceptar todo",
     "rejectAll": "Rechazar las no esenciales",
@@ -13855,7 +13975,7 @@
     "analyticsTitle": "Análisis",
     "analyticsBody": "Medición de uso con Google Analytics. Mientras tienes la sesión iniciada, un identificador seudónimo de cuenta vincula tus visitas, nunca tu nombre ni tu correo electrónico.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
+    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que {product} podría resultar útil.",
     "settings": "Configuración de cookies"
   },
   "WorkspaceGate": {

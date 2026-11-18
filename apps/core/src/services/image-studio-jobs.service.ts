@@ -85,6 +85,7 @@ import {
 } from "@/lib/image-studio/studio-brand";
 import {
   buildTalkingVideoCaptionInput,
+  buildTalkingVideoCutoutInput,
   buildTalkingVideoInput,
   creditsPerTalkingVideo,
   findTalkingVideoPresenter,
@@ -93,12 +94,18 @@ import {
   readTalkingVideoSettings,
   TALKING_VIDEO_ASPECT_RATIO,
   TALKING_VIDEO_CAPTION_ENDPOINT,
+  TALKING_VIDEO_CUTOUT_ENDPOINT,
   TALKING_VIDEO_RESOLUTION,
   TALKING_VIDEO_TESTIMONIAL_MESSAGE,
   type TalkingVideoModel,
   type TalkingVideoSettings,
   talkingVideoModel,
+  talkingVideoModelForEndpoint,
 } from "@/lib/image-studio/talking-video";
+import {
+  captureTalkingVideoSitePage,
+  loadTalkingVideoEndCard,
+} from "@/lib/image-studio/talking-video-brand";
 import { editTalkingVideo } from "@/lib/image-studio/talking-video-edit";
 import { timeSpokenWords } from "@/lib/image-studio/talking-video-words";
 import {
@@ -1134,7 +1141,26 @@ export interface CreateTalkingVideoJobInput {
   presenter:
     | { kind: "stock"; id: string }
     | { kind: "file"; fileId: string; actor: FileActor; consentAt: Date };
+  /** Show the Project's website; omitted, it is shown when there is one. */
+  siteShots?: boolean;
   idempotencyKey: string;
+}
+
+/**
+ * Whether a talking video shows the Project's website: unless it was turned
+ * off, whenever the Project has one. Decided before the quote, which it is
+ * part of.
+ */
+export async function talkingVideoShowsSite(
+  projectId: string,
+  requested?: boolean,
+): Promise<boolean> {
+  if (requested === false) return false;
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { websiteUrl: true },
+  });
+  return Boolean(project?.websiteUrl);
 }
 
 /**
@@ -1182,6 +1208,8 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     languageCode: input.languageCode,
     words: [],
     hookLine: null,
+    siteShots: await talkingVideoShowsSite(input.projectId, input.siteShots),
+    sitePagePathname: null,
   };
   const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
   return await reserveAndSend({
@@ -1200,7 +1228,7 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     presenterConsentAt: ownPhoto?.consentAt,
     parentAssetId: null,
     organizationId: access.organizationId,
-    chargedCredits: creditsPerTalkingVideo(model, input.script),
+    chargedCredits: creditsPerTalkingVideo(model, input.script, settings),
   });
 }
 
@@ -1213,14 +1241,47 @@ function isVideoKind(kind: ProjectImageJobKind): boolean {
 }
 
 /**
+ * A talking video's second provider request, made once its presenter clip is
+ * back: the presenter's cut-out when the video shows the brand's site, or
+ * captions when the voice's words could not be timed for Core's own edit.
+ * Null when the clip needs neither.
+ */
+function talkingVideoSecondStep(
+  settings: TalkingVideoSettings,
+  videoUrl: string,
+): { endpoint: string; input: Record<string, unknown> } | null {
+  if (settings.words.length === 0)
+    return {
+      endpoint: TALKING_VIDEO_CAPTION_ENDPOINT,
+      input: buildTalkingVideoCaptionInput({
+        videoUrl,
+        languageCode: settings.languageCode,
+      }),
+    };
+  if (settings.sitePagePathname)
+    return {
+      endpoint: TALKING_VIDEO_CUTOUT_ENDPOINT,
+      input: buildTalkingVideoCutoutInput({ videoUrl }),
+    };
+  return null;
+}
+
+/**
  * The endpoint a job's provider request was sent to. A talking video's second
- * request is its captions, on another endpoint than the model the row names.
+ * request is on another endpoint than the model the row names.
  */
 function queueModel(job: {
   model: string;
   pendingMediaUrl: string | null;
+  settings: Prisma.JsonValue;
 }): string {
-  return job.pendingMediaUrl ? TALKING_VIDEO_CAPTION_ENDPOINT : job.model;
+  if (!job.pendingMediaUrl) return job.model;
+  return (
+    talkingVideoSecondStep(
+      readTalkingVideoSettings(job.settings),
+      job.pendingMediaUrl,
+    )?.endpoint ?? job.model
+  );
 }
 
 /**
@@ -1244,6 +1305,7 @@ async function prepareTalkingVideo(
     requestedByUserId: string;
     idempotencyKey: string;
     prompt: string;
+    model: string;
     settings: Prisma.JsonValue;
     referenceFileIds: string[];
   },
@@ -1251,6 +1313,10 @@ async function prepareTalkingVideo(
   step: (reason: ImageJobFailureReason) => void,
 ): Promise<Record<string, unknown>> {
   const settings = readTalkingVideoSettings(job.settings);
+  // Started first: the page loads while the voice is made.
+  const sitePage = settings.siteShots
+    ? storeTalkingVideoSitePage(job)
+    : Promise.resolve(null);
   step("reference_not_sendable");
   const stock = settings.presenterId
     ? findTalkingVideoPresenter(settings.presenterId)
@@ -1315,21 +1381,71 @@ async function prepareTalkingVideo(
       languageCode: settings.languageCode,
     }),
   ]);
+  const sitePagePathname = await sitePage;
+  const made: TalkingVideoSettings = {
+    ...settings,
+    durationSeconds: spokenSeconds,
+    words,
+    hookLine,
+    siteShots: sitePagePathname !== null,
+    sitePagePathname,
+  };
   await prisma.projectImageJob.update({
     where: { id: job.id },
     data: {
       voiceBlobPathname: stored.pathname,
-      settings: {
-        ...settings,
-        durationSeconds: spokenSeconds,
-        words,
-        hookLine,
-      },
+      settings: { ...made },
+      // A site that could not be shown is not charged for.
+      ...(settings.siteShots && !made.siteShots
+        ? {
+            chargedCents: convertCreditsToCents(
+              creditsPerTalkingVideo(
+                talkingVideoModelForEndpoint(job.model),
+                job.prompt,
+                made,
+              ),
+            ),
+          }
+        : {}),
     },
     select: { id: true },
   });
   step("request_not_supported");
   return buildTalkingVideoInput({ imageUrl, audioUrl });
+}
+
+/**
+ * Screenshot the Project's website for a talking video and keep it in the
+ * studio's store. Null when the Project has no website or it did not load.
+ */
+async function storeTalkingVideoSitePage(job: {
+  id: string;
+  projectId: string;
+}): Promise<string | null> {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: job.projectId },
+      select: { websiteUrl: true },
+    });
+    if (!project?.websiteUrl) return null;
+    const page = await captureTalkingVideoSitePage(project.websiteUrl);
+    if (!page) return null;
+    const stored = await put(
+      `projects/${job.projectId}/image-studio/${job.id}-site.jpg`,
+      page as unknown as Buffer,
+      {
+        access: "private",
+        token: requireStudioBlobToken(),
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: "image/jpeg",
+        abortSignal: AbortSignal.timeout(60_000),
+      },
+    );
+    return stored.pathname;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -2093,22 +2209,22 @@ export async function settleWithMedia(
   /** The provider request this media answers. */
   requestId?: string,
 ): Promise<void> {
-  if (await startTalkingVideoCaptions(jobId, sourceUrl, requestId)) return;
+  if (await startTalkingVideoSecondStep(jobId, sourceUrl, requestId)) return;
   await storeMedia(jobId, sourceUrl, providerSize);
   nudgeCmoMonth(jobId);
 }
 
 /**
- * A talking video came back from its presenter model without word timings
- * for Core's own edit: send it on for captions instead of storing it. True
+ * A talking video came back from its presenter model and needs a second
+ * step (`talkingVideoSecondStep`): send it on instead of storing it. True
  * when this media is not the one to store.
  *
  * The same row carries both requests, so the answer to the first can arrive
  * again after the second was sent: a webhook retry, or a poll that read the
  * old request id. `requestId` tells those apart, and the lease is taken on it,
- * so the caption request is sent once.
+ * so the second request is sent once.
  */
-async function startTalkingVideoCaptions(
+async function startTalkingVideoSecondStep(
   jobId: string,
   sourceUrl: string,
   requestId: string | undefined,
@@ -2125,17 +2241,17 @@ async function startTalkingVideoCaptions(
   if (job?.kind !== ProjectImageJobKind.TALKING_VIDEO) return false;
   if (requestId && job.falRequestId !== requestId) return true;
   if (job.pendingMediaUrl) return false;
-  // With word timings Core edits and captions the clip itself, when storing it.
-  if (readTalkingVideoSettings(job.settings).words.length > 0) return false;
+  const next = talkingVideoSecondStep(
+    readTalkingVideoSettings(job.settings),
+    sourceUrl,
+  );
+  if (!next) return false;
 
   const lease = await claimForSettlement(jobId, requestId);
   if (!lease) return true;
   const outcome = await submitToQueue({
-    model: TALKING_VIDEO_CAPTION_ENDPOINT,
-    input: buildTalkingVideoCaptionInput({
-      videoUrl: sourceUrl,
-      languageCode: readTalkingVideoSettings(job.settings).languageCode,
-    }),
+    model: next.endpoint,
+    input: next.input,
     webhookUrl: webhookUrl(),
   });
   if (outcome.kind !== "queued") {
@@ -2143,12 +2259,12 @@ async function startTalkingVideoCaptions(
     recordCoreWarning(
       {
         operation: "image_job_settle",
-        imageJobs: [{ id: jobId, captions: { outcome: outcome.kind } }],
+        imageJobs: [{ id: jobId, secondStep: { outcome: outcome.kind } }],
       },
       {
-        message: "Delivered a talking video without captions",
-        why: "fal did not accept the caption request",
-        fix: "The video was kept as its presenter model made it. If this repeats, check the caption endpoint and its input.",
+        message: "Delivered a talking video without its second step",
+        why: "fal did not accept the cut-out or caption request",
+        fix: "The video was made from its presenter clip alone: no site shots, or no captions. If this repeats, check that endpoint and its input.",
       },
     );
     return false;
@@ -2188,6 +2304,40 @@ async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
   await storeMedia(jobId, job.pendingMediaUrl);
   nudgeCmoMonth(jobId);
   return true;
+}
+
+/**
+ * What the site shots of a talking video are made from: the clip's matte,
+ * from the cut-out the job last asked for, and the site's stored screenshot.
+ * Null when either cannot be read: the video is then edited without them.
+ */
+async function readTalkingVideoSite(
+  job: { falRequestId: string | null },
+  settings: TalkingVideoSettings,
+): Promise<{ alpha: Uint8Array; page: Uint8Array } | null> {
+  if (!job.falRequestId || !settings.sitePagePathname) return null;
+  try {
+    const result = await fetchQueueResult({
+      model: TALKING_VIDEO_CUTOUT_ENDPOINT,
+      requestId: job.falRequestId,
+    });
+    if (result.kind !== "media") return null;
+    // Colour first, then alpha; the alpha file is also named for it.
+    const matte =
+      result.media.find((file) => /alpha/i.test(file.url)) ?? result.media[1];
+    if (!matte) return null;
+    const [alpha, page] = await Promise.all([
+      downloadMedia(
+        matte.url,
+        LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES,
+        "video/mp4",
+      ),
+      readAssetBytes(settings.sitePagePathname),
+    ]);
+    return { alpha: alpha.bytes, page };
+  } catch {
+    return null;
+  }
 }
 
 /** Media types a log may name; the rest of a Content-Type is the provider's text. */
@@ -2337,11 +2487,22 @@ async function storeMedia(
     return;
   }
 
+  const talking =
+    job.kind === ProjectImageJobKind.TALKING_VIDEO
+      ? readTalkingVideoSettings(job.settings)
+      : null;
+  // Core edits a clip whose words were timed. After a cut-out, `sourceUrl`
+  // is the cut-out and the clip to edit is the one it was made from.
+  const edits = talking !== null && talking.words.length > 0;
+  const clipUrl =
+    edits && job.pendingMediaUrl ? job.pendingMediaUrl : sourceUrl;
+  const cutOut = edits && clipUrl !== sourceUrl;
+
   let downloaded: Awaited<ReturnType<typeof downloadMedia>>;
   try {
     downloaded = video
       ? await downloadMedia(
-          sourceUrl,
+          clipUrl,
           job.kind === ProjectImageJobKind.TALKING_VIDEO
             ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
             : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
@@ -2367,14 +2528,24 @@ async function storeMedia(
   }
 
   let editedSeconds: number | null = null;
-  if (job.kind === ProjectImageJobKind.TALKING_VIDEO && !job.pendingMediaUrl) {
-    const settings = readTalkingVideoSettings(job.settings);
+  if (talking && edits) {
     try {
+      const [site, endCard] = await Promise.all([
+        cutOut ? readTalkingVideoSite(job, talking) : null,
+        prisma.project
+          .findUnique({
+            where: { id: project.id },
+            select: { id: true, name: true, logo: true, websiteUrl: true },
+          })
+          .then((brand) => (brand ? loadTalkingVideoEndCard(brand) : null)),
+      ]);
       const edited = await editTalkingVideo({
         clip: downloaded.bytes,
-        words: settings.words,
-        clipSeconds: settings.durationSeconds,
-        hookLine: settings.hookLine,
+        words: talking.words,
+        clipSeconds: talking.durationSeconds,
+        hookLine: talking.hookLine,
+        ...(site ? { site } : {}),
+        ...(endCard ? { endCard } : {}),
       });
       if (edited) {
         downloaded = { bytes: edited.bytes, contentType: "video/mp4" };
@@ -3089,6 +3260,7 @@ async function finaliseCancellations(limit: number): Promise<number> {
       id: true,
       model: true,
       pendingMediaUrl: true,
+      settings: true,
       falRequestId: true,
     },
   });
