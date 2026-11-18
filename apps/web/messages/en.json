@@ -2571,6 +2571,7 @@
         "label": "Tags",
         "empty": "No tags yet",
         "showAll": "Show all {count} tags",
+        "noProject": "No project",
         "openProject": "Open project: {name}",
         "vocabulary": {
           "research": "Research",

@@ -321,6 +321,32 @@ describe("TaskCard without a title", () => {
   });
 });
 
+describe("TaskCard without a project", () => {
+  it("says so where the identifier would be, and only then", () => {
+    const base = buildTask(TaskVisibility.PUBLIC);
+    const { rerender } = render(
+      <TaskCard task={{ ...base, identifier: null, project: null }} />,
+    );
+    expect(screen.getByText("noProject")).toBeInTheDocument();
+
+    rerender(
+      <TaskCard
+        task={{
+          ...base,
+          identifier: "SOK-12",
+          project: {
+            id: "project-1",
+            name: "Sok",
+            identifier: "SOK",
+            logo: null,
+          },
+        }}
+      />,
+    );
+    expect(screen.queryByText("noProject")).not.toBeInTheDocument();
+  });
+});
+
 describe("TaskCard while it saves", () => {
   it("shows the identifier as text, since a pending Task has nowhere to go", () => {
     const task = {

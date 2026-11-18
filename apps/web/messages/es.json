@@ -2571,6 +2571,7 @@
         "label": "Etiquetas",
         "empty": "Sin etiquetas todavía",
         "showAll": "Mostrar las {count} etiquetas",
+        "noProject": "Sin proyecto",
         "openProject": "Abrir proyecto: {name}",
         "vocabulary": {
           "research": "Investigación",

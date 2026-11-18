@@ -112,7 +112,13 @@ export function TaskCard({
             <span className="text-muted-foreground shrink-0 tabular-nums">
               {task.identifier}
             </span>
-          ) : null}
+          ) : task.project ? null : (
+            // No project means no identifier, so the row says why it is bare.
+            // In a full row it gives way long before the status label does.
+            <span className="text-muted-foreground min-w-0 shrink-[99] truncate">
+              {t("noProject")}
+            </span>
+          )}
           <TaskPriorityMark priority={task.priority} className="size-3.5" />
           <span className="ms-auto flex shrink-0 items-center gap-2">
             {task.statusSince && !task.isPending ? (
