@@ -42,6 +42,7 @@ const users = {
   owner: randomUUID(),
   follower: randomUUID(),
   archivedBotFollower: randomUUID(),
+  pausedBotFollower: randomUUID(),
   plain: randomUUID(),
   actor: randomUUID(),
   late: randomUUID(),
@@ -51,6 +52,7 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const followerBotId = randomUUID();
 const archivedBotId = randomUUID();
+const pausedBotId = randomUUID();
 /** The real clock off a quarter hour: only cases that ask run the overdue sweep. */
 function offQuarterHour(): Date {
   const now = new Date();
@@ -146,6 +148,13 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
           name: "Old",
           archivedAt: new Date(),
         },
+        {
+          id: pausedBotId,
+          userId: users.pausedBotFollower,
+          workspaceId,
+          name: "Resting",
+          proactivePaused: true,
+        },
       ],
     });
   });
@@ -239,6 +248,57 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     await tick();
     expect(mocks.createNotification).not.toHaveBeenCalled();
     expect(mocks.startTaskSummaryTurn).not.toHaveBeenCalled();
+  });
+
+  it("rings the bell for a participant whose bot does not follow, and for a follower whose bot is paused", async () => {
+    const task = await createTask("Count the stock");
+    const before = new Date(Date.now() - 60_000);
+    // A live bot alone sends nothing: only a follow does.
+    await addToTask(task.id, users.follower, { joinedAt: before });
+    await prisma.$transaction((tx) =>
+      followTask(tx, task, users.pausedBotFollower),
+    );
+    await prisma.taskFollower.updateMany({
+      where: { taskId: task.id },
+      data: { createdAt: before },
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.FAILED },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.FAILED },
+    });
+
+    await tick();
+
+    expect(botUsers()).toEqual([]);
+    expect(bellUsers()).toEqual(
+      [users.follower, users.pausedBotFollower].sort(),
+    );
+  });
+
+  it("counts a person in from their earlier row, joined or followed", async () => {
+    const task = await createTask("Pack the boxes");
+    const event = new Date(Date.now() - 30_000);
+    await addToTask(task.id, users.follower, {
+      follows: true,
+      joinedAt: new Date(event.getTime() + 60_000),
+    });
+    await addToTask(task.id, users.follower, {
+      joinedAt: new Date(event.getTime() - 60_000),
+    });
+    await prisma.taskEvent.create({
+      data: { taskId: task.id, status: TaskStatus.CANCELED, createdAt: event },
+    });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: TaskStatus.CANCELED },
+    });
+
+    await tick();
+
+    expect(botUsers()).toEqual([followerBotId]);
   });
 
   it("tells a participant who also follows once, from the bot", async () => {

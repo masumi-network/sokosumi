@@ -207,7 +207,7 @@ A person on a Task's participant list: added by an @-mention or by subscribing t
 _Avoid_: Participant (when meaning a Task), watcher
 
 **Task follower**:
-A person whose personal Soko Bot follows a Task for them. The bot tells them the same moments in its 1:1, and writes a summary when the Task completes; without a live bot they hear by the bell. Following needs a live bot, never adds them to the participant list, and leaving that list never stops it. UI copy says "Follow task with Soko Bot".
+A person whose personal Soko Bot follows a Task for them. The bot tells them the same moments in its 1:1, and writes a summary when the Task completes; without a live bot they hear by the bell. Following needs a personal Soko Bot (a paused one is fine; while paused, the moments go to the bell), never adds them to the participant list, and leaving that list never stops it. UI copy says "Follow task with Soko Bot".
 _Avoid_: Subscribed participant, subscriber, interested
 
 ### Calendar

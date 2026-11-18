@@ -144,9 +144,12 @@ describe("TaskFollowControl", () => {
     );
     const { rerender } = renderControl();
     await user.click(screen.getByRole("button", { name: "follow" }));
+    // A refresh from before the follow landed, then one from after a later
+    // unfollow elsewhere: neither may undo the pending follow on screen.
     rerender(
-      <TaskFollowControl {...props({ followers: [follower("other-1")] })} />,
+      <TaskFollowControl {...props({ followers: [follower("viewer-1")] })} />,
     );
+    rerender(<TaskFollowControl {...props({ followers: [] })} />);
     expect(
       screen.getByRole("button", { name: "followActive. unfollow" }),
     ).toBeInTheDocument();

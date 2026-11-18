@@ -122,7 +122,7 @@ export const taskFollowerSchema = z
       .nullable()
       .openapi({
         description:
-          "The follower's personal Soko Bot in the Task's workspace, which reports the Task's moments to them. Null when that bot is archived or gone: the moments then go to the bell.",
+          "The follower's personal Soko Bot in the Task's workspace, which reports the Task's moments to them. Null when that bot is archived or gone. While it is null or the bot is paused, the moments go to the bell.",
       }),
   })
   .openapi("TaskFollower");

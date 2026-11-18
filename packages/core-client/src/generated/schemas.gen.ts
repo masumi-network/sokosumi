@@ -9010,7 +9010,7 @@ export const TaskFollowerSchema = {
                 'avatarImageUrl',
                 'avatarCode'
             ],
-            description: 'The follower\'s personal Soko Bot in the Task\'s workspace, which reports the Task\'s moments to them. Null when that bot is archived or gone: the moments then go to the bell.'
+            description: 'The follower\'s personal Soko Bot in the Task\'s workspace, which reports the Task\'s moments to them. Null when that bot is archived or gone. While it is null or the bot is paused, the moments go to the bell.'
         }
     },
     required: [

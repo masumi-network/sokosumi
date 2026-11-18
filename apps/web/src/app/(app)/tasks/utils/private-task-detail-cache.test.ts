@@ -81,10 +81,13 @@ describe("startPrivateTaskDetailReads", () => {
 
   // Only Core's "no bot" sends the viewer to setup instead of following.
   it.each([
+    [200, true],
     [404, false],
     [503, true],
   ])("reads a Soko Bot activity %s as has-bot %s", async (status, expected) => {
-    getMySokoBotActivityMock.mockRejectedValue(coreError(status));
+    if (status === 200)
+      getMySokoBotActivityMock.mockResolvedValue({ data: {} });
+    else getMySokoBotActivityMock.mockRejectedValue(coreError(status));
     const task = {
       projectId: null,
       organizationId: "org-1",

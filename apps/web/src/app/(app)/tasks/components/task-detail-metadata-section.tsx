@@ -93,7 +93,8 @@ export async function TaskMetadataSection({
             />
             <TaskMetadataFollowersRow
               followers={task.followers ?? []}
-              viewerId={session?.user.id ?? null}
+              // Read-only views offer no follow button, so show every follower.
+              viewerId={forceReadOnly ? null : (session?.user.id ?? null)}
               labels={{
                 followedBy: t("followedBy"),
                 followerBot: (name) => t("followerBot", { name }),
