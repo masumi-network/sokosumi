@@ -65,8 +65,14 @@ function renderList(
       />
     </QueryClientProvider>
   );
-  const { rerender } = render(list(rows));
-  return { rerender: (next: SubtaskRow[]) => rerender(list(next)) };
+  const { unmount } = render(list(rows));
+  return {
+    // A new visit to the page: same cache, rows from the page payload.
+    remount: (next: SubtaskRow[]) => {
+      unmount();
+      render(list(next));
+    },
+  };
 }
 
 function rowNames() {
@@ -162,10 +168,16 @@ describe("TaskSubtaskList", () => {
     await waitFor(() => expect(input).toHaveValue("Book the venue"));
   });
 
-  it("shows the server's rows when the page renders again", async () => {
-    const { rerender } = renderList([row("a")]);
+  it("reads Core again when the list mounts over a cached one", async () => {
+    const { remount } = renderList([row("a")]);
+    getTasks.mockResolvedValue({
+      data: [
+        { ...row("a"), status: TaskStatus.COMPLETED, assignee: null },
+        { ...row("b"), assignee: null },
+      ],
+    });
 
-    rerender([row("a", { status: TaskStatus.COMPLETED }), row("b")]);
+    remount([row("a")]);
 
     await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
     expect(

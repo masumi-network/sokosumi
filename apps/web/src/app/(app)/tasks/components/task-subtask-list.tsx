@@ -163,7 +163,8 @@ export function TaskSubtaskList({
         </h2>
         <TaskSubtaskProgress
           progress={
-            truncated
+            // Core's count only when it knows of more than the list holds.
+            truncated && progress.total > rows.length
               ? progress
               : {
                   completed: rows.filter(

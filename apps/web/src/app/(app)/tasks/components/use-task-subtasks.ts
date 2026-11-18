@@ -2,7 +2,7 @@
 
 import { TaskStatus } from "@sokosumi/core-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useState } from "react";
 import {
   SUBTASK_LIST_LIMIT,
   type SubtaskRow,
@@ -90,6 +90,11 @@ export function useTaskSubtasks({
 }: UseTaskSubtasksOptions) {
   const queryClient = useQueryClient();
   const queryKey = taskSubtasksQueryKey(parentTaskId);
+  // A cached list outlives the page, and a sub-task can change on its own
+  // page meanwhile. Back can replay older page rows, so Core answers instead.
+  const [cachedAtMount] = useState(
+    () => queryClient.getQueryData(queryKey) !== undefined,
+  );
   const { data: rows } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -102,14 +107,8 @@ export function useTaskSubtasks({
       );
     },
     initialData: initialRows,
+    refetchOnMount: cachedAtMount ? "always" : true,
   });
-  // A cached list outlives the page: back on it, or after a refresh, the
-  // server's rows are newer. A change in flight keeps its optimistic order.
-  useEffect(() => {
-    const key = taskSubtasksQueryKey(parentTaskId);
-    if (queryClient.isMutating({ mutationKey: key }) === 0)
-      queryClient.setQueryData(key, initialRows);
-  }, [queryClient, parentTaskId, initialRows]);
 
   // Changes overlap: a quick second toggle starts before the first settles.
   const lastInFlight = () =>
