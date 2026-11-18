@@ -98,8 +98,10 @@ export async function restoreTaskRecord(
   actor: TaskDomainActor,
 ): Promise<void> {
   if (task.parentTaskId) {
-    // An archive of the parent locks it first: no restore slips past it.
-    await lockTaskRows(tx, [task.parentTaskId]);
+    // A write, not only a lock, as in requireSubtaskParent: a READ COMMITTED
+    // archive of the parent waits for it, and a SERIALIZABLE one that read
+    // before it fails and retries rather than miss this sub-task.
+    await tx.$executeRaw`UPDATE "task" SET "position" = "position" WHERE "id" = ${task.parentTaskId}`;
     const parent = await tx.task.findUnique({
       where: { id: task.parentTaskId },
       select: { archivedAt: true },
