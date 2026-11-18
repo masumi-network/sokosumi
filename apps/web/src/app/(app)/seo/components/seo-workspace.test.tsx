@@ -3326,9 +3326,7 @@ describe("SEO workspace integration", () => {
       .getByText("Google Search Console indexing")
       .closest("summary");
     if (!summary) throw new Error("Indexing finding summary missing");
-    expect(
-      screen.queryByRole("heading", { name: "Indexing review notes" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Google index" })).toBeNull();
     await user.click(summary);
     expect(within(findings).getByText(reason)).toBeVisible();
     expect(

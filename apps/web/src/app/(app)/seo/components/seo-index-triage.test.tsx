@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
-import { SeoIndexTriage } from "./seo-index-triage";
+import { SeoIndexStatus } from "./seo-index-status";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
 type IndexAssessment = NonNullable<
@@ -20,7 +20,7 @@ function renderNotes(workspace: ReturnType<typeof seoTestWorkspace>) {
       formats={createFormats()}
       messages={messages}
     >
-      <SeoIndexTriage workspace={workspace} />
+      <SeoIndexStatus workspace={workspace} />
     </NextIntlClientProvider>,
   );
 }
@@ -53,22 +53,30 @@ describe("indexing review notes", () => {
             ? null
             : "Review the page purpose before changing noindex.",
           evidence: index
-            ? []
-            : ['Google reported: <script>alert("status")</script>'],
+            ? [
+                // Lines that say nothing past the reason and the crawl: no fold.
+                "Google URL Inspection: NEUTRAL; Page with redirect.",
+                "indexingState: INDEXING_ALLOWED",
+                "pageFetchState: SUCCESSFUL",
+              ]
+            : [
+                // The lines of a real review (battery-sensei.app, 2026-11-16).
+                "Google URL Inspection: NEUTRAL; Page with redirect.",
+                "Google last crawled this URL at 2026-09-05T05:29:58Z.",
+                "indexingState: INDEXING_ALLOWED",
+                "robotsTxtState: ALLOWED",
+                "pageFetchState: SUCCESSFUL",
+                "Public page evidence was captured at 2026-11-16T23:47:36.703Z.",
+                'Google reported: <script>alert("status")</script>',
+              ],
         }),
       ),
     };
     const view = renderNotes(workspace);
-    expect(
-      screen.getByRole("heading", { name: "Indexing review notes" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "Review needed" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "Expected exclusion" }),
-    ).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Not checked" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Google index" })).toBeVisible();
+    expect(screen.getByText("Review needed")).toBeVisible();
+    expect(screen.getByText("Expected exclusion")).toBeVisible();
+    expect(screen.getByText("Not checked")).toBeVisible();
     for (const page of workspace.pages)
       expect(screen.getByRole("link", { name: page.url })).toHaveAttribute(
         "href",
@@ -82,17 +90,71 @@ describe("indexing review notes", () => {
       "datetime",
       checkedAt.toISOString(),
     );
+    // Google's reason and last crawl show; the states that say all is fine and the capture time do not.
+    expect(screen.getAllByText("Google: Page with redirect")).toHaveLength(3);
+    expect(screen.getByText("Sep 5, 2026")).toBeVisible();
+    expect(
+      screen.queryByText(/INDEXING_ALLOWED|NEUTRAL|captured at/),
+    ).toBeNull();
+    // A line that says more folds under the evidence.
     const evidence = screen.getByText("View evidence");
     expect(evidence.closest("details")).not.toHaveAttribute("open");
     await user.click(evidence);
     expect(evidence.closest("details")).toHaveAttribute("open");
     expect(
-      screen.getByText("Sources: Google Search Console and this audit."),
-    ).toBeVisible();
-    expect(
       screen.getByText('Google reported: <script>alert("status")</script>'),
     ).toBeVisible();
+    expect(screen.getAllByText("View evidence")).toHaveLength(1);
     expect(view.container.querySelector("script")).toBeNull();
+  });
+
+  it("puts a page's review note under its Google status without repeating Google's words", () => {
+    const workspace = seoTestWorkspace();
+    const pageUrl = workspace.pages[0].url;
+    const checkedAt = new Date("2026-11-16T08:00:00Z");
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl,
+          verdict: "NEUTRAL",
+          coverageState: "Page with redirect",
+          robotsTxtState: null,
+          lastCrawlTime: new Date("2026-09-05T05:29:58Z"),
+          googleCanonical: null,
+          userCanonical: null,
+          checkedAt,
+        },
+      ],
+    } as NonNullable<typeof workspace.indexStatus>;
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt,
+          pageUrl,
+          status: "review",
+          report: false,
+          reason: "Google's stored result may predate a fix.",
+          suggestedFix: null,
+          evidence: [
+            "Google URL Inspection: NEUTRAL; Page with redirect.",
+            "Google last crawled this URL at 2026-09-05T05:29:58Z.",
+          ],
+        },
+      ],
+    };
+    renderNotes(workspace);
+    const row = screen.getByText("Not indexed").closest("li");
+    if (!row) throw new Error("Google status row missing");
+    expect(within(row).getByText("Review needed")).toBeVisible();
+    expect(
+      within(row).getByText("Google's stored result may predate a fix."),
+    ).toBeVisible();
+    expect(
+      within(row).getByText("Google says: “Page with redirect”"),
+    ).toBeVisible();
+    expect(within(row).queryByText("Google: Page with redirect")).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 
   it("shows an unsaved related URL as an expected exclusion without an audit issue or page creation", () => {
@@ -115,9 +177,7 @@ describe("indexing review notes", () => {
       ],
     };
     renderNotes(workspace);
-    expect(
-      screen.getByRole("heading", { name: "Expected exclusion" }),
-    ).toBeVisible();
+    expect(screen.getByText("Expected exclusion")).toBeVisible();
     expect(screen.getByRole("link", { name: related })).toHaveAttribute(
       "href",
       related,
@@ -130,9 +190,7 @@ describe("indexing review notes", () => {
   it("shows no section without review data or when the saved notes belong to another page", () => {
     const workspace = seoTestWorkspace();
     const view = renderNotes(workspace);
-    expect(
-      screen.queryByRole("heading", { name: "Indexing review notes" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Google index" })).toBeNull();
     workspace.indexTriage = {
       assessments: [
         {
@@ -150,9 +208,7 @@ describe("indexing review notes", () => {
     view.unmount();
     renderNotes(workspace);
     expect(screen.queryByText("Private assessment of another page")).toBeNull();
-    expect(
-      screen.queryByRole("heading", { name: "Indexing review notes" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Google index" })).toBeNull();
   });
 
   it("keeps an older related-page review and its own date after the main page is indexed in a newer Task", () => {

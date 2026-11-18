@@ -47,3 +47,45 @@ export function seoIndexTriage(workspace: IndexTriageWorkspace) {
   const assessments = seoIndexAssessments(workspace).filter(reviewNote);
   return assessments.length ? { assessments } : null;
 }
+
+// The lines the SEO coworker writes for a page (seo-bot agent/lib/indexing-triage.ts).
+const INSPECTION = /^Google URL Inspection: [A-Z_]+; (.+)\.$/;
+const NO_REASON = "no coverage reason returned";
+const LAST_CRAWL = /^Google last crawled this URL at (.+)\.$/;
+const GOOGLE_STATE = /^(indexingState|robotsTxtState|pageFetchState): (.+)$/;
+/** States that say nothing is wrong: they are noise next to the reason. */
+const STATE_OK = new Set(["INDEXING_ALLOWED", "ALLOWED", "SUCCESSFUL"]);
+/** A line that only records how the review ran: the note already dates the review. */
+const RECORD_ONLY = /^Public page evidence was captured at /;
+
+/**
+ * Google's reason and last crawl from an assessment's evidence, and the lines left that say something more: a state
+ * that is not fine, a verdict without a reason, a missing crawl time, a robots.txt line. The lines stay stored as they are; this picks what the card shows.
+ */
+export function seoIndexEvidence(evidence: readonly string[]) {
+  let reason: string | null = null;
+  let crawledAt: Date | null = null;
+  const more: string[] = [];
+  for (const line of evidence) {
+    const inspection = INSPECTION.exec(line);
+    if (inspection) {
+      // Without Google's reason, the verdict is the only thing the line says: it stays.
+      if (inspection[1] !== NO_REASON) {
+        reason = inspection[1];
+        continue;
+      }
+    }
+    const crawl = LAST_CRAWL.exec(line);
+    const crawled = crawl ? new Date(crawl[1]) : null;
+    if (crawled && !Number.isNaN(crawled.getTime())) {
+      crawledAt = crawled;
+      continue;
+    }
+    const state = GOOGLE_STATE.exec(line);
+    if (state && (STATE_OK.has(state[2]) || state[2].endsWith("_UNSPECIFIED")))
+      continue;
+    if (RECORD_ONLY.test(line)) continue;
+    more.push(line);
+  }
+  return { reason, crawledAt, more };
+}

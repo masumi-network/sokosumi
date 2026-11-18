@@ -12698,8 +12698,6 @@
         }
       },
       "indexReview": {
-        "title": "Notas sobre la indexación",
-        "help": "Estas páginas necesitan una decisión o más evidencia. Las notas explican qué pudo verificar el agente.",
         "checked": "Revisado",
         "state": {
           "review": "Revisión necesaria",
@@ -12708,8 +12706,8 @@
         },
         "suggestedFix": "Siguiente paso sugerido",
         "evidence": "Ver evidencia",
-        "unavailableEvidence": "Google Search Console o la auditoría no proporcionaron evidencia suficiente.",
-        "sources": "Fuentes: Google Search Console y esta auditoría."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Último rastreo de Google"
       },
       "index": {
         "title": "Índice de Google",

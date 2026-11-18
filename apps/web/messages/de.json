@@ -12698,8 +12698,6 @@
         }
       },
       "indexReview": {
-        "title": "Hinweise zur Indexierung",
-        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
         "checked": "Geprüft",
         "state": {
           "review": "Prüfung erforderlich",
@@ -12708,8 +12706,8 @@
         },
         "suggestedFix": "Vorgeschlagener nächster Schritt",
         "evidence": "Nachweise ansehen",
-        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
-        "sources": "Quellen: Google Search Console und dieses Audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Zuletzt von Google gecrawlt"
       },
       "index": {
         "title": "Google-Index",

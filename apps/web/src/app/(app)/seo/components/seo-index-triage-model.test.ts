@@ -1,6 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoIndexTriage } from "./seo-index-triage-model";
+import { seoIndexEvidence, seoIndexTriage } from "./seo-index-triage-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
 const checkedAt = new Date("2026-11-16T08:00:00Z");
@@ -113,5 +113,30 @@ describe("indexing review selection", () => {
     };
     workspace.scope.pageIds = ["unknown-page"];
     expect(seoIndexTriage(workspace)).toBeNull();
+  });
+});
+
+describe("seoIndexEvidence", () => {
+  it("keeps a state that is not fine, a verdict without a reason and every line it does not know", () => {
+    expect(
+      seoIndexEvidence([
+        "Google URL Inspection: FAIL; no coverage reason returned.",
+        "Google did not return a last crawl time.",
+        "robotsTxtState: DISALLOWED",
+        "pageFetchState: PAGE_FETCH_STATE_UNSPECIFIED",
+        "Google's canonical: https://example.com/a.",
+        "Google last crawled this URL at not a date.",
+      ]),
+    ).toEqual({
+      reason: null,
+      crawledAt: null,
+      more: [
+        "Google URL Inspection: FAIL; no coverage reason returned.",
+        "Google did not return a last crawl time.",
+        "robotsTxtState: DISALLOWED",
+        "Google's canonical: https://example.com/a.",
+        "Google last crawled this URL at not a date.",
+      ],
+    });
   });
 });

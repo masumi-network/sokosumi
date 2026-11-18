@@ -12698,8 +12698,6 @@
         }
       },
       "indexReview": {
-        "title": "Indexing review notes",
-        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
         "checked": "Reviewed",
         "state": {
           "review": "Review needed",
@@ -12708,8 +12706,8 @@
         },
         "suggestedFix": "Suggested next step",
         "evidence": "View evidence",
-        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
-        "sources": "Sources: Google Search Console and this audit."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Last crawled by Google"
       },
       "index": {
         "title": "Google index",
