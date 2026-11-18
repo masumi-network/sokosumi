@@ -32,7 +32,7 @@ import {
   seoMarketName,
 } from "./seo-shared";
 import { seoCoverageIsNews } from "./seo-statistics-model";
-import { lastRuleCheck } from "./seo-summary-model";
+import { lastRuleCheck, seoDayChecks } from "./seo-summary-model";
 import {
   buildSeoTimeline,
   foldCleanChecks,
@@ -183,18 +183,6 @@ export function SeoTimeline({
       (observation.coverage.modules?.failed ?? 0) > 0;
     return observation.issues > 0 || !incomplete ? observation.issues : null;
   }
-  // Open failures fold into one row, and so do back-to-back clean checks.
-  const synced = foldSyncRuns(
-    buildSeoTimeline(workspace)
-      .reverse()
-      .filter(
-        ({ event }) =>
-          event.kind !== "metrics" ||
-          (syncIsNews(event) &&
-            new Date(event.at).getTime() > (lastRoutine.get(event.title) ?? 0)),
-      ),
-  );
-  const all = foldCleanChecks(synced, (node) => resultOf(node) === 0);
   // The market only tells runs apart when they used different ones.
   const manyMarkets =
     new Set(
@@ -202,9 +190,38 @@ export function SeoTimeline({
         ({ countryCode, languageCode }) => `${countryCode}/${languageCode}`,
       ),
     ).size > 1;
+  // A press on a day of the runs row over the tabs shows the newest check of that day in the tiles: its result and
+  // the link to its results. A History row for it would be a second way to the same thing. A partial check keeps
+  // its History row: only that row names the rules or parts that did not run. So does each check when the checks
+  // used different markets: only the History row names the market. A check outside the period in view has no
+  // details here, so its row stays too.
+  const runChecks = seoRunChecks(workspace);
+  // A press on a day shows the newest check that asked for rules, of any kind: a check the tiles do not show
+  // that day is reached only from its row.
+  const dayChecks = seoDayChecks(workspace);
+  const onRow = ({ event, observation }: SeoTimelineNode) =>
+    !manyMarkets &&
+    observation !== undefined &&
+    runChecks.has(observation.id) &&
+    dayChecks.has(observation.id) &&
+    !FLAGGED_STATUSES.has(event.status.toLowerCase());
+  const events = buildSeoTimeline(workspace).reverse();
+  // Open failures fold into one row, and so do back-to-back clean checks.
+  const synced = foldSyncRuns(
+    events.filter(
+      (node) =>
+        !onRow(node) &&
+        (node.event.kind !== "metrics" ||
+          (syncIsNews(node.event) &&
+            new Date(node.event.at).getTime() >
+              (lastRoutine.get(node.event.title) ?? 0))),
+    ),
+  );
+  const all = foldCleanChecks(synced, (node) => resultOf(node) === 0);
   // The tiles and the page cards already give the last check: its day, its tests, its issues and the link to
   // its results. Its row would say them a second time, so the list starts at the event before it,
-  // as one closed line.
+  // as one closed line. Where the runs row holds the last check, its row is already gone: this applies to a
+  // last check that keeps its row: a partial one, or one of some of the pages.
   // A check that lost an optional part keeps its row: only the row says so. So does each check when the
   // checks used different markets: only the row names the market.
   const first = all.at(0);
@@ -218,29 +235,14 @@ export function SeoTimeline({
     // The tiles show the newest check. A newer check without an event here leaves this row its own news.
     first.observation?.id === lastRuleCheck(workspace)?.id;
   const nodes = tiled ? all.slice(1) : all;
-  if (tiled && nodes.length === 0) return null;
+  // Where the tiles or the runs row hold every event, History has nothing of its own: it is not an empty list.
+  if ((tiled || events.some(onRow)) && nodes.length === 0) return null;
   // A row that asks for attention stays in view: a failed sync, a check that lost a part. A closed line would hide it.
   const folded =
     tiled &&
     nodes.every(
       ({ event }) => !FLAGGED_STATUSES.has(event.status.toLowerCase()),
     );
-  // The runs row over the tabs opens each of these checks: a pick of its day shows its tests and results link.
-  // A list of the same checks would be a second way to the same thing.
-  const runChecks = seoRunChecks(workspace);
-  if (
-    folded &&
-    nodes.every(
-      ({ observation, earlier }) =>
-        observation !== undefined &&
-        observation !== null &&
-        !earlier.length &&
-        !observation.coverage.failed &&
-        !observation.coverage.modules?.failed &&
-        runChecks.has(observation.id),
-    )
-  )
-    return null;
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
   const onePage = workspace.scope.pageIds.length <= 1;
   return (

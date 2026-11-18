@@ -645,7 +645,9 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       <SeoTimeline
         // With several pages each page row gives its last check: its issues, and its day and the results link
         // when the check is not the one the tests tile dates and links.
-        // With one page only the History row links the results.
+        // With one page the tests tile links the results of the check in view. History keeps the row of a check a press
+        // on a day does not show, an earlier check of the same day, and of a check whose row says more than the tiles:
+        // a partial check, a check of some of the pages, each check of several markets.
         summarized={data.pages.length > 1}
         workspace={data}
         onRetry={

@@ -143,20 +143,31 @@ describe("SEO runs of a site", () => {
       "2026-11-03",
     ]);
   });
-  it("opens the newest rule check of each shown day, and none while the row shows no choice", () => {
+  it("holds the newest rule check of each day, also on a row of one day and before its newest five", () => {
     expect(
       seoRunChecks({
         runs: [
           run("2026-11-12T18:00:00Z", 0, "rankings"),
-          run("2026-11-12T13:00:00Z", 5),
           run("2026-11-12T09:00:00Z", 7),
+          run("2026-11-12T13:00:00Z", 5),
           run("2026-11-11T08:00:00Z", 0, "links"),
         ],
       }),
     ).toEqual(new Set(["2026-11-12T13:00:00Z"]));
     expect(seoRunChecks({ runs: [run("2026-11-12T13:00:00Z", 5)] })).toEqual(
-      new Set(),
+      new Set(["2026-11-12T13:00:00Z"]),
     );
+    const runs = [9, 8, 7, 6, 5, 4].map((day) =>
+      run(`2026-11-0${day}T10:00:00Z`, 1),
+    );
+    expect(seoRunChecks({ runs }).has("2026-11-04T10:00:00Z")).toBe(true);
+  });
+
+  it("leaves out a day whose check read only some of the pages", () => {
+    const partial = { ...run("2026-11-11T08:00:00Z", 0), issues: null };
+    expect(
+      seoRunChecks({ runs: [run("2026-11-12T13:00:00Z", 5), partial] }),
+    ).toEqual(new Set(["2026-11-12T13:00:00Z"]));
   });
   it("names the date of a check only where the run in view is that check", () => {
     const runs = [
@@ -257,13 +268,6 @@ describe("SEO runs of a site", () => {
         "2026-11-12T09:00:00Z",
       ),
     ).toBe(0);
-  });
-
-  it("leaves out a day whose check read only some of the pages", () => {
-    const partial = { ...run("2026-11-11T08:00:00Z", 0), issues: null };
-    expect(
-      seoRunChecks({ runs: [run("2026-11-12T13:00:00Z", 5), partial] }),
-    ).toEqual(new Set(["2026-11-12T13:00:00Z"]));
   });
 });
 

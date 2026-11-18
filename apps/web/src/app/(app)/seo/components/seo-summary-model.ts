@@ -11,12 +11,31 @@ import { normalizeQuery } from "./seo-search-model";
  * so the last check is the newest observation that asked for rule checks.
  */
 export function lastRuleCheck(workspace: ProjectSeoWorkspace) {
+  return workspace.observations.find(seoAskedRules) ?? null;
+}
+
+/**
+ * The check the tiles show for each UTC day picked: the newest of that day that asked for rule checks, as
+ * lastRuleCheck picks it in the period up to that day.
+ */
+export function seoDayChecks(
+  workspace: Pick<ProjectSeoWorkspace, "observations">,
+) {
+  const days = new Map<string, string>();
+  for (const observation of workspace.observations.filter(seoAskedRules)) {
+    const day = new Date(observation.observedAt).toISOString().slice(0, 10);
+    if (!days.has(day)) days.set(day, observation.id);
+  }
+  return new Set(days.values());
+}
+
+/** Whether a check asked for rule checks: the tiles show only such a check. */
+export function seoAskedRules({
+  coverage,
+}: Pick<ProjectSeoWorkspace["observations"][number], "coverage">) {
   return (
-    workspace.observations.find(
-      ({ coverage }) =>
-        coverage.checked + coverage.skipped + coverage.failed > 0 ||
-        (coverage.modules?.failed ?? 0) > 0,
-    ) ?? null
+    coverage.checked + coverage.skipped + coverage.failed > 0 ||
+    (coverage.modules?.failed ?? 0) > 0
   );
 }
 

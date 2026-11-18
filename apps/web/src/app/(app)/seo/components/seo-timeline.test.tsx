@@ -256,12 +256,28 @@ describe("SEO timeline recovery", () => {
       issues: 1,
       coverage: { checked: 12, skipped: 0, failed: 0 },
     });
-    workspace.observations = [check("newest", 3), check("older", 2)];
+    // The runs row holds the newest check of Nov 2. The newest check is partial, so it keeps its row for the tiles
+    // to leave out; the earlier check of Nov 2 is what History has before it.
+    workspace.observations = [
+      {
+        ...check("newest", 3),
+        coverage: { checked: 11, skipped: 0, failed: 1 },
+      },
+      check("older", 2),
+      { ...check("earlier", 2), observedAt: new Date("2026-11-02T08:00:00Z") },
+    ];
+    workspace.runs = workspace.observations.map((observation) => ({
+      observationId: observation.id,
+      kind: observation.kind,
+      observedAt: observation.observedAt,
+      issues: 1,
+      seconds: null,
+    }));
     workspace.timeline = workspace.observations.map((observation) => ({
       id: `${observation.id}-event`,
       kind: "check" as const,
       title: "SEO check results imported",
-      status: "completed",
+      status: observation.id === "newest" ? "partial" : "completed",
       detail: "",
       at: observation.observedAt,
       pageIds: observation.pageIds,
@@ -324,13 +340,14 @@ describe("SEO timeline recovery", () => {
       issues: 1,
       coverage: { checked: 12, skipped: 0, failed: 0 },
     });
-    const show = (checks: ReturnType<typeof check>[]) => {
+    // Core sends the checks newest first.
+    const show = (checks: typeof workspace.observations, partial?: string) => {
       workspace.observations = checks;
       workspace.timeline = checks.map((observation) => ({
         id: `${observation.id}-event`,
         kind: "check" as const,
         title: "SEO check results imported",
-        status: "completed",
+        status: observation.id === partial ? "partial" : "completed",
         detail: "",
         at: observation.observedAt,
         pageIds: observation.pageIds,
@@ -341,7 +358,7 @@ describe("SEO timeline recovery", () => {
         observationId: observation.id,
         kind: observation.kind,
         observedAt: observation.observedAt,
-        issues: 1,
+        issues: observation.issues,
         seconds: null,
       }));
       return render(
@@ -358,9 +375,124 @@ describe("SEO timeline recovery", () => {
     const covered = show([check("newest", 3), check("older", 2)]);
     expect(screen.queryByRole("heading", { name: "History" })).toBeNull();
     covered.unmount();
-    // A pick of Nov 2 shows its newest check: the morning check of that day is reached only here.
-    show([check("newest", 3), check("evening", 2, 18), check("morning", 2, 8)]);
+    // A day before the row's newest five is under "Other dates". A pick of Nov 2 shows its newest check: the morning
+    // check of that day is reached only here.
+    const older = show([
+      ...[7, 6, 5, 4, 3].map((day) => check(`day-${day}`, day)),
+      check("evening", 2, 18),
+      check("morning", 2, 8),
+    ]);
     expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+    expect(
+      screen
+        .getAllByRole("link", { name: /View results/ })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/tasks/morning-task"]);
+    older.unmount();
+    // A partial check keeps its row: only the row names what did not run.
+    const partial = show(
+      [
+        check("newest", 3),
+        {
+          ...check("older", 2),
+          coverage: { checked: 11, skipped: 0, failed: 1 },
+        },
+      ],
+      "older",
+    );
+    expect(
+      screen
+        .getAllByRole("link", { name: /View results/ })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/tasks/older-task"]);
+    partial.unmount();
+    // With several markets only the row names the market of each check.
+    const markets = show([
+      check("newest", 3),
+      { ...check("older", 2), countryCode: "DE", languageCode: "de" },
+    ]);
+    expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+    markets.unmount();
+    // A check that asked for no rule is not the one a press on its day shows: its row stays.
+    const noRules = show([
+      check("newest", 3),
+      {
+        ...check("bare", 2, 18),
+        coverage: { checked: 0, skipped: 0, failed: 0 },
+      },
+      check("older", 2),
+    ]);
+    expect(
+      screen
+        .getAllByRole("link", { name: /View results/ })
+        .map((link) => link.getAttribute("href")),
+      // The check before it on that day keeps its row too: the runs row knows the day's newest check only.
+    ).toEqual(["/tasks/bare-task", "/tasks/older-task"]);
+    noRules.unmount();
+    // A later rankings check whose module failed is what a press on Nov 2 shows: the page check keeps its row.
+    const rankings = show(
+      [
+        check("newest", 3),
+        {
+          ...check("rankings", 2, 18),
+          kind: "rankings" as const,
+          coverage: {
+            checked: 0,
+            skipped: 0,
+            failed: 0,
+            modules: { notRequested: 0, failed: 1 },
+          },
+        },
+        check("older", 2),
+      ],
+      "rankings",
+    );
+    expect(
+      screen
+        .getAllByRole("link", { name: /View results/ })
+        .map((link) => link.getAttribute("href")),
+    ).toContain("/tasks/older-task");
+    rankings.unmount();
+    show([check("newest", 3), check("older", 2)]).unmount();
+    // A page change is History's own: it stays in view, not behind a closed line.
+    workspace.timeline.push({
+      id: "page-change",
+      kind: "page_change",
+      title: "Title changed",
+      status: "recorded",
+      detail: "",
+      at: new Date("2026-11-02T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      taskId: null,
+      observationId: null,
+    });
+    // Core gives a Task row the check that proposed it: the runs row shows that check, not the Task.
+    workspace.timeline.push({
+      id: "action-link",
+      kind: "action",
+      title: "Recommendation linked to a Task",
+      status: "completed",
+      detail: "",
+      at: new Date("2026-11-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      taskId: "action-task",
+      observationId: "newest",
+    });
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} summarized />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.getByRole("heading", { name: "History" }).closest("details"),
+    ).toBeNull();
+    expect(screen.getByText("Title changed")).toBeVisible();
+    expect(screen.getByText("Action Task linked")).toBeVisible();
   });
 
   it("folds back-to-back clean checks of the same pages into one row", () => {
