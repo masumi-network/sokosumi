@@ -69,7 +69,7 @@ export function TaskSubtaskCreateDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && !isPending && onClose()}>
       <DialogContent
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md"
+        className="sm:max-w-md"
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,7 +84,8 @@ export function TaskSubtaskCreateDialog({
               required
               autoFocus
               autoComplete="off"
-              disabled={isPending}
+              // readOnly, not disabled: a disabled field drops focus.
+              readOnly={isPending}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
@@ -93,8 +94,10 @@ export function TaskSubtaskCreateDialog({
             <Label htmlFor={descriptionId}>{t("description")}</Label>
             <Textarea
               id={descriptionId}
-              className="min-h-24 max-h-60"
-              disabled={isPending}
+              // The assignee list portals into the dialog, so the dialog cannot
+              // scroll; a viewport cap keeps the buttons on a short screen.
+              className="min-h-24 max-h-[20dvh]"
+              readOnly={isPending}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
@@ -122,7 +125,7 @@ export function TaskSubtaskCreateDialog({
             <Input
               id={dueId}
               type="date"
-              disabled={isPending}
+              readOnly={isPending}
               value={dueOn}
               onChange={(event) => setDueOn(event.target.value)}
             />
