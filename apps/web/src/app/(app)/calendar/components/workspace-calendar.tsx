@@ -29,6 +29,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
+  Bot,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -37,7 +38,7 @@ import {
   Ellipsis,
   Plus,
   Repeat,
-  Sparkles,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1487,7 +1488,7 @@ export function WorkspaceCalendar({
       {
         id: "coworker",
         label: tFilters("coworkerLabel"),
-        icon: Sparkles,
+        icon: Bot,
         value: state.assigneeId,
         allLabel: tFilters("all"),
         options: coworkers
@@ -1507,7 +1508,7 @@ export function WorkspaceCalendar({
       {
         id: "human",
         label: tFilters("humanLabel"),
-        icon: Sparkles,
+        icon: User,
         value: state.assigneeUserId,
         allLabel: tFilters("all"),
         options: coworkers

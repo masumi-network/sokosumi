@@ -12,7 +12,7 @@ import {
   talkingVideoQuotedSeconds,
 } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, LoaderCircle, Sparkles, Upload } from "lucide-react";
+import { Download, LoaderCircle, PenLine, Upload } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState, useTransition } from "react";
 
@@ -287,7 +287,7 @@ export function TikTokStudio({
               type="button"
               variant="outline"
             >
-              <Sparkles aria-hidden />
+              <PenLine aria-hidden />
               {t("writeFromBrand")}
             </Button>
           </div>

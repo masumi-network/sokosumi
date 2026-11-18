@@ -37,7 +37,6 @@ struct CoworkerThoughtView: View {
 
   private var header: some View {
     HStack(spacing: 6) {
-      Image(systemName: "sparkle").accessibilityHidden(true)
       if working {
         // Web `reasoning.thinking` ("Thinking..."), with the typographic ellipsis.
         Text("Thinking…")
@@ -61,7 +60,7 @@ struct CoworkerThoughtView: View {
 }
 
 /// Settled Thought header on a failed mention shell plus the mentioner-only
-/// Retry (web `CoworkerFailedThoughtSparkle` + `FailedMentionActions`). Core
+/// Retry (web failed Thought header + `FailedMentionActions`). Core
 /// does not expose the failure reason, so the label stays generic. The row
 /// owns the POST and the rejection alert: this view unmounts while retry
 /// flips the shell to thinking.
@@ -72,7 +71,7 @@ struct CoworkerMentionFailedView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       HStack(spacing: 6) {
-        Image(systemName: "sparkle")
+        Image(systemName: "exclamationmark.circle")
           .foregroundStyle(.tertiary)
           .accessibilityHidden(true)
         Text("Failed to reply")

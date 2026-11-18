@@ -1,13 +1,7 @@
 "use client";
 
 import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
-import {
-  Building2,
-  CircleDashed,
-  Eye,
-  Hourglass,
-  Sparkles,
-} from "lucide-react";
+import { Building2, CircleDashed, Eye, Hourglass, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
@@ -181,7 +175,7 @@ export function TasksViewFilters({
     nextSections.push({
       id: "coworker",
       label: labels.coworkerLabel,
-      icon: Sparkles,
+      icon: Users,
       value:
         filters.assigneeSokoBotId ??
         filters.assigneeUserId ??
