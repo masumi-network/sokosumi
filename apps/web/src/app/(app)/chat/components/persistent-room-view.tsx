@@ -13,7 +13,11 @@ import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
 } from "@/app/chat/utils/room-transcript-cache";
-import { useRoomCache, useRoomSelection } from "./room-cache-provider";
+import {
+  useReportShownRoom,
+  useRoomCache,
+  useRoomSelection,
+} from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
 
@@ -83,6 +87,15 @@ export function PersistentRoomView({ children }: { children: ReactNode }) {
         : paintedId;
   if (nextPaintedId !== paintedId) setPaintedId(nextPaintedId);
   const roomId = cache ? nextPaintedId : requestedId;
+  // The app chrome follows what is painted, before the route commits it.
+  const reportShownRoom = useReportShownRoom();
+  const shownRoom = !cache
+    ? undefined
+    : (roomId ?? (requestedId ? undefined : null));
+  useLayoutEffect(() => {
+    reportShownRoom?.(shownRoom);
+    return () => reportShownRoom?.(undefined);
+  }, [reportShownRoom, shownRoom]);
   return (
     <RoomBootstrapContext value={setRegistered}>
       {cache && roomId ? (

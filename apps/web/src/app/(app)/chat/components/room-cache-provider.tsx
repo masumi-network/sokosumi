@@ -10,7 +10,11 @@ import {
   useEffectEvent,
   useState,
 } from "react";
-import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
+import {
+  chatRoomHref,
+  isChatRoomPathname,
+  roomIdFromPath,
+} from "@/app/chat/utils/chat-route-base";
 import {
   ROOM_APPROACH_REUSE_MS,
   RoomTranscriptCache,
@@ -89,6 +93,36 @@ export function clickOpensAtUnread(
 const RoomSelectionContext = createContext<string | null>(null);
 export function useRoomSelection() {
   return useContext(RoomSelectionContext);
+}
+
+/**
+ * The room `PersistentRoomView` paints: its id, `null` for no room, or
+ * `undefined` while it follows the route (nothing mounted, or a room still
+ * on its way with nothing painted for it yet).
+ */
+type ShownRoom = string | null | undefined;
+const ShownRoomContext = createContext<ShownRoom>(undefined);
+const ReportShownRoomContext = createContext<
+  ((room: ShownRoom) => void) | null
+>(null);
+export function useReportShownRoom() {
+  return useContext(ReportShownRoomContext);
+}
+
+/**
+ * The path the app chrome (top bar, tab bar) describes. A room paints ahead
+ * of its route on a click, and leaves ahead of it on a swipe back, so the
+ * chrome follows the room on screen and not `usePathname` alone: otherwise
+ * the tab bar shows over a room that just opened.
+ */
+export function useChromePathname(): string {
+  const pathname = usePathname();
+  const shown = useContext(ShownRoomContext);
+  const target = useContext(RoomSelectionContext);
+  if (shown) return chatRoomHref(shown);
+  if (shown === null && isChatRoomPathname(pathname) && target)
+    return target.split("?")[0];
+  return pathname;
 }
 
 interface RoomCacheSessionValue {
@@ -174,6 +208,7 @@ function RoomCacheSession({
     navigation.pathname === pathname ? navigation.target : pathname;
   const replace = useEffectEvent((href: string) => router.replace(href));
   const [generation, setGeneration] = useState(0);
+  const [shownRoom, setShownRoom] = useState<ShownRoom>(undefined);
   const [cache, setCache] = useState(
     () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
@@ -261,7 +296,11 @@ function RoomCacheSession({
   }, [cache]);
   return (
     <RoomCacheContext value={{ cache, generation, currentUserId, workspaceId }}>
-      <RoomSelectionContext value={target}>{children}</RoomSelectionContext>
+      <RoomSelectionContext value={target}>
+        <ReportShownRoomContext value={setShownRoom}>
+          <ShownRoomContext value={shownRoom}>{children}</ShownRoomContext>
+        </ReportShownRoomContext>
+      </RoomSelectionContext>
     </RoomCacheContext>
   );
 }

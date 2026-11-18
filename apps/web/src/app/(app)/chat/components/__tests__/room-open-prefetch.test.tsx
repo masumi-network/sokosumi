@@ -1,6 +1,12 @@
 import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { ForesightManager } from "js.foresight";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,9 +24,11 @@ import {
 } from "../persistent-room-view";
 import {
   RoomCacheProvider,
+  useChromePathname,
   useRoomIntentPrefetch,
 } from "../room-cache-provider";
 import {
+  mockPathname,
   roomsClientBaseProps,
   sampleMessage,
   useChatRoomRealtimeMock,
@@ -278,5 +286,88 @@ describe("room open read started on click", () => {
     expect(
       urls.filter((url) => url.includes("openAtUnread=true")),
     ).toHaveLength(1);
+  });
+});
+
+describe("app chrome while a room paints ahead of its route", () => {
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: [],
+              meta: { pagination: { nextCursor: null } },
+            }),
+          ),
+      ),
+    );
+    publishMembershipVisibleRooms(
+      [makeRoom({ id: "room-b", name: "Channel B" })],
+      "org-1",
+      "user-1",
+    );
+    window.history.replaceState(null, "", "/chat");
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearMembershipVisibleRoomsSnapshot();
+    window.history.replaceState(null, "", "/");
+  });
+
+  function ChromePath() {
+    return <output data-testid="chrome-path">{useChromePathname()}</output>;
+  }
+  const chromePath = () => screen.getByTestId("chrome-path").textContent;
+
+  function Page() {
+    return (
+      <>
+        <ChromePath />
+        <a href="/chat/rooms/room-b" onClick={(e) => e.preventDefault()}>
+          Open B
+        </a>
+        <PersistentRoomView>
+          <div>Chats list</div>
+        </PersistentRoomView>
+      </>
+    );
+  }
+
+  // The tab bar and top bar read this path: a tab bar over an open room.
+  it("describes the room on screen before the route commits it", async () => {
+    mockPathname.mockImplementation(() => "/chat");
+    render(<Page />, { wrapper: CacheWrapper });
+    expect(chromePath()).toBe("/chat");
+
+    fireEvent.click(screen.getByText("Open B"));
+
+    await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
+    expect(mockPathname()).toBe("/chat");
+  });
+
+  // A swipe back drops the room at once; the route catches up after.
+  it("describes the list on screen once a swipe back leaves the room", async () => {
+    mockPathname.mockImplementation(() => "/chat/rooms/room-b");
+    window.history.replaceState(null, "", "/chat/rooms/room-b");
+    render(<Page />, { wrapper: CacheWrapper });
+    await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
+
+    act(() => {
+      window.history.pushState(null, "", "/chat");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    await waitFor(() => expect(chromePath()).toBe("/chat"));
+    expect(mockPathname()).toBe("/chat/rooms/room-b");
+  });
+
+  it("follows the route outside a painted room", () => {
+    mockPathname.mockImplementation(() => "/tasks");
+    render(<ChromePath />, { wrapper: CacheWrapper });
+
+    expect(chromePath()).toBe("/tasks");
   });
 });

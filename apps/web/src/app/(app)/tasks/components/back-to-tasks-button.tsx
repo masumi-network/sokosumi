@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 
 import { BackLink } from "@/components/back-link";
+import { navigateBack } from "@/lib/navigation/navigate-back";
 
 import {
   getStoredTasksReturnPath,
@@ -47,7 +48,7 @@ export function BackToTasksButton({
     // Read storage at click time: `returnPath` state can lag behind the
     // TaskDetailLink click that wrote it.
     event.preventDefault();
-    router.push(getStoredTasksReturnPath({ taskPath }));
+    navigateBack(router, getStoredTasksReturnPath({ taskPath }));
   };
 
   return (
