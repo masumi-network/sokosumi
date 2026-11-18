@@ -186,6 +186,7 @@ export async function executeAuthorizedTool(
     case "get_image":
     case "generate_video":
     case "get_video":
+    case "generate_talking_video":
     case "read_file":
       return dispatchFilesTools(runtime, input, authorized);
     case "list_integrations":

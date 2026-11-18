@@ -79,7 +79,10 @@ export async function watchOutcome(watch: {
     });
     if (!job) return "The Studio job no longer exists.";
     if (PENDING_STUDIO.has(job.status)) return null;
-    const video = job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO";
+    const video =
+      job.kind === "TEXT_TO_VIDEO" ||
+      job.kind === "IMAGE_TO_VIDEO" ||
+      job.kind === "TALKING_VIDEO";
     const read = video ? "get_video" : "get_image";
     return job.status === "SUCCEEDED"
       ? `The ${video ? "video" : "image"} is ready (job ${watch.targetId}). Call ${read} with jobId ${watch.targetId}${watch.projectId ? ` and projectId ${watch.projectId}` : ""} for its link and fileId.`
