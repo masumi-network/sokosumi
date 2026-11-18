@@ -3,6 +3,7 @@
 import {
   buildAdHocDesignMdPrefix,
   parseTaskContextFromDescription,
+  taskContextSelectionResolvesAnything,
 } from "@sokosumi/utils";
 import { Check, ChevronDown, Globe, Info } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
@@ -30,6 +31,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import type { TaskContextSelectionInput } from "@/lib/actions/task/action";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
 
@@ -129,6 +131,102 @@ export function getTaskContextSelectionFromDescription(
       briefingEnabled: parsed.selection.briefingEnabled,
       contextMdEnabled: parsed.selection.memoryEnabled,
     },
+  };
+}
+
+/**
+ * A project change keeps the Context toggles, but the brand follows the new
+ * project: its DESIGN.md when it has one, else the workspace brand. A custom
+ * DESIGN.md also gives way to the new project's own, as in the edit form.
+ */
+export function withProjectBrandSource(
+  selection: TaskContextAttachmentsSelection,
+  project: ProjectFilterOption | undefined,
+): TaskContextAttachmentsSelection {
+  return {
+    ...selection,
+    brand: {
+      ...selection.brand,
+      source: project?.designMd
+        ? "project"
+        : selection.brand.source === "project"
+          ? "default"
+          : selection.brand.source,
+    },
+  };
+}
+
+/**
+ * Context for moving a saved Task to another project. Toggles read from the
+ * description carry over. A Task without a project had no Briefing or Memory
+ * link to keep, so both start on, as on a new Task.
+ */
+export function getTaskContextSelectionForProjectMove(
+  description: string,
+  options: {
+    from?: ProjectFilterOption;
+    to?: ProjectFilterOption;
+    defaultBrandUrl?: string | null;
+    userId?: string | null;
+  },
+): TaskContextAttachmentsSelection {
+  const { selection } = getTaskContextSelectionFromDescription(description, {
+    project: options.from,
+    defaultBrandUrl: options.defaultBrandUrl,
+    userId: options.userId,
+  });
+  const moved = withProjectBrandSource(selection, options.to);
+  if (options.from) return moved;
+  return { ...moved, briefingEnabled: true, contextMdEnabled: true };
+}
+
+/**
+ * Core refuses a Task left with no text and no Context file. A Task whose
+ * description is only Context links can move only where a link survives.
+ */
+export function canMoveTaskToProject(
+  description: string,
+  options: {
+    from?: ProjectFilterOption;
+    to?: ProjectFilterOption;
+    defaultBrandUrl?: string | null;
+    userId?: string | null;
+  },
+): boolean {
+  const { body } = getTaskContextSelectionFromDescription(description, {
+    project: options.from,
+    defaultBrandUrl: options.defaultBrandUrl,
+    userId: options.userId,
+  });
+  if (body.trim()) return true;
+
+  return taskContextSelectionResolvesAnything(
+    toTaskContextSelectionInput(
+      getTaskContextSelectionForProjectMove(description, options),
+    ),
+    {
+      projectDesignMdUrl: options.to?.designMd?.url ?? null,
+      workspaceDesignMdUrl: options.defaultBrandUrl ?? null,
+      projectBriefingUrl: options.to?.briefingUrl ?? null,
+      projectContextMdUrl: options.to?.contextMd?.url ?? null,
+    },
+  );
+}
+
+/** The wire shape the task actions take; drops the ad hoc upload metadata. */
+export function toTaskContextSelectionInput(
+  selection: TaskContextAttachmentsSelection,
+): TaskContextSelectionInput {
+  return {
+    brand: {
+      enabled: selection.brand.enabled,
+      source: selection.brand.source,
+      custom: selection.brand.custom
+        ? { url: selection.brand.custom.url }
+        : null,
+    },
+    briefingEnabled: selection.briefingEnabled,
+    contextMdEnabled: selection.contextMdEnabled,
   };
 }
 
