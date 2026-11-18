@@ -4385,6 +4385,7 @@
       }
     },
     "TikTokStudio": {
+      "showSite": "Mostrar tu sitio web en el vídeo",
       "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
       "intro": "Una persona dice tu guion, con subtítulos, listo para TikTok, Reels y Shorts.",

@@ -77,6 +77,7 @@ const CATALOG: ProjectImageStudioTalkingVideoCatalog = {
         perSecondUsd: 0.05,
         voicePer1000CharactersUsd: 0.08,
         captionsPerMinuteUsd: 0.03,
+        cutoutPerSecondUsd: 0.01,
         basis: "",
         sourceUrl: "",
         verifiedAt: "2026-11-18",
@@ -99,12 +100,13 @@ const CATALOG: ProjectImageStudioTalkingVideoCatalog = {
 
 const SCRIPT = "We roast every bag in Zurich the week it ships.";
 
-function renderStudio() {
+function renderStudio({ hasWebsite = false } = {}) {
   render(
     <TestQueryProvider>
       <TikTokStudio
         catalog={CATALOG}
         initialVideos={{ jobs: [], assets: [] }}
+        hasWebsite={hasWebsite}
         projectId="project-1"
         readOnly={false}
       />
@@ -161,6 +163,39 @@ describe("TikTokStudio", () => {
     expect(
       await screen.findByRole("region", { name: "stageVideo" }),
     ).toHaveTextContent("starting");
+  });
+
+  it("offers to show the website only when the project has one", async () => {
+    startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
+    renderStudio();
+    expect(screen.queryByLabelText("showSite")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenCalledWith(
+        expect.objectContaining({ siteShots: false }),
+      ),
+    );
+  });
+
+  it("shows the website unless the person turns it off", async () => {
+    startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
+    renderStudio({ hasWebsite: true });
+    expect(screen.getByLabelText("showSite")).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ siteShots: true }),
+      ),
+    );
+
+    fireEvent.click(screen.getByLabelText("showSite"));
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ siteShots: false }),
+      ),
+    );
   });
 
   it("says what is missing instead of a cost, and keeps the button off", () => {
@@ -251,6 +286,7 @@ describe("TikTokStudio", () => {
             catalog={CATALOG}
             projectId="project-1"
             readOnly={false}
+            hasWebsite={false}
             initialVideos={{
               jobs: [
                 {
@@ -300,6 +336,7 @@ describe("TikTokStudio", () => {
           }}
           projectId="project-1"
           readOnly={false}
+          hasWebsite={false}
         />
       </TestQueryProvider>,
     );

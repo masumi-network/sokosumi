@@ -487,7 +487,8 @@ export async function fetchQueueResult(options: {
 
 /**
  * Reads the produced media out of a payload without trusting its shape: an
- * image model's `images[]`, or a video model's single `video`.
+ * image model's `images[]`, or a video model's `video`, which is one file or,
+ * for a cut-out, a list of them (colour, then alpha).
  */
 export function parseMedia(payload: unknown): FalMedia[] {
   if (typeof payload !== "object" || payload === null) return [];
@@ -495,7 +496,13 @@ export function parseMedia(payload: unknown): FalMedia[] {
     images?: unknown;
     video?: unknown;
   };
-  const raw = Array.isArray(rawImages) ? rawImages : video ? [video] : [];
+  const raw = Array.isArray(rawImages)
+    ? rawImages
+    : Array.isArray(video)
+      ? video
+      : video
+        ? [video]
+        : [];
   const images: FalMedia[] = [];
   for (const entry of raw) {
     if (typeof entry !== "object" || entry === null) continue;

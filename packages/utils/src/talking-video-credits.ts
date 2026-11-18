@@ -46,17 +46,26 @@ export interface TalkingVideoPriceFigures {
   voicePer1000CharactersUsd: number;
   /** USD per minute of video, for the captions. */
   captionsPerMinuteUsd: number;
+  /** USD per second of video, for cutting the presenter out over the site. */
+  cutoutPerSecondUsd: number;
+}
+
+export interface TalkingVideoExtras {
+  /** The brand's site is shown behind the presenter. */
+  siteShots?: boolean;
 }
 
 /** Credits (= cents) for one talking video of this script. */
 export function creditsPerTalkingVideoCents(
   price: TalkingVideoPriceFigures,
   script: string,
+  extras: TalkingVideoExtras = {},
 ): number {
   const seconds = talkingVideoQuotedSeconds(script);
   const usd =
     seconds * price.perSecondUsd +
     (script.length / 1000) * price.voicePer1000CharactersUsd +
-    (seconds / 60) * price.captionsPerMinuteUsd;
+    (seconds / 60) * price.captionsPerMinuteUsd +
+    (extras.siteShots ? seconds * price.cutoutPerSecondUsd : 0);
   return Math.ceil(usd * 100);
 }

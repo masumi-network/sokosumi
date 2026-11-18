@@ -591,6 +591,7 @@ export {
   creditsPerTalkingVideoCents,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoExtras,
   type TalkingVideoPriceFigures,
   talkingVideoQuotedSeconds,
 } from "./talking-video-credits.js";
