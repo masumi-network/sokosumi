@@ -42351,6 +42351,71 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
     ]
 } as const;
 
+export const ProjectTalkingVideoScriptsSchema = {
+    type: 'object',
+    properties: {
+        scripts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    hook: {
+                        type: 'string'
+                    },
+                    script: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'hook',
+                    'script'
+                ]
+            }
+        }
+    },
+    required: [
+        'scripts'
+    ]
+} as const;
+
+export const WriteProjectTalkingVideoScriptsRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        }
+    }
+} as const;
+
+export const ProjectTalkingVideosSchema = {
+    type: 'object',
+    properties: {
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        }
+    },
+    required: [
+        'jobs',
+        'assets'
+    ]
+} as const;
+
 export const CancelProjectImageJobResponseSchema = {
     type: 'object',
     properties: {

@@ -246,6 +246,17 @@ describe("starting a talking video", () => {
     expect(speakVoiceoverMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a script that speaks as a customer before reserving", async () => {
+    await expect(
+      createTalkingVideoJob({
+        ...BASE_INPUT,
+        script:
+          "I've been using this planner for a month and it changed my life.",
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(jobCreateMock).not.toHaveBeenCalled();
+  });
+
   it("fails the job without sending when the voice cannot be made", async () => {
     speakVoiceoverMock.mockRejectedValue(new Error("voice service down"));
     const logged = expectCoreLog(
@@ -265,6 +276,26 @@ describe("starting a talking video", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+
+  it("reads the voice's length from the mp3 when it comes without timings", async () => {
+    speakVoiceoverMock.mockResolvedValue({
+      // 7.6 s of a 128 kbps mp3.
+      bytes: new Uint8Array(121_600),
+      costUsd: 0.01,
+      durationSeconds: null,
+      sentences: [],
+    });
+
+    await createTalkingVideoJob(BASE_INPUT);
+
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({ durationSeconds: 8 }),
+        }),
+      }),
+    );
   });
 
   it("refuses a voice that runs far longer than the quote", async () => {

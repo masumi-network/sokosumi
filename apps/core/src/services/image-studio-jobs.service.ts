@@ -89,10 +89,12 @@ import {
   creditsPerTalkingVideo,
   findTalkingVideoPresenter,
   frameTalkingVideoPresenter,
+  posesAsCustomerTestimonial,
   readTalkingVideoSettings,
   TALKING_VIDEO_ASPECT_RATIO,
   TALKING_VIDEO_CAPTION_ENDPOINT,
   TALKING_VIDEO_RESOLUTION,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
   type TalkingVideoModel,
   type TalkingVideoSettings,
   talkingVideoModel,
@@ -1156,6 +1158,10 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
       { kind: "invalid_video_settings" },
     );
   }
+  if (posesAsCustomerTestimonial(input.script))
+    throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
+      kind: "talking_video_testimonial",
+    });
   if (
     input.presenter.kind === "stock" &&
     !findTalkingVideoPresenter(input.presenter.id)
@@ -1212,6 +1218,12 @@ function queueModel(job: {
   return job.pendingMediaUrl ? TALKING_VIDEO_CAPTION_ENDPOINT : job.model;
 }
 
+/**
+ * The voice is a constant 128 kbps mp3, so its size gives its length when the
+ * voice service sends no word timings.
+ */
+const MP3_BYTES_PER_SECOND = 16_000;
+
 /** How much longer than its quote a voice may run before the job is refused. */
 const VOICE_OVERRUN_LIMIT = 2;
 
@@ -1265,7 +1277,9 @@ async function prepareTalkingVideo(
     languageCode: settings.languageCode,
   });
   const quotedSeconds = settings.durationSeconds;
-  const spokenSeconds = Math.ceil(voice.durationSeconds ?? quotedSeconds);
+  const spokenSeconds = Math.ceil(
+    voice.durationSeconds ?? voice.bytes.byteLength / MP3_BYTES_PER_SECOND,
+  );
   if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
     throw new Error("The voice ran far longer than the script was quoted at.");
   const stored = await put(

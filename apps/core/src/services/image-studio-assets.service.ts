@@ -1,5 +1,6 @@
 import {
   type Prisma,
+  type ProjectImageJobKind,
   ProjectImageJobStatus,
   ProjectImageMediaType,
 } from "@sokosumi/database";
@@ -679,10 +680,24 @@ export async function getJob(options: {
   return job ? toJobView(job) : null;
 }
 
+/** The delivered videos of these jobs, newest first. */
+export async function listAssetsOfJobs(
+  jobIds: string[],
+  userId: string,
+): Promise<AssetView[]> {
+  if (jobIds.length === 0) return [];
+  const assets = await prisma.projectImageAsset.findMany({
+    where: { jobId: { in: jobIds }, hiddenAt: null },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: assetSelect,
+  });
+  return await applyRatings(assets.map(toAssetView), userId);
+}
+
 export async function listJobs(
-  options: ListScope & { limit: number },
+  options: ListScope & { limit: number; kind?: ProjectImageJobKind },
 ): Promise<JobView[]> {
-  const where = await scopeWhere(options);
+  const where = { ...(await scopeWhere(options)), kind: options.kind };
   const jobs = await prisma.projectImageJob.findMany({
     where,
     orderBy: { createdAt: "desc" },
