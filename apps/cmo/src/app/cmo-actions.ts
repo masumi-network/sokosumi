@@ -9,8 +9,10 @@ import {
   type CmoAdCampaigns,
   type CmoAdsFinalized,
   type CmoCusoList,
+  type CmoKeywordSearch,
   type CmoMeasurement,
   type CmoOverview,
+  type CmoSeo,
   type CmoSubscriptionPlan,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
@@ -25,6 +27,7 @@ import {
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoOverviewForProject,
+  getCmoSeoForProject,
   getContactLists,
   initiateCmoSocialConnectionForProject,
   launchCmoSearchAdForProject,
@@ -38,11 +41,15 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  requestCmoArticleDraftForProject,
+  requestCmoArticleIdeasForProject,
   requestCmoStrategyForProject,
   retryCmoOnboardingForProject,
   revertCmoUpdateForProject,
+  searchCmoKeywordsForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
+  setCmoSeoSuggestionStatusForProject,
   skipCmoSubscriptionForProject,
   startCmoOnboarding,
   startCmoOverForProject,
@@ -864,7 +871,7 @@ export async function setAdCampaignStatus(
 export async function connectMeasurement(
   projectId: string,
   provider: CmoMeasurement["provider"],
-  from: "onboarding" | "app",
+  from: "onboarding" | "app" | "seo",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoMeasurementForProject({
@@ -1033,4 +1040,57 @@ export async function finalizeMeasurement(
     path: { projectId, provider },
   });
   return !error;
+}
+
+/** The SEO tab: the weekly audit, Search Console, suggestions and keyword searches. */
+export async function loadSeo(projectId: string): Promise<CmoSeo | null> {
+  const core = await requireCore();
+  const { data } = await getCmoSeoForProject({ ...core, path: { projectId } });
+  return data?.data ?? null;
+}
+
+/** Keyword ideas for a topic; a refusal (none left today, research down) comes back as text. */
+export async function searchKeywords(
+  projectId: string,
+  topic: string,
+): Promise<{ search: CmoKeywordSearch | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await searchCmoKeywordsForProject({
+    ...core,
+    path: { projectId },
+    body: { topic },
+  });
+  return data
+    ? { search: data.data, error: null }
+    : { search: null, error: errorText(error, "Could not search keywords") };
+}
+
+/** Marks a page change or article done, dismisses it, or opens it again. */
+export async function setSeoSuggestionStatus(
+  projectId: string,
+  id: string,
+  status: "open" | "done" | "dismissed",
+): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = await setCmoSeoSuggestionStatusForProject({
+    ...core,
+    path: { projectId, id },
+    body: { status },
+  });
+  return error ? errorText(error, "Could not save that") : null;
+}
+
+/** "More article ideas" (no id) or "Write the article" (its id): Cuso starts, his answer lands in the chat. */
+export async function askCusoForArticles(
+  projectId: string,
+  articleId?: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = articleId
+    ? await requestCmoArticleDraftForProject({
+        ...core,
+        path: { projectId, id: articleId },
+      })
+    : await requestCmoArticleIdeasForProject({ ...core, path: { projectId } });
+  return error ? errorText(error, `${AGENT_NAME} could not start`) : null;
 }

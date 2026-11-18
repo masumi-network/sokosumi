@@ -198,8 +198,8 @@ const PREVIEW_LABELS = {
   newsletter: "Newsletter",
 } as const;
 
-/** Ads, SEO and newsletters have no Sokosumi tool yet: preview only. */
-const EXECUTABLE_PREVIEWS = new Set(["post"]);
+/** Ads and newsletters show as previews here; SEO work lives in the SEO tab. */
+const EXECUTABLE_PREVIEWS = new Set(["post", "seo"]);
 
 export function StrategyCard({
   overview,
