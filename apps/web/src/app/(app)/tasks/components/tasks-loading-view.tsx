@@ -184,7 +184,7 @@ function TasksListLoading({ compact }: { compact: boolean }) {
               )}
             >
               <TextLineSkeleton className="w-2/5 text-sm" />
-              <TextLineSkeleton className="ms-auto w-40 shrink-0 text-xs" />
+              <TextLineSkeleton className="ms-auto w-32 shrink-0 text-xs lg:w-40" />
               <Skeleton className="size-5 shrink-0 rounded-full" />
             </div>
           </div>

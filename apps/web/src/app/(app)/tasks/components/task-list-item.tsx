@@ -51,6 +51,9 @@ export function TaskListItem({
     // The list draws the surface and the hairlines. A row lifted out of it
     // by a drag brings its own box.
     "px-3 transition-colors",
+    // Inside the row: the list clips at its rounded edge, so a ring drawn
+    // outside the row would lose its sides.
+    "focus-visible:outline-ring focus-visible:outline-2 focus-visible:-outline-offset-2",
     compact ? "py-1.5" : "py-2.5",
     "hover:bg-accent",
     "press content-in",
@@ -76,7 +79,7 @@ export function TaskListItem({
       {/* Tags give way before the title does, down to a width that still
           reads, so a tag is never cut to one letter. They and the date show
           only where the title still has room beside them. */}
-      <span className="hidden max-w-48 min-w-20 shrink-[3] overflow-x-clip xl:flex">
+      <span className="hidden max-w-48 min-w-20 shrink-[3] overflow-x-clip xl:flex xl:empty:hidden">
         <TaskTags
           tags={task.tags}
           showManualTopics={!compact}
@@ -90,16 +93,19 @@ export function TaskListItem({
       <span className="ms-auto flex shrink-0 items-center gap-4">
         <TaskPrivateIndicator visibility={task.visibility} />
         {task.statusSince && !task.isPending ? (
-          <TaskStatusAge
-            status={task.status}
-            statusSince={task.statusSince}
-            stuckOnly
-          />
+          // From lg up: a narrow row gives this room to the title.
+          <span className="hidden lg:flex lg:empty:hidden">
+            <TaskStatusAge
+              status={task.status}
+              statusSince={task.statusSince}
+              stuckOnly
+            />
+          </span>
         ) : null}
         <TaskStatusBadge
           status={task.status}
           label={statusLabels?.[task.status]}
-          className="w-40"
+          className="w-32 lg:w-40"
           plain
         />
         {/* One date, as on a board card: a scheduled Task says when it
