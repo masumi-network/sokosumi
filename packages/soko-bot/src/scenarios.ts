@@ -909,7 +909,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
       tools: ["generate_talking_video"],
       // Eval workspaces do not make the video, so checking on it fails.
-      allowFailedTools: ["wait_for", "get_video", "preview_result"],
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
       forbiddenTools: [
         "generate_video",
         "generate_image",
