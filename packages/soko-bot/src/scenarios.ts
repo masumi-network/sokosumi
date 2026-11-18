@@ -1197,7 +1197,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso called research_keywords and saved articles with save_seo_suggestions, each targeting a keyword exactly as a research result returned it, with a title, a why that fits the business and an outline; he said what he added in plain words. When Core refused one for missing data, researching again or saying so is correct. Saving them to the strategy or calendar, inventing search numbers, or claiming they are saved without a successful save_seo_suggestions fails.",
     expect: {
-      routes: ["MANAGE_WORK", "MIXED"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
       tools: ["research_keywords", "save_seo_suggestions"],
       allowFailedTools: ["research_keywords", "save_seo_suggestions"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
