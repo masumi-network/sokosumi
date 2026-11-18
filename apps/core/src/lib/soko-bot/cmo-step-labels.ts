@@ -33,6 +33,7 @@ const CMO_STEP_LABELS: Record<string, string> = {
   get_image: "Checking a picture",
   generate_video: "Making a video",
   get_video: "Checking a video",
+  generate_talking_video: "Making a talking video",
   generate_voiceover: "Recording a voiceover",
   list_files: "Looking through your files",
   read_file: "Reading a file",

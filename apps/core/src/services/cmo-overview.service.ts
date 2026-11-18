@@ -130,6 +130,8 @@ export interface CmoOverview {
   brandMedia: CmoBrandMedia | null;
   /** The Project's logo (the site's best icon), when one was found. */
   projectLogo: string | null;
+  /** The owner gave their photo, with consent, to front talking videos. */
+  presenterSet: boolean;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -258,6 +260,8 @@ export async function getCmoOverview(
         logo: true,
         designMdUrl: true,
         sitePlatform: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
       },
     }),
     prisma.sokoBot.findUnique({
@@ -433,6 +437,9 @@ export async function getCmoOverview(
     brandVisual,
     brandMedia,
     projectLogo: project.logo,
+    presenterSet: Boolean(
+      project.presenterFileId && project.presenterConsentAt,
+    ),
     routines,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,

@@ -2,6 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
+  Binoculars,
   Brain,
   CalendarDays,
   ChartLine,
@@ -27,6 +28,7 @@ export const VIEWS = [
   ["calendar", "Calendar", CalendarDays],
   ["seo", "SEO", Search],
   ["results", "Results", ChartLine],
+  ["competitors", "Competitors", Binoculars],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
   ["settings", "Settings", Settings],

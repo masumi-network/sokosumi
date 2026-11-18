@@ -35,6 +35,7 @@ import {
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -76,6 +77,7 @@ export interface CmoAppActions
     error: string | null;
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
+  competitors: CompetitorActions;
   connectChannel: ConnectChannel;
   addMailingList: AddMailingList;
   connectMeasurement: (
@@ -523,6 +525,12 @@ export function CmoApp({
                   onChange={setOverview}
                   openView={go}
                 />
+              ) : view === "competitors" ? (
+                <CompetitorsPage
+                  overview={overview}
+                  actions={actions.competitors}
+                  compose={compose}
+                />
               ) : view === "brain" ? (
                 <BrandBrainPage
                   overview={overview}
@@ -585,6 +593,10 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   results: {
     title: "How it's going",
     line: "Real numbers from your accounts, checked every week.",
+  },
+  competitors: {
+    title: "Your competitors",
+    line: "I check each one every week and tell you what moved, with the source.",
   },
   channels: {
     title: "Where I post",
