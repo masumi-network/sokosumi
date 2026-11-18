@@ -24,6 +24,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
 import { HowIGotHere, Working } from "../cuso-trace";
+import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
@@ -855,27 +856,7 @@ function MessageMeta({ author, at }: { author: string; at?: string }) {
   return (
     <span className="meta">
       <b>{author}</b>
-      {at ? (
-        <time dateTime={at} suppressHydrationWarning>
-          {stamp(at)}
-        </time>
-      ) : null}
+      {at ? <LocalStamp at={at} /> : null}
     </span>
   );
-}
-
-/** "14:02" today, "Mon 5 Oct, 14:02" before. */
-function stamp(at: string): string {
-  const date = new Date(at);
-  const time = date.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (date.toDateString() === new Date().toDateString()) return time;
-  const day = date.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  return `${day}, ${time}`;
 }
