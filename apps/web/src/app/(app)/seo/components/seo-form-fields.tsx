@@ -48,6 +48,7 @@ export function SeoSelect({
   options,
   placeholder,
   required,
+  disabled,
 }: {
   id: string;
   name?: string;
@@ -57,6 +58,7 @@ export function SeoSelect({
   options: { value: string; label: string }[];
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <Select
@@ -65,6 +67,7 @@ export function SeoSelect({
       defaultValue={defaultValue}
       onValueChange={onValueChange}
       required={required}
+      disabled={disabled}
     >
       <SelectTrigger id={id} className="w-full">
         <SelectValue placeholder={placeholder} />

@@ -40,7 +40,7 @@ const cases = [
     name: "researching reads",
     patch: { learning: "running" as const },
     pose: "reading",
-    scene: "research",
+    art: "searching",
     line: "Learning",
   },
   {
@@ -51,14 +51,14 @@ const cases = [
       production: production({ state: "running", ready: 8 }),
     },
     pose: "thinking",
-    scene: "planning",
+    art: "thinking",
     line: "8 of 11 made",
   },
   {
     name: "a plan waiting for approval needs the owner",
     patch: {},
     pose: "needs-you",
-    scene: "hero",
+    art: "pointing",
     line: "Waiting for approval",
   },
   {
@@ -70,8 +70,8 @@ const cases = [
       updates: [report("2026-11-05T09:00:00Z")],
     },
     pose: "reporting",
-    scene: "brand",
-    line: "Running",
+    art: "walking",
+    line: null,
   },
   {
     name: "idle is done",
@@ -82,18 +82,20 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
-    scene: "launch",
-    line: "Running",
+    art: "thumbs-up",
+    line: null,
   },
 ];
 
-it.each(cases)("Cuso's status card: $name", ({ patch, pose, scene, line }) => {
+it.each(cases)("Cuso's status card: $name", ({ patch, pose, art, line }) => {
   const html = renderToStaticMarkup(
     <CusoStatus overview={cmoOverview(patch)} now={NOW} />,
   );
-  expect(html).toContain(`src="/cuso/${scene}.jpg"`);
+  expect(html).toContain(`src="/cuso/${art}.png"`);
   expect(html).toContain("Cuso");
-  expect(html).toContain(line);
+  // The label on his stage: what he waits on or does; none when all is well.
+  if (line) expect(html).toContain(line);
+  expect(html.includes("ob-scene-now")).toBe(line !== null);
   // Needs you calls out on Iris; working shows what he does over the bar.
   expect(html.includes("ob-scene-call")).toBe(pose === "needs-you");
   expect(html.includes("ob-scene-bar")).toBe(
@@ -106,7 +108,7 @@ it("is a focused button that opens the chat only while Cuso needs the owner", ()
     <CusoStatus overview={cmoOverview()} now={NOW} onOpen={() => {}} />,
   );
   expect(needs).toContain("<button");
-  expect(needs).toContain("Needs you");
+  expect(needs).toContain("Waiting for approval");
   const calm = renderToStaticMarkup(
     <CusoStatus
       overview={cmoOverview({

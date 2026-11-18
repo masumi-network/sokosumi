@@ -48,11 +48,23 @@ const messages = withKeys(enMessages as Messages, {
   },
 });
 
-const { mutate, viewer } = vi.hoisted(() => ({
+const { mutate, viewer, tables } = vi.hoisted(() => ({
+  tables: {
+    create: vi.fn(async () => ({ id: "table-1" })),
+    batch: vi.fn(async () => ({})),
+  },
   mutate: vi.fn(),
   viewer: { userId: "owner" as string | null },
 }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("@/lib/services/data-table.client", () => ({
+  dataTableService: tables,
+}));
+// The Table export opens its Table from a toast.
+vi.mock("next/navigation", async (actual) => ({
+  ...(await actual<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     // A null viewer is a session the client has not read yet.
@@ -77,7 +89,9 @@ function KeywordWorkspace({ workspace }: { workspace: ProjectSeoWorkspace }) {
     <>
       <SeoSearchQueries model={model} />
       <SeoRankings model={model} />
-      {model.dialog === "edit_keyword" ? <SeoEditDialog model={model} /> : null}
+      {model.dialog === "edit_keyword" || model.dialog === "keyword" ? (
+        <SeoEditDialog model={model} />
+      ) : null}
     </>
   );
 }
@@ -437,6 +451,135 @@ describe("Saved keyword edits", () => {
     ).toBeInTheDocument();
   });
 
+  it("tracks a keyword in a market picked by name and saves its codes", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Add a keyword" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Track a keyword",
+    });
+    await user.type(within(dialog).getByLabelText("Keyword"), "Wallets");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Germany" }));
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    );
+    await user.click(screen.getByRole("option", { name: "German" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      keyword: "Wallets",
+      countryCode: "DE",
+      languageCode: "de",
+    });
+  });
+
+  it("tracks a keyword in a market off the list by its codes", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Add a keyword" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Track a keyword",
+    });
+    await user.type(within(dialog).getByLabelText("Keyword"), "Wallets");
+    // Canada and Canadian French are on no list; the code fields still take them.
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Other code" }));
+    const country = within(dialog).getByRole("textbox", {
+      name: "Country code",
+    });
+    expect(country).toHaveAccessibleDescription(
+      enMessages.App.Seo.keywords.countryHelp,
+    );
+    await user.type(country, "ca");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Other code" }));
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Language code" }),
+      "fr-CA",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      keyword: "Wallets",
+      countryCode: "CA",
+      languageCode: "fr-CA",
+    });
+  });
+
+  it("keeps a saved market off the list by name when its keyword is edited", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    saved.countryCode = "CA";
+    saved.languageCode = "fr-CA";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Stablecoins" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit keyword" });
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    ).toHaveTextContent("Canada");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    ).toHaveTextContent("Canadian French");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+      keyword: "Stablecoins",
+      countryCode: "CA",
+      languageCode: "fr-CA",
+    });
+  });
+
+  it("names the target page once when the line above leaves the primary page out", () => {
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    pricingPage.relationship = "related";
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    // Before a check, the row's page is the saved target: the one primary page.
+    saved.pageUrl = workspace.pages[0].url;
+    renderWorkspace(workspace);
+    const row = screen.getByText("Stablecoins").closest("tr");
+    if (!row) throw new Error("The keyword row is missing");
+    expect(within(row).getByText("Target page: Home")).toBeVisible();
+    expect(within(row).queryByText(/No target page/)).toBeNull();
+  });
+
+  it("says no target page once under a keyword without one", () => {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const saved = workspace.keywords[workspace.keywords.length - 1];
+    saved.pageUrl = null;
+    saved.targetPageId = null;
+    renderWorkspace(workspace);
+    const row = screen.getByText("Stablecoins").closest("tr");
+    if (!row) throw new Error("The keyword row is missing");
+    expect(within(row).getAllByText(/No target page/)).toHaveLength(1);
+  });
+
   it("edits a saved keyword target and priority with the version shown when editing began", async () => {
     const user = userEvent.setup();
     const { workspace, pricingPage } = savedKeywordWorkspace();
@@ -454,7 +597,12 @@ describe("Saved keyword edits", () => {
     expect(within(dialog).getByLabelText("Keyword")).toHaveAttribute(
       "readonly",
     );
-    expect(within(dialog).getByLabelText("Country code")).toHaveValue("DE");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    ).toHaveTextContent("Germany");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search language" }),
+    ).toHaveTextContent("German");
     expect(
       within(dialog).getByRole("combobox", { name: "Target page" }),
     ).toHaveTextContent("Home");
@@ -1725,5 +1873,132 @@ describe("Search Console queries", () => {
       errors.mock.calls.filter((call) => String(call[0]).includes("same key")),
     ).toEqual([]);
     errors.mockRestore();
+  });
+});
+
+describe("Keyword exports", () => {
+  it("offers a keyword tracked by hand, never checked, as a CSV and as a Table", async () => {
+    const { workspace } = savedKeywordWorkspace();
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", { name: "Download CSV: Keywords" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy to a table: Keywords" }),
+    ).toBeInTheDocument();
+  });
+
+  it("copies the ideas of a check from the Ideas list it opens on, with no CSV of checked keywords to give", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.keywords.push(
+      seoTestKeyword({
+        keyword: "battery saver",
+        source: "gap",
+        saved: false,
+        volume: 300,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    );
+    const user = userEvent.setup();
+    renderWorkspace(workspace);
+    // With ideas only, the tab opens on the Ideas list.
+    expect(
+      await screen.findByRole("button", { name: "Ideas", pressed: true }),
+    ).toBeInTheDocument();
+    // happy-dom applies no Tailwind: a list switched away is a `hidden` ancestor, so only one copy counts.
+    const shown = screen
+      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+      .filter((button) => !button.closest(".hidden"));
+    expect(shown).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Download CSV: Keywords" }),
+    ).not.toBeInTheDocument();
+    await user.click(shown[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    const [, batch] = tables.batch.mock.calls[0] as unknown as [
+      string,
+      { insert: { values: Record<string, unknown> }[] },
+    ];
+    expect(batch.insert).toHaveLength(1);
+    expect(Object.values(batch.insert[0].values)).toContain("battery saver");
+  });
+});
+
+describe("One keyword copy across the Keywords and Ideas lists", () => {
+  function bothListsWorkspace() {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.keywords.push(
+      seoTestKeyword({
+        keyword: "battery saver",
+        source: "gap",
+        saved: false,
+        volume: 300,
+        position: null,
+        positionStatus: "unavailable",
+        observedAt: null,
+        observationId: null,
+        device: null,
+      }),
+    );
+    return workspace;
+  }
+  // happy-dom applies no Tailwind: a control switched away has a `hidden` ancestor.
+  const shownCopies = () =>
+    screen
+      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+      .filter((button) => !button.closest(".hidden"));
+
+  it("hides the copy on the Competitors list", async () => {
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    expect(shownCopies()).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Competitors" }));
+    expect(shownCopies()).toHaveLength(0);
+  });
+
+  it("keeps a copy in flight busy when the list switches, so it cannot start twice", async () => {
+    let finish: (table: { id: string }) => void = () => {};
+    tables.create.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    await user.click(shownCopies()[0]);
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    expect(shownCopies()).toHaveLength(1);
+    expect(shownCopies()[0]).toHaveAttribute("aria-busy", "true");
+    await user.click(shownCopies()[0]);
+    act(() => finish({ id: "table-1" }));
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    expect(tables.create).toHaveBeenCalledOnce();
+  });
+
+  it("finishes a failed copy from the other list, in the same table under the same key", async () => {
+    tables.batch.mockRejectedValueOnce(new Error("down"));
+    const user = userEvent.setup();
+    renderWorkspace(bothListsWorkspace());
+    await screen.findByRole("button", { name: "Keywords", pressed: true });
+    await user.click(shownCopies()[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole("button", { name: "Ideas" }));
+    await waitFor(() =>
+      expect(shownCopies()[0]).not.toHaveAttribute("aria-busy"),
+    );
+    expect(shownCopies()).toHaveLength(1);
+    await user.click(shownCopies()[0]);
+    await waitFor(() => expect(tables.batch).toHaveBeenCalledTimes(2));
+    expect(tables.create).toHaveBeenCalledOnce();
+    const [first, retry] = tables.batch.mock.calls as unknown as [
+      string,
+      { key: string },
+    ][];
+    expect(retry[0]).toBe("table-1");
+    expect(retry[1].key).toBe(first[1].key);
   });
 });

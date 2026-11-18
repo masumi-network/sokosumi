@@ -138,6 +138,9 @@ export function NoteField({ initial, onSave }: NoteFieldProps) {
   );
 }
 
+/** How long a tapped answer stays down before the next question opens. */
+export const PRESS_MS = 250;
+
 const ANSWERS: { value: Answer; label: string }[] = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
@@ -170,9 +173,18 @@ export function QuestionCard({
   const [adding, setAdding] = useState(false);
   const [details, setDetails] = useState("");
   const [failed, setFailed] = useState(false);
+  // The tapped answer stays pressed down for a beat, then the next question
+  // opens: the tap is seen before the card changes.
+  const [down, setDown] = useState<Answer | null>(null);
   const save = (answer: Answer) => {
+    if (down) return;
     setFailed(false);
-    onAnswer(answer, details.trim() || undefined).catch(() => setFailed(true));
+    setDown(answer);
+    setTimeout(() => {
+      onAnswer(answer, details.trim() || undefined)
+        .catch(() => setFailed(true))
+        .finally(() => setDown(null));
+    }, PRESS_MS);
   };
 
   return (
@@ -199,8 +211,12 @@ export function QuestionCard({
           <button
             key={value}
             type="button"
-            className="button button-secondary"
-            aria-pressed={question.answer === value}
+            className={
+              down === value
+                ? "button button-secondary button-down"
+                : "button button-secondary"
+            }
+            aria-pressed={down ? down === value : question.answer === value}
             onClick={() => save(value)}
           >
             {label}

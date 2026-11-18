@@ -918,8 +918,11 @@ export async function createImageJob(input: CreateImageJobInput) {
   const startsLettering =
     lettering === "ideogram" && input.modelId !== "ideogram-v3";
   const requestedModelId = startsLettering ? "gemini-pro" : input.modelId;
+  // A library style is a reference too: without it the job takes the model's
+  // generate endpoint, which refuses the reference it is then sent.
   const references =
     input.referenceAssetIds.length +
+    (input.referenceLibraryIds?.length ?? 0) +
     (input.useProductCutout ? 0 : (input.referenceFileIds?.length ?? 0));
   let settings: ImageJobSettings;
   try {

@@ -4839,6 +4839,10 @@ export type DataRoomQuestion = {
     body: string;
     answer: string | null;
     answeredAt: string | null;
+    /**
+     * When the answer was shown to everyone in the room who may open the document; null while only the asker sees it.
+     */
+    sharedAt: string | null;
     email: string;
     name: string | null;
 };
@@ -4958,6 +4962,10 @@ export type AnswerDataRoomQuestionRequest = {
     scope: 'me' | 'org';
     organizationId?: string;
     answer: string;
+    /**
+     * Show the question and answer to everyone in the room who may open the document, without who asked. Left out keeps the current choice.
+     */
+    shared?: boolean;
 };
 
 export type SetDataRoomOrderRequest = {
@@ -12366,6 +12374,25 @@ export type DataRoomSession = {
 export type DataRoomSessionRequest = {
     email: string;
     code: string;
+};
+
+export type DataRoomViewerQuestions = Array<DataRoomViewerQuestion>;
+
+export type DataRoomViewerQuestion = {
+    id: string;
+    createdAt: string;
+    path: string;
+    body: string;
+    answer: string | null;
+    answeredAt: string | null;
+    /**
+     * The viewer asked it.
+     */
+    mine: boolean;
+    /**
+     * The owner showed the answer to everyone in the room.
+     */
+    shared: boolean;
 };
 
 export type AskDataRoomQuestionRequest = {
@@ -83604,7 +83631,7 @@ export type GetShareRoomsByTokenQuestionsResponses = {
      * Questions
      */
     200: {
-        data: DataRoomQuestions;
+        data: DataRoomViewerQuestions;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -83694,7 +83721,7 @@ export type PostShareRoomsByTokenQuestionsResponses = {
      * Question
      */
     201: {
-        data: DataRoomQuestion;
+        data: DataRoomViewerQuestion;
         meta: {
             timestamp: Date;
             requestId: string;

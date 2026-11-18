@@ -4,8 +4,10 @@ import {
   originalAvatarLook,
   parseAvatarCode,
 } from "@sokosumi/soko-bot";
-import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { recordCoreError } from "@/lib/evlog";
+import { expectCoreLog } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 
 const m = vi.hoisted(() => ({
   findFirst: vi.fn(),
@@ -36,6 +38,8 @@ import {
 
 const CODE = formatAvatarCode(originalAvatarLook("owl"));
 const URL = "https://blob.example/code.webp";
+const AVATAR_FIX =
+  "The bot shows the orb until its owner picks a look in the studio. If it repeats, check that Vercel Blob is up and BLOB_READ_WRITE_TOKEN is valid for the store.";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -148,10 +152,59 @@ describe("giveNewSokoBotAvatar", () => {
     expect(m.update).not.toHaveBeenCalled();
   });
 
-  it("leaves the bot faceless instead of failing the create", async () => {
-    m.put.mockRejectedValue(new Error("blob down"));
-    expectConsole("error", "Soko Bot avatar code failed");
+  it("leaves the bot faceless instead of failing the create, without the provider's text", async () => {
+    // Vercel Blob copies its response's message into the error it throws.
+    m.put.mockRejectedValue(new Error("private-marker-7413 from Blob"));
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not give a new Soko Bot its avatar",
+    );
     await expect(giveNewSokoBotAvatar("bot", CODE)).resolves.toBeNull();
+    expect(warnings[0]).toMatchObject({
+      why: "Rendering or saving the avatar look failed",
+      fix: AVATAR_FIX,
+      event: {
+        operation: "soko_bot_avatar",
+        warnings: [
+          {
+            details: {
+              sokoBot: { id: "bot" },
+              failure: { errorName: "Error" },
+            },
+          },
+        ],
+      },
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(warnings[0]?.event)).not.toContain("private-marker");
+  });
+
+  it("keeps the avatar failure next to a later error on the same create request", async () => {
+    m.put.mockRejectedValue(new Error("blob down"));
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not give a new Soko Bot its avatar",
+    );
+    const errors = expectCoreLog("error", "Could not set up system schedules");
+    await inRequest(async () => {
+      await giveNewSokoBotAvatar("bot", CODE);
+      // What ensureSystemSchedules records when it fails after the avatar.
+      recordCoreError(
+        { operation: "soko_bot_system_schedules" },
+        {
+          message: "Could not set up system schedules",
+          why: "Reading the schedules failed",
+        },
+      );
+    });
+    expect(warnings[0]?.event).toBe(errors[0]?.event);
+    expect(warnings[0]?.event).not.toHaveProperty("failure");
+    expect(warnings[0]?.event.warnings).toEqual([
+      expect.objectContaining({
+        message: "Could not give a new Soko Bot its avatar",
+        details: { sokoBot: { id: "bot" }, failure: { errorName: "Error" } },
+      }),
+    ]);
   });
 });
 

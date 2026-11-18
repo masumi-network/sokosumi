@@ -8804,6 +8804,8 @@
       "discardConfirm": "Änderungen verwerfen"
     },
     "Developer": {
+      "title": "Entwickler",
+      "sectionsLabel": "Entwicklerbereiche",
       "tabs": {
         "oauthClients": "OAuth-Clients",
         "apiKeys": "API-Keys",
@@ -10196,7 +10198,10 @@
           "answer": "Antworten",
           "updateAnswer": "Antwort ändern",
           "answered": "Antwort gespeichert",
-          "answerFailed": "Antwort konnte nicht gespeichert werden"
+          "answerFailed": "Antwort konnte nicht gespeichert werden",
+          "shareLabel": "Allen im Datenraum zeigen",
+          "shareHint": "Alle, die dieses Dokument öffnen können, sehen die Frage im Wortlaut und deine Antwort, aber nicht, wer gefragt hat. Die Frage kannst du nicht ändern.",
+          "answeredShared": "Antwort gespeichert und mit dem Datenraum geteilt"
         },
         "Contents": {
           "hint": "Die Reihenfolge, die Besucher sehen. Sie nummeriert den Raum (1, 1.1, 1.2).",
@@ -10245,6 +10250,7 @@
         "successHint": "Noch ein Schritt…",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
+        "nameRequired": "Gib einen Namen ein.",
         "submit": "{name} erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
@@ -10301,6 +10307,10 @@
         "lastChecked": "Verbunden · geprüft {when}",
         "searchPlaceholder": "Alle Apps durchsuchen, etwa Notion oder HubSpot",
         "noResults": "Nichts gefunden.",
+        "searching": "Apps werden nach „{query}“ durchsucht …",
+        "searchFailed": "Die App-Suche hat nicht geklappt.",
+        "searchFailedHelp": "Deine verbundenen Apps funktionieren weiter.",
+        "tryAgain": "Erneut versuchen",
         "kindsGeneric": "Nutzbar über seine Tools",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
@@ -10597,6 +10607,13 @@
         "Connectors": {
           "title": "Tools",
           "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest."
+        },
+        "LoadError": {
+          "Connectors": "Die Tools wurden nicht geladen.",
+          "Stats": "Die Aktivität wurde nicht geladen.",
+          "Usage": "Die Nutzung wurde nicht geladen.",
+          "help": "Zeitpläne und Chat funktionieren weiter.",
+          "retry": "Erneut versuchen"
         }
       },
       "Avatar": {
@@ -11196,13 +11213,15 @@
       "presets": {
         "all": "Alle Kontakte",
         "mine": "Meine Kontakte",
-        "recent": "Neu hinzugefügt"
+        "recent": "Neu hinzugefügt",
+        "archived": "Archivierte Kontakte"
       },
       "emptyViews": {
         "all": "Noch keine Kontakte.",
         "mine": "Noch niemand, mit dem du gesprochen hast. Alle, denen du schreibst oder die du triffst, erscheinen hier.",
         "recent": "In den letzten zwei Wochen kam niemand dazu.",
-        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
+        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu.",
+        "archived": "Keine archivierten Kontakte. Wen du archivierst, findest du hier und kannst ihn wiederherstellen."
       },
       "views": {
         "label": "Kontaktansichten",
@@ -11220,7 +11239,8 @@
         "clearCompany": "Alle Firmen zeigen",
         "companyLists": "Firmenlisten",
         "newCompanyList": "Neue Firmenliste",
-        "noCompanyLists": "Noch keine Firmenlisten."
+        "noCompanyLists": "Noch keine Firmenlisten.",
+        "backToContacts": "Zurück zu den Kontakten"
       },
       "columns": {
         "name": "Name",
@@ -11563,7 +11583,12 @@
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
         "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
         "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
-        "connectedVia": "Verbunden über"
+        "connectedVia": "Verbunden über",
+        "restore": "Wiederherstellen",
+        "restoreName": "{name} wiederherstellen",
+        "restored": "{name} wiederhergestellt",
+        "restoreFailed": "{name} konnte nicht wiederhergestellt werden. Der Kontakt bleibt archiviert.",
+        "archivedOn": "Archiviert am {date}. Archivierte Kontakte erscheinen nicht in Listen und Suchen, bis du sie wiederherstellst."
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -11930,7 +11955,10 @@
         "notFound": "Nicht gefunden",
         "unavailable": "Noch nicht geprüft",
         "country": "Ländercode",
+        "countryHelp": "Zwei Buchstaben, etwa US oder DE.",
         "language": "Sprachcode",
+        "languageHelp": "Etwa en oder de.",
+        "otherCode": "Anderer Code",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
         "help": "Die besten Ideen zuerst. Verfolge eine, um nach jeder Prüfung ihre Google-Position zu sehen. Das Verfolgen ist kostenlos.",
@@ -12876,7 +12904,15 @@
         "action": "Aktion",
         "kind": "Art",
         "status": "Status",
-        "csvLabel": "CSV herunterladen: {table}"
+        "csvLabel": "CSV herunterladen: {table}",
+        "table": "In eine Tabelle kopieren",
+        "tableLabel": "In eine Tabelle kopieren: {table}",
+        "tableTitle": "{table} · {site} · {date}",
+        "tableDescription": "Aus SEO kopiert am {date}. Ein Schnappschuss: Er ändert sich nicht, wenn SEO erneut prüft.",
+        "tableCopied": "{count, plural, one {# Keyword in eine neue Tabelle kopiert.} other {# Keywords in eine neue Tabelle kopiert.}}",
+        "openTable": "Tabelle öffnen",
+        "tableFailed": "Die Tabelle ist noch nicht vollständig. Drücke erneut auf „In eine Tabelle kopieren“, um sie fertigzustellen.",
+        "list": "Liste"
       },
       "datePresets": {
         "label": "Schnellauswahl",
@@ -13279,7 +13315,12 @@
       "welcome": "Willkommen",
       "welcomeTitle": "Willkommen im Datenraum {title}",
       "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
-      "openFirst": "{name} öffnen"
+      "openFirst": "{name} öffnen",
+      "sharedTitle": "Für alle beantwortet",
+      "sharedNote": "Für alle im Datenraum beantwortet",
+      "sharedLoading": "Für alle geteilte Antworten werden geladen…",
+      "sharedFailed": "Die für alle geteilten Antworten konnten nicht geladen werden. Prüf deine Verbindung und versuch es noch einmal.",
+      "retry": "Noch einmal versuchen"
     }
   },
   "NotFound": {

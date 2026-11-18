@@ -12,12 +12,12 @@ function cusoLine(overview: CmoOverview): string {
     : cusoStatus(overview);
 }
 
-/** The scene each state plays: he calls out through the megaphone when needed. */
+/** The scene each state shows: he points at the owner when needed. */
 const SCENES: Record<CusoPose, Scene> = {
   reading: "research",
   thinking: "planning",
-  reporting: "brand",
-  done: "launch",
+  reporting: "launch",
+  done: "subscribe",
   "needs-you": "hero",
 };
 
@@ -30,8 +30,8 @@ interface CusoStatusProps {
 }
 
 /**
- * Cuso at the bottom of the sidebar, always in view: his scene loops on the
- * pink stage, with what he is doing now. When he needs the owner it is a
+ * Cuso at the bottom of the sidebar, always in view: his pose stands on the
+ * Iris stage, with what he is doing now. When he needs the owner it is a
  * button that opens what he is waiting on.
  */
 export function CusoStatus({
@@ -43,31 +43,27 @@ export function CusoStatus({
   const needsYou = pose === "needs-you";
   const working = pose === "reading" || pose === "thinking";
   const line = cusoLine(overview);
-  // While he works the line is on the stage; it is not said twice.
-  const onStage = needsYou ? "Needs you" : working ? line : null;
+  // What he waits on, or what he is doing, is the label on his stage.
+  const onStage = needsYou || working ? line : null;
+  // The stage's label is decoration; this says the state to a screen reader.
+  const label = `${AGENT_NAME}: ${line}`;
   const content = (
-    <>
-      <CusoScene
-        scene={SCENES[pose]}
-        now={onStage}
-        calling={needsYou}
-        compact
-      />
-      <span className="cuso-status-text">
-        <span className="cuso-status-name">{AGENT_NAME}</span>
-        {working ? null : <span className="note">{line}</span>}
-      </span>
-    </>
+    <CusoScene scene={SCENES[pose]} now={onStage} calling={needsYou} compact />
   );
   if (needsYou && onOpen) {
     return (
-      <button type="button" className="cuso-status" onClick={onOpen}>
+      <button
+        type="button"
+        className="cuso-status"
+        aria-label={label}
+        onClick={onOpen}
+      >
         {content}
       </button>
     );
   }
   return (
-    <div className="cuso-status" role="status">
+    <div className="cuso-status" role="status" aria-label={label}>
       {content}
     </div>
   );

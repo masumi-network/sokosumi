@@ -318,7 +318,7 @@
   display: grid;
   gap: 2px;
   padding: 14px 16px;
-  border: 1px solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
@@ -337,16 +337,16 @@
   border-color: var(--foreground);
 }
 
-/* Selection is the ink inversion. */
+/* The picked pace is filled with Iris and takes the hard shadow. */
 .sc-pace-option.current {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--primary);
+  box-shadow: var(--shadow-hard);
+  color: var(--primary-foreground);
   cursor: default;
 }
 
 .sc-pace-option.current span {
-  color: var(--background);
+  color: var(--primary-foreground);
 }
 
 .sc-pace-option:disabled:not(.current) {

@@ -11,6 +11,7 @@ import { CONTACTS_KEY } from "./use-contacts-data";
 
 const f = vi.hoisted(() => ({
   archive: vi.fn(),
+  unarchive: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -23,14 +24,14 @@ vi.mock("sonner", () => ({
 }));
 vi.mock("@/lib/auth/auth.client", () => ({ useSession: () => ({}) }));
 vi.mock("@/lib/services/contacts.client", () => ({
-  contactsService: { archive: f.archive },
+  contactsService: { archive: f.archive, unarchive: f.unarchive },
 }));
 
 const ada = { id: "contact-1", name: "Ada" } as Contact;
 const ben = { id: "contact-2", name: "Ben" } as Contact;
 const key = [...CONTACTS_KEY, "ws", {}];
 
-function setup() {
+function setup(options?: { restore: boolean }) {
   const cache = new QueryClient();
   cache.setQueryData(key, {
     pages: [{ contacts: [ada, ben], nextCursor: null, total: 2 }],
@@ -40,7 +41,9 @@ function setup() {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={cache}>{children}</QueryClientProvider>
   );
-  const { result } = renderHook(() => useContactArchive(), { wrapper });
+  const { result } = renderHook(() => useContactArchive(options), {
+    wrapper,
+  });
   const shown = () =>
     cache
       .getQueryData<{ pages: { contacts: Contact[] }[] }>(key)
@@ -145,5 +148,27 @@ describe("useContactArchive", () => {
     act(() => void archive(ada, () => {}));
     expect(cache.getQueryData(other)).toBe(without);
     await expect(load).resolves.toBe(without);
+  });
+
+  it("restores an archived contact: off the Archived rows, back in Core", async () => {
+    f.unarchive.mockResolvedValueOnce(undefined);
+    const { archive: restore, shown, invalidate } = setup({ restore: true });
+    const onDone = vi.fn();
+    await act(() => restore(ada, onDone));
+    expect(f.unarchive).toHaveBeenCalledWith("contact-1");
+    expect(f.archive).not.toHaveBeenCalled();
+    expect(shown()).toEqual(["contact-2"]);
+    expect(onDone).toHaveBeenCalledOnce();
+    expect(f.toastSuccess).toHaveBeenCalledWith("panel.restored Ada");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: CONTACTS_KEY });
+  });
+
+  it("says a restore failed, after the reload brings the row back", async () => {
+    f.unarchive.mockRejectedValueOnce({ message: "No access" });
+    const { archive: restore } = setup({ restore: true });
+    await act(() => restore(ada, () => {}));
+    expect(f.toastError).toHaveBeenCalledWith("panel.restoreFailed Ada", {
+      description: "No access",
+    });
   });
 });

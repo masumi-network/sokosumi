@@ -13,11 +13,12 @@ type Page = { contacts: Contact[]; total: number };
 export const FAILURE_TOAST_WAIT_MS = 1500;
 
 /**
- * Archives a contact. Its row leaves the loaded pages and `onDone` runs at
- * once; the reload after the save, or after a failure, shows what Core holds,
- * so a contact that could not be archived comes back.
+ * Archives a contact, or with `restore` brings an archived one back. Its row
+ * leaves the loaded pages and `onDone` runs at once; the reload after the
+ * save, or after a failure, shows what Core holds, so a contact that could
+ * not be changed comes back.
  */
-export function useContactArchive() {
+export function useContactArchive({ restore = false } = {}) {
   const t = useTranslations("App.Contacts");
   const cache = useQueryClient();
   return async function archive(contact: Contact, onDone: () => void) {
@@ -47,8 +48,13 @@ export function useContactArchive() {
     onDone();
     let failure: { error: unknown } | null = null;
     try {
-      await contactsService.archive(contact.id);
-      toast.success(t("panel.archived", { name: contact.name }));
+      if (restore) await contactsService.unarchive(contact.id);
+      else await contactsService.archive(contact.id);
+      toast.success(
+        t(restore ? "panel.restored" : "panel.archived", {
+          name: contact.name,
+        }),
+      );
     } catch (error) {
       failure = { error };
     }
@@ -67,9 +73,14 @@ export function useContactArchive() {
       } finally {
         clearTimeout(cap);
       }
-      toast.error(t("panel.archiveFailed", { name: contact.name }), {
-        description: coreErrorOf(failure.error).message,
-      });
+      toast.error(
+        t(restore ? "panel.restoreFailed" : "panel.archiveFailed", {
+          name: contact.name,
+        }),
+        {
+          description: coreErrorOf(failure.error).message,
+        },
+      );
     }
     await refresh;
   };

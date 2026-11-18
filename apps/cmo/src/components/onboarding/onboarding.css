@@ -1,8 +1,8 @@
 /*
  * First run, four steps. Each is one centred column that Cuso leads: him,
  * what he says, the one thing to do, then the details folded into rows.
- * Follows design-system.md: an ink line on what you act on, one hard shadow
- * on the primary action and the card in focus, Iris for now. Tokens only;
+ * Follows design-system.md: a thick ink line on what you act on, hard
+ * shadows under buttons and the card in focus, Iris for now. Tokens only;
  * they come from globals.css.
  */
 body:has(.ob) .site-header {
@@ -34,6 +34,7 @@ body:has(.ob) .site-header {
   align-items: center;
   gap: 16px;
   padding: 14px 32px;
+  border-bottom: var(--line-hero) solid var(--line);
   background: var(--background);
 }
 
@@ -52,13 +53,13 @@ body:has(.ob) .site-header {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--clear);
-  border-radius: var(--radius-control);
+  border: var(--line-pill) solid var(--clear);
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--muted);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ob-step > button {
@@ -79,6 +80,7 @@ body:has(.ob) .site-header {
 
 .ob-step.done > span,
 .ob-step.done > button {
+  border-color: var(--line);
   color: var(--foreground);
 }
 
@@ -86,6 +88,7 @@ body:has(.ob) .site-header {
 .ob-step.now > button {
   border-color: var(--line);
   background: var(--primary);
+  box-shadow: var(--shadow-pill);
   color: var(--primary-foreground);
 }
 
@@ -102,14 +105,15 @@ body:has(.ob) .site-header {
   gap: 8px;
   min-width: 0;
   height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: none;
+  padding: 0 12px;
+  border: var(--line-pill) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  box-shadow: var(--shadow-pill);
   color: var(--foreground);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -131,19 +135,10 @@ body:has(.ob) .site-header {
   z-index: 20;
   min-width: 180px;
   padding: 4px;
-  border: 1px solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
-}
-
-.who .ob-who {
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.who .ob-who-menu {
-  top: auto;
-  bottom: 100%;
+  box-shadow: var(--shadow-hard);
 }
 
 .ob-who-item {
@@ -283,10 +278,24 @@ body:has(.ob) .site-header {
   flex: none;
 }
 
+/* A long label ends in an ellipsis; the flex row itself cannot show one. */
+.ob-scene-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The sidebar's scene: as wide as its column, shorter, a smaller label. */
 .ob-scene-compact {
   width: auto;
   height: 176px;
+}
+
+/* In the sidebar the stage is a card, not the hero: thick line, hard shadow. */
+.ob-scene-compact .ob-stage-art {
+  border-width: var(--line-thick);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pill);
 }
 
 .ob-scene-compact .ob-scene-now {
@@ -294,6 +303,15 @@ body:has(.ob) .site-header {
   max-width: calc(100% - 16px);
   padding: 4px 8px;
   font-size: 0.75rem;
+}
+
+/* A label on the stage: he stands above it, so it never covers him. */
+.ob-scene:has(.ob-scene-now) .ob-stage-art {
+  padding-bottom: 72px;
+}
+
+.ob-scene-compact:has(.ob-scene-now) .ob-stage-art {
+  padding-bottom: 56px;
 }
 
 /* He needs the owner: the label calls out on Iris. */
@@ -386,6 +404,7 @@ body:has(.ob) .site-header {
 
 /* A fold: one row that opens to its details. */
 .ob-fold {
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--surface);
 }
@@ -463,8 +482,34 @@ body:has(.ob) .site-header {
   position: absolute;
   inset: 0 -100vw;
   z-index: -1;
-  border-top: 1px solid var(--border);
-  background: var(--background);
+  background: var(--strip);
+}
+
+/* The bar is a strip: its words and its buttons' lines take the strip's ink. */
+.ob-main .ob-bar,
+.ob-main .ob-bar :is(.note, .button-ghost) {
+  color: var(--strip-foreground);
+}
+
+.ob-main .ob-bar > .button:not(.button-ghost, :disabled) {
+  border-color: var(--strip-foreground);
+  box-shadow: var(--shadow-on-strip);
+}
+
+/* A second choice on the strip stands on Iris, so its edge shows. */
+.ob-main .ob-bar > .button-secondary:not(.button-ghost, :disabled) {
+  box-shadow: var(--shadow-iris);
+}
+
+.ob-main .ob-bar > .button:active:not(:disabled) {
+  box-shadow: none;
+}
+
+/* A button that waits is quiet on the strip: no fill, only its line and words. */
+.ob-main .ob-bar > .button:disabled:not(.button-ghost) {
+  border-color: var(--muted);
+  background: transparent;
+  color: var(--strip-foreground);
 }
 
 .ob-bar > p {
@@ -495,7 +540,7 @@ body:has(.ob) .site-header {
   font-size: clamp(2.25rem, 6vw, 4.5rem);
   line-height: 1;
   font-weight: 600;
-  letter-spacing: -0.035em;
+  letter-spacing: var(--tracking-heading);
   text-wrap: balance;
 }
 
@@ -503,7 +548,7 @@ body:has(.ob) .site-header {
   font-size: 2.25rem;
   line-height: 2.375rem;
   font-weight: 600;
-  letter-spacing: -0.025em;
+  letter-spacing: var(--tracking-heading);
 }
 
 .ob-statement {
@@ -579,7 +624,7 @@ body:has(.ob) .site-header {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -629,9 +674,9 @@ body:has(.ob) .site-header {
   display: inline-grid;
   flex: none;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--border);
+  width: 20px;
+  height: 20px;
+  border: var(--line-pill) solid var(--border);
   border-radius: var(--radius-mark);
   color: var(--primary-foreground);
 }
@@ -642,7 +687,7 @@ body:has(.ob) .site-header {
 }
 
 .working > .ob-box {
-  border: 1px dashed var(--line);
+  border: var(--line-pill) dashed var(--line);
 }
 
 .ob-box-dot {
@@ -762,6 +807,7 @@ body:has(.ob) .site-header {
   width: 100%;
   gap: 1px;
   overflow: hidden;
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--border);
   text-align: left;
@@ -809,6 +855,7 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 1px;
   overflow: hidden;
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--border);
 }
@@ -948,9 +995,10 @@ body:has(.ob) .site-header {
   place-items: center;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border);
+  border: var(--line-pill) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
+  box-shadow: var(--shadow-pill);
   color: var(--foreground);
   cursor: pointer;
 }
@@ -966,7 +1014,7 @@ body:has(.ob) .site-header {
 
 /* Plan wait: the live plan as Cuso saves idea, channels and pillars. */
 .ob-feed {
-  border: 1px solid var(--border);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--surface);
   padding: 6px;
@@ -1099,7 +1147,7 @@ body:has(.ob) .site-header {
   min-width: 0;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -1147,9 +1195,9 @@ body:has(.ob) .site-header {
 
 .ob-progress li {
   flex: 1;
-  height: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-mark);
+  height: 10px;
+  border: var(--line-pill) solid var(--line);
+  border-radius: var(--radius-pill);
 }
 
 .ob-progress li.done {
@@ -1194,7 +1242,7 @@ body:has(.ob) .site-header {
 .ob-question-details {
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--line);
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -1252,20 +1300,22 @@ body:has(.ob) .site-header {
   inset: 0;
   width: 100%;
   height: 100%;
-  border: 1px solid var(--line);
+  border: var(--line-hero) solid var(--line);
   border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-hero);
+  padding: 20px 16px 16px;
   background: var(--primary-hover);
-  object-fit: cover;
+  object-fit: contain;
   object-position: 50% 100%;
 }
 
 .ob-tilt {
   position: absolute;
   padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border: var(--line-thick) solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--card);
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow-pill);
   color: var(--foreground);
   font-size: 1rem;
   font-weight: 600;
@@ -1296,36 +1346,29 @@ body:has(.ob) .site-header {
 }
 
 /*
- * Cuso announces the labels: once the hero plays, each pops out of his
- * megaphone while he shouts (onboarding.tsx aims them). The one entrance
- * longer than 150ms; transform only, and none under reduced motion.
+ * The hire labels pop in one after another: the one entrance longer than
+ * 150ms; transform only, and none under reduced motion.
  */
 @media (prefers-reduced-motion: no-preference) {
   .ob-stage .ob-tilt {
-    animation: ob-announce 500ms cubic-bezier(0.45, 0, 0.3, 1.3) backwards
-      paused;
+    animation: ob-announce 500ms cubic-bezier(0.45, 0, 0.3, 1.3) backwards;
   }
 
   .ob-stage .ob-tilt-a {
-    animation-delay: 2.4s;
+    animation-delay: 0.3s;
   }
 
   .ob-stage .ob-tilt-b {
-    animation-delay: 2.9s;
+    animation-delay: 0.6s;
   }
 
   .ob-stage .ob-tilt-c {
-    animation-delay: 3.4s;
-  }
-
-  .ob-stage-live .ob-tilt {
-    animation-play-state: running;
+    animation-delay: 0.9s;
   }
 }
 
 @keyframes ob-announce {
   from {
-    translate: var(--from-x, 0) var(--from-y, 0);
     scale: 0;
   }
 }
@@ -1354,7 +1397,6 @@ body:has(.ob) .site-header {
 
 .ob-brand .ob-hero-row .card,
 .ob-plan .ob-checks {
-  border: 0;
   border-radius: var(--radius-panel);
   background: var(--surface);
   box-shadow: none;
@@ -1426,7 +1468,7 @@ body:has(.ob) .site-header {
   width: 100%;
   min-height: 56px;
   padding: 0 20px;
-  border: 0;
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--surface);
   color: var(--muted);
@@ -1532,6 +1574,7 @@ body:has(.ob) .site-header {
   justify-items: center;
   gap: 8px;
   padding: 32px 16px;
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--surface);
   text-align: center;
@@ -1548,6 +1591,7 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 1px;
   overflow: hidden;
+  border: var(--line-thick) solid var(--line);
   background: var(--border);
 }
 
@@ -1603,14 +1647,14 @@ body:has(.ob) .site-header {
 
 .ob-tabs button {
   height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: 0 14px;
+  border: var(--line-pill) solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--foreground);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1620,9 +1664,9 @@ body:has(.ob) .site-header {
 
 .ob-tabs button[aria-selected="true"],
 .ob-tabs button[aria-pressed="true"] {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--primary);
+  box-shadow: var(--shadow-pill);
+  color: var(--primary-foreground);
 }
 
 .ob-tabs button:focus-visible {
@@ -1632,6 +1676,7 @@ body:has(.ob) .site-header {
 
 .ob-tabpanel {
   padding: 24px;
+  border: var(--line-thick) solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--surface);
 }
@@ -1894,7 +1939,7 @@ body:has(.ob) .site-header {
   width: 36px;
   height: 36px;
   margin-bottom: 8px;
-  border: 1px solid var(--line);
+  border: var(--line-pill) solid var(--line);
   border-radius: 50%;
   background: var(--card);
 }
@@ -2002,11 +2047,12 @@ body:has(.ob) .site-header {
   position: absolute;
   top: -12px;
   left: 16px;
-  padding: 2px 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-mark);
+  padding: 2px 10px;
+  border: var(--line-pill) solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--primary);
-  color: var(--foreground);
+  box-shadow: var(--shadow-pill);
+  color: var(--primary-foreground);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -2157,13 +2203,14 @@ body:has(.ob) .site-header {
   width: 100%;
   aspect-ratio: 1;
   border-color: var(--line);
+  background: var(--primary-hover);
 }
 
-.ob-celebration :is(img, video) {
+.ob-celebration img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .ob-summary {
@@ -2341,8 +2388,8 @@ body:has(.ob) .site-header {
   overflow: hidden;
   font-size: 2.25rem;
   line-height: 2.375rem;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;

@@ -7,15 +7,6 @@ import { expect, it, vi } from "vitest";
 
 import { SignedIn } from "./signed-in";
 
-// The mascot's separate suite covers WebGL. Keep asset downloads out of form tests.
-vi.mock("three/addons/loaders/GLTFLoader.js", () => ({
-  GLTFLoader: class {
-    async loadAsync() {
-      throw new Error("No WebGL in form tests");
-    }
-  },
-}));
-
 it("shows the Sokosumi account's name and email with Sign out", () => {
   const html = renderToStaticMarkup(
     <SignedIn

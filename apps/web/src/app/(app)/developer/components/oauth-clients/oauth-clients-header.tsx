@@ -13,12 +13,13 @@ export function OAuthClientsHeader({ onCreateClick }: OAuthClientsHeaderProps) {
 
   return (
     <CardHeader>
-      <div className="flex items-center justify-between">
+      {/* Phones stack the text above a full-width Create, so neither squeezes. */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <CardTitle>{t("title")}</CardTitle>
           <CardDescription>{t("description")}</CardDescription>
         </div>
-        <Button onClick={onCreateClick}>
+        <Button onClick={onCreateClick} className="w-full md:w-auto">
           <Plus className="size-4" />
           {t("createButton")}
         </Button>

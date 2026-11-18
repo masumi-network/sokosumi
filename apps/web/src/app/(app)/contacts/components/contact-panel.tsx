@@ -13,6 +13,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  Archive,
+  ArchiveRestore,
   AtSign,
   Bot,
   Building2,
@@ -144,14 +146,22 @@ export function ContactPanel({
         onCloseAutoFocus={onCloseAutoFocus}
       >
         {detail.data ? (
-          <PanelBody
-            contact={detail.data}
-            lists={lists}
-            teammates={teammates}
-            onClose={onClose}
-            onOpenContact={onOpenContact}
-            onMerge={onMerge}
-          />
+          <>
+            {detail.data.archivedAt ? (
+              <ArchivedNotice contact={detail.data} />
+            ) : null}
+            <PanelBody
+              contact={detail.data}
+              lists={lists}
+              teammates={teammates}
+              onClose={onClose}
+              onOpenContact={onOpenContact}
+              onMerge={onMerge}
+            />
+            {/* Outside the body, so an archived contact's history still pages. */}
+            <TimelineSection contact={detail.data} />
+            <ActivitySection contact={detail.data} />
+          </>
         ) : detail.error ? (
           <div className="grid gap-3 p-6">
             <SheetTitle>{t("notFoundTitle")}</SheetTitle>
@@ -317,8 +327,13 @@ function PanelBody({
     contact.channels.some((channel) => channel.type === type),
   );
 
+  // An archived contact is read-only until restored; Restore sits above. The
+  // fieldset stops native controls; Radix menus open on pointerdown, which a
+  // fieldset does not stop, so each menu trigger is disabled itself too.
+  const archived = !!contact.archivedAt;
+
   return (
-    <div className="flex flex-col">
+    <fieldset disabled={archived} className="flex min-w-0 flex-col">
       <header className="flex items-start gap-4 px-6 pt-6 pb-5 pe-14">
         <ContactAvatar
           name={contact.name}
@@ -413,7 +428,7 @@ function PanelBody({
                 })}
           </p>
         </div>
-        {contact.kind === "PERSON" ? (
+        {contact.kind === "PERSON" && !archived ? (
           <Button
             size="sm"
             variant="outline"
@@ -428,7 +443,7 @@ function PanelBody({
           </Button>
         ) : null}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild disabled={archived}>
             <Button
               size="icon"
               variant="ghost"
@@ -479,7 +494,7 @@ function PanelBody({
         </DropdownMenu>
       </header>
 
-      {contact.mergeSuggestions.length ? (
+      {contact.mergeSuggestions.length && !archived ? (
         <MergeBanner
           contact={contact}
           onOpenContact={onOpenContact}
@@ -490,13 +505,13 @@ function PanelBody({
       <dl className="grid gap-1 px-6 pb-5">
         <Property label={t("columns.stage")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 type="button"
                 aria-label={t("panel.changeStage", {
                   stage: t(`stages.${contact.stage}`),
                 })}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <StageChip stage={contact.stage} />
               </button>
@@ -518,11 +533,11 @@ function PanelBody({
         </Property>
         <Property label={t("columns.importance")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 type="button"
                 aria-label={t("importance.change")}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <ScoreMeter
                   value={importance}
@@ -588,12 +603,12 @@ function PanelBody({
         ) : null}
         <Property label={t("columns.lists")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 ref={listsTrigger}
                 type="button"
                 aria-label={t("panel.changeLists")}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 {contact.lists.length ? (
                   contact.lists.map((list) => (
@@ -756,9 +771,51 @@ function PanelBody({
           </div>
         </div>
       </Section>
+    </fieldset>
+  );
+}
 
-      <TimelineSection contact={contact} />
-      <ActivitySection contact={contact} />
+/** When an archived contact was archived, and the one thing to do: Restore. */
+function ArchivedNotice({ contact }: { contact: ContactDetail }) {
+  const t = useTranslations("App.Contacts");
+  const format = useFormatter();
+  const restore = useContactArchive({ restore: true });
+  const [restoring, setRestoring] = useState(false);
+  async function handleRestore() {
+    setRestoring(true);
+    try {
+      // The panel stays open on the contact, now live again.
+      await restore(contact, () => {});
+    } finally {
+      setRestoring(false);
+    }
+  }
+  return (
+    <div className="px-6 pt-6 pe-14">
+      <Alert className="border-border bg-muted">
+        <Archive aria-hidden className="size-4" />
+        <AlertDescription className="grid gap-2">
+          <p className="text-foreground text-sm">
+            {t("panel.archivedOn", {
+              date: format.dateTime(new Date(contact.archivedAt ?? 0), {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+            })}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-foreground w-fit"
+            loading={restoring}
+            onClick={() => void handleRestore()}
+          >
+            <ArchiveRestore aria-hidden className="size-4" />
+            {t("panel.restore")}
+          </Button>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }

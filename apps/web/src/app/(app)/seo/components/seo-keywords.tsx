@@ -15,9 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { seoAuditName } from "./seo-audit-name";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
-import { seoKeywordsExport } from "./seo-export-model";
+import { seoKeywordsExport, seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
   SEO_DIFFICULTY_COLUMN_CLASS,
@@ -63,12 +65,14 @@ import {
   SeoSection,
   SeoShowMore,
   SeoSource,
+  seoIsOnlyPrimary,
   seoMarketName,
   seoSectionClass,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
 import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
+import { SeoTableButton } from "./seo-table-button";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** One filter for search queries and tracked keywords; it shows once a list is long enough to need it. */
@@ -222,6 +226,30 @@ export function SeoKeywords({
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
     <div className="space-y-5">
+      {/* One copy over both lists: it holds keywords and ideas, and it stays mounted while the list switches or a
+          search narrows it, so a copy in flight stays busy and a failed one finishes in the same Table. */}
+      {all.checked.length || all.ideas.length ? (
+        <div
+          className={cn(
+            "px-2",
+            seoSectionClass(
+              section !== "competitors" &&
+                Boolean(checked.length || ideas.length),
+            ),
+          )}
+        >
+          <SeoTableButton
+            title={t("keywords.title")}
+            site={seoAuditName(
+              model.data.auditName ?? "",
+              model.data.websiteUrl ?? "",
+            )}
+            projectId={model.data.projectId}
+            table={() => seoKeywordsTableExport(checked, ideas, t)}
+            className="-ms-2.5"
+          />
+        </div>
+      ) : null}
       <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
           // The switch above names the list, so the title is its result: one sentence.
@@ -355,6 +383,13 @@ export function SeoKeywords({
                     const target = model.data.pages.find(
                       (page) => page.id === row.targetPageId,
                     );
+                    const skipPrimary = !repeated.has(nameOf(row));
+                    // The line under the keyword names its page, unless that is the one primary page.
+                    const pageNamed =
+                      !!row.pageUrl &&
+                      !(
+                        skipPrimary && seoIsOnlyPrimary(model.data, row.pageUrl)
+                      );
                     // Only an unmeasured position falls back to the Search Console period average.
                     const average = reads.length
                       ? undefined
@@ -400,7 +435,7 @@ export function SeoKeywords({
                                 <SeoPageText
                                   url={row.pageUrl}
                                   workspace={model.data}
-                                  skipPrimary={!repeated.has(nameOf(row))}
+                                  skipPrimary={skipPrimary}
                                   oneLine
                                 />
                               ) : null
@@ -409,8 +444,13 @@ export function SeoKeywords({
                                 {t("keywords.anyPage")}
                               </span>
                             )}
-                            {/* One page in scope: the target can only be that page. */}
-                            {row.version > 0 && manyPages ? (
+                            {/* One page in scope: the target can only be that page. The line also stays away when it
+                                would repeat the line above: no page and no target, or the target is the page named there. */}
+                            {row.version > 0 &&
+                            manyPages &&
+                            (target
+                              ? target.url !== row.pageUrl || !pageNamed
+                              : row.pageUrl) ? (
                               <p className="text-muted-foreground mt-1 text-xs">
                                 {t("keywords.target")}:{" "}
                                 {target?.label ||

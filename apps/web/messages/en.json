@@ -8849,6 +8849,8 @@
       }
     },
     "Developer": {
+      "title": "Developer",
+      "sectionsLabel": "Developer sections",
       "tabs": {
         "oauthClients": "OAuth clients",
         "apiKeys": "API keys",
@@ -10196,7 +10198,10 @@
           "answer": "Answer",
           "updateAnswer": "Update answer",
           "answered": "Answer saved",
-          "answerFailed": "Could not save the answer"
+          "answerFailed": "Could not save the answer",
+          "shareLabel": "Show to everyone in the room",
+          "shareHint": "Everyone who can open this document sees the question word for word and your answer, not who asked. You can't edit the question.",
+          "answeredShared": "Answer saved and shared with the room"
         },
         "Contents": {
           "hint": "The order viewers see, which also numbers the room (1, 1.1, 1.2).",
@@ -10245,6 +10250,7 @@
         "successHint": "One more step…",
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
+        "nameRequired": "Enter a name.",
         "submit": "Create {name}",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
@@ -10301,6 +10307,10 @@
         "lastChecked": "Connected · checked {when}",
         "searchPlaceholder": "Search all apps, like Notion or HubSpot",
         "noResults": "Nothing found.",
+        "searching": "Searching apps for “{query}”…",
+        "searchFailed": "Couldn't search apps.",
+        "searchFailedHelp": "Your connected apps still work.",
+        "tryAgain": "Try again",
         "kindsGeneric": "Usable through its tools",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
@@ -10597,6 +10607,13 @@
         "Connectors": {
           "title": "Tools",
           "description": "Apps it can use for you. It reads your calendar, sorts your mail and files attachments, and sends an email only when you say so; other apps act on your behalf when you ask."
+        },
+        "LoadError": {
+          "Connectors": "Tools didn't load.",
+          "Stats": "Activity didn't load.",
+          "Usage": "Usage didn't load.",
+          "help": "Schedules and chat still work.",
+          "retry": "Try again"
         }
       },
       "Avatar": {
@@ -11196,13 +11213,15 @@
       "presets": {
         "all": "All contacts",
         "mine": "My contacts",
-        "recent": "Recently added"
+        "recent": "Recently added",
+        "archived": "Archived contacts"
       },
       "emptyViews": {
         "all": "No contacts yet.",
         "mine": "Nobody you have talked to yet. Everyone you email or meet shows up here.",
         "recent": "Nobody was added in the last two weeks.",
-        "list": "This list is empty. Select people in All contacts and add them here."
+        "list": "This list is empty. Select people in All contacts and add them here.",
+        "archived": "No archived contacts. People you archive show up here, ready to restore."
       },
       "views": {
         "label": "Contact views",
@@ -11220,7 +11239,8 @@
         "clearCompany": "Show every company",
         "companyLists": "Company lists",
         "newCompanyList": "New company list",
-        "noCompanyLists": "No company lists yet."
+        "noCompanyLists": "No company lists yet.",
+        "backToContacts": "Back to contacts"
       },
       "columns": {
         "name": "Name",
@@ -11563,7 +11583,12 @@
         "enriched": "Filled {fields} from the web · 1 credit",
         "enrichedNone": "Nothing new found on the web. No credits used.",
         "enrichFailed": "Could not look them up. Try again.",
-        "connectedVia": "Connected via"
+        "connectedVia": "Connected via",
+        "restore": "Restore",
+        "restoreName": "Restore {name}",
+        "restored": "{name} restored",
+        "restoreFailed": "Could not restore {name}. The contact is still archived.",
+        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them."
       },
       "stageGroups": {
         "general": "General",
@@ -11930,7 +11955,10 @@
         "notFound": "Not found",
         "unavailable": "Not checked yet",
         "country": "Country code",
+        "countryHelp": "Two letters, like US or DE.",
         "language": "Language code",
+        "languageHelp": "Like en or de.",
+        "otherCode": "Other code",
         "target": "Target page",
         "anyPage": "No target page",
         "help": "Best ideas first. Track one to see its Google position after every check. Tracking is free.",
@@ -12876,7 +12904,15 @@
         "action": "Action",
         "kind": "Type",
         "status": "Status",
-        "csvLabel": "Download CSV: {table}"
+        "csvLabel": "Download CSV: {table}",
+        "table": "Copy to a table",
+        "tableLabel": "Copy to a table: {table}",
+        "tableTitle": "{table} · {site} · {date}",
+        "tableDescription": "Copied from SEO on {date}. A snapshot: it does not change when SEO checks again.",
+        "tableCopied": "{count, plural, one {# keyword copied to a new table.} other {# keywords copied to a new table.}}",
+        "openTable": "Open table",
+        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it.",
+        "list": "List"
       },
       "datePresets": {
         "label": "Quick periods",
@@ -13279,7 +13315,12 @@
       "welcome": "Welcome",
       "welcomeTitle": "Welcome to {title}",
       "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
-      "openFirst": "Open {name}"
+      "openFirst": "Open {name}",
+      "sharedTitle": "Answered for everyone",
+      "sharedNote": "Answered for everyone in the room",
+      "sharedLoading": "Loading answers shared with everyone…",
+      "sharedFailed": "Could not load the answers shared with everyone. Check your connection and try again.",
+      "retry": "Try again"
     }
   },
   "NotFound": {

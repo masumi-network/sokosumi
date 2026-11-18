@@ -5,10 +5,11 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rows, setStage, undoStage, toast } = vi.hoisted(() => ({
+const { rows, setStage, undoStage, unarchive, toast } = vi.hoisted(() => ({
   rows: { current: [] as Array<Pick<Contact, "id" | "name">> },
   setStage: vi.fn(),
   undoStage: vi.fn(),
+  unarchive: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
@@ -17,14 +18,37 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/services/contacts.client", () => ({
-  contactsService: { setStage, undoStage },
+  contactsService: { setStage, undoStage, unarchive },
 }));
 vi.mock("./use-contact-update", () => ({
   useContactUpdate: () => vi.fn(),
   useImportanceUpdate: () => vi.fn(),
 }));
 vi.mock("./list-overview", () => ({ ListOverview: () => null }));
-vi.mock("./contacts-list", () => ({ ContactsList: () => null }));
+vi.mock("./companies-view", () => ({ CompaniesView: () => null }));
+// The phone list stands in for the Archived rows: a Restore button per row
+// when the workspace passes `onRestore`.
+vi.mock("./contacts-list", () => ({
+  ContactsList: ({
+    contacts,
+    onRestore,
+  }: {
+    contacts: Contact[];
+    onRestore?: (contact: Contact) => void;
+  }) =>
+    onRestore ? (
+      <ul aria-label="archived rows">
+        {contacts.map((contact) => (
+          <li key={contact.id}>
+            {contact.name}
+            <button type="button" onClick={() => onRestore(contact)}>
+              restore {contact.name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null,
+}));
 // The grid stands in for row checkboxes: one button selects every row shown.
 vi.mock("./contacts-grid", () => ({
   ContactsGrid: ({
@@ -64,6 +88,7 @@ const SMART_LIST: ContactList = {
 };
 
 vi.mock("./use-contacts-data", () => ({
+  CONTACTS_KEY: ["contacts"],
   CONTACT_LISTS_KEY: ["contact-lists"],
   DUPLICATE_GROUP_LIMIT: 200,
   refreshContacts: vi.fn(async () => {}),
@@ -93,6 +118,7 @@ beforeEach(() => {
   ];
   setStage.mockReset();
   undoStage.mockReset();
+  unarchive.mockReset();
   toast.success.mockReset();
   toast.error.mockReset();
 });
@@ -181,5 +207,129 @@ describe("ContactsWorkspace bulk relationship", () => {
     renderSmartList();
     await setAllTo("LEAD");
     expect(toast.success).toHaveBeenLastCalledWith("bulk.stageSet", undefined);
+  });
+});
+
+describe("ContactsWorkspace Archived view", () => {
+  function renderAt(searchParams: string) {
+    const onUrlUpdate = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <NuqsTestingAdapter
+          searchParams={searchParams}
+          onUrlUpdate={onUrlUpdate}
+          hasMemory
+        >
+          <ContactsWorkspace sync={null} />
+        </NuqsTestingAdapter>
+      </QueryClientProvider>,
+    );
+    return onUrlUpdate;
+  }
+
+  it("is no tab: it opens from the More actions menu", async () => {
+    renderAt("");
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(
+      screen.queryByRole("radio", { name: "presets.archived" }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+  });
+
+  it("names the open Archived view and leads back to all contacts", async () => {
+    const onUrlUpdate = renderAt("?list=archived");
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "presets.all" })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "views.backToContacts" }),
+    );
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(
+      screen.queryByRole("heading", { name: "presets.archived" }),
+    ).toBeNull();
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBeNull();
+  });
+
+  it("keeps the live layouts out of the archive, even from a mixed link", async () => {
+    const onUrlUpdate = renderAt("?list=archived&layout=companies");
+    expect(
+      screen.getByRole("heading", { name: "presets.archived" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radio", { name: "layout.companies" }),
+    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        onUrlUpdate.mock.lastCall?.[0].searchParams.get("layout"),
+      ).toBeNull(),
+    );
+    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBe(
+      "archived",
+    );
+  });
+
+  it("opens the archive from the Companies layout as the archive list", async () => {
+    const onUrlUpdate = renderAt("?layout=companies");
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radio", { name: "layout.companies" }),
+    ).toBeNull();
+    const url = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(url?.get("layout")).toBeNull();
+    expect(url?.get("list")).toBe("archived");
+  });
+
+  it("moves keyboard focus to the archive heading on entry and to All contacts on the way back", async () => {
+    renderAt("");
+    screen.getByRole("button", { name: "toolbar.more" }).focus();
+    await userEvent.keyboard("{Enter}");
+    const item = await screen.findByRole("menuitem", {
+      name: "presets.archived",
+    });
+    item.focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "presets.archived" }),
+      ).toHaveFocus(),
+    );
+
+    screen.getByRole("button", { name: "views.backToContacts" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "presets.all" })).toHaveFocus(),
+    );
+  });
+
+  it("lists archived people read-only, without the editable grid or bulk actions", () => {
+    renderAt("?list=archived");
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "select all" })).toBeNull();
+  });
+
+  it("restores a person from their row", async () => {
+    unarchive.mockResolvedValue(undefined);
+    renderAt("?list=archived");
+    await userEvent.click(
+      screen.getByRole("button", { name: "restore Ada Lead" }),
+    );
+    expect(unarchive).toHaveBeenCalledExactlyOnceWith("c1");
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("panel.restored"),
+    );
   });
 });

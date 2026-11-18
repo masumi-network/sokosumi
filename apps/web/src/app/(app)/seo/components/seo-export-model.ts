@@ -1,14 +1,24 @@
 import type {
   ProjectSeoAction,
   ProjectSeoSearchQueries,
+  TableColumn,
 } from "@sokosumi/core-client";
+import { createDataTableSchema } from "@sokosumi/utils";
+import { tableImportBatches } from "@/app/drive/tables/table-import";
 import type { SeoCsvCell } from "./seo-csv";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
 
-/** One table as the CSV writes it: translated column names and raw values. */
-export type SeoExport = { header: string[]; rows: SeoCsvCell[][] };
+/**
+ * One table as the CSV writes it: translated column names and raw values. `types` names what each column
+ * holds, for a copy into a Files Table; a column without one is text.
+ */
+export type SeoExport = {
+  header: string[];
+  rows: SeoCsvCell[][];
+  types?: TableColumn["type"][];
+};
 /** The translator of the "App.Seo" messages. */
 type Label = IntlTranslation<"App.Seo">;
 
@@ -104,6 +114,7 @@ export function seoKeywordsExport(
       t("observed"),
       t("keywords.priority"),
     ],
+    types: ["text", "url", "text", "text", "number", "number", "date", "text"],
     rows: groups.map(({ lead, volume, best, reads }) => [
       lead.keyword,
       lead.pageUrl,
@@ -114,6 +125,37 @@ export function seoKeywordsExport(
       day(reads[0]?.observedAt ?? null),
       t(`priority.${lead.priority}`),
     ]),
+  };
+}
+
+/**
+ * The checked keywords, then the ideas: the CSV's columns with Difficulty after the searches, and a last column
+ * that names each row's list. The CSV keeps its columns, for the sheets already built on it.
+ */
+export function seoKeywordsTableExport(
+  checked: SeoKeywordGroup[],
+  ideas: SeoKeywordGroup[],
+  t: Label,
+): SeoExport {
+  const groups = [...checked, ...ideas];
+  const { header, types = [], rows } = seoKeywordsExport(groups, t);
+  // After "Searches a month", the fifth column.
+  const add = <T>(row: T[], difficulty: T, list: T) => [
+    ...row.slice(0, 5),
+    difficulty,
+    ...row.slice(5),
+    list,
+  ];
+  return {
+    header: add(header, t("keywords.difficulty.title"), t("export.list")),
+    types: add(types, "number", "text"),
+    rows: rows.map((row, i) =>
+      add(
+        row,
+        groups[i].difficulty,
+        i < checked.length ? t("keywords.title") : t("keywords.ideas.short"),
+      ),
+    ),
   };
 }
 
@@ -145,4 +187,49 @@ export function seoActionsExport(
       action.edit?.after ?? null,
     ]),
   };
+}
+
+const WEB = /^https?:\/\//;
+/** Not URL.canParse: Next still supports Safari 16.4, which lacks it. */
+function isWebAddress(value: string) {
+  if (!WEB.test(value)) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * One exported table as a new Files Table: the create request and every row in batches of at most 100,
+ * keyed by `key`, so a retry with the same plan creates and inserts nothing twice. An empty cell stays empty.
+ */
+export function seoTablePlan(
+  { header, rows, types = [] }: SeoExport,
+  source: { title: string; description: string; projectId: string | null },
+  key: string,
+) {
+  const columns = header.map((name, i) => ({
+    id: crypto.randomUUID(),
+    name,
+    // A page that is not a web address keeps the column text: a URL column refuses it.
+    type:
+      types[i] === "url" &&
+      !rows.every((row) => row[i] == null || isWebAddress(String(row[i])))
+        ? "text"
+        : (types[i] ?? "text"),
+  }));
+  const table = createDataTableSchema.parse({ key, ...source, columns });
+  const insert = rows.map((row) => ({
+    values: Object.fromEntries(
+      columns.flatMap(({ id }, i) => {
+        const value = row[i] ?? null;
+        if (value === null) return [];
+        return [[id, columns[i].type === "number" ? value : String(value)]];
+      }),
+    ),
+    evidence: {},
+  }));
+  return { table, batches: tableImportBatches(key, insert) };
 }

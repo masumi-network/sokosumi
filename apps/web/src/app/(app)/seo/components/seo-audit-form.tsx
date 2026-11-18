@@ -30,7 +30,9 @@ export function SeoAuditForm({
         <Input
           id="seo-audit-url"
           name="url"
-          type="url"
+          // Not type="url": it refuses "example.com", which submit completes to https://.
+          inputMode="url"
+          autoComplete="url"
           placeholder={t("audits.urlPlaceholder")}
           maxLength={4096}
           required
