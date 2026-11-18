@@ -5204,9 +5204,9 @@ export type CopyDriveFileRequest = {
      */
     pathname: string;
     /**
-     * Name for the copy, in the source's folder. Numbered when taken.
+     * Word for copy in the reader's language. The copy is named `<name> (<label>).<ext>`, numbered when taken.
      */
-    filename: string;
+    label: string;
 };
 
 export type RenameDriveFileRequest = {

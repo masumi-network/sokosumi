@@ -9879,6 +9879,7 @@
       "renameAction": "Renombrar",
       "makeCopyAction": "Hacer una copia",
       "copyNameLabel": "copia",
+      "copying": "Copiando {name}…",
       "copyMade": "Copiado como {name}",
       "copyError": "No se pudo copiar el archivo. Inténtalo de nuevo.",
       "deleteAction": "Eliminar",

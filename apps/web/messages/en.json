@@ -9879,6 +9879,7 @@
       "renameAction": "Rename",
       "makeCopyAction": "Make a copy",
       "copyNameLabel": "copy",
+      "copying": "Copying {name}…",
       "copyMade": "Copied as {name}",
       "copyError": "Couldn't copy the file. Try again.",
       "deleteAction": "Delete",

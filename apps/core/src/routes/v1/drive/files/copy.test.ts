@@ -8,8 +8,8 @@ import type { AuthenticationContext } from "@/middleware/auth";
  * Make a copy: a second, independent file beside the first.
  *
  * The copy must never go through rename (copy-then-delete), must leave the
- * source in place, and must get its own catalog identity so its tags, links
- * and deletion are its own.
+ * source in place, must get its own catalog identity so its tags, links and
+ * deletion are its own, and must not buy paid label evaluations.
  */
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -24,40 +24,51 @@ const { BlobNotFoundError } = vi.hoisted(() => ({
   BlobNotFoundError: class BlobNotFoundError extends Error {},
 }));
 
-const { listMock, headMock, delMock, renameMock, copyMock } = vi.hoisted(
-  () => ({
-    listMock: vi.fn(),
-    headMock: vi.fn(),
-    delMock: vi.fn(),
-    renameMock: vi.fn(),
-    copyMock: vi.fn(),
-  }),
-);
-
-vi.mock("@vercel/blob", () => ({
-  list: listMock,
-  head: headMock,
-  del: delMock,
-  rename: renameMock,
-  copy: copyMock,
-  BlobNotFoundError,
+const blob = vi.hoisted(() => ({
+  list: vi.fn(),
+  head: vi.fn(),
+  del: vi.fn(),
+  rename: vi.fn(),
+  copy: vi.fn(),
+  get: vi.fn(),
+  put: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: { dataRoom: { findMany: vi.fn(async () => []) } },
+vi.mock("@vercel/blob", () => ({ ...blob, BlobNotFoundError }));
+
+const db = vi.hoisted(() => ({
+  rooms: vi.fn(),
+  findUnique: vi.fn(),
 }));
 
-const { adoptMock, requireAccessMock } = vi.hoisted(() => ({
-  adoptMock: vi.fn(),
-  requireAccessMock: vi.fn(),
-}));
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
+    dataRoom: { findMany: db.rooms },
+    fileResource: { findUnique: db.findUnique },
+  };
+  return {
+    default: {
+      ...client,
+      $transaction: async (fn: (tx: typeof client) => unknown) => fn(client),
+    },
+  };
+});
+
+const { adoptMock, requireAccessMock, nudgeExtraction, nudgeIndexing } =
+  vi.hoisted(() => ({
+    adoptMock: vi.fn(),
+    requireAccessMock: vi.fn(),
+    nudgeExtraction: vi.fn(),
+    nudgeIndexing: vi.fn(),
+  }));
 
 vi.mock("@/services/file-catalog.service", () => ({
   adoptDriveUploadResource: adoptMock,
 }));
 
 vi.mock("@/lib/files/in-process-indexer", () => ({
-  nudgeFileIndexing: vi.fn(),
+  nudgeFileExtraction: nudgeExtraction,
+  nudgeFileIndexing: nudgeIndexing,
 }));
 
 vi.mock("@/helpers/drive-file-access", () => ({
@@ -77,12 +88,14 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      BLOB_READ_WRITE_TOKEN: "test-token",
+      BLOB_READ_WRITE_TOKEN: "public-token",
+      DATA_ROOM_BLOB_READ_WRITE_TOKEN: "private-token",
       BETTER_AUTH_SECRET: "test-better-auth-secret",
     }),
   };
 });
 
+import { forgetDriveRooms } from "@/lib/drive-blob";
 import mountCopy from "./copy.js";
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -93,69 +106,79 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   authenticationMethod: "session",
 };
 
-function app() {
-  const hono = new OpenAPIHonoWithAuth();
-  hono.onError(errorHandler);
-  hono.use("*", async (c, next) => {
+function copyRequest(body: Record<string, unknown>) {
+  const app = new OpenAPIHonoWithAuth();
+  app.onError(errorHandler);
+  app.use("*", async (c, next) => {
     c.set("authContext", USER_AUTH_CONTEXT);
     await next();
   });
-  mountCopy(hono);
-  return hono;
-}
-
-function copyRequest(body: Record<string, unknown>) {
-  return app().request("/copy", {
+  mountCopy(app);
+  return app.request("/copy", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-const SOURCE = "drive/users/user_123/briefs/weekly.md";
+const FOLDER = "drive/users/user_123/briefs/";
+const SOURCE = `${FOLDER}weekly.md`;
 const SOURCE_META = {
+  pathname: SOURCE,
   contentType: "text/markdown",
   cacheControl: "public, max-age=60",
   size: 42,
   uploadedAt: new Date("2026-11-01T00:00:00Z"),
 };
 
+/** Blobs that exist, by pathname, and which store holds each. */
+let stored: Map<string, "public-token" | "private-token">;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  forgetDriveRooms();
+  stored = new Map([[SOURCE, "public-token"]]);
+  db.rooms.mockResolvedValue([]);
+  db.findUnique.mockResolvedValue(null);
   requireAccessMock.mockResolvedValue({ hiddenRoomFolders: [] });
-  listMock.mockResolvedValue({ blobs: [], hasMore: false });
+  blob.list.mockResolvedValue({ blobs: [], hasMore: false });
+  blob.del.mockResolvedValue(undefined);
   adoptMock.mockResolvedValue("resource-copy");
-  copyMock.mockImplementation(async (_from: string, to: string) => ({
+  blob.head.mockImplementation(
+    async (pathname: string, { token }: { token: string }) => {
+      if (stored.get(pathname) === token) return { ...SOURCE_META, pathname };
+      throw new BlobNotFoundError("gone");
+    },
+  );
+  blob.copy.mockImplementation(async (_from: string, to: string) => ({
     url: `https://store.public.blob.vercel-storage.com/${to}`,
     pathname: to,
   }));
-  // Source exists; every other pathname is free.
-  headMock.mockImplementation(async (pathname: string) => {
-    if (pathname === SOURCE) return SOURCE_META;
-    throw new BlobNotFoundError("gone");
-  });
+  blob.get.mockResolvedValue({ statusCode: 200, stream: "bytes", blob: {} });
+  blob.put.mockImplementation(async (to: string) => ({
+    url: `https://store.private.blob.vercel-storage.com/${to}`,
+    pathname: to,
+  }));
 });
 
 describe("copy a Drive file", () => {
   it("copies into the same folder, keeps the source, and catalogs the copy", async () => {
-    const response = await copyRequest({
-      pathname: SOURCE,
-      filename: "weekly (copy).md",
-    });
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
 
     expect(response.status).toBe(200);
-    const target = "drive/users/user_123/briefs/weekly (copy).md";
-    expect(copyMock).toHaveBeenCalledWith(
+    const target = `${FOLDER}weekly (copy).md`;
+    expect(blob.copy).toHaveBeenCalledWith(
       SOURCE,
       target,
       expect.objectContaining({
+        token: "public-token",
         addRandomSuffix: false,
         allowOverwrite: false,
         contentType: "text/markdown",
       }),
     );
-    expect(renameMock).not.toHaveBeenCalled();
-    expect(delMock).not.toHaveBeenCalled();
+    expect(blob.rename).not.toHaveBeenCalled();
+    expect(blob.del).not.toHaveBeenCalled();
     expect(adoptMock).toHaveBeenCalledWith(
       expect.objectContaining({
         key: {
@@ -166,6 +189,7 @@ describe("copy a Drive file", () => {
         },
         displayName: "weekly (copy).md",
         sizeBytes: 42,
+        client: expect.anything(),
       }),
     );
     expect(requireAccessMock).toHaveBeenCalledWith(
@@ -182,45 +206,195 @@ describe("copy a Drive file", () => {
     });
   });
 
-  it("numbers the copy when that name is taken", async () => {
-    headMock.mockImplementation(async (pathname: string) => {
-      if (pathname === SOURCE) return SOURCE_META;
-      if (pathname === "drive/users/user_123/briefs/weekly (copy).md")
-        return SOURCE_META;
-      throw new BlobNotFoundError("gone");
-    });
+  it("starts free extraction only, never paid label evaluation", async () => {
+    await copyRequest({ pathname: SOURCE, label: "copy" });
 
-    const response = await copyRequest({
-      pathname: SOURCE,
-      filename: "weekly (copy).md",
-    });
+    expect(nudgeExtraction).toHaveBeenCalledTimes(1);
+    expect(nudgeIndexing).not.toHaveBeenCalled();
+  });
 
-    expect(response.status).toBe(200);
-    expect(copyMock).toHaveBeenCalledWith(
+  it("numbers the copy when that name is taken by a file", async () => {
+    stored.set(`${FOLDER}weekly (copy).md`, "public-token");
+
+    await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(blob.copy).toHaveBeenCalledWith(
       SOURCE,
-      "drive/users/user_123/briefs/weekly (copy) 2.md",
+      `${FOLDER}weekly (copy) 2.md`,
+      expect.anything(),
+    );
+  });
+
+  it("numbers the copy when the catalog still holds that name", async () => {
+    db.findUnique.mockImplementation(
+      async ({ where }: { where: Record<string, { sourceId: string }> }) =>
+        Object.values(where)[0].sourceId === `${FOLDER}weekly (copy).md`
+          ? { id: "old-document" }
+          : null,
+    );
+
+    await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(blob.copy).toHaveBeenCalledWith(
+      SOURCE,
+      `${FOLDER}weekly (copy) 2.md`,
       expect.anything(),
     );
   });
 
   it("returns 404 when the source is gone", async () => {
     const response = await copyRequest({
-      pathname: "drive/users/user_123/missing.md",
-      filename: "missing (copy).md",
+      pathname: `${FOLDER}missing.md`,
+      label: "copy",
     });
 
     expect(response.status).toBe(404);
-    expect(copyMock).not.toHaveBeenCalled();
+    expect(blob.copy).not.toHaveBeenCalled();
     expect(adoptMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a name with a slash, so a copy cannot leave its folder", async () => {
-    const response = await copyRequest({
-      pathname: SOURCE,
-      filename: "../elsewhere.md",
-    });
+  it("writes nothing when access is denied", async () => {
+    const { forbidden } = await import("@/helpers/error");
+    requireAccessMock.mockRejectedValue(forbidden("not yours"));
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(403);
+    expect(blob.copy).not.toHaveBeenCalled();
+    expect(blob.put).not.toHaveBeenCalled();
+    expect(adoptMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("names", () => {
+  it("refuses a label with a slash, so a copy cannot leave its folder", async () => {
+    const response = await copyRequest({ pathname: SOURCE, label: "../x" });
 
     expect(response.status).toBe(422);
-    expect(copyMock).not.toHaveBeenCalled();
+    expect(blob.copy).not.toHaveBeenCalled();
+  });
+
+  it("refuses to copy a folder marker", async () => {
+    const marker = `${FOLDER}__drive_folder__`;
+    stored.set(marker, "public-token");
+
+    const response = await copyRequest({ pathname: marker, label: "copy" });
+
+    expect(response.status).toBe(422);
+    expect(blob.copy).not.toHaveBeenCalled();
+  });
+
+  it("trims a long name's stem to keep the label, number and extension", async () => {
+    const stem = "a".repeat(252);
+    const source = `${FOLDER}${stem}.md`;
+    stored.set(source, "public-token");
+    stored.set(`${FOLDER}${"a".repeat(245)} (copy).md`, "public-token");
+
+    const response = await copyRequest({ pathname: source, label: "copy" });
+
+    expect(response.status).toBe(200);
+    const name = `${"a".repeat(243)} (copy) 2.md`;
+    expect(name).toHaveLength(255);
+    expect(blob.copy).toHaveBeenCalledWith(
+      source,
+      `${FOLDER}${name}`,
+      expect.anything(),
+    );
+  });
+
+  it("gives each numbered try of a 255-character name its own name", async () => {
+    const source = `${FOLDER}${"b".repeat(255)}`;
+    stored.set(source, "public-token");
+    const first = `${"b".repeat(248)} (copy)`;
+    stored.set(`${FOLDER}${first}`, "public-token");
+
+    await copyRequest({ pathname: source, label: "copy" });
+
+    const target = `${FOLDER}${"b".repeat(246)} (copy) 2`;
+    expect(target.length - FOLDER.length).toBe(255);
+    expect(blob.copy).toHaveBeenCalledWith(source, target, expect.anything());
+  });
+});
+
+describe("a failed catalog write", () => {
+  it("removes the copied bytes, so a retry gets the same name", async () => {
+    adoptMock.mockRejectedValueOnce(new Error("database down"));
+
+    const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(failed.status).toBe(500);
+    const target = `${FOLDER}weekly (copy).md`;
+    expect(blob.del).toHaveBeenCalledWith(target, { token: "public-token" });
+
+    const retried = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(retried.status).toBe(200);
+    expect(blob.copy).toHaveBeenLastCalledWith(
+      SOURCE,
+      target,
+      expect.anything(),
+    );
+  });
+
+  it("returns 409 and removes the bytes when another request took the name", async () => {
+    adoptMock.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(409);
+    expect(blob.del).toHaveBeenCalledWith(`${FOLDER}weekly (copy).md`, {
+      token: "public-token",
+    });
+  });
+});
+
+describe("a data room moving between stores", () => {
+  it("reads a source still in the public store while the room moves in", async () => {
+    db.rooms.mockResolvedValue([
+      { folderPath: "briefs", storage: "MOVING_IN" },
+    ]);
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(200);
+    expect(blob.get).toHaveBeenCalledWith(SOURCE, {
+      access: "public",
+      token: "public-token",
+    });
+    expect(blob.put).toHaveBeenCalledWith(
+      `${FOLDER}weekly (copy).md`,
+      "bytes",
+      expect.objectContaining({
+        access: "private",
+        token: "private-token",
+        allowOverwrite: false,
+      }),
+    );
+    expect(blob.del).not.toHaveBeenCalled();
+    const json = await response.json();
+    expect(json.data.dataRoom).toBe(true);
+  });
+
+  it("reads a source still in the private store while the room moves out", async () => {
+    stored.set(SOURCE, "private-token");
+    db.rooms.mockResolvedValue([
+      { folderPath: "briefs", storage: "MOVING_OUT" },
+    ]);
+
+    const response = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+    expect(response.status).toBe(200);
+    expect(blob.get).toHaveBeenCalledWith(SOURCE, {
+      access: "private",
+      token: "private-token",
+    });
+    expect(blob.put).toHaveBeenCalledWith(
+      `${FOLDER}weekly (copy).md`,
+      "bytes",
+      expect.objectContaining({ access: "public", token: "public-token" }),
+    );
+    expect(blob.del).not.toHaveBeenCalled();
   });
 });

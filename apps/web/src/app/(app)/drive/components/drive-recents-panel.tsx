@@ -38,10 +38,7 @@ import {
   forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
-import {
-  buildDriveRecentsDayGroups,
-  copyFileName,
-} from "@/app/drive/components/drive-recents-list.utils";
+import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
@@ -157,6 +154,8 @@ export function DriveRecentsPanel({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [editingPathname, setEditingPathname] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  /** Files with a copy on the way; their Make a copy waits. */
+  const [copying, setCopying] = useState<ReadonlySet<string>>(() => new Set());
   const loadAbortRef = useRef<AbortController | null>(null);
   const loadMoreAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(activeOrganizationId);
@@ -315,20 +314,26 @@ export function DriveRecentsPanel({
   }
 
   async function handleMakeCopy(item: { pathname: string; name: string }) {
+    if (copying.has(item.pathname)) return;
+    setCopying((now) => new Set(now).add(item.pathname));
+    const toastId = toast.loading(t("copying", { name: item.name }));
     try {
       const { data } = await postDriveFilesCopy({
         client: getBrowserCoreClient(),
-        body: {
-          pathname: item.pathname,
-          filename: copyFileName(item.name, t("copyNameLabel")),
-        },
+        body: { pathname: item.pathname, label: t("copyNameLabel") },
         throwOnError: true,
       });
-      toast.success(t("copyMade", { name: data.data.name }));
+      toast.success(t("copyMade", { name: data.data.name }), { id: toastId });
     } catch (error) {
       console.error("Failed to copy Drive file", error);
-      toast.error(t("copyError"));
+      toast.error(t("copyError"), { id: toastId });
       return;
+    } finally {
+      setCopying((now) => {
+        const next = new Set(now);
+        next.delete(item.pathname);
+        return next;
+      });
     }
     onItemsChanged();
     await loadRecents();
@@ -443,6 +448,7 @@ export function DriveRecentsPanel({
                           {t("renameAction")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
+                          disabled={copying.has(item.pathname)}
                           onSelect={() => void handleMakeCopy(item)}
                         >
                           <CopyPlus className="size-4" aria-hidden />

@@ -183,15 +183,16 @@ export const copyDriveFileRequestSchema = z
       example: "drive/users/user_123/report.pdf",
       description: "Blob pathname of the file to copy",
     }),
-    filename: z
+    label: z
       .string()
+      .trim()
       .min(1)
-      .max(255)
-      .refine((name) => !name.includes("/"), "A file name has no slash")
+      .max(32)
+      .refine((label) => !label.includes("/"), "A label has no slash")
       .openapi({
-        example: "report (copy).pdf",
+        example: "copy",
         description:
-          "Name for the copy, in the source's folder. Numbered when taken.",
+          "Word for copy in the reader's language. The copy is named `<name> (<label>).<ext>`, numbered when taken.",
       }),
   })
   .openapi("CopyDriveFileRequest");

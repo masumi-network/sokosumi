@@ -18541,17 +18541,17 @@ export const CopyDriveFileRequestSchema = {
             example: 'drive/users/user_123/report.pdf',
             description: 'Blob pathname of the file to copy'
         },
-        filename: {
+        label: {
             type: 'string',
             minLength: 1,
-            maxLength: 255,
-            example: 'report (copy).pdf',
-            description: 'Name for the copy, in the source\'s folder. Numbered when taken.'
+            maxLength: 32,
+            example: 'copy',
+            description: 'Word for copy in the reader\'s language. The copy is named `<name> (<label>).<ext>`, numbered when taken.'
         }
     },
     required: [
         'pathname',
-        'filename'
+        'label'
     ]
 } as const;
 

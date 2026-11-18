@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { copyFileName } from "@/app/drive/components/drive-recents-list.utils";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 
 // Stable references: the panel reloads whenever `t` changes identity.
@@ -24,7 +23,11 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 const { fetchRecentsMock, copyMock, toastMock } = vi.hoisted(() => ({
   fetchRecentsMock: vi.fn(),
   copyMock: vi.fn(),
-  toastMock: { success: vi.fn(), error: vi.fn() },
+  toastMock: {
+    loading: vi.fn(() => "toast-1"),
+    success: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/utils/drive-recents-list.client", () => ({
@@ -78,20 +81,6 @@ beforeEach(() => {
   fetchRecentsMock.mockResolvedValue({ items: [FILE], nextCursor: null });
 });
 
-describe("copyFileName", () => {
-  it("puts the label before the extension", () => {
-    expect(copyFileName("weekly.md", "copy")).toBe("weekly (copy).md");
-    expect(copyFileName("Q4 plan.final.pdf", "Kopie")).toBe(
-      "Q4 plan.final (Kopie).pdf",
-    );
-  });
-
-  it("appends the label when there is no extension", () => {
-    expect(copyFileName("README", "copy")).toBe("README (copy)");
-    expect(copyFileName(".env", "copy")).toBe(".env (copy)");
-  });
-});
-
 describe("Make a copy", () => {
   it("copies the file beside itself and reloads the list", async () => {
     copyMock.mockResolvedValue({
@@ -110,7 +99,7 @@ describe("Make a copy", () => {
         client: "core-client",
         body: {
           pathname: "drive/users/u1/briefs/weekly.md",
-          filename: "weekly (copyNameLabel).md",
+          label: "copyNameLabel",
         },
         throwOnError: true,
       }),
@@ -118,6 +107,7 @@ describe("Make a copy", () => {
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith(
         "copyMade:weekly (copy).md",
+        { id: "toast-1" },
       ),
     );
     expect(onItemsChanged).toHaveBeenCalled();
@@ -136,9 +126,37 @@ describe("Make a copy", () => {
     await user.click(screen.getByRole("menuitem", { name: "makeCopyAction" }));
 
     await waitFor(() =>
-      expect(toastMock.error).toHaveBeenCalledWith("copyError"),
+      expect(toastMock.error).toHaveBeenCalledWith("copyError", {
+        id: "toast-1",
+      }),
     );
     expect(onItemsChanged).not.toHaveBeenCalled();
     expect(screen.getByText("weekly.md")).toBeInTheDocument();
+  });
+
+  it("shows progress and blocks a second copy of the same file until the first lands", async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    copyMock.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(
+      await screen.findByRole("button", { name: "moreActions" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "makeCopyAction" }));
+    expect(toastMock.loading).toHaveBeenCalledWith("copying:weekly.md");
+
+    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    const item = screen.getByRole("menuitem", { name: "makeCopyAction" });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    await user.click(item);
+    expect(copyMock).toHaveBeenCalledTimes(1);
+
+    finish({ data: { data: { name: "weekly (copy).md" } } });
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
   });
 });

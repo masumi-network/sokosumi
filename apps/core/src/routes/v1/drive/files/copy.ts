@@ -1,6 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-import { clampDriveFileName } from "@sokosumi/utils";
-import { BlobNotFoundError } from "@vercel/blob";
+import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
+import {
+  DRIVE_FILE_MAX_NAME_LENGTH,
+  isDriveFolderMarker,
+} from "@sokosumi/utils";
+import { BlobNotFoundError, del } from "@vercel/blob";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
@@ -10,16 +14,17 @@ import {
 import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   driveCopy,
   driveExists,
   driveHasAny,
   driveHead,
 } from "@/lib/drive-blob";
-import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { nudgeFileExtraction } from "@/lib/files/in-process-indexer";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -30,7 +35,7 @@ import {
 } from "@/schemas/drive-file.schema";
 import { adoptDriveUploadResource } from "@/services/file-catalog.service";
 
-/** Names tried ("x", "x 2" … "x 20") before the copy gives up with 409. */
+/** Names tried ("x (copy)", "x (copy) 2" … 20) before the copy gives up with 409. */
 const MAX_NAME_TRIES = 20;
 
 const route = withCoworkerContextHeaderParameters(
@@ -40,7 +45,8 @@ const route = withCoworkerContextHeaderParameters(
     description: [
       "Make a copy of a Drive file in the same folder.",
       "The source stays. The copy is a new document with its own catalog id;",
-      "tags, links and shares are not copied. A taken name gets a number.",
+      "tags, links and shares are not copied. It is named",
+      "`<name> (<label>).<ext>`, numbered when taken.",
       "Personal: owner only. Organization: any member.",
     ].join("\n"),
     tags: ["Drive"],
@@ -65,21 +71,35 @@ const route = withCoworkerContextHeaderParameters(
   }),
 );
 
-/** `report (copy).pdf`, try 3 → `report (copy) 3.pdf`. */
-function numberedName(name: string, attempt: number): string {
-  if (attempt === 1) return name;
-  const dot = name.lastIndexOf(".");
-  return dot > 0
-    ? `${name.slice(0, dot)} ${attempt}${name.slice(dot)}`
-    : `${name} ${attempt}`;
+/**
+ * `weekly.md`, "copy", try 2 → `weekly (copy) 2.md`. A long stem is trimmed,
+ * never the label, number or extension, so every try is a different name
+ * within the length limit.
+ */
+export function copyName(source: string, label: string, attempt: number) {
+  const tail = ` (${label})${attempt === 1 ? "" : ` ${attempt}`}`;
+  const dot = source.lastIndexOf(".");
+  const hasExtension =
+    dot > 0 && source.length - dot + tail.length < DRIVE_FILE_MAX_NAME_LENGTH;
+  const stem = hasExtension ? source.slice(0, dot) : source;
+  const extension = hasExtension ? source.slice(dot) : "";
+  const room = DRIVE_FILE_MAX_NAME_LENGTH - tail.length - extension.length;
+  return `${stem.slice(0, room)}${tail}${extension}`;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "P2002";
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
-    const { pathname, filename } = c.req.valid("json");
+    const { pathname, label } = c.req.valid("json");
 
+    if (isDriveFolderMarker(pathname)) {
+      throw unprocessableEntity("A folder marker cannot be copied");
+    }
     const { scope, ownerId } = parseDriveFilePathname(
       pathname,
       userContext.userId,
@@ -95,31 +115,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const source = await driveHead(pathname);
     if (!source) throw notFound("Source file not found");
 
-    const baseName = clampDriveFileName(filename);
-    let name: string | null = null;
-    for (let attempt = 1; attempt <= MAX_NAME_TRIES; attempt++) {
-      const candidate = clampDriveFileName(numberedName(baseName, attempt));
-      const candidatePathname = `${folderPrefix}${candidate}`;
-      if (
-        !(await driveExists(candidatePathname)) &&
-        !(await driveHasAny(`${candidatePathname}/`))
-      ) {
-        name = candidate;
-        break;
-      }
-    }
-    if (!name) throw conflict("No free name for the copy");
-
     const workspace = await resolveDriveTasksWorkspace({
       userContext,
       scope: scope === "user" ? "me" : "org",
       organizationId: scope === "organization" ? ownerId : undefined,
     });
+    const catalogKey = (target: string) => ({
+      workspaceId_sourceKind_sourceScope_sourceId: {
+        workspaceId: workspace.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope:
+          scope === "user"
+            ? FileSourceScope.USER
+            : FileSourceScope.ORGANIZATION,
+        sourceId: target,
+      },
+    });
+
+    // A name is free when no object, folder or catalog entry holds it: a
+    // catalog entry left at a path would hand the copy someone else's
+    // identity and tags.
+    const sourceName = pathname.slice(folderPrefix.length);
+    let name: string | null = null;
+    for (let attempt = 1; attempt <= MAX_NAME_TRIES && !name; attempt++) {
+      const candidate = copyName(sourceName, label, attempt);
+      const target = `${folderPrefix}${candidate}`;
+      const taken =
+        (await driveExists(target)) ||
+        (await driveHasAny(`${target}/`)) ||
+        (await prisma.fileResource.findUnique({
+          where: catalogKey(target),
+          select: { id: true },
+        }));
+      if (!taken) name = candidate;
+    }
+    if (!name) throw conflict("No free name for the copy");
 
     let copied: Awaited<ReturnType<typeof driveCopy>>;
     try {
-      copied = await driveCopy(pathname, `${folderPrefix}${name}`, {
-        contentType: source.contentType,
+      copied = await driveCopy(source, `${folderPrefix}${name}`, {
         cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
       });
     } catch (error) {
@@ -135,21 +169,50 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
-    // A new document, not a second name for the old one: its own id, so
-    // tags, project links and deletion never reach the source.
-    const resourceId = await adoptDriveUploadResource({
-      key: {
-        workspaceId: workspace.workspaceId,
-        scope,
-        ownerId,
-        pathname: copied.pathname,
-      },
-      displayName: name,
-      mimeType: source.contentType ?? null,
-      sizeBytes: source.size,
-      uploadedAt: new Date(),
-    });
-    nudgeFileIndexing();
+    // A new document, not a second name for an old one: its own id, so tags,
+    // project links and deletion never reach the source. Identity and its
+    // extraction job land together or not at all; without them the bytes go
+    // too, so a retry finds the same name free.
+    let resourceId: string;
+    try {
+      resourceId = await prisma.$transaction(async (tx) => {
+        if (
+          await tx.fileResource.findUnique({
+            where: catalogKey(copied.pathname),
+            select: { id: true },
+          })
+        ) {
+          throw Object.assign(new Error("Catalog entry exists"), {
+            code: "P2002",
+          });
+        }
+        return adoptDriveUploadResource({
+          key: {
+            workspaceId: workspace.workspaceId,
+            scope,
+            ownerId,
+            pathname: copied.pathname,
+          },
+          displayName: name,
+          mimeType: source.contentType ?? null,
+          sizeBytes: source.size,
+          uploadedAt: new Date(),
+          client: tx,
+        });
+      });
+    } catch (error) {
+      await del(copied.pathname, { token: copied.store.token }).catch(
+        () => undefined,
+      );
+      if (isUniqueViolation(error)) {
+        throw conflict("Another copy took that name; try again");
+      }
+      throw error;
+    }
+
+    // Extraction only. Labelling is paid, so the copy is labelled by the
+    // scheduled sweep like any other document, never on this request.
+    nudgeFileExtraction();
 
     return ok(
       c,
@@ -159,7 +222,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         pathname: copied.pathname,
         size: source.size,
         uploadedAt: new Date().toISOString(),
-        dataRoom: copied.access === "private",
+        dataRoom: copied.store.access === "private",
         resourceId,
       }),
     );
