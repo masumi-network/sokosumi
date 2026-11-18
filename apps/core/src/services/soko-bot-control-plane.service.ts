@@ -769,11 +769,12 @@ export class SokoBotControlPlane {
     sessionId: string,
     acknowledgementError: unknown,
   ): Promise<void> {
+    // Cleanup uses the original acknowledgement error when proof is unavailable.
     const retained = await this.renewTurnLease(turnId, leaseToken, prisma, {
       status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
       startedAt: { not: null },
       eveSessionId: sessionId,
-    });
+    }).catch(() => false);
     if (!retained) throw acknowledgementError;
   }
 
