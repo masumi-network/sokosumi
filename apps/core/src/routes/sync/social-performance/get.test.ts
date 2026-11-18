@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { coreLogEvents } from "@/test/core-log";
 import mountSyncSocialPerformance from "./get";
 
+vi.mock("@/services/project-social-connections.service", () => ({
+  cleanExpiredZernioIntents: vi
+    .fn()
+    .mockResolvedValue({ cleaned: 0, failed: 0 }),
+}));
+
 const collect = vi.hoisted(() => vi.fn());
 
 vi.mock("@/services/social-account-sync", () => ({

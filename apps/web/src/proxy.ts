@@ -71,6 +71,7 @@ const OAUTH_CONNECTION_DOCUMENT_PATHS = new Set([
   COMPOSIO_MANAGED_RETURN_PATH,
   "/seo/connections/return",
   "/composio/callback",
+  "/zernio/callback",
   "/composio/handoff",
 ]);
 
@@ -112,7 +113,9 @@ export async function proxy(request: NextRequest) {
   // Create response early so we can always set pathname + document headers
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
-  response.headers.set("x-search-params", searchParams);
+  if (pathname !== "/zernio/callback") {
+    response.headers.set("x-search-params", searchParams);
+  }
   applyDocumentSecurityHeaders(response, {
     ...securityHeaderOptions,
     pathname,

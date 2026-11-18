@@ -106,6 +106,7 @@ import {
   evaluationEvidence,
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
   capturePreference,
@@ -196,6 +197,14 @@ export const ACTIVE_TURN_STATUSES = [
   SokoBotTurnStatus.RUNNING,
   SokoBotTurnStatus.CANCEL_REQUESTED,
 ] as const;
+
+// Runtime events after which a drain settles the turn.
+const SETTLEMENT_TRIGGER_EVENT_TYPES = new Set([
+  "input.requested",
+  "session.waiting",
+  "session.completed",
+  "session.failed",
+]);
 
 export class SokoBotNotFoundError extends Error {}
 export class SokoBotBusyError extends Error {}
@@ -450,27 +459,9 @@ function addTurnUsage(
   };
 }
 
-const EVENT_TEXT_LIMIT = 800;
-const REASONING_TEXT_LIMIT = 4_000;
 const EVENT_INPUT_LIMIT = 1_200;
 /** A sandbox tool's output: enough to show every search result's source. */
 const EVENT_OUTPUT_LIMIT = 8_000;
-
-/** Model-authored text, bounded and secret-scrubbed, for the owner's explain view. */
-function safeEventText(
-  value: unknown,
-  limit = EVENT_TEXT_LIMIT,
-): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.replaceAll("\u0000", "").trim();
-  if (!trimmed) return null;
-  const scrubbed = redactSokoBotSensitiveText(trimmed);
-  // A cut inside an emoji leaves half of it; Postgres refused that and the
-  // turn never settled ("invalid input syntax for type json").
-  return (
-    scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}…` : scrubbed
-  ).toWellFormed();
-}
 
 function safeEventJson(
   value: unknown,
@@ -511,13 +502,12 @@ export function safeEventProjection(
   data: Record<string, unknown>,
 ) {
   if (type === "reasoning.completed") {
-    // A provider reasoning summary; the chat shows it as the bot's Thought,
-    // so it keeps more than a one-line event summary.
-    const text = safeEventText(
-      data.text ?? data.reasoning ?? data.message,
-      REASONING_TEXT_LIMIT,
-    );
-    return { summary: text ?? "Reasoning update", payload: undefined };
+    // The chat shows it as the bot's Thought, so it keeps more than a
+    // one-line event summary.
+    return {
+      summary: safeReasoningSummary(data) ?? "Reasoning update",
+      payload: undefined,
+    };
   }
   if (type.startsWith("reasoning.")) {
     return { summary: "Reasoning update", payload: undefined };
@@ -1207,12 +1197,6 @@ export class SokoBotControlPlane {
 
     const leaseToken = randomUUID();
     const claimedAt = new Date();
-    // The pause is part of the claim rather than a read before it: any check
-    // that happens first is stale by the time the row is won, and this turn
-    // can spend. A pause committed mid-flight now loses the claim outright.
-    if (unpromptedTurn(turn) && getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
-      return null;
-    }
     const claimed = await prisma.sokoBotTurn.updateMany({
       where: {
         id: turn.id,
@@ -3094,6 +3078,81 @@ export class SokoBotControlPlane {
     }
   }
 
+  /**
+   * The last persisted settlement trigger of a turn and the outcome the
+   * events before it give, read with the row from one snapshot.
+   */
+  private async persistedSettlement(turnId: string) {
+    const { row, events } = await prisma.$transaction(
+      async (tx) => ({
+        row: await tx.sokoBotTurn.findUnique({
+          where: { id: turnId },
+          select: {
+            status: true,
+            leaseToken: true,
+            errorKind: true,
+            errorDetail: true,
+          },
+        }),
+        events: await tx.sokoBotEvent.findMany({
+          where: {
+            turnId,
+            type: {
+              in: [
+                "turn.completed",
+                "turn.cancelled",
+                "turn.failed",
+                ...SETTLEMENT_TRIGGER_EVENT_TYPES,
+              ],
+            },
+          },
+          orderBy: { sequence: "asc" },
+          select: { type: true, providerAt: true, payload: true },
+        }),
+      }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    const triggerAt = events.findLastIndex((event) =>
+      SETTLEMENT_TRIGGER_EVENT_TYPES.has(event.type),
+    );
+    if (!row || triggerAt < 0) return null;
+    const before = events.slice(0, triggerAt + 1);
+    const outcomeEvent = before.findLast((event) =>
+      event.type.startsWith("turn."),
+    );
+    const failure = before.findLast((event) => event.type.endsWith(".failed"));
+    // The projection keeps a failure's code; a later stream interruption can
+    // overwrite the row's diagnostics, so the row's detail only goes with it.
+    const code = (failure?.payload as { code?: unknown } | null)?.code;
+    const failureKind = failure
+      ? typeof code === "string" && code !== "unknown"
+        ? code
+        : "runtime_failed"
+      : undefined;
+    return {
+      trigger: events[triggerAt].type,
+      rowStatus: row.status,
+      leaseToken: row.leaseToken,
+      status:
+        outcomeEvent?.type === "turn.failed"
+          ? ("FAILED" as const)
+          : outcomeEvent?.type === "turn.cancelled"
+            ? ("CANCELLED" as const)
+            : outcomeEvent?.type === "turn.completed"
+              ? ("COMPLETED" as const)
+              : null,
+      completedAt:
+        outcomeEvent?.type === "turn.completed"
+          ? (outcomeEvent.providerAt ?? undefined)
+          : undefined,
+      errorKind: failureKind ?? row.errorKind ?? undefined,
+      errorDetail:
+        !failureKind || row.errorKind === failureKind
+          ? (row.errorDetail ?? undefined)
+          : undefined,
+    };
+  }
+
   async reconcileTurn(
     turnId: string,
     signal?: AbortSignal,
@@ -3311,6 +3370,71 @@ export class SokoBotControlPlane {
         await advanceCursor(tx, streamIndex);
       });
 
+    // Settles on a runtime marker that ends the turn: the one the stream
+    // just yielded, or one a drain persisted before it died.
+    const settleOnTrigger = async (
+      type: string,
+      outcome: {
+        status: TerminalSokoBotTurnStatus | null;
+        completedAt?: Date;
+        errorKind?: string;
+        errorDetail?: string;
+      },
+    ): Promise<void> => {
+      if (type === "input.requested") {
+        try {
+          await this.runtime.cancelTurn({
+            sessionId: eveSessionId,
+            eveTurnId: boundEveTurnId ?? undefined,
+          });
+        } catch (error) {
+          emitCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not cancel a Soko Bot turn that asked for input it cannot get",
+              why: "The runtime refused the cancel",
+              fix: "The turn is still settled as failed; the runtime stops it at its own limit.",
+            },
+            { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+          );
+        }
+        await this.settleTurn({
+          turnId: turn.id,
+          status: "FAILED",
+          errorKind: "runtime_input_unsupported",
+          errorDetail:
+            "Eve requested interactive input outside the Soko Bot decision protocol",
+          clearSession: true,
+          leaseToken,
+        });
+        return;
+      }
+      if (type === "session.waiting") {
+        await this.settleTurn({
+          turnId: turn.id,
+          status: outcome.status ?? "COMPLETED",
+          errorKind: outcome.errorKind,
+          errorDetail: outcome.errorDetail,
+          providerCompletedAt: outcome.completedAt,
+          leaseToken,
+        });
+        return;
+      }
+      await this.settleTurn({
+        turnId: turn.id,
+        status:
+          type === "session.failed"
+            ? "FAILED"
+            : (outcome.status ?? "COMPLETED"),
+        errorKind: outcome.errorKind,
+        errorDetail: outcome.errorDetail,
+        providerCompletedAt: outcome.completedAt,
+        clearSession: true,
+        leaseToken,
+      });
+    };
+
     const heartbeatTimer = setInterval(() => {
       void heartbeat().catch(() => {
         // Fenced writes below remain authoritative. Timer failures surface on
@@ -3321,6 +3445,20 @@ export class SokoBotControlPlane {
 
     try {
       await heartbeat();
+      const checkpoint = await this.persistedSettlement(turn.id);
+      if (checkpoint) {
+        if (checkpoint.leaseToken !== leaseToken) {
+          throw new SokoBotReconciliationLeaseLostError(
+            "Soko Bot reconciliation lease was lost",
+          );
+        }
+        // A reset fences the row as CANCEL_REQUESTED under its own token and
+        // settles it itself; a marker from before it must not win.
+        if (checkpoint.rowStatus !== "CANCEL_REQUESTED") {
+          await settleOnTrigger(checkpoint.trigger, checkpoint);
+          return;
+        }
+      }
       await deliverBoundCancellation();
       for await (const indexed of this.runtime.streamEvents({
         sessionId: turn.eveSessionId,
@@ -3416,7 +3554,8 @@ export class SokoBotControlPlane {
           eventWasNew &&
           turn.chatResponseMessageId &&
           (indexed.event.type === "actions.requested" ||
-            indexed.event.type === "action.result")
+            indexed.event.type === "action.result" ||
+            indexed.event.type === "reasoning.completed")
         ) {
           const { publishSokoBotChatProgress } = await import(
             "@/services/soko-bot-chat.service"
@@ -3434,62 +3573,12 @@ export class SokoBotControlPlane {
             );
           });
         }
-        if (indexed.event.type === "input.requested") {
-          try {
-            await this.runtime.cancelTurn({
-              sessionId: turn.eveSessionId,
-              eveTurnId: boundEveTurnId ?? undefined,
-            });
-          } catch (error) {
-            emitCoreWarning(
-              TURN_LOG,
-              {
-                message:
-                  "Could not cancel a Soko Bot turn that asked for input it cannot get",
-                why: "The runtime refused the cancel",
-                fix: "The turn is still settled as failed; the runtime stops it at its own limit.",
-              },
-              { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
-            );
-          }
-          await this.settleTurn({
-            turnId: turn.id,
-            status: "FAILED",
-            errorKind: "runtime_input_unsupported",
-            errorDetail:
-              "Eve requested interactive input outside the Soko Bot decision protocol",
-            clearSession: true,
-            leaseToken,
-          });
-          break;
-        }
-
-        if (indexed.event.type === "session.waiting") {
-          await this.settleTurn({
-            turnId: turn.id,
-            status: pendingStatus ?? "COMPLETED",
+        if (SETTLEMENT_TRIGGER_EVENT_TYPES.has(indexed.event.type)) {
+          await settleOnTrigger(indexed.event.type, {
+            status: pendingStatus,
+            completedAt: pendingCompletedAt,
             errorKind: pendingErrorKind,
             errorDetail: pendingErrorDetail,
-            providerCompletedAt: pendingCompletedAt,
-            leaseToken,
-          });
-          break;
-        }
-        if (
-          indexed.event.type === "session.failed" ||
-          indexed.event.type === "session.completed"
-        ) {
-          await this.settleTurn({
-            turnId: turn.id,
-            status:
-              indexed.event.type === "session.failed"
-                ? "FAILED"
-                : (pendingStatus ?? "COMPLETED"),
-            errorKind: pendingErrorKind,
-            errorDetail: pendingErrorDetail,
-            providerCompletedAt: pendingCompletedAt,
-            clearSession: true,
-            leaseToken,
           });
           break;
         }

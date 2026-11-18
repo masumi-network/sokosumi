@@ -21741,6 +21741,9 @@ export const ProjectImageStudioCatalogSchema = {
                 $ref: '#/components/schemas/ProjectImageStudioVideoCatalogModel'
             }
         },
+        talkingVideo: {
+            $ref: '#/components/schemas/ProjectImageStudioTalkingVideoCatalog'
+        },
         snapshotDate: {
             type: 'string'
         },
@@ -21757,6 +21760,7 @@ export const ProjectImageStudioCatalogSchema = {
         'defaultVideoModelId',
         'defaultAnimateModelId',
         'videoModels',
+        'talkingVideo',
         'snapshotDate',
         'refreshedAt'
     ]
@@ -22013,6 +22017,127 @@ export const ProjectImageStudioVideoCatalogModelSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioTalkingVideoCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    endpoint: {
+                        type: 'string'
+                    },
+                    price: {
+                        type: 'object',
+                        properties: {
+                            perSecondUsd: {
+                                type: 'number'
+                            },
+                            minimumVideoUsd: {
+                                type: 'number'
+                            },
+                            voicePer1000CharactersUsd: {
+                                type: 'number'
+                            },
+                            captionsPerMinuteUsd: {
+                                type: 'number'
+                            },
+                            basis: {
+                                type: 'string'
+                            },
+                            sourceUrl: {
+                                type: 'string'
+                            },
+                            verifiedAt: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'perSecondUsd',
+                            'minimumVideoUsd',
+                            'voicePer1000CharactersUsd',
+                            'captionsPerMinuteUsd',
+                            'basis',
+                            'sourceUrl',
+                            'verifiedAt'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'label',
+                    'description',
+                    'endpoint',
+                    'price'
+                ]
+            }
+        },
+        presenters: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    imageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'description',
+                    'imageUrl'
+                ]
+            }
+        },
+        defaultVoice: {
+            type: 'string'
+        },
+        voices: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        scriptMinLength: {
+            type: 'integer'
+        },
+        scriptMaxLength: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'presenters',
+        'defaultVoice',
+        'voices',
+        'scriptMinLength',
+        'scriptMaxLength'
+    ]
+} as const;
+
 export const ImageStudioWorkspaceStateSchema = {
     type: 'object',
     properties: {
@@ -22141,6 +22266,9 @@ export const ProjectImageAssetSchema = {
                     type: 'null'
                 }
             ]
+        },
+        aiGenerated: {
+            type: 'boolean'
         },
         createdAt: {
             type: 'string',
@@ -22335,7 +22463,8 @@ export const ProjectImageJobSchema = {
                 'GENERATE',
                 'EDIT',
                 'TEXT_TO_VIDEO',
-                'IMAGE_TO_VIDEO'
+                'IMAGE_TO_VIDEO',
+                'TALKING_VIDEO'
             ]
         },
         model: {
@@ -22367,6 +22496,9 @@ export const ProjectImageJobSchema = {
                     type: 'null'
                 }
             ]
+        },
+        talkingVideo: {
+            $ref: '#/components/schemas/ProjectTalkingVideo'
         },
         referenceAssetIds: {
             type: 'array',
@@ -22420,6 +22552,7 @@ export const ProjectImageJobSchema = {
                 'submission_uncertain',
                 'reference_not_sendable',
                 'product_cutout_unavailable',
+                'voice_unavailable',
                 'request_not_supported',
                 'cancelled',
                 'abandoned_before_send',
@@ -22506,6 +22639,29 @@ export const ProjectImageJobSchema = {
         'retryMayDuplicateCharge',
         'credits',
         'refunded'
+    ]
+} as const;
+
+export const ProjectTalkingVideoSchema = {
+    type: 'object',
+    properties: {
+        voice: {
+            type: 'string'
+        },
+        presenterId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        languageCode: {
+            type: 'string'
+        }
+    },
+    required: [
+        'voice',
+        'presenterId',
+        'languageCode'
     ]
 } as const;
 
@@ -37021,6 +37177,43 @@ export const ProjectSocialConnectionSubscriptionSchema = {
     ]
 } as const;
 
+export const TikTokCreatorInfoSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string',
+            minLength: 1
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
+    ]
+} as const;
+
 export const SocialAccountStatisticsPageSchema = {
     type: 'object',
     properties: {
@@ -37831,6 +38024,12 @@ export const InitiateProjectSocialConnectionRequestSchema = {
 export const FinalizeProjectSocialConnectionRequestSchema = {
     type: 'object',
     properties: {
+        callbackProof: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256,
+            description: 'Proof returned with a Zernio connection callback.'
+        },
         connectionId: {
             type: 'string',
             minLength: 1,
@@ -40704,10 +40903,58 @@ export const PublishSocialPostRequestSchema = {
             minimum: 0,
             description: 'Revision the client last observed; mismatches return 409',
             example: 2
+        },
+        tikTokSettings: {
+            $ref: '#/components/schemas/TikTokPostSettings'
         }
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const TikTokPostSettingsSchema = {
+    type: 'object',
+    properties: {
+        privacyLevel: {
+            type: 'string',
+            enum: [
+                'SELF_ONLY',
+                'PUBLIC_TO_EVERYONE'
+            ]
+        },
+        allowComment: {
+            type: 'boolean'
+        },
+        allowDuet: {
+            type: 'boolean'
+        },
+        allowStitch: {
+            type: 'boolean'
+        },
+        promotesOwnBrand: {
+            type: 'boolean'
+        },
+        acceptedMusicUsage: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        previewConsent: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'privacyLevel',
+        'allowComment',
+        'allowDuet',
+        'allowStitch',
+        'promotesOwnBrand',
+        'acceptedMusicUsage'
     ]
 } as const;
 
@@ -41994,6 +42241,178 @@ export const CreateProjectVideoJobRequestSchema = {
     required: [
         'prompt',
         'idempotencyKey'
+    ]
+} as const;
+
+export const CreateProjectTalkingVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        script: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 600
+        },
+        voice: {
+            type: 'string',
+            enum: [
+                'Aria',
+                'Roger',
+                'Sarah',
+                'Laura',
+                'Charlie',
+                'George',
+                'Callum',
+                'River',
+                'Liam',
+                'Charlotte',
+                'Alice',
+                'Matilda',
+                'Will',
+                'Jessica',
+                'Eric',
+                'Chris',
+                'Brian',
+                'Daniel',
+                'Lily',
+                'Bill'
+            ],
+            default: 'Sarah'
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        },
+        presenter: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'stock'
+                            ]
+                        },
+                        id: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 100
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'id'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'file'
+                            ]
+                        },
+                        fileId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        consent: {
+                            type: 'boolean',
+                            enum: [
+                                true
+                            ]
+                        }
+                    },
+                    required: [
+                        'kind',
+                        'fileId',
+                        'consent'
+                    ]
+                }
+            ]
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'script',
+        'presenter',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const ProjectTalkingVideoScriptsSchema = {
+    type: 'object',
+    properties: {
+        scripts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    hook: {
+                        type: 'string'
+                    },
+                    script: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'hook',
+                    'script'
+                ]
+            }
+        }
+    },
+    required: [
+        'scripts'
+    ]
+} as const;
+
+export const WriteProjectTalkingVideoScriptsRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        }
+    }
+} as const;
+
+export const ProjectTalkingVideosSchema = {
+    type: 'object',
+    properties: {
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        }
+    },
+    required: [
+        'jobs',
+        'assets'
     ]
 } as const;
 
@@ -49161,6 +49580,17 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        activity: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoActivity'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month\'s production); null while he rests.'
+        },
         brandVisual: {
             anyOf: [
                 {
@@ -51727,6 +52157,7 @@ export const CmoOverviewSchema = {
         'subscriptionActive',
         'viewerCanApprove',
         'work',
+        'activity',
         'brandVisual',
         'projectLogo',
         'onboardingStep',
@@ -51909,6 +52340,38 @@ export const CmoWorkStepSchema = {
         'url',
         'status',
         'at'
+    ]
+} as const;
+
+export const CmoActivitySchema = {
+    type: 'object',
+    properties: {
+        step: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The step Cuso is on, in CMO\'s words ("Looking for a picture style"); null before his first one.'
+        },
+        reasoning: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The model\'s latest summary of its reasoning in this turn; null when it gave none.'
+        }
+    },
+    required: [
+        'step',
+        'reasoning'
     ]
 } as const;
 
@@ -54431,6 +54894,598 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoCompetitorsSchema = {
+    type: 'object',
+    properties: {
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitor'
+            }
+        },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/CmoCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'Cuso\'s This week: null until he wrote one.'
+        },
+        limit: {
+            type: 'integer',
+            description: 'How many competitors can be tracked.'
+        },
+        signals: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitorSignal'
+            },
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
+        },
+        scoreboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitorScoreRow'
+            },
+            description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
+        },
+        topPosts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCompetitorTopPost'
+            },
+            description: 'Each competitor\'s three strongest Instagram posts.'
+        },
+        check: {
+            type: 'object',
+            properties: {
+                lastCheckedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                nextCheckAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                creditsPerCompetitor: {
+                    type: 'number'
+                },
+                sources: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        },
+                        news: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        },
+                        ads: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        },
+                        social: {
+                            $ref: '#/components/schemas/CmoCompetitorSource'
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'news',
+                        'ads',
+                        'social'
+                    ]
+                }
+            },
+            required: [
+                'lastCheckedAt',
+                'nextCheckAt',
+                'creditsPerCompetitor',
+                'sources'
+            ]
+        }
+    },
+    required: [
+        'competitors',
+        'feed',
+        'limit',
+        'signals',
+        'scoreboard',
+        'topPosts',
+        'check'
+    ]
+} as const;
+
+export const CmoCompetitorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'RESEARCH',
+                'MEMBER'
+            ],
+            description: 'Who put it on the list: Brand Brain research, or a member.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'websiteUrl',
+        'pricingUrl',
+        'instagramHandle',
+        'facebookHandle',
+        'source',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoCompetitorFeedItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        facts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    signalIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'The signals that back it; their sources show on hover.'
+                    },
+                    support: {
+                        type: 'string',
+                        enum: [
+                            'strong',
+                            'weak'
+                        ],
+                        description: 'weak: the sources back it only in part.'
+                    }
+                },
+                required: [
+                    'text',
+                    'signalIds',
+                    'support'
+                ]
+            }
+        },
+        meaning: {
+            type: 'string',
+            description: 'What this means for you.'
+        },
+        move: {
+            type: 'string',
+            description: 'One suggested move.'
+        },
+        big: {
+            type: 'boolean',
+            description: 'A price change, launch or ad burst, told in chat at once.'
+        },
+        addedToStrategyAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'facts',
+        'meaning',
+        'move',
+        'big',
+        'addedToStrategyAt'
+    ]
+} as const;
+
+export const CmoCompetitorSignalSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'WEBSITE_CHANGE',
+                'PRICE_CHANGE',
+                'NEWS',
+                'AD',
+                'SOCIAL'
+            ]
+        },
+        summary: {
+            type: 'string',
+            description: 'What happened, in one line.'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceTitle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourcePublisher: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        quote: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The source\'s own words that back the summary.'
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'kind',
+        'summary',
+        'observedAt',
+        'sourceUrl',
+        'sourceTitle',
+        'sourcePublisher',
+        'quote'
+    ]
+} as const;
+
+export const CmoCompetitorScoreRowSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Null for the business itself.'
+        },
+        name: {
+            type: 'string'
+        },
+        postsPerWeek: {
+            $ref: '#/components/schemas/CmoCompetitorMeasure'
+        },
+        engagementPerPost: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    description: 'Likes and comments per post over the week\'s posts.'
+                }
+            ]
+        },
+        followers: {
+            $ref: '#/components/schemas/CmoCompetitorMeasure'
+        },
+        followerGrowth: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CmoCompetitorMeasure'
+                },
+                {
+                    description: 'Followers gained since the reading a week before.'
+                }
+            ]
+        }
+    },
+    required: [
+        'competitorId',
+        'name',
+        'postsPerWeek',
+        'engagementPerPost',
+        'followers',
+        'followerGrowth'
+    ]
+} as const;
+
+export const CmoCompetitorMeasureSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        value: {
+            type: 'number'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'value',
+        'sourceUrl',
+        'observedAt'
+    ]
+} as const;
+
+export const CmoCompetitorTopPostSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        signalId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        type: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        postedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        likes: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        comments: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'competitorId',
+        'signalId',
+        'url',
+        'caption',
+        'type',
+        'postedAt',
+        'likes',
+        'comments'
+    ]
+} as const;
+
+export const CmoCompetitorSourceSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ok',
+                'not_configured',
+                'not_connected',
+                'failed'
+            ],
+            description: 'not_configured: CMO lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.'
+        },
+        needs: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'What it takes to read this source, when it cannot be read.'
+        }
+    },
+    required: [
+        'status',
+        'needs'
+    ]
+} as const;
+
+export const CmoCompetitorCreateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
+export const CmoCompetitorUpdateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        }
+    }
+} as const;
+
 export const CmoCheckoutSchema = {
     type: 'object',
     properties: {
@@ -54494,6 +55549,642 @@ export const CmoCustomerPortalSchema = {
     required: [
         'url'
     ]
+} as const;
+
+export const CmoSeoSchema = {
+    type: 'object',
+    properties: {
+        websiteUrl: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        audit: {
+            $ref: '#/components/schemas/CmoSeoAudit'
+        },
+        searchConsole: {
+            $ref: '#/components/schemas/CmoSearchConsole'
+        },
+        articles: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        pageChanges: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
+        keywordSearches: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoKeywordSearch'
+            }
+        },
+        keywordSearchesLeft: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'websiteUrl',
+        'countryCode',
+        'languageCode',
+        'audit',
+        'searchConsole',
+        'articles',
+        'pageChanges',
+        'keywordSearches',
+        'keywordSearchesLeft'
+    ]
+} as const;
+
+export const CmoSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        creditsPerAudit: {
+            type: 'integer'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active',
+                'paused',
+                'not_started',
+                'unavailable'
+            ]
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        running: {
+            type: 'boolean'
+        },
+        skipped: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'date-time'
+            }
+        },
+        latest: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                observedAt: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                checked: {
+                    type: 'integer'
+                },
+                passed: {
+                    type: 'integer'
+                },
+                issues: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            severity: {
+                                type: 'string',
+                                enum: [
+                                    'critical',
+                                    'major',
+                                    'minor'
+                                ]
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'severity',
+                            'detail'
+                        ]
+                    }
+                },
+                fixes: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            why: {
+                                type: 'string'
+                            },
+                            effort: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'title',
+                            'why',
+                            'effort',
+                            'pageUrl'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'observedAt',
+                'checked',
+                'passed',
+                'issues',
+                'fixes'
+            ]
+        },
+        lastFailedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'creditsPerAudit',
+        'status',
+        'nextRunAt',
+        'running',
+        'skipped',
+        'latest',
+        'lastFailedAt'
+    ]
+} as const;
+
+export const CmoSearchConsoleSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'connected',
+                'not_connected',
+                'no_property',
+                'unavailable'
+            ]
+        },
+        property: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        from: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        to: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        totals: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                clicks: {
+                    type: 'number'
+                },
+                impressions: {
+                    type: 'number'
+                },
+                ctr: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                position: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'clicks',
+                'impressions',
+                'ctr',
+                'position'
+            ]
+        },
+        nearFirstPage: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    clicks: {
+                        type: 'number'
+                    },
+                    impressions: {
+                        type: 'number'
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ]
+            }
+        },
+        lowClickRate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    clicks: {
+                        type: 'number'
+                    },
+                    impressions: {
+                        type: 'number'
+                    },
+                    ctr: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ]
+            }
+        }
+    },
+    required: [
+        'status',
+        'property',
+        'from',
+        'to',
+        'observedAt',
+        'totals',
+        'nearFirstPage',
+        'lowClickRate'
+    ]
+} as const;
+
+export const CmoSeoSuggestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'article',
+                'page_change'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'audit',
+                'cuso'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        why: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        newText: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        draft: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoEvidence'
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'verified',
+                'dismissed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        doneAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        verifiedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'source',
+        'title',
+        'keyword',
+        'pageUrl',
+        'why',
+        'body',
+        'newText',
+        'draft',
+        'evidence',
+        'status',
+        'createdAt',
+        'doneAt',
+        'verifiedAt'
+    ]
+} as const;
+
+export const CmoSeoEvidenceSchema = {
+    type: 'object',
+    properties: {
+        metric: {
+            type: 'string',
+            enum: [
+                'searchVolume',
+                'difficulty',
+                'intent',
+                'position',
+                'clicks',
+                'impressions',
+                'ctr',
+                'auditIssue'
+            ]
+        },
+        keyword: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        value: {
+            type: 'string'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'keyword_research',
+                'search_console',
+                'weekly_audit'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'metric',
+        'keyword',
+        'pageUrl',
+        'value',
+        'source',
+        'observedAt'
+    ]
+} as const;
+
+export const CmoKeywordSearchSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        ideas: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoKeywordIdea'
+            }
+        }
+    },
+    required: [
+        'topic',
+        'countryCode',
+        'languageCode',
+        'observedAt',
+        'ideas'
+    ]
+} as const;
+
+export const CmoKeywordIdeaSchema = {
+    type: 'object',
+    properties: {
+        keyword: {
+            type: 'string'
+        },
+        searchVolume: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        difficulty: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        intent: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'informational',
+                'navigational',
+                'commercial',
+                'transactional',
+                null
+            ]
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        positionSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'search_console',
+                'weekly_audit',
+                null
+            ]
+        }
+    },
+    required: [
+        'keyword',
+        'searchVolume',
+        'difficulty',
+        'intent',
+        'position',
+        'positionSource'
+    ]
+} as const;
+
+export const CmoKeywordSearchRequestSchema = {
+    type: 'object',
+    properties: {
+        topic: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 80
+        }
+    },
+    required: [
+        'topic'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CmoSeoSuggestionStatusRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'open',
+                'done',
+                'dismissed'
+            ]
+        }
+    },
+    required: [
+        'status'
+    ],
+    additionalProperties: false
 } as const;
 
 export const CmoAdBudgetRequestSchema = {

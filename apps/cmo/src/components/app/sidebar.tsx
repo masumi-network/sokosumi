@@ -7,22 +7,25 @@ import {
   ChartLine,
   type LucideIcon,
   MessageSquare,
+  Search,
   Settings,
   Share2,
   Target,
   Users,
 } from "lucide-react";
 import { AGENT_NAME } from "../../lib/agent";
-import { VIEW_PATHS, type View } from "../../lib/views";
+import type { View } from "../../lib/views";
 import { AccountMenu } from "../account-menu";
 import { hostOf } from "../brand-profile";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { CusoStatus } from "./cuso-status";
+import { ViewLink } from "./view-link";
 
 export const VIEWS = [
   ["chat", AGENT_NAME, MessageSquare],
   ["strategy", "Strategy", Target],
   ["calendar", "Calendar", CalendarDays],
+  ["seo", "SEO", Search],
   ["results", "Results", ChartLine],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
@@ -71,21 +74,16 @@ export function Sidebar({
       </div>
       <div className="nav">
         {VIEWS.map(([id, label, Icon]) => (
-          <a
+          <ViewLink
             key={id}
-            href={VIEW_PATHS[id]}
+            view={id}
+            open={onSelect}
             className={view === id ? "active" : ""}
             aria-current={view === id ? "page" : undefined}
-            onClick={(event) => {
-              // A modified click opens the page in a new tab as usual.
-              if (event.metaKey || event.ctrlKey || event.shiftKey) return;
-              event.preventDefault();
-              onSelect(id);
-            }}
           >
             <Icon size={16} aria-hidden="true" />
             <span>{label}</span>
-          </a>
+          </ViewLink>
         ))}
         {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
         {manyCusos ? (

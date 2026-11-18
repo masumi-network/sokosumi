@@ -1,4 +1,5 @@
 import {
+  CMO_POST_WITH_PICTURE_SCENARIO_ID,
   evaluateScenario,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
@@ -18,10 +19,15 @@ import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  competitorFeedChecks,
+  isCompetitorEvalCase,
+} from "./eval-cmo-competitors";
+import {
   commentChecks,
   pollCmoCase,
   prepareCmoChatCase,
   startCmoCase,
+  styledPictureChecks,
 } from "./eval-cmo-runner";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
@@ -221,6 +227,22 @@ async function pollScenario(
     ?.comments;
   if (comments) {
     const extra = commentChecks(turn.toolCalls, comments);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (isCompetitorEvalCase(scenario.id)) {
+    const extra = await competitorFeedChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+    );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_POST_WITH_PICTURE_SCENARIO_ID) {
+    const extra = await styledPictureChecks(lane, context.startedAt);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

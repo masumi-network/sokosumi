@@ -19,6 +19,10 @@ import { tryUseLogger } from "@/lib/evlog";
 const DATAFORSEO_API = "https://api.dataforseo.com/v3";
 const KEYWORDS_FOR_KEYWORDS =
   "/keywords_data/google_ads/keywords_for_keywords/live";
+/** Searches that contain the topic's words; keyword_ideas drifts to whatever shares the topic's category. */
+const KEYWORD_IDEAS = "/dataforseo_labs/google/keyword_suggestions/live";
+/** Ideas read per search; DataForSEO Labs bills a base fee plus a little per row. */
+const KEYWORD_IDEAS_LIMIT = 50;
 const SERP_TASK_KINDS = {
   organic: "/serp/google/organic",
   ads_search: "/serp/google/ads_search",
@@ -293,6 +297,83 @@ export async function fetchMarketKeywords(
         (a.searchVolume ?? Number.NEGATIVE_INFINITY),
     )
     .slice(0, MAX_KEYWORDS);
+}
+
+const SEARCH_INTENTS = [
+  "informational",
+  "navigational",
+  "commercial",
+  "transactional",
+] as const;
+
+/** A search a page could rank for: Google's monthly volume, ranking difficulty (0 to 100) and the searcher's intent. */
+export const keywordIdeaSchema = z.object({
+  keyword: z.string(),
+  searchVolume: z.number().nullable(),
+  difficulty: z.number().nullable(),
+  intent: z.enum(SEARCH_INTENTS).nullable(),
+  cpc: z.number().nullable(),
+});
+export type KeywordIdea = z.infer<typeof keywordIdeaSchema>;
+
+const labsKeywordSchema = z.object({
+  keyword: z.string().min(1),
+  keyword_info: z
+    .object({ search_volume: z.number().nullish(), cpc: z.number().nullish() })
+    .nullish(),
+  keyword_properties: z
+    .object({ keyword_difficulty: z.number().nullish() })
+    .nullish(),
+  search_intent_info: z.object({ main_intent: z.string().nullish() }).nullish(),
+});
+
+/** The DataForSEO Labs item, read the way the SEO audit reads it. */
+export function toKeywordIdea(
+  row: z.infer<typeof labsKeywordSchema>,
+): KeywordIdea {
+  const intent = SEARCH_INTENTS.find(
+    (value) => value === row.search_intent_info?.main_intent,
+  );
+  return {
+    keyword: row.keyword,
+    searchVolume: row.keyword_info?.search_volume ?? null,
+    difficulty: row.keyword_properties?.keyword_difficulty ?? null,
+    intent: intent ?? null,
+    cpc: row.keyword_info?.cpc ?? null,
+  };
+}
+
+/**
+ * Searches that contain one topic, from DataForSEO Labs keyword suggestions,
+ * the topic itself included: at most 50, by search volume. Runs on the
+ * platform DataForSEO connection; without it configured, raises a
+ * {@link ComposioConfigError}.
+ */
+export async function fetchKeywordIdeas(query: {
+  topic: string;
+  locationCode: number;
+  languageCode: string;
+}): Promise<KeywordIdea[]> {
+  const context = "fetch DataForSEO keyword ideas";
+  const payload = await callDataForSeo(KEYWORD_IDEAS, context, {
+    method: "POST",
+    tasks: [
+      {
+        keyword: query.topic,
+        location_code: query.locationCode,
+        language_code: query.languageCode,
+        limit: KEYWORD_IDEAS_LIMIT,
+        include_seed_keyword: true,
+        order_by: ["keyword_info.search_volume,desc"],
+      },
+    ],
+    timeoutMs: KEYWORDS_TIMEOUT_MS,
+  });
+  return parseToolRows(
+    taskItems(checkedTasks(payload, context), context),
+    labsKeywordSchema,
+    context,
+  ).map(toKeywordIdea);
 }
 
 const itemTypeSchema = z.object({ type: z.string().nullish() });

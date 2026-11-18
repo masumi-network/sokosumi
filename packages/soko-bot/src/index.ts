@@ -25,6 +25,16 @@ export {
   SOKO_BOT_CMO_SCHEDULES,
 } from "./cmo.js";
 export {
+  CMO_COMPETITOR_SUPPORT,
+  type CmoCompetitorFact,
+  type CmoCompetitorFeedItem,
+  type CmoSaveCompetitorFeedInput,
+  cmoCompetitorFactSchema,
+  cmoCompetitorFeedItemSchema,
+  cmoCompetitorWatchBrief,
+  cmoSaveCompetitorFeedInputSchema,
+} from "./cmo-competitors.js";
+export {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
   SOKO_BOT_INTEGRATION_PROVIDERS,
@@ -155,6 +165,7 @@ export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
 export { SEO_EVAL_CAPABILITIES, SEO_SCENARIOS } from "./scenario-seo.js";
 export {
   CMO_PLACEHOLDER_PATTERN,
+  CMO_POST_WITH_PICTURE_SCENARIO_ID,
   CMO_SCENARIOS,
   evaluateScenario,
   type ScenarioCheck,

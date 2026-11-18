@@ -20,6 +20,7 @@ import {
   imageDimensions,
   providerChoosesOutputSize,
 } from "./image-model";
+import { getTalkingVideoCatalog } from "./talking-video";
 import { getVideoCatalog } from "./video-catalog";
 
 const settings = {
@@ -44,6 +45,7 @@ describe("resolved image catalog", () => {
         defaultVideoModelId: video.defaultModelId,
         defaultAnimateModelId: video.defaultAnimateModelId,
         videoModels: video.models,
+        talkingVideo: getTalkingVideoCatalog(),
       }).success,
     ).toBe(true);
   });

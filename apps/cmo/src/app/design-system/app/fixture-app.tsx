@@ -3,7 +3,7 @@
 import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
 import { cmoPlans } from "../../../test-fixtures/cmo";
-import { chat, messages, overview } from "./fixtures";
+import { chat, messages, overview, seo } from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
 const actions: CmoAppActions = {
@@ -58,6 +58,13 @@ const actions: CmoAppActions = {
   changePlan: async () => ({ change: null, error: null }),
   openPortal: async () => ({ url: null, error: null }),
   signOut: async () => {},
+  loadSeo: async () => seo,
+  searchKeywords: async () => ({
+    search: seo.keywordSearches[0] ?? null,
+    error: null,
+  }),
+  setSeoSuggestionStatus: async () => null,
+  askCusoForArticles: async () => null,
 };
 
 /** The signed-in app on one page, over fixture data, for looking at without Core. */

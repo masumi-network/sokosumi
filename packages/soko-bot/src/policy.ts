@@ -156,6 +156,12 @@ export const SOKO_BOT_CAPABILITIES = [
   "find_style_references",
   "list_social_comments",
   "handle_social_comment",
+  "read_seo",
+  "research_keywords",
+  "check_search_rankings",
+  "save_seo_suggestions",
+  "check_competitors",
+  "save_competitor_feed",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
@@ -207,6 +213,15 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
+  // The SEO tab: the weekly audit, Search Console, keyword research, the
+  // SEO specialist's position checks, and the articles and page changes.
+  "read_seo",
+  "research_keywords",
+  "check_search_rankings",
+  "save_seo_suggestions",
+  // The weekly competitor watch: what Core's check found, and the feed.
+  "check_competitors",
+  "save_competitor_feed",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {

@@ -97,6 +97,9 @@ export async function connectSokoBotIntegration(input: {
   selector?: SokoBotSelector;
 }): Promise<{ redirectUrl: string }> {
   const provider = resolveProvider(input.provider);
+  if (provider.id === "tiktok") {
+    throw new SokoBotIntegrationError("Connect TikTok in Project Social");
+  }
   const adProvider = adProviderForToolkit(provider.id);
   if (adProvider) {
     throw new SokoBotIntegrationError(

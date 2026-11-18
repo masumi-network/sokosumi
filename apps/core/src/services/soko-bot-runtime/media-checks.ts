@@ -28,11 +28,13 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import { sokoBotProjectRefusal } from "@/lib/soko-bot/write-scope";
+import { REFERENCE_STYLE_MODELS } from "@/services/cmo-media-maker.service";
 import { getJob } from "@/services/image-studio-assets.service";
 import {
   DEFAULT_SETTINGS,
   type ImageJobSettings,
 } from "@/services/image-studio-jobs.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeAuthorizationError,
@@ -140,7 +142,10 @@ export async function checkImageRequest(
     input.referenceFileIds ?? [],
   );
   await ensureImageCatalogFresh();
-  const model = botImageModel(input.model);
+  const style = await cmoPictureStyle(authorized, input, referenceFileIds);
+  const model = style
+    ? botImageModel(REFERENCE_STYLE_MODELS[0])
+    : botImageModel(input.model);
   const settings: ImageJobSettings = {
     ...DEFAULT_SETTINGS,
     // Every network takes a JPEG; Instagram takes nothing else.
@@ -151,7 +156,11 @@ export async function checkImageRequest(
   try {
     credits = creditsPerImage(
       model,
-      resolveImageSettings(model.id, settings, referenceFileIds.length),
+      resolveImageSettings(
+        model.id,
+        settings,
+        style ? 1 : referenceFileIds.length,
+      ),
     );
   } catch (error) {
     throw new SokoBotRuntimeValidationError(
@@ -160,9 +169,64 @@ export async function checkImageRequest(
   }
   if (credits > input.maxCredits)
     throw new SokoBotRuntimeValidationError(
-      `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+      style
+        ? // The owner asked for the picture, and a month's pictures cost the same.
+          `A picture in a library style costs ${credits} credits a try, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(credits)}.`
+        : `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
-  return { input, model, settings, credits, referenceFileIds };
+  return { input, model, settings, credits, referenceFileIds, style };
+}
+
+/**
+ * The reference library style of a picture Cuso makes in chat. A picture
+ * for a post or an ad goes the way a month's pictures do: in the look of a
+ * reference, checked, with the brand's logo. Cuso leaves the style out only
+ * for the owner's own photo (referenceFileIds) or a model the owner named.
+ * No other bot has styles, and nothing changes where there is no library.
+ */
+async function cmoPictureStyle(
+  authorized: AuthorizedSokoBotRuntime,
+  input: z.infer<typeof generateImageInputSchema>,
+  referenceFileIds: readonly string[],
+): Promise<{ referenceId: string; headline: string | null } | null> {
+  const cuso = getSokoBotVersion(authorized.turn.versionId).profile === "cmo";
+  if (!input.styleReferenceId) {
+    if (input.headline)
+      throw new SokoBotRuntimeValidationError(
+        "headline belongs to a styled picture: pass styleReferenceId with it, or leave it out.",
+      );
+    if (
+      cuso &&
+      referenceLibraryAvailable() &&
+      referenceFileIds.length === 0 &&
+      !input.model
+    )
+      throw new SokoBotRuntimeValidationError(
+        "A picture for a post or an ad takes the look of an old print. Call find_style_references with what the picture is about, then generate_image again with styleReferenceId (an id it returned) and, when the picture should carry words, headline (at most six). Only for the owner's own photo or a real product shot pass referenceFileIds instead; only when the owner asked for a plain picture or named a model pass model.",
+      );
+    return null;
+  }
+  if (!cuso)
+    throw new SokoBotRuntimeValidationError(
+      "Leave styleReferenceId and headline out: only Cuso makes pictures in a library style.",
+    );
+  if (!referenceLibraryAvailable())
+    throw new SokoBotRuntimeValidationError(
+      "The reference library is not set up here: leave styleReferenceId and headline out.",
+    );
+  if (referenceFileIds.length > 0 || input.model)
+    throw new SokoBotRuntimeValidationError(
+      "A styled picture takes no referenceFileIds and no model: Core makes it from the style reference alone. Leave them out, or leave styleReferenceId out.",
+    );
+  const reference = await prisma.referenceImage.findUnique({
+    where: { id: input.styleReferenceId },
+    select: { id: true },
+  });
+  if (!reference)
+    throw new SokoBotRuntimeValidationError(
+      "No such style reference: use an id find_style_references returned.",
+    );
+  return { referenceId: reference.id, headline: input.headline ?? null };
 }
 
 /**

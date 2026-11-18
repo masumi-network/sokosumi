@@ -1,6 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
+import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import {
@@ -703,23 +705,27 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
+  const text = silent
+    ? "Nothing to add."
+    : calls.length || narrativeText.length
+      ? [
+          actionText.join("\n"),
+          reportedByCard ? "" : attachments.join("\n"),
+          narrativeText.join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n") || "Nothing to add."
+      : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
+        ? "Nothing was changed in this turn."
+        : answerText;
   return {
     appliedReceiptIds,
     narrative,
     observations,
     unfulfilledActions,
-    answerText: silent
-      ? "Nothing to add."
-      : calls.length || narrativeText.length
-        ? [
-            actionText.join("\n"),
-            reportedByCard ? "" : attachments.join("\n"),
-            narrativeText.join("\n"),
-          ]
-            .filter(Boolean)
-            .join("\n\n") || "Nothing to add."
-        : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
-          ? "Nothing was changed in this turn."
-          : answerText,
+    // Cuso's owner reads this in CMO.xyz, where nothing opens Sokosumi.
+    answerText: (await isCmo())
+      ? withoutSokosumiLinks(text, getWebAppBaseUrl())
+      : text,
   };
 }

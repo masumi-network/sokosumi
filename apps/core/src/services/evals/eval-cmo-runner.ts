@@ -19,6 +19,7 @@ import {
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
@@ -35,6 +36,7 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import { prepareCompetitorCase } from "./eval-cmo-competitors";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -190,7 +192,7 @@ function spread<T extends { share: number }>(items: T[], count: number): T[] {
   return slots.sort((a, b) => a.at - b.at).map((slot) => slot.item);
 }
 
-/** One title per piece, none repeating a message, one SEO comparison page. */
+/** One title per piece, none repeating a message. */
 const CHANGE_REQUEST_TITLES = [
   "One booking link for the whole team",
   "Cal.com vs Calendly for team booking",
@@ -198,39 +200,39 @@ const CHANGE_REQUEST_TITLES = [
   "Embed a booking widget in five lines",
   "Why reps stop chasing meeting times",
   "This week's team scheduling tip",
-  "Fix the title of the team booking page",
+  "A tour of the team booking page",
   "How routing forms pick the right rep",
   "Booking pages that sales teams share",
   "Collective events for panel interviews",
   "Webhooks after every new booking",
   "A Teams trial checklist for week one",
   "Monthly recap of booking flows",
-  "Clearer headings on the pricing page",
+  "What each plan on the pricing page includes",
   "Buffer times that protect focus hours",
   "Routing inbound demos by company size",
   "Group availability across time zones",
   "Booking API rate limits explained",
   "Managed event types for large teams",
   "Five settings admins change first",
-  "A meta description for the routing page",
+  "Routing forms in one picture",
   "Reminders that cut no-shows",
   "Open source scheduling for regulated teams",
   "Handing a lead to the next rep",
   "Self-hosting Cal.com on your own server",
   "Insights that show booking volume",
   "What changed in team booking this month",
-  "A shorter intro on the enterprise page",
+  "Enterprise scheduling in one minute",
 ];
 
 /** A week of the change request's month: LinkedIn three times, four other formats. */
 const CHANGE_REQUEST_WEEK = [
   { channel: "linkedin", format: "post" },
-  { channel: "seo", format: "article" },
+  { channel: "facebook", format: "post" },
   { channel: "linkedin", format: "image" },
   { channel: "x", format: "post" },
   { channel: "linkedin", format: "post" },
   { channel: "newsletter", format: "issue" },
-  { channel: "seo", format: "page_fix" },
+  { channel: "facebook", format: "image" },
 ] as const;
 
 const CHANGE_REQUEST_CHANNELS = [
@@ -240,9 +242,9 @@ const CHANGE_REQUEST_CHANNELS = [
     why: "Reach operators with concrete team scheduling examples.",
   },
   {
-    channel: "seo",
-    cadence: "2 pieces a week",
-    why: "Answer practical scheduling searches over time.",
+    channel: "facebook",
+    cadence: "2 posts a week",
+    why: "Reach small business owners who book on Facebook.",
   },
   {
     channel: "x",
@@ -401,10 +403,14 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
 export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
-): Promise<{ comments?: Record<string, string> }> {
+): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
   if (setup === "cmo-plan") {
     await prepareCmoPlan(lane);
     return {};
+  }
+  if (setup === "cmo-competitors" || setup === "cmo-competitors-quiet") {
+    await prepareCmoChat(lane, true);
+    return prepareCompetitorCase(lane, setup === "cmo-competitors-quiet");
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup !== "cmo-comments") return {};
@@ -441,6 +447,31 @@ export async function prepareCmoChatCase(
     ids[comment.key] = created.id;
   }
   return { comments: ids };
+}
+
+/**
+ * The picture of the chat post case: started as a job with a reference
+ * library image. No check where the library is not set up.
+ */
+export async function styledPictureChecks(
+  lane: EvalLaneRecord,
+  since: Date,
+): Promise<ScenarioCheck[]> {
+  if (!referenceLibraryAvailable()) return [];
+  const styled = await prisma.projectImageJob.count({
+    where: {
+      projectId: lane.cusoProjectId,
+      createdAt: { gte: since },
+      referenceLibraryIds: { isEmpty: false },
+    },
+  });
+  return [
+    {
+      label: "Starts the picture in a reference library style",
+      pass: styled > 0,
+      actual: `${styled} styled job${styled === 1 ? "" : "s"}`,
+    },
+  ];
 }
 
 /**
@@ -612,7 +643,7 @@ async function pollMonth(
         status: "ERROR",
         checks: [],
         output: {},
-        error: "The month case lost its plan",
+        error: "The month case lost its strategy",
         turnIds: [],
       },
     };
