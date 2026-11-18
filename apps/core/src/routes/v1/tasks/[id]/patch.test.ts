@@ -910,23 +910,56 @@ describe("PATCH /tasks/{id}", () => {
       });
     });
 
-    it("parks it when the edit form sends the description along", async () => {
-      // The Web form sends every field, changed or not.
+    function assignWithDescription(
+      description: string,
+      stored = "Use the February figures",
+    ) {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.READY,
+        description: stored,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
       taskEventCountMock.mockResolvedValue(0);
-
-      const response = await createApp().request("http://localhost/tsk_123", {
+      return createApp().request("http://localhost/tsk_123", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assigneeId: "cow_123",
-          description: "Same as before",
-        }),
+        body: JSON.stringify({ assigneeId: "cow_123", description }),
       });
+    }
 
-      expect(response.status).toBe(200);
+    it("parks it when the edit form resends the stored description", async () => {
+      expect(
+        (await assignWithDescription("Use the February figures")).status,
+      ).toBe(200);
       expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
         TaskStatus.INPUT_REQUIRED,
       );
+    });
+
+    it("parks it when the stored description also holds Context links", async () => {
+      const stored =
+        "[BRIEFING.md](https://example.test/briefing.md)\n\nUse the February figures";
+      expect(
+        (await assignWithDescription("Use the February figures", stored))
+          .status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBe(
+        TaskStatus.INPUT_REQUIRED,
+      );
+    });
+
+    it("keeps it Ready when the same save changes the description", async () => {
+      expect(
+        (await assignWithDescription("Use the March figures")).status,
+      ).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
     });
 
     it("keeps it Ready when a person commented after the reopen", async () => {

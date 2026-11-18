@@ -335,7 +335,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // no instructions. It waits in Input required for a person to say what
       // to do (SOKD-279).
       // Queued work turns READY later on its own, so it parks the same way.
+      // The Web edit form sends the description with every save, so only a
+      // changed one is new instructions.
+      const newInstructions =
+        typeof description === "string" &&
+        description.trim() !== "" &&
+        description.trim() !==
+          parseTaskContextFromDescription(task.description ?? "").body.trim();
       const parksForInstructions =
+        !newInstructions &&
         (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&
         (nextAssigneeId ?? nextAssigneeSokoBotId) !== null &&
         // A new agent, or its own agent's Task queued again.

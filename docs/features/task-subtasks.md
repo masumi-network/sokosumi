@@ -285,9 +285,10 @@ Reopen rule:
 - Core parks a silently reopened Task only in the person `PATCH
   /v1/tasks/{id}` path. That includes a PATCH that queues it with a Run at,
   also when its agent was already assigned: the Run at is dropped. A
-  description sent in the same PATCH does not count as instructions, because
-  the Web edit form always sends it. A restore or a project move is not
-  counted as instructions. Not parked, follow-up: a Soko Bot `assign_task` call, and
+  description changed in the same PATCH counts as instructions. One equal to
+  the stored text without its Context links does not, because the Web edit
+  form sends it with every save. A restore or a project move is not counted
+  as instructions. Not parked, follow-up: a Soko Bot `assign_task` call, and
   "Reopen as Draft", then assign an agent, then move DRAFT to READY.
 - Dialog body: "Reopening moves it to Ready, and {assignee} starts a new run.
   Tell {assignee} what to do." The text no longer says "{assignee} finished
