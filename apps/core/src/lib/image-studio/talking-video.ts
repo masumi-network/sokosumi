@@ -7,21 +7,37 @@ import {
 } from "@sokosumi/utils";
 import sharp from "sharp";
 
+import {
+  type SpokenWord,
+  TALKING_VIDEO_HOOK_MAX_LENGTH,
+} from "./talking-video-edit";
 import type { VideoSettings } from "./video-model";
 
 /**
- * A talking video: a presenter photo speaking a script, with captions.
+ * A talking video: a presenter photo speaking a script, edited and captioned.
  *
  * Three provider steps make one. The voice is spoken first, because its length
- * is the video's length. The presenter model lip-syncs the photo to it. A
- * caption step then burns the spoken words into the picture.
+ * is the video's length, and transcribed for when each word is spoken. The
+ * presenter model lip-syncs the photo to the voice. Core then edits the clip
+ * itself (`talking-video-edit`): pauses cut, a punch-in per sentence, a hook
+ * line and captions, from those word timings.
  *
  * The models are listed by hand, like the video catalog's verified layer:
  * fal's catalog fetch keeps prompt-driven video models only, and these take a
  * photo and a voice instead.
  */
 
-/** Transcribes the finished video and burns the words in. */
+/**
+ * Times each spoken word of the voice. The voice model's own timings smear a
+ * pause over the words around it, which is too coarse to cut or caption by.
+ */
+export const TALKING_VIDEO_WORDS_ENDPOINT =
+  "fal-ai/elevenlabs/speech-to-text/scribe-v2";
+
+/**
+ * Transcribes a video and burns the words in. Used only when the voice's
+ * words could not be timed, so Core's own edit has nothing to plan from.
+ */
 export const TALKING_VIDEO_CAPTION_ENDPOINT =
   "fal-ai/workflow-utilities/auto-subtitle";
 
@@ -35,7 +51,8 @@ export const TALKING_VIDEO_CAPTION_ENDPOINT =
  */
 const PRICES_VERIFIED_AT = "2026-11-18";
 const VOICE_PER_1000_CHARACTERS_USD = 0.08;
-const CAPTIONS_PER_MINUTE_USD = 0.03;
+/** Timing the spoken words for the captions, on `TALKING_VIDEO_WORDS_ENDPOINT`. */
+const CAPTIONS_PER_MINUTE_USD = 0.008;
 
 /** The only resolution sent. */
 export const TALKING_VIDEO_RESOLUTION = "1080p";
@@ -66,7 +83,7 @@ const MODELS: TalkingVideoModel[] = [
       voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
       captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
       basis:
-        "The larger of $1.10 and $0.181 per second of video at 1080p, from what fal billed for a measured clip, plus the voice ($0.08 per 1,000 characters) and the captions ($0.03 per minute).",
+        "The larger of $1.10 and $0.181 per second of video at 1080p, from what fal billed for a measured clip, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). The edit itself is made by Core and costs nothing.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
       verifiedAt: PRICES_VERIFIED_AT,
     },
@@ -191,6 +208,23 @@ export interface TalkingVideoSettings extends VideoSettings {
   presenterId: string | null;
   /** ISO 639-1 language of the script. */
   languageCode: string;
+  /** When each word of the voice is spoken. Empty when they were not timed. */
+  words: SpokenWord[];
+  /** A few words shown over the first seconds, or null for none. */
+  hookLine: string | null;
+}
+
+function readSpokenWords(value: unknown): SpokenWord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((word: unknown) => {
+    if (typeof word !== "object" || word === null) return [];
+    const { text, start, end } = word as Record<string, unknown>;
+    return typeof text === "string" &&
+      typeof start === "number" &&
+      typeof end === "number"
+      ? [{ text, start, end }]
+      : [];
+  });
 }
 
 export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
@@ -207,6 +241,11 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     presenterId: typeof raw.presenterId === "string" ? raw.presenterId : null,
     languageCode:
       typeof raw.languageCode === "string" ? raw.languageCode : "en",
+    words: readSpokenWords(raw.words),
+    hookLine:
+      typeof raw.hookLine === "string" && raw.hookLine.trim()
+        ? raw.hookLine.trim().slice(0, TALKING_VIDEO_HOOK_MAX_LENGTH)
+        : null,
   };
 }
 
@@ -238,8 +277,9 @@ export function buildTalkingVideoInput(input: {
 
 /**
  * Bold white words, two at a time, the spoken one in yellow. On this endpoint a
- * positive `y_offset` lifts bottom captions: 200 puts them at about three
- * quarters of the frame's height, above the app's own caption and buttons.
+ * positive `y_offset` lifts bottom captions and 200 is its most: about three
+ * quarters of the frame's height, which is still below TikTok's safe area.
+ * Core's own edit places them inside it; this is the fallback's best.
  */
 export function buildTalkingVideoCaptionInput(input: {
   videoUrl: string;

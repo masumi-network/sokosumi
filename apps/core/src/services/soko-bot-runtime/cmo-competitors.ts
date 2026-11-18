@@ -6,13 +6,15 @@ import {
   runtimeEvent,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
-import { runCompetitorCheck } from "@/services/cmo-competitor-check.service";
+import {
+  runCusoCompetitorCheck,
+  saveCusoCompetitorFeed,
+} from "@/services/cmo-competitors.service";
+import { findCusoForBot } from "@/services/cmo-cuso.service";
 import {
   CompetitorFeedRefusedError,
   readCompetitorSignals,
-  saveCompetitorFeed,
-} from "@/services/cmo-competitor-feed.service";
-import { findCusoForBot } from "@/services/cmo-cuso.service";
+} from "@/services/competitor-feed.service";
 
 import {
   type AuthorizedSokoBotRuntime,
@@ -33,7 +35,7 @@ export async function dispatchCompetitorTools(
   const now = new Date();
   if (input.capability === "check_competitors") {
     SOKO_BOT_TOOL_INPUT_SCHEMAS.check_competitors.parse(input.input);
-    await runCompetitorCheck(cuso, now);
+    await runCusoCompetitorCheck(cuso, now);
     // Signals quote competitors' pages and articles: nothing in them may
     // reach an outward action in this turn.
     await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
@@ -45,7 +47,7 @@ export async function dispatchCompetitorTools(
     input.input,
   );
   try {
-    const saved = await saveCompetitorFeed({
+    const saved = await saveCusoCompetitorFeed({
       projectId: cuso.projectId,
       sokoBotId: cuso.sokoBotId,
       turnId: authorized.turn.id,

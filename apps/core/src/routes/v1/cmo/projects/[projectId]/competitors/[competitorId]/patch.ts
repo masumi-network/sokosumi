@@ -7,9 +7,10 @@ import { rethrow } from "@/routes/v1/cmo/helpers";
 import {
   cmoCompetitorParamsSchema,
   cmoCompetitorsSchema,
-  cmoCompetitorUpdateSchema,
 } from "@/schemas/cmo-competitors.schema";
-import { updateTrackedCompetitor } from "@/services/cmo-competitors.service";
+import { projectCompetitorUpdateSchema } from "@/schemas/project-competitors.schema";
+import { requireCuso } from "@/services/cmo-cuso.service";
+import { updateTrackedCompetitor } from "@/services/competitors.service";
 
 import { competitorsResponse } from "../helpers.js";
 
@@ -24,7 +25,9 @@ const route = createRoute({
     params: cmoCompetitorParamsSchema,
     body: {
       required: true,
-      content: { "application/json": { schema: cmoCompetitorUpdateSchema } },
+      content: {
+        "application/json": { schema: projectCompetitorUpdateSchema },
+      },
     },
   },
   responses: {
@@ -42,11 +45,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId, competitorId } = c.req.valid("param");
     const target = { userId, projectId };
-    await updateTrackedCompetitor(
-      target,
-      competitorId,
-      c.req.valid("json"),
-    ).catch(rethrow);
+    await requireCuso(target).catch(rethrow);
+    await updateTrackedCompetitor(projectId, competitorId, c.req.valid("json"));
     return ok(c, await competitorsResponse(target));
   });
 }

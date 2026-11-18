@@ -1,4 +1,6 @@
 import type { CompetitorPageKind, Prisma } from "@sokosumi/database";
+import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { z } from "zod";
 
 import {
@@ -8,7 +10,6 @@ import {
   searchMetaAds,
 } from "@/clients/meta-ad-library.client";
 import { getEnv } from "@/config/env";
-import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import {
   type InstagramReader,
@@ -31,21 +32,14 @@ import {
 } from "@/lib/competitors/page-read";
 import { bareHost } from "@/lib/competitors/text";
 import prisma from "@/lib/db/prisma";
-import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { createCoreLogger, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { searchExa } from "@/lib/soko-bot/exa";
-import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
   listTrackedCompetitors,
-  syncTrackedCompetitorsFromBrandBrain,
   type TrackedCompetitorRow,
-} from "@/services/cmo-competitors.service";
-import {
-  type Cuso,
-  listCusosWithApprovedStrategy,
-} from "@/services/cmo-cuso.service";
-import { chargeSokoBotCredits } from "@/services/soko-bot-billing.service";
+} from "@/services/competitors.service";
 
 /**
  * The price of one competitor in one weekly check, in credits: its two
@@ -62,8 +56,6 @@ export const CHECK_EVERY_MS = 6.5 * 86_400_000;
 const STALE_CHECK_MS = 3_600_000;
 const WEEK_MS = 7 * 86_400_000;
 const NEWS_RESULTS = 10;
-/** How long after a check its watch run may still start. */
-const WATCH_RUN_WINDOW_MS = 2 * 86_400_000;
 /** Lines of a page's change kept on its signal. */
 const KEPT_DIFF_LINES = 40;
 const MAX_ADS_KEPT = 20;
@@ -219,7 +211,7 @@ function failed(
 ): SourceResult {
   // A page, an article or an ad can carry anything its author wrote.
   recordCoreWarning(
-    { operation: "cmo_competitor_check", competitor: { id: competitor.id } },
+    { operation: "competitor_check", competitor: { id: competitor.id } },
     {
       message: "A competitor check source failed",
       why: "Reading this source for one competitor threw",
@@ -542,38 +534,114 @@ export type CompetitorCheckOutcome =
   | "paused"
   | "unfunded";
 
+/** What a check's payer paid; `shortfall` when it had less than the price. */
+export interface CompetitorCheckCharge {
+  chargedCents: bigint;
+  shortfall: boolean;
+}
+
 /**
- * Runs a Cuso's weekly competitor check when one is due: fills the list
- * from the Brand Brain, charges the check, then reads each competitor's
- * pages, news, ads and Instagram and stores what is new as signals. A source
- * that fails is skipped for that competitor; the check still finishes.
+ * Charges one check to whoever pays for the Project, once: a check that is
+ * run again under the same row asks again and must not pay again.
+ */
+export type ChargeCompetitorCheck = (check: {
+  id: string;
+  credits: number;
+}) => Promise<CompetitorCheckCharge>;
+
+/** Nothing was paid although the check has a price: it does not run. */
+export function competitorCheckUnfunded(
+  charge: CompetitorCheckCharge,
+): boolean {
+  return charge.chargedCents <= 0n && charge.shortfall;
+}
+
+/**
+ * Charges a check to the Project's own payer: its organization's credit
+ * pool, or the person whose personal workspace holds it. A check is paid in
+ * full or not at all, and its debit is kept on the check, which is how a
+ * second call knows it is paid.
+ */
+export function chargeProjectCompetitorCheck(
+  projectId: string,
+): ChargeCompetitorCheck {
+  return ({ id, credits }) => {
+    const expectedCents = convertCreditsToCents(credits);
+    return serializableTransaction(async (tx) => {
+      const [check, project] = await Promise.all([
+        tx.competitorCheck.findUnique({
+          where: { id },
+          select: { transactionId: true, chargedCents: true },
+        }),
+        tx.project.findUnique({
+          where: { id: projectId },
+          select: {
+            workspace: { select: { userId: true, organizationId: true } },
+          },
+        }),
+      ]);
+      if (check?.transactionId)
+        return { chargedCents: check.chargedCents, shortfall: false };
+      if (!check || !project) return { chargedCents: 0n, shortfall: true };
+      const { userId, organizationId } = project.workspace;
+      const balance = await creditBucketRepository.getBalance(
+        userId,
+        organizationId,
+        tx,
+        { projectId },
+      );
+      if (balance < expectedCents) return { chargedCents: 0n, shortfall: true };
+      const consumptions = await creditBucketRepository.prepareConsumption(
+        userId,
+        organizationId,
+        expectedCents,
+        tx,
+        { projectId },
+      );
+      const transaction = await tx.transaction.create({
+        data: {
+          amount: -expectedCents,
+          userId,
+          organizationId,
+          creditConsumptions: { createMany: { data: consumptions } },
+        },
+        select: { id: true },
+      });
+      await tx.competitorCheck.update({
+        where: { id },
+        data: { transactionId: transaction.id, chargedCents: expectedCents },
+      });
+      return { chargedCents: expectedCents, shortfall: false };
+    }, "Credits changed while charging this check; try again.");
+  };
+}
+
+/**
+ * Runs a Project's weekly competitor check when one is due: charges it,
+ * then reads each competitor's pages, news, ads and Instagram and stores
+ * what is new as signals. A source that fails is skipped for that
+ * competitor; the check still finishes. The caller decides whether the
+ * Project is checked at all and who pays (`charge`).
  */
 export async function runCompetitorCheck(
-  cuso: Pick<Cuso, "sokoBotId" | "projectId">,
+  projectId: string,
+  charge: ChargeCompetitorCheck,
   now: Date = new Date(),
-): Promise<CompetitorCheckOutcome> {
-  const { projectId } = cuso;
-  // Eval Cusos read the signals their case seeds; nothing real is fetched.
-  if (await isEvalCusoProject(projectId)) return "paused";
-  if (!(await isCmoSubscribed(cuso, now))) return "paused";
-  await syncTrackedCompetitorsFromBrandBrain(projectId);
+): Promise<Exclude<CompetitorCheckOutcome, "paused">> {
   const competitors = await listTrackedCompetitors(projectId);
   if (competitors.length === 0) return "no_competitors";
   const check = await claimCheck(projectId, now);
   if (!check) return "not_due";
 
-  const charge = await chargeSokoBotCredits({
-    sokoBotId: cuso.sokoBotId,
-    key: `cmo-competitor-check:${check.id}`,
+  const charged = await charge({
+    id: check.id,
     credits: COMPETITOR_CHECK_CREDITS * competitors.length,
   });
   // Free hiring is charged nothing and still runs; an empty wallet does not.
-  if (charge.chargedCents <= 0n && charge.shortfall) {
+  if (competitorCheckUnfunded(charged)) {
     await prisma.competitorCheck.delete({ where: { id: check.id } });
     return "unfunded";
   }
-  if (charge.cusoProjectId)
-    await notifyCusoLowCreditsAfterCharge(charge.cusoProjectId);
 
   const reader: InstagramReader | null =
     await projectInstagramConnection(projectId);
@@ -638,11 +706,11 @@ export async function runCompetitorCheck(
       signalCount,
       sources,
       costUsd,
-      chargedCents: charge.chargedCents,
+      chargedCents: charged.chargedCents,
     },
   });
   createCoreLogger({
-    operation: "cmo_competitor_check",
+    operation: "competitor_check",
     project: { id: projectId },
     competitorCheck: {
       id: check.id,
@@ -657,69 +725,23 @@ export async function runCompetitorCheck(
   return "checked";
 }
 
-/** Cuso writes the week's feed from the check that just finished. */
-async function startWatchRun(cuso: Cuso, now: Date): Promise<void> {
-  const check = await prisma.competitorCheck.findFirst({
-    where: {
-      projectId: cuso.projectId,
-      finishedAt: { gte: new Date(now.getTime() - WATCH_RUN_WINDOW_MS) },
-    },
-    orderBy: { createdAt: "desc" },
-    select: { id: true },
-  });
-  if (!check) return;
-  const { startCompetitorWatchRun } = await import(
-    "@/services/cmo-competitor-feed.service"
-  );
-  await startCompetitorWatchRun(cuso, check.id).catch((error: unknown) =>
-    // Busy, paused or out of credits: the signals wait for the next turn.
-    recordCoreWarning(
-      { operation: "cmo_competitor_watch", sokoBot: { id: cuso.sokoBotId } },
-      {
-        message: "Could not start Cuso's competitor watch",
-        why: "Starting the turn that writes the week's competitor feed threw",
-        fix: "The signals are stored; check_competitors shows them in Cuso's next turn. If it repeats, look up the error name and code under failure.",
-      },
-      { failure: messageSafeErrorFields(error) },
-    ),
-  );
-}
-
-/** Runs the weekly competitor check of every paid Cuso whose check is due. */
-export async function syncCmoCompetitorChecks(
-  shouldContinue: () => boolean = () => true,
+/**
+ * The weekly check of a Project whose members turned it on, when one is
+ * due. A CMO Project is not checked here: its Cuso's check is
+ * (`runCusoCompetitorCheck`), on his own terms.
+ */
+export async function runProjectCompetitorCheck(
+  projectId: string,
   now: Date = new Date(),
-): Promise<Record<CompetitorCheckOutcome | "failed", number>> {
-  const counts = {
-    checked: 0,
-    not_due: 0,
-    no_competitors: 0,
-    paused: 0,
-    unfunded: 0,
-    failed: 0,
-  };
-  for (const cuso of await listCusosWithApprovedStrategy()) {
-    if (!shouldContinue()) break;
-    try {
-      const outcome = await runCompetitorCheck(cuso, now);
-      counts[outcome] += 1;
-      // Also after "not_due": a run that could not start (Cuso busy or
-      // paused) starts on a later sync, while its check is fresh.
-      if (outcome === "checked" || outcome === "not_due")
-        await startWatchRun(cuso, now);
-    } catch (error) {
-      counts.failed += 1;
-      // The error can quote a page or an article.
-      recordCoreWarning(
-        { operation: "cmo_competitor_sync", sokoBot: { id: cuso.sokoBotId } },
-        {
-          message: "The competitor check skipped a Cuso",
-          why: "Running this Cuso's competitor check threw",
-          fix: "The next sync tries again; a check that started is redone after an hour and charged once. If it repeats, look up the error name and code under failure.",
-        },
-        { failure: messageSafeErrorFields(error) },
-      );
-    }
-  }
-  return counts;
+): Promise<CompetitorCheckOutcome> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { competitorChecksSince: true },
+  });
+  if (!project?.competitorChecksSince) return "paused";
+  return runCompetitorCheck(
+    projectId,
+    chargeProjectCompetitorCheck(projectId),
+    now,
+  );
 }

@@ -4,6 +4,7 @@ import { metaAdLibraryConfigured } from "@/clients/meta-ad-library.client";
 import { getEnv } from "@/config/env";
 import { averageEngagement } from "@/lib/competitors/instagram";
 import prisma from "@/lib/db/prisma";
+import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   CHECK_EVERY_MS,
   COMPETITOR_CHECK_CREDITS,
@@ -12,14 +13,12 @@ import {
   type CompetitorSourceStatus,
   competitorCheckSourcesSchema,
   projectInstagramConnection,
-} from "@/services/cmo-competitor-check.service";
-import { latestCompetitorFeed } from "@/services/cmo-competitor-feed.service";
+} from "@/services/competitor-check.service";
+import { latestCompetitorFeed } from "@/services/competitor-feed.service";
 import {
   listTrackedCompetitors,
   MAX_TRACKED_COMPETITORS,
-  watchedMapPlayers,
-} from "@/services/cmo-competitors.service";
-import { type CusoTarget, requireCuso } from "@/services/cmo-cuso.service";
+} from "@/services/competitors.service";
 
 const SIGNAL_DAYS = 35;
 const MAX_SIGNALS = 200;
@@ -218,10 +217,10 @@ const SOURCE_NEEDS: Record<
   Partial<Record<CompetitorSourceStatus, string>>
 > = {
   pages: {},
-  news: { not_configured: "News search is not set up for CMO yet." },
+  news: { not_configured: "News search is not set up yet." },
   ads: {
     not_configured:
-      "Reading ads needs CMO's access to Meta's Ad Library, which is not set up yet.",
+      "Reading ads needs access to Meta's Ad Library, which is not set up yet.",
   },
   social: {
     not_connected:
@@ -230,7 +229,7 @@ const SOURCE_NEEDS: Record<
 };
 
 /**
- * How each source stands: what the last check reported, unless CMO's access
+ * How each source stands: what the last check reported, unless Core's access
  * or the owner's connection says today that it cannot be read at all.
  */
 function sourceStates(last: unknown, instagramConnected: boolean) {
@@ -261,20 +260,24 @@ function sourceStates(last: unknown, instagramConnected: boolean) {
 }
 
 /**
- * The Competitors tab: who is tracked, what the last 30 days' checks found,
- * the Instagram scoreboard, each competitor's strongest posts, and how the
- * check stands. A pure read; the weekly check does the writing.
+ * A Project's Competitors page: who is tracked, what the last 30 days'
+ * checks found, the Instagram scoreboard, each competitor's strongest posts,
+ * and how the check stands. A pure read; the weekly check does the writing.
+ * `businessName` names the Project's own scoreboard row (its name otherwise).
  */
-export async function getCmoCompetitors(
-  target: CusoTarget,
-  now: Date = new Date(),
+export async function getProjectCompetitors(
+  projectId: string,
+  options: { businessName?: string; now?: Date } = {},
 ) {
-  const cuso = await requireCuso(target);
-  const { projectId } = cuso;
-  const [competitors, mapPlayers, signals, social, lastCheck, instagram] =
+  const now = options.now ?? new Date();
+  const [project, cmo, competitors, signals, social, lastCheck, instagram] =
     await Promise.all([
+      prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { name: true, competitorChecksSince: true },
+      }),
+      isCmoProject(projectId),
       listTrackedCompetitors(projectId),
-      watchedMapPlayers(projectId),
       prisma.competitorSignal.findMany({
         where: {
           projectId,
@@ -313,7 +316,11 @@ export async function getCmoCompetitors(
     ]);
   const readings = socialReadings(social);
   const feed = await latestCompetitorFeed(projectId);
-  const own = await ownScoreRow(instagram, cuso.businessName, now);
+  const own = await ownScoreRow(
+    instagram,
+    options.businessName ?? project.name,
+    now,
+  );
   return {
     competitors,
     feed: feed && {
@@ -329,7 +336,6 @@ export async function getCmoCompetitors(
         })),
     },
     limit: MAX_TRACKED_COMPETITORS,
-    mapPlayers,
     signals,
     scoreboard: [
       own,
@@ -359,6 +365,8 @@ export async function getCmoCompetitors(
       }));
     }),
     check: {
+      // A CMO Project's check runs while its Cuso is paid for.
+      on: cmo || project.competitorChecksSince !== null,
       lastCheckedAt: lastCheck?.finishedAt ?? null,
       nextCheckAt: lastCheck
         ? new Date(lastCheck.createdAt.getTime() + CHECK_EVERY_MS)

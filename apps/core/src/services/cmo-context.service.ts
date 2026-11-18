@@ -12,7 +12,6 @@ import {
 } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
-import { recentCompetitorMoves } from "@/services/cmo-competitor-feed.service";
 import { findCusoForBot, listCmoChannels } from "@/services/cmo-cuso.service";
 import { listCmoReports } from "@/services/cmo-reports.service";
 import {
@@ -20,6 +19,7 @@ import {
   calendarBounds,
   cmoWorkingStrategy,
 } from "@/services/cmo-strategy.service";
+import { recentCompetitorMoves } from "@/services/competitor-feed.service";
 import {
   approvedMarketingStrategy,
   newestMarketingStrategy,

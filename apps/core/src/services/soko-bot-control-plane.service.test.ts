@@ -392,6 +392,7 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    $executeRaw: vi.fn().mockResolvedValue(1),
     member: { findFirst: memberFindFirstMock },
     sokoBotIntent: {
       create: vi.fn().mockResolvedValue({ id: "intent-1", revision: 1 }),
@@ -410,6 +411,7 @@ function transactionClient() {
       create: botCreateMock,
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
+      findUniqueOrThrow: botFindUniqueOrThrowMock,
       update: botUpdateMock,
       updateMany: botUpdateManyMock,
     },
@@ -2165,7 +2167,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         eveSessionId: "session_bound_after_lost_response",
       }),
     );
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -2179,7 +2181,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock.mockResolvedValue(released);
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -2220,7 +2225,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       sessionId: "session_bound_after_lost_response",
       status: "RUNNING",
       duplicate: true,
-      reconciliationLeaseToken: "lease_1",
+      reconciliationLeaseToken: expect.not.stringMatching("lease_1"),
       // This call's own resume acknowledged the start: it owns the drain.
       acknowledgedByCaller: true,
     });
@@ -2229,7 +2234,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("grants the memory revision persisted in the snapshot when reset happened later", async () => {
     botFindFirstMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -2243,7 +2248,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock.mockResolvedValue(released);
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -3247,6 +3255,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       sokoBot: adminBot({ status: "RUNNING" }),
     };
     turnFindFirstMock.mockResolvedValue(turn);
+    botFindUniqueOrThrowMock.mockResolvedValue(turn.sokoBot);
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -3296,7 +3305,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("rolls back replay acknowledgement when administrator pause wins", async () => {
     botFindFirstMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -3310,7 +3319,15 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock
+      .mockResolvedValueOnce(released)
+      .mockImplementation(async () => ({
+        ...released,
+        leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
+      }));
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,

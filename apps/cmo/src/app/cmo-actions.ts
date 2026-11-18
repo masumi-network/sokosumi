@@ -10,7 +10,6 @@ import {
   approveCmoMarketingStrategyForProject,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
-  type CmoCompetitorCreate,
   type CmoCompetitors,
   type CmoCusoList,
   type CmoKeywordSearch,
@@ -42,6 +41,7 @@ import {
   listCmoCusos,
   listCmoPlans,
   openCmoCustomerPortalForProject,
+  type ProjectCompetitorCreate,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
@@ -1164,7 +1164,7 @@ function competitorResult(
 /** Adds a competitor to watch; a refusal (the limit, a name taken) comes back as text. */
 export async function addCompetitor(
   projectId: string,
-  body: CmoCompetitorCreate,
+  body: ProjectCompetitorCreate,
 ): Promise<CompetitorResult> {
   const core = await requireCore();
   return competitorResult(
@@ -1176,7 +1176,7 @@ export async function addCompetitor(
 export async function updateCompetitor(
   projectId: string,
   competitorId: string,
-  body: CmoCompetitorCreate,
+  body: ProjectCompetitorCreate,
 ): Promise<CompetitorResult> {
   const core = await requireCore();
   return competitorResult(
