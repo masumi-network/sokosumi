@@ -135,6 +135,8 @@ export async function executeAuthorizedTool(
     case "report_update":
     case "evaluate_with_jev":
     case "search_exa":
+    case "check_competitors":
+    case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
     case "read_seo":
     case "research_keywords":

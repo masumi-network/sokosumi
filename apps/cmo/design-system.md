@@ -3,7 +3,7 @@
 The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the same look as the CMO.XYZ landing page. Masumi brings the palette (neutrals, PP Mori, one pink); Cuso brings the outline (thick ink lines and hard shadows). It should read like a serious tool with a loud, friendly face.
 
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
-- **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Since 2026-11-17 the app follows the landing page's look (thick lines, larger hard shadows, pills, the cursor-head logo), which the canvas does not show. Where a board and this file disagree, this file wins.
+- **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Since 2026-11-17 the app follows the landing page's look (thick lines, larger hard shadows, pills), which the canvas does not show. Where a board and this file disagree, this file wins.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
 - **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, seo, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
@@ -81,7 +81,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Components
 
-**Logo.** The lockup from the landing page (`src/components/logo.tsx`): the cursor-head mark (`public/logo.svg`), then "CMO.XYZ" in PP Mori SemiBold at -0.03em, 24px in a header, in the text colour: ink on a light page, white on a dark one. The mark carries its own white edge, so it is never recoloured. The same mark is the favicon and app icon.
+**Logo.** The approved stacked-text lockup from the Masumi Family Brand Guide (`src/components/logo.tsx`, files in `public/logo/`): the mascot beside "CMO .XYZ" on two lines. The black file on a light page, the white one on a dark page; never recoloured, stretched or given effects. 46px tall in a header, which is 121px wide; a lockup with the mascot is never narrower than 120px. The favicon and app icon are the guide's Iris monogram.
 
 **Header (onboarding).** Logo left, step markers centre, the site chip right (a pill: green 8px dot with a line edge, then the domain). A 3px ink line below, 14px 32px padding.
 
