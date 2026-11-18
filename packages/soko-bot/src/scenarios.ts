@@ -899,6 +899,34 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "talking-video",
+    title: "Make a talking TikTok video",
+    intent:
+      "Writes a hook-led script in the brand's own voice and starts one talking video with a stock presenter.",
+    prompt:
+      "Make me a short TikTok for the Sokosumi Marketing project about Soko Bots triaging your inbox, with a presenter talking to camera. You can spend up to 250 credits.",
+    rubric:
+      'The bot started exactly one generate_talking_video for the Sokosumi Marketing Project with maxCredits of at most 250. Its script opens with a hook sentence, makes one point about inbox triage and ends with a next step, in the brand\'s own voice, and is 150 to 600 characters. It speaks for the product, never as a customer: "I bought", "I tried", "as a user" or an invented personal result fails. It chose a stock presenter and a voice that fit. It tells the owner the video is being made and does not claim it is ready or posted. In this eval the video is not really made, so a follow-up check that fails is fine when the answer stays honest about it. Asking which project or which presenter instead of acting fails; making an image or a plain generate_video instead fails.',
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["generate_talking_video"],
+      // Eval workspaces do not make the video, so checking on it fails.
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
+      forbiddenTools: [
+        "generate_video",
+        "generate_image",
+        "publish_social_post",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "social-x-post",
     title: "Draft an X post",
     intent:
@@ -1216,17 +1244,64 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "",
       'Your plan: Tell the owner where the site ranks on Google for "calendly alternative" and the two pages to change first.',
       "",
-      "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Start the answer with DONE: and say in one or two sentences what you did.",
+      "Your message now is the answer the owner has been waiting for, posted in the chat where they asked. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
     ].join("\n"),
     rubric:
       'Cuso says plainly that the SEO specialist\'s check did not finish, so where the site ranks for "calendly alternative" is not known yet, and offers what he can from data a tool returned (read_seo, research_keywords) or to ask again. A position, click count or traffic number no tool returned fails, and so does pretending the check came back.',
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED", "DELEGATE_TASK"],
+      // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
+      routes: [
+        "MANAGE_WORK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "DELEGATE_TASK",
+        "CLARIFY",
+      ],
       anyTools: ["read_seo", "research_keywords"],
       allowFailedTools: ["research_keywords", "read_seo"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
       answerAvoids:
         "\\b(?:rank(?:s|ing)?|position(?:ed)?)\\s+(?:#|number\\s+)?\\d",
+    },
+  },
+  {
+    id: "cmo-seo-check-result",
+    title: "Answers with the SEO specialist's result when it comes back",
+    intent:
+      "When the SEO specialist's check is back, Cuso's follow-up is the answer itself: where the site ranks, who ranks above, and what to do next.",
+    prompt: [
+      "Follow-up: something you were waiting for is done.",
+      "The SEO specialist checked Google on 2026-11-18 for https://cal.com/:",
+      '- "calendly alternative" (mobile, US): not in the top 19, 260 searches a month. Top results: 1. zapier.com; 2. www.reddit.com; 3. youcanbook.me; 4. www.g2.com; 5. tidycal.com',
+      "",
+      'Your plan: Tell the owner where the site ranks on Google for "calendly alternative", who ranks above, and two or three concrete next steps.',
+      "",
+      "Your message now is the answer the owner has been waiting for, posted in the chat where they asked. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
+    ].join("\n"),
+    rubric:
+      'Cuso\'s answer itself tells the owner that cal.com is not among the 19 results checked for "calendly alternative" on 2026-11-18, names sites that rank at the top (such as zapier.com or youcanbook.me), and gives two or three concrete next steps that fit the business (for example a comparison article or a page change), using only numbers a tool or the result returned. Saving such an article or page change with save_seo_suggestions is good. A message that only says the result or steps are covered or available, an invented position, or a new check_search_rankings call fails.',
+    expect: {
+      // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
+      routes: [
+        "MANAGE_WORK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "DELEGATE_TASK",
+        "CLARIFY",
+      ],
+      allowFailedTools: [
+        "research_keywords",
+        "read_seo",
+        "save_seo_suggestions",
+      ],
+      forbiddenTools: [
+        "save_strategy",
+        "create_task",
+        "hire_agent",
+        "check_search_rankings",
+      ],
+      answerMatches: "19",
+      answerAvoids: "\\b(?:are|is) (?:covered|available)\\b",
     },
   },
   {

@@ -79,7 +79,10 @@ export async function watchOutcome(watch: {
     });
     if (!job) return "The Studio job no longer exists.";
     if (PENDING_STUDIO.has(job.status)) return null;
-    const video = job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO";
+    const video =
+      job.kind === "TEXT_TO_VIDEO" ||
+      job.kind === "IMAGE_TO_VIDEO" ||
+      job.kind === "TALKING_VIDEO";
     const read = video ? "get_video" : "get_image";
     return job.status === "SUCCEEDED"
       ? `The ${video ? "video" : "image"} is ready (job ${watch.targetId}). Call ${read} with jobId ${watch.targetId}${watch.projectId ? ` and projectId ${watch.projectId}` : ""} for its link and fileId.`
@@ -144,11 +147,19 @@ export async function watchOutcome(watch: {
   );
 }
 
+/**
+ * How the follow-up of an SEO check ends: its message is the answer the
+ * owner has waited for, never a note that the answer exists.
+ */
+const SEO_CHECK_ANSWER =
+  "Your message now is the answer the owner has been waiting for, posted in the chat where they asked. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.";
+
 /** The follow-up's brief: what it waited for, what came of it, and the plan. */
 export function followUpMessage(input: {
   then: string;
   outcome: string;
   timedOut: boolean;
+  kind?: string;
 }): string {
   return [
     "Follow-up: something you were waiting for is done.",
@@ -158,7 +169,9 @@ export function followUpMessage(input: {
     "",
     `Your plan: ${input.then}`,
     "",
-    "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where it was asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
+    input.kind === "seo_check"
+      ? SEO_CHECK_ANSWER
+      : "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where it was asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
   ].join("\n");
 }
 
@@ -459,6 +472,7 @@ export async function syncSokoBotWatches(input: {
             outcome ??
             `still not done after ${Math.round((watch.expiresAt.getTime() - watch.createdAt.getTime()) / 60_000)} minutes.`,
           timedOut,
+          kind: watch.kind,
         }),
         source: watch.turn.source === "CHAT" ? "CHAT" : "SCHEDULE",
         versionId: watch.turn.versionId ?? undefined,

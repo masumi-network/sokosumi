@@ -527,6 +527,23 @@ export const sokoBotGenerateVoiceoverInputSchema = z.object({
   workspacePath: z.string().trim().min(1).max(500).optional(),
 });
 
+export const sokoBotGenerateTalkingVideoInputSchema = z
+  .object({
+    /** Project whose Content Studio and Files receive the video. */
+    projectId: z.string().min(1),
+    /** The words the presenter speaks, hook first. 20 to 600 characters. */
+    script: z.string().trim().min(20).max(600),
+    /** A stock presenter id from the Content Studio catalog, e.g. "maya". */
+    presenter: z.string().trim().min(1).max(100),
+    /** One of the stock voices; Sarah by default. */
+    voice: z.enum(SOKO_BOT_VOICEOVER_VOICES).optional(),
+    /** ISO 639-1 language of the script, e.g. "de"; "en" by default. */
+    languageCode: z.string().trim().length(2).optional(),
+    /** Most credits this video may cost; the price is checked first. */
+    maxCredits: z.number().positive().max(10_000),
+  })
+  .strict();
+
 export const sokoBotWorkspaceImportFileInputSchema = z.object({
   /** Files id from list_files, upload_file, get_image, get_video or generate_voiceover. */
   fileId: z.uuid(),
@@ -1711,6 +1728,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   get_image: sokoBotGetImageInputSchema,
   generate_video: sokoBotGenerateVideoInputSchema,
   get_video: sokoBotGetVideoInputSchema,
+  generate_talking_video: sokoBotGenerateTalkingVideoInputSchema,
   generate_voiceover: sokoBotGenerateVoiceoverInputSchema,
   workspace_import_file: sokoBotWorkspaceImportFileInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
@@ -1964,8 +1982,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Check an image started with generate_image: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as media in create_social_post or update_social_post. A variation or edit is a new generate_image with a new prompt; there is no in-place edit.",
   generate_video:
     "Generate a short video (5, 10 or 15 seconds; 9:16 by default for Reels, Shorts and TikTok) in a Project's Content Studio from a prompt, or animate a finished image by passing its generate_image jobId as imageJobId. It spends the owner's credits: set maxCredits, and it refuses when the video would cost more. Only for a request the owner made in this chat. Generation takes a few minutes: to act on the result, call wait_for with its jobId and end your turn; get_video tells you where it stands now.",
+  generate_talking_video:
+    'Make a talking video for TikTok, Reels, Shorts or LinkedIn: a generated presenter speaks the script to camera, with captions, 9:16, in a Project\'s Content Studio. Write the script yourself in the brand\'s voice: one hook sentence first, then one point and one next step, 150 to 400 characters for 15 to 30 seconds. Never as a customer: no "I bought", "I tried", "as a customer" or invented results; Core refuses such a script. presenter is a stock presenter id: maya, jonas, aisha, leo, elena, david, mei or omar (all generated, no real person); pick one that fits the audience and a matching voice. It spends the owner\'s credits, about 1.4 credits per character of script and at least 111 (a 150-character script costs about 220): set maxCredits and fit the script to it, since Core refuses a video that would cost more. Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.',
   get_video:
-    "Check a video started with generate_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
+    "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:

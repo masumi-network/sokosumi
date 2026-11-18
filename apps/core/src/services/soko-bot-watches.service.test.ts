@@ -162,6 +162,20 @@ describe("followUpMessage", () => {
     expect(text).toContain("do not ask again");
     expect(text).toContain("DONE:");
   });
+
+  it("asks the follow-up of an SEO check for the answer itself, not a note that it is covered", () => {
+    const text = followUpMessage({
+      then: "Tell the owner where the site ranks.",
+      outcome: '- "nft minting platform" (mobile, US): not in the top 19.',
+      timedOut: false,
+      kind: "seo_check",
+    });
+    expect(text).toContain("not in the top 19");
+    expect(text).toContain("Write the answer itself");
+    expect(text).toContain("in the language they asked in");
+    expect(text).toContain("start no new check now");
+    expect(text).not.toContain("say in one or two sentences what you did");
+  });
 });
 
 describe("registerWatch", () => {

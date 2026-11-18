@@ -8,6 +8,7 @@ import { HTTPException } from "hono/http-exception";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { DEFAULT_TALKING_VIDEO_VOICE } from "@/lib/image-studio/talking-video";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import {
@@ -22,6 +23,7 @@ import { getJob } from "@/services/image-studio-assets.service";
 import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createTalkingVideoJob,
   createVideoJob,
   DEFAULT_SETTINGS,
   reconcileProjectJobs,
@@ -316,6 +318,53 @@ export async function generateVideo(
       job.status === "SUBMISSION_UNCERTAIN"
         ? "The provider did not confirm this request. Do not start it again; tell the owner."
         : "Started. A video takes a few minutes; check it with get_video.",
+  };
+}
+
+/** Starts a talking video in a Project's Content Studio, once checked. */
+export async function generateTalkingVideo(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  raw: unknown,
+  toolCallId: string,
+) {
+  const { input, model, credits } = await runtime
+    .checkTalkingVideoRequest(authorized, raw, toolCallId)
+    .catch((error: unknown) => {
+      throw new SokoBotImageRefusedError(
+        error instanceof Error ? error.message : "Talking video refused",
+      );
+    });
+  let job: Awaited<ReturnType<typeof createTalkingVideoJob>>;
+  try {
+    job = await createTalkingVideoJob({
+      projectId: input.projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: actingMemberOf(authorized),
+      modelId: model.id,
+      script: input.script,
+      voice: input.voice ?? DEFAULT_TALKING_VIDEO_VOICE,
+      languageCode: input.languageCode ?? "en",
+      presenter: { kind: "stock", id: input.presenter },
+      idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
+    });
+  } catch (error) {
+    if (error instanceof HTTPException)
+      throw new SokoBotImageRefusedError(error.message);
+    throw error;
+  }
+  return {
+    jobId: job.id,
+    projectId: input.projectId,
+    status: job.status,
+    credits,
+    studioUrl: studioLink(input.projectId),
+    note:
+      job.status === "SUBMISSION_UNCERTAIN"
+        ? "The provider did not confirm this request. Do not start it again; tell the owner."
+        : job.status === "FAILED"
+          ? "The video could not be started and nothing was charged; get_video says why."
+          : "Started. A talking video takes a few minutes; call wait_for with its jobId, then get_video.",
   };
 }
 
