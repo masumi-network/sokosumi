@@ -3914,6 +3914,7 @@ model TaskEvent {
 
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?
+  mentions     TaskEventMention[]
 
   @@index([transactionId])
   @@index([sokoBotId])
