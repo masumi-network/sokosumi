@@ -11810,6 +11810,80 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
+      "brief": {
+        "title": "Audit brief",
+        "private": "Only you can read this brief. A full audit shares a page goal only when you select it.",
+        "confirmed": "Confirmed by you on {date}.",
+        "objective": "Site goal",
+        "audience": "Who is the site for?",
+        "outcome": "What result matters to you?",
+        "constraints": "Limits on changes",
+        "pageSettings": "Page settings",
+        "page": "Page",
+        "role": "Page role",
+        "job": "What should visitors accomplish here?",
+        "action": "Desired action",
+        "index": "Visibility in Google Search",
+        "pageLimit": "You can set a purpose for up to {count} pages. Clear another page to add this one.",
+        "unset": "Unspecified",
+        "save": "Save brief",
+        "empty": "Add a site goal to record what this audit is for.",
+        "edit": "Edit brief",
+        "add": "Add brief",
+        "readFailed": "Your brief could not be loaded.",
+        "retry": "Try again",
+        "conflict": "This brief changed while you were editing. Reload the saved version to continue.",
+        "reload": "Reload saved brief",
+        "followUp": "Page follow-up",
+        "recordedChange": "Change recorded on {date}.",
+        "lastCrawl": "Last crawl reported by Google on {date}.",
+        "share": "Share page goals in this public task",
+        "shareHelp": "For each page you select, the public SEO task will show its URL, role and desired action. Other brief fields stay private.",
+        "priority": "Priority from your brief",
+        "nextStep": "Recommended next step",
+        "why": "Why this page",
+        "objectives": {
+          "sales": "Sales",
+          "traffic": "Search traffic",
+          "support": "Customer support"
+        },
+        "roles": {
+          "guide": "Guide",
+          "product": "Product",
+          "pricing": "Pricing",
+          "support": "Support",
+          "comparison": "Comparison",
+          "other": "Other"
+        },
+        "actions": {
+          "sign_up": "Sign up",
+          "buy": "Buy",
+          "contact_sales": "Contact sales",
+          "book": "Book",
+          "subscribe": "Subscribe",
+          "download": "Download",
+          "call": "Call",
+          "visit": "Visit",
+          "read": "Read",
+          "none": "No action"
+        },
+        "visibility": {
+          "index": "Include this page",
+          "exclude": "Keep this page out",
+          "unknown": "Undecided"
+        },
+        "followUps": {
+          "awaiting_recrawl": "Awaiting evidence of a crawl after the change.",
+          "recrawled": "Google crawled this page after the change.",
+          "unknown": "Crawl timing is unknown."
+        },
+        "indexReview": {
+          "expected_exclusion": "The exclusion matches your visibility setting.",
+          "review_exclusion": "Check why this page appears in search. You want it excluded.",
+          "review_indexing": "Check why this page is excluded. You want it to appear in search.",
+          "matches_intent": "Google’s index status matches your visibility setting."
+        }
+      },
       "manageStatistics": "Google connections",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
@@ -12744,6 +12818,39 @@
       "strategy": {
         "title": "Keyword strategy",
         "from": "From the check of",
+        "purpose": {
+          "title": "Search intent",
+          "goal": {
+            "sales": "The audit focuses on sales.",
+            "traffic": "The audit focuses on search traffic."
+          },
+          "source": {
+            "owner": "The owner selected the desired action on the starting page.",
+            "inferred": "The audit inferred the desired action from the starting page.",
+            "unspecified": "The audit used the desired action on the starting page."
+          },
+          "first": {
+            "sales": "Review the buyer search “{keyword}”",
+            "traffic": "Review the informational search “{keyword}”"
+          },
+          "groupDemand": "This group has an estimated {count, number} monthly searches.",
+          "ranked": "The page ranked or appeared in a featured snippet for a search in this group.",
+          "inReach": "The referring-domain comparison puts this group within reach.",
+          "measure": {
+            "sales": "After the edit, check clicks from buyer searches and how often visitors complete the desired page action.",
+            "traffic": "After the edit, check clicks from the informational searches in this group."
+          },
+          "demand": "Estimated monthly searches from measured keyword groups",
+          "intents": {
+            "buyer": "Buyer searches",
+            "informational": "Informational searches",
+            "other": "Other searches"
+          },
+          "unmeasured": "Unmeasured",
+          "atLeast": "At least {count, number}",
+          "estimate": "{count, number}",
+          "missing": "{count, plural, one {# group without an estimate} other {# groups without estimates}}"
+        },
         "verdict": {
           "keep": "Keep these keywords",
           "outOfReach": "Most searches of these keywords are out of reach for the site",
@@ -12770,7 +12877,7 @@
         "reachHelp": {
           "ranks": "A group ranks when a page of the site is in the results or in the featured snippet.",
           "inReach": "A group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
-          "open": "A forum in the search results is a sign that the results are open to new pages."
+          "open": "Inspect the discussion to see which questions people ask. Ranking potential needs separate evidence."
         },
         "trend": {
           "falling": "Searches are falling",

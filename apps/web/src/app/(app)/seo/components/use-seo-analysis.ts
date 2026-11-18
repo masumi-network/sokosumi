@@ -3,6 +3,7 @@ import type { CreateProjectSeoMonitorRequest } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { selectedBriefPages } from "./seo-brief-model";
 import {
   allowedSeoAnalysisKinds,
   analysisSeoBody,
@@ -110,13 +111,18 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         );
         return;
       }
+      const sharedBrief =
+        kind === "audit_full"
+          ? selectedBriefPages(form, model.brief?.data, workspace.scope.pageIds)
+          : undefined;
+      const request = sharedBrief ? { ...body, sharedBrief } : body;
       await model.execute(
         {
           kind: "request_analysis",
           body: {
-            ...body,
+            ...request,
             idempotencyKey: model.operationKey(
-              `analysis:${JSON.stringify(body)}`,
+              `analysis:${JSON.stringify(request)}`,
             ),
           },
         },

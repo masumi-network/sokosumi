@@ -4572,6 +4572,63 @@ describe("SEO workspace integration", () => {
     });
   });
 
+  it("refreshes the visible private page priority after an automatic Search Console collection", async () => {
+    const workspace = seoTestWorkspace();
+    let collected = false;
+    const gate = Promise.withResolvers<void>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input, "https://web.test");
+        if (url.pathname.endsWith("/brief")) {
+          return Response.json({
+            revision: 2,
+            pages: [],
+            followUps: [],
+            priorities: [
+              {
+                pageId: workspace.pages[0].id,
+                why: [],
+                nextStep: collected
+                  ? "Review the new crawl."
+                  : "Awaiting crawl evidence.",
+              },
+            ],
+          });
+        }
+        if (url.pathname.includes("/connections/")) {
+          const provider = url.pathname.split("/").at(-1);
+          return Response.json({
+            provider,
+            name: provider,
+            source: "native",
+            status:
+              provider === "search_console" ? "connected" : "not_connected",
+          });
+        }
+        if (url.pathname.endsWith("statistics/properties"))
+          return Response.json({
+            provider: "search_console",
+            status: "available",
+            reason: null,
+            properties: [
+              { id: "sc-domain:example.com", name: "Website property" },
+            ],
+          });
+        if (init?.method === "POST" && url.pathname.endsWith("/statistics")) {
+          await gate.promise;
+          collected = true;
+          return Response.json(null);
+        }
+        return Response.json(workspace);
+      }),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    expect(await screen.findByText("Awaiting crawl evidence.")).toBeVisible();
+    gate.resolve();
+    expect(await screen.findByText("Review the new crawl.")).toBeVisible();
+  });
+
   it("shows newly synced Search Console metrics under the organic filter", async () => {
     const workspace = seoTestWorkspace();
     const measured = {

@@ -48,9 +48,13 @@ const monitorCommandSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const mutateSeo = withSession<
-  AuthenticatedRequest & { owner: SeoOwner; command: SeoCommand },
+  AuthenticatedRequest & {
+    owner: SeoOwner;
+    command: SeoCommand;
+    briefViewer?: { userId: string; organizationId: string | null };
+  },
   ActionResultDto<null, ActionError>
->(async ({ owner, command }) => {
+>(async ({ owner, command, briefViewer, session }) => {
   if (
     !z
       .object({ kind: z.enum(["audit", "project"]), id: z.uuid() })
@@ -61,6 +65,22 @@ export const mutateSeo = withSession<
       !monitorCommandSchema.safeParse(command).success)
   ) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+  if (
+    command.kind === "request_analysis" &&
+    command.body?.sharedBrief &&
+    (!briefViewer ||
+      briefViewer.userId !== session.user.id ||
+      briefViewer.organizationId !==
+        (session.session.activeOrganizationId ?? null))
+  ) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        status: 409,
+        kind: "seo_viewer_changed",
+      }),
+    );
   }
   try {
     switch (command.kind) {

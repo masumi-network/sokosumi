@@ -4,19 +4,27 @@ import type { SeoCommand } from "./types";
 
 vi.mock("server-only", () => ({}));
 
-const { revalidatePathMock, runNowMock, changeStateMock } = vi.hoisted(() => ({
-  revalidatePathMock: vi.fn(),
-  runNowMock: vi.fn(),
-  changeStateMock: vi.fn(),
-}));
+const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
+  vi.hoisted(() => ({
+    revalidatePathMock: vi.fn(),
+    runNowMock: vi.fn(),
+    requestAnalysisMock: vi.fn(),
+    changeStateMock: vi.fn(),
+  }));
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     (handler: (params: unknown) => Promise<unknown>) =>
-    async (params: unknown) =>
-      await handler(params),
+    async (params: object) =>
+      await handler({
+        ...params,
+        session: {
+          user: { id: "reader" },
+          session: { activeOrganizationId: "team" },
+        },
+      }),
 }));
 
 vi.mock("@/lib/services/task-schedule.service", () => ({
@@ -26,7 +34,9 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
   },
 }));
 
-vi.mock("@/lib/services/seo.service", () => ({ seoServiceNoRedirect: {} }));
+vi.mock("@/lib/services/seo.service", () => ({
+  seoServiceNoRedirect: { requestAnalysis: requestAnalysisMock },
+}));
 
 import { mutateSeo } from "./action";
 
@@ -75,4 +85,18 @@ describe("mutateSeo monitor commands", () => {
     expect(result).toMatchObject({ ok: false });
     expect(changeStateMock).not.toHaveBeenCalled();
   });
+});
+
+it("refuses the goal selection after an account switch before submitting the analysis", async () => {
+  const command = {
+    kind: "request_analysis",
+    body: { sharedBrief: { revision: 2, pageIds: [MONITOR_ID] } },
+  } as SeoCommand;
+  const result = await mutateSeo({
+    owner: OWNER,
+    command,
+    briefViewer: { userId: "reader", organizationId: "another team" },
+  });
+  expect(result).toMatchObject({ ok: false, error: { status: 409 } });
+  expect(requestAnalysisMock).not.toHaveBeenCalled();
 });

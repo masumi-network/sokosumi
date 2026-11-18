@@ -2,6 +2,7 @@
 
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +24,8 @@ import {
   type SeoAnalysisLimits,
   SeoAnalysisSummary,
 } from "./seo-analysis-summary";
+import { SeoBriefDialog } from "./seo-brief-dialog";
+import { SeoBriefSummary } from "./seo-brief-summary";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_ANALYSIS_MODULES,
@@ -56,6 +59,7 @@ export function SeoAnalysisDialog({
 }) {
   const t = useTranslations("App.Seo");
   const form = useSeoAnalysisForm(model, monitor);
+  const [editingBrief, setEditingBrief] = useState(false);
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
@@ -120,6 +124,12 @@ export function SeoAnalysisDialog({
               devices={form.devices}
               keywords={form.wantsKeywords ? market.keywords : null}
             />
+            {full && !monitor && model.brief ? (
+              <SeoBriefSummary
+                model={model}
+                edit={() => setEditingBrief(true)}
+              />
+            ) : null}
             {full ? (
               <p className="text-muted-foreground text-sm">
                 {t("analysis.relatedPages", { count: SEO_MAX_PAGES })}
@@ -365,6 +375,13 @@ export function SeoAnalysisDialog({
             </p>
           </DialogFooter>
         </form>
+        {editingBrief ? (
+          <SeoBriefDialog
+            key={model.viewerKey}
+            model={model}
+            onClose={() => setEditingBrief(false)}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

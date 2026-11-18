@@ -32,6 +32,7 @@ import {
   seoStrategyReason,
   seoStrategyTargetNotes,
 } from "./seo-strategy-model";
+import { SeoStrategyPurpose } from "./seo-strategy-purpose";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Under the fixes the list starts with this many actions: eight rows after five fix rows read as one long list. */
@@ -129,7 +130,7 @@ export function SeoStrategyFold({
         </span>
       </SeoFoldSummary>
       <div className="max-w-prose space-y-2 pb-2">
-        {/* The counts lead: they are the reader's own words. The sentence of the audit follows them, quieter. */}
+        <SeoStrategyPurpose strategy={strategy} />
         {counts.reaches.length || reason.moving.length ? (
           <ul role="list" className="space-y-1.5">
             {counts.reaches.map(({ reach, count }, index) => {

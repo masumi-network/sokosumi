@@ -11810,6 +11810,80 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
+      "brief": {
+        "title": "Audit-Briefing",
+        "private": "Nur du kannst dieses Briefing lesen. Ein vollständiges Audit teilt ein Seitenziel nur, wenn du es auswählst.",
+        "confirmed": "Von dir am {date} bestätigt.",
+        "objective": "Ziel der Website",
+        "audience": "An wen richtet sich die Website?",
+        "outcome": "Welches Ergebnis ist dir wichtig?",
+        "constraints": "Vorgaben für Änderungen",
+        "pageSettings": "Seiteneinstellungen",
+        "page": "Seite",
+        "role": "Seitentyp",
+        "job": "Was sollen Besucher hier erreichen?",
+        "action": "Gewünschte Aktion",
+        "index": "Sichtbarkeit in der Google Suche",
+        "pageLimit": "Du kannst für bis zu {count} Seiten einen Zweck festlegen. Leere die Angaben einer anderen Seite, um diese hinzuzufügen.",
+        "unset": "Nicht angegeben",
+        "save": "Briefing speichern",
+        "empty": "Ergänze das Ziel der Website, um den Zweck dieses Audits festzuhalten.",
+        "edit": "Briefing bearbeiten",
+        "add": "Briefing hinzufügen",
+        "readFailed": "Dein Briefing konnte nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "conflict": "Das Briefing wurde während der Bearbeitung geändert. Lade zum Fortfahren die gespeicherte Version.",
+        "reload": "Gespeichertes Briefing laden",
+        "followUp": "Status der Seite",
+        "recordedChange": "Änderung am {date} erfasst.",
+        "lastCrawl": "Letzter von Google gemeldeter Crawl am {date}.",
+        "share": "Seitenziele in dieser öffentlichen Aufgabe teilen",
+        "shareHelp": "Für jede ausgewählte Seite zeigt die öffentliche SEO-Aufgabe die URL, den Seitentyp und die gewünschte Aktion. Die übrigen Angaben im Briefing bleiben privat.",
+        "priority": "Priorität aus deinem Briefing",
+        "nextStep": "Empfohlener nächster Schritt",
+        "why": "Warum diese Seite?",
+        "objectives": {
+          "sales": "Vertrieb",
+          "traffic": "Suchzugriffe",
+          "support": "Kundenservice"
+        },
+        "roles": {
+          "guide": "Ratgeber",
+          "product": "Produkt",
+          "pricing": "Preise",
+          "support": "Hilfe",
+          "comparison": "Vergleich",
+          "other": "Sonstiges"
+        },
+        "actions": {
+          "sign_up": "Registrieren",
+          "buy": "Kaufen",
+          "contact_sales": "Vertrieb kontaktieren",
+          "book": "Buchen",
+          "subscribe": "Abonnieren",
+          "download": "Herunterladen",
+          "call": "Anrufen",
+          "visit": "Besuchen",
+          "read": "Lesen",
+          "none": "Keine Aktion"
+        },
+        "visibility": {
+          "index": "Seite aufnehmen",
+          "exclude": "Seite ausschließen",
+          "unknown": "Unentschieden"
+        },
+        "followUps": {
+          "awaiting_recrawl": "Es fehlt noch ein Crawl-Nachweis für die Zeit nach der Änderung.",
+          "recrawled": "Google hat die Seite nach der Änderung gecrawlt.",
+          "unknown": "Der Zeitpunkt des Crawls ist unbekannt."
+        },
+        "indexReview": {
+          "expected_exclusion": "Der Ausschluss entspricht deiner Einstellung.",
+          "review_exclusion": "Prüfe, weshalb diese Seite in der Suche erscheint. Du möchtest sie ausschließen.",
+          "review_indexing": "Prüfe, weshalb diese Seite ausgeschlossen ist. Du möchtest sie in der Suche anzeigen.",
+          "matches_intent": "Der Indexstatus bei Google entspricht deiner Einstellung."
+        }
+      },
       "manageStatistics": "Google-Verbindungen",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
@@ -12744,6 +12818,39 @@
       "strategy": {
         "title": "Keyword-Strategie",
         "from": "Aus der Prüfung vom",
+        "purpose": {
+          "title": "Suchintention",
+          "goal": {
+            "sales": "Das Audit legt den Schwerpunkt auf Verkäufe.",
+            "traffic": "Das Audit legt den Schwerpunkt auf Suchzugriffe."
+          },
+          "source": {
+            "owner": "Der Inhaber hat die gewünschte Aktion auf der Startseite ausgewählt.",
+            "inferred": "Das Audit hat die gewünschte Aktion aus der Startseite abgeleitet.",
+            "unspecified": "Das Audit hat die gewünschte Aktion auf der Startseite verwendet."
+          },
+          "first": {
+            "sales": "Prüfe die Suchanfrage „{keyword}“ mit Kaufabsicht",
+            "traffic": "Prüfe die Informationssuche „{keyword}“"
+          },
+          "groupDemand": "Für diese Gruppe werden {count, number} Suchanfragen pro Monat geschätzt.",
+          "ranked": "Die Seite erschien für eine Suchanfrage dieser Gruppe in den Ergebnissen oder in einem Featured Snippet.",
+          "inReach": "Laut dem Vergleich der verweisenden Domains liegt diese Gruppe in Reichweite.",
+          "measure": {
+            "sales": "Prüfe nach der Änderung die Klicks aus kaufbezogenen Suchen und wie oft Besucher die gewünschte Aktion auf der Seite ausführen.",
+            "traffic": "Prüfe nach der Änderung die Klicks aus den Informationssuchen dieser Gruppe."
+          },
+          "demand": "Geschätzte monatliche Suchen der gemessenen Keyword-Gruppen",
+          "intents": {
+            "buyer": "Suchen mit Kaufabsicht",
+            "informational": "Informationssuchen",
+            "other": "Sonstige Suchen"
+          },
+          "unmeasured": "Nicht gemessen",
+          "atLeast": "Mindestens {count, number}",
+          "estimate": "{count, number}",
+          "missing": "{count, plural, one {# Gruppe ohne Schätzung} other {# Gruppen ohne Schätzung}}"
+        },
         "verdict": {
           "keep": "Behalte diese Keywords",
           "outOfReach": "Die meisten Suchen dieser Keywords sind für die Website außer Reichweite",
@@ -12770,7 +12877,7 @@
         "reachHelp": {
           "ranks": "Eine Gruppe rankt, wenn eine Seite der Website in den Ergebnissen oder im Featured Snippet steht.",
           "inReach": "Eine Gruppe ist in Reichweite, wenn die verweisenden Domains der Website nah an denen der schwächsten Top-10-Seite liegen, die das Audit zählen konnte.",
-          "open": "Ein Forum in den Suchergebnissen ist ein Zeichen, dass die Ergebnisse für neue Seiten offen sind."
+          "open": "Lies die Diskussion, um die Fragen der Nutzer zu sehen. Für die Rankingchancen sind eigene Belege nötig."
         },
         "trend": {
           "falling": "Suchen fallen",

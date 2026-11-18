@@ -37,6 +37,7 @@ import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
 import { useSeoAutopilot } from "./use-seo-autopilot";
+import { useSeoBrief } from "./use-seo-brief";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 
 /** The form of a day in the period filter, as Core reads it. */
@@ -79,6 +80,7 @@ const parseAsSeoTab = createParser<SeoTab>({
 });
 
 export type SeoDialog =
+  | "brief"
   | "page"
   | "scope"
   | "edit_scope"
@@ -330,6 +332,16 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       const response = await mutateSeo({
         owner,
         command,
+        ...(command.kind === "request_analysis" &&
+        command.body.sharedBrief &&
+        session?.user.id
+          ? {
+              briefViewer: {
+                userId: session.user.id,
+                organizationId: session.session.activeOrganizationId ?? null,
+              },
+            }
+          : {}),
       });
       if (!response.ok) {
         toast.error(
@@ -340,7 +352,11 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
               : t("saveFailed"),
         );
         // A conflict means this view is stale: read the current revision so the next try can land.
-        if (response.error.status === 409) await refetchForViewer();
+        if (response.error.status === 409) {
+          if (command.kind === "request_analysis" && command.body.sharedBrief)
+            await brief.reload();
+          await refetchForViewer();
+        }
         return false;
       }
       if (
@@ -356,6 +372,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
           )
             operationKeys.current.delete(key);
       }
+      if (
+        command.kind === "record_page_change" ||
+        command.kind === "sync_statistics" ||
+        command.kind === "import_audit"
+      )
+        await brief.invalidate();
       toast.success(success);
       setDialog(null);
       await refetchForViewer();
@@ -442,8 +464,18 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  const brief = useSeoBrief(
+    owner,
+    session?.user.id,
+    session?.session.activeOrganizationId ?? null,
+    dialog === "brief" ||
+      dialog === "analysis" ||
+      filters.tab === "actions" ||
+      (filters.tab === "agent" && data.actions.length > 0),
+  );
   const statisticsSync = useSeoAutopilot({
     data,
+    refreshBrief: brief.invalidate,
     viewerKey: identity,
     enabled:
       Boolean(session?.user.id) &&
@@ -456,6 +488,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   });
   return {
     data,
+    brief,
     statisticsSync,
     setup,
     waitingForGoogle,
