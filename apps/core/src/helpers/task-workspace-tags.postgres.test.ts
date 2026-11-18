@@ -2,9 +2,14 @@ import { randomUUID } from "node:crypto";
 import { type FileLabelKind, type Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
+import type { AuthenticationContext } from "@/middleware/auth";
+import { taskTagSuggestionsForViewer } from "@/types/task";
 
 import { MAX_TASK_TAGS, mapTaskTags, TASK_TAG_IDS } from "./task-tags";
-import { setTaskWorkspaceTags } from "./task-workspace-tags";
+import {
+  applyJevWorkspaceTags,
+  setTaskWorkspaceTags,
+} from "./task-workspace-tags";
 
 const databaseUrl = process.env.DATABASE_URL;
 const db =
@@ -106,9 +111,141 @@ describe.skipIf(!db)("Task tags against PostgreSQL", () => {
       );
       await setTaskWorkspaceTags(tx, taskId, workspaceId, []);
       expect(await ids()).toEqual([]);
+      expect(
+        await tx.taskWorkspaceTagDecision.count({ where: { taskId } }),
+      ).toBe(0);
+      await expect(
+        setTaskWorkspaceTags(tx, taskId, workspaceId, undefined, [current.id]),
+      ).rejects.toMatchObject({ status: 422 });
       await expect(
         setTaskWorkspaceTags(tx, taskId, workspaceId, [retired.id]),
       ).rejects.toMatchObject({ status: 422 });
+    });
+  });
+
+  it("keeps suggestions out of filtered results and respects acceptance, dismissals and edited content", async () => {
+    await withTask(async (tx, taskId, workspaceId) => {
+      const label = (displayName: string) =>
+        tx.workspaceLabel.create({
+          data: {
+            workspaceId,
+            kind: "TAG",
+            displayName,
+            normalizedName: displayName.toLowerCase(),
+            color: "teal",
+          },
+        });
+      const strong = { ...(await label("Treasury")), autoApply: true };
+      const moderate = { ...(await label("Settlement")), autoApply: false };
+      const obsolete = { ...(await label("Clearing")), autoApply: true };
+      await tx.workspaceLabel.update({
+        where: { id: obsolete.id },
+        data: { vocabularyVersion: { increment: 1 } },
+      });
+      const evaluate = () =>
+        applyJevWorkspaceTags(tx, taskId, workspaceId, [
+          strong,
+          moderate,
+          obsolete,
+        ]);
+      const applied = (labelId: string) =>
+        tx.taskWorkspaceTag.findUnique({
+          where: { taskId_labelId: { taskId, labelId } },
+          select: { state: true },
+        });
+      const decision = (labelId: string) =>
+        tx.taskWorkspaceTagDecision.findUnique({
+          where: { taskId_labelId: { taskId, labelId } },
+          select: { state: true },
+        });
+      await evaluate();
+      expect(await applied(strong.id)).toEqual({ state: "JEV_ADDED" });
+      expect(await decision(moderate.id)).toEqual({ state: "JEV_SUGGESTED" });
+      const task = await tx.task.findUniqueOrThrow({
+        where: { id: taskId },
+        select: { ownerId: true },
+      });
+      const owner = {
+        actor: "user",
+        userId: task.ownerId!,
+        organizationId: null,
+        role: "user",
+      } as const;
+      const offers = async (
+        viewer: AuthenticationContext,
+        activeId: string | null,
+      ) => {
+        const result = await tx.task.findUniqueOrThrow({
+          where: { id: taskId },
+          include: taskTagSuggestionsForViewer(viewer, activeId),
+        });
+        return result.workspaceTagDecisions.map(({ label }) => label.id);
+      };
+      expect(await offers(owner, workspaceId)).toEqual([moderate.id]);
+      expect(
+        await offers({ ...owner, userId: "unrelated" }, workspaceId),
+      ).toEqual([]);
+      expect(await offers(owner, randomUUID())).toEqual([]);
+      expect(
+        await offers(
+          { actor: "coworker", coworkerId: "assigned", vendorId: randomUUID() },
+          null,
+        ),
+      ).toEqual([]);
+      expect(
+        await offers(
+          {
+            actor: "coworker",
+            coworkerId: "assigned",
+            vendorId: randomUUID(),
+            context: { userId: owner.userId, organizationId: null },
+          },
+          workspaceId,
+        ),
+      ).toEqual([]);
+
+      expect(
+        await tx.task.count({
+          where: {
+            id: taskId,
+            workspaceTags: { some: { labelId: moderate.id } },
+          },
+        }),
+      ).toBe(0);
+      expect(await applied(obsolete.id)).toBeNull();
+
+      await setTaskWorkspaceTags(
+        tx,
+        taskId,
+        workspaceId,
+        [moderate.id],
+        [],
+        true,
+      );
+      await tx.task.update({
+        where: { id: taskId },
+        data: { name: "Revised brief" },
+      });
+      await evaluate();
+      expect(await applied(strong.id)).toBeNull();
+      expect(await decision(strong.id)).toEqual({ state: "JEV_DISMISSED" });
+      expect(await applied(moderate.id)).toEqual({ state: "MANUAL" });
+      expect(await decision(moderate.id)).toBeNull();
+
+      await setTaskWorkspaceTags(
+        tx,
+        taskId,
+        workspaceId,
+        undefined,
+        [moderate.id],
+        true,
+      );
+      await evaluate();
+      expect(await decision(moderate.id)).toEqual({ state: "JEV_DISMISSED" });
+      expect(await applied(moderate.id)).toBeNull();
+      await setTaskWorkspaceTags(tx, taskId, workspaceId, [strong.id]);
+      expect(await decision(strong.id)).toBeNull();
+      expect(await applied(strong.id)).toEqual({ state: "MANUAL" });
     });
   });
 

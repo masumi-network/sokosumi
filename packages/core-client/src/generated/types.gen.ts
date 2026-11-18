@@ -1903,6 +1903,13 @@ export type Task = {
     workspaceTags?: Array<{
         id: string;
         displayName: string;
+        color?: TagColor;
+        source?: 'manual' | 'jev';
+    }>;
+    workspaceTagSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
     }>;
     /**
      * Sequence number within the project. Null when the task has no project.
@@ -2069,6 +2076,21 @@ export const TaskTagId = {
 } as const;
 
 export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
+
+export const TagColor = {
+    GRAY: 'gray',
+    RED: 'red',
+    ORANGE: 'orange',
+    YELLOW: 'yellow',
+    GREEN: 'green',
+    TEAL: 'teal',
+    BLUE: 'blue',
+    PURPLE: 'purple',
+    PINK: 'pink',
+    NULL: null
+} as const;
+
+export type TagColor = typeof TagColor[keyof typeof TagColor];
 
 /**
  * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
@@ -5214,6 +5236,8 @@ export type DeleteDriveFileRequest = {
 };
 
 export type WorkspaceLabel = {
+    taskTopicId?: TaskTagId;
+    color?: TagColor;
     id: string;
     kind: 'TAG' | 'CATEGORY';
     displayName: string;
@@ -14251,6 +14275,13 @@ export type TaskListItem = {
     workspaceTags?: Array<{
         id: string;
         displayName: string;
+        color?: TagColor;
+        source?: 'manual' | 'jev';
+    }>;
+    workspaceTagSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
     }>;
     /**
      * Sequence number within the project. Null when the task has no project.
@@ -14331,6 +14362,12 @@ export type TaskActivitySummary = {
 
 export type TaskTagSuggestion = {
     tags: Array<TaskTagId>;
+    workspaceSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        autoApply: boolean;
+    }>;
     receipt: string;
 };
 
@@ -43703,6 +43740,7 @@ export type GetDriveLabelsResponse = GetDriveLabelsResponses[keyof GetDriveLabel
 
 export type PostDriveLabelsData = {
     body: {
+        color?: TagColor;
         kind: 'TAG' | 'CATEGORY';
         displayName: string;
         description?: string | null;
@@ -43829,6 +43867,7 @@ export type PostDriveLabelsResponse = PostDriveLabelsResponses[keyof PostDriveLa
 
 export type PatchDriveLabelsByIdData = {
     body: {
+        color?: TagColor;
         displayName?: string;
         description?: string | null;
         archived?: boolean;
@@ -94759,6 +94798,10 @@ export type PostTasksData = {
          * Workspace tag IDs to assign. An empty array clears all workspace tags.
          */
         workspaceTagIds?: Array<string>;
+        /**
+         * Workspace tags that Jev should stop suggesting or adding to this Task.
+         */
+        dismissedWorkspaceTagIds?: Array<string>;
         tagSuggestionReceipt?: string;
         /**
          * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
@@ -97618,6 +97661,14 @@ export type PatchTasksByIdData = {
          * Workspace tag IDs to assign. An empty array clears all workspace tags.
          */
         workspaceTagIds?: Array<string>;
+        /**
+         * When replacing workspaceTagIds, return 409 if the currently applied workspace tags differ from this set.
+         */
+        expectedWorkspaceTagIds?: Array<string>;
+        /**
+         * Workspace tags that Jev should stop suggesting or adding to this Task.
+         */
+        dismissedWorkspaceTagIds?: Array<string>;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */

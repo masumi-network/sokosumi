@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   issueTaskTagReceipt,
+  readCachedTaskTagEvaluation,
   readCachedTaskTagSuggestions,
   suggestTaskTags,
+  verifyTaskTagEvaluationReceipt,
   verifyTaskTagReceipt,
 } from "./task-tag-suggestions.service";
 
@@ -13,9 +15,15 @@ const mocks = vi.hoisted(() => ({
   redis: vi.fn(),
   classify: vi.fn(),
   available: vi.fn(),
+  catalog: vi.fn(),
+}));
+vi.mock("@/helpers/task-tag-catalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/task-tag-catalog")>()),
+  loadTaskTagCatalog: mocks.catalog,
 }));
 vi.mock("@/lib/redis", () => ({ getRedisClient: mocks.redis }));
-vi.mock("@/clients/task-tag-classifier", () => ({
+vi.mock("@/clients/task-tag-classifier", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/task-tag-classifier")>()),
   classifyTaskTags: mocks.classify,
   taskTagProviderAvailable: mocks.available,
   JEV_TASK_TAG_MODEL: "typesafe-ai/jev",
@@ -35,8 +43,13 @@ beforeEach(() => {
   mocks.get.mockResolvedValue(null);
   mocks.set.mockResolvedValue("OK");
   mocks.eval.mockResolvedValue(0);
+  mocks.catalog.mockResolvedValue([]);
   mocks.available.mockResolvedValue(true);
-  mocks.classify.mockResolvedValue({ ok: true, tags: ["research"] });
+  mocks.classify.mockResolvedValue({
+    ok: true,
+    tags: ["research"],
+    workspaceSuggestions: [],
+  });
 });
 describe("signed task tag receipts", () => {
   it("binds input, owner, workspace and accepts an empty complete result", () => {
@@ -86,6 +99,27 @@ describe("suggestion spend protection", () => {
     mocks.get.mockResolvedValue(receipt);
     expect(await suggestTaskTags(scope, input)).toEqual({ tags: [], receipt });
     expect(mocks.eval).not.toHaveBeenCalled();
+    expect(mocks.classify).not.toHaveBeenCalled();
+  });
+  it("charges the shared user limits for every planned batch across workspaces", async () => {
+    const labels = Array.from({ length: 65 }, (_, i) => ({
+      id: `019a1000-aaaa-7000-8000-${String(i).padStart(12, "0")}`,
+      displayName: `Tag ${i}`,
+      description: null,
+      color: null,
+      vocabularyVersion: 1,
+    }));
+    mocks.catalog.mockResolvedValue(labels);
+    mocks.eval.mockResolvedValue(9);
+    for (const workspaceId of ["first", "second"])
+      await expect(
+        suggestTaskTags({ ...scope, workspaceId }, input),
+      ).rejects.toMatchObject({ status: 429 });
+    const first = mocks.eval.mock.calls[0]!;
+    const second = mocks.eval.mock.calls[1]!;
+    expect(first.at(-2)).toBe(3); // 65 workspace tags and 17 built-in topics.
+    expect(first.slice(3, 6)).toEqual(second.slice(3, 6)); // cooldown, minute and hour per user.
+    expect(first[6]).not.toBe(second[6]); // workspace budget.
     expect(mocks.classify).not.toHaveBeenCalled();
   });
   it("returns retry timing when atomic admission denies budget or concurrent content", async () => {
@@ -193,5 +227,87 @@ describe("create-time cached suggestions", () => {
     await vi.advanceTimersByTimeAsync(250);
     expect(await pending).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+describe("workspace suggestion receipts", () => {
+  const label = {
+    id: "019a1000-aaaa-7000-8000-000000000001",
+    displayName: "Localization",
+    description: "Language services",
+    color: "teal" as const,
+    vocabularyVersion: 4,
+  };
+  const candidate = {
+    id: label.id,
+    displayName: label.displayName,
+    color: label.color,
+    autoApply: false,
+  };
+  it("signs the offered state and restores the version from the current authorized vocabulary", async () => {
+    mocks.catalog.mockResolvedValue([label]);
+    mocks.classify.mockResolvedValue({
+      ok: true,
+      tags: ["research"],
+      workspaceSuggestions: [{ ...candidate, vocabularyVersion: 4 }],
+    });
+    const { receipt, workspaceSuggestions } = await suggestTaskTags(
+      scope,
+      input,
+    );
+    expect(workspaceSuggestions).toEqual([candidate]);
+    expect(mocks.catalog).toHaveBeenCalledWith(scope.workspaceId);
+    expect(mocks.classify).toHaveBeenCalledWith(
+      input.name,
+      input.description,
+      expect.any(AbortSignal),
+      [label],
+    );
+    const expected = {
+      tags: ["research"],
+      workspaceSuggestions: [{ ...candidate, vocabularyVersion: 4 }],
+    };
+    expect(
+      verifyTaskTagEvaluationReceipt(receipt, scope, input, [label]),
+    ).toEqual(expected);
+    const [encoded, mac] = receipt.split(".");
+    const payload = JSON.parse(Buffer.from(encoded!, "base64url").toString());
+    payload.workspaceTags[0][1] = true;
+    const forged =
+      Buffer.from(JSON.stringify(payload)).toString("base64url") + "." + mac;
+    expect(
+      verifyTaskTagEvaluationReceipt(forged, scope, input, [label]),
+    ).toBeNull();
+    expect(
+      verifyTaskTagEvaluationReceipt(
+        receipt,
+        { ...scope, workspaceId: "other" },
+        input,
+        [label],
+      ),
+    ).toBeNull();
+    mocks.get.mockResolvedValue(receipt);
+    expect(await readCachedTaskTagEvaluation(scope, input, [label])).toEqual(
+      expected,
+    );
+    const validKey = mocks.get.mock.lastCall?.[0];
+    const recolored = [{ ...label, color: "pink" as const }];
+    expect(
+      await readCachedTaskTagEvaluation(scope, input, recolored),
+    ).toMatchObject({ workspaceSuggestions: [{ color: "pink" }] });
+    expect(mocks.get.mock.lastCall?.[0]).toBe(validKey);
+    for (const changed of [
+      [],
+      [{ ...label, vocabularyVersion: 5 }],
+      [{ ...label, displayName: "Renamed" }],
+      [label, { ...label, id: "019a1000-aaaa-7000-8000-000000000002" }],
+    ]) {
+      expect(
+        await readCachedTaskTagEvaluation(scope, input, changed),
+      ).toBeNull();
+      expect(mocks.get.mock.lastCall?.[0]).not.toBe(validKey);
+    }
+    mocks.get.mockResolvedValue(forged);
+    expect(await readCachedTaskTagEvaluation(scope, input, [label])).toBeNull();
   });
 });

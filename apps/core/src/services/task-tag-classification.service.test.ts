@@ -5,6 +5,13 @@ import {
   classifyPendingTaskTags,
 } from "./task-tag-classification.service";
 
+const publishTaskEventMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: publishTaskEventMock,
+}));
+const transactionMock = vi.hoisted(() => vi.fn());
+const findFirstMock = vi.hoisted(() => vi.fn());
+const loadCatalogMock = vi.hoisted(() => vi.fn());
 const {
   availableMock,
   classifyMock,
@@ -29,7 +36,10 @@ vi.mock("@/clients/task-tag-classifier", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
+    workspaceLabel: { findMany: loadCatalogMock },
     task: {
+      findFirst: findFirstMock,
       findMany: findManyMock,
       updateMany: updateManyMock,
       count: countMock,
@@ -42,6 +52,7 @@ vi.mock("@/lib/evlog", () => ({
 const task = {
   id: "task-1",
   workspaceId: "workspace-1",
+  ownerId: "owner-1",
   name: "Private task",
   description: "Private description",
   tagContentRevision: 4,
@@ -65,11 +76,14 @@ afterEach(() => {
 beforeEach(() => {
   vi.resetAllMocks();
   availableMock.mockResolvedValue(true);
+  loadCatalogMock.mockResolvedValue([]);
+  findFirstMock.mockResolvedValue(null);
   findManyMock.mockResolvedValue([]).mockResolvedValueOnce([task]);
   countMock.mockResolvedValue(0);
   updateManyMock.mockResolvedValue({ count: 1 });
   classifyMock.mockResolvedValue({
     ok: true,
+    workspaceSuggestions: [],
     tags: ["research"],
     usage: { inputTokens: 12, outputTokens: 8 },
     costUsd: "0.00012",
@@ -94,6 +108,7 @@ describe("classifyPendingTaskTags", () => {
     expect(findManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
+          status: { not: "GRANT_PENDING" },
           archivedAt: null,
           tagClassificationState: { in: ["pending", "running"] },
           tagClassificationAvailableAt: { lte: expect.any(Date) },
@@ -109,6 +124,7 @@ describe("classifyPendingTaskTags", () => {
         select: {
           id: true,
           workspaceId: true,
+          ownerId: true,
           name: true,
           description: true,
           tagContentRevision: true,
@@ -122,7 +138,9 @@ describe("classifyPendingTaskTags", () => {
     const claim = updateManyMock.mock.calls[0]![0];
     expect(claim).toMatchObject({
       where: {
+        status: { not: "GRANT_PENDING" },
         id: task.id,
+        updatedAt: task.updatedAt,
         workspaceId: task.workspaceId,
         archivedAt: null,
         tagContentRevision: 4,
@@ -141,7 +159,9 @@ describe("classifyPendingTaskTags", () => {
     });
     expect(updateManyMock.mock.calls[1]![0]).toEqual({
       where: {
+        status: { not: "GRANT_PENDING" },
         id: task.id,
+        updatedAt: task.updatedAt,
         workspaceId: task.workspaceId,
         archivedAt: null,
         tagContentRevision: 4,
@@ -159,6 +179,7 @@ describe("classifyPendingTaskTags", () => {
       task.name,
       task.description,
       context.abortSignal,
+      [],
     );
     expect(logSetMock).toHaveBeenCalledWith({
       usage: { inputTokens: 12, outputTokens: 8 },
@@ -176,6 +197,79 @@ describe("classifyPendingTaskTags", () => {
     expect(classifyMock).not.toHaveBeenCalled();
     expect(updateManyMock).toHaveBeenCalledTimes(1);
   });
+  it("keeps a newer human edit timestamp when it completes the same revision", async () => {
+    const manualEdit = new Date(task.updatedAt.getTime() + 5000);
+    updateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+    findFirstMock.mockResolvedValueOnce({ updatedAt: manualEdit });
+    await classifyPendingTaskTags(context);
+    expect(updateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          updatedAt: manualEdit,
+          tagContentRevision: task.tagContentRevision,
+        }),
+        data: expect.objectContaining({
+          updatedAt: manualEdit,
+          tagClassificationState: "complete",
+        }),
+      }),
+    );
+  });
+
+  it.each([true, false])(
+    "publishes only newly persisted suggestions, even if notification delivery fails (%s)",
+    async (eligible) => {
+      const candidate = {
+        id: "01960001-0001-7001-8001-000000000043",
+        displayName: "Treasury",
+        vocabularyVersion: 1,
+        color: null,
+        description: null,
+      };
+      loadCatalogMock.mockResolvedValueOnce([candidate]);
+      classifyMock.mockResolvedValueOnce({
+        ok: true,
+        tags: [],
+        workspaceSuggestions: [{ ...candidate, autoApply: false }],
+      });
+      publishTaskEventMock.mockRejectedValueOnce(
+        new Error("notification unavailable"),
+      );
+      transactionMock.mockImplementationOnce(async (fn) =>
+        fn({
+          task: { updateMany: updateManyMock, findFirst: findFirstMock },
+          $queryRaw: async () => (eligible ? [candidate] : []),
+          taskWorkspaceTagDecision: { createMany: async () => ({ count: 1 }) },
+        }),
+      );
+      await classifyPendingTaskTags(context);
+      expect(classifyMock).toHaveBeenCalledExactlyOnceWith(
+        task.name,
+        task.description,
+        context.abortSignal,
+        [expect.objectContaining(candidate)],
+      );
+      expect(logSetMock).toHaveBeenCalledWith(
+        expect.objectContaining({ completed: 1, failed: 0 }),
+      );
+      if (eligible) {
+        expect(publishTaskEventMock).toHaveBeenCalledExactlyOnceWith({
+          userId: task.ownerId,
+          taskId: task.id,
+          eventType: "task_event",
+        });
+        expect(logSetMock).toHaveBeenCalledWith({
+          tagNotification: "publish_failed",
+        });
+      } else {
+        expect(publishTaskEventMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("discards a successful result when content revision or lease has changed", async () => {
     updateManyMock
       .mockResolvedValueOnce({ count: 1 })
@@ -204,7 +298,9 @@ describe("classifyPendingTaskTags", () => {
       await classifyPendingTaskTags(context);
       expect(updateManyMock.mock.calls[1]![0]).toEqual({
         where: {
+          status: { not: "GRANT_PENDING" },
           id: task.id,
+          updatedAt: task.updatedAt,
           workspaceId: task.workspaceId,
           archivedAt: null,
           tagContentRevision: 4,
@@ -259,7 +355,9 @@ describe("classifyPendingTaskTags", () => {
     });
     expect(updateManyMock).toHaveBeenCalledExactlyOnceWith({
       where: {
+        status: { not: "GRANT_PENDING" },
         id: task.id,
+        updatedAt: task.updatedAt,
         workspaceId: task.workspaceId,
         archivedAt: null,
         tagContentRevision: 4,
@@ -471,6 +569,7 @@ describe("historical tag backfill", () => {
     await classifyPendingTaskTags(context);
     expect(findManyMock.mock.calls[1]![0]).toEqual({
       where: {
+        status: { not: "GRANT_PENDING" },
         archivedAt: null,
         tagClassificationState: "unclassified",
         tagClassificationAttempts: { lt: 2 },
@@ -481,6 +580,7 @@ describe("historical tag backfill", () => {
       select: {
         id: true,
         workspaceId: true,
+        ownerId: true,
         name: true,
         description: true,
         tagContentRevision: true,
@@ -511,6 +611,28 @@ describe("historical tag backfill", () => {
         usage: { inputTokens: 24, outputTokens: 16 },
         costUsd: 0.00024,
       }),
+    );
+  });
+
+  it("keeps a reclaimed historical evaluation out of the workspace catalog", async () => {
+    findManyMock
+      .mockReset()
+      .mockResolvedValueOnce([
+        {
+          ...historical,
+          tagClassificationState: "running",
+          tagClassificationAttempts: 1,
+          tagClassificationLease: "historical:expired",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    await classifyPendingTaskTags(context);
+    expect(loadCatalogMock).not.toHaveBeenCalled();
+    expect(classifyMock).toHaveBeenCalledExactlyOnceWith(
+      task.name,
+      task.description,
+      context.abortSignal,
+      [],
     );
   });
 
@@ -581,6 +703,7 @@ describe("historical tag backfill", () => {
       msRemaining -= 20_000;
       return Promise.resolve({
         ok: true,
+        workspaceSuggestions: [],
         tags: [],
         usage: { inputTokens: 1, outputTokens: 1 },
         costUsd: "0",
@@ -626,6 +749,7 @@ describe("historical tag backfill", () => {
       vi.advanceTimersByTime(30_000);
       return Promise.resolve({
         ok: true,
+        workspaceSuggestions: [],
         tags: [],
         usage: { inputTokens: 1, outputTokens: 1 },
         costUsd: "0",
@@ -660,6 +784,7 @@ describe("historical tag backfill", () => {
       vi.advanceTimersByTime(12_000);
       return Promise.resolve({
         ok: true,
+        workspaceSuggestions: [],
         tags: [],
         usage: { inputTokens: 1, outputTokens: 1 },
         costUsd: "0",
@@ -715,6 +840,7 @@ describe("historical tag backfill", () => {
       );
     classifyMock.mockResolvedValue({
       ok: true,
+      workspaceSuggestions: [],
       tags: [],
       usage: { inputTokens: 1, outputTokens: 1 },
       costUsd: "0.03",
@@ -768,6 +894,7 @@ describe("historical tag backfill", () => {
     });
     classifyMock.mockResolvedValue({
       ok: true,
+      workspaceSuggestions: [],
       tags: [],
       usage: { inputTokens: 1, outputTokens: 1 },
       costUsd: "0",
@@ -819,6 +946,23 @@ describe("historical tag backfill", () => {
     }
     expect(classifyMock).toHaveBeenCalledTimes(1);
   });
+  it("counts known costs and retains the missing-cost count for partially billed batches", async () => {
+    classifyMock.mockResolvedValueOnce({
+      ok: true,
+      tags: [],
+      workspaceSuggestions: [],
+      usage: { inputTokens: 1, outputTokens: 1 },
+      costUsd: "0.02",
+      costIncomplete: true,
+    });
+    await classifyPendingTaskTags(context);
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ costIncomplete: true, costUsd: "0.02" }),
+    );
+    expect(logSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ unreportedCost: 1, costUsd: 0.02 }),
+    );
+  });
   it("reports missing provider billing without pretending failed attempts were free", async () => {
     findManyMock
       .mockReset()
@@ -835,7 +979,7 @@ describe("historical tag backfill", () => {
       }),
     );
     expect(updateManyMock.mock.calls[1]![0].data).toMatchObject({
-      tagClassificationState: "pending",
+      tagClassificationState: "unclassified",
     });
     expect(updateManyMock.mock.calls[1]![0].data).not.toHaveProperty(
       "manualTags",
@@ -873,6 +1017,7 @@ describe("historical tag backfill", () => {
   it("does not widen historical eligibility to completed, failed, archived or exhausted rows", async () => {
     await classifyPendingTaskTags(context);
     expect(findManyMock.mock.calls[1]![0].where).toEqual({
+      status: { not: "GRANT_PENDING" },
       archivedAt: null,
       tagClassificationState: "unclassified",
       tagClassificationAttempts: { lt: 2 },

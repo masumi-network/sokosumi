@@ -24,6 +24,7 @@ import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { projectSummarySchema } from "@/schemas/project.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
+import { tagColorSchema } from "@/schemas/tag-color.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -223,6 +224,20 @@ const taskAssigneeSchema = z
   ])
   .openapi("TaskAssignee");
 
+const workspaceTaskTag = z.object({
+  id: z.uuid(),
+  displayName: z.string(),
+  color: tagColorSchema.nullish(),
+});
+
+export const dismissedWorkspaceTagIdsSchema = z
+  .array(z.uuid())
+  .optional()
+  .openapi({
+    description:
+      "Workspace tags that Jev should stop suggesting or adding to this Task.",
+  });
+
 export const taskWorkspaceTagIdsSchema = z.array(z.uuid()).optional().openapi({
   description:
     "Workspace tag IDs to assign. An empty array clears all workspace tags.",
@@ -306,8 +321,11 @@ const taskBaseSchema = z.object({
   }),
   tags: taskTagsSchema.optional(),
   workspaceTags: z
-    .array(z.object({ id: z.uuid(), displayName: z.string() }))
+    .array(
+      workspaceTaskTag.extend({ source: z.enum(["manual", "jev"]).optional() }),
+    )
     .optional(),
+  workspaceTagSuggestions: z.array(workspaceTaskTag).optional(),
   number: z.number().int().positive().nullable().openapi({
     example: 123,
     description:

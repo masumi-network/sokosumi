@@ -7,11 +7,21 @@ import {
   taskTagProviderAvailable,
 } from "@/clients/task-tag-classifier";
 import { getEnv } from "@/config/env";
+import {
+  loadTaskTagCatalog,
+  type TaskTagEvaluation,
+} from "@/helpers/task-tag-catalog";
 import { TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
+import { applyJevWorkspaceTags } from "@/helpers/task-workspace-tags";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, tryUseLogger } from "@/lib/evlog";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
+import {
+  readCachedTaskTagEvaluation,
+  verifyTaskTagEvaluationReceipt,
+} from "@/services/task-tag-suggestions.service";
 
 // Creates, edits and retries are interactive work and always go first. A burst of
 // them is still bounded, because every claim is one serial provider call.
@@ -21,6 +31,8 @@ const QUEUED_BATCH_SIZE = 50;
 // per task end to end, so 200 is roughly 62-87s of the ~260s usable budget below.
 const HISTORICAL_BATCH_SIZE = 200;
 const MAX_ATTEMPTS = 2;
+// Keep a recovered historical lease in the default-topic backfill.
+const HISTORICAL_LEASE_PREFIX = "historical:";
 const LEASE_MS = 60_000;
 // One evaluation can take the classifier's full 12s request timeout plus its writes.
 const DEADLINE_RESERVE_MS = 15_000;
@@ -33,19 +45,18 @@ const DEADLINE_RESERVE_MS = 15_000;
 // so a tick stops claiming new work here and leaves a wide margin instead. The sync
 // deadline above stays the outer bound.
 const TICK_BUDGET_MS = 120_000;
-// Reported-cost ceiling for one tick. A full 250-row tick costs about $0.01 at the
-// measured ~$0.0000373 per task, and the per-task input is capped at 300 title plus
-// 8,000 description characters, so even an all-maximum-length tick is around $0.03.
-// It covers queued rows too: exempting them would leave 50 rows with no cost bound
-// at all, and at ~9x the worst legitimate spend it cannot defer them in practice.
-// Selection caps, not cost, remain the primary bound, so a provider that returns no
-// billing metadata cannot make a tick unbounded either.
+// Check reported spend between Tasks. A 250-row built-in-only tick cost about
+// $0.01 at the measured ~$0.0000373 per Task. Workspace vocabulary can require
+// multiple requests per Task. Finish all its batches so the last evaluation can
+// exceed the threshold by one Task's cost. Queued rows share this budget.
+// Selection and time caps still bound ticks when the provider omits billing.
 const MAX_TICK_COST_USD = 0.05;
 // Only the columns this worker reads. A 250-row batch must not pull whole task
 // rows, whose descriptions have no length cap in the database.
 const TASK_FIELDS = {
   id: true,
   workspaceId: true,
+  ownerId: true,
   name: true,
   description: true,
   tagContentRevision: true,
@@ -60,6 +71,67 @@ const TASK_FIELDS = {
 // and still short enough that a stalled Gateway costs the caller almost nothing.
 const INLINE_TIMEOUT_MS = 2_500;
 
+interface InlineTagInput {
+  name: string;
+  description?: string | null;
+  workspaceId: string;
+  composer?: { userId: string; name?: string; receipt?: string };
+}
+
+async function evaluateInline(
+  input: InlineTagInput,
+  enabled: boolean,
+  signal: AbortSignal,
+): Promise<TaskTagEvaluation | null> {
+  const catalog = await loadTaskTagCatalog(input.workspaceId);
+  signal.throwIfAborted();
+  if (input.composer) {
+    const scope = {
+      workspaceId: input.workspaceId,
+      userId: input.composer.userId,
+    };
+    const authored = {
+      name: input.composer.name,
+      description: input.description,
+    };
+    const cached =
+      verifyTaskTagEvaluationReceipt(
+        input.composer.receipt,
+        scope,
+        authored,
+        catalog,
+      ) ?? (await readCachedTaskTagEvaluation(scope, authored, catalog));
+    if (cached) return cached;
+  }
+  if (!enabled) return null;
+  signal.throwIfAborted();
+  const result = await classifyTaskTags(
+    input.name,
+    input.description ?? null,
+    signal,
+    catalog,
+  );
+  // Keep validated billing metadata even when the answers themselves failed.
+  tryUseLogger()?.set({
+    taskTagInlineClassification: {
+      model: JEV_TASK_TAG_MODEL,
+      outcome: result.ok ? "complete" : "failed",
+      ...(result.ok ? {} : { reason: result.reason }),
+      ...("usage" in result
+        ? {
+            usage: result.usage,
+            costUsd: result.costUsd,
+            generationId: result.generationId,
+            ...("costIncomplete" in result && { costIncomplete: true }),
+          }
+        : {}),
+    },
+  });
+  return result.ok
+    ? { tags: result.tags, workspaceSuggestions: result.workspaceSuggestions }
+    : null;
+}
+
 /**
  * Best-effort classification on the create path, for every actor.
  *
@@ -70,35 +142,20 @@ const INLINE_TIMEOUT_MS = 2_500;
  * later tick. This moves the provider call the cron would have made anyway; it does
  * not add one.
  */
-export async function classifyTaskTagsInline(input: {
-  name: string;
-  description?: string | null;
-}): Promise<string[] | null> {
+export async function classifyTaskTagsInline(
+  input: InlineTagInput,
+): Promise<TaskTagEvaluation | null> {
   // A local flag check, not the catalog probe: one fewer round trip per create.
-  if (!getEnv().TASK_TAG_CLASSIFICATION_ENABLED || !aiGatewayApiKey())
-    return null;
+  const enabled = Boolean(
+    getEnv().TASK_TAG_CLASSIFICATION_ENABLED && aiGatewayApiKey(),
+  );
+  if (!enabled && !input.composer?.receipt) return null;
   try {
     const signal = AbortSignal.timeout(INLINE_TIMEOUT_MS);
-    const result = await pTimeout(
-      classifyTaskTags(input.name, input.description ?? null, signal),
-      { milliseconds: INLINE_TIMEOUT_MS, signal },
-    );
-    // Keep validated billing metadata even when the answers themselves failed.
-    tryUseLogger()?.set({
-      taskTagInlineClassification: {
-        model: JEV_TASK_TAG_MODEL,
-        outcome: result.ok ? "complete" : "failed",
-        ...(result.ok ? {} : { reason: result.reason }),
-        ...("usage" in result
-          ? {
-              usage: result.usage,
-              costUsd: result.costUsd,
-              generationId: result.generationId,
-            }
-          : {}),
-      },
+    return await pTimeout(evaluateInline(input, enabled, signal), {
+      milliseconds: INLINE_TIMEOUT_MS,
+      signal,
     });
-    return result.ok ? result.tags : null;
   } catch {
     // Never include provider bodies, task content, or credentials in a log line.
     tryUseLogger()?.set({
@@ -152,12 +209,39 @@ export async function classifyFixtureTaskTags(
   return runPendingTaskTags(context, fixtureScope);
 }
 
+/** Preserve a human edit made after the worker read the queued row. */
+async function updateClassification(
+  db: Prisma.TransactionClient,
+  update: {
+    where: Prisma.TaskWhereInput;
+    data: Prisma.TaskUpdateManyMutationInput & { updatedAt: Date };
+  },
+) {
+  const write = (updatedAt: Date) =>
+    db.task.updateMany({
+      where: { ...update.where, updatedAt },
+      data: { ...update.data, updatedAt },
+    });
+  const original = await write(update.data.updatedAt);
+  if (original.count) return original;
+  // A changed lease or revision still fails the original predicate.
+  const newer = await db.task.findFirst({
+    where: { ...update.where, updatedAt: { not: update.data.updatedAt } },
+    select: { updatedAt: true },
+  });
+  return newer ? write(newer.updatedAt) : original;
+}
+
 /** One serial bounded batch; content invalidation is durable even if a process exits. */
 async function runPendingTaskTags(
   context: SyncExecutionContext,
   scope: Prisma.TaskWhereInput,
 ) {
   const startedAt = Date.now();
+  const activeScope: Prisma.TaskWhereInput = {
+    status: { not: "GRANT_PENDING" },
+    ...scope,
+  };
   // Discovery contains no task content; each evaluation enforces privacy options.
   let available = false;
   try {
@@ -168,7 +252,7 @@ async function runPendingTaskTags(
   if (!available) return;
   const tasks = await prisma.task.findMany({
     where: {
-      ...scope,
+      ...activeScope,
       archivedAt: null,
       tagClassificationState: { in: ["pending", "running"] },
       tagClassificationAvailableAt: { lte: new Date() },
@@ -189,7 +273,7 @@ async function runPendingTaskTags(
   // ticks; no mass enqueue or migration is needed.
   const queued = tasks.length;
   const historicalWhere = {
-    ...scope,
+    ...activeScope,
     archivedAt: null,
     tagClassificationState: "unclassified",
     tagClassificationAttempts: { lt: MAX_ATTEMPTS },
@@ -224,7 +308,10 @@ async function runPendingTaskTags(
   let stopReason: "deadline" | "tick_budget" | "spend_ceiling" | undefined;
   for (const task of tasks) {
     const source =
-      task.tagClassificationState === "unclassified" ? "historical" : "queued";
+      task.tagClassificationState === "unclassified" ||
+      task.tagClassificationLease?.startsWith(HISTORICAL_LEASE_PREFIX)
+        ? "historical"
+        : "queued";
     if (
       !context.shouldContinue() ||
       context.msRemaining() < DEADLINE_RESERVE_MS
@@ -252,7 +339,7 @@ async function runPendingTaskTags(
     let outcome: "completed" | "failed" | "stale" = "failed";
     try {
       const claimWhere = {
-        ...scope,
+        ...activeScope,
         id: task.id,
         workspaceId: task.workspaceId,
         archivedAt: null,
@@ -264,7 +351,7 @@ async function runPendingTaskTags(
       };
       if (task.tagClassificationAttempts >= MAX_ATTEMPTS) {
         // An abandoned final attempt must terminate without sending content again.
-        const recovered = await prisma.task.updateMany({
+        const recovered = await updateClassification(prisma, {
           where: {
             ...claimWhere,
             tagClassificationState: "running",
@@ -283,8 +370,11 @@ async function runPendingTaskTags(
         });
         continue;
       }
-      const lease = randomUUID();
-      const claimed = await prisma.task.updateMany({
+      const lease =
+        source === "historical"
+          ? HISTORICAL_LEASE_PREFIX + randomUUID()
+          : randomUUID();
+      const claimed = await updateClassification(prisma, {
         where: claimWhere,
         data: {
           tagClassificationState: "running",
@@ -302,7 +392,7 @@ async function runPendingTaskTags(
         continue;
       }
       const where = {
-        ...scope,
+        ...activeScope,
         id: task.id,
         workspaceId: task.workspaceId,
         archivedAt: null,
@@ -313,10 +403,15 @@ async function runPendingTaskTags(
       try {
         progress.attempted++;
         progress.unreportedCost++;
+        const catalog =
+          source === "historical"
+            ? []
+            : await loadTaskTagCatalog(task.workspaceId);
         result = await classifyTaskTags(
           task.name,
           task.description,
           context.abortSignal,
+          catalog,
         );
       } catch {
         log.set({ outcome: "failed", reason: "provider_or_validation_error" });
@@ -327,17 +422,18 @@ async function runPendingTaskTags(
           progress.usage.inputTokens += result.usage.inputTokens;
           progress.usage.outputTokens += result.usage.outputTokens;
           if (result.costUsd !== null) {
-            progress.unreportedCost--;
+            if (!("costIncomplete" in result)) progress.unreportedCost--;
             progress.costUsd += Number(result.costUsd);
           }
           log.set({
             usage: result.usage,
             costUsd: result.costUsd,
             generationId: result.generationId,
+            ...("costIncomplete" in result && { costIncomplete: true }),
           });
         }
         if (result.ok) {
-          const applied = await prisma.task.updateMany({
+          const update = {
             where,
             data: {
               automaticTags: result.tags,
@@ -346,21 +442,49 @@ async function runPendingTaskTags(
               tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
               updatedAt: task.updatedAt,
             },
-          });
+          } satisfies Prisma.TaskUpdateManyArgs;
+          const suggestions = result.workspaceSuggestions;
+          let changedWorkspaceTags = 0;
+          const applied = suggestions.length
+            ? await prisma.$transaction(async (tx) => {
+                const changed = await updateClassification(tx, update);
+                if (changed.count)
+                  changedWorkspaceTags = await applyJevWorkspaceTags(
+                    tx,
+                    task.id,
+                    task.workspaceId,
+                    suggestions,
+                  );
+                return changed;
+              })
+            : await updateClassification(prisma, update);
           outcome = applied.count ? "completed" : "stale";
           log.set({ outcome: applied.count ? "complete" : "stale" });
+          if (changedWorkspaceTags && task.ownerId) {
+            try {
+              await publishTaskEventData({
+                userId: task.ownerId,
+                taskId: task.id,
+                eventType: "task_event",
+              });
+            } catch {
+              log.set({ tagNotification: "publish_failed" });
+            }
+          }
           continue;
         }
         log.set({ outcome: "failed", reason: result.reason });
       }
       // Compare-and-set also protects a newer content revision from an old failure.
-      const released = await prisma.task.updateMany({
+      const released = await updateClassification(prisma, {
         where,
         data: {
           tagClassificationState:
             task.tagClassificationAttempts + 1 >= MAX_ATTEMPTS
               ? "failed"
-              : "pending",
+              : source === "historical"
+                ? "unclassified"
+                : "pending",
           tagClassificationLease: null,
           tagClassificationAvailableAt: new Date(Date.now() + LEASE_MS),
           updatedAt: task.updatedAt,
