@@ -236,16 +236,15 @@ export function CreateState({
           className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarStudio initialCode={null} onChange={setAvatarCode} />
+            <AvatarStudio compact initialCode={null} onChange={setAvatarCode} />
           </div>
         </fieldset>
-        {/* Pinned to the foot on phones, so Create stays in reach above the pictures.
+        {/* Pinned to the foot at every size, so Create stays in reach above the pictures.
             Only the create button: a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
-            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3 md:static md:pt-0",
+            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3",
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
-            "md:pb-0",
           )}
         >
           <Button
