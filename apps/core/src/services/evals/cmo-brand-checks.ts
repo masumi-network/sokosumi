@@ -111,7 +111,7 @@ export function strategyChecks(
     });
   if (brand.planLanguage)
     checks.push({
-      label: "Plan in the owner's language",
+      label: "Strategy in the owner's language",
       pass: new RegExp(brand.planLanguage, "i").test(strategy.summary),
       actual: strategy.summary.slice(0, 200),
     });

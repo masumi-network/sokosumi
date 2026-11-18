@@ -638,7 +638,7 @@ async function pollMonth(
         status: "ERROR",
         checks: [],
         output: {},
-        error: "The month case lost its plan",
+        error: "The month case lost its strategy",
         turnIds: [],
       },
     };

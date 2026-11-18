@@ -230,7 +230,7 @@ export function cmoMixLedger(
       const count = pieces.filter(
         (entry) => entry.approach === part.approach,
       ).length;
-      return `${part.approach} ${count} of ${pieces.length} (plan ${part.share}%)`;
+      return `${part.approach} ${count} of ${pieces.length} (planned ${part.share}%)`;
     })
     .join(", ");
 }
@@ -322,7 +322,7 @@ export function cmoProductionMessage(input: {
     `Background run: make ${input.businessName}'s month`,
     input.topUp
       ? "The month is made. The pieces below are new or still missing something: a piece the daily watch added for news or a holiday, one the owner changed, or a finished draft for a network connected since. Make them now, following your production skill, so they fit the month around them."
-      : "The owner approved the strategy and paid. Make every piece below now, in this run, following your production skill, so the whole month is one consistent plan rather than pieces written day by day.",
+      : "The owner approved the strategy and paid. Make every piece below now, in this run, following your production skill, so the month reads as one rather than as pieces written day by day.",
     !input.topUp && input.attempt > 1
       ? "An earlier run made part of the month; these pieces are still missing something."
       : "",
@@ -738,7 +738,7 @@ export async function advanceCmoProduction(
           cuso,
           message,
           clientTurnId,
-          `Rewrite pieces that miss the plan for ${cuso.businessName}`,
+          `Rewrite pieces that miss the strategy for ${cuso.businessName}`,
         ),
     });
     return current;
