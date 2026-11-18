@@ -3515,6 +3515,19 @@ model Task {
   /// timezone; overdue is judged against the reader's own today.
   dueOn DateTime? @db.Date
 
+  /// Sub-tasks: the Task this one is a step of. Not a TaskLink; PARENT links
+  /// are separate. Set at create and never changed. A sub-task carries its
+  /// parent's workspace, project and visibility, and nests at most
+  /// MAX_SUBTASK_DEPTH deep. The `task_subtask_guard` trigger and the
+  /// `task_subtask_position_check` CHECK enforce this in SQL.
+  parentTaskId String?
+  parentTask   Task?   @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     Task[]  @relation("TaskSubtasks")
+
+  /// Order among siblings; set if and only if parentTaskId is. A new
+  /// sub-task goes last, and a move takes a value between its neighbours.
+  position Float?
+
   @@unique([projectId, number])
   @@index([organizationId])
   @@index([workspaceId])
@@ -3532,6 +3545,7 @@ model Task {
   @@index([workspaceId, visibility])
   @@index([scheduleId])
   @@index([dueOn])
+  @@index([parentTaskId, archivedAt, position, id])
   @@index([status, runAt])
   @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")
