@@ -347,6 +347,20 @@ it("applies Display density to board and list and restores the saved preference"
   document.cookie = "tasks_density=; max-age=0; path=/";
 });
 
+// The toolbar has no Archived button, so the Display popover is the way there.
+it("reaches archived Tasks from the Display popover", async () => {
+  const user = userEvent.setup();
+  render(boardView([TASK]));
+  expect(screen.queryByRole("link", { name: "link" })).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Display" }));
+
+  expect(await screen.findByRole("link", { name: "link" })).toHaveAttribute(
+    "href",
+    "/tasks/archived",
+  );
+});
+
 // New task lives in the sidebar header, so the Tasks page shows it once; the
 // phone, which has no sidebar header in view, keeps its create button.
 it("has no toolbar New task button, and keeps the phone create button", () => {

@@ -73,6 +73,11 @@ interface FilterDropdownMenuProps {
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
   showActiveIndicator?: boolean;
+  /**
+   * The trigger edge the desktop menu lines up with. `start` for a trigger at
+   * the left of its toolbar, where `end` would open the menu over the sidebar.
+   */
+  align?: "start" | "end";
   /** How many filters are set, shown on the trigger; `label` reads it out ("2 active"). */
   activeCount?: { count: number; label: string };
   /**
@@ -98,6 +103,7 @@ export function FilterDropdownMenu({
   emptyResultsLabel,
   sections,
   showActiveIndicator = false,
+  align = "end",
   activeCount,
   triggerClassName,
   hideMobileTrigger = false,
@@ -161,7 +167,7 @@ export function FilterDropdownMenu({
             ) : null}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align={align} className="w-64">
           {sections.map((section) => (
             <FilterDropdownMenuSectionItem
               key={section.id}

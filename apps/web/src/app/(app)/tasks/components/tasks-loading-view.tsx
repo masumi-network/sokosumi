@@ -79,9 +79,14 @@ export function TasksLoadingView({
     >
       <div className="flex flex-row items-center justify-end gap-3">
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button variant="outline" size="sm" className="gap-2" disabled>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hit-area"
+            aria-label={labels.display.button}
+            disabled
+          >
             <SlidersHorizontal className="size-4" aria-hidden />
-            <span className="hidden sm:inline">{labels.display.button}</span>
           </Button>
         </div>
       </div>

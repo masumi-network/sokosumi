@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
+import { PopoverClose } from "@/components/ui/popover";
 
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch, type ViewModeSwitchProps } from "./view-mode-switch";
@@ -15,9 +16,10 @@ interface TasksViewToolbarActionsProps {
 }
 
 /**
- * Right side of the Tasks tab toolbar: filters, display and the way to
- * archived Tasks. New task is the
- * sidebar header's action; below md the create FAB covers creation.
+ * The Tasks tab toolbar: filters on the left, display on the right. Archived
+ * Tasks are another way to see Tasks, so their link lives in the Display
+ * popover. New task is the sidebar header's action; below md the create FAB
+ * covers creation.
  */
 export function TasksViewToolbarActions({
   filters,
@@ -27,13 +29,21 @@ export function TasksViewToolbarActions({
   return (
     <>
       <TasksViewFilters {...filters} />
-      <ViewModeSwitch {...display} />
-      <Button variant="outline" size="sm" className="gap-2" asChild>
-        <Link href="/tasks/archived" aria-label={t("title")}>
-          <Archive className="size-4" aria-hidden />
-          <span className="hidden sm:inline">{t("link")}</span>
-        </Link>
-      </Button>
+      <ViewModeSwitch {...display}>
+        <PopoverClose asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            asChild
+          >
+            <Link href="/tasks/archived">
+              <Archive className="size-4" aria-hidden />
+              {t("link")}
+            </Link>
+          </Button>
+        </PopoverClose>
+      </ViewModeSwitch>
     </>
   );
 }
