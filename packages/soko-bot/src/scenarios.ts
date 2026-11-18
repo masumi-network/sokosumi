@@ -1321,6 +1321,29 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-talking-video-networks",
+    title: "Puts one talking video on several networks",
+    intent:
+      "Asked for the same talking video as a Reel and a Short, Cuso plans one video and lists the other networks on it.",
+    prompt:
+      "Add a talking video next week about why a booking link beats emailing back and forth. I want the same video as an Instagram Reel, a YouTube Short and on Facebook.",
+    rubric:
+      "Cuso saved the change with save_strategy: exactly one new calendar entry with format talking_video for this message, on one of Instagram, YouTube or Facebook, whose alsoOn lists the other two, with a script (spoken words only, hook first, one point, one next step, in the brand's voice and never as a customer), a presenter and a voice. He tells the owner it is one video that goes out on all three networks. Two or three separate talking_video entries for the same message, leaving a requested network out, calling generate_talking_video or generate_video in place of the save, or claiming the change without a successful save_strategy fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "generate_talking_video",
+        "generate_video",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "cmo-picture-style",
     title: "Gives a picture the look of an old print",
     intent:

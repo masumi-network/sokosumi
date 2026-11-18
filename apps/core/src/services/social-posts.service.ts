@@ -693,9 +693,15 @@ export async function ownMessageProblem(
 ): Promise<{ problem: string | null; costUsd: number }> {
   const post = await prisma.socialPost.findFirst({
     where: { id: input.postId, workspaceId: input.workspaceId },
-    select: { marketingStrategyId: true },
+    select: { marketingStrategyId: true, planning: true },
   });
   if (!post?.marketingStrategyId) return { problem: null, costUsd: 0 };
+  // A talking video's posts on several networks say the same thing on purpose.
+  const videoOf = (planning: unknown) => {
+    const plan = planning as { id?: unknown; videoOf?: unknown } | null;
+    return plan?.videoOf ?? plan?.id ?? null;
+  };
+  const video = videoOf(post.planning);
   const siblings = await prisma.socialPost.findMany({
     where: {
       marketingStrategyId: post.marketingStrategyId,
@@ -707,7 +713,11 @@ export async function ownMessageProblem(
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };
-    return sibling.text !== planning?.brief && sibling.text !== planning?.title;
+    return (
+      sibling.text !== planning?.brief &&
+      sibling.text !== planning?.title &&
+      (video === null || videoOf(sibling.planning) !== video)
+    );
   });
   const { repeats, costUsd } = await findRepeats(
     [...written.map((sibling) => sibling.text), input.text],

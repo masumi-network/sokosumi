@@ -342,6 +342,21 @@ describe("cmoReadyPieceIds", () => {
     expect([...ready]).toEqual(["a", "c", "d"]);
   });
 
+  it("finishes every post of one talking video, which share its file", () => {
+    const talking = { format: "talking_video", draft: "Caption" };
+    const pieces = [
+      piece({ ...talking, id: "reel", channel: "instagram" }, ["drive/v.mp4"]),
+      piece({ ...talking, id: "short", channel: "youtube", videoOf: "tv" }, [
+        "drive/v.mp4",
+      ]),
+    ];
+    expect([...cmoReadyPieceIds(pieces, new Set())]).toEqual(["reel", "short"]);
+    expect(cmoProductionSteps(pieces)).toMatchObject({
+      pictured: 2,
+      needPictures: 2,
+    });
+  });
+
   it("finishes a carousel only with its slides, none shared with another piece", () => {
     const carousel = {
       channel: "instagram",
@@ -463,6 +478,31 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("The month is made.");
     expect(message).toContain("Connected networks: none yet");
+  });
+
+  it("asks a talking video for its script, and its posts on other networks for a caption only", () => {
+    const talking = { channel: "instagram", format: "talking_video" };
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy([]),
+      pending: [
+        piece({ ...talking, id: "tv" }),
+        piece({
+          ...talking,
+          id: "written",
+          script: "Stop emailing back and forth.",
+        }),
+        piece({ ...talking, id: "yt", channel: "youtube", videoOf: "tv" }),
+      ],
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    expect(message).toContain("(write its script)");
+    expect(message).toContain(
+      "(the talking video of tv on youtube: write only this post's own caption for youtube; its script stays on tv)",
+    );
+    expect(message).not.toContain("(write its visual)");
   });
 
   it("asks for a visual and names the proof, and leaves the media to Core", () => {

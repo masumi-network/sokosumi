@@ -315,21 +315,15 @@ export function cmoMediaState(
   if (!cmoPieceNeedsMedia(piece) || piece.media.length >= slotsOf(piece))
     return "made";
   if (!hasBrief(piece)) return "no_visual";
-  const key = cmoVisualKey(piece);
   for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
-    const action = cmoSlotAction(
-      piece,
-      jobs.filter(
-        (job) =>
-          job.pieceId === piece.id &&
-          job.slot === slot &&
-          job.visualKey === key,
-      ),
-    );
+    const action = cmoSlotAction(piece, slotJobs(piece, slot, jobs));
     if (action.kind === "failed") return "failed";
   }
   return "making";
 }
+
+/** The piece id in a talking video's job key: its posts share the one job. */
+const SHARED_VIDEO = "video";
 
 function jobKey(
   versionId: string,
@@ -341,12 +335,30 @@ function jobKey(
   return [
     KEY_PREFIX,
     versionId,
-    piece.id,
+    step === "talking" ? SHARED_VIDEO : piece.id,
     slot,
     step,
     cmoVisualKey(piece),
     attempt,
   ].join(":");
+}
+
+/**
+ * The jobs started for one slot of a piece under its current visual. A
+ * talking video is one job for every piece that speaks the same script with
+ * the same presenter and voice, so a Reel and a Short of it are made once.
+ */
+function slotJobs(
+  piece: CmoMediaPiece,
+  slot: number,
+  jobs: readonly CmoMediaJob[],
+): CmoMediaJob[] {
+  const key = cmoVisualKey(piece);
+  return jobs.filter((job) =>
+    cmoPieceIsTalking(piece)
+      ? job.step === "talking" && job.visualKey === key
+      : job.pieceId === piece.id && job.slot === slot && job.visualKey === key,
+  );
 }
 
 /** Core's media jobs for a version, oldest first. */
@@ -562,22 +574,15 @@ export async function advanceCmoMedia(
   let brandPictures: { fileId: string; alt: string }[] | null = null;
   let styleBrand: StyleBrand | null = null;
   const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
+  // Talking videos started in this pass, so its other posts wait for it.
+  const started = new Set<string>();
   for (const piece of wanted) {
-    const key = cmoVisualKey(piece);
     // Slides go on in order, so the next one missing is always slot
     // media.length: a carousel once attached slides 2 and 3 while its cover
     // failed, and the cover was never tried again or handed back to Cuso.
     let inOrder = true;
     for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
-      const action = cmoSlotAction(
-        piece,
-        jobs.filter(
-          (job) =>
-            job.pieceId === piece.id &&
-            job.slot === slot &&
-            job.visualKey === key,
-        ),
-      );
+      const action = cmoSlotAction(piece, slotJobs(piece, slot, jobs));
       if (action.kind === "attach") {
         if (inOrder)
           inOrder = await attach(
@@ -595,8 +600,17 @@ export async function advanceCmoMedia(
       }
       inOrder = false;
       if (action.kind !== "start" || capacity <= 0) continue;
+      const startKey = jobKey(
+        context.versionId,
+        piece,
+        slot,
+        action.step,
+        action.attempt,
+      );
+      if (started.has(startKey)) continue;
+      started.add(startKey);
       brandPictures ??= await listCmoBrandPictures(projectId);
-      const started = await start(context, drive, {
+      const accepted = await start(context, drive, {
         piece,
         slot,
         action,
@@ -611,7 +625,7 @@ export async function advanceCmoMedia(
       });
       // A refusal (credits, the hourly limit) stops starting, never
       // attaching: finished pictures further down still go on their posts.
-      capacity = started ? capacity - 1 : 0;
+      capacity = accepted ? capacity - 1 : 0;
     }
   }
 }

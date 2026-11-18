@@ -677,6 +677,183 @@ describe("saving versions", () => {
     expect(plan(draft)).toEqual(revised);
   });
 
+  describe("a talking video that also goes out on other networks", () => {
+    const video = {
+      id: "tv",
+      date: "2026-10-23",
+      time: "17:00",
+      channel: "instagram",
+      title: "One link, no emails",
+      format: "talking_video",
+      status: "draft" as const,
+      script:
+        "Stop emailing back and forth. Send one booking link and let people pick a time.",
+      presenter: "maya",
+      voice: "Sarah",
+      alsoOn: ["youtube", "facebook"],
+    };
+    const stored = (planning: object, provider: string, id: string) => ({
+      id,
+      status: "DRAFT",
+      provider,
+      planning: { title: video.title, format: video.format, ...planning },
+    });
+
+    beforeEach(() => {
+      cusoFind.mockResolvedValue(HIRE);
+      seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    });
+
+    it("plans one post per network, each showing the one video", async () => {
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [video] },
+        { turnId: "turn-2", part: "pieces" },
+      );
+
+      const drafts = postCreateMany.mock.calls[0]?.[0].data;
+      expect(
+        drafts.map((draft: { provider: string; planning: object }) => [
+          draft.provider,
+          draft.planning,
+        ]),
+      ).toEqual([
+        [
+          "instagram",
+          expect.objectContaining({
+            id: "tv",
+            alsoOn: ["youtube", "facebook"],
+          }),
+        ],
+        [
+          "youtube",
+          expect.objectContaining({
+            id: "tv@youtube",
+            videoOf: "tv",
+            script: video.script,
+            presenter: "maya",
+          }),
+        ],
+        [
+          "facebook",
+          expect.objectContaining({ id: "tv@facebook", videoOf: "tv" }),
+        ],
+      ]);
+      expect(drafts[1].planning).not.toHaveProperty("alsoOn");
+      expect(drafts[1].scheduledAt).toEqual(drafts[0].scheduledAt);
+    });
+
+    it("gives every post a new script and cancels a network taken off the list", async () => {
+      postFindMany.mockResolvedValue([
+        stored(
+          { id: "tv", script: video.script, alsoOn: video.alsoOn },
+          "instagram",
+          "p-ig",
+        ),
+        stored(
+          { id: "tv@youtube", videoOf: "tv", script: video.script },
+          "youtube",
+          "p-yt",
+        ),
+        stored(
+          { id: "tv@facebook", videoOf: "tv", script: video.script },
+          "facebook",
+          "p-fb",
+        ),
+      ]);
+      const script = `${video.script} Try it on your next call.`;
+
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [{ ...video, id: "p-ig", script, alsoOn: ["youtube"] }] },
+        { turnId: "turn-2", part: "pieces" },
+      );
+
+      expect(postUpdate).toHaveBeenCalledWith({
+        where: { id: "p-fb" },
+        data: expect.objectContaining({ status: "CANCELED" }),
+      });
+      expect(postUpdate).toHaveBeenCalledWith({
+        where: { id: "p-yt" },
+        data: expect.objectContaining({
+          planning: expect.objectContaining({ videoOf: "tv", script }),
+        }),
+      });
+      expect(postCreateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps a copy speaking its entry's script when the copy itself is saved", async () => {
+      postFindMany.mockResolvedValue([
+        stored(
+          { id: "tv@youtube", videoOf: "tv", script: video.script },
+          "youtube",
+          "p-yt",
+        ),
+      ]);
+
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              ...video,
+              id: "p-yt",
+              channel: "youtube",
+              alsoOn: undefined,
+              script:
+                "Another script entirely, which only this post would speak.",
+              hook: "No more email ping-pong",
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "pieces" },
+      );
+
+      expect(postUpdate).toHaveBeenCalledWith({
+        where: { id: "p-yt" },
+        data: expect.objectContaining({
+          planning: expect.objectContaining({
+            videoOf: "tv",
+            script: video.script,
+            hook: "No more email ping-pong",
+          }),
+        }),
+      });
+    });
+
+    it.each([
+      [
+        "a network without talking videos",
+        { ...video, alsoOn: ["youtube", "x"] },
+        /tv cannot also go out on x: alsoOn takes other live networks with a talking_video format \(linkedin, facebook, youtube\)/,
+      ],
+      [
+        "TikTok while it is not live",
+        { ...video, alsoOn: ["tiktok"] },
+        /tv cannot also go out on tiktok/,
+      ],
+      [
+        "its own channel",
+        { ...video, alsoOn: ["instagram"] },
+        /tv cannot also go out on instagram/,
+      ],
+      [
+        "a piece that is not a talking video",
+        { ...video, format: "image", script: undefined },
+        /tv lists alsoOn, which only a talking_video takes/,
+      ],
+    ])("refuses %s, writing nothing", async (_name, entry, message) => {
+      await expect(
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          { calendar: [entry] },
+          { turnId: "turn-2", part: "pieces" },
+        ),
+      ).rejects.toThrow(message);
+      expect(postCreateMany).not.toHaveBeenCalled();
+    });
+  });
+
   it("refuses pieces while no version is approved, writing nothing", async () => {
     cusoFind.mockResolvedValue(HIRE);
     const draft = seedStrategy(strategy);

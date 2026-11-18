@@ -31,6 +31,7 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
+  cmoPieceIsTalking,
   cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
@@ -89,6 +90,21 @@ function pieceFiles(piece: CmoPiece): string[] {
 }
 
 /**
+ * Whether another piece already counts for one of these files. A talking
+ * video is the exception: its posts on several networks show the one video.
+ */
+function usedElsewhere(
+  piece: CmoPiece,
+  files: readonly string[],
+  used: Set<string>,
+): boolean {
+  if (cmoPieceIsTalking(piece)) return false;
+  if (files.some((file) => used.has(file))) return true;
+  for (const file of files) used.add(file);
+  return false;
+}
+
+/**
  * A finished piece: its words are written, its pictures are made when the
  * format has them, and on a connected network it is scheduled; on any other
  * network it waits for the connection as a finished draft.
@@ -124,9 +140,8 @@ export function cmoProductionSteps(
       pictured += 1;
     } else if (
       files.length >= Math.max(1, cmoPieceSlides(piece)) &&
-      !files.some((file) => used.has(file))
+      !usedElsewhere(piece, files, used)
     ) {
-      for (const file of files) used.add(file);
       pictured += 1;
     }
   }
@@ -152,9 +167,7 @@ export function cmoReadyPieceIds(
   const ready = new Set<string>();
   for (const piece of pieces) {
     if (!cmoPieceReady(piece, connected)) continue;
-    const files = pieceFiles(piece);
-    if (files.some((file) => used.has(file))) continue;
-    for (const file of files) used.add(file);
+    if (usedElsewhere(piece, pieceFiles(piece), used)) continue;
     ready.add(piece.id);
   }
   return ready;
@@ -264,11 +277,19 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",
-    cmoPieceNeedsMedia(piece) && !piece.visual
-      ? "(write its visual)"
-      : failed
-        ? "(its picture failed twice: write a different visual)"
-        : "",
+    piece.videoOf
+      ? `(the talking video of ${piece.videoOf} on ${piece.channel}: write only this post's own caption for ${piece.channel}; its script stays on ${piece.videoOf})`
+      : cmoPieceIsTalking(piece)
+        ? piece.script
+          ? failed
+            ? "(its video failed twice: write a different script)"
+            : ""
+          : "(write its script)"
+        : cmoPieceNeedsMedia(piece) && !piece.visual
+          ? "(write its visual)"
+          : failed
+            ? "(its picture failed twice: write a different visual)"
+            : "",
     isMarketingFilePiece(piece)
       ? piece.fileId
         ? "(file written; finish what is missing)"
