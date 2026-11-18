@@ -12,11 +12,13 @@ import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { cusoFeedProblems } from "@/services/cmo-competitor-feed-check";
 import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
   type CusoTarget,
+  listCmoChannels,
   requireCuso,
 } from "@/services/cmo-cuso.service";
 import {
@@ -26,6 +28,7 @@ import {
 } from "@/services/competitor-check.service";
 import {
   type CitedSignal,
+  CompetitorFeedRefusedError,
   feedItemsJson,
   lockCompetitorFeed,
   parseFeedItems,
@@ -330,6 +333,20 @@ export function bigMoveMessage(
 export async function saveCusoCompetitorFeed(
   input: Parameters<typeof saveCompetitorFeed>[0] & { sokoBotId: string },
 ) {
+  const [competitors, channels] = await Promise.all([
+    listTrackedCompetitors(input.projectId),
+    listCmoChannels(input.projectId),
+  ]);
+  const problems = cusoFeedProblems(
+    input.feed,
+    new Map(competitors.map(({ id, name }) => [id, name])),
+    new Set(
+      channels
+        .filter((channel) => channel.status === "ACTIVE")
+        .map((channel) => channel.provider.toLowerCase()),
+    ),
+  );
+  if (problems.length > 0) throw new CompetitorFeedRefusedError(problems);
   const saved = await saveCompetitorFeed(input);
   await postBigMoves(
     input.sokoBotId,
