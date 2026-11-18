@@ -281,36 +281,6 @@ describe("errorHandler", () => {
     expect(captureExternalServiceErrorMock).not.toHaveBeenCalled();
   });
 
-  it("logs a thrown Better Auth 302 redirect at info without an error", async () => {
-    const app = createApp();
-    app.use(coreEvlogMiddleware());
-    app.get("/auth/callback/google", () => {
-      throw new APIError(
-        "FOUND",
-        undefined,
-        new Headers([
-          ["location", "/signed-in"],
-          ["set-cookie", "session=example; HttpOnly"],
-          ["set-cookie", "state=; Max-Age=0"],
-        ]),
-      );
-    });
-
-    const response = await app.request("/auth/callback/google");
-
-    expect(coreLogEvents()).toMatchObject([
-      { path: "/auth/callback/google", status: 302, level: "info" },
-    ]);
-    expect(coreLogEvents()[0]).not.toHaveProperty("error");
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/signed-in");
-    expect(response.headers.getSetCookie()).toEqual([
-      "session=example; HttpOnly",
-      "state=; Max-Age=0",
-    ]);
-    expect(captureExternalServiceErrorMock).not.toHaveBeenCalled();
-  });
-
   it("reports Better Auth 5xx APIError through captureExternalServiceError", async () => {
     const errors = expectCoreLog(
       "error",

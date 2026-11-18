@@ -108,17 +108,16 @@ function logLibraryMessage(
 
 const pendingBetterAuthLogs = new WeakMap<
   RequestLogger,
-  ((redirect: boolean) => void)[]
+  ((clientRedirect: boolean) => void)[]
 >();
 
 /** Better Auth can log a diagnostic before choosing an OAuth redirect. */
 export function deferBetterAuthRequestLogs(log: RequestLogger) {
-  const pending: ((redirect: boolean) => void)[] = [];
+  const pending: ((clientRedirect: boolean) => void)[] = [];
   pendingBetterAuthLogs.set(log, pending);
-  return (status: number) => {
+  return (clientRedirect: boolean) => {
     pendingBetterAuthLogs.delete(log);
-    const redirect = status >= 300 && status < 400;
-    for (const write of pending) write(redirect);
+    for (const write of pending) write(clientRedirect);
   };
 }
 
@@ -131,13 +130,18 @@ export const betterAuthLogger = {
   log: (level, message, ...args) => {
     const request = tryUseLiveLogger();
     const pending = request ? pendingBetterAuthLogs.get(request) : undefined;
-    const write = (redirect = false) =>
+    const write = (clientRedirect = false) => {
+      const downgrade =
+        clientRedirect &&
+        (level === "warn" || level === "error") &&
+        !args.some(Error.isError);
       logLibraryMessage(
         "better-auth",
-        redirect ? "info" : level,
+        downgrade ? "info" : level,
         message,
         args,
       );
+    };
     if (pending) pending.push(write);
     else write();
   },
