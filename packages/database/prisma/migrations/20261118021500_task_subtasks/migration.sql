@@ -3,13 +3,15 @@
 ALTER TABLE "task" ADD COLUMN "parentTaskId" TEXT;
 ALTER TABLE "task" ADD COLUMN "position" DOUBLE PRECISION;
 
-ALTER TABLE "task" ADD CONSTRAINT "task_parentTaskId_fkey" FOREIGN KEY ("parentTaskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-CREATE INDEX "task_parentTaskId_archivedAt_position_id_idx" ON "task"("parentTaskId", "archivedAt", "position", "id");
+-- NOT VALID: the old Core instance keeps writing Tasks during the deploy, and
+-- checking every existing row here would hold the task table's write lock for
+-- the whole scan. The new columns are all NULL, so nothing can fail; the
+-- check runs in a later migration under a lock that lets writes through.
+ALTER TABLE "task" ADD CONSTRAINT "task_parentTaskId_fkey" FOREIGN KEY ("parentTaskId") REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE NOT VALID;
 
 -- A position orders siblings, so only a sub-task has one.
 ALTER TABLE "task" ADD CONSTRAINT "task_subtask_position_check"
-  CHECK (("parentTaskId" IS NULL) = ("position" IS NULL));
+  CHECK (("parentTaskId" IS NULL) = ("position" IS NULL)) NOT VALID;
 
 -- A sub-task shares its parent's workspace, project and visibility, keeps
 -- its parent for life, and nests at most 5 deep (MAX_SUBTASK_DEPTH in Core).
