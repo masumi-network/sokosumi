@@ -1,7 +1,11 @@
 import "./rooms-client-harness";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Activity, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  listenForNavigationStart,
+  notifyNavigationStart,
+} from "@/lib/navigation/navigation-start";
 import { TestQueryProvider } from "@/test/query-provider";
 import {
   PersistentRoomView,
@@ -82,5 +86,49 @@ describe("room cache across a hidden app shell", () => {
     for (let tick = 0; tick < 5; tick++) await act(async () => {});
 
     expect(await screen.findByText("welcome row")).toBeTruthy();
+  });
+
+  it("tells the navigation bar that a click opens a room it already paints", async () => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: [sampleMessage("welcome row")],
+              meta: { pagination: { nextCursor: null } },
+            }),
+          ),
+      ),
+    );
+    render(<Shell mode="visible" room />);
+    expect(await screen.findByText("welcome row")).toBeTruthy();
+    const started = vi.fn();
+    const stopListening = listenForNavigationStart(started);
+    const link = (path: string) => {
+      const anchor = document.createElement("a");
+      anchor.href = path;
+      document.body.append(anchor);
+      return anchor;
+    };
+
+    try {
+      fireEvent.click(link("/chat/rooms/room-channel"));
+      notifyNavigationStart("/chat/rooms/room-channel");
+      expect(started).toHaveBeenLastCalledWith(
+        "/chat/rooms/room-channel",
+        true,
+      );
+
+      fireEvent.click(link("/chat/rooms/room-not-cached"));
+      notifyNavigationStart("/chat/rooms/room-not-cached");
+      expect(started).toHaveBeenLastCalledWith(
+        "/chat/rooms/room-not-cached",
+        false,
+      );
+    } finally {
+      stopListening();
+    }
   });
 });

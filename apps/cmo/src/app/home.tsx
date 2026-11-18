@@ -302,13 +302,12 @@ export async function Home({ searchParams, view }: HomeProps) {
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
-        // Approving the plan opens Subscribe in place, so the plans load
-        // while the strategy waits for approval too.
+        // The steps up to Subscribe open in place, without this page
+        // rendering again, so the plans load from the first of them.
         plans={
-          overview.onboardingStep === "checkout" ||
-          overview.onboardingStep === "strategy"
-            ? await loadPlans().catch(() => [])
-            : []
+          overview.onboardingStep === "accounts"
+            ? []
+            : await loadPlans().catch(() => [])
         }
         returnedFromCheckout={step === "subscribed"}
         actions={{
