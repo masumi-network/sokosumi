@@ -105,3 +105,12 @@ export function useBoardKeyboard() {
     return () => window.removeEventListener("keydown", listener);
   });
 }
+
+/**
+ * Mounts the keys below the page's seat value, so `c` and the New Task
+ * button agree on who may create a Task.
+ */
+export function TasksKeyboard() {
+  useBoardKeyboard();
+  return null;
+}

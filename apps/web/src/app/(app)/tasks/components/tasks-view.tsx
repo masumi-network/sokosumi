@@ -41,7 +41,7 @@ import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
-import { useBoardKeyboard } from "./use-board-keyboard";
+import { TasksKeyboard } from "./use-board-keyboard";
 import { useTasksViewModel } from "./use-tasks-view-model";
 
 interface TasksRealtimeListenerProps {
@@ -237,7 +237,6 @@ export function TasksView(props: TasksViewProps) {
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
-  useBoardKeyboard();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
     const nextQuery = buildTasksFiltersSearchParams(
@@ -420,6 +419,7 @@ export function TasksView(props: TasksViewProps) {
         ) : null}
         {/* The page's seat check is fresher than the layout's after a soft navigation. */}
         <OrganizationSeatContext value={canCreateTask}>
+          <TasksKeyboard />
           {content}
         </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
