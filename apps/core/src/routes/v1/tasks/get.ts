@@ -151,7 +151,7 @@ const unansweredMentionQuerySchema = z
   .openapi({
     param: { name: "unansweredMention", in: "query" },
     description:
-      "true lists only Tasks where a comment mentions the caller and the caller has not commented since. People only; coworkers and Soko Bots get 400.",
+      "true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. People only; coworkers and Soko Bots get 400.",
     example: "true",
   });
 
