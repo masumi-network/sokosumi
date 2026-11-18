@@ -45,7 +45,9 @@ vi.mock("@/lib/db/prisma", () => ({
     creditConsumption: { create: m.credits },
   },
 }));
-vi.mock("@/lib/redis", () => ({ getRedisClient: () => ({ eval: m.eval }) }));
+vi.mock("@/lib/redis", () => ({
+  getRedisRateLimitClient: () => ({ status: "ready", eval: m.eval }),
+}));
 vi.mock("@/services/image-studio-drive.service", () => ({
   ensureStudioAssetDriveFile: m.copy,
 }));
@@ -330,9 +332,10 @@ describe("POST newsletter draft-with-ai with an injected fake model", () => {
     m.eval.mockResolvedValue(11);
     expect((await draft()).status).toBe(429);
     expect(m.eval).toHaveBeenCalledWith(
-      expect.stringContaining('redis.call("expire", KEYS[1], 600)'),
+      expect.stringContaining('redis.call("expire", KEYS[1], ARGV[1])'),
       1,
       `newsletter:draft:${NEWSLETTER_WORKSPACE_ID}:${NEWSLETTER_PROJECT_ID}`,
+      600,
     );
     expect(m.generate).not.toHaveBeenCalled();
     expect(m.create).not.toHaveBeenCalled();
