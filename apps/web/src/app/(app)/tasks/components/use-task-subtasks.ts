@@ -3,6 +3,7 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import {
   SUBTASK_LIST_LIMIT,
   type SubtaskRow,
@@ -11,15 +12,40 @@ import {
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { createSubtask, moveSubtask } from "@/lib/actions/task/subtask-action";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import type { CoworkerOption } from "@/lib/types/coworker";
 
 export function taskSubtasksQueryKey(parentTaskId: string) {
   return ["task-subtasks", parentTaskId] as const;
 }
 
+/** What the "Add sub-task" dialog asks for. */
+export interface NewSubtaskDraft {
+  name: string;
+  assignee: CoworkerOption | null;
+  /** `YYYY-MM-DD`. */
+  dueOn: string | null;
+}
+
+/** Creates `draft` as the last sub-task of `parentTaskId`. */
+export function createSubtaskFromDraft(
+  parentTaskId: string,
+  draft: NewSubtaskDraft,
+) {
+  return createSubtask({
+    parentTaskId,
+    name: draft.name,
+    ...resolveTaskAssigneeFields(
+      draft.assignee?.id,
+      draft.assignee ? [draft.assignee] : [],
+    ),
+    dueOn: draft.dueOn,
+  });
+}
+
 export type SubtaskChange =
   | { kind: "status"; id: string; status: TaskStatus; comment?: string }
   | { kind: "move"; id: string; ids: string[] }
-  | { kind: "add"; tempId: string; name: string };
+  | { kind: "add"; tempId: string; draft: NewSubtaskDraft };
 
 /** The checklist as it looks once `change` lands. */
 export function applySubtaskChange(
@@ -35,20 +61,31 @@ export function applySubtaskChange(
       const byId = new Map(rows.map((row) => [row.id, row]));
       return change.ids.flatMap((id) => byId.get(id) ?? []);
     }
-    case "add":
+    case "add": {
+      const { name, assignee, dueOn } = change.draft;
       return [
         ...rows,
         {
           id: change.tempId,
           identifier: null,
-          name: change.name,
+          name,
           status: TaskStatus.READY,
-          assignee: null,
-          dueOn: null,
+          assignee: assignee
+            ? {
+                id: assignee.id,
+                name: assignee.name,
+                image: assignee.image,
+                slug: assignee.slug,
+                kind: assignee.kind ?? "coworker",
+                avatarSeed: assignee.avatarSeed,
+              }
+            : null,
+          dueOn,
           subtaskProgress: { completed: 0, total: 0 },
           isPending: true,
         },
       ];
+    }
   }
 }
 
@@ -66,7 +103,7 @@ function sendSubtaskChange(parentTaskId: string, change: SubtaskChange) {
         afterTaskId: change.ids[change.ids.indexOf(change.id) - 1] ?? null,
       });
     case "add":
-      return createSubtask({ parentTaskId, name: change.name });
+      return createSubtaskFromDraft(parentTaskId, change.draft);
   }
 }
 
@@ -153,7 +190,7 @@ export function useTaskSubtasks({
       mutation.mutate({ kind: "status", id, status, comment }),
     move: (id: string, ids: string[]) =>
       mutation.mutate({ kind: "move", id, ids }),
-    add: (name: string) =>
-      mutation.mutate({ kind: "add", tempId: crypto.randomUUID(), name }),
+    add: (draft: NewSubtaskDraft) =>
+      mutation.mutate({ kind: "add", tempId: crypto.randomUUID(), draft }),
   };
 }

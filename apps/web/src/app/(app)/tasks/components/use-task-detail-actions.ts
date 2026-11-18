@@ -5,11 +5,7 @@ import type {
   MemberWithOrganization,
   TaskShare,
 } from "@sokosumi/core-client";
-import {
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-} from "@sokosumi/core-client";
+import { type TaskLink, TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
@@ -102,6 +98,10 @@ export interface TaskDetailActionsProps {
    * the link never grants access.
    */
   sendToChat?: { currentUserId: string };
+  /** The Task's parent, when it is a sub-task. */
+  parentTaskId?: string | null;
+  /** The Task's parent chain, root first. */
+  ancestorIds?: readonly string[];
 }
 
 export function useTaskDetailActions({
@@ -143,8 +143,6 @@ export function useTaskDetailActions({
   const [, showLinkChange] = useOptimisticTaskLinks();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
-  const [isParentRemovalPending, startParentRemovalTransition] =
-    useTransition();
   const [isRemoveRelatedPending, startRemoveRelatedTransition] =
     useTransition();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -279,21 +277,11 @@ export function useTaskDetailActions({
       organizations,
       personalMoveAllowed,
     ) > 0;
-  const parentLinks = useMemo(
-    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
-    [taskLinks],
-  );
   const removableTaskLinks = useMemo(
-    () =>
-      taskLinks.filter(
-        (link) =>
-          link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD,
-      ),
+    () => taskLinks.filter((link) => link.peerTask.archivedAt === null),
     [taskLinks],
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
-  const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
     taskBlueprint !== undefined ||
     sendToChat !== undefined ||
@@ -450,12 +438,6 @@ export function useTaskDetailActions({
     );
 
     startLinkTransition(async () => {
-      // A new parent takes the place of the one the task has.
-      if (isNewPeer && option.relation === TaskLinkRelation.CHILD) {
-        for (const link of parentLinks) {
-          showLinkChange({ hidePeerTaskId: link.peerTask.id });
-        }
-      }
       if (isNewPeer) {
         showLinkChange({
           add: { ...relatedTask, identifier: null, relation: option.relation },
@@ -471,28 +453,6 @@ export function useTaskDetailActions({
       } catch (error) {
         console.error("Failed to create task link", error);
         toast.error(tDetailActions("linkTaskError"));
-      }
-    });
-  };
-
-  const handleRemoveParent = () => {
-    if (parentLinks.length === 0) return;
-
-    startParentRemovalTransition(async () => {
-      for (const link of parentLinks) {
-        showLinkChange({ hidePeerTaskId: link.peerTask.id });
-      }
-      try {
-        for (const link of parentLinks) {
-          await deleteTaskLink({
-            taskId,
-            linkId: link.id,
-          });
-        }
-        toast.success(tDetailActions("removeParentSuccess"));
-      } catch (error) {
-        console.error("Failed to remove parent task link", error);
-        toast.error(tDetailActions("removeParentError"));
       }
     });
   };
@@ -523,7 +483,6 @@ export function useTaskDetailActions({
     isStatusPending ||
     isStatusChanging ||
     isLinkPending ||
-    isParentRemovalPending ||
     isRemoveRelatedPending;
 
   return {
@@ -545,7 +504,6 @@ export function useTaskDetailActions({
     isMobile,
     isStatusPending,
     isLinkPending,
-    isParentRemovalPending,
     isRemoveRelatedPending,
     isDropdownOpen,
     menuTriggerRef,
@@ -586,7 +544,6 @@ export function useTaskDetailActions({
     canMove,
     removableTaskLinks,
     canRemoveRelated,
-    canRemoveParent,
     hasOverflowMenuActions,
     taskPickerOptions,
     createRelatedOptions,
@@ -597,7 +554,6 @@ export function useTaskDetailActions({
     handleOpenTaskPicker,
     handleOpenCreateRelated,
     handleSelectLinkableTask,
-    handleRemoveParent,
     handleRemoveRelated,
     actionsDisabled,
     agentNameById,

@@ -26,11 +26,6 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 import {
-  archiveCreatedTaskAfterFailure,
-  collectParentLinksToReplace,
-  deletePreviousParentLinks,
-} from "./task-link-replacement";
-import {
   normalizeOptionalProjectId,
   resolveAssigneeWrite,
   rethrowTaskActionError,
@@ -141,7 +136,6 @@ interface CreateTaskLinkParameters extends AuthenticatedRequest {
   relatedTaskId: string;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
-  replaceExistingParent?: boolean;
 }
 
 interface DeleteTaskLinkParameters extends AuthenticatedRequest {
@@ -166,7 +160,17 @@ interface CreateAndLinkTaskParameters
   visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
-  replaceExistingParent?: boolean;
+}
+
+async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
+  try {
+    await taskService.deleteTask(taskId);
+  } catch (cleanupError) {
+    console.error(
+      "Failed to archive created task after link failure",
+      cleanupError,
+    );
+  }
 }
 
 function normalizeLinkNote(note?: string | null): string | null | undefined {
@@ -525,7 +529,7 @@ export const subscribeTaskParticipant = withSession<
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,
   { taskId: string; linkId: string; relatedTaskId: string }
->(async ({ taskId, relatedTaskId, relation, note, replaceExistingParent }) => {
+>(async ({ taskId, relatedTaskId, relation, note }) => {
   const normalizedTaskId = taskId.trim();
   const normalizedRelatedTaskId = relatedTaskId.trim();
   if (!normalizedTaskId || !normalizedRelatedTaskId) {
@@ -533,23 +537,10 @@ export const createTaskLink = withSession<
   }
 
   try {
-    const parentLinksToReplace = await collectParentLinksToReplace({
-      taskId: normalizedTaskId,
-      nextParentTaskId: normalizedRelatedTaskId,
-      relation,
-      replaceExistingParent,
-    });
-
     const link = await taskService.createTaskLink(normalizedTaskId, {
       toTaskId: normalizedRelatedTaskId,
       relation,
       note: normalizeLinkNote(note),
-    });
-
-    await deletePreviousParentLinks({
-      taskId: normalizedTaskId,
-      createdLinkId: link.id,
-      parentLinksToReplace,
     });
 
     revalidateTaskMutationRoutes();
@@ -623,7 +614,6 @@ export const createTaskAndLink = withSession<
     visibility,
     relation,
     note,
-    replaceExistingParent,
   }) => {
     const normalizedTaskId = taskId.trim();
     if (!normalizedTaskId) {
@@ -651,23 +641,10 @@ export const createTaskAndLink = withSession<
         visibility,
       });
 
-      const parentLinksToReplace = await collectParentLinksToReplace({
-        taskId: normalizedTaskId,
-        nextParentTaskId: createdTask.id,
-        relation,
-        replaceExistingParent,
-      });
-
       const link = await taskService.createTaskLink(normalizedTaskId, {
         toTaskId: createdTask.id,
         relation,
         note: normalizeLinkNote(note),
-      });
-
-      await deletePreviousParentLinks({
-        taskId: normalizedTaskId,
-        createdLinkId: link.id,
-        parentLinksToReplace,
       });
 
       revalidateTaskMutationRoutes();

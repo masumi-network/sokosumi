@@ -1,10 +1,5 @@
 import { TaskLinkRelation } from "@sokosumi/core-client";
-import {
-  OctagonMinus,
-  SquareMinus,
-  SquareMousePointer,
-  SquarePlus,
-} from "lucide-react";
+import { OctagonMinus, SquareMinus, SquareMousePointer } from "lucide-react";
 import type { useTranslations } from "next-intl";
 
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
@@ -19,12 +14,6 @@ export function buildTaskPickerOptions(
       label: tDetailActions("relations.related"),
       relation: TaskLinkRelation.RELATED,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
-    },
-    {
-      id: "child-task",
-      label: tDetailActions("relations.childTask"),
-      relation: TaskLinkRelation.CHILD,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
     },
     {
       id: "blocks",
@@ -56,12 +45,6 @@ export function buildCreateRelatedOptions(
       label: tDetailActions("relations.related"),
       relation: TaskLinkRelation.RELATED,
       icon: SquareMousePointer,
-    },
-    {
-      id: "add-child-task",
-      label: tDetailActions("relations.addChildTask"),
-      relation: TaskLinkRelation.PARENT,
-      icon: SquarePlus,
     },
     {
       id: "blocks",

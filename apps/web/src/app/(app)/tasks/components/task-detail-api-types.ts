@@ -19,8 +19,14 @@ export interface VisibleTaskLink {
   name: string;
   identifier: string | null;
   status: TaskStatus;
-  relation: TaskLinkRelation;
+  relation: VisibleTaskLinkRelation;
 }
+
+/** PARENT links became sub-tasks; one left from before reads as related. */
+export type VisibleTaskLinkRelation = Exclude<
+  TaskLinkRelation,
+  "parent" | "child"
+>;
 
 export function mapTaskListItemToTaskPickerTask(
   task: TaskListItem,
@@ -40,6 +46,9 @@ export function mapVisibleTaskLinks(links: TaskLink[]): VisibleTaskLink[] {
       name: stripInlineMarkdown(link.peerTask.name),
       identifier: link.peerTask.identifier,
       status: link.peerTask.status,
-      relation: link.relation,
+      relation:
+        link.relation === "parent" || link.relation === "child"
+          ? "related"
+          : link.relation,
     }));
 }

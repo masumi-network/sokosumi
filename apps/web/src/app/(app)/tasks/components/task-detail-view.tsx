@@ -15,7 +15,6 @@ import { TaskActivitySectionContent } from "@/app/tasks/components/task-detail-a
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadataSection } from "@/app/tasks/components/task-detail-metadata-section";
-import { TaskParentLine } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
@@ -113,7 +112,6 @@ export async function TaskDetailView({
   } = startPrivateTaskDetailReads(task, forceReadOnly);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
-  const parentTask = linkedTasks.find((link) => link.relation === "child");
 
   const [t, tStatus] = await Promise.all([
     translationsPromise,
@@ -151,38 +149,25 @@ export async function TaskDetailView({
               loadBoardOnMount={!forceReadOnly}
               calendarBackLabel={t("backToCalendar")}
               parentLink={
-                <>
-                  {task.ancestors?.length ? (
-                    <nav
-                      aria-label={t("subtaskOf")}
-                      className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm"
-                    >
-                      <span>{t("subtaskOf")}</span>
-                      {task.ancestors.map((ancestor, index) => (
-                        <Fragment key={ancestor.id}>
-                          {index > 0 ? <span aria-hidden>/</span> : null}
-                          <Link
-                            href={taskLinkHref(
-                              ancestor,
-                              relatedTaskHrefBasePath,
-                            )}
-                            className="text-foreground underline underline-offset-4"
-                          >
-                            {ancestor.name}
-                          </Link>
-                        </Fragment>
-                      ))}
-                    </nav>
-                  ) : null}
-                  {parentTask ? (
-                    <TaskParentLine
-                      parent={parentTask}
-                      href={taskLinkHref(parentTask, relatedTaskHrefBasePath)}
-                    >
-                      {t("clonedFrom", { name: parentTask.name })}
-                    </TaskParentLine>
-                  ) : null}
-                </>
+                task.ancestors?.length ? (
+                  <nav
+                    aria-label={t("subtaskOf")}
+                    className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm"
+                  >
+                    <span>{t("subtaskOf")}</span>
+                    {task.ancestors.map((ancestor, index) => (
+                      <Fragment key={ancestor.id}>
+                        {index > 0 ? <span aria-hidden>/</span> : null}
+                        <Link
+                          href={taskLinkHref(ancestor, relatedTaskHrefBasePath)}
+                          className="text-foreground underline underline-offset-4"
+                        >
+                          {ancestor.name}
+                        </Link>
+                      </Fragment>
+                    ))}
+                  </nav>
+                ) : null
               }
               actions={
                 <Suspense fallback={<TaskDetailActionsFallback />}>
@@ -231,7 +216,8 @@ export async function TaskDetailView({
               />
             </Suspense>
 
-            {forceReadOnly ? null : (
+            {/* A Task with no sub-tasks has no section; the "⋯" menu adds the first. */}
+            {forceReadOnly || task.subtaskProgress.total === 0 ? null : (
               <Suspense
                 fallback={
                   <TaskSectionFallback title={t("subtasks")} rows={2} />
@@ -240,6 +226,7 @@ export async function TaskDetailView({
                 <TaskSubtaskSection
                   task={task}
                   hasAssignedSeatPromise={hasAssignedSeatPromise}
+                  assigneeOptionsPromise={assigneeOptionsPromise}
                 />
               </Suspense>
             )}
@@ -268,8 +255,6 @@ export async function TaskDetailView({
                   related: t("actions.relations.related"),
                   blocks: t("actions.relations.blocks"),
                   blocked_by: t("actions.relations.blockedBy"),
-                  parent: t("actions.relations.childTask"),
-                  child: t("actions.relations.parent"),
                   duplicate: t("actions.relations.duplicate"),
                 }}
                 statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
@@ -569,6 +554,8 @@ async function TaskDetailActionsSlot({
       taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
+      parentTaskId={task.parentTaskId}
+      ancestorIds={task.ancestors?.map((ancestor) => ancestor.id)}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}

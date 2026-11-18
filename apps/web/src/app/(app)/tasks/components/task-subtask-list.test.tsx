@@ -1,12 +1,14 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   SUBTASK_LIST_LIMIT,
   type SubtaskRow,
 } from "@/app/tasks/utils/task-subtask-row";
+import { mockCoworkerOption } from "@/test-fixtures/coworker";
 import { TaskSubtaskList } from "./task-subtask-list";
 
 const setTaskStatusFromDrag = vi.hoisted(() => vi.fn());
@@ -15,6 +17,9 @@ const createSubtask = vi.hoisted(() => vi.fn());
 const getTasks = vi.hoisted(() => vi.fn());
 
 vi.mock("next-intl", () => ({
+  useFormatter: () => ({ dateTime: () => "Dec 1" }),
+  useNow: () => new Date("2026-11-18T00:00:00.000Z"),
+  useTimeZone: () => "UTC",
   useTranslations:
     () => (key: string, values?: Record<string, string | number>) =>
       values ? `${key} ${Object.values(values).join(" ")}` : key,
@@ -31,6 +36,13 @@ vi.mock("@/lib/actions/task/subtask-action", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: { getTasks },
 }));
+
+const member = mockCoworkerOption({
+  id: "user-1",
+  slug: "bob",
+  name: "Bob",
+  kind: "user",
+});
 
 function row(id: string, overrides: Partial<SubtaskRow> = {}): SubtaskRow {
   return {
@@ -63,6 +75,7 @@ function renderList(
         renderedAt={at}
         readOnly={false}
         canAdd
+        assigneeOptions={[member]}
         progress={progress}
       />
     </QueryClientProvider>
@@ -79,11 +92,24 @@ function renderList(
   };
 }
 
+/** Adds a sub-task through the "+" dialog with only a name. */
+function addByDialog(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: "add" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "name" }), {
+    target: { value: name },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+}
+
 function rowNames() {
   return screen
     .getAllByRole("listitem")
     .map((item) => item.textContent?.trim());
 }
+
+beforeAll(() => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -146,9 +172,7 @@ describe("TaskSubtaskList", () => {
     createSubtask.mockImplementation(() => new Promise(() => {}));
     renderList([row("a")]);
 
-    const input = screen.getByRole("textbox", { name: "add" });
-    fireEvent.change(input, { target: { value: "b" } });
-    fireEvent.submit(input);
+    addByDialog("b");
     await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
     fireEvent.keyDown(screen.getByRole("button", { name: "reorderHandle a" }), {
       key: "ArrowDown",
@@ -158,18 +182,6 @@ describe("TaskSubtaskList", () => {
     expect(screen.queryByText(/^movedTo/)).not.toBeInTheDocument();
     expect(rowNames()).toEqual(["a", "b"]);
     expect(moveSubtask).not.toHaveBeenCalled();
-  });
-
-  it("puts a refused sub-task's name back in the field", async () => {
-    createSubtask.mockResolvedValue({ ok: false });
-    renderList([]);
-    getTasks.mockImplementation(() => new Promise(() => {}));
-
-    const input = screen.getByRole("textbox", { name: "add" });
-    fireEvent.change(input, { target: { value: "Book the venue" } });
-    fireEvent.submit(input);
-
-    await waitFor(() => expect(input).toHaveValue("Book the venue"));
   });
 
   it("takes newer page rows after a refresh", async () => {
@@ -186,9 +198,7 @@ describe("TaskSubtaskList", () => {
   it("keeps a change in flight over newer page rows", async () => {
     createSubtask.mockImplementation(() => new Promise(() => {}));
     const { rerender } = renderList([row("a")], undefined, 1_000);
-    const input = screen.getByRole("textbox", { name: "add" });
-    fireEvent.change(input, { target: { value: "b" } });
-    fireEvent.submit(input);
+    addByDialog("b");
     await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
 
     // Newer than the optimistic write, so only the in-flight check holds it.
@@ -234,8 +244,37 @@ describe("TaskSubtaskList", () => {
 
     expect(screen.getByText("progressLabel 7 140")).toBeInTheDocument();
     expect(
-      screen.queryByRole("textbox", { name: "add" }),
+      screen.queryByRole("button", { name: "add" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("sends the name, assignee and due date from the + dialog", async () => {
+    const user = userEvent.setup();
+    createSubtask.mockImplementation(() => new Promise(() => {}));
+    renderList([row("a")]);
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.type(screen.getByRole("textbox", { name: "name" }), "Book it");
+    await user.click(
+      screen.getByRole("combobox", { name: "assignee: unassigned" }),
+    );
+    await user.click(await screen.findByRole("option", { name: /Bob/ }));
+    fireEvent.change(screen.getByLabelText("dueOn"), {
+      target: { value: "2026-12-01" },
+    });
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() =>
+      expect(createSubtask).toHaveBeenCalledWith({
+        parentTaskId: "parent",
+        name: "Book it",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "user-1",
+        dueOn: "2026-12-01",
+      }),
+    );
+    expect(screen.getAllByRole("listitem")[1]).toHaveTextContent("Book it");
   });
 
   it("reopens a person's done sub-task to Ready without asking", async () => {

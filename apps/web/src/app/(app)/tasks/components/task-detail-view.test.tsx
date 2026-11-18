@@ -182,6 +182,8 @@ function createTask(
     files: [],
     jobs: [],
     participants: [],
+    parentTaskId: null,
+    subtaskProgress: { completed: 0, total: 0 },
     events,
     tags: [],
     createdAt: new Date("2026-10-05T09:00:00Z"),

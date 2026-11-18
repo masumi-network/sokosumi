@@ -18,7 +18,6 @@ import {
   Pencil,
   Repeat,
   RotateCcw,
-  SquareArrowRightExit,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,11 +44,25 @@ import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskSendToChatDialog } from "./task-send-to-chat-dialog";
 import { TaskShareButton } from "./task-share-button";
 import {
+  TaskSubtaskMenuDialogs,
+  TaskSubtaskMenuItems,
+} from "./task-subtask-menu";
+import {
   type TaskDetailActionsProps,
   useTaskDetailActions,
 } from "./use-task-detail-actions";
+import { useTaskSubtaskActions } from "./use-task-subtask-actions";
+
+const NO_ANCESTORS: readonly string[] = [];
+
 export function TaskDetailActions(props: TaskDetailActionsProps) {
   const model = useTaskDetailActions(props);
+  const subtaskActions = useTaskSubtaskActions({
+    taskId: props.taskId,
+    parentTaskId: props.parentTaskId ?? null,
+    ancestorIds: props.ancestorIds ?? NO_ANCESTORS,
+    canManageRelations: model.canManageRelations,
+  });
   const {
     taskId,
     share,
@@ -67,7 +80,6 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     isMobile,
     isStatusPending,
     isLinkPending,
-    isParentRemovalPending,
     isRemoveRelatedPending,
     isDropdownOpen,
     menuTriggerRef,
@@ -108,7 +120,6 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     canMove,
     removableTaskLinks,
     canRemoveRelated,
-    canRemoveParent,
     hasOverflowMenuActions,
     taskPickerOptions,
     createRelatedOptions,
@@ -119,10 +130,9 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     handleOpenTaskPicker,
     handleOpenCreateRelated,
     handleSelectLinkableTask,
-    handleRemoveParent,
     handleRemoveRelated,
-    actionsDisabled,
   } = model;
+  const actionsDisabled = model.actionsDisabled || subtaskActions.isPending;
   return (
     <div className="flex items-center gap-2">
       {canArchiveTask ? (
@@ -257,6 +267,10 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
 
             {canManageRelations ? (
               <>
+                <TaskSubtaskMenuItems
+                  model={subtaskActions}
+                  disabled={actionsDisabled}
+                />
                 {isMobile ? (
                   <>
                     <DropdownMenuItem
@@ -499,22 +513,6 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
                     </DropdownMenuSub>
                   )
                 ) : null}
-                {canRemoveParent ? (
-                  <DropdownMenuItem
-                    disabled={actionsDisabled}
-                    onSelect={handleRemoveParent}
-                  >
-                    {isParentRemovalPending ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <SquareArrowRightExit className="size-4" aria-hidden />
-                    )}
-                    {tDetailActions("removeParent")}
-                  </DropdownMenuItem>
-                ) : null}
               </>
             ) : null}
 
@@ -624,6 +622,14 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
         isLinkPending={isLinkPending}
         onSelectTask={handleSelectLinkableTask}
       />
+
+      {canManageRelations ? (
+        <TaskSubtaskMenuDialogs
+          model={subtaskActions}
+          taskId={taskId}
+          assigneeOptions={model.coworkerOptions}
+        />
+      ) : null}
 
       <TaskCreateRelatedModal model={model} />
     </div>

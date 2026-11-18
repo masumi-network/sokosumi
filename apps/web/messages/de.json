@@ -1918,7 +1918,6 @@
         "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
-        "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",
         "organization": "Organisation",
@@ -2025,9 +2024,6 @@
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
           "removeRelatedError": "Verknüpfter Task konnte nicht entfernt werden",
-          "removeParent": "Übergeordneten Task entfernen",
-          "removeParentSuccess": "Übergeordneter Task entfernt",
-          "removeParentError": "Übergeordneter Task konnte nicht entfernt werden",
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
@@ -2044,10 +2040,7 @@
             "related": "Zugehörig",
             "blocks": "Blockiert",
             "blockedBy": "Blockiert durch",
-            "parent": "Übergeordnete Aufgabe",
-            "childTask": "Untergeordnete Aufgabe",
-            "duplicate": "Duplikat",
-            "addChildTask": "Untergeordnete Aufgabe hinzufügen"
+            "duplicate": "Duplikat"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -2077,6 +2070,22 @@
             "refused": "Dieser Chat kann diese Aufgabe nicht mehr erhalten. Wähle einen anderen.",
             "retry": "Erneut senden",
             "retryHint": "Das letzte Senden ist vielleicht nicht angekommen. Erneutes Senden postet sie nicht doppelt; wenn du Chat oder Nachricht änderst, wird eine neue gesendet."
+          },
+          "subtasks": {
+            "add": "Teilaufgabe hinzufügen…",
+            "addExisting": "Vorhandenen Task als Teilaufgabe hinzufügen…",
+            "addExistingTitle": "Vorhandenen Task als Teilaufgabe hinzufügen",
+            "addExistingDescription": "Wähle einen Task. Er wird die letzte Teilaufgabe dieses Tasks.",
+            "addExistingSuccess": "Teilaufgabe hinzugefügt",
+            "moveUnder": "Verschieben unter…",
+            "moveUnderTitle": "Unter einen anderen Task verschieben",
+            "moveUnderDescription": "Wähle einen Task. Dieser Task wird seine letzte Teilaufgabe.",
+            "moveUnderSuccess": "Task verschoben",
+            "removeFromParent": "Aus übergeordnetem Task entfernen",
+            "removeFromParentSuccess": "Task aus seinem übergeordneten Task entfernt",
+            "moveError": "Der Task konnte nicht verschoben werden. Versuche es erneut.",
+            "createSuccess": "Teilaufgabe hinzugefügt",
+            "createError": "Die Teilaufgabe konnte nicht hinzugefügt werden. Versuche es erneut."
           }
         },
         "ShareModal": {
@@ -2112,7 +2121,6 @@
           "confirm": "Arbeitsbereich wechseln",
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
-        "clonedFrom": "Geklont von {name}",
         "pendingApproval": "Freigabe ausstehend",
         "VendorGrantApproval": {
           "title": "Freigabe des Vendor-Zugriffs erforderlich",
@@ -2326,13 +2334,18 @@
         "progressLabel": "{completed} von {total} Teilaufgaben erledigt",
         "title": "Teilaufgaben",
         "add": "Teilaufgabe hinzufügen",
-        "addPlaceholder": "Teilaufgabe eingeben und Enter drücken",
         "movedTo": "Auf Position {position} von {total} verschoben",
         "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
         "toggleLabel": "{name} erledigt",
         "agentDoneHint": "Abwählen gibt sie an {assignee} zurück",
         "changeError": "Die Änderung an der Teilaufgabe wurde nicht gespeichert. Versuche es erneut.",
-        "truncated": "Die ersten {count} Teilaufgaben werden angezeigt."
+        "truncated": "Die ersten {count} Teilaufgaben werden angezeigt.",
+        "createDescription": "Die Teilaufgabe kommt ans Ende der Liste.",
+        "name": "Name",
+        "assignee": "Zuständig",
+        "dueOn": "Fälligkeitsdatum",
+        "cancel": "Abbrechen",
+        "create": "Teilaufgabe hinzufügen"
       },
       "Due": {
         "label": "Fälligkeitsdatum",

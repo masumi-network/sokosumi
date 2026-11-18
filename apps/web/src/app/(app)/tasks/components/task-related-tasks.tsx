@@ -1,8 +1,11 @@
 "use client";
 
-import type { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
+import type { TaskStatus } from "@sokosumi/core-client";
 
-import type { VisibleTaskLink } from "./task-detail-api-types";
+import type {
+  VisibleTaskLink,
+  VisibleTaskLinkRelation,
+} from "./task-detail-api-types";
 import {
   applyTaskLinkChanges,
   useOptimisticTaskLinks,
@@ -11,17 +14,15 @@ import { TaskRelationRow } from "./task-relation-row";
 
 interface TaskRelatedTasksProps {
   tasks: VisibleTaskLink[];
-  relationLabels: Record<TaskLinkRelation, string>;
+  relationLabels: Record<VisibleTaskLinkRelation, string>;
   statusLabels: Record<TaskStatus, string>;
   hrefBasePath?: string;
 }
 
-/** Blockers first, then hierarchy (parent, child tasks), then the loose links. */
-const RELATION_ORDER: readonly TaskLinkRelation[] = [
+/** Blockers first, then the loose links. */
+const RELATION_ORDER: readonly VisibleTaskLinkRelation[] = [
   "blocked_by",
   "blocks",
-  "child",
-  "parent",
   "related",
   "duplicate",
 ];
@@ -36,7 +37,7 @@ export function TaskRelatedTasks({
   const tasks = applyTaskLinkChanges(savedTasks, changes);
   if (tasks.length === 0) return null;
 
-  const groups = new Map<TaskLinkRelation, VisibleTaskLink[]>();
+  const groups = new Map<VisibleTaskLinkRelation, VisibleTaskLink[]>();
   for (const task of tasks) {
     const group = groups.get(task.relation);
     if (group) {

@@ -4,6 +4,7 @@ import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
+  MoveTaskRequest,
   Task,
   TaskActivitySummary,
   TaskEvent,
@@ -67,6 +68,8 @@ interface CreateTaskInput {
   /** Makes the Task a sub-task of this one, last or after `afterTaskId`. */
   parentTaskId?: string;
   afterTaskId?: string;
+  /** `YYYY-MM-DD`. */
+  dueOn?: string | null;
 }
 
 interface PatchTaskInput {
@@ -311,9 +314,9 @@ export const taskService = (() => {
 
   async function moveSubtask(
     taskId: string,
-    afterTaskId: string | null,
+    move: MoveTaskRequest,
   ): Promise<Task> {
-    const result = await coreClient.moveSubtask(taskId, afterTaskId);
+    const result = await coreClient.moveSubtask(taskId, move);
     return result.data;
   }
 

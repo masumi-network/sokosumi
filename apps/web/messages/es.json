@@ -1918,7 +1918,6 @@
         "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
-        "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
         "organization": "Organización",
@@ -2025,9 +2024,6 @@
           "removeRelated": "Quitar tarea relacionada",
           "removeRelatedSuccess": "Tarea relacionada quitada",
           "removeRelatedError": "No se pudo quitar la tarea relacionada",
-          "removeParent": "Quitar tarea principal",
-          "removeParentSuccess": "Tarea principal quitada",
-          "removeParentError": "No se pudo quitar la tarea principal",
           "linkTaskSuccess": "Tarea vinculada",
           "linkTaskError": "No se pudo vincular la tarea",
           "createRelatedSuccess": "Tarea relacionada creada",
@@ -2044,10 +2040,7 @@
             "related": "Relacionada",
             "blocks": "Bloqueando",
             "blockedBy": "Bloqueada por",
-            "parent": "Tarea principal",
-            "childTask": "Tarea hija",
-            "duplicate": "Duplicada",
-            "addChildTask": "Agregar tarea hija"
+            "duplicate": "Duplicada"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Empezar a trabajar",
@@ -2077,6 +2070,22 @@
             "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
             "retry": "Enviar de nuevo",
             "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          },
+          "subtasks": {
+            "add": "Añadir subtarea…",
+            "addExisting": "Añadir tarea existente como subtarea…",
+            "addExistingTitle": "Añadir tarea existente como subtarea",
+            "addExistingDescription": "Elige una tarea. Pasa a ser la última subtarea de esta tarea.",
+            "addExistingSuccess": "Subtarea añadida",
+            "moveUnder": "Mover debajo de…",
+            "moveUnderTitle": "Mover debajo de otra tarea",
+            "moveUnderDescription": "Elige una tarea. Esta tarea pasa a ser su última subtarea.",
+            "moveUnderSuccess": "Tarea movida",
+            "removeFromParent": "Quitar de la tarea principal",
+            "removeFromParentSuccess": "Tarea quitada de su tarea principal",
+            "moveError": "No se pudo mover la tarea. Inténtalo de nuevo.",
+            "createSuccess": "Subtarea añadida",
+            "createError": "No se pudo añadir la subtarea. Inténtalo de nuevo."
           }
         },
         "ShareModal": {
@@ -2112,7 +2121,6 @@
           "confirm": "Cambiar espacio de trabajo",
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
-        "clonedFrom": "Clonada de {name}",
         "pendingApproval": "Aprobación pendiente",
         "VendorGrantApproval": {
           "title": "Se requiere aprobación de acceso del proveedor",
@@ -2326,13 +2334,18 @@
         "progressLabel": "{completed} de {total} subtareas completadas",
         "title": "Subtareas",
         "add": "Añadir subtarea",
-        "addPlaceholder": "Escribe una subtarea y pulsa Intro",
         "movedTo": "Movida a la posición {position} de {total}",
         "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
         "toggleLabel": "{name} hecha",
         "agentDoneHint": "Al desmarcarla vuelve a {assignee}",
         "changeError": "No se pudo guardar el cambio de la subtarea. Inténtalo de nuevo.",
-        "truncated": "Se muestran las primeras {count} subtareas."
+        "truncated": "Se muestran las primeras {count} subtareas.",
+        "createDescription": "La subtarea va al final de la lista.",
+        "name": "Nombre",
+        "assignee": "Responsable",
+        "dueOn": "Fecha límite",
+        "cancel": "Cancelar",
+        "create": "Añadir subtarea"
       },
       "Due": {
         "label": "Fecha límite",

@@ -10,15 +10,9 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type FormEvent,
-  type KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
@@ -26,14 +20,16 @@ import {
   SUBTASK_LIST_LIMIT,
   type SubtaskRow,
 } from "@/app/tasks/utils/task-subtask-row";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
+import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { moveIdToSlot } from "@/lib/utils/move-id";
 import { AssigneeAvatar } from "./assignee-avatar";
 import { TaskDetailLink } from "./task-detail-link";
 import { TaskDueBadge } from "./task-due-badge";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
+import { TaskSubtaskCreateDialog } from "./task-subtask-create-dialog";
 import { TaskSubtaskProgress } from "./task-subtask-progress";
 import { useTaskSubtasks } from "./use-task-subtasks";
 
@@ -45,6 +41,8 @@ interface TaskSubtaskListProps {
   readOnly: boolean;
   /** False at the deepest level, where Core refuses another sub-task. */
   canAdd: boolean;
+  /** Who a new sub-task can go to. */
+  assigneeOptions: CoworkerOption[];
   /** Core's count of every sub-task, for when the list shows only the first page. */
   progress: { completed: number; total: number };
 }
@@ -60,6 +58,7 @@ export function TaskSubtaskList({
   renderedAt,
   readOnly,
   canAdd,
+  assigneeOptions,
   progress,
 }: TaskSubtaskListProps) {
   const t = useTranslations("App.Tasks.Subtasks");
@@ -69,14 +68,9 @@ export function TaskSubtaskList({
     initialRows,
     renderedAt,
     personalAssistantFallback: tTasks("personalAssistant"),
-    onError: (change) => {
-      toast.error(t("changeError"));
-      // Back in the field, so nothing typed is lost.
-      if (change.kind === "add")
-        setDraftName((current) => current || change.name);
-    },
+    onError: () => toast.error(t("changeError")),
   });
-  const [draftName, setDraftName] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   // Kept after close, so the closing dialog still names the assignee.
   const [reopening, setReopening] = useState<SubtaskRow | null>(null);
@@ -148,14 +142,6 @@ export function TaskSubtaskList({
     setReopenOpen(false);
   }
 
-  function handleAdd(event: FormEvent) {
-    event.preventDefault();
-    const name = draftName.trim();
-    if (!name) return;
-    add(name);
-    setDraftName("");
-  }
-
   return (
     <section className="space-y-2" aria-labelledby="task-subtasks-title">
       <div className="flex items-center gap-2">
@@ -178,6 +164,20 @@ export function TaskSubtaskList({
                 }
           }
         />
+        {/* Past the first page a new sub-task would land out of sight. */}
+        {readOnly || !canAdd || truncated ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="ml-auto size-10 md:size-8"
+            aria-label={t("add")}
+            title={t("add")}
+            onClick={() => setIsCreateOpen(true)}
+          >
+            <Plus className="size-4" aria-hidden />
+          </Button>
+        )}
       </div>
       {rows.length > 0 ? (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -206,18 +206,16 @@ export function TaskSubtaskList({
           {t("truncated", { count: SUBTASK_LIST_LIMIT })}
         </p>
       ) : null}
-      {/* Past the first page a new sub-task would land out of sight. */}
-      {readOnly || !canAdd || truncated ? null : (
-        <form onSubmit={handleAdd}>
-          <Input
-            value={draftName}
-            onChange={(event) => setDraftName(event.target.value)}
-            placeholder={t("addPlaceholder")}
-            aria-label={t("add")}
-            className="h-8 text-sm"
-          />
-        </form>
-      )}
+      {isCreateOpen ? (
+        <TaskSubtaskCreateDialog
+          assigneeOptions={assigneeOptions}
+          onSubmit={(draft) => {
+            add(draft);
+            return true;
+          }}
+          onClose={() => setIsCreateOpen(false)}
+        />
+      ) : null}
       <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
