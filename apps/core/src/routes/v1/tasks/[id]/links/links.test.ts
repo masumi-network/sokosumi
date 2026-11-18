@@ -2,6 +2,7 @@ import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
+import { PARENT_LINK_RETIRED_MESSAGE } from "@/helpers/task-link";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -821,6 +822,25 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskLinkDeleteMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 naming the move route for a parent or child relation", async () => {
+    const app = createUserApp();
+    mountPostTaskLink(app);
+
+    for (const relation of ["parent", "child"]) {
+      const response = await app.request("http://localhost/tsk_a/links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toTaskId: "tsk_b", relation }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        message: PARENT_LINK_RETIRED_MESSAGE,
+      });
+    }
+    expect(taskLinkCreateMock).not.toHaveBeenCalled();
+  });
+
   it("creates reversed directional links from task-relative relations", async () => {
     taskLinkCreateMock.mockResolvedValue({
       id: "tl_1",
@@ -1042,7 +1062,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       updatedAt: new Date("2026-03-25T10:05:00.000Z"),
       fromTaskId: "tsk_a",
       toTaskId: "tsk_b",
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.BLOCKS,
       note: "Updated note",
     });
     taskFindFirstMock.mockResolvedValue({
@@ -1060,7 +1080,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        relation: "parent",
+        relation: "blocks",
         note: "Updated note",
       }),
     });
@@ -1069,7 +1089,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
       data: {
-        type: TaskLinkType.PARENT,
+        type: TaskLinkType.BLOCKS,
         note: "Updated note",
       },
     });
@@ -1093,7 +1113,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       };
     };
     expect(body.data).toMatchObject({
-      relation: "parent",
+      relation: "blocks",
       peerTask: {
         id: "tsk_b",
         name: "Task B",
@@ -1144,7 +1164,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        relation: "parent",
+        relation: "blocks",
       }),
     });
 
@@ -1164,7 +1184,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        relation: "parent",
+        relation: "blocks",
       }),
     });
 
@@ -1242,7 +1262,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        relation: "child",
+        relation: "blocked_by",
       }),
     });
 
@@ -1264,7 +1284,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       updatedAt: new Date("2026-03-25T10:05:00.000Z"),
       fromTaskId: "tsk_b",
       toTaskId: "tsk_a",
-      type: TaskLinkType.PARENT,
+      type: TaskLinkType.BLOCKS,
       note: "Old note",
     });
     taskFindFirstMock.mockResolvedValue({
@@ -1280,7 +1300,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        relation: "child",
+        relation: "blocked_by",
       }),
     });
 
@@ -1288,8 +1308,27 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkUpdateMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
       data: {
-        type: TaskLinkType.PARENT,
+        type: TaskLinkType.BLOCKS,
       },
     });
+  });
+
+  it("returns 400 naming the move route when the relation becomes parent or child", async () => {
+    const app = createUserApp();
+    mountPatchTaskLink(app);
+
+    for (const relation of ["parent", "child"]) {
+      const response = await app.request("http://localhost/tsk_a/links/tl_1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ relation }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        message: PARENT_LINK_RETIRED_MESSAGE,
+      });
+    }
+    expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 });

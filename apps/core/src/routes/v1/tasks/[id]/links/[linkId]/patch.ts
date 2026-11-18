@@ -10,8 +10,8 @@ import { ok } from "@/helpers/response";
 import {
   mapTaskLink,
   mapTaskLinkRelationToTypeForExistingDirection,
+  taskLinkWriteValidationHook,
 } from "@/helpers/task-link";
-import { requireNoSubtaskInParentLink } from "@/helpers/task-subtasks";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -36,7 +36,8 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "patch",
   path: "/{id}/links/{linkId}",
-  description: "Update a link between this task and another task.",
+  description:
+    "Update a link between this task and another task. A parent or child relation returns 400: a parent is now a sub-task, set with POST /v1/tasks/{id}/move.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -58,61 +59,62 @@ const route = createRoute({
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
-    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { id, linkId } = c.req.valid("param");
-    const { relation, note } = c.req.valid("json");
+  app.openapi(
+    route,
+    async (c) => {
+      const { authContext } = c.var;
+      const userContext = requireOwnerUserContext(authContext);
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      const { id, linkId } = c.req.valid("param");
+      const { relation, note } = c.req.valid("json");
 
-    const { link, peerTask } = await prisma.$transaction(async (tx) => {
-      const link = await tx.taskLink.findUnique({
-        where: { id: linkId },
+      const { link, peerTask } = await prisma.$transaction(async (tx) => {
+        const link = await tx.taskLink.findUnique({
+          where: { id: linkId },
+        });
+
+        if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
+          throw notFound("Task link not found");
+        }
+
+        await requireMutableTaskWriteAccess(userContext, id, tx);
+
+        const peerTaskId =
+          link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
+        const peerTask = await tx.task.findFirst({
+          where: {
+            id: peerTaskId,
+            workspaceId: workspaceContext.workspaceId,
+            ...buildTaskWriteAccessWhere(userContext.userId),
+          },
+          select: taskLinkPeerTaskSelect,
+        });
+
+        if (!peerTask) {
+          throw notFound("Peer task not found");
+        }
+
+        const nextType =
+          relation === undefined
+            ? undefined
+            : mapTaskLinkRelationToTypeForExistingDirection(id, link, relation);
+
+        const updatedLink = await tx.taskLink.update({
+          where: { id: linkId },
+          data: {
+            ...(nextType !== undefined ? { type: nextType } : {}),
+            ...(note !== undefined ? { note } : {}),
+          },
+        });
+
+        return {
+          link: updatedLink,
+          peerTask,
+        };
       });
 
-      if (!link || (link.fromTaskId !== id && link.toTaskId !== id)) {
-        throw notFound("Task link not found");
-      }
-
-      await requireMutableTaskWriteAccess(userContext, id, tx);
-
-      const peerTaskId =
-        link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
-      const peerTask = await tx.task.findFirst({
-        where: {
-          id: peerTaskId,
-          workspaceId: workspaceContext.workspaceId,
-          ...buildTaskWriteAccessWhere(userContext.userId),
-        },
-        select: taskLinkPeerTaskSelect,
-      });
-
-      if (!peerTask) {
-        throw notFound("Peer task not found");
-      }
-
-      const nextType =
-        relation === undefined
-          ? undefined
-          : mapTaskLinkRelationToTypeForExistingDirection(id, link, relation);
-      if (nextType !== undefined) {
-        await requireNoSubtaskInParentLink(tx, nextType, [id, peerTaskId]);
-      }
-
-      const updatedLink = await tx.taskLink.update({
-        where: { id: linkId },
-        data: {
-          ...(nextType !== undefined ? { type: nextType } : {}),
-          ...(note !== undefined ? { note } : {}),
-        },
-      });
-
-      return {
-        link: updatedLink,
-        peerTask,
-      };
-    });
-
-    return ok(c, mapTaskLink(id, link, peerTask));
-  });
+      return ok(c, mapTaskLink(id, link, peerTask));
+    },
+    taskLinkWriteValidationHook,
+  );
 }

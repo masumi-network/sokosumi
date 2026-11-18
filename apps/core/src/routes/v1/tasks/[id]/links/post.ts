@@ -12,8 +12,8 @@ import {
   assertTaskLinkAllowed,
   mapTaskLink,
   mapTaskLinkRelationToWriteData,
+  taskLinkWriteValidationHook,
 } from "@/helpers/task-link";
-import { requireNoSubtaskInParentLink } from "@/helpers/task-subtasks";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -34,7 +34,8 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "post",
   path: "/{id}/links",
-  description: "Create a link between this task and another task",
+  description:
+    "Create a link between this task and another task. A parent or child relation returns 400: a parent is now a sub-task, set with POST /v1/tasks/{id}/move.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -57,53 +58,60 @@ const route = createRoute({
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const userContext = requireOwnerUserContext(authContext);
-    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const { toTaskId: peerTaskId, relation, note } = body;
+  app.openapi(
+    route,
+    async (c) => {
+      const { authContext } = c.var;
+      const userContext = requireOwnerUserContext(authContext);
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const { toTaskId: peerTaskId, relation, note } = body;
 
-    const { link, peerTask } = await serializableTransaction(async (tx) => {
-      await requireMutableTaskWriteAccess(userContext, id, tx);
-      assertTaskLinkAllowed(id, peerTaskId);
-      const linkData = mapTaskLinkRelationToWriteData(id, peerTaskId, relation);
+      const { link, peerTask } = await serializableTransaction(async (tx) => {
+        await requireMutableTaskWriteAccess(userContext, id, tx);
+        assertTaskLinkAllowed(id, peerTaskId);
+        const linkData = mapTaskLinkRelationToWriteData(
+          id,
+          peerTaskId,
+          relation,
+        );
 
-      const peerTask = await tx.task.findFirst({
-        where: {
-          id: peerTaskId,
-          workspaceId: workspaceContext.workspaceId,
-          ...buildTaskWriteAccessWhere(userContext.userId),
-        },
-        select: taskLinkPeerTaskSelect,
-      });
-
-      if (!peerTask) {
-        throw notFound("Task not found");
-      }
-      await requireNoSubtaskInParentLink(tx, linkData.type, [id, peerTaskId]);
-
-      try {
-        const link = await tx.taskLink.create({
-          data: {
-            ...linkData,
-            note: note ?? null,
+        const peerTask = await tx.task.findFirst({
+          where: {
+            id: peerTaskId,
+            workspaceId: workspaceContext.workspaceId,
+            ...buildTaskWriteAccessWhere(userContext.userId),
           },
+          select: taskLinkPeerTaskSelect,
         });
 
-        return {
-          link,
-          peerTask,
-        };
-      } catch (error) {
-        if (isPrismaUniqueViolation(error)) {
-          throw conflict("This task link already exists");
+        if (!peerTask) {
+          throw notFound("Task not found");
         }
-        throw error;
-      }
-    }, "Task changed while creating the link. Please retry.");
 
-    return created(c, mapTaskLink(id, link, peerTask));
-  });
+        try {
+          const link = await tx.taskLink.create({
+            data: {
+              ...linkData,
+              note: note ?? null,
+            },
+          });
+
+          return {
+            link,
+            peerTask,
+          };
+        } catch (error) {
+          if (isPrismaUniqueViolation(error)) {
+            throw conflict("This task link already exists");
+          }
+          throw error;
+        }
+      }, "Task changed while creating the link. Please retry.");
+
+      return created(c, mapTaskLink(id, link, peerTask));
+    },
+    taskLinkWriteValidationHook,
+  );
 }

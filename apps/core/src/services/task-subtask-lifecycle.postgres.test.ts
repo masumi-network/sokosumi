@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { lockTaskRows } from "@/helpers/calendar-locks";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
-import {
-  requireNoSubtaskInParentLink,
-  subtaskPositionAfter,
-} from "@/helpers/task-subtasks";
+import { type MoveTaskInput, moveTask } from "@/helpers/task-subtask-move";
+import { subtaskPositionAfter } from "@/helpers/task-subtasks";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { createTaskForActor } from "./task-domain.service";
 import { archiveTaskRecord, restoreTaskRecord } from "./task-domain-archive";
 
@@ -18,6 +17,11 @@ const enabled =
 const userId = randomUUID();
 const workspaceId = randomUUID();
 const actor = { kind: "user" as const, userId };
+const userContext = {
+  source: "context" as const,
+  userId,
+  organizationId: null,
+};
 
 function create(
   name: string,
@@ -60,6 +64,25 @@ async function moveAfter(taskId: string, afterTaskId: string | null) {
       afterTaskId,
     });
     await tx.task.update({ where: { id: taskId }, data: { position } });
+  });
+}
+
+function move(input: MoveTaskInput) {
+  return serializableTransaction(
+    (tx) => moveTask(tx, userContext, input),
+    "Task changed while moving it",
+  );
+}
+
+async function placement(taskId: string) {
+  return prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: {
+      parentTaskId: true,
+      position: true,
+      projectId: true,
+      number: true,
+    },
   });
 }
 
@@ -302,28 +325,130 @@ describe.skipIf(!enabled)("sub-task lifecycle against PostgreSQL", () => {
     expect(isPrismaTransactionConflict(error)).toBe(true);
   });
 
-  it("refuses a PARENT link on a sub-task and allows other links", async () => {
-    const parent = await create("Linked parent");
-    const child = await create("Linked child", {
+  it("attaches a Task last, moves it with its sub-tasks to another parent's Project, and detaches it", async () => {
+    const [home, away] = await Promise.all([
+      prisma.project.create({ data: { workspaceId, name: "Home" } }),
+      prisma.project.create({ data: { workspaceId, name: "Away" } }),
+    ]);
+    const parent = await create("Away parent", { projectId: away.id });
+    const sibling = await create("Away sibling", {
       parent: { taskId: parent.id },
     });
-    const other = await create("Other");
+    const task = await create("Moving", { projectId: home.id });
+    const step = await create("Moving step", { parent: { taskId: task.id } });
+    const homeNumber = (await placement(step.id)).number;
+
+    const attached = await move({ taskId: task.id, parentTaskId: parent.id });
+
+    expect(attached.projectChanged).toBe(true);
+    expect(await childNames(parent.id)).toEqual(["Away sibling", "Moving"]);
+    // Numbers 1 and 2 belong to the parent and its first sub-task.
+    expect(await placement(task.id)).toMatchObject({
+      projectId: away.id,
+      number: 3,
+    });
+    expect(await placement(step.id)).toMatchObject({
+      parentTaskId: task.id,
+      projectId: away.id,
+      number: 4,
+    });
+    const alias = await prisma.taskIdentifierAlias.findUnique({
+      where: {
+        projectId_number: { projectId: home.id, number: homeNumber ?? -1 },
+      },
+      select: { taskId: true },
+    });
+    expect(alias?.taskId).toBe(step.id);
+
+    const reparented = await move({
+      taskId: task.id,
+      parentTaskId: sibling.id,
+    });
+    expect(reparented.projectChanged).toBe(false);
+    expect(await childNames(sibling.id)).toEqual(["Moving"]);
+    expect(await childNames(parent.id)).toEqual(["Away sibling"]);
+
+    await move({ taskId: task.id, parentTaskId: null });
+    expect(await placement(task.id)).toMatchObject({
+      parentTaskId: null,
+      position: null,
+      projectId: away.id,
+    });
+    expect((await placement(step.id)).parentTaskId).toBe(task.id);
+  });
+
+  it("refuses a move under itself, under its own sub-task, too deep, or across visibility", async () => {
+    const task = await create("Refused");
+    const step = await create("Refused step", { parent: { taskId: task.id } });
+    const chain = [await create("Deep 0")];
+    for (let level = 1; level <= 4; level += 1) {
+      chain.push(
+        await create(`Deep ${level}`, {
+          parent: { taskId: chain[level - 1].id },
+        }),
+      );
+    }
+    const hidden = await create("Hidden");
+    await prisma.task.update({
+      where: { id: hidden.id },
+      data: { visibility: "PRIVATE" },
+    });
 
     await expect(
-      prisma.$transaction((tx) =>
-        requireNoSubtaskInParentLink(tx, TaskLinkType.PARENT, [
-          other.id,
-          child.id,
-        ]),
-      ),
-    ).rejects.toThrow("A sub-task cannot be a parent or child task");
+      move({ taskId: task.id, parentTaskId: task.id }),
+    ).rejects.toThrow("A Task cannot be its own sub-task");
     await expect(
-      prisma.$transaction((tx) =>
-        requireNoSubtaskInParentLink(tx, TaskLinkType.RELATES, [
-          other.id,
-          child.id,
-        ]),
-      ),
-    ).resolves.toBeUndefined();
+      move({ taskId: task.id, parentTaskId: step.id }),
+    ).rejects.toThrow("A Task cannot go under one of its own sub-tasks");
+    // Level 5 under Deep 4, plus one level of sub-tasks below it.
+    await expect(
+      move({ taskId: task.id, parentTaskId: chain[4].id }),
+    ).rejects.toThrow("Sub-tasks nest at most 5 levels deep");
+    await expect(
+      move({ taskId: task.id, parentTaskId: hidden.id }),
+    ).rejects.toThrow("A sub-task has its parent's visibility");
+    expect((await placement(task.id)).parentTaskId).toBeNull();
+  });
+
+  it("refuses an archived parent and archives an attached Task with its new parent", async () => {
+    const archivedParent = await create("Archived parent");
+    await prisma.task.update({
+      where: { id: archivedParent.id },
+      data: { archivedAt: new Date() },
+    });
+    const parent = await create("Live parent");
+    const task = await create("Attached");
+
+    await expect(
+      move({ taskId: task.id, parentTaskId: archivedParent.id }),
+    ).rejects.toThrow("Task not found");
+    await move({ taskId: task.id, parentTaskId: parent.id });
+    await prisma.$transaction((tx) => archiveTaskRecord(tx, parent));
+
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: task.id } }))
+        .archivedAt,
+    ).not.toBeNull();
+  });
+
+  it("fails a SERIALIZABLE archive whose snapshot predates an attach", async () => {
+    const parent = await create("Attach target");
+    const task = await create("Attached meanwhile");
+
+    const archive = prisma.$transaction(
+      async (tx) => {
+        // The first read fixes this transaction's snapshot.
+        await tx.task.findFirst({ where: { id: parent.id } });
+        await move({ taskId: task.id, parentTaskId: parent.id });
+        await lockTaskRows(tx, [parent.id]);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    const error = await archive.then(
+      () => null,
+      (caught: unknown) => caught,
+    );
+    expect(isPrismaTransactionConflict(error)).toBe(true);
   });
 });

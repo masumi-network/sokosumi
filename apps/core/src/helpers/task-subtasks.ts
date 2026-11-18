@@ -1,19 +1,10 @@
-import {
-  type Prisma,
-  TaskLinkType,
-  type TaskVisibility,
-} from "@sokosumi/database";
+import type { Prisma, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
-import {
-  badRequest,
-  conflict,
-  notFound,
-  unprocessableEntity,
-} from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import type prisma from "@/lib/db/prisma";
 
 type Db = Pick<typeof prisma, "task">;
@@ -53,21 +44,6 @@ export function requireNotSubtask(task: { parentTaskId: string | null }) {
     throw unprocessableEntity(
       "A sub-task stays in its parent's project and workspace. Move the parent instead.",
     );
-  }
-}
-
-/** Sub-tasks have their own hierarchy; a PARENT Task link would be a second one. */
-export async function requireNoSubtaskInParentLink(
-  tx: Prisma.TransactionClient,
-  type: TaskLinkType,
-  taskIds: [string, string],
-) {
-  if (type !== TaskLinkType.PARENT) return;
-  const subtasks = await tx.task.count({
-    where: { id: { in: taskIds }, parentTaskId: { not: null } },
-  });
-  if (subtasks > 0) {
-    throw badRequest("A sub-task cannot be a parent or child task");
   }
 }
 

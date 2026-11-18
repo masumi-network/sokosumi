@@ -235,9 +235,9 @@ describe("mapTaskLinkRelationToTypeForExistingDirection", () => {
       mapTaskLinkRelationToTypeForExistingDirection(
         "tsk_a",
         createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" }),
-        "parent",
+        "blocks",
       ),
-    ).toBe(TaskLinkType.PARENT);
+    ).toBe(TaskLinkType.BLOCKS);
   });
 
   it("maps relations that fit the existing incoming direction", () => {
@@ -245,9 +245,9 @@ describe("mapTaskLinkRelationToTypeForExistingDirection", () => {
       mapTaskLinkRelationToTypeForExistingDirection(
         "tsk_a",
         createLink({ fromTaskId: "tsk_b", toTaskId: "tsk_a" }),
-        "child",
+        "blocked_by",
       ),
-    ).toBe(TaskLinkType.PARENT);
+    ).toBe(TaskLinkType.BLOCKS);
   });
 
   it("allows related relations from the incoming side of an existing link", () => {
@@ -283,9 +283,9 @@ describe("mapTaskLinkRelationToTypeForExistingDirection", () => {
       mapTaskLinkRelationToTypeForExistingDirection(
         "tsk_a",
         createLink({ fromTaskId: "tsk_a", toTaskId: "tsk_b" }),
-        "child",
+        "blocked_by",
       ),
-    ).toThrow("Relation child would require reversing the existing link");
+    ).toThrow("Relation blocked_by would require reversing the existing link");
   });
 });
 
