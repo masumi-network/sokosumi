@@ -538,6 +538,8 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       await expect(write).rejects.toThrow(
         "Soko Bot turn is no longer writable",
       );
-    });
+      // Above its polling (5 s + 10 s) plus cleanup, which can wait out the
+      // transactions' 20 s timeout.
+    }, 45_000);
   });
 });

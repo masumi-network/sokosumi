@@ -76,10 +76,10 @@ export async function saveBrandBrain(
   input: CmoSaveBrandBrainInput,
   db?: Prisma.TransactionClient,
   /**
-   * Cuso's save: the brief his turn was asked with, so only the corrections
-   * in it close. A member's own edit closes the fix whenever it was asked.
+   * Cuso's save: when his turn was asked, so only the corrections in its
+   * brief close. A member's own edit closes the fix whenever it was asked.
    */
-  options: { brief?: string } = {},
+  options: { briefedAt?: Date } = {},
 ): Promise<BrandBrainRecord> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
@@ -96,13 +96,9 @@ export async function saveBrandBrain(
         // A correction asked while the turn wrote never reached it: it stays
         // open, so the next change picks it up.
         const briefed =
-          options.brief === undefined ||
+          !options.briefedAt ||
           (before?.fix &&
-            briefCarriesFix(
-              options.brief,
-              key as CmoBrandSectionKey,
-              before.fix.note,
-            ));
+            Date.parse(before.fix.at) <= options.briefedAt.getTime());
         const fix = before?.fix && {
           ...before.fix,
           fixed:
@@ -327,34 +323,6 @@ export async function withdrawBrandBrainFix(
     });
   };
   await (db ? write(db) : prisma.$transaction(write));
-}
-
-/** How a brief tells Cuso one open fix; `briefCarriesFix` reads it back. */
-export function fixBriefLine(
-  section: CmoBrandSectionKey,
-  answer: string,
-  note: string,
-): string {
-  return `- ${section}: you wrote "${answer}". The owner's correction: ${note}`;
-}
-
-/**
- * Whether a turn's brief told Cuso this section's fix with its current note.
- * Matched by content, not time: a note the owner added after the brief was
- * written is not in it.
- */
-export function briefCarriesFix(
-  brief: string,
-  section: CmoBrandSectionKey,
-  note: string,
-): boolean {
-  return brief
-    .split("\n")
-    .some(
-      (line) =>
-        line.startsWith(`- ${section}: you wrote "`) &&
-        line.endsWith(`". The owner's correction: ${note}`),
-    );
 }
 
 /** The sections the owner fixed that Cuso has not rewritten yet. */

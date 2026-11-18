@@ -10,7 +10,6 @@ import {
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { detectSiteLanguage } from "@/lib/site-platform";
-import { fixBriefLine } from "@/services/brand-brain.service";
 import {
   brainFindUnique,
   brainUpdate,
@@ -1879,11 +1878,6 @@ describe("changes after the plan", () => {
     turnFindFirst.mockResolvedValue({
       ...turn("fix", 3, "COMPLETED"),
       clientTurnId: `cmo:strategy:bot-1:fix:1:${Date.parse(asked)}`,
-      userMessage: fixBriefLine(
-        "pricing",
-        essentials.profile.pricing.answer,
-        "From 19 dollars.",
-      ),
     });
 
     await expect(
@@ -1913,11 +1907,6 @@ describe("changes after the plan", () => {
     turnFindFirst.mockResolvedValue({
       ...turn("fix", 1, "COMPLETED"),
       clientTurnId: `cmo:strategy:bot-1:fix:1:${Date.parse(seen)}`,
-      userMessage: fixBriefLine(
-        "pricing",
-        essentials.profile.pricing.answer,
-        "From 19 dollars.",
-      ),
     });
 
     await expect(

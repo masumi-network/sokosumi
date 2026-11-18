@@ -353,10 +353,10 @@ export async function saveCmoRecord(
           // A fix turn's brief holds the corrections asked before it.
           const turn = await tx.sokoBotTurn.findUnique({
             where: { id: authorized.turn.id },
-            select: { userMessage: true },
+            select: { createdAt: true },
           });
           return saveBrandBrain(bot.projectId, save, tx, {
-            brief: turn?.userMessage,
+            briefedAt: turn?.createdAt,
           });
         });
         if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);
