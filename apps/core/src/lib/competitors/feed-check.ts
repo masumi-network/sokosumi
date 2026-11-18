@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
+import type { NewsEvent } from "./news-pick";
+
 /** What a fact may cite: a stored signal of the same Project. */
 export interface CitableSignal {
   id: string;
@@ -102,12 +104,26 @@ const SOKOSUMI = /sokosumi/i;
  */
 export function moveRank(signals: readonly CitableSignal[]): number | null {
   const ranks = signals.map((signal): number | null => {
-    if (signal.kind === "PRICE_CHANGE") return 0;
+    if (signal.kind === "PRICE_CHANGE" || newsEvent(signal) === "pricing")
+      return 0;
     if (signal.kind === "AD") return isBigMove([signal]) ? 2 : null;
     return isBigMove([signal]) ? 1 : null;
   });
   const found = ranks.filter((rank): rank is number => rank !== null);
   return found.length > 0 ? Math.min(...found) : null;
+}
+
+const BIG_NEWS_EVENTS: readonly NewsEvent[] = [
+  "launch",
+  "pricing",
+  "funding",
+  "acquisition",
+];
+
+function newsEvent(signal: CitableSignal): unknown {
+  return signal.kind === "NEWS"
+    ? (signal.raw as { event?: unknown } | null)?.event
+    : undefined;
 }
 
 /** A move the owner hears about at once rather than on Monday. */
@@ -120,10 +136,11 @@ export function isBigMove(signals: readonly CitableSignal[]): boolean {
     }
     if (signal.kind === "WEBSITE_CHANGE")
       return (signal.raw as { about?: unknown } | null)?.about === "product";
-    if (signal.kind === "NEWS")
-      return /\b(?:launch\w*|introduc\w*|releas\w*|unveil\w*|acqui\w*|raise[sd]?|funding|new (?:plan|pricing|product|feature))\b/i.test(
-        signal.summary,
-      );
+    if (signal.kind === "NEWS") {
+      // The news model's label, not the wording: a roaster "launches" a voter
+      // campaign too, and that is no product launch.
+      return BIG_NEWS_EVENTS.some((big) => big === newsEvent(signal));
+    }
     return false;
   });
 }

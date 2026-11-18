@@ -14,10 +14,15 @@ import {
   marketingStrategyPlanSchema,
   networkAudiences,
 } from "@sokosumi/soko-bot";
+import { isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import {
+  posesAsCustomerTestimonial,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
+} from "@/lib/image-studio/talking-video";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
   answerBrandBrainQuestion,
@@ -993,6 +998,33 @@ export async function saveCmoStrategy(
       : parsed;
     stored = options.turnId ? withoutDashes(withLineBreaks(merged)) : merged;
   }
+  // A talking video shows a generated presenter: its script speaks for the
+  // brand, never as a customer of it.
+  const testimonial = options.turnId
+    ? (strategy.calendar ?? []).find(
+        (entry) =>
+          isCmoTalkingFormat(entry.channel, entry.format) &&
+          entry.script &&
+          posesAsCustomerTestimonial(entry.script),
+      )
+    : undefined;
+  if (testimonial)
+    throw unprocessableEntity(
+      `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
+    );
+  // A month is planned without scripts and production writes them; a change
+  // in chat makes the piece now, so it needs its words.
+  const unscripted =
+    options.turnId && options.part === "patch"
+      ? (strategy.calendar ?? []).find(
+          (entry) =>
+            isCmoTalkingFormat(entry.channel, entry.format) && !entry.script,
+        )
+      : undefined;
+  if (unscripted)
+    throw unprocessableEntity(
+      `The talking video ${unscripted.id} has no script. Give it script (the spoken words: a hook first, one point, one next step, 150 to 400 characters, never as a customer), presenter and voice, then save again.`,
+    );
   if (options.rules) {
     // A plan part saved before its calendar is checked with the calendar.
     const sendsCalendar =

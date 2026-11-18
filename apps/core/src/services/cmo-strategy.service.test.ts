@@ -1324,6 +1324,61 @@ describe("a patch", () => {
     ).toMatchObject({ channel: "google_ads", status: "skipped" });
   });
 
+  it("refuses a talking video that has no script or speaks as a customer", async () => {
+    const first = await written();
+    const before = planOf(first);
+    const talking = {
+      ...before.calendar[2]!,
+      channel: "instagram",
+      format: "talking_video",
+    };
+
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [talking] },
+        { turnId: "turn-2", part: "patch", rules: true },
+      ),
+    ).rejects.toThrow("has no script");
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              ...talking,
+              script:
+                "I switched to this tool last month and it changed how my whole team books calls.",
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "patch", rules: true },
+      ),
+    ).rejects.toThrow("speaks as a customer");
+    expect(strategyRows).toHaveLength(1);
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      {
+        calendar: [
+          {
+            ...talking,
+            script:
+              "Still emailing back and forth to find a time? Send one booking link and let people pick a slot. Make yours today.",
+            presenter: "maya",
+            voice: "Sarah",
+          },
+        ],
+      },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+    expect(
+      planOf(strategyRows.at(-1)!).calendar.find(
+        (entry) => entry.id === talking.id,
+      ),
+    ).toMatchObject({ format: "talking_video", presenter: "maya" });
+  });
+
   it("keeps the plan whole: a patch that breaks a rule saves nothing", async () => {
     const first = await written();
     const before = planOf(first);

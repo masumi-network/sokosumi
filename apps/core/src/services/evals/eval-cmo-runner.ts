@@ -37,7 +37,10 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
-import { prepareCompetitorCase } from "./eval-cmo-competitors";
+import {
+  isCompetitorSetup,
+  prepareCompetitorCase,
+} from "./eval-cmo-competitors";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -409,9 +412,9 @@ export async function prepareCmoChatCase(
     await prepareCmoPlan(lane);
     return {};
   }
-  if (setup === "cmo-competitors" || setup === "cmo-competitors-quiet") {
+  if (isCompetitorSetup(setup)) {
     await prepareCmoChat(lane, true);
-    return prepareCompetitorCase(lane, setup === "cmo-competitors-quiet");
+    return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup !== "cmo-comments") return {};

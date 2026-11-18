@@ -32,6 +32,8 @@ import mountFinalizeCmoMeasurementForProject from "./projects/[projectId]/measur
 import mountRetryCmoOnboardingForProject from "./projects/[projectId]/onboarding/retry/post.js";
 import mountChangeCmoPlanForProject from "./projects/[projectId]/plan/post.js";
 import mountOpenCmoCustomerPortalForProject from "./projects/[projectId]/portal/post.js";
+import mountClearCmoPresenterForProject from "./projects/[projectId]/presenter/delete.js";
+import mountSetCmoPresenterForProject from "./projects/[projectId]/presenter/put.js";
 import mountGetCmoSeoForProject from "./projects/[projectId]/seo/get.js";
 import mountRequestCmoArticleIdeasForProject from "./projects/[projectId]/seo/ideas/post.js";
 import mountSearchCmoKeywordsForProject from "./projects/[projectId]/seo/keywords/post.js";
@@ -89,6 +91,8 @@ mountRequestCmoArticleIdeasForProject(app);
 mountRequestCmoArticleDraftForProject(app);
 mountSetCmoSeoSuggestionStatusForProject(app);
 mountSkipCmoSubscriptionForProject(app);
+mountSetCmoPresenterForProject(app);
+mountClearCmoPresenterForProject(app);
 mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
 mountRequestCmoStrategyForProject(app);

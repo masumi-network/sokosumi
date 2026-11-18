@@ -257,6 +257,50 @@ describe("action lines the owner reads", () => {
     expect(result.unfulfilledActions).toHaveLength(4);
   });
 
+  it("drops a talking video refused for its price once a shorter one starts", async () => {
+    const video = (presenter: string) => [
+      receipt({
+        id: "receipt-refused",
+        toolCallId: "call-refused",
+        capability: "generate_talking_video",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        input: {
+          projectId: "project-1",
+          presenter: "maya",
+          script: "A long script that costs too much.",
+          maxCredits: 250,
+        },
+      }),
+      receipt({
+        id: "receipt-started",
+        toolCallId: "call-started",
+        capability: "generate_talking_video",
+        targetId: "job-1",
+        createdAt: new Date("2026-09-26T12:01:00Z"),
+        input: {
+          projectId: "project-1",
+          presenter,
+          script: "A shorter script.",
+          maxCredits: 250,
+        },
+      }),
+    ];
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(video("maya"));
+    const retried = await buildActionResponse(prisma, "turn-current", "");
+    expect(retried.answerText).not.toContain("Not confirmed");
+
+    // Another presenter is another video: the refused one still counts.
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(video("jonas"));
+    const other = await buildActionResponse(prisma, "turn-current", "");
+    expect(other.answerText).toContain("Not confirmed");
+  });
+
   it("links a scheduled social post to where the owner finds it", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({

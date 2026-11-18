@@ -23,6 +23,8 @@ export interface SocialPostPublishContext {
   /** X thread replies target the preceding part's confirmed id. */
   replyToExternalId?: string;
   tikTokSettings?: TikTokPostSettings;
+  /** The media shows a generated person (a talking video): label it AI-made where the network can. */
+  aiGenerated?: boolean;
   quoteExternalId?: string;
   signal?: AbortSignal;
 }
