@@ -858,16 +858,12 @@ test("tasks relink names the restore command when the new link fails", async () 
   );
 });
 
-test("tasks relink restores a leftover parent or child link as a sub-task, not a refused link", async () => {
-  // PARENT_LINK: this Task is the peer's parent. A child link is the reverse.
-  for (const [link, child, parent] of [
-    [PARENT_LINK, PEER_UUID, TASK_UUID],
-    [{ ...PARENT_LINK, relation: "child" }, TASK_UUID, PEER_UUID],
-  ] as const)
+test("tasks relink gives no command for a leftover parent or child link", async () => {
+  for (const relation of ["parent", "child"])
     await assert.rejects(
       () =>
         runTasksCommand({
-          client: linksClient([], [link], true),
+          client: linksClient([], [{ ...PARENT_LINK, relation }], true),
           stdout: { write() {} },
           subcommand: "relink",
           positionalId: TASK_UUID,
@@ -882,10 +878,11 @@ test("tasks relink restores a leftover parent or child link as a sub-task, not a
         assert.ok(error instanceof Error);
         assert.ok(
           error.message.endsWith(
-            `Restore it with: sokosumi --preprod tasks move ${child} --parent ${parent} --organization-slug pilot`,
+            `Core said no. The old ${relation} link cannot be recreated as a link.`,
           ),
           error.message,
         );
+        assert.doesNotMatch(error.message, /sokosumi |tasks move/);
         return true;
       },
     );
@@ -1077,6 +1074,26 @@ test("tasks move and create refuse an empty --parent before any request", async 
         options,
       }),
       /--parent needs a Task id/,
+    );
+    assert.deepEqual(calls, []);
+  }
+});
+
+test("tasks move and create refuse an empty --after before any request", async () => {
+  for (const [subcommand, options] of [
+    ["move", { parent: PEER_UUID, after: "" }],
+    ["create", { description: "Step", parent: PEER_UUID, after: "  " }],
+  ] as const) {
+    const calls: Call[] = [];
+    await assert.rejects(
+      runTasksCommand({
+        client: recordingClient(calls),
+        stdout: { write() {} },
+        subcommand,
+        positionalId: "SOK4-71",
+        options,
+      }),
+      /--after needs a Task id/,
     );
     assert.deepEqual(calls, []);
   }

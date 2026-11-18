@@ -115,11 +115,7 @@ function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-/**
- * Rebuild the failed `tasks link` with the same target and Workspace the
- * relink used. Core refuses a new parent or child link, so a legacy one is
- * restored as the sub-task it stood for, with `tasks move --parent`.
- */
+/** Rebuild the failed `tasks link` with the same target and Workspace the relink used. */
 function restoreLinkCommand(
   options: CommandOptions | undefined,
   id: string,
@@ -135,12 +131,6 @@ function restoreLinkCommand(
   }
   const slug = optionString(options, "organization-slug");
   const workspace = slug === undefined ? [] : ["--organization-slug", slug];
-  // `child --to P` made this Task a sub-task of P; `parent` the reverse.
-  if (relation === "child" || relation === "parent") {
-    const [child, parent] = relation === "child" ? [id, peerId] : [peerId, id];
-    parts.push("tasks", "move", child, "--parent", parent, ...workspace);
-    return parts.join(" ");
-  }
   parts.push(
     "tasks",
     "link",
@@ -662,15 +652,14 @@ export async function runTasksCommand({
     if (json) writeJson(stdout, { link });
     else printLinks(stdout, [link]);
   } catch (error) {
-    const restore = restoreLinkCommand(
-      options,
-      id,
-      String(existing.relation),
-      peerId,
-      oldNote,
-    );
+    const oldRelation = String(existing.relation);
+    // Core refuses a new parent or child link, and a move is not the same
+    // as the old link, so there is no command to give back.
+    const restore = SUBTASK_RELATIONS.includes(oldRelation)
+      ? `The old ${oldRelation} link cannot be recreated as a link.`
+      : `Restore it with: ${restoreLinkCommand(options, id, oldRelation, peerId, oldNote)}`;
     throw new Error(
-      `Removed the ${String(existing.relation)} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. Restore it with: ${restore}`,
+      `Removed the ${oldRelation} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. ${restore}`,
     );
   }
 }
