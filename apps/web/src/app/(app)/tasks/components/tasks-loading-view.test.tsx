@@ -56,4 +56,21 @@ describe("TasksLoadingView", () => {
     expect(listShell).toHaveClass("rounded-xl", "p-2");
     expect(listShell).not.toHaveClass("border", "md:border", "-mx-4");
   });
+
+  it("renders card and row placeholders for every list item, like TaskListView", () => {
+    render(
+      <TasksLoadingView
+        viewMode="list"
+        labels={TASKS_LOADING_DEFAULT_LABELS}
+      />,
+    );
+
+    const cards = screen.getAllByTestId("task-card-skeleton");
+    const rows = screen.getAllByTestId("task-row-skeleton");
+    expect(cards.length).toBeGreaterThan(0);
+    expect(rows).toHaveLength(cards.length);
+    for (const card of cards) {
+      expect(card.parentElement).toHaveClass("md:hidden");
+    }
+  });
 });

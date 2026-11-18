@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
@@ -70,7 +71,7 @@ export function TaskCard({
       <article
         className={cn(
           "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-foreground hover:shadow-sm press content-in",
-          compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
+          TASK_CARD_DENSITY_CLASS[compact ? "compact" : "normal"],
           dragHandleProps?.isDragging && "shadow-lg",
         )}
       >
