@@ -122,8 +122,8 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    let inserted = () => {};
-    const eventInserted = new Promise<void>((resolve) => {
+    let inserted = (_pid: number) => {};
+    const eventInserted = new Promise<number>((resolve) => {
       inserted = resolve;
     });
     const pause = (ms: number) =>
@@ -134,7 +134,9 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
         await tx.taskEvent.create({
           data: { taskId: parent, comment: "Working on it" },
         });
-        inserted();
+        const [backend] = await tx.$queryRaw<[{ pid: number }]>`
+          SELECT pg_backend_pid() AS pid`;
+        inserted(backend.pid);
         await held;
         await tx.task.update({
           where: { id: parent },
@@ -143,7 +145,7 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
       },
       { timeout: 10_000 },
     );
-    await eventInserted;
+    const eventPid = await eventInserted;
     const add = prisma.$transaction(
       (tx) =>
         requireSubtaskParent(tx, {
@@ -154,12 +156,13 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
       { timeout: 10_000 },
     );
     // Release the event only once the add waits on it, at its lock or write.
-    for (let tries = 0; tries < 100; tries += 1) {
+    // Capped under the test timeout, so a missed wait fails with its reason.
+    for (let tries = 0; tries < 60; tries += 1) {
       const [waiting] = await prisma.$queryRaw<[{ count: bigint }]>`
         SELECT count(*) FROM pg_stat_activity
-        WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+        WHERE ${eventPid}::int = ANY(pg_blocking_pids(pid))`;
       if (waiting && waiting.count > 0n) break;
-      if (tries === 99) {
+      if (tries === 59) {
         release();
         throw new Error("The add never waited on the event");
       }
