@@ -868,3 +868,65 @@ test("tasks archive resolves the id and archives the task", async () => {
   });
   assert.equal(JSON.parse(output.join("")).task.id, TASK_UUID);
 });
+
+test("tasks create --parent --after posts both as resolved Task ids", async () => {
+  const calls: Call[] = [];
+  await runTasksCommand({
+    client: resolvingClient(calls, { data: { id: "new-task" } }),
+    stdout: { write() {} },
+    json: true,
+    subcommand: "create",
+    options: { description: "Step", parent: "SOK4-71", after: "SOK4-79" },
+  });
+  const post = calls.find((call) => call.method === "POST");
+  assert.deepEqual(post, {
+    method: "POST",
+    path: "/v1/tasks",
+    body: {
+      description: "Step",
+      parentTaskId: TASK_UUID,
+      afterTaskId: PEER_UUID,
+    },
+  });
+});
+
+test("tasks move --first posts a null afterTaskId; it needs exactly one target", async () => {
+  const calls: Call[] = [];
+  const run = (options: Record<string, string | boolean>) =>
+    runTasksCommand({
+      client: resolvingClient(calls, { data: { id: TASK_UUID } }),
+      stdout: { write() {} },
+      json: true,
+      subcommand: "move",
+      positionalId: "SOK4-71",
+      options,
+    });
+  await run({ first: true });
+  assert.deepEqual(calls.at(-1), {
+    method: "POST",
+    path: `/v1/tasks/${TASK_UUID}/move`,
+    body: { afterTaskId: null },
+  });
+  await run({ after: "SOK4-79" });
+  assert.deepEqual(calls.at(-1)?.body, { afterTaskId: PEER_UUID });
+  await assert.rejects(run({}), /--after SIBLING_ID or --first/);
+  await assert.rejects(
+    run({ after: "SOK4-79", first: true }),
+    /--after SIBLING_ID or --first/,
+  );
+});
+
+test("tasks subtasks lists one Task's sub-tasks by its id", async () => {
+  const calls: Call[] = [];
+  await runTasksCommand({
+    client: resolvingClient(calls),
+    stdout: { write() {} },
+    json: true,
+    subcommand: "subtasks",
+    positionalId: "SOK4-71",
+  });
+  assert.equal(
+    calls.at(-1)?.path,
+    `/v1/tasks?limit=100&parentTaskId=${TASK_UUID}`,
+  );
+});

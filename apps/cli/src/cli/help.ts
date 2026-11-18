@@ -53,6 +53,8 @@ export type ValueOptionName =
   | "to"
   | "relation"
   | "note"
+  | "parent"
+  | "after"
   | "sort"
   | "suite"
   | "cases"
@@ -111,6 +113,8 @@ export interface CliOptions {
   to?: string;
   relation?: string;
   note?: string;
+  parent?: string;
+  after?: string;
   sort?: string;
   suite?: string;
   cases?: string;
@@ -126,6 +130,8 @@ export interface CliOptions {
   details?: boolean;
   unassign?: boolean;
   "clear-project"?: boolean;
+  "include-subtasks"?: boolean;
+  first?: boolean;
 }
 
 export const GLOBAL_VALUE_OPTIONS = [
@@ -246,11 +252,14 @@ Organization Tasks:
   tasks update also takes --unassign and --clear-project to remove the assignee or project.
   Status and progress: tasks comment TASK_ID --status STATUS --comment TEXT
   Links: tasks link TASK_ID --to OTHER_TASK_ID --relation related|blocks|blocked_by|parent|child|duplicate [--note TEXT]
-    The relation describes TASK_ID: --relation child --to EPIC makes TASK_ID a sub-task of EPIC.
+    The relation describes TASK_ID: --relation child --to EPIC makes TASK_ID a child task of EPIC.
     tasks unlink TASK_ID --to OTHER_TASK_ID [--relation REL] removes a link.
     tasks relink TASK_ID --to OTHER_TASK_ID --relation REL replaces it (deletes, then creates; keeps the note).
   List filters: --status, --search, --project-id ID (or null), --coworker-id, --assignee-user-id, --sort createdAt|updatedAt|priority.
     tasks list fetches every page unless --limit N is set. --sort updatedAt|priority requires --limit.
+  Sub-tasks: tasks create --parent TASK_ID [--after SIBLING_ID] adds an ordered sub-task (last by default).
+    tasks subtasks TASK_ID lists them in order. tasks move TASK_ID --after SIBLING_ID (or --first) reorders one.
+    tasks list hides sub-tasks; add --include-subtasks to list them too, or --parent TASK_ID for one Task's.
   Finish: tasks comment TASK_ID --status COMPLETED|CANCELED. Remove: tasks archive TASK_ID (later tasks get/events/jobs/links return 404).
 
 Agent runtime tools on Preprod:

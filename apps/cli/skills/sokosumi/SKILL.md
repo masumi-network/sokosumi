@@ -182,12 +182,15 @@ sokosumi --api-url https://api.sokosumi.com tasks link SOK-14 --organization-slu
 sokosumi --api-url https://api.sokosumi.com tasks relink SOK-13 --organization-slug WORKSPACE_SLUG --relation child --to SOK-12 --json
 sokosumi --api-url https://api.sokosumi.com tasks unlink SOK-14 --organization-slug WORKSPACE_SLUG --to SOK-13 --json
 sokosumi --api-url https://api.sokosumi.com tasks archive SOK-15 --organization-slug WORKSPACE_SLUG --json
+sokosumi --api-url https://api.sokosumi.com tasks create --organization-slug WORKSPACE_SLUG --parent SOK-12 --name "Step" --description "What to do" --json
+sokosumi --api-url https://api.sokosumi.com tasks move SOK-16 --organization-slug WORKSPACE_SLUG --after SOK-17 --json
 ```
 
 - The returned `task.identifier` is the ticket name; use it in branches and PR descriptions. Only a Task in a project gets one (the project's prefix plus a number); without `--project-id` it is `null`, so use the UUID.
 - `--assignee-user-id` takes `user.id` from `auth whoami --json`. A Task has one assignee: a person or a Coworker (`--coworker-id`). `tasks update --unassign` removes it; `--clear-project` removes the project.
 - `--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet).
-- `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a sub-task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
+- `--relation` describes TASK_ID relative to `--to`: `child --to SOK-12` makes TASK_ID a child task of SOK-12, and `blocked_by --to SOK-13` makes TASK_ID wait on SOK-13. Also `parent`, `blocks`, `related`, `duplicate`. Check the result with `tasks links`; Web shows a `child` link's peer as the parent.
+- A sub-task is different from a `child` link: it is a step in its parent's ordered checklist, hidden from the board and from `tasks list`. Create one with `tasks create --parent TASK_ID` (last, or `--after SIBLING_ID`), read them in order with `tasks subtasks TASK_ID`, and reorder with `tasks move TASK_ID --after SIBLING_ID` or `--first`. `tasks list --include-subtasks` lists them with the other Tasks. A sub-task gets its own identifier and is finished on its own.
 - Fix a wrong link with `tasks relink`. It deletes the link and creates the new one, because Core cannot reverse a link in place. If creation fails, the error prints the command that restores the old link.
 - `tasks list` reads every page unless `--limit` is set. `--sort updatedAt` or `--sort priority` always needs `--limit` (Core's cursor can skip or duplicate while the list drains). Filter by `--project-id`, `--assignee-user-id`, `--coworker-id`, `--status`, or `--search`.
 - Finish a Task with `COMPLETED` or `CANCELED`; it stays readable. `tasks archive` removes a duplicate or mistaken Task: after it, `tasks get`, `tasks events`, `tasks jobs`, and `tasks links` on that Task return `404`, so read what you need first. Core still lists it, with title, description, status, and archive time, in `GET /v1/history?types=task&status=archived`; the CLI has no command for that.

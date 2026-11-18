@@ -13,6 +13,10 @@ interface FetchTasksOptions {
   coworkerId?: string;
   assigneeUserId?: string;
   projectId?: string;
+  /** Only this Task's sub-tasks, in checklist order. */
+  parentTaskId?: string;
+  /** Core hides sub-tasks from the list unless asked. */
+  includeSubtasks?: boolean;
   sort?: string;
   /** Total Tasks to return; omitted fetches every page. */
   take?: number;
@@ -32,6 +36,9 @@ export interface TaskFields {
 
 interface CreateTaskData extends TaskFields {
   status?: string;
+  /** Creates a sub-task of this Task, last unless `afterTaskId` is set. */
+  parentTaskId?: string;
+  afterTaskId?: string;
 }
 
 interface CreateTaskLinkData {
@@ -79,6 +86,8 @@ function tasksPath(
   if (options.projectId) params.set("projectId", options.projectId.trim());
   if (options.assigneeUserId)
     params.set("assigneeUserId", options.assigneeUserId.trim());
+  if (options.parentTaskId) params.set("parentTaskId", options.parentTaskId);
+  if (options.includeSubtasks) params.set("includeSubtasks", "true");
   if (options.sort) params.set("sort", options.sort);
   for (const status of values(options.status)) params.append("status", status);
   if (cursor) params.set("cursor", cursor);
@@ -110,6 +119,24 @@ export async function createTask(
   const payload = taskPayload(data);
   const response = parseApiResponse(
     await client.post<unknown>(TASKS_PATH, payload, signal),
+  );
+  return { response, task: parseTask(response.data) };
+}
+
+/** Puts a sub-task right after `afterTaskId`, or first when it is null. */
+export async function moveSubtask(
+  client: CoreHttpClient,
+  taskId: string,
+  afterTaskId: string | null,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; task: Task }> {
+  requireId(taskId, "taskId");
+  const response = parseApiResponse(
+    await client.post<unknown>(
+      `${TASKS_PATH}/${encodeURIComponent(taskId)}/move`,
+      { afterTaskId },
+      signal,
+    ),
   );
   return { response, task: parseTask(response.data) };
 }

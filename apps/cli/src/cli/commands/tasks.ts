@@ -14,6 +14,7 @@ import {
   fetchTaskJobs,
   fetchTaskLinks,
   fetchTasks,
+  moveSubtask,
   resolveTaskId,
   type TaskFields,
   updateTask,
@@ -57,6 +58,8 @@ const TASK_ID_COMMANDS = [
   "unlink",
   "relink",
   "archive",
+  "subtasks",
+  "move",
 ];
 
 export interface TasksCommandContext extends CommandContext {
@@ -320,6 +323,7 @@ export async function runTasksCommand({
 }: TasksCommandContext): Promise<void> {
   const command = subcommand || "list";
   if (command === "list") {
+    const parent = optionString(options, "parent");
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
     const sort = validateChoice(option(options, "sort"), SORTS, "--sort");
     // Core warns that updatedAt/priority order moves rows mid-page; draining
@@ -337,6 +341,8 @@ export async function runTasksCommand({
         coworkerId: optionString(options, "coworker-id"),
         assigneeUserId: optionString(options, "assignee-user-id"),
         projectId: optionString(options, "project-id"),
+        parentTaskId: parent && (await resolveTaskId(client, parent, signal)),
+        includeSubtasks: optionBoolean(options, "include-subtasks"),
         sort,
         take: limit,
       },
@@ -369,10 +375,16 @@ export async function runTasksCommand({
       throw new Error(
         "Personal Workspace is missing. Use coworkers register --personal or connect --personal first.",
       );
+    const parent = optionString(options, "parent");
+    const after = optionString(options, "after");
+    if (after !== undefined && parent === undefined)
+      throw new Error("--after needs --parent");
     const { task, response } = await createTask(
       client,
       {
         ...fields,
+        parentTaskId: parent && (await resolveTaskId(client, parent, signal)),
+        afterTaskId: after && (await resolveTaskId(client, after, signal)),
         status: validateChoice(
           option(options, "status"),
           ["DRAFT", "READY"],
@@ -484,6 +496,28 @@ export async function runTasksCommand({
       );
     const id = await resolveTaskId(client, ref, signal);
     const { task } = await updateTask(client, id, fields, signal);
+    if (json) writeJson(stdout, { task });
+    else printTask(stdout, task, {});
+    return;
+  }
+  if (command === "subtasks") {
+    const id = await resolveTaskId(client, ref, signal);
+    const { tasks } = await fetchTasks(client, { parentTaskId: id }, signal);
+    if (json) writeJson(stdout, { tasks });
+    else printTaskList(stdout, tasks);
+    return;
+  }
+  if (command === "move") {
+    const after = optionString(options, "after");
+    const first = optionBoolean(options, "first");
+    if ((after === undefined) === !first)
+      throw new Error("Pass either --after SIBLING_ID or --first");
+    const { task } = await moveSubtask(
+      client,
+      await resolveTaskId(client, ref, signal),
+      after === undefined ? null : await resolveTaskId(client, after, signal),
+      signal,
+    );
     if (json) writeJson(stdout, { task });
     else printTask(stdout, task, {});
     return;
