@@ -6,7 +6,7 @@ import {
   seoTaskIndexingResultSchema,
 } from "@/schemas/seo-task-indexing.schema";
 import { sha256 } from "./project-seo-store";
-import { hasSavedSeoIndexingAssessment } from "./seo-task-indexing.service";
+import { hasSavedSeoIndexingAssessment } from "./seo-task-indexing-receipt";
 
 const PAGE = "https://example.test/a";
 const RECEIPT = seoTaskIndexingReceiptSchema.parse({

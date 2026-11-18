@@ -12561,7 +12561,7 @@
           "search_console": "Suchanfragen, Klicks und Positionen in der Google-Suche",
           "ga4": "Besuche und Seitenaufrufe auf deiner Website"
         },
-        "propertyNotMatching": "Diese Property deckt die ausgewählten Seiten nicht ab, daher werden keine Statistiken daraus geladen."
+        "propertyNotMatching": "Keine Search Console-Property deckt alle ausgewählten Seiten auf {sites} ab. Prüfe die Zugriffsrechte dieses Google-Kontos oder wähle Seiten aus einer einzigen Property."
       },
       "metrics": {
         "page_views": "Seitenaufrufe",
