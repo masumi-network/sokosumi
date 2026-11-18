@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
@@ -23,8 +24,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import { getAgentName, getShortAgentAuthorName } from "@/lib/helpers/agent";
+import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/utils/duration";
 
 const MAX_COMPARED = 3;
@@ -99,6 +102,7 @@ function AgentCompareBar({
   const t = useTranslations("Components.Agents.Compare");
   const compare = use(AgentCompareContext);
   const clearRef = useRef<HTMLButtonElement>(null);
+  const isApple = useIsApplePlatform();
   if (!compare || compare.selected.length === 0) return null;
 
   // Keep the order people picked them in.
@@ -119,7 +123,13 @@ function AgentCompareBar({
   };
 
   return (
-    <div className="bg-background border-border sticky bottom-3 z-10 flex flex-col gap-2 rounded-xl border p-2 ps-4 shadow-lg md:flex-row md:items-center md:justify-between">
+    <div
+      className={cn(
+        "bg-background border-border sticky z-10 flex flex-col gap-2 rounded-xl border p-2 ps-4 shadow-lg md:bottom-3 md:flex-row md:items-center md:justify-between",
+        // Phones: clear the floating tab bar, which the scroll area runs under.
+        mobileCreateFabBottom(isApple),
+      )}
+    >
       <div className="flex min-w-0 flex-col gap-2">
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {picked.length < 2
