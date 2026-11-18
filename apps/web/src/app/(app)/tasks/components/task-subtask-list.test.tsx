@@ -183,6 +183,22 @@ describe("TaskSubtaskList", () => {
     ).toBeChecked();
   });
 
+  it("keeps a change in flight over newer page rows", async () => {
+    createSubtask.mockImplementation(() => new Promise(() => {}));
+    const { rerender } = renderList([row("a")], undefined, 1_000);
+    const input = screen.getByRole("textbox", { name: "add" });
+    fireEvent.change(input, { target: { value: "b" } });
+    fireEvent.submit(input);
+    await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
+
+    // Newer than the optimistic write, so only the in-flight check holds it.
+    rerender([row("a")], Date.now() + 60_000);
+    // TanStack Query renders a cache write on a timer; let one land first.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(rowNames()).toEqual(["a", "b"]);
+  });
+
   it("keeps the cache over older page rows that Back replays", async () => {
     const { remount } = renderList([row("a"), row("b")], undefined, 2_000);
 
