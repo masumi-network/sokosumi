@@ -12206,6 +12206,7 @@
             "opportunity": "Related search"
           },
           "short": "Ideas",
+          "name": "Keyword ideas",
           "more": "{count, plural, one {Show # more idea} other {Show # more ideas}}"
         },
         "addButton": "Add a keyword",
@@ -13181,19 +13182,17 @@
         "keyEventsNotRead": "Not read: shares a landing path with another selected page"
       },
       "export": {
+        "menu": "Export: {table}",
         "csv": "Download CSV",
         "action": "Action",
         "kind": "Type",
         "status": "Status",
-        "csvLabel": "Download CSV: {table}",
         "table": "Copy to a table",
-        "tableLabel": "Copy to a table: {table}",
         "tableTitle": "{table} · {site} · {date}",
         "tableDescription": "Copied from SEO on {date}. A snapshot: it does not change when SEO checks again.",
-        "tableCopied": "{count, plural, one {# keyword copied to a new table.} other {# keywords copied to a new table.}}",
+        "tableCopied": "{count, plural, one {# row copied to a new table.} other {# rows copied to a new table.}}",
         "openTable": "Open table",
-        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it.",
-        "list": "List"
+        "tableFailed": "The table is not complete yet. Press Copy to a table again to finish it."
       },
       "datePresets": {
         "label": "Quick periods",
@@ -13417,7 +13416,7 @@
           },
           "38": {
             "title": "Export and date presets",
-            "missing": "No comparison with the same period last year. The countries and devices, competitors, keyword ideas and AI assistants tables have no CSV download. The CSV separator follows the app language, not the computer's region."
+            "missing": "No comparison with the same period last year. The Countries and devices table and the AI assistants table have no export. The CSV separator follows the app language, not the computer's region."
           },
           "39": {
             "title": "AI Overview citation history",

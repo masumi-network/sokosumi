@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoBriefPagePriority } from "./seo-brief-summary";
-import { SeoCsvButton } from "./seo-csv-button";
+import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
 import { seoOverviewModel } from "./seo-overview-model";
 import { SeoEmpty, SeoSection } from "./seo-shared";
@@ -16,12 +16,11 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const overview = seoOverviewModel(model.data);
   const csv = (
-    <SeoCsvButton
+    <SeoExportMenu
       name="actions"
       title={t("actions.title")}
+      workspace={model.data}
       table={() => seoActionsExport(overview.actions, t)}
-      // 40 px on a phone, as the filter beside it.
-      className="ms-0 max-sm:h-10"
     />
   );
   // The strategy actions are a group with a title of their own: a group over them needs one too.

@@ -5,6 +5,7 @@ import type {
 } from "@sokosumi/core-client";
 import { createDataTableSchema } from "@sokosumi/utils";
 import { tableImportBatches } from "@/app/drive/tables/table-import";
+import type { SeoCompetitorSite } from "./seo-competitors-model";
 import type { SeoCsvCell } from "./seo-csv";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 import type { SeoTopPage } from "./seo-search-model";
@@ -129,33 +130,48 @@ export function seoKeywordsExport(
 }
 
 /**
- * The checked keywords, then the ideas: the CSV's columns with Difficulty after the searches, and a last column
- * that names each row's list. The CSV keeps its columns, for the sheets already built on it.
+ * One keyword list with every column it shows: the CSV's columns with Difficulty after the searches. The keywords
+ * CSV keeps its columns, for the sheets already built on it.
  */
 export function seoKeywordsTableExport(
-  checked: SeoKeywordGroup[],
-  ideas: SeoKeywordGroup[],
+  groups: SeoKeywordGroup[],
   t: Label,
 ): SeoExport {
-  const groups = [...checked, ...ideas];
   const { header, types = [], rows } = seoKeywordsExport(groups, t);
   // After "Searches a month", the fifth column.
-  const add = <T>(row: T[], difficulty: T, list: T) => [
+  const add = <T>(row: T[], difficulty: T) => [
     ...row.slice(0, 5),
     difficulty,
     ...row.slice(5),
-    list,
   ];
   return {
-    header: add(header, t("keywords.difficulty.title"), t("export.list")),
-    types: add(types, "number", "text"),
-    rows: rows.map((row, i) =>
-      add(
-        row,
-        groups[i].difficulty,
-        i < checked.length ? t("keywords.title") : t("keywords.ideas.short"),
-      ),
-    ),
+    header: add(header, t("keywords.difficulty.title")),
+    types: add(types, "number"),
+    rows: rows.map((row, i) => add(row, groups[i].difficulty)),
+  };
+}
+
+/** The competitor sites as listed: one row per site, with the page the row shows and its numbers. */
+export function seoCompetitorsExport(
+  sites: SeoCompetitorSite[],
+  t: Label,
+): SeoExport {
+  return {
+    header: [
+      t("competitors.site"),
+      t("page"),
+      t("competitors.rank"),
+      t("competitors.backlinks"),
+      t("competitors.domainsShort"),
+    ],
+    types: ["text", "url", "number", "number", "number"],
+    rows: sites.map(({ host, lead, best }) => [
+      host,
+      lead.url,
+      best,
+      lead.backlinks,
+      lead.referringDomains,
+    ]),
   };
 }
 
