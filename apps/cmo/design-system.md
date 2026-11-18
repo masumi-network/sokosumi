@@ -10,8 +10,8 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 
 ## Five rules
 
-1. **Thick lines do the work.** A 3px ink line on every card, panel, input and full-size button. 2px on pills, tags, badges and small buttons. 4px on Cuso's stage and under the onboarding header. A 1px hairline only for structure inside a card: dividers, list rows, inner items.
-2. **Hard shadows, three sizes.** An offset with no blur: 3px under pills, tags and small buttons, 6px under full-size buttons, 10px under Cuso's stage and the card in focus (the one that needs the owner now). When the action is done the card goes flat.
+1. **Thick lines do the work.** A 3px ink line on every card, panel, input and full-size button. 2px on pills, tags, badges and small buttons. 4px under the onboarding header. A 1px hairline for structure inside a card (dividers, list rows, inner items) and around Cuso's picture in the sidebar.
+2. **A hard shadow means you can act.** An offset with no blur, only on what you can click, type in or pick, and on the one card that needs the owner now: 3px under small buttons, chips and the picked tab, filter or page, 6px under full-size buttons, 10px under the card in focus. When the action is done the card goes flat. A picture, a tag, a badge, a label or an info card never casts one, so nothing looks clickable that is not (`design-guards.test.ts` holds this).
 3. **Iris means now, and picked.** The primary button, the current step, and the picked one of a set (the page in the sidebar, a tab, a filter, a pace). Never text, never a thin mark. Text on Iris is always Neutral 950.
 4. **Bold speaks, Regular works.** One PP Mori SemiBold H1 per screen, tracked at -0.03em. Regular for statements, big numbers and UI, SemiBold for buttons, pills, labels that lead and section heads. Mori ships two cuts: weights 300 to 500 draw Regular, 600 to 800 draw SemiBold.
 5. **Black strips for contrast.** White page, outlined panels and cards, and a black strip where the page needs weight: the action bar at the bottom of an onboarding step, a banner that needs the owner, the goal block. A strip inverts in dark.
@@ -33,9 +33,9 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 | `--peach`              | Peach Blossom, behind Cuso only | `#FFC8F0`         | `#FFC8F0`         |
 | `--ok`                 | done                            | `#00D43B`         | `#00D43B`         |
 | `--warn`               | needs an answer                 | `#FFD300`         | `#FFD300`         |
-| `--shadow-pill`        | under pills and small buttons   | `3px 3px 0` ink   | `3px 3px 0` ink   |
+| `--shadow-pill`        | under small buttons and chips   | `3px 3px 0` ink   | `3px 3px 0` ink   |
 | `--shadow-hard`        | under full-size buttons         | `6px 6px 0` ink   | `6px 6px 0` ink   |
-| `--shadow-hero`        | Cuso's stage, the card in focus | `10px 10px 0` ink | `10px 10px 0` ink |
+| `--shadow-hero`        | the card in focus               | `10px 10px 0` ink | `10px 10px 0` ink |
 | `--shadow-iris`        | picked tile's hard shadow       | `6px 6px 0 Iris`  | `6px 6px 0 Iris`  |
 | `--strip`              | the black strip                 | `#0C0C0C`         | `#FAFAFA`         |
 | `--strip-foreground`   | text and lines on a strip       | `#FFFFFF`         | `#0C0C0C`         |
@@ -75,7 +75,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Elevation and motion
 
-- Hard shadows are the only elevation, in three sizes. Every button casts one: 6px full-size, 3px small. Pills, tags, the current step and the picked tab or filter cast 3px. The 10px shadow marks Cuso's stage and the card in focus (the question card, the Launch accounts list) or a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); that card goes flat once the action is done, and a card with only optional buttons stays flat. A piece card on the Calendar takes the 6px shadow on hover.
+- Hard shadows are the only elevation, in three sizes, and only on what you can act on. Every button casts one: 6px full-size, 3px small. Chips, a step you can go back to and the picked tab, filter or page cast 3px. The 10px shadow marks the card in focus (the question card, the Launch accounts list) or a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); that card goes flat once the action is done, and a card with only optional buttons stays flat. A piece card on the Calendar takes the 6px shadow on hover. Tags, badges, labels, pictures, Cuso's stage and info cards are flat.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves right and down by its own offset (6px, or 3px for a small button) and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`. Onboarding adds three entrances, transform and opacity only: each piece of a step settles in after the one above it (450ms), a sheet rises from the bottom (400ms), and Cuso pops in.
@@ -86,7 +86,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo left, step markers centre, the site chip right (a pill: green 8px dot with a line edge, then the domain). A 4px ink line below, 14px 32px padding.
 
-**Step marker.** A pill, small 600, "1 Research". Current: Iris fill, 2px ink line, pill shadow, `aria-current="step"`. Done: check icon, 2px ink line, text colour. Not yet: no line, muted text. Five steps: Research, Brand, Plan, Subscribe, Launch.
+**Step marker.** A pill, small 600, "1 Research". Current: Iris fill, 2px ink line, `aria-current="step"`; flat as a label, with the pill shadow when it is a button that goes back to the step. Done: check icon, 2px ink line, text colour. Not yet: no line, muted text. Five steps: Research, Brand, Plan, Subscribe, Launch.
 
 **Buttons.** 44px high, 12px radius, body 600, 0 18px.
 
@@ -97,13 +97,13 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 - Disabled: flat, hairline colour, no shadow.
 - On a strip: the line and shadow take the strip's text colour; a secondary button stands on an Iris shadow.
 
-**Pill.** Tags, badges, chips, tabs and filters: fully round, 2px ink line, card fill, 12px 600 text, 3px shadow. A count is an ink pill with inverted text.
+**Pill.** Tags, badges, chips, tabs and filters: fully round, 2px ink line, card fill, 12px 600 text. Only the ones you can click cast the 3px shadow (chips, the picked tab or filter); a tag or badge is flat. A count is an ink pill with inverted text.
 
 **Input.** 44px, 12px radius, 3px ink line, 16px text, card fill. Label above (body 500), help below (small, muted).
 
 **Selection.** The picked one of a set is filled with Iris under Neutral 950 text: tabs, filters, the pace cards, the page in the sidebar. A picked tab, filter or nav row also takes the pill shadow, a picked pace the hard shadow.
 
-**Plan card (Subscribe).** Under Cuso's scene and a card of what the approved month holds (checks: pieces and channels, pictures and videos, the daily and weekly work), the CMO plans of one interval as cards: an Iris "Fits your {pace} plan" mark on the one that fits, the tier's name, the price a month (value step; a yearly plan shows its month and "billed once a year"), credits a month (small). A Monthly / Yearly switch above them is a pair of pills, the picked one on Iris, and names the yearly saving; the picked plan is the selected tile and takes the Iris shadow. One primary button below names the plan and its price ("Start Growth for $500 a month") and leads to Polar's hosted checkout; a quiet row under it says only what is true (change or cancel in Settings, discount codes, Polar).
+**Plan card (Subscribe).** Under Cuso's scene and a card of what the approved month holds (checks: pieces and channels, pictures and videos, the daily and weekly work), the CMO plans of one interval as cards: a flat Iris "Fits your {pace} plan" mark on the one that fits, the tier's name, the price a month (value step; a yearly plan shows its month and "billed once a year"), credits a month (small). A Monthly / Yearly switch above them is a pair of pills, the picked one on Iris, and names the yearly saving; the picked plan is the selected tile and takes the Iris shadow. One primary button below names the plan and its price ("Start Growth for $500 a month") and leads to Polar's hosted checkout; a quiet row under it says only what is true (change or cancel in Settings, discount codes, Polar).
 
 **Card.** Card fill, 3px ink line, 20px radius, flat. The focused card, or one that needs the owner now, adds the 10px shadow (`.card-focus`); a picked tile in a grid gets the Iris shadow instead. A panel (a section of an app page, a fold, a tab panel, a group of tiles) is the same line at 28px radius.
 
@@ -132,7 +132,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 - **Cuso is the status.** He is drawn flat, black line on white, in five poses (walking, pointing, thinking, thumbs up, searching). Poses map to states: Reading (searching), Thinking (thinking), Needs you (pointing, the only one labelled on Iris), Reporting (walking), Done (thumbs up).
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card, 176px where he leads an onboarding step.
 - **Cuso leads onboarding.** Every step opens with his pose on the hero's Iris stage (`CusoScene`, 220 by 280px): Research, Brand, Plan, Subscribe and Launch each have their own; a failure or a question shows the Needs you avatar instead. While he works, a tilted label over the stage's lower edge says what he is doing now (with the working dot) and an ink bar runs along the bottom, so the wait reads as work. The title under him is what he says. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
-- **Stage:** Cuso's stage is the hero card: a 4px ink line, 28px radius and the 10px shadow. The hire hero adds up to three tilted labels (pills: 3px ink line, 3px shadow, 16px 600); a step's scene carries one, what he is doing now. These are the only places labels tilt.
+- **Stage:** Cuso's stage is a picture, so it is flat: a 3px ink line and 28px radius in onboarding, a 1px line in the sidebar. The hire hero adds up to three tilted labels (flat pills: 2px ink line, 16px 600); a step's scene carries one, what he is doing now. These are the only places labels tilt. In the sidebar the stage turns into a button while he needs the owner (it opens the chat): then it takes the 3px line and the pill shadow.
 - **Celebration:** the thumbs-up on an Iris card shows only after Launch is pressed.
 - **Motion:** Cuso's poses are stills. On the hire screen the three labels pop in one after another (500ms, transform only, the one entrance longer than 150ms); while he works, the bar under his pose runs. Under `prefers-reduced-motion` nothing moves.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.

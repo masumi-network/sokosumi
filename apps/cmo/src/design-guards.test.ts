@@ -321,6 +321,93 @@ describe("strokes", () => {
   });
 });
 
+/**
+ * A hard shadow means "you can act on this": only something to click, type in
+ * or pick casts one, plus the one card that needs the owner now
+ * (`.card-focus`) and the account menu that floats over the page. A picture,
+ * a tag or a label that casts one looks clickable and is not.
+ */
+const CASTS_SHADOW = [
+  /(?:^|[\s>])(?:button|a|input|textarea|select)(?![\w-])/,
+  /\.button(?:-small|-secondary)?(?![\w-])/,
+  /\[aria-(?:pressed|selected)/,
+  // Classes that are only ever set on a <button>.
+  /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option)(?![\w-])/,
+  /^\.card-focus$/,
+  /^\.ob-who-menu$/,
+  // The shadow samples on /design-system.
+  /^\.ds-shadow-(?:pill|hard|hero)$/,
+];
+
+/** A rule's selectors, split at the commas outside `:not(...)` and the like. */
+function selectors(list: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of list) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if (char === "," && depth === 0) {
+      out.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  out.push(current);
+  return out.map((selector) => selector.replace(/\s+/g, " ").trim());
+}
+
+/** The selectors in a stylesheet that cast a hard shadow and may not. */
+function passiveShadows(css: string): string[] {
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const found: string[] = [];
+  for (const [, list = "", body = ""] of rules.matchAll(
+    /([^{}]+)\{([^{}]*)\}/g,
+  )) {
+    if (!/box-shadow:\s*var\(--shadow-/.test(body)) continue;
+    for (const selector of selectors(list)) {
+      if (!CASTS_SHADOW.some((allowed) => allowed.test(selector))) {
+        found.push(selector);
+      }
+    }
+  }
+  return found;
+}
+
+describe("shadows mean action", () => {
+  it("casts a hard shadow only from something to act on", () => {
+    const css = STYLED.filter((file) => file.rel.endsWith(".css"));
+    expect(
+      css.flatMap((file) =>
+        passiveShadows(file.text).map((selector) => `${file.rel}: ${selector}`),
+      ),
+    ).toEqual([]);
+  });
+
+  it("flags a shadow on a tag or a picture and passes buttons and the focus card", () => {
+    const shadow = "{ box-shadow: var(--shadow-pill); }";
+    expect(passiveShadows(`.tag ${shadow}`)).toEqual([".tag"]);
+    expect(passiveShadows(`.ob-stage-art ${shadow}`)).toEqual([
+      ".ob-stage-art",
+    ]);
+    expect(passiveShadows(`.ob-step.now > span ${shadow}`)).toEqual([
+      ".ob-step.now > span",
+    ]);
+    expect(
+      passiveShadows(
+        `.button, .nav a.active, button.cal-card:hover, .card-focus ${shadow}`,
+      ),
+    ).toEqual([]);
+    expect(
+      passiveShadows(
+        `.ob-bar > .button:not(.button-ghost, :disabled) ${shadow}`,
+      ),
+    ).toEqual([]);
+    expect(passiveShadows(".tag { box-shadow: none; }")).toEqual([]);
+  });
+});
+
 describe("visual system", () => {
   it("allows only the hard shadow tokens and no blur", () => {
     expect(
