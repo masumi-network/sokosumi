@@ -31,6 +31,7 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   publish_social_post: "social_post",
   generate_image: "studio_job",
   generate_video: "studio_job",
+  generate_talking_video: "studio_job",
   upload_file: "file",
   move_file: "file",
   delete_file: "file",

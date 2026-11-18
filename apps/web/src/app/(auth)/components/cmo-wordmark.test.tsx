@@ -4,12 +4,11 @@ import { describe, expect, it } from "vitest";
 import { CmoWordmark } from "./cmo-wordmark";
 
 describe("CmoWordmark", () => {
-  it("draws CMO.xyz's wordmark in the text colour, named for screen readers", () => {
+  it("shows the approved wordmark file for each theme, named for screen readers", () => {
     const html = renderToStaticMarkup(<CmoWordmark />);
 
-    expect(html).toContain('aria-label="CMO.xyz"');
-    expect(html).toContain('role="img"');
-    expect(html).toContain('fill="currentColor"');
-    expect(html.match(/<path /g)).toHaveLength(14);
+    expect(html.match(/alt="CMO\.xyz"/g)).toHaveLength(2);
+    expect(html).toMatch(/dark:hidden[^>]*cmo-xyz-dela-black\.svg/);
+    expect(html).toMatch(/hidden[^>]*dark:block[^>]*cmo-xyz-dela-white\.svg/);
   });
 });

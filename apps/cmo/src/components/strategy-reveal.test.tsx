@@ -178,7 +178,7 @@ describe("strategy reveal", () => {
     );
     expect(planned).toContain("What the posts are about");
     expect(planned).toContain("Shows setup takes minutes");
-    expect(planned).toContain("4 pieces planned");
+    expect(planned).toContain("4 posts planned");
     expect(planned).not.toContain("% made");
 
     const made = {

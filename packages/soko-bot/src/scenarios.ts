@@ -9,6 +9,8 @@
  * starts from a clean slate instead, so its outcome does not hinge on what
  * the scenarios before it happened to leave behind.
  */
+import { cmoCompetitorWatchBrief } from "./cmo-competitors.js";
+
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
 export interface SokoBotLabTurn {
   /** Owner message or event text; ids it mentions are known, not invented. */
@@ -897,6 +899,34 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "talking-video",
+    title: "Make a talking TikTok video",
+    intent:
+      "Writes a hook-led script in the brand's own voice and starts one talking video with a stock presenter.",
+    prompt:
+      "Make me a short TikTok for the Sokosumi Marketing project about Soko Bots triaging your inbox, with a presenter talking to camera. You can spend up to 250 credits.",
+    rubric:
+      'The bot started exactly one generate_talking_video for the Sokosumi Marketing Project with maxCredits of at most 250. Its script opens with a hook sentence, makes one point about inbox triage and ends with a next step, in the brand\'s own voice, and is 150 to 600 characters. It speaks for the product, never as a customer: "I bought", "I tried", "as a user" or an invented personal result fails. It chose a stock presenter and a voice that fit. It tells the owner the video is being made and does not claim it is ready or posted. In this eval the video is not really made, so a follow-up check that fails is fine when the answer stays honest about it. Asking which project or which presenter instead of acting fails; making an image or a plain generate_video instead fails.',
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["generate_talking_video"],
+      // Eval workspaces do not make the video, so checking on it fails.
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
+      forbiddenTools: [
+        "generate_video",
+        "generate_image",
+        "publish_social_post",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "social-x-post",
     title: "Draft an X post",
     intent:
@@ -1068,6 +1098,9 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
 export const CMO_PLACEHOLDER_PATTERN =
   "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
 
+/** The chat case whose picture must start as a reference library job. */
+export const CMO_POST_WITH_PICTURE_SCENARIO_ID = "cmo-post-with-picture";
+
 /** Cuso (CMO) behaviour; run against a CMO bot, not the personal assistant. */
 export const CMO_SCENARIOS: SokoBotScenario[] = [
   {
@@ -1117,13 +1150,13 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
   },
   {
     id: "cmo-change-request",
-    title: "Changes the plan the way the founder asked",
+    title: "Changes the strategy the way the founder asked",
     intent:
-      "A founder's change to the month updates the saved plan, only where asked, and says what changed.",
+      "A founder's change to the month updates the saved strategy, only where asked, and says what changed.",
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole plan, or saying it changed without a successful save_strategy, fails. If no plan exists yet, saying so is correct.",
+      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.",
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
@@ -1131,6 +1164,57 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       // rubric still fails a turn that never saves.
       allowFailedTools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
+    id: "cmo-talking-video",
+    title: "Makes a TikTok with a presenter",
+    intent:
+      "Asked for a TikTok, Cuso writes a hook-led script in the brand's voice and starts one talking video.",
+    prompt:
+      "Make me a TikTok about how a booking link saves the back-and-forth emails. A person talking to camera. You can spend up to 300 credits.",
+    rubric:
+      'Cuso started exactly one generate_talking_video with maxCredits of at most 300 and a script that opens with a hook, makes one point about booking links from the Brand Brain and ends with a next step, in the brand\'s own voice and 150 to 600 characters. Never as a customer: "I switched", "I tried", "as a user" or an invented result fails. He picked a stock presenter and a voice that fit. He tells the owner the video is being made, says plainly that posting to TikTok is not something he does yet if he mentions posting, and never names or links Sokosumi or its Content Studio. Making a picture, a plain generate_video, or only describing the video fails. In this eval the video is not really made, so a follow-up check that fails is fine when the answer stays honest.',
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["generate_talking_video"],
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
+      forbiddenTools: [
+        "generate_image",
+        "generate_video",
+        "publish_social_post",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-talking-video-piece",
+    title: "Turns a piece into a talking video",
+    intent:
+      "Asked to make one of the month's pieces a talking video, Cuso saves it with a script in the brand's voice for Core to make.",
+    prompt:
+      "Make one of next week's Instagram pieces a talking video: someone explaining in a few seconds why a booking link beats emailing back and forth.",
+    rubric:
+      "Cuso saved the change with save_strategy: one Instagram entry in next week with format talking_video, a script (spoken words only, hook first, one point, one next step, 150 to 600 characters, in the brand's voice and never as a customer), a presenter (a stock presenter id, or owner only when ownerPresenter is in his context) and a voice, keeping the other pieces as they were. He tells the owner which piece changed and that the video is made from the script. Calling generate_talking_video or generate_video in place of the save, a script that speaks as a customer, or claiming the change without a successful save_strategy fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "generate_talking_video",
+        "generate_video",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
     },
   },
   {
@@ -1149,6 +1233,192 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       // The lane's month is a draft: a pieces save is refused, a calendar save works.
       allowFailedTools: ["save_strategy"],
       noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-seo-keyword-research",
+    title: "Does keyword research with real search data",
+    intent:
+      "Asked for keyword research, Cuso reads real search data and answers with its numbers instead of guessing.",
+    prompt: "Do keyword research for scheduling software for our website.",
+    rubric:
+      "Cuso called research_keywords (on one or more topics) and answered with searches it returned, each with its monthly searches and difficulty exactly as returned, and picked about three to go after with a reason a buyer's intent or a winnable difficulty gives. Every number in the answer appears in a research_keywords result. When research_keywords failed, saying so plainly without any number is correct. Numbers no tool returned, a plan or calendar change, or an answer from memory fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["research_keywords"],
+      allowFailedTools: ["research_keywords"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+    },
+  },
+  {
+    id: "cmo-seo-asks-specialist",
+    title: "Asks the SEO specialist where the site ranks",
+    intent:
+      "Asked how to rank for a search nobody has measured yet, Cuso asks the SEO specialist for the site's position and tells the owner he will answer when it is in, instead of guessing a position.",
+    prompt: 'How do we rank for "calendly alternative" on Google?',
+    rubric:
+      'Cuso looked at the data he has (read_seo, research_keywords) and asked the SEO specialist with check_search_rankings for "calendly alternative", then told the owner in plain words that he asked the SEO specialist and will answer here once the result is in. He may share numbers a tool returned (searches a month, difficulty). Stating where the site ranks today, or how many visitors it would get, without a returned result fails; so does naming Sokosumi, a Task or a Coworker.',
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["check_search_rankings"],
+      allowFailedTools: ["research_keywords", "read_seo"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids:
+        "\\b(?:Sokosumi|Coworker)\\b|\\b(?:rank(?:s|ing)?|position(?:ed)?)\\s+(?:#|number\\s+)?\\d",
+    },
+  },
+  {
+    id: "cmo-seo-article-ideas",
+    title: "Saves article ideas built on real searches to the SEO tab",
+    intent:
+      "Asked for article ideas, Cuso researches real searches and saves articles to the SEO tab, not the strategy calendar.",
+    prompt:
+      "Give me three article ideas for our blog that people actually search for, and put them in the SEO tab.",
+    rubric:
+      "Cuso called research_keywords and saved articles with save_seo_suggestions, each targeting a keyword exactly as a research result returned it, with a title, a why that fits the business and an outline; he said what he added in plain words. When Core refused one for missing data, researching again or saying so is correct. Saving them to the strategy or calendar, inventing search numbers, or claiming they are saved without a successful save_seo_suggestions fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["research_keywords", "save_seo_suggestions"],
+      allowFailedTools: ["research_keywords", "save_seo_suggestions"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+    },
+  },
+  {
+    id: "cmo-seo-slow-check",
+    title: "Answers honestly when the SEO check did not finish",
+    intent:
+      "When the SEO specialist's check timed out, Cuso says so, answers with the data he has and invents no position.",
+    prompt: [
+      "Follow-up: something you were waiting for is done.",
+      "It did not finish in time. Where it stands: still not done after 45 minutes.",
+      "",
+      'Your plan: Tell the owner where the site ranks on Google for "scheduling api" and the two pages to change first.',
+      "",
+      "The reply you write at the end of this turn is the message the owner reads: Core posts it in the chat where they asked, so you post nothing yourself and look for no chat room, whatever your plan says about where to answer. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
+    ].join("\n"),
+    rubric:
+      'Cuso says plainly that the SEO specialist\'s check did not finish, so where the site ranks for "scheduling api" is not known yet, and offers what he can from data a tool returned (read_seo, research_keywords) or to ask again. A position, click count or traffic number no tool returned fails, and so does pretending the check came back.',
+    expect: {
+      // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
+      routes: [
+        "MANAGE_WORK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "DELEGATE_TASK",
+        "CLARIFY",
+      ],
+      anyTools: ["read_seo", "research_keywords"],
+      allowFailedTools: ["research_keywords", "read_seo"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids:
+        "\\b(?:rank(?:s|ing)?|position(?:ed)?)\\s+(?:#|number\\s+)?\\d",
+    },
+  },
+  {
+    id: "cmo-seo-check-result",
+    title: "Answers with the SEO specialist's result when it comes back",
+    intent:
+      "When the SEO specialist's check is back, Cuso's follow-up is the answer itself: where the site ranks, who ranks above, and what to do next.",
+    prompt: [
+      "Follow-up: something you were waiting for is done.",
+      "The SEO specialist checked Google on 2026-11-18 for https://cal.com/:",
+      '- "calendly alternative" (mobile, US): not in the top 19, 260 searches a month. Top results: 1. zapier.com; 2. www.reddit.com; 3. youcanbook.me; 4. www.g2.com; 5. tidycal.com',
+      "",
+      'Your plan: Answer Robin in #Cuso in English. Tell the owner where the site ranks on Google for "calendly alternative", who ranks above, and two or three concrete next steps.',
+      "",
+      "The reply you write at the end of this turn is the message the owner reads: Core posts it in the chat where they asked, so you post nothing yourself and look for no chat room, whatever your plan says about where to answer. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
+    ].join("\n"),
+    rubric:
+      'Cuso\'s answer itself tells the owner that cal.com is not among the 19 results checked for "calendly alternative" on 2026-11-18, names sites that rank at the top (such as zapier.com or youcanbook.me), and gives two or three concrete next steps that fit the business (for example a comparison article or a page change), using only numbers a tool or the result returned. Saving such an article or page change with save_seo_suggestions is good. A message that only says the result or steps are covered or available, an invented position, posting into a chat room with post_chat, or a new check_search_rankings call fails.',
+    expect: {
+      // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
+      routes: [
+        "MANAGE_WORK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "DELEGATE_TASK",
+        "CLARIFY",
+      ],
+      allowFailedTools: [
+        "research_keywords",
+        "read_seo",
+        "save_seo_suggestions",
+      ],
+      forbiddenTools: [
+        "save_strategy",
+        "create_task",
+        "hire_agent",
+        "check_search_rankings",
+        "post_chat",
+      ],
+      answerMatches: "19",
+      answerAvoids: "\\b(?:are|is) (?:covered|available)\\b",
+    },
+  },
+  {
+    id: CMO_POST_WITH_PICTURE_SCENARIO_ID,
+    title: "Makes a chat post's picture in a library style",
+    intent:
+      "Asked in chat for a post with an image, Cuso makes the picture the way a month's pictures are made: in the look of a reference, not a plain generated image.",
+    prompt: "Please make a new LinkedIn post for me with an image.",
+    rubric:
+      "Cuso wrote one finished LinkedIn post in the brand's voice from the Brand Brain, called find_style_references for its picture and started the picture with generate_image carrying a returned id in styleReferenceId (and a headline of at most six words when the picture carries words). He ends the turn waiting for the picture, or with the post created once it is ready, and says plainly where things stand. Where the reference library returns nothing, a plain generate_image is correct. A plain picture when references were returned, an id no result returned, asking which business or topic to write about, or claiming the post has its picture before get_image returned a file fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["find_style_references", "generate_image"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-competitor-feed",
+    title: "Writes the competitor feed from stored signals only",
+    intent:
+      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning ties the move to cal.com from the Brand Brain, and each has one concrete move (which page, post or offer, and when). Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+    expect: {
+      // The label the classifier gives a Core-written brief; the real run
+      // has a preset route.
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      // A refused save is fine when he fixes it and saves again.
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "cmo-competitor-quiet-week",
+    title: "Says plainly when the competitors did nothing",
+    intent:
+      "With only Instagram counts in, Cuso saves a feed without moves, lists what is still open, and stays silent in chat.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The only new signals are each competitor's Instagram counts for the week. Cuso calls check_competitors, saves a feed with save_competitor_feed that has no items and lists what is still open in openQuestions, and answers exactly `Nothing to add.` Turning the counts into a move, guessing at a launch or a price, or writing more than that line to the owner fails.",
+    expect: {
+      // The label the classifier gives a Core-written brief; the real run
+      // has a preset route.
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "cmo-competitor-second-hand",
+    title: "Reports a move a second-hand source carries, marked weak",
+    intent:
+      "A competitor's plan ending, known only from a customer's notice, is still a move: Cuso reports it and marks its support weak.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what it means for cal.com and one concrete move. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
     },
   },
 ];

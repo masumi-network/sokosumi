@@ -1,6 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
+import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import {
@@ -95,6 +97,7 @@ export const ACTION_LABELS: Record<string, string> = {
   remove_skill: "Removed skill",
   generate_image: "Started image",
   generate_video: "Started video",
+  generate_talking_video: "Started talking video",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",
@@ -338,11 +341,25 @@ function describeRead(capability: string, value: unknown): string[] {
  */
 const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
 
-function inputCovers(later: unknown, earlier: unknown): boolean {
+/**
+ * A talking video refused for its price is made again with a shorter script,
+ * as the refusal asks: the same video for the owner.
+ */
+const REWRITTEN_KEYS: Record<string, Set<string>> = {
+  generate_talking_video: new Set(["script", "maxCredits"]),
+};
+
+function inputCovers(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  const rewritten = REWRITTEN_KEYS[capability];
   return Object.entries(earlier).every(
     ([key, value]) =>
       FILE_NAMING_KEYS.has(key) ||
+      rewritten?.has(key) ||
       JSON.stringify(later[key]) === JSON.stringify(value),
   );
 }
@@ -464,7 +481,7 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input)),
+          inputCovers(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(
@@ -703,23 +720,27 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
+  const text = silent
+    ? "Nothing to add."
+    : calls.length || narrativeText.length
+      ? [
+          actionText.join("\n"),
+          reportedByCard ? "" : attachments.join("\n"),
+          narrativeText.join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n") || "Nothing to add."
+      : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
+        ? "Nothing was changed in this turn."
+        : answerText;
   return {
     appliedReceiptIds,
     narrative,
     observations,
     unfulfilledActions,
-    answerText: silent
-      ? "Nothing to add."
-      : calls.length || narrativeText.length
-        ? [
-            actionText.join("\n"),
-            reportedByCard ? "" : attachments.join("\n"),
-            narrativeText.join("\n"),
-          ]
-            .filter(Boolean)
-            .join("\n\n") || "Nothing to add."
-        : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
-          ? "Nothing was changed in this turn."
-          : answerText,
+    // Cuso's owner reads this in CMO.xyz, where nothing opens Sokosumi.
+    answerText: (await isCmo())
+      ? withoutSokosumiLinks(text, getWebAppBaseUrl())
+      : text,
   };
 }

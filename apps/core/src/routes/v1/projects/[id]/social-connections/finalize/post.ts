@@ -58,14 +58,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
 
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
-    const { connectionId } = c.req.valid("json");
+    const input = c.req.valid("json");
 
     try {
       const connection = await finalizeProjectSocialConnection({
         projectId,
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
-        connectionId,
+        ...input,
       });
       await scheduleSocialAccountRefresh({
         projectId,

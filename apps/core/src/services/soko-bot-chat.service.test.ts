@@ -212,6 +212,36 @@ describe("persistSokoBotChatTurn", () => {
     );
   });
 
+  it("shows a Cuso's summary to every member, with his tools in CMO's words", async () => {
+    const events = [
+      {
+        type: "reasoning.completed",
+        toolName: null,
+        summary: "The owner wants a calmer look.",
+      },
+      {
+        type: "actions.requested",
+        toolName: "find_style_references",
+        summary: null,
+      },
+      { type: "actions.requested", toolName: "create_task", summary: null },
+    ];
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        events,
+        versionId: "cmo-v1",
+        askedByUserId: "teammate-a",
+      }),
+    );
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(messageUpdate.mock.calls[0][0].data.metadata.reasoning).toEqual([
+      { type: "reasoning", text: "The owner wants a calmer look." },
+      { type: "reasoning", text: "Looking for a picture style", kind: "step" },
+      // No Sokosumi feature by name in CMO: a tool without its own label.
+      { type: "reasoning", text: "Working", kind: "step" },
+    ]);
+  });
+
   it("attaches prepared snapshots only to the successful answer, without a second post", async () => {
     const snapshot = {
       workspaceId: "workspace",
@@ -268,7 +298,7 @@ describe("persistSokoBotChatTurn", () => {
     await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     const metadata = messageUpdate.mock.calls[0][0].data.metadata;
     expect(metadata.reasoning).toEqual([
-      { type: "reasoning", text: ANSWERED_DIRECTLY },
+      { type: "reasoning", text: ANSWERED_DIRECTLY, kind: "note" },
     ]);
     expect(metadata.thought_timing_ms).toEqual(
       expect.objectContaining({ start: expect.any(Number) }),
@@ -586,6 +616,37 @@ describe("publishSokoBotChatProgress", () => {
       }),
     );
     expect(publish).not.toHaveBeenCalled();
+  });
+  it("publishes the reasoning summary with the steps while the turn runs", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        status: "RUNNING",
+        chatResponseMessageId: "response-live",
+        events: [
+          {
+            type: "reasoning.completed",
+            toolName: null,
+            summary: "Checking what is on the calendar first.",
+          },
+          { type: "actions.requested", toolName: "list_tasks", summary: null },
+        ],
+      }),
+    );
+    messageUpdate.mockResolvedValue({ count: 1 });
+    await publishSokoBotChatProgress("turn-a");
+    expect(messageUpdate.mock.calls[0][0].data.metadata).toEqual(
+      expect.objectContaining({
+        streaming: true,
+        reasoning: [
+          {
+            type: "reasoning",
+            text: "Checking what is on the calendar first.",
+          },
+          { type: "reasoning", text: "list tasks", kind: "step" },
+        ],
+      }),
+    );
+    expect(publish).toHaveBeenCalledWith("response-live", "update");
   });
   it("writes nothing once the turn no longer holds the mention", async () => {
     // Retry released it to a fresh attempt while this write was delayed.

@@ -42,7 +42,7 @@ type Position =
 export const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "site", label: "Research" },
   { id: "brand", label: "Brand" },
-  { id: "plan", label: "Plan" },
+  { id: "plan", label: "Strategy" },
   { id: "checkout", label: "Subscribe" },
   { id: "launch", label: "Launch" },
 ];

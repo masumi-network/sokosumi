@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  canMoveTaskToProject,
   getDefaultTaskContextSelection,
   getTaskContextSelectionFromDescription,
   TaskContextAttachmentsField,
@@ -279,5 +280,52 @@ describe("TaskContextAttachmentsField", () => {
     expect(
       screen.getByRole("button", { name: "briefing" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("canMoveTaskToProject", () => {
+  const launch = {
+    id: "proj_1",
+    name: "Launch",
+    briefingUrl: "https://blob.example/briefing/launch.md",
+  };
+  const bare = { id: "proj_2", name: "Bare" };
+  const linksOnly = `[BRIEFING.md](${launch.briefingUrl})`;
+
+  it("lets a Task with its own text move anywhere", () => {
+    expect(
+      canMoveTaskToProject(`${linksOnly}\n\nShip it`, {
+        from: launch,
+        to: undefined,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks a links-only Task from a move that would leave it empty", () => {
+    expect(canMoveTaskToProject(linksOnly, { from: launch, to: bare })).toBe(
+      false,
+    );
+    expect(
+      canMoveTaskToProject(linksOnly, { from: launch, to: undefined }),
+    ).toBe(false);
+  });
+
+  it("allows a links-only move where a Context file survives", () => {
+    expect(
+      canMoveTaskToProject(linksOnly, {
+        from: launch,
+        to: { ...bare, briefingUrl: "https://blob.example/briefing/bare.md" },
+      }),
+    ).toBe(true);
+  });
+
+  it("does not count a workspace brand the Task has switched off", () => {
+    expect(
+      canMoveTaskToProject(linksOnly, {
+        from: launch,
+        to: bare,
+        defaultBrandUrl: "https://blob.example/design-md/workspace.md",
+      }),
+    ).toBe(false);
   });
 });

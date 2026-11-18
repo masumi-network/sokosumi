@@ -212,12 +212,12 @@ async function dailyAdBudget(cuso: Cuso) {
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const plan = parseMarketingPlan(approved?.plan);
   if (!approved || !plan) {
-    throw new CmoConflictError("Approve a plan before launching ads");
+    throw new CmoConflictError("Approve a strategy before launching ads");
   }
   const ads = plan.ads;
   if (!ads || ads.monthly <= 0) {
     throw new CmoConflictError(
-      "Your plan has no ad budget. Ask Cuso to add one, then launch.",
+      "Your strategy has no ad budget. Ask Cuso to add one, then launch.",
     );
   }
   return {
@@ -276,7 +276,7 @@ export async function requireAdBudgetRoom(input: {
   const budget = await dailyAdBudget(input.cuso);
   if (input.account.currency.toUpperCase() !== budget.currency) {
     throw new CmoConflictError(
-      `Your plan's ad budget is in ${budget.currency}, but this ad account bills in ${input.account.currency}. Ask Cuso to set the budget in ${input.account.currency}.`,
+      `Your strategy's ad budget is in ${budget.currency}, but this ad account bills in ${input.account.currency}. Ask Cuso to set the budget in ${input.account.currency}.`,
     );
   }
   const running = await runningPerDay(
@@ -288,7 +288,7 @@ export async function requireAdBudgetRoom(input: {
   );
   if (running + input.dailyBudget > budget.perDay + 0.005) {
     throw new CmoConflictError(
-      `That would spend ${money(running + input.dailyBudget, budget.currency)} a day, and your plan allows ${money(budget.perDay, budget.currency)} (${money(budget.monthly, budget.currency)} a month). Pause another ad or raise the budget.`,
+      `That would spend ${money(running + input.dailyBudget, budget.currency)} a day, and your strategy allows ${money(budget.perDay, budget.currency)} (${money(budget.monthly, budget.currency)} a month). Pause another ad or raise the budget.`,
     );
   }
 }

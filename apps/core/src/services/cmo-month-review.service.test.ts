@@ -525,7 +525,9 @@ describe("cmoRewriteMessage", () => {
         },
       ],
     });
-    expect(message).toContain("- Lead routing: plan 50%, made 75% (3 pieces)");
+    expect(message).toContain(
+      "- Lead routing: planned 50%, made 75% (3 pieces)",
+    );
     expect(message).toContain(
       '- c · x/post · "Piece c" · misses its network\'s writing skill',
     );
@@ -547,7 +549,7 @@ describe("cmoRewriteMessage", () => {
         },
       ],
     });
-    expect(message).not.toContain("These pillars are off the plan");
+    expect(message).not.toContain("These pillars are off the strategy");
   });
 });
 
@@ -596,7 +598,9 @@ describe("advanceCmoMonthReview", () => {
     );
     const [message, runId] = startRewrite.mock.calls[0] ?? [];
     expect(runId).toBe("cmo-production:bot-1:1:review:4");
-    expect(message).toContain("- Lead routing: plan 50%, made 75% (3 pieces)");
+    expect(message).toContain(
+      "- Lead routing: planned 50%, made 75% (3 pieces)",
+    );
     expect(message).toContain(
       '- c · linkedin/post · "Piece c" · pillar Setup in minutes, but reads as Lead routing',
     );
@@ -646,7 +650,7 @@ describe("advanceCmoMonthReview", () => {
     });
     const [message] = startRewrite.mock.calls[0] ?? [];
     expect(message).toContain('- b · linkedin/post · "Piece b" · misses "');
-    expect(message).not.toContain("These pillars are off the plan");
+    expect(message).not.toContain("These pillars are off the strategy");
   });
 
   it("stores the review and rewrites nothing when every piece holds", async () => {
