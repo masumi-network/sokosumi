@@ -47,7 +47,7 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({}),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
-vi.mock("@/lib/redis", () => ({ getRedisClient: () => null }));
+vi.mock("@/lib/redis", () => ({ getRedisRateLimitClient: () => null }));
 vi.mock("@/lib/soko-bot/jev", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   evaluateWithJev: m.jev,
