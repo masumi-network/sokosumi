@@ -417,6 +417,33 @@ export async function prepareCmoChatCase(
     return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup === "cmo-seo-skipped") {
+    const skipped = {
+      status: "dismissed",
+      title: "The best Calendly alternatives for teams",
+    };
+    await prisma.projectSeoSuggestion.upsert({
+      where: {
+        projectId_key: {
+          projectId: lane.cusoProjectId,
+          key: "article:calendly alternative",
+        },
+      },
+      create: {
+        projectId: lane.cusoProjectId,
+        kind: "article",
+        key: "article:calendly alternative",
+        source: "cuso",
+        keyword: "calendly alternative",
+        why: "Buyers comparing schedulers search this.",
+        body: "## Why teams switch\n## How Cal.com compares",
+        evidence: [],
+        ...skipped,
+      },
+      update: skipped,
+    });
+    return {};
+  }
   if (setup !== "cmo-comments") return {};
   await prisma.socialComment.deleteMany({
     where: { projectId: lane.cusoProjectId },

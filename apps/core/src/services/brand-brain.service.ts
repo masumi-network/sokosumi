@@ -16,7 +16,7 @@ import {
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
-import { keepAnswers } from "@/helpers/question-answers";
+import { keepAskedQuestions } from "@/helpers/question-answers";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
@@ -26,6 +26,9 @@ import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
  * it, edited and confirmed by any member of its Workspace. Callers check that
  * membership; nothing here is CMO's.
  */
+
+/** As `brandBrainSchema` allows. */
+const BRAND_BRAIN_QUESTIONS_MAX = 6;
 
 export function parseBrandBrain(value: unknown): BrandBrain | null {
   const parsed = brandBrainSchema.safeParse(value);
@@ -136,7 +139,11 @@ export async function saveBrandBrain(
     const sent = save.questions ?? save.brandBrain?.questions ?? [];
     const questions = withCorrections(
       sent.length > 0
-        ? keepAnswers(sent, before?.questions ?? [])
+        ? keepAskedQuestions(
+            sent,
+            before?.questions ?? [],
+            BRAND_BRAIN_QUESTIONS_MAX,
+          )
         : (before?.questions ?? []),
       before?.questions ?? [],
       rewrittenSections(stored.profile, profile),
