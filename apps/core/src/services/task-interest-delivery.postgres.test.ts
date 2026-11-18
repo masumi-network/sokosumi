@@ -329,9 +329,7 @@ describe.skipIf(!enabled)("Task interest delivery", () => {
     const again = await prisma.$transaction((tx) =>
       followTask(tx, task, users.follower),
     );
-    expect(again).toMatchObject([
-      { user: { id: users.follower }, sokoBot: { id: followerBotId } },
-    ]);
+    expect(again).toMatchObject([{ user: { id: users.follower } }]);
     expect(
       await prisma.taskParticipant.count({ where: { taskId: task.id } }),
     ).toBe(0);

@@ -112,18 +112,6 @@ export const taskFollowerSchema = z
       description: "When this person started following the Task.",
       example: "2026-09-24T12:00:00.000Z",
     }),
-    sokoBot: z
-      .object({
-        id: z.string().uuid(),
-        avatarSeed: z.string().nullable(),
-        avatarImageUrl: z.string().nullable(),
-        avatarCode: z.string().nullable(),
-      })
-      .nullable()
-      .openapi({
-        description:
-          "The follower's personal Soko Bot in the Task's workspace, which reports the Task's moments to them. Null when that bot is archived or gone. While it is null or the bot is paused, the moments go to the bell.",
-      }),
   })
   .openapi("TaskFollower");
 

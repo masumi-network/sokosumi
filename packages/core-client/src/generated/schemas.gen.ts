@@ -8974,49 +8974,11 @@ export const TaskFollowerSchema = {
             format: 'date-time',
             example: '2026-09-24T12:00:00.000Z',
             description: 'When this person started following the Task.'
-        },
-        sokoBot: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                avatarSeed: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
-                },
-                avatarImageUrl: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
-                },
-                avatarCode: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'avatarSeed',
-                'avatarImageUrl',
-                'avatarCode'
-            ],
-            description: 'The follower\'s personal Soko Bot in the Task\'s workspace, which reports the Task\'s moments to them. Null when that bot is archived or gone. While it is null or the bot is paused, the moments go to the bell.'
         }
     },
     required: [
         'user',
-        'followedAt',
-        'sokoBot'
+        'followedAt'
     ]
 } as const;
 
@@ -54642,13 +54604,45 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        id: {
+            type: 'string'
+        },
+        userId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarCode: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
         'status',
         'activeTurnId',
         'lastTurnAt',
-        'lastActivityAt'
+        'lastActivityAt',
+        'id',
+        'userId',
+        'avatarSeed',
+        'avatarImageUrl',
+        'avatarCode'
     ]
 } as const;
 

@@ -2372,15 +2372,6 @@ export type TaskFollower = {
      * When this person started following the Task.
      */
     followedAt: Date;
-    /**
-     * The follower's personal Soko Bot in the Task's workspace, which reports the Task's moments to them. Null when that bot is archived or gone. While it is null or the bot is paused, the moments go to the bell.
-     */
-    sokoBot: {
-        id: string;
-        avatarSeed: string | null;
-        avatarImageUrl: string | null;
-        avatarCode: string | null;
-    } | null;
 };
 
 export type TaskFile = {
@@ -13688,6 +13679,11 @@ export type SokoBotActivity = {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
     lastActivityAt: Date | null;
+    id: string;
+    userId: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    avatarCode: string | null;
 };
 
 export type CreateSokoBotRequest = {

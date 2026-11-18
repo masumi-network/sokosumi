@@ -31,23 +31,7 @@ export function isFollowingSokoBot(bot: {
 
 /** Follower row include for every response that lists followers. */
 export const taskFollowerRowInclude = {
-  user: {
-    select: {
-      id: true,
-      name: true,
-      image: true,
-      sokoBots: {
-        where: personalSokoBotWhere,
-        select: {
-          id: true,
-          workspaceId: true,
-          avatarSeed: true,
-          avatarImageUrl: true,
-          avatarCode: true,
-        },
-      },
-    },
-  },
+  user: { select: { id: true, name: true, image: true } },
 } as const;
 
 /** Followers in follow order: UUID v7 ids sort by creation. */
@@ -63,28 +47,15 @@ type TaskFollowerRow = Prisma.TaskFollowerGetPayload<{
 }>;
 
 export function mapTaskFollowerRows(
-  task: { id: string; workspaceId: string },
+  task: { id: string },
   rows: readonly TaskFollowerRow[],
 ) {
-  return rows.map((row) => {
-    const bot = row.user.sokoBots.find(
-      (candidate) => candidate.workspaceId === task.workspaceId,
-    );
-    return {
-      user: userSummaryFromLoadedRelation(
-        `Task ${task.id} follower`,
-        row.userId,
-        row.user,
-      ),
-      followedAt: row.createdAt,
-      sokoBot: bot
-        ? {
-            id: bot.id,
-            avatarSeed: bot.avatarSeed,
-            avatarImageUrl: bot.avatarImageUrl,
-            avatarCode: bot.avatarCode,
-          }
-        : null,
-    };
-  });
+  return rows.map((row) => ({
+    user: userSummaryFromLoadedRelation(
+      `Task ${task.id} follower`,
+      row.userId,
+      row.user,
+    ),
+    followedAt: row.createdAt,
+  }));
 }
