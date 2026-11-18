@@ -75,6 +75,22 @@ describe("SEO statistics presentation", () => {
     });
   });
 
+  it("restores the selected cached property with its actual collection date", () => {
+    const original = metric();
+    const cached = {
+      ...original,
+      selectedAt: new Date("2026-10-31T10:00:00Z"),
+    };
+    const later = metric({
+      propertyId: "properties/456",
+      observedAt: new Date("2026-10-30T10:00:00Z"),
+    });
+    expect(latestSeoMeasurements([later, cached])).toEqual([cached]);
+    expect(savedSeoStatistics([later, cached])?.observedAt).toEqual(
+      original.observedAt,
+    );
+  });
+
   it("chooses the Search Console property that holds the page, and guesses nothing on a tie", () => {
     const property = (id: string, name = id) => ({ id, name });
     const page = "https://shop.example.com/boots";
@@ -111,6 +127,21 @@ describe("SEO statistics presentation", () => {
       ]),
     ).toBe("https://shop.example.com/boots");
     expect(choose(["sc-domain:a.com", "sc-domain:b.com"], undefined)).toBe("");
+  });
+
+  it("matches URL-prefix properties by origin and normalized property URL", () => {
+    const choose = (id: string, page: string) =>
+      seoMatchingProperty("search_console", [{ id, name: id }], page);
+    expect(choose("https://example.com", "https://example.com.au/guide")).toBe(
+      "",
+    );
+    for (const id of [
+      "https://EXAMPLE.com/",
+      "https://example.com:443/",
+      "https://example.com",
+    ]) {
+      expect(choose(id, "https://example.com/guide")).toBe(id);
+    }
   });
 
   it("chooses the one Google Analytics property that names the host", () => {

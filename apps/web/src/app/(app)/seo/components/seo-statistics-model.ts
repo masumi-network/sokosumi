@@ -2,7 +2,10 @@ import type {
   ProjectSeoMetric,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
-import { seoStatisticsLostData } from "@sokosumi/utils";
+import {
+  seoSearchUrlPrefixCovers,
+  seoStatisticsLostData,
+} from "@sokosumi/utils";
 import { seoWindowDays } from "./seo-performance-model";
 import type { SeoChartMarker } from "./seo-trend-model";
 
@@ -21,7 +24,8 @@ export type SeoStatisticsProvider = "ga4" | "search_console";
 
 function newestFirst(left: ProjectSeoMetric, right: ProjectSeoMetric) {
   return (
-    new Date(right.observedAt).getTime() - new Date(left.observedAt).getTime()
+    new Date(right.selectedAt ?? right.observedAt).getTime() -
+    new Date(left.selectedAt ?? left.observedAt).getTime()
   );
 }
 
@@ -87,9 +91,10 @@ export function seoMatchingProperty(
   pageUrl: string | undefined,
 ): string {
   if (provider === "ga4" && properties.length === 1) return properties[0].id;
+  if (!pageUrl) return "";
   let page: URL;
   try {
-    page = new URL(pageUrl ?? "");
+    page = new URL(pageUrl);
   } catch {
     return "";
   }
@@ -111,7 +116,9 @@ export function seoMatchingProperty(
         ? DOMAIN_PROPERTY_RANK + domain.length
         : 0;
     }
-    return page.href.startsWith(property.id) ? property.id.length : 0;
+    return seoSearchUrlPrefixCovers(property.id, [pageUrl])
+      ? property.id.length
+      : 0;
   };
   let best = "";
   let bestRank = 0;

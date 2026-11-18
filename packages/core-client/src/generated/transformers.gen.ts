@@ -4496,6 +4496,9 @@ const projectSeoActionSchemaResponseTransformer = (data: any) => {
 
 const projectSeoMetricSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
+    if (data.selectedAt) {
+        data.selectedAt = new Date(data.selectedAt);
+    }
     return data;
 };
 

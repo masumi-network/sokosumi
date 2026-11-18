@@ -11493,6 +11493,7 @@ export type ProjectSeoMetric = {
     timeZone: string;
     channel: 'all' | 'organic' | 'ai_assistant';
     observedAt: Date;
+    selectedAt?: Date;
     coverage: 'complete' | 'partial' | 'unavailable';
     points: Array<{
         date: string;

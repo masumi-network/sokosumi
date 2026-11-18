@@ -441,6 +441,7 @@ export const seoMetricSchema = z
     timeZone: z.string(),
     channel: seoTrafficChannelSchema,
     observedAt: dateTimeSchema,
+    selectedAt: dateTimeSchema.optional(),
     coverage: z.enum(["complete", "partial", "unavailable"]),
     points: z.array(
       z.object({ date: seoDateSchema, value: z.number().nullable() }),

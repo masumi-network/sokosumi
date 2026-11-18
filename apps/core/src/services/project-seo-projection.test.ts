@@ -1302,6 +1302,35 @@ describe("stored SEO workspace projections", () => {
     );
   });
 
+  it("retains the original sync event and Google dates after cached selection, including legacy collections", () => {
+    const input = fixture();
+    const measured = "2026-11-03T12:00:00.000Z",
+      selected = "2026-11-04T11:00:00.000Z";
+    const first = searchObservation(input, measured);
+    const fingerprint = "a".repeat(64);
+    const original = {
+      ...first,
+      payload: { ...first.payload, collectionFingerprint: fingerprint },
+    };
+    const activation = {
+      ...original,
+      id: randomUUID(),
+      observedAt: new Date(selected),
+      createdAt: new Date(selected),
+      payload: {
+        ...original.payload,
+        collectedAt: measured,
+        observedAt: selected,
+      },
+    };
+    input.observations = [activation, original];
+    const result = projectSeoProjection(input);
+    expect(
+      result.timeline.filter((row) => row.kind === "metrics"),
+    ).toMatchObject([{ at: measured, observationId: original.id }]);
+    expect(result.searchQueries?.observedAt).toBe(measured);
+  });
+
   it("keeps every metric sync on the timeline while showing only the latest compatible total", () => {
     const input = fixture();
     input.observations = [

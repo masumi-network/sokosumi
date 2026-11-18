@@ -43956,6 +43956,11 @@ export const ProjectSeoMetricSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        selectedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         coverage: {
             type: 'string',
             enum: [

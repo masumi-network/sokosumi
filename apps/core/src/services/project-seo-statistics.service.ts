@@ -5,7 +5,6 @@ import {
   SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
   SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
@@ -89,6 +88,11 @@ import {
   recordNativeSeoMetrics,
 } from "./project-seo.service";
 import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
+import {
+  applyStatisticsInspections,
+  collectStatisticsInspections,
+  inspectionCacheKey,
+} from "./project-seo-statistics-inspections";
 import {
   requireSeoOwner,
   type SeoMutationHooks,
@@ -339,7 +343,7 @@ export async function syncProjectSeoStatistics(
     hooks,
     readWorkspace,
     activate: retain,
-    collect: async (fingerprint, collectionHooks) => {
+    collect: async (fingerprint, collectionHooks, cached) => {
       const choices = await propertyChoices(integration, input.provider).catch(
         async (error) => {
           await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -359,6 +363,35 @@ export async function syncProjectSeoStatistics(
         throw unprocessableEntity(
           "The Search Console property does not cover the selected pages",
         );
+      let inspectionTool: Promise<SeoNativeTool> | undefined;
+      const collectIndexedPages = () =>
+        collectStatisticsInspections(
+          actor,
+          inspectionCacheKey(actor, integration, input.propertyId),
+          pageUrls,
+          async (pageUrl) => {
+            inspectionTool ??= toolFor(integration, GSC_INSPECT_TOOL);
+            const raw = await read(
+              integration,
+              await inspectionTool,
+              gscInspectionArguments(input.propertyId, pageUrl),
+            );
+            return normalizeGscInspection(
+              pageUrl,
+              unwrapNativeStatistics(raw, ["inspectionResult"]),
+            );
+          },
+          cached,
+        );
+      if (cached) {
+        const updated = {
+          ...cached,
+          collectedAt: cached.collectedAt ?? cached.observedAt,
+          observedAt: new Date().toISOString(),
+        };
+        applyStatisticsInspections(updated, await collectIndexedPages());
+        return retain(updated, collectionHooks);
+      }
       const tool = await toolFor(
         integration,
         input.provider === "ga4" ? GA4_STATS_TOOL : GSC_STATS_TOOL,
@@ -517,29 +550,6 @@ export async function syncProjectSeoStatistics(
           },
         };
       };
-      // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
-      const collectIndexedPages = async () => {
-        if (input.provider !== "search_console") return null;
-        const inspect = await toolFor(integration, GSC_INSPECT_TOOL);
-        const results = await Promise.allSettled(
-          pageUrls.map(async (pageUrl) =>
-            normalizeGscInspection(
-              pageUrl,
-              unwrapNativeStatistics(
-                await read(
-                  integration,
-                  inspect,
-                  gscInspectionArguments(input.propertyId, pageUrl),
-                ),
-                ["inspectionResult"],
-              ),
-            ),
-          ),
-        );
-        return results.flatMap((result) =>
-          result.status === "fulfilled" ? [result.value] : [],
-        );
-      };
       const tracked = readsQueries
         ? selectTrackedKeywords(workspace.keywords)
         : { groups: [], leftOut: [] };
@@ -588,7 +598,7 @@ export async function syncProjectSeoStatistics(
         collectPrevious(),
         collectBreakdown("country"),
         collectBreakdown("device"),
-        collectIndexedPages(),
+        input.provider === "search_console" ? collectIndexedPages() : null,
         collectLandingPages(),
       ]);
       if (period.status === "rejected" && daily.status === "rejected") {
@@ -670,13 +680,8 @@ export async function syncProjectSeoStatistics(
         else if (device) metrics.devices = device.split;
         if (byCountry.status === "rejected" || byDevice.status === "rejected")
           metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
-        if (indexed.status === "fulfilled" && indexed.value?.length)
-          metrics.indexedPages = indexed.value;
-        if (
-          indexed.status === "rejected" ||
-          (indexed.value?.length ?? 0) < pageUrls.length
-        )
-          metrics.notes.push(SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE);
+        if (indexed.status === "rejected") throw indexed.reason;
+        if (indexed.value) applyStatisticsInspections(metrics, indexed.value);
         if (tracked.leftOut.length)
           metrics.notes.push(
             seoStatisticsKeywordsLeftOutNote(

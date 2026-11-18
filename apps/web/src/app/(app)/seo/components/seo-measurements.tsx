@@ -59,6 +59,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const reported = seoMeasuredPeriod(visible);
   const canSync = workspace.availableActions.canSyncMetrics;
   const needsProperty = model.statisticsSync.state === "needs_property";
+  const { sitesWithoutProperty } = model.statisticsSync;
   // Only the empty card asks: a connected account with nothing synced needs a sync, not a connection.
   const connection = useSeoConnectionStatus("search_console", !active).status
     .data?.status;
@@ -254,6 +255,27 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         )
       }
     >
+      {sitesWithoutProperty.length > 0 ? (
+        <div
+          role="status"
+          className={cn(HOLDER_ITEM_CLASS, "space-y-2 p-4 text-sm sm:p-5")}
+        >
+          <p>
+            {t("statistics.propertyNotMatching", {
+              sites: format.list(sitesWithoutProperty),
+            })}
+          </p>
+          {!active && !needsProperty ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => model.openStatistics("search_console")}
+            >
+              {t("manageStatistics")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {needsProperty ? (
         <div
           role="status"
@@ -442,7 +464,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             </details>
           </div>
         </div>
-      ) : needsProperty ? null : (
+      ) : needsProperty || sitesWithoutProperty.length > 0 ? null : (
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4 sm:p-5")}>
           <h3 className="font-medium">{t("overview.trafficSetup")}</h3>
           <p className="text-muted-foreground max-w-prose text-sm">
