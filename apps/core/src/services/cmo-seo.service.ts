@@ -671,8 +671,13 @@ async function seedAuditPageChanges(projectId: string): Promise<void> {
   const audit = await latestCmoSeoAudit(projectId);
   if (!audit) return;
   const at = audit.observedAt.toISOString();
+  const rowIdOf = new Map(
+    audit.payload.findings.map((finding) => [finding.id, finding.rowId]),
+  );
   for (const action of audit.payload.actions) {
-    const rowIds = action.findingIds.map((id) => id.split(":")[0]);
+    // A report of several pages prefixes its finding ids with the page's index.
+    const rowIds = action.findingIds.flatMap((id) => rowIdOf.get(id) ?? []);
+    if (rowIds.length === 0) continue;
     const key = auditSuggestionKey(action.pageUrl, rowIds);
     const findings = audit.payload.findings.filter(
       (finding) =>
