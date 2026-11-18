@@ -165,8 +165,11 @@ function TasksBoardLoading({
 
 function TasksListLoading({ compact }: { compact: boolean }) {
   return (
-    <div className="bg-card-background overflow-hidden rounded-xl p-2">
-      <div aria-hidden className="flex flex-col gap-2">
+    <div className="bg-card-background md:bg-background md:border-border overflow-hidden rounded-xl p-2 md:border md:p-0">
+      <div
+        aria-hidden
+        className="md:divide-border flex flex-col gap-2 md:gap-0 md:divide-y"
+      >
         {Array.from({ length: LIST_SKELETON_ROW_COUNT }, (_, rowIndex) => (
           // Mirrors `TaskListView`: cards below `md`, rows from `md` up.
           <div key={`row-${rowIndex}`}>
@@ -176,12 +179,12 @@ function TasksListLoading({ compact }: { compact: boolean }) {
             <div
               data-testid="task-row-skeleton"
               className={cn(
-                "bg-background hidden items-center gap-3 rounded-lg border border-border px-3 md:flex",
+                "hidden items-center gap-3 px-3 md:flex",
                 compact ? "py-1.5" : "py-2.5",
               )}
             >
               <TextLineSkeleton className="w-2/5 text-sm" />
-              <TextLineSkeleton className="ms-auto w-28 shrink-0 text-xs lg:w-36" />
+              <TextLineSkeleton className="ms-auto w-40 shrink-0 text-xs" />
               <Skeleton className="size-5 shrink-0 rounded-full" />
             </div>
           </div>

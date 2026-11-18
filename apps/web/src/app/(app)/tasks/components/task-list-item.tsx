@@ -48,11 +48,14 @@ export function TaskListItem({
     // status and the people, and leaves tags, dates and the comment count
     // to the wide one, so the title keeps its room.
     "flex items-center gap-3 text-xs",
-    "bg-background rounded-lg border border-border px-3 transition-colors",
+    // The list draws the surface and the hairlines. A row lifted out of it
+    // by a drag brings its own box.
+    "px-3 transition-colors",
     compact ? "py-1.5" : "py-2.5",
     "hover:bg-accent",
     "press content-in",
-    (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
+    (dragHandleProps?.isDragging || isOverlay) &&
+      "bg-senary border-border rounded-lg border shadow-sm",
   );
   const row = (
     <>
@@ -70,7 +73,10 @@ export function TaskListItem({
       >
         {hasName ? task.name : t("noTitle")}
       </span>
-      <span className="hidden min-w-0 shrink-[2] lg:flex">
+      {/* Tags give way before the title does, down to a width that still
+          reads, so a tag is never cut to one letter. They and the date show
+          only where the title still has room beside them. */}
+      <span className="hidden max-w-48 min-w-20 shrink-[3] overflow-x-clip xl:flex">
         <TaskTags
           tags={task.tags}
           showManualTopics={!compact}
@@ -93,12 +99,12 @@ export function TaskListItem({
         <TaskStatusBadge
           status={task.status}
           label={statusLabels?.[task.status]}
-          className="w-28 lg:w-36"
+          className="w-40"
           plain
         />
         {/* One date, as on a board card: a scheduled Task says when it
             starts, and that it is late only once it is. */}
-        <span className="hidden w-44 items-center gap-2 lg:flex">
+        <span className="hidden w-44 items-center gap-2 xl:flex">
           {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
           {task.dueOn ? (
             <TaskDueBadge
@@ -119,7 +125,7 @@ export function TaskListItem({
             participants={task.participants}
           />
         </span>
-        <span className="text-muted-foreground hidden w-8 items-center gap-1 lg:flex">
+        <span className="text-muted-foreground hidden w-8 items-center gap-1 xl:flex">
           {task.commentsCount > 0 ? (
             <>
               <MessageSquare className="size-3.5" aria-hidden />
