@@ -17,6 +17,7 @@ import { cusoArt } from "../cuso";
 import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
 import { CusoScene } from "./cuso-scene";
+import { PresenterCard } from "./presenter-card";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
 function strategyChannels(overview: CmoOverview): string[] {
@@ -85,6 +86,8 @@ interface LaunchStepProps {
     provider: SocialProvider,
   ) => Promise<{ url: string | null; error: string | null }>;
   onConnectAds: AdActions["connectAds"];
+  onSetPresenter: (photo: string) => Promise<{ error: string | null }>;
+  onClearPresenter: () => Promise<{ error: string | null }>;
   /** Records the finish and opens the app. */
   onGoToday: () => void;
   /** Why a connection came back without an account, from the return address. */
@@ -101,6 +104,8 @@ export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
+  onSetPresenter,
+  onClearPresenter,
   onGoToday,
   notice = null,
 }: LaunchStepProps) {
@@ -223,6 +228,10 @@ export function LaunchStep({
   const later = optional.filter(({ key }) =>
     isAds(key) ? !overview.adProviders.includes(key) : !connected.has(key),
   );
+  // The selfie offer is for a month with talking videos in it.
+  const talkingVideos = calendar.some(
+    (entry) => entry.format === "talking_video",
+  );
   // Only a social network of the plan needs connecting before Launch.
   const accounts = required.length > 0;
 
@@ -293,6 +302,14 @@ export function LaunchStep({
             })}
           </ul>
         </div>
+      ) : null}
+
+      {talkingVideos ? (
+        <PresenterCard
+          initiallySet={overview.presenterSet}
+          onSet={onSetPresenter}
+          onClear={onClearPresenter}
+        />
       ) : null}
 
       {later.length > 0 ? (

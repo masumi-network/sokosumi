@@ -1167,6 +1167,57 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-talking-video",
+    title: "Makes a TikTok with a presenter",
+    intent:
+      "Asked for a TikTok, Cuso writes a hook-led script in the brand's voice and starts one talking video.",
+    prompt:
+      "Make me a TikTok about how a booking link saves the back-and-forth emails. A person talking to camera. You can spend up to 300 credits.",
+    rubric:
+      'Cuso started exactly one generate_talking_video with maxCredits of at most 300 and a script that opens with a hook, makes one point about booking links from the Brand Brain and ends with a next step, in the brand\'s own voice and 150 to 600 characters. Never as a customer: "I switched", "I tried", "as a user" or an invented result fails. He picked a stock presenter and a voice that fit. He tells the owner the video is being made, says plainly that posting to TikTok is not something he does yet if he mentions posting, and never names or links Sokosumi or its Content Studio. Making a picture, a plain generate_video, or only describing the video fails. In this eval the video is not really made, so a follow-up check that fails is fine when the answer stays honest.',
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["generate_talking_video"],
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
+      forbiddenTools: [
+        "generate_image",
+        "generate_video",
+        "publish_social_post",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-talking-video-piece",
+    title: "Turns a piece into a talking video",
+    intent:
+      "Asked to make one of the month's pieces a talking video, Cuso saves it with a script in the brand's voice for Core to make.",
+    prompt:
+      "Make one of next week's Instagram pieces a talking video: someone explaining in a few seconds why a booking link beats emailing back and forth.",
+    rubric:
+      "Cuso saved the change with save_strategy: one Instagram entry in next week with format talking_video, a script (spoken words only, hook first, one point, one next step, 150 to 600 characters, in the brand's voice and never as a customer), a presenter (a stock presenter id, or owner only when ownerPresenter is in his context) and a voice, keeping the other pieces as they were. He tells the owner which piece changed and that the video is made from the script. Calling generate_talking_video or generate_video in place of the save, a script that speaks as a customer, or claiming the change without a successful save_strategy fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "generate_talking_video",
+        "generate_video",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "cmo-picture-style",
     title: "Gives a picture the look of an old print",
     intent:
