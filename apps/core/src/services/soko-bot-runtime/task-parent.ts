@@ -20,6 +20,12 @@ import { type RuntimeOperations } from "./operations";
  * a Task under its parent and answer it.
  */
 const TASK_PARENT_CLAIM = "TASK_PARENT";
+/**
+ * The claim of a parent change that also moves the Task to the parent's
+ * Project. update_task claims it for a Project change, so one wake cannot
+ * change the Project twice.
+ */
+const TASK_STATE_CLAIM = "TASK_STATE";
 
 /**
  * Attaches a Task under a parent, moves it to another parent, or detaches it.
@@ -41,12 +47,16 @@ export async function setTaskParent(
     );
   if (input.afterTaskId && input.parentTaskId === null)
     throw new SokoBotRuntimeValidationError("afterTaskId needs parentTaskId");
+  // The Tasks the move writes. afterTaskId only marks a place in the
+  // checklist, so it needs the reader check, not write scope.
   const taskIds = [
     ...new Set([
       input.taskId,
       ...(input.parentTaskId ? [input.parentTaskId] : []),
-      ...(input.afterTaskId ? [input.afterTaskId] : []),
     ]),
+  ];
+  const readIds = [
+    ...new Set([...taskIds, ...(input.afterTaskId ? [input.afterTaskId] : [])]),
   ];
   const { result, projectChanged, workspaceId } = await serializableTransaction(
     async (tx) => {
@@ -61,7 +71,7 @@ export async function setTaskParent(
       // a parent; the sibling too, so afterTaskId cannot probe hidden ids.
       const visible = await tx.task.findMany({
         where: {
-          id: { in: taskIds },
+          id: { in: readIds },
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
           ...buildSokoBotReaderTaskWhere(authorized.reader),
@@ -75,8 +85,11 @@ export async function setTaskParent(
         },
       });
       const current = visible.find((task) => task.id === input.taskId);
-      if (visible.length !== taskIds.length || !current)
+      if (visible.length !== readIds.length || !current)
         throw new SokoBotRuntimeValidationError("Task not found");
+      const parent = visible.find((task) => task.id === input.parentTaskId);
+      const changesProject =
+        parent !== undefined && parent.projectId !== current.projectId;
       const claim = await claimTaskEventAction(
         tx,
         {
@@ -85,7 +98,7 @@ export async function setTaskParent(
           source: authorized.turn.source ?? "CHAT",
         },
         input.taskId,
-        TASK_PARENT_CLAIM,
+        changesProject ? TASK_STATE_CLAIM : TASK_PARENT_CLAIM,
       );
       if (!claim.allowed)
         throw new SokoBotRuntimeAuthorizationError(

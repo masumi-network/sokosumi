@@ -3395,8 +3395,13 @@ describe("SokoBotRuntimeService authorization", () => {
           );
           // resolveTaskIds finds each id as given.
           taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
-          // Every row lock finds its row.
-          transactionTurnLockMock.mockResolvedValue([{ id: "locked" }]);
+          // Every row lock finds each row it asks for.
+          transactionTurnLockMock.mockImplementation(
+            async (_query: unknown, ids: unknown) =>
+              Array.isArray(ids)
+                ? ids.map((id) => ({ id }))
+                : [{ id: "locked" }],
+          );
           transactionTaskUpdateMock.mockImplementation(
             async (args: { where: { id: string }; data: object }) => ({
               ...row(args.where.id, null),
@@ -3656,23 +3661,26 @@ describe("SokoBotRuntimeService authorization", () => {
           expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
         });
 
-        it("checks the afterTaskId against a shared bot's write scope", async () => {
+        it("checks the afterTaskId with the reader, not a shared bot's write scope", async () => {
           sharedTurn("set_task_parent", PROJECT_BOT);
           tree({ [TASK_ID]: null, [PARENT_ID]: null, [SIBLING_ID]: PARENT_ID });
-          // The sibling is outside the bot's Project.
+          // Only the moved Task and its parent are written.
           transactionTaskCountMock.mockResolvedValue(2);
           await expect(
             setParent({ parentTaskId: PARENT_ID, afterTaskId: SIBLING_ID }),
-          ).rejects.toThrow("Task not found");
+          ).resolves.toMatchObject({ parentTaskId: PARENT_ID });
           expect(transactionTaskCountMock).toHaveBeenCalledWith({
             where: {
-              AND: [
-                { id: { in: [TASK_ID, PARENT_ID, SIBLING_ID] } },
-                expect.anything(),
-              ],
+              AND: [{ id: { in: [TASK_ID, PARENT_ID] } }, expect.anything()],
             },
           });
-          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+          expect(subtaskMove.taskFindMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({
+                id: { in: [TASK_ID, PARENT_ID, SIBLING_ID] },
+              }),
+            }),
+          );
         });
 
         it("on an event wake, does not collide with a status reply on the same Task", async () => {
@@ -3704,6 +3712,44 @@ describe("SokoBotRuntimeService authorization", () => {
           await expect(claimStatusReply()).resolves.toMatchObject({
             allowed: true,
           });
+        });
+
+        it("on an event wake, claims TASK_STATE when the parent's Project moves the Task", async () => {
+          sharedTurn("set_task_parent", PERSONAL_BOT, SCOPE.userId, "EVENT");
+          tree(
+            { [TASK_ID]: null, [PARENT_ID]: null },
+            { projects: { [PARENT_ID]: OTHER_PROJECT } },
+          );
+          const { claims, keyOf } = wake();
+          // update_task already changed the Project on this wake.
+          claims.set(
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+            {
+              id: "claim_update",
+              turnId: SCOPE.turnId,
+              handlerBotId: SCOPE.sokoBotId,
+              receiptId: "receipt_update",
+            },
+          );
+          await expect(setParent({ parentTaskId: PARENT_ID })).rejects.toThrow(
+            "Someone else answered or changed this Task",
+          );
+          expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+
+          // And the reverse: the Project change takes TASK_STATE, not TASK_PARENT.
+          claims.clear();
+          await setParent({ parentTaskId: PARENT_ID }, "call_set_parent_2");
+          expect([...claims.keys()]).toEqual([
+            keyOf({
+              taskId: TASK_ID,
+              triggeringEventId: WAKE_EVENT_ID,
+              actionKind: "TASK_STATE",
+            }),
+          ]);
         });
 
         it("on an event wake, refuses a second parent change of the same Task", async () => {
