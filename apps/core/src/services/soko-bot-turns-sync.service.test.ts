@@ -34,6 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SOKO_BOT_START_RECOVERY_GRACE_MS: 120_000,
+  SOKO_BOT_TURN_STALE_HEARTBEAT_MS: 45_000,
   sokoBotControlPlane: {
     expireTurn: expireTurnMock,
     recoverStartingTurn: recoverStartingTurnMock,
@@ -42,8 +43,8 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   },
 }));
 
+import { SOKO_BOT_TURN_STALE_HEARTBEAT_MS } from "@/services/soko-bot-control-plane.service";
 import {
-  SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   SOKO_BOT_TURN_STARTING_ABANDON_MS,
   SOKO_BOT_TURN_STARTING_GRACE_MS,
   sokoBotTurnsSyncService,
