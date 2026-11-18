@@ -3731,6 +3731,7 @@ export type ChatResultOutput = {
              */
             fileUrl: string;
             name: string;
+            aiGenerated?: boolean;
             size: number;
             mimeType: string;
             kind: 'image' | 'gif' | 'video';
@@ -10721,6 +10722,7 @@ export type SocialPostMediaRef = {
      */
     fileUrl: string;
     name: string;
+    aiGenerated?: boolean;
     size: number;
     mimeType: string;
     kind: 'image' | 'gif' | 'video';
@@ -10741,6 +10743,7 @@ export type SocialPostMediaRef = {
              */
             fileUrl: string;
             name: string;
+            aiGenerated?: boolean;
             size: number;
             mimeType: string;
             kind: 'image' | 'gif' | 'video';

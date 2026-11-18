@@ -56,7 +56,7 @@ export async function publishTikTokVideo(
   }
   const zernioAccountId = getZernioAccountId(context.connectedAccountId);
   if (zernioAccountId)
-    return publishZernioTikTokVideo(context, zernioAccountId, video.fileUrl);
+    return publishZernioTikTokVideo(context, zernioAccountId, video);
   const sessionId = await createComposioToolSession({
     toolkitSlug: "tiktok",
     connectedAccountId: context.connectedAccountId,

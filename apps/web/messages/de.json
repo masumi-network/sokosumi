@@ -4303,6 +4303,7 @@
       }
     },
     "TikTokStudio": {
+      "postToTikTok": "Auf TikTok posten",
       "title": "TikTok Studio",
       "intro": "Eine Person spricht dein Skript, mit Untertiteln, fertig für TikTok, Reels und Shorts.",
       "pickTitle": "Projekt auswählen",
